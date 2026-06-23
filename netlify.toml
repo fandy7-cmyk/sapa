@@ -1,0 +1,273 @@
+[build]
+  publish = "public"
+  functions = "netlify/functions"
+
+# ── Cache headers ─────────────────────────────────────────────
+# landing.html & app.html: selalu fresh
+[[headers]]
+  for = "/landing.html"
+  [headers.values]
+    Cache-Control = "no-cache, no-store, must-revalidate"
+    Pragma = "no-cache"
+    Expires = "0"
+
+[[headers]]
+  for = "/app.html"
+  [headers.values]
+    Cache-Control = "no-cache, no-store, must-revalidate"
+    Pragma = "no-cache"
+    Expires = "0"
+
+# index.html: selalu fresh (SPA entry point, tidak boleh di-cache)
+[[headers]]
+  for = "/index.html"
+  [headers.values]
+    Cache-Control = "no-cache, no-store, must-revalidate"
+    Pragma = "no-cache"
+    Expires = "0"
+
+# JS & CSS: cache agresif (sudah ada versioning ?v=xxx di URL)
+[[headers]]
+  for = "/js/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+[[headers]]
+  for = "/css/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+# ── API sub-path → functions (spesifik dulu, urutan penting!) ─
+[[redirects]]
+  from = "/api/surat-masuk/*"
+  to = "/.netlify/functions/surat-masuk/:splat"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/api/surat-keluar/*"
+  to = "/.netlify/functions/surat-keluar/:splat"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/api/bundles/*"
+  to = "/.netlify/functions/bundles/:splat"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/api/kinerja/*"
+  to = "/.netlify/functions/kinerja_function/:splat"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/api/links/*"
+  to = "/.netlify/functions/links/:splat"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/api/users/*"
+  to = "/.netlify/functions/users/:splat"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/api/auth/*"
+  to = "/.netlify/functions/auth/:splat"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/api/bidang"
+  to = "/.netlify/functions/bidang"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/api/bidang/*"
+  to = "/.netlify/functions/bidang/:splat"
+  status = 200
+  force = true
+
+# ── PERIODE ───────────────────────────────────────────────────
+[[redirects]]
+  from = "/api/periode"
+  to = "/.netlify/functions/periode"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/api/periode/*"
+  to = "/.netlify/functions/periode/:splat"
+  status = 200
+  force = true
+
+# ── UPLOAD ────────────────────────────────────────────────────
+[[redirects]]
+  from = "/api/upload"
+  to = "/.netlify/functions/upload"
+  status = 200
+  force = true
+
+# ── PENGUMUMAN ────────────────────────────────────────────────
+[[redirects]]
+  from = "/api/pengumuman"
+  to = "/.netlify/functions/pengumuman"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/api/pengumuman/*"
+  to = "/.netlify/functions/pengumuman/:splat"
+  status = 200
+  force = true
+
+# ── LANDING API ───────────────────────────────────────────────
+[[redirects]]
+  from = "/api/landing/*"
+  to = "/.netlify/functions/landing/:splat"
+  status = 200
+  force = true
+
+# ── VISIT COUNTER ─────────────────────────────────────────────
+[[redirects]]
+  from = "/api/visit"
+  to = "/.netlify/functions/visit"
+  status = 200
+  force = true
+
+# ── API root wildcard ─────────────────────────────────────────
+[[redirects]]
+  from = "/api/*"
+  to = "/.netlify/functions/:splat"
+  status = 200
+  force = true
+
+# ── File statis: jangan di-redirect ke function ──────────────
+[[redirects]]
+  from = "/js/*"
+  to = "/js/:splat"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/css/*"
+  to = "/css/:splat"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/favicon.png"
+  to = "/favicon.png"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/logokemenkes.png"
+  to = "/logokemenkes.png"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/logobkkbn.png"
+  to = "/logobkkbn.png"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/logobalut.png"
+  to = "/logobalut.png"
+  status = 200
+  force = true
+
+
+# ── /masuk → app.html (tanpa expose nama file) ───────────────
+[[redirects]]
+  from = "/masuk"
+  to = "/app.html"
+  status = 200
+  force = true
+
+# ── Landing page ─────────────────────────────────────────────
+# Root "/" → landing.html
+[[redirects]]
+  from = "/"
+  to = "/landing.html"
+  status = 200
+  force = true
+
+# app.html tetap bisa diakses langsung
+[[redirects]]
+  from = "/app.html"
+  to = "/app.html"
+  status = 200
+  force = true
+
+# ── landing.html statis
+[[redirects]]
+  from = "/landing.html"
+  to = "/landing.html"
+  status = 200
+  force = true
+
+# ── PEGAWAI ───────────────────────────────────────────────────
+[[redirects]]
+  from   = "/api/pegawai"
+  to     = "/.netlify/functions/pegawai"
+  status = 200
+
+[[redirects]]
+  from   = "/api/pegawai/*"
+  to     = "/.netlify/functions/pegawai/:splat"
+  status = 200
+
+# ── DOKUMEN PUBLIK ────────────────────────────────────────────
+[[redirects]]
+  from   = "/api/dokumen-publik"
+  to     = "/.netlify/functions/dokumen-publik"
+  status = 200
+
+[[redirects]]
+  from   = "/api/dokumen-publik/*"
+  to     = "/.netlify/functions/dokumen-publik/:splat"
+  status = 200
+
+# ── PROFIL ────────────────────────────────────────────────────
+[[redirects]]
+  from   = "/api/profil"
+  to     = "/.netlify/functions/profil"
+  status = 200
+
+# ── LANDING: pegawai / dokumen / profil ───────────────────────
+[[redirects]]
+  from   = "/api/landing/pegawai"
+  to     = "/.netlify/functions/landing/pegawai"
+  status = 200
+
+[[redirects]]
+  from   = "/api/landing/dokumen"
+  to     = "/.netlify/functions/landing/dokumen"
+  status = 200
+
+[[redirects]]
+  from   = "/api/landing/profil"
+  to     = "/.netlify/functions/landing/profil"
+  status = 200
+
+# ── /:slug → function redirect (bundle ATAU shortlink) ────────
+[[redirects]]
+  from = "/:slug"
+  to = "/.netlify/functions/redirect/:slug"
+  status = 200
+
+# ── Fallback → app.html (SPA) ────────────────────────────────
+[[redirects]]
+  from = "/*"
+  to = "/app.html"
+  status = 200
+
+[functions]
+  node_bundler = "esbuild"
