@@ -104,8 +104,62 @@
       font-size: .78rem !important;
     }
     .tahun-select-wrap .csel-trigger {
-      padding-top: 4px !important;
-      padding-bottom: 4px !important;
+      padding-top: 7px !important;
+      padding-bottom: 7px !important;
+      padding-left: 14px !important;
+      padding-right: 12px !important;
+      gap: 10px !important;
+    }
+    #kinerjaTahunWrap,
+    #ikkTahunWrap,
+    #spmTahunWrap {
+      gap: 12px !important;
+    }
+
+    /* ── Icon info banner akumulasi: pulse ringan biar noticeable ── */
+    .akumulasi-info-icon {
+      animation: akumulasiIconPulse 2.4s ease-in-out infinite;
+    }
+    @keyframes akumulasiIconPulse {
+      0%, 100% {
+        box-shadow: 0 0 0 0 rgba(245, 158, 11, .55);
+      }
+      50% {
+        box-shadow: 0 0 0 6px rgba(245, 158, 11, 0);
+      }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .akumulasi-info-icon { animation: none; }
+    }
+
+    /* ── Skala Nilai Peringkat Kinerja: rapikan di mobile ── */
+    @media (max-width: 640px) {
+      .skala-nilai-row {
+        display: grid !important;
+        grid-template-columns: 1fr 1fr;
+        align-items: stretch !important;
+        margin-left: 0 !important;
+        gap: 6px !important;
+        row-gap: 6px !important;
+        width: 100%;
+      }
+      .skala-nilai-row .skala-label {
+        grid-column: 1 / -1;
+        margin-right: 0 !important;
+        margin-bottom: 2px;
+      }
+      .skala-nilai-row .skala-badge {
+        width: 100%;
+        justify-content: center;
+      }
+      .skala-nilai-row .skala-sumber {
+        grid-column: 1 / -1;
+        white-space: normal !important;
+        border-left: none !important;
+        padding-left: 0 !important;
+        margin-left: 0 !important;
+        margin-top: 4px;
+      }
     }
   
 
@@ -193,10 +247,7 @@
     <div class="welcome-sub">Masuk menggunakan akun SAPA Anda</div>
 
     <div class="field">
-      <div class="field-lbl">
-        <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
-        Email
-      </div>
+      <div class="field-lbl">Email</div>
       <div class="field-inner">
         <span class="field-ico"><svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg></span>
         <input type="email" id="loginEmail" placeholder="nama@email.com" autocomplete="username" onkeydown="if(event.key==='Enter')document.getElementById('loginPassword').focus()" />
@@ -204,10 +255,7 @@
     </div>
 
     <div class="field">
-      <div class="field-lbl">
-        <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
-        Password
-      </div>
+      <div class="field-lbl">Password</div>
       <div class="field-inner">
         <span class="field-ico"><svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg></span>
         <input type="password" id="loginPassword" placeholder="••••••••" autocomplete="current-password" style="padding-right:42px" onkeydown="if(event.key==='Enter')doLogin()" />
@@ -575,8 +623,8 @@
         <div class="page-subtitle">Capaian Indikator Kinerja Perangkat Daerah</div>
 
         <!-- Periode aktif info + Selector Bulan -->
-        <div id="kinerjaBulanWrapper" style="display:flex;flex-direction:column;gap:16px;margin-bottom:14px">
-          <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+        <div id="kinerjaBulanWrapper" style="display:flex;flex-direction:column;gap:32px;margin-bottom:16px">
+          <div style="display:flex;align-items:center;gap:18px;flex-wrap:wrap;row-gap:12px">
             <div id="kinerjaActivePeriodeInfo" class="periode-info-bar" style="display:none;margin-bottom:0;align-self:center">
               <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
             </div>
@@ -587,23 +635,23 @@
               </div>
             </div>
             <!-- Skala Nilai Permendagri 86/2017 -->
-            <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-left:4px">
-              <span style="font-size:.65rem;font-weight:700;color:var(--teks);white-space:nowrap;margin-right:2px">Skala Nilai Peringkat Kinerja:</span>
-              <span style="display:flex;align-items:center;gap:5px;padding:4px 10px;border-radius:20px;background:#4ade80;border:1px solid #22c55e;font-size:.65rem;font-weight:700;color:#14532d;white-space:nowrap"><span style="width:8px;height:8px;border-radius:50%;background:currentColor;opacity:.5;display:inline-block;flex-shrink:0"></span>91–100% Sangat Tinggi</span>
-              <span style="display:flex;align-items:center;gap:5px;padding:4px 10px;border-radius:20px;background:#bbf7d0;border:1px solid #6ee7b7;font-size:.65rem;font-weight:700;color:#14532d;white-space:nowrap"><span style="width:8px;height:8px;border-radius:50%;background:currentColor;opacity:.5;display:inline-block;flex-shrink:0"></span>76–90% Tinggi</span>
-              <span style="display:flex;align-items:center;gap:5px;padding:4px 10px;border-radius:20px;background:#fef9c3;border:1px solid #fde047;font-size:.65rem;font-weight:700;color:#854d0e;white-space:nowrap"><span style="width:8px;height:8px;border-radius:50%;background:currentColor;opacity:.5;display:inline-block;flex-shrink:0"></span>66–75% Sedang</span>
-              <span style="display:flex;align-items:center;gap:5px;padding:4px 10px;border-radius:20px;background:#ffedd5;border:1px solid #fdba74;font-size:.65rem;font-weight:700;color:#9a3412;white-space:nowrap"><span style="width:8px;height:8px;border-radius:50%;background:currentColor;opacity:.5;display:inline-block;flex-shrink:0"></span>51–65% Rendah</span>
-              <span style="display:flex;align-items:center;gap:5px;padding:4px 10px;border-radius:20px;background:#fee2e2;border:1px solid #fca5a5;font-size:.65rem;font-weight:700;color:#991b1b;white-space:nowrap"><span style="width:8px;height:8px;border-radius:50%;background:currentColor;opacity:.5;display:inline-block;flex-shrink:0"></span>≤50% Sangat Rendah</span>
-              <span style="font-size:.68rem;color:var(--teks-muted);font-style:italic;white-space:nowrap;padding-left:4px">Sumber: Lampiran Permendagri No. 86 Tahun 2017</span>
+            <div class="skala-nilai-row" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-left:8px;row-gap:8px">
+              <span class="skala-label" style="font-size:.65rem;font-weight:700;color:var(--teks);white-space:nowrap;margin-right:6px">Skala Nilai Peringkat Kinerja:</span>
+              <span class="skala-badge" style="display:flex;align-items:center;gap:5px;padding:4px 10px;border-radius:20px;background:#4ade80;border:1px solid #22c55e;font-size:.65rem;font-weight:700;color:#14532d;white-space:nowrap"><span style="width:8px;height:8px;border-radius:50%;background:currentColor;opacity:.5;display:inline-block;flex-shrink:0"></span>91–100% Sangat Tinggi</span>
+              <span class="skala-badge" style="display:flex;align-items:center;gap:5px;padding:4px 10px;border-radius:20px;background:#bbf7d0;border:1px solid #6ee7b7;font-size:.65rem;font-weight:700;color:#14532d;white-space:nowrap"><span style="width:8px;height:8px;border-radius:50%;background:currentColor;opacity:.5;display:inline-block;flex-shrink:0"></span>76–90% Tinggi</span>
+              <span class="skala-badge" style="display:flex;align-items:center;gap:5px;padding:4px 10px;border-radius:20px;background:#fef9c3;border:1px solid #fde047;font-size:.65rem;font-weight:700;color:#854d0e;white-space:nowrap"><span style="width:8px;height:8px;border-radius:50%;background:currentColor;opacity:.5;display:inline-block;flex-shrink:0"></span>66–75% Sedang</span>
+              <span class="skala-badge" style="display:flex;align-items:center;gap:5px;padding:4px 10px;border-radius:20px;background:#ffedd5;border:1px solid #fdba74;font-size:.65rem;font-weight:700;color:#9a3412;white-space:nowrap"><span style="width:8px;height:8px;border-radius:50%;background:currentColor;opacity:.5;display:inline-block;flex-shrink:0"></span>51–65% Rendah</span>
+              <span class="skala-badge" style="display:flex;align-items:center;gap:5px;padding:4px 10px;border-radius:20px;background:#fee2e2;border:1px solid #fca5a5;font-size:.65rem;font-weight:700;color:#991b1b;white-space:nowrap"><span style="width:8px;height:8px;border-radius:50%;background:currentColor;opacity:.5;display:inline-block;flex-shrink:0"></span>≤50% Sangat Rendah</span>
+              <span class="skala-sumber" style="font-size:.68rem;color:var(--teks-muted);font-style:italic;white-space:nowrap;padding-left:10px;margin-left:4px;border-left:1px solid var(--abu-2, #e2e8f0)">Sumber: Lampiran Permendagri No. 86 Tahun 2017</span>
             </div>
           </div>
           <!-- Countdown timer periode input Monev -->
           <div id="kinerjaCountdownBar" style="display:none"></div>
 
           <!-- Info banner akumulasi Jumlah -->
-          <div id="kinerjaAkumulasiInfo" style="display:none;align-items:center;gap:10px;padding:9px 14px;background:linear-gradient(90deg,#f0fdfa 0%,#ccfbf1 100%);border:1.5px solid #5eead4;border-radius:10px;font-size:.78rem;font-weight:600;color:#0f766e;line-height:1.4">
-            <span style="display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;background:#99f6e4;border-radius:50%;flex-shrink:0">
-              <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="#0d9488" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
+          <div id="kinerjaAkumulasiInfo" style="display:none;align-items:center;gap:10px;margin-top:6px;padding:9px 14px;background:linear-gradient(90deg,#f0fdfa 0%,#ccfbf1 100%);border:1.5px solid #5eead4;border-radius:10px;font-size:.72rem;font-weight:600;color:#0f766e;line-height:1.4">
+            <span class="akumulasi-info-icon" style="display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;background:#fde68a;border-radius:50%;flex-shrink:0">
+              <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="#b45309" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
             </span>
             <span>
               Terdapat <strong id="kinerjaAkumulasiCount"></strong> indikator bertipe <strong>"Jumlah..."</strong> pada halaman ini.
@@ -661,8 +709,8 @@
         <div class="page-subtitle">Capaian Indikator Kinerja Kunci (IKK) Perangkat Daerah</div>
 
         <!-- Periode aktif info + Selector Bulan IKK -->
-        <div id="ikkBulanWrapper" style="display:flex;flex-direction:column;gap:16px;margin-bottom:14px">
-          <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+        <div id="ikkBulanWrapper" style="display:flex;flex-direction:column;gap:32px;margin-bottom:16px">
+          <div style="display:flex;align-items:center;gap:18px;flex-wrap:wrap;row-gap:12px">
             <div id="ikkActivePeriodeInfo" class="periode-info-bar" style="display:none;margin-bottom:0;align-self:center">
               <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
             </div>
@@ -673,23 +721,23 @@
               </div>
             </div>
             <!-- Skala Nilai Permendagri 86/2017 -->
-            <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-left:4px">
-              <span style="font-size:.65rem;font-weight:700;color:var(--teks);white-space:nowrap;margin-right:2px">Skala Nilai Peringkat Kinerja:</span>
-              <span style="display:flex;align-items:center;gap:5px;padding:4px 10px;border-radius:20px;background:#4ade80;border:1px solid #22c55e;font-size:.65rem;font-weight:700;color:#14532d;white-space:nowrap"><span style="width:8px;height:8px;border-radius:50%;background:currentColor;opacity:.5;display:inline-block;flex-shrink:0"></span>91–100% Sangat Tinggi</span>
-              <span style="display:flex;align-items:center;gap:5px;padding:4px 10px;border-radius:20px;background:#bbf7d0;border:1px solid #6ee7b7;font-size:.65rem;font-weight:700;color:#14532d;white-space:nowrap"><span style="width:8px;height:8px;border-radius:50%;background:currentColor;opacity:.5;display:inline-block;flex-shrink:0"></span>76–90% Tinggi</span>
-              <span style="display:flex;align-items:center;gap:5px;padding:4px 10px;border-radius:20px;background:#fef9c3;border:1px solid #fde047;font-size:.65rem;font-weight:700;color:#854d0e;white-space:nowrap"><span style="width:8px;height:8px;border-radius:50%;background:currentColor;opacity:.5;display:inline-block;flex-shrink:0"></span>66–75% Sedang</span>
-              <span style="display:flex;align-items:center;gap:5px;padding:4px 10px;border-radius:20px;background:#ffedd5;border:1px solid #fdba74;font-size:.65rem;font-weight:700;color:#9a3412;white-space:nowrap"><span style="width:8px;height:8px;border-radius:50%;background:currentColor;opacity:.5;display:inline-block;flex-shrink:0"></span>51–65% Rendah</span>
-              <span style="display:flex;align-items:center;gap:5px;padding:4px 10px;border-radius:20px;background:#fee2e2;border:1px solid #fca5a5;font-size:.65rem;font-weight:700;color:#991b1b;white-space:nowrap"><span style="width:8px;height:8px;border-radius:50%;background:currentColor;opacity:.5;display:inline-block;flex-shrink:0"></span>≤50% Sangat Rendah</span>
-              <span style="font-size:.68rem;color:var(--teks-muted);font-style:italic;white-space:nowrap;padding-left:4px">Sumber: Lampiran Permendagri No. 86 Tahun 2017</span>
+            <div class="skala-nilai-row" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-left:8px;row-gap:8px">
+              <span class="skala-label" style="font-size:.65rem;font-weight:700;color:var(--teks);white-space:nowrap;margin-right:6px">Skala Nilai Peringkat Kinerja:</span>
+              <span class="skala-badge" style="display:flex;align-items:center;gap:5px;padding:4px 10px;border-radius:20px;background:#4ade80;border:1px solid #22c55e;font-size:.65rem;font-weight:700;color:#14532d;white-space:nowrap"><span style="width:8px;height:8px;border-radius:50%;background:currentColor;opacity:.5;display:inline-block;flex-shrink:0"></span>91–100% Sangat Tinggi</span>
+              <span class="skala-badge" style="display:flex;align-items:center;gap:5px;padding:4px 10px;border-radius:20px;background:#bbf7d0;border:1px solid #6ee7b7;font-size:.65rem;font-weight:700;color:#14532d;white-space:nowrap"><span style="width:8px;height:8px;border-radius:50%;background:currentColor;opacity:.5;display:inline-block;flex-shrink:0"></span>76–90% Tinggi</span>
+              <span class="skala-badge" style="display:flex;align-items:center;gap:5px;padding:4px 10px;border-radius:20px;background:#fef9c3;border:1px solid #fde047;font-size:.65rem;font-weight:700;color:#854d0e;white-space:nowrap"><span style="width:8px;height:8px;border-radius:50%;background:currentColor;opacity:.5;display:inline-block;flex-shrink:0"></span>66–75% Sedang</span>
+              <span class="skala-badge" style="display:flex;align-items:center;gap:5px;padding:4px 10px;border-radius:20px;background:#ffedd5;border:1px solid #fdba74;font-size:.65rem;font-weight:700;color:#9a3412;white-space:nowrap"><span style="width:8px;height:8px;border-radius:50%;background:currentColor;opacity:.5;display:inline-block;flex-shrink:0"></span>51–65% Rendah</span>
+              <span class="skala-badge" style="display:flex;align-items:center;gap:5px;padding:4px 10px;border-radius:20px;background:#fee2e2;border:1px solid #fca5a5;font-size:.65rem;font-weight:700;color:#991b1b;white-space:nowrap"><span style="width:8px;height:8px;border-radius:50%;background:currentColor;opacity:.5;display:inline-block;flex-shrink:0"></span>≤50% Sangat Rendah</span>
+              <span class="skala-sumber" style="font-size:.68rem;color:var(--teks-muted);font-style:italic;white-space:nowrap;padding-left:10px;margin-left:4px;border-left:1px solid var(--abu-2, #e2e8f0)">Sumber: Lampiran Permendagri No. 86 Tahun 2017</span>
             </div>
           </div>
           <!-- Countdown timer periode input IKK -->
           <div id="ikkCountdownBar" style="display:none"></div>
 
           <!-- Info banner akumulasi Jumlah IKK -->
-          <div id="ikkAkumulasiInfo" style="display:none;align-items:center;gap:10px;padding:9px 14px;background:linear-gradient(90deg,#f0fdfa 0%,#ccfbf1 100%);border:1.5px solid #5eead4;border-radius:10px;font-size:.78rem;font-weight:600;color:#0f766e;line-height:1.4">
-            <span style="display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;background:#99f6e4;border-radius:50%;flex-shrink:0">
-              <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="#0d9488" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
+          <div id="ikkAkumulasiInfo" style="display:none;align-items:center;gap:10px;margin-top:6px;padding:9px 14px;background:linear-gradient(90deg,#f0fdfa 0%,#ccfbf1 100%);border:1.5px solid #5eead4;border-radius:10px;font-size:.72rem;font-weight:600;color:#0f766e;line-height:1.4">
+            <span class="akumulasi-info-icon" style="display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;background:#fde68a;border-radius:50%;flex-shrink:0">
+              <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="#b45309" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
             </span>
             <span>
               Terdapat <strong id="ikkAkumulasiCount"></strong> indikator bertipe <strong>"Jumlah..."</strong> pada halaman ini.
@@ -747,8 +795,8 @@
         <div class="page-subtitle">Capaian Standar Pelayanan Minimal Perangkat Daerah</div>
 
         <!-- Periode aktif info + Selector Bulan SPM -->
-        <div id="spmBulanWrapper" style="display:flex;flex-direction:column;gap:16px;margin-bottom:14px">
-          <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+        <div id="spmBulanWrapper" style="display:flex;flex-direction:column;gap:32px;margin-bottom:16px">
+          <div style="display:flex;align-items:center;gap:18px;flex-wrap:wrap;row-gap:12px">
             <div id="spmActivePeriodeInfo" class="periode-info-bar" style="display:none;margin-bottom:0;align-self:center">
               <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
             </div>
@@ -759,23 +807,23 @@
               </div>
             </div>
             <!-- Skala Nilai Permendagri 86/2017 -->
-            <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-left:4px">
-              <span style="font-size:.65rem;font-weight:700;color:var(--teks);white-space:nowrap;margin-right:2px">Skala Nilai Peringkat Kinerja:</span>
-              <span style="display:flex;align-items:center;gap:5px;padding:4px 10px;border-radius:20px;background:#4ade80;border:1px solid #22c55e;font-size:.65rem;font-weight:700;color:#14532d;white-space:nowrap"><span style="width:8px;height:8px;border-radius:50%;background:currentColor;opacity:.5;display:inline-block;flex-shrink:0"></span>91–100% Sangat Tinggi</span>
-              <span style="display:flex;align-items:center;gap:5px;padding:4px 10px;border-radius:20px;background:#bbf7d0;border:1px solid #6ee7b7;font-size:.65rem;font-weight:700;color:#14532d;white-space:nowrap"><span style="width:8px;height:8px;border-radius:50%;background:currentColor;opacity:.5;display:inline-block;flex-shrink:0"></span>76–90% Tinggi</span>
-              <span style="display:flex;align-items:center;gap:5px;padding:4px 10px;border-radius:20px;background:#fef9c3;border:1px solid #fde047;font-size:.65rem;font-weight:700;color:#854d0e;white-space:nowrap"><span style="width:8px;height:8px;border-radius:50%;background:currentColor;opacity:.5;display:inline-block;flex-shrink:0"></span>66–75% Sedang</span>
-              <span style="display:flex;align-items:center;gap:5px;padding:4px 10px;border-radius:20px;background:#ffedd5;border:1px solid #fdba74;font-size:.65rem;font-weight:700;color:#9a3412;white-space:nowrap"><span style="width:8px;height:8px;border-radius:50%;background:currentColor;opacity:.5;display:inline-block;flex-shrink:0"></span>51–65% Rendah</span>
-              <span style="display:flex;align-items:center;gap:5px;padding:4px 10px;border-radius:20px;background:#fee2e2;border:1px solid #fca5a5;font-size:.65rem;font-weight:700;color:#991b1b;white-space:nowrap"><span style="width:8px;height:8px;border-radius:50%;background:currentColor;opacity:.5;display:inline-block;flex-shrink:0"></span>≤50% Sangat Rendah</span>
-              <span style="font-size:.68rem;color:var(--teks-muted);font-style:italic;white-space:nowrap;padding-left:4px">Sumber: Lampiran Permendagri No. 86 Tahun 2017</span>
+            <div class="skala-nilai-row" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-left:8px;row-gap:8px">
+              <span class="skala-label" style="font-size:.65rem;font-weight:700;color:var(--teks);white-space:nowrap;margin-right:6px">Skala Nilai Peringkat Kinerja:</span>
+              <span class="skala-badge" style="display:flex;align-items:center;gap:5px;padding:4px 10px;border-radius:20px;background:#4ade80;border:1px solid #22c55e;font-size:.65rem;font-weight:700;color:#14532d;white-space:nowrap"><span style="width:8px;height:8px;border-radius:50%;background:currentColor;opacity:.5;display:inline-block;flex-shrink:0"></span>91–100% Sangat Tinggi</span>
+              <span class="skala-badge" style="display:flex;align-items:center;gap:5px;padding:4px 10px;border-radius:20px;background:#bbf7d0;border:1px solid #6ee7b7;font-size:.65rem;font-weight:700;color:#14532d;white-space:nowrap"><span style="width:8px;height:8px;border-radius:50%;background:currentColor;opacity:.5;display:inline-block;flex-shrink:0"></span>76–90% Tinggi</span>
+              <span class="skala-badge" style="display:flex;align-items:center;gap:5px;padding:4px 10px;border-radius:20px;background:#fef9c3;border:1px solid #fde047;font-size:.65rem;font-weight:700;color:#854d0e;white-space:nowrap"><span style="width:8px;height:8px;border-radius:50%;background:currentColor;opacity:.5;display:inline-block;flex-shrink:0"></span>66–75% Sedang</span>
+              <span class="skala-badge" style="display:flex;align-items:center;gap:5px;padding:4px 10px;border-radius:20px;background:#ffedd5;border:1px solid #fdba74;font-size:.65rem;font-weight:700;color:#9a3412;white-space:nowrap"><span style="width:8px;height:8px;border-radius:50%;background:currentColor;opacity:.5;display:inline-block;flex-shrink:0"></span>51–65% Rendah</span>
+              <span class="skala-badge" style="display:flex;align-items:center;gap:5px;padding:4px 10px;border-radius:20px;background:#fee2e2;border:1px solid #fca5a5;font-size:.65rem;font-weight:700;color:#991b1b;white-space:nowrap"><span style="width:8px;height:8px;border-radius:50%;background:currentColor;opacity:.5;display:inline-block;flex-shrink:0"></span>≤50% Sangat Rendah</span>
+              <span class="skala-sumber" style="font-size:.68rem;color:var(--teks-muted);font-style:italic;white-space:nowrap;padding-left:10px;margin-left:4px;border-left:1px solid var(--abu-2, #e2e8f0)">Sumber: Lampiran Permendagri No. 86 Tahun 2017</span>
             </div>
           </div>
           <!-- Countdown timer periode input SPM -->
           <div id="spmCountdownBar" style="display:none"></div>
 
           <!-- Info banner akumulasi Jumlah SPM -->
-          <div id="spmAkumulasiInfo" style="display:none;align-items:center;gap:10px;padding:9px 14px;background:linear-gradient(90deg,#f0fdfa 0%,#ccfbf1 100%);border:1.5px solid #5eead4;border-radius:10px;font-size:.78rem;font-weight:600;color:#0f766e;line-height:1.4">
-            <span style="display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;background:#99f6e4;border-radius:50%;flex-shrink:0">
-              <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="#0d9488" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
+          <div id="spmAkumulasiInfo" style="display:none;align-items:center;gap:10px;margin-top:6px;padding:9px 14px;background:linear-gradient(90deg,#f0fdfa 0%,#ccfbf1 100%);border:1.5px solid #5eead4;border-radius:10px;font-size:.72rem;font-weight:600;color:#0f766e;line-height:1.4">
+            <span class="akumulasi-info-icon" style="display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;background:#fde68a;border-radius:50%;flex-shrink:0">
+              <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="#b45309" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
             </span>
             <span>
               Terdapat <strong id="spmAkumulasiCount"></strong> indikator bertipe <strong>"Jumlah..."</strong> pada halaman ini.
@@ -864,6 +912,10 @@
               </select>
             </div>
             <button class="btn btn-primary btn-sm" onclick="openIndikatorModal()"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>Tambah Indikator</button>
+            <button class="btn btn-primary btn-sm" onclick="downloadIndikatorPDF(this)" title="Download data indikator (sesuai filter) sebagai PDF">
+              <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline stroke-linecap="round" stroke-linejoin="round" points="7 10 12 15 17 10"/><line stroke-linecap="round" stroke-linejoin="round" x1="12" y1="15" x2="12" y2="3"/></svg>
+              Download Indikator
+            </button>
           </div>
           <div class="card" style="padding:0;overflow:auto;-webkit-overflow-scrolling:touch">
             <table class="kinerja-table indikator-admin-table">
@@ -955,7 +1007,7 @@
         <div class="page-subtitle">Setting target per tahun untuk setiap indikator kinerja</div>
 
         <div class="toolbar" style="margin-top:14px;flex-wrap:wrap;gap:8px">
-          <div style="display:flex;align-items:center;gap:6px">
+          <div class="kt-tahun-wrap" style="display:flex;align-items:center;gap:6px">
             <span style="font-size:.8rem;color:var(--teks-muted);white-space:nowrap">Tampilkan tahun</span>
             <div class="select-wrap" style="min-width:90px">
               <select id="ktTahunDari" onchange="filterKelolaTarget()">

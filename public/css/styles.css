@@ -1112,7 +1112,7 @@ input[type="checkbox"].toggle:checked::after { left: 19px; }
 .kinerja-table th:first-child { border-radius:0; }
 .kinerja-table th:last-child  { border-radius:0; }
 .kinerja-table thead, .kinerja-table thead tr, .kinerja-table thead th { background:var(--hijau) !important; color:#fff; border-color:var(--hijau) !important; outline:none; }
-.kinerja-table-wrap.card { overflow:hidden; }
+.kinerja-table-wrap.card { overflow-x:auto !important; overflow-y:hidden; -webkit-overflow-scrolling:touch; }
 .card:has(> .kinerja-table),
 .card:has(> table.kinerja-table) { border-radius: var(--r-lg); overflow-y: hidden !important; }
 .kinerja-table th[style*="left:0"]    { z-index:4; background:var(--hijau); }
@@ -1470,8 +1470,8 @@ body.login-page::before {
 
 /* welcome section */
 .welcome-icon {
-  width: 72px; height: 72px; border-radius: var(--r-md);
-  background: none;
+  width: 72px; height: 72px; border-radius: 50%;
+  background: radial-gradient(circle at 30% 25%, rgba(13,148,136,.12), rgba(13,148,136,.03) 70%);
   display: flex; align-items: center; justify-content: center;
   margin: 0 auto var(--sp-5);
 }
@@ -1480,23 +1480,40 @@ body.login-page::before {
 .welcome-sub { font-size: var(--fs-sm); color: var(--teks-muted); margin-bottom: var(--sp-6); font-weight: 500; text-align: center; }
 
 /* login fields */
-.field-lbl { display: flex; align-items: center; gap: var(--sp-2); font-size: var(--fs-xs); font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: var(--teks-muted); margin-bottom: var(--sp-3); }
+.field-lbl { display: block; font-size: var(--fs-sm); font-weight: 600; color: var(--teks-mid); margin-bottom: var(--sp-3); }
 .field-inner { position: relative; }
-.field-ico { position: absolute; left: var(--sp-4); top: 50%; transform: translateY(-50%); color: #94a3b8; pointer-events: none; display: flex; align-items: center; transition: color var(--tr); }
-.field-inner:focus-within .field-ico { color: var(--cyan); }
+.field-ico {
+  position: absolute; left: var(--sp-3); top: 50%; transform: translateY(-50%);
+  width: 30px; height: 30px; border-radius: 50%;
+  background: rgba(13,148,136,.08); color: var(--cyan);
+  pointer-events: none; display: flex; align-items: center; justify-content: center;
+  transition: background var(--tr), color var(--tr), transform var(--tr);
+  z-index: 2;
+}
+.field-inner:focus-within .field-ico { background: var(--cyan); color: #fff; transform: translateY(-50%) scale(1.04); }
 .panel-right .field input {
-  padding: var(--sp-4) var(--sp-4) var(--sp-4) var(--sp-7);
-  background: var(--abu-1); border: 1.5px solid var(--abu-2); border-radius: var(--r-md);
+  padding: var(--sp-4) var(--sp-4) var(--sp-4) 52px;
+  background: #fff; border: 1.5px solid var(--abu-2); border-radius: var(--r-lg);
+  box-shadow: var(--shadow-sm);
+  transition: border-color var(--tr), box-shadow var(--tr), transform var(--tr);
 }
 .panel-right .field input::placeholder { color: #94a3b8; }
-.panel-right .field input:focus { background: #fff; border-color: var(--cyan); box-shadow: 0 0 0 var(--sp-1) rgba(13,148,136,.12); }
-.panel-right .field input.error { border-color: var(--red); box-shadow: 0 0 0 var(--sp-1) rgba(230,57,70,.08); }
-.pw-toggle {
-  position: absolute; right: var(--sp-4); top: 50%; transform: translateY(-50%);
-  background: none; border: none; cursor: pointer;
-  color: #94a3b8; padding: var(--sp-1); display: flex; align-items: center; transition: color var(--tr);
+.panel-right .field input:hover { border-color: #cbd5e1; }
+.panel-right .field input:focus {
+  background: #fff; border-color: var(--cyan);
+  box-shadow: 0 0 0 4px rgba(13,148,136,.14), var(--shadow-md);
+  transform: translateY(-1px);
 }
-.pw-toggle:hover { color: var(--cyan); }
+.panel-right .field input.error { border-color: var(--red); box-shadow: 0 0 0 4px rgba(230,57,70,.1); }
+.pw-toggle {
+  position: absolute; right: var(--sp-3); top: 50%; transform: translateY(-50%);
+  width: 30px; height: 30px; border-radius: 50%;
+  background: transparent; border: none; cursor: pointer;
+  color: #94a3b8; display: flex; align-items: center; justify-content: center;
+  transition: background var(--tr), color var(--tr);
+  z-index: 2;
+}
+.pw-toggle:hover { color: var(--cyan); background: rgba(13,148,136,.08); }
 
 /* forgot */
 .forgot-row { text-align: right; margin: calc(-1 * var(--sp-2)) 0 var(--sp-3); }
@@ -4107,6 +4124,23 @@ td.col-perihal {
 .card[style*="overflow"] {
   overflow-x: auto !important;
   -webkit-overflow-scrolling: touch;
+}
+
+/* Kelola Indikator: rule generik ".card table { min-width:100% }" di atas malah
+   MENGECILKAN tabel ini (nge-override min-width 700/640/600/540px bawaannya),
+   jadi kolom kepaksa nyempit. Override lagi biar tabel balik ke lebar aslinya.
+   Pakai width:100% (bukan max-content) supaya di desktop tabel tetap full-width
+   mengisi card (header teal gak "kepotong"/nyisain blank di kanan), sementara
+   min-width tetap menjaga supaya di mobile gak dipaksa nyempit di bawah batas. */
+.card .indikator-admin-table {
+  width: 100%;
+  min-width: 700px;
+}
+@media (max-width: 768px) {
+  .card .indikator-admin-table { min-width: 640px; }
+}
+@media (max-width: 480px) {
+  .card .indikator-admin-table { min-width: 560px; }
 }
 
 /* Tabel di dalam wrapper .kinerja-table-wrap */
@@ -7414,6 +7448,111 @@ tr:hover td:not(.td-sticky-no):not(.td-sticky-name) { background: var(--abu-1); 
   #page-surat-keluar .toolbar .search-wrap {
     flex: 2 1 180px;
     grid-column: unset;
+  }
+}
+
+/* ── Kelola Indikator: search full-width, filter 2-kolom, 2 tombol (Tambah/Download) sejajar ── */
+#page-kinerja-admin .toolbar {
+  display: grid !important;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  align-items: center;
+}
+#page-kinerja-admin .toolbar .search-wrap {
+  grid-column: 1 / -1;
+}
+#page-kinerja-admin .toolbar .select-wrap {
+  width: 100% !important;
+  min-width: 0 !important;
+  max-width: none !important;
+}
+#page-kinerja-admin .toolbar .btn-primary {
+  grid-column: span 1;
+  width: 100%;
+  justify-content: center;
+  white-space: nowrap;
+  font-size: .72rem;
+  padding-left: 6px;
+  padding-right: 6px;
+}
+
+/* Desktop: toolbar balik jadi row biasa ≥769px */
+@media (min-width: 769px) {
+  #page-kinerja-admin .toolbar {
+    display: flex !important;
+    grid-template-columns: unset;
+    flex-wrap: wrap;
+    gap: var(--sp-3);
+  }
+  #page-kinerja-admin .toolbar .search-wrap {
+    grid-column: unset;
+    flex: 1 1 220px;
+    min-width: 200px;
+  }
+  #page-kinerja-admin .toolbar .select-wrap {
+    width: auto !important;
+    flex: 1 1 130px;
+    min-width: 120px !important;
+  }
+  #page-kinerja-admin .toolbar .btn-primary {
+    grid-column: unset;
+    width: auto;
+    font-size: var(--fs-sm);
+    padding-left: var(--sp-3);
+    padding-right: var(--sp-3);
+  }
+}
+
+/* ── Kelola Target: label+tahun range, filter jenis, search — masing-masing baris sendiri di mobile ── */
+#page-kelola-target .toolbar {
+  display: flex !important;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 8px;
+}
+#page-kelola-target .toolbar .kt-tahun-wrap {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+}
+#page-kelola-target .toolbar .kt-tahun-wrap .select-wrap {
+  flex: 1;
+  width: auto !important;
+  min-width: 0 !important;
+}
+#page-kelola-target .toolbar > .select-wrap,
+#page-kelola-target .toolbar > .search-wrap {
+  width: 100% !important;
+  min-width: 0 !important;
+  max-width: none !important;
+  flex: none !important;
+}
+
+/* Desktop: toolbar balik jadi row biasa ≥769px */
+@media (min-width: 769px) {
+  #page-kelola-target .toolbar {
+    display: flex !important;
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--sp-3);
+  }
+  #page-kelola-target .toolbar .kt-tahun-wrap {
+    width: auto;
+  }
+  #page-kelola-target .toolbar .kt-tahun-wrap .select-wrap {
+    flex: none;
+    width: 90px !important;
+  }
+  #page-kelola-target .toolbar > .select-wrap {
+    width: 140px !important;
+    flex: none !important;
+  }
+  #page-kelola-target .toolbar > .search-wrap {
+    flex: 1 !important;
+    min-width: 200px !important;
+    width: auto !important;
   }
 }
 

@@ -1652,9 +1652,6 @@ function filterIndikator() {
   _indikatorFilterPJ    = document.getElementById('indikatorFilterPJ')?.value || '';
   _indikatorFilterTahun = document.getElementById('indikatorFilterTahun')?.value || '';
   _indikatorPage        = 1;
-  // Update header kolom Target
-  const th = document.getElementById('thTarget');
-  if (th) th.textContent = _indikatorFilterTahun ? `Target ${_indikatorFilterTahun}` : 'Target';
   renderIndikatorAdmin();
 }
 window.goIndikatorPage = (p) => { _indikatorPage = p; renderIndikatorAdmin(); };
@@ -1722,6 +1719,11 @@ function _previewFormula() {
 function renderIndikatorAdmin() {
   const tbody = document.getElementById('indikatorAdminBody');
   if (!tbody) return;
+
+  // Update header kolom Target biar selalu sinkron sama _indikatorFilterTahun
+  // (dipanggil dari filterIndikator() maupun loadIndikatorAdmin() saat load awal)
+  const thTargetEl = document.getElementById('thTarget');
+  if (thTargetEl) thTargetEl.textContent = _indikatorFilterTahun ? `Target ${_indikatorFilterTahun}` : 'Target';
 
   // Populate PJ dropdown (deduplicated)
   const pjSelect = document.getElementById('indikatorFilterPJ');
@@ -1826,6 +1828,115 @@ function renderIndikatorAdmin() {
   tbody.innerHTML = rows;
   renderPagination('indikatorPagination', filtered.length, _indikatorPage, _indikatorPageSize, 'goIndikatorPage');
 }
+
+// Filter list indikator mengikuti filter yang sedang aktif di tabel Kelola Indikator
+function _getFilteredIndikatorRows() {
+  return _indikatorList.filter(row => {
+    if (_indikatorSearch && !(
+      row.indikator_kinerja.toLowerCase().includes(_indikatorSearch) ||
+      (row.penanggung_jawab || '').toLowerCase().includes(_indikatorSearch) ||
+      (row.satuan || '').toLowerCase().includes(_indikatorSearch) ||
+      (Array.isArray(row.pic_users) && row.pic_users.some(n => (n || '').toLowerCase().includes(_indikatorSearch)))
+    )) return false;
+    if (_indikatorFilterJenis === 'none') {
+      const anyJenis = _jenisList.some(j => _rowHasJenis(row, j.kode));
+      if (anyJenis) return false;
+    } else if (_indikatorFilterJenis) {
+      if (!_rowHasJenis(row, _indikatorFilterJenis)) return false;
+    }
+    if (_indikatorFilterMakna === 'negatif' && !row.bermakna_negatif)  return false;
+    if (_indikatorFilterMakna === 'positif' &&  row.bermakna_negatif)  return false;
+    if (_indikatorFilterPJ && (row.penanggung_jawab || '') !== _indikatorFilterPJ) return false;
+    return true;
+  });
+}
+
+// ══════════════════════════════════════════════════════
+//  DOWNLOAD KELOLA INDIKATOR — PDF (gaya sama dengan laporan.js:
+//  kop surat resmi + tabel + tanda tangan, dibuka di tab baru untuk di-print/Save as PDF)
+// ══════════════════════════════════════════════════════
+async function downloadIndikatorPDF(btnEl) {
+  if (!_indikatorList.length) { toast('Belum ada data indikator untuk didownload.', 'error'); return; }
+
+  const originalHtml = btnEl ? btnEl.innerHTML : null;
+  if (btnEl) { btnEl.disabled = true; btnEl.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="animation:spin 1s linear infinite"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg> Memuat...`; }
+
+  try {
+    const filtered = _getFilteredIndikatorRows();
+    if (!filtered.length) { toast('Tidak ada data sesuai filter saat ini.', 'error'); return; }
+
+    const tahunLabel = _indikatorFilterTahun || new Date().getFullYear();
+    const targetHeaderLabel = _indikatorFilterTahun ? `TARGET ${_indikatorFilterTahun}` : 'TARGET';
+
+    const bodyRows = filtered.map((row, i) => {
+      const targets = _targetMap[row.id] || [];
+      let targetStr = '—';
+      if (targets.length) {
+        if (_indikatorFilterTahun) {
+          const t = targets.find(t => String(t.tahun) === _indikatorFilterTahun);
+          targetStr = t ? String(t.target_display != null ? t.target_display : (t.target != null ? t.target : '—')) : '—';
+        } else {
+          targetStr = [...targets]
+            .sort((a, b) => a.tahun - b.tahun)
+            .map(t => `${t.tahun}: ${t.target_display != null ? t.target_display : (t.target != null ? t.target : '—')}`)
+            .join('; ');
+        }
+      }
+      const pics = Array.isArray(row.pic_users) ? row.pic_users.filter(Boolean) : [];
+
+      // Badge Jenis Kinerja — sama persis kayak style di UI (_renderJenisBadges), pakai warna dinamis dari _jenisList
+      const jenisBadgeHtml = _jenisList
+        .filter(j => j.aktif && _rowHasJenis(row, j.kode))
+        .map(j => `<span style="display:inline-block;font-size:8px;font-weight:700;color:${j.warna_teks};background:${j.warna_bg};padding:2px 6px;border-radius:4px;margin:1px 2px 1px 0">${escHtml(j.label)}</span>`)
+        .join('');
+
+      // Badge Makna Indikator — sama persis kayak style di UI (pill + panah)
+      const maknaBadgeHtml = row.bermakna_negatif
+        ? `<span style="display:inline-block;font-size:8px;font-weight:700;color:#991b1b;background:#fee2e2;padding:2px 6px;border-radius:4px">&darr; Negatif</span>`
+        : `<span style="display:inline-block;font-size:8px;font-weight:700;color:#065f46;background:#d1fae5;padding:2px 6px;border-radius:4px">&uarr; Positif</span>`;
+
+      return `<tr style="background:white">
+        <td style="padding:4px 5px;border:1px solid #000;text-align:center;font-size:9px">${i + 1}</td>
+        <td style="padding:4px 6px;border:1px solid #000;font-size:9px">${row.indikator_kinerja || ''}</td>
+        <td style="padding:4px 4px;border:1px solid #000;text-align:center;font-size:9px">${row.satuan || '—'}</td>
+        <td style="padding:4px 4px;border:1px solid #000;text-align:center;font-size:9px;white-space:nowrap">${targetStr}</td>
+        <td style="padding:4px 6px;border:1px solid #000;font-size:9px">${row.penanggung_jawab || '—'}</td>
+        <td style="padding:4px 6px;border:1px solid #000;font-size:9px">${pics.length ? pics.join(', ') : '—'}</td>
+        <td style="padding:4px 4px;border:1px solid #000;text-align:center;font-size:9px">${jenisBadgeHtml || '—'}</td>
+        <td style="padding:4px 4px;border:1px solid #000;text-align:center;font-size:9px">${maknaBadgeHtml}</td>
+      </tr>`;
+    }).join('');
+
+    const bodyHtml = `
+      ${_kopSuratHtml()}
+      <div style="text-align:center;margin:18px 0 14px">
+        <div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.5px">Kelola Indikator Kinerja</div>
+        <div style="font-size:10px;color:#475569;margin-top:3px">Tahun ${tahunLabel}</div>
+      </div>
+      <table style="border-collapse:collapse;border-spacing:0;width:100%;table-layout:auto">
+        <thead>
+          <tr style="background:#0d9488">
+            <th style="color:white;padding:5px 4px;border:1px solid #000;text-align:center;font-size:9px;width:32px">NO</th>
+            <th style="color:white;padding:5px 4px;border:1px solid #000;text-align:center;font-size:9px;min-width:150px">INDIKATOR KINERJA</th>
+            <th style="color:white;padding:5px 4px;border:1px solid #000;text-align:center;font-size:9px;width:50px">SATUAN</th>
+            <th style="color:white;padding:5px 4px;border:1px solid #000;text-align:center;font-size:9px;width:60px">${targetHeaderLabel}</th>
+            <th style="color:white;padding:5px 4px;border:1px solid #000;text-align:center;font-size:9px;min-width:110px">BIDANG / SUB BAGIAN</th>
+            <th style="color:white;padding:5px 4px;border:1px solid #000;text-align:center;font-size:9px;min-width:100px">PENANGGUNG JAWAB (USER)</th>
+            <th style="color:white;padding:5px 4px;border:1px solid #000;text-align:center;font-size:9px;width:70px">JENIS KINERJA</th>
+            <th style="color:white;padding:5px 4px;border:1px solid #000;text-align:center;font-size:9px;width:60px">MAKNA INDIKATOR</th>
+          </tr>
+        </thead>
+        <tbody>${bodyRows}</tbody>
+      </table>`;
+
+    _bukaPreviewPDF(bodyHtml, `Kelola Indikator Kinerja Tahun ${tahunLabel}`, 'landscape');
+  } catch (err) {
+    toast('Gagal membuat PDF: ' + err.message, 'error');
+  } finally {
+    if (btnEl) { btnEl.disabled = false; btnEl.innerHTML = originalHtml; }
+  }
+}
+window.downloadIndikatorPDF = downloadIndikatorPDF;
 
 function _buildBidangOptions(selectedNama) {
   const none = `<option value="">— Pilih Bidang / Sub Bagian —</option>`;
