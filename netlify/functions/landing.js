@@ -105,6 +105,7 @@ export const handler = async (event) => {
         SELECT id, judul, keterangan, kategori, file_url, created_at
         FROM dokumen_publik
         WHERE aktif = true
+          AND deleted_at IS NULL
         ORDER BY created_at DESC
       `;
       return jsonResponse({ dokumen: rows });
