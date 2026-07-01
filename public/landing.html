@@ -1871,7 +1871,7 @@ window.closeMobileMenu = function() {
 (function() {
   async function setLastUpdated() {
     try {
-      const r = await fetch('/api/landing/dokumen');
+      const r = await fetch('/api/landing/dokumen?_=' + Date.now(), { cache: 'no-store' });
       if (!r.ok) throw new Error();
       const data  = await r.json();
       const items = Array.isArray(data) ? data : (data.dokumen || []);
@@ -2259,7 +2259,7 @@ async function loadDokumenLanding() {
   const sec   = document.getElementById('sectionDokumen');
   const badge = document.getElementById('dokumenCount');
   try {
-    const r = await fetch('/api/landing/dokumen');
+    const r = await fetch('/api/landing/dokumen?_=' + Date.now(), { cache: 'no-store' });
     if (!r.ok) throw new Error();
     const data  = await r.json();
     const items = Array.isArray(data) ? data : (data.dokumen || []);
