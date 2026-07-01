@@ -78,6 +78,7 @@ export const handler = async (event) => {
             created_at
           FROM pengumuman
           WHERE aktif = true
+            AND deleted_at IS NULL
           ORDER BY created_at DESC
           LIMIT 10
         `;
