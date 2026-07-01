@@ -144,11 +144,12 @@ async function deleteLink(id) {
 // ═══════════════════════════════════════════
 // SHORTLINKS (subset dari links yg punya slug_pendek)
 // ═══════════════════════════════════════════
-let _slFiltered = [];
+let _slFiltered = [], _slPage = 1, _slPageSize = 15;
 
 async function loadShortlinks() {
   if (!_links.length) await loadLinks();
   _slFiltered = _links.filter(l => l.slug_pendek);
+  _slPage = 1;
   renderShortlinks();
 }
 
@@ -158,12 +159,17 @@ function filterShortlinks() {
   _slFiltered = _links.filter(l => l.slug_pendek && (
     l.judul.toLowerCase().includes(q) || l.slug_pendek.toLowerCase().includes(q)
   ) && (!status || (status === 'aktif' ? l.aktif : !l.aktif)));
+  _slPage = 1;
   renderShortlinks();
 }
 
+window.goSlPage = (p) => { _slPage = p; renderShortlinks(); };
+
 function renderShortlinks() {
   const tb = document.getElementById('slTableBody');
-  tb.innerHTML = _slFiltered.length ? _slFiltered.map(l => `
+  const start = (_slPage - 1) * _slPageSize;
+  const slice = _slFiltered.slice(start, start + _slPageSize);
+  tb.innerHTML = slice.length ? slice.map(l => `
     <tr>
       <td><span style="display:inline-flex;align-items:center;gap:6px">${l.ikon ? esc(l.ikon) : `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"/></svg>`} <strong>${esc(l.judul)}</strong></span></td>
       <td>
@@ -177,6 +183,7 @@ function renderShortlinks() {
           <button class="btn btn-danger btn-sm" title="Hapus" onclick="deleteLink(${l.id})"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path stroke-linecap="round" stroke-linejoin="round" d="M19 6l-1 14H6L5 6"/><path stroke-linecap="round" stroke-linejoin="round" d="M10 11v6m4-6v6"/><path stroke-linecap="round" stroke-linejoin="round" d="M9 6V4h6v2"/></svg></button></td>
     </tr>`).join('')
     : '<tr class="empty-row"><td colspan="6">Tidak ada shortlink</td></tr>';
+  renderPagination('slPagination', _slFiltered.length, _slPage, _slPageSize, 'goSlPage');
 }
 
 function openShortlinkModal() {
