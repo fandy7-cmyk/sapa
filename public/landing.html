@@ -1184,6 +1184,7 @@
     /* ══ DOKUMEN PUBLIK ══ */
     .dokumen-list { display: flex; flex-direction: column; gap: var(--sp-2); }
     .dokumen-card {
+      position: relative;
       display: flex; align-items: flex-start; gap: var(--sp-3);
       padding: var(--sp-3) var(--sp-4);
       background: var(--white); border: 1px solid var(--slate-100);
@@ -1416,7 +1417,7 @@
 
   <div class="topbar-nav">
     <a href="#pengumuman" onclick="scrollToSection('pengumuman',event);document.getElementById('navNotifPengumuman').style.display='none';localStorage.setItem('sapa_seen_pengumuman_ts',Date.now());_pg.info.seenTs=Date.now();document.querySelectorAll('#infoList .badge-new-float').forEach(b=>b.style.display='none')"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>Pengumuman<span class="nav-notif" id="navNotifPengumuman" style="display:none"></span></a>
-    <a href="#dokumen" onclick="scrollToSection('dokumen',event);document.getElementById('navNotifDokumen').style.display='none';localStorage.setItem('sapa_seen_dokumen_ts',Date.now());_pg.dok.seenTs=Date.now();document.querySelectorAll('#dokumenList .badge-new').forEach(b=>b.style.display='none')"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/></svg>Dokumen<span class="nav-notif" id="navNotifDokumen" style="display:none"></span></a>
+    <a href="#dokumen" onclick="scrollToSection('dokumen',event);document.getElementById('navNotifDokumen').style.display='none';localStorage.setItem('sapa_seen_dokumen_ts',Date.now());_pg.dok.seenTs=Date.now();document.querySelectorAll('#dokumenList .badge-new-float').forEach(b=>b.style.display='none')"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/></svg>Dokumen<span class="nav-notif" id="navNotifDokumen" style="display:none"></span></a>
     <a href="#struktur" onclick="scrollToSection('struktur',event)"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>Struktur</a>
     <a href="#kontak" onclick="scrollToSection('kontak',event)"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>Kontak</a>
   </div>
@@ -2207,11 +2208,13 @@ function _renderDok(item, i) {
   const extIcon = () => `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="13" x2="15" y2="13"/><line x1="9" y1="17" x2="15" y2="17"/></svg>`;
   const itemTs = new Date(item.created_at || item.updated_at).getTime();
   const isNew = (Date.now() - itemTs) < 3*24*60*60*1000 && itemTs > _pg.dok.seenTs;
+  const badgeNewHtml = isNew ? `<span class="badge-new-float info">${SVG_SPARKLE}Baru</span>` : '';
   return `
   <a class="dokumen-card" href="${esc(item.file_url)}" target="_blank" rel="noopener" style="animation-delay:${i*.04}s">
+    ${badgeNewHtml}
     <div class="dokumen-icon">${extIcon()}</div>
     <div class="dokumen-body">
-      <div class="dokumen-judul">${esc(item.judul)}${isNew ? '<span class="badge-new">Baru</span>' : ''}</div>
+      <div class="dokumen-judul">${esc(item.judul)}</div>
       <div class="dokumen-meta">
         ${item.kategori ? `<span class="dokumen-kat">${esc(item.kategori)}</span>` : ''}
         ${item.keterangan ? `<span>${esc(item.keterangan)}</span>` : ''}
