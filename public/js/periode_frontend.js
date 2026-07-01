@@ -514,6 +514,7 @@ function _isoToLocal(iso) {
         _writeHidden(hiddenEl, null);
         updateTrigger();
         closePanel();
+        hiddenEl.dispatchEvent(new Event('change', { bubbles: true }));
       });
       // Sekarang
       panel.querySelector('.cdtp-btn-now')?.addEventListener('click', e => {
@@ -535,6 +536,7 @@ function _isoToLocal(iso) {
         _writeHidden(hiddenEl, sel);
         updateTrigger();
         closePanel();
+        hiddenEl.dispatchEvent(new Event('change', { bubbles: true }));
       });
     }
 

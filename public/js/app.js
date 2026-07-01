@@ -2,7 +2,9 @@
 
 // ── AUTH ────────────────────────────────────────────────────────────────
 let _token = null;
+let _refreshToken = null;
 let _user  = null;
+let _refreshInFlight = null; // promise tunggal supaya tidak ada refresh dobel paralel
 
 // ── Decode JWT payload (tanpa verifikasi signature — hanya baca exp) ─────
 function _decodeJwtPayload(token) {
@@ -43,8 +45,10 @@ function _handleSessionExpired() {
   console.error('[Auth] _handleSessionExpired dipanggil dari:', new Error().stack);
   _clearExpiryTimer(); // batalkan timer yang mungkin masih berjalan
   _token = null;
+  _refreshToken = null;
   _user  = null;
   sessionStorage.removeItem('sapa_token');
+  sessionStorage.removeItem('sapa_refresh_token');
   sessionStorage.removeItem('sapa_user');
   try { sessionStorage.removeItem('sapa_nav'); } catch(e) {}
   // Tampilkan notifikasi sebelum redirect (jika fungsi toast tersedia)
@@ -61,13 +65,16 @@ function initAuth() {
   _clearExpiryTimer(); // batalkan timer lama sebelum cek token baru
   try {
     _token = sessionStorage.getItem('sapa_token');
+    _refreshToken = sessionStorage.getItem('sapa_refresh_token');
     const rawUser = sessionStorage.getItem('sapa_user');
     _user = rawUser ? JSON.parse(rawUser) : null;
   } catch (e) {
     console.warn('[initAuth] Gagal parse sapa_user:', e);
     _token = null;
+    _refreshToken = null;
     _user  = null;
     sessionStorage.removeItem('sapa_token');
+    sessionStorage.removeItem('sapa_refresh_token');
     sessionStorage.removeItem('sapa_user');
   }
   if (!_token || !_user) { showLoginOverlay(); return false; }
@@ -75,6 +82,7 @@ function initAuth() {
   // Cek token expired saat halaman dimuat
   if (_isTokenExpired(_token)) {
     sessionStorage.removeItem('sapa_token');
+    sessionStorage.removeItem('sapa_refresh_token');
     sessionStorage.removeItem('sapa_user');
     showLoginOverlay('Sesi Anda telah berakhir. Silakan login kembali.');
     return false;
@@ -95,8 +103,12 @@ function initAuth() {
   return true;
 }
 
-// ── Jadwalkan auto-logout sesuai waktu exp token ──────────────────────────
+// ── Jadwalkan refresh token diam-diam sebelum access token expired ────────
+// Access token sekarang berumur pendek (1 jam, lihat _auth.js). Daripada
+// langsung logout user yang masih aktif, kita coba tukar dengan access
+// token baru lewat refresh token beberapa menit sebelum kedaluwarsa.
 let _expiryTimerId = null; // simpan ID agar bisa dibatalkan saat re-login
+const _REFRESH_MARGIN_MS = 2 * 60 * 1000; // refresh 2 menit sebelum access token exp
 
 function _clearExpiryTimer() {
   if (_expiryTimerId !== null) {
@@ -110,16 +122,50 @@ function _scheduleTokenExpiry() {
   if (!_token) return;
   const payload = _decodeJwtPayload(_token);
   if (!payload?.exp) return;
-  const msLeft = (payload.exp * 1000) - Date.now();
-  // Jika token sudah expired saat halaman dimuat,
-  // _isTokenExpired di initAuth() sudah menanganinya — tidak perlu timer di sini.
-  if (msLeft <= 0) return;
-  // Set timer tepat di waktu exp
-  _expiryTimerId = setTimeout(() => {
+  const msUntilExp = (payload.exp * 1000) - Date.now();
+  if (msUntilExp <= 0) return;
+  const msUntilRefresh = Math.max(msUntilExp - _REFRESH_MARGIN_MS, 0);
+  _expiryTimerId = setTimeout(async () => {
     _expiryTimerId = null;
-    _handleSessionExpired();
-  }, msLeft);
-  console.debug('[Auth] Token akan expired dalam', Math.round(msLeft / 60000), 'menit');
+    const ok = await _doRefreshToken();
+    if (!ok) _handleSessionExpired();
+  }, msUntilRefresh);
+  console.debug('[Auth] Refresh token dijadwalkan dalam', Math.round(msUntilRefresh / 60000), 'menit');
+}
+
+// ── Tukar refresh token dengan access token baru ──────────────────────────
+// Pakai _refreshInFlight supaya kalau beberapa request kena 401 bersamaan,
+// hanya satu request /api/auth/refresh yang jalan (yang lain numpang nunggu).
+async function _doRefreshToken() {
+  if (!_refreshToken) return false;
+  if (_refreshInFlight) return _refreshInFlight;
+
+  _refreshInFlight = (async () => {
+    try {
+      const r = await fetch('/api/auth/refresh', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ refresh_token: _refreshToken }),
+      });
+      if (!r.ok) return false;
+      const data = await r.json();
+      if (!data.token || !data.refresh_token) return false;
+      _token = data.token;
+      _refreshToken = data.refresh_token;
+      sessionStorage.setItem('sapa_token', _token);
+      sessionStorage.setItem('sapa_refresh_token', _refreshToken);
+      _scheduleTokenExpiry();
+      console.debug('[Auth] Token berhasil di-refresh diam-diam');
+      return true;
+    } catch (e) {
+      console.warn('[Auth] Gagal refresh token:', e);
+      return false;
+    }
+  })();
+
+  const result = await _refreshInFlight;
+  _refreshInFlight = null;
+  return result;
 }
 
 
@@ -217,10 +263,22 @@ function authHeaders() {
 }
 
 // ── apiFetch: wrapper fetch yang auto-handle 401 ───────────────────────────
+// Kalau kena 401 (access token expired — bisa terjadi kalau timer refresh
+// terlambat, mis. tab browser sempat di-suspend), coba refresh sekali lalu
+// ulangi request asli sebelum benar-benar memaksa logout.
 async function apiFetch(url, opts = {}) {
-  const resp = await fetch(url, opts);
+  let resp = await fetch(url, opts);
   if (resp.status === 401) {
-    // Token expired atau tidak valid → paksa logout
+    const refreshed = await _doRefreshToken();
+    if (refreshed) {
+      const retryOpts = { ...opts };
+      if (retryOpts.headers && retryOpts.headers['Authorization'] !== undefined) {
+        retryOpts.headers = { ...retryOpts.headers, 'Authorization': 'Bearer ' + _token };
+      }
+      resp = await fetch(url, retryOpts);
+      if (resp.status !== 401) return resp;
+    }
+    // Refresh gagal atau retry masih 401 → token/sesi memang sudah tidak valid
     _handleSessionExpired();
     throw new Error('Sesi berakhir');
   }
@@ -308,7 +366,16 @@ async function doLogout() {
   document.getElementById('topbarDropdown')?.classList.remove('open');
   const ok = await showConfirm({ title: 'Keluar dari Sistem', msg: 'Yakin ingin keluar? Sesi Anda akan diakhiri dan perlu login ulang untuk melanjutkan.', okText: 'Keluar', type: 'danger', icon: 'wave' });
   if (!ok) return;
+  // Revoke refresh token di server supaya tidak bisa dipakai lagi (best-effort, jangan blokir logout kalau gagal)
+  if (_refreshToken) {
+    fetch('/api/auth/logout', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ refresh_token: _refreshToken }),
+    }).catch(() => {});
+  }
   sessionStorage.removeItem('sapa_token');
+  sessionStorage.removeItem('sapa_refresh_token');
   sessionStorage.removeItem('sapa_user');
   try { sessionStorage.removeItem('sapa_nav'); } catch(e) {}
   location.reload();
@@ -455,8 +522,10 @@ const MENUS = [
     id: 'master', label: 'Master Data', icon: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5V19A9 3 0 0 0 21 19V5"/><path d="M3 12A9 3 0 0 0 21 12"/></svg>`,
     adminOnly: true,
     children: [
-      { id: 'kelola-indikator', key: null, adminOnly: true, label: 'Kelola Indikator', page: 'page-kinerja-admin', loader: () => { switchKinerjaAdminTab('indikator'); loadIndikatorAdmin(); }, icon: `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="21" x2="14" y1="4" y2="4"/><line x1="10" x2="3" y1="4" y2="4"/><line x1="21" x2="12" y1="12" y2="12"/><line x1="8" x2="3" y1="12" y2="12"/><line x1="21" x2="16" y1="20" y2="20"/><line x1="12" x2="3" y1="20" y2="20"/><line x1="14" x2="14" y1="2" y2="6"/><line x1="8" x2="8" y1="10" y2="14"/><line x1="16" x2="16" y1="18" y2="22"/></svg>` },
+      { id: 'kelola-indikator', key: null, adminOnly: true, label: 'Kelola Indikator', page: 'page-kinerja-admin', loader: () => loadIndikatorAdmin(), icon: `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="21" x2="14" y1="4" y2="4"/><line x1="10" x2="3" y1="4" y2="4"/><line x1="21" x2="12" y1="12" y2="12"/><line x1="8" x2="3" y1="12" y2="12"/><line x1="21" x2="16" y1="20" y2="20"/><line x1="12" x2="3" y1="20" y2="20"/><line x1="14" x2="14" y1="2" y2="6"/><line x1="8" x2="8" y1="10" y2="14"/><line x1="16" x2="16" y1="18" y2="22"/></svg>` },
       { id: 'kelola-target', key: null, adminOnly: true, label: 'Kelola Target', page: 'page-kelola-target', loader: () => loadKelolaTarget(), icon: `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>` },
+      { id: 'kelola-jenis', key: null, adminOnly: true, label: 'Kelola Jenis Kinerja', page: 'page-kelola-jenis', loader: () => loadKelolaJenis(), icon: `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/><rect width="6" height="4" x="9" y="3" rx="1"/><path d="M9 12h6"/><path d="M9 16h4"/></svg>` },
+      { id: 'kelola-laporan', key: null, adminOnly: true, label: 'Kelola Laporan', page: 'page-kelola-laporan', loader: () => loadLapTemplateAdmin(), icon: `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>` },
       { id: 'periode', key: null, label: 'Periode', page: 'page-periode', loader: () => loadPeriodePage(), icon: `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2v4"/><path d="M16 2v4"/><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/><path d="M8 14h.01"/><path d="M12 14h.01"/><path d="M16 14h.01"/><path d="M8 18h.01"/><path d="M12 18h.01"/><path d="M16 18h.01"/></svg>` },
       { id: 'pengguna', key: null, label: 'Pengguna', page: 'page-pengguna', loader: () => loadUsers(), icon: `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>` },
       { id: 'bidang', key: null, label: 'Bidang', page: 'page-bidang', loader: () => loadBidangPage(), icon: `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 22V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v18Z"/><path d="M6 12H4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h2"/><path d="M18 9h2a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2h-2"/><path d="M10 6h4"/><path d="M10 10h4"/><path d="M10 14h4"/><path d="M10 18h4"/></svg>` },
@@ -464,6 +533,7 @@ const MENUS = [
       { id: 'dokumen-publik', key: null, label: 'Dokumen Publik', page: 'page-dokumen-publik', loader: () => { loadDokumenPublik(); buildDokumenKategoriFilter(); }, icon: `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/></svg>` },
       { id: 'pengumuman', key: null, adminOnly: true, label: 'Pengumuman', page: 'page-pengumuman', loader: () => { loadPengumuman(); loadTicker(); }, icon: `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" x2="4" y1="22" y2="15"/></svg>` },
       { id: 'profil', key: null, label: 'Profil Instansi', page: 'page-profil', loader: () => loadProfil(), icon: `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>` },
+      { id: 'audit-trail', key: null, adminOnly: true, label: 'Audit Trail', page: 'page-audit-trail', loader: () => loadAuditTrail(1), icon: `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/><path d="m9 12 2 2 4-4"/></svg>` },
     ],
   },
 ];
@@ -474,13 +544,16 @@ let _openGroups  = {};
 function buildSidebar() {
   const nav = document.getElementById('sidebarNav');
   nav.innerHTML = '';
+  const collapsed = _sidebarCollapsed;
+  _bindNavTooltips();
 
-  // Dashboard: selalu muncul untuk admin, untuk non-admin hanya jika punya permission 'dashboard'
+  // Dashboard
   if (_user.is_admin || hasAccess('dashboard')) {
     const dashEl = document.createElement('div');
     dashEl.className = 'nav-item' + (_activeSubId === 'dashboard' ? ' active' : '');
     dashEl.dataset.sub = 'dashboard';
-    dashEl.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="7" height="9" x="3" y="3" rx="1"/><rect width="7" height="5" x="14" y="3" rx="1"/><rect width="7" height="9" x="14" y="12" rx="1"/><rect width="7" height="5" x="3" y="16" rx="1"/></svg> Dashboard`;
+    if (collapsed) dashEl.dataset.tooltip = 'Dashboard';
+    dashEl.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="7" height="9" x="3" y="3" rx="1"/><rect width="7" height="5" x="14" y="3" rx="1"/><rect width="7" height="9" x="14" y="12" rx="1"/><rect width="7" height="5" x="3" y="16" rx="1"/></svg><span class="nav-item-label">Dashboard</span>`;
     dashEl.onclick = () => navigateTo('dashboard', 'Dashboard', loadDashboard);
     nav.appendChild(dashEl);
   }
@@ -488,7 +561,6 @@ function buildSidebar() {
   for (const group of MENUS) {
     if (group.adminOnly && !_user.is_admin) continue;
 
-    // Cek apakah ada child yang accessible
     const visibleChildren = group.children.filter(c => {
       if (c.adminOnly && !_user.is_admin) return false;
       if (c.showIf && !c.showIf()) return false;
@@ -499,31 +571,42 @@ function buildSidebar() {
     const groupHasActive = visibleChildren.some(c => c.id === _activeSubId);
     const groupItem = document.createElement('div');
     groupItem.className = 'nav-item' + (groupHasActive ? ' has-active' : '');
-    groupItem.innerHTML = group.icon + `<span>${group.label}</span><svg class="nav-chevron${_openGroups[group.id] ? ' open' : ''}" id="chev-${group.id}" xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>`;
-    groupItem.onclick = () => toggleGroup(group.id);
+    groupItem.innerHTML = `<span style="display:flex;align-items:center;flex-shrink:0">${group.icon}</span><span class="nav-item-label">${group.label}</span><svg class="nav-chevron${_openGroups[group.id] ? ' open' : ''}" id="chev-${group.id}" xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>`;
+    groupItem.onclick = () => {
+      if (collapsed) {
+        _sidebarCollapsed = false;
+        try { localStorage.setItem('sapa_sidebar_collapsed', '0'); } catch(e) {}
+        _openGroups = {}; _openGroups[group.id] = true;
+        _applySidebarCollapse();
+      } else {
+        toggleGroup(group.id);
+      }
+    };
     nav.appendChild(groupItem);
 
     const sub = document.createElement('div');
     sub.className = 'nav-sub' + (_openGroups[group.id] ? ' open' : '');
     sub.id = 'sub-' + group.id;
 
-    // ── Hover autohide/autoshow ─────────────────────────────────────────────
+    // Hover autohide/autoshow (only when not collapsed)
     let _hoverTimer = null;
     const _openHover = () => {
+      if (_sidebarCollapsed) return;
       clearTimeout(_hoverTimer);
       sub.classList.add('open');
       const chev = document.getElementById('chev-' + group.id);
       if (chev) chev.classList.add('open');
     };
     const _closeHover = () => {
-      // Hanya tutup jika group tidak di-klik (tidak ada di _openGroups)
-      if (!_openGroups[group.id]) {
-        _hoverTimer = setTimeout(() => {
-          sub.classList.remove('open');
-          const chev = document.getElementById('chev-' + group.id);
-          if (chev) chev.classList.remove('open');
-        }, 150);
-      }
+      if (_sidebarCollapsed) return;
+      // Hanya block autohide kalau group ini memang di-klik/pin terbuka
+      // DAN ada child yang sedang aktif. Kalau hanya hover-open, tetap hide.
+      if (_openGroups[group.id] && groupHasActive) return;
+      _hoverTimer = setTimeout(() => {
+        sub.classList.remove('open');
+        const chev = document.getElementById('chev-' + group.id);
+        if (chev) chev.classList.remove('open');
+      }, 150);
     };
     groupItem.addEventListener('mouseenter', _openHover);
     groupItem.addEventListener('mouseleave', _closeHover);
@@ -534,7 +617,8 @@ function buildSidebar() {
       const item = document.createElement('div');
       item.className = 'nav-sub-item' + (_activeSubId === child.id ? ' active' : '');
       item.dataset.sub = child.id;
-      item.innerHTML = `<span style="display:flex;align-items:center;opacity:.7;flex-shrink:0">${child.icon}</span>${child.label}`;
+      if (collapsed) item.dataset.tooltip = child.label;
+      item.innerHTML = `<span style="display:flex;align-items:center;flex-shrink:0">${child.icon}</span><span class="nav-sub-item-label">${child.label}</span>`;
       item.onclick = () => navigateTo(child.id, child.label, child.loader, group.id, child.page);
       sub.appendChild(item);
     }
@@ -594,6 +678,101 @@ function navigateTo(subId, label, loader, groupId, pageId) {
 // ── SIDEBAR MOBILE ───────────────────────────────────────────────────────
 function openSidebar()  { document.getElementById('sidebar').classList.add('open'); document.getElementById('sidebarOverlay').classList.add('open'); }
 function closeSidebar() { document.getElementById('sidebar').classList.remove('open'); document.getElementById('sidebarOverlay').classList.remove('open'); }
+
+// ── SIDEBAR COLLAPSE (desktop) ───────────────────────────────────────────
+let _sidebarCollapsed = false;
+try { _sidebarCollapsed = localStorage.getItem('sapa_sidebar_collapsed') === '1'; } catch(e) {}
+
+function _applySidebarCollapse() {
+  const sidebar = document.getElementById('sidebar');
+  const main    = document.querySelector('.main');
+  const topbar  = document.getElementById('topbar');
+  const icon    = document.getElementById('iconSidebarCollapse');
+  const btn     = document.getElementById('btnSidebarCollapse');
+  if (!sidebar) return;
+  if (_sidebarCollapsed) {
+    sidebar.classList.add('collapsed');
+    if (main)   main.classList.add('sidebar-collapsed');
+    if (topbar) topbar.classList.add('sidebar-collapsed');
+    if (icon)   icon.style.transform = 'rotate(180deg)';
+  } else {
+    sidebar.classList.remove('collapsed');
+    if (main)   main.classList.remove('sidebar-collapsed');
+    if (topbar) topbar.classList.remove('sidebar-collapsed');
+    if (icon)   icon.style.transform = '';
+  }
+  if (btn) _bindToggleBtnTooltip(btn);
+  buildSidebar();
+}
+
+// ── Tooltip untuk tombol toggle sidebar ─────────────────────────────────────
+let _toggleTooltipEl = null;
+function _ensureToggleTooltipEl() {
+  if (_toggleTooltipEl) return _toggleTooltipEl;
+  const el = document.createElement('div');
+  el.id = 'tooltipSidebarToggle';
+  document.body.appendChild(el);
+  _toggleTooltipEl = el;
+  return el;
+}
+function _bindToggleBtnTooltip(btn) {
+  if (btn._tooltipBound) return;
+  btn._tooltipBound = true;
+  btn.addEventListener('mouseenter', () => {
+    const tip = _ensureToggleTooltipEl();
+    tip.textContent = _sidebarCollapsed ? 'Buka sidebar' : 'Tutup sidebar';
+    const r = btn.getBoundingClientRect();
+    tip.style.left = (r.right + 10) + 'px';
+    tip.style.top  = (r.top + r.height / 2) + 'px';
+    tip.classList.add('show');
+  });
+  btn.addEventListener('mouseleave', () => {
+    if (_toggleTooltipEl) _toggleTooltipEl.classList.remove('show');
+  });
+  btn.addEventListener('click', () => {
+    if (_toggleTooltipEl) _toggleTooltipEl.classList.remove('show');
+  });
+}
+
+function toggleSidebarCollapse() {
+  _sidebarCollapsed = !_sidebarCollapsed;
+  try { localStorage.setItem('sapa_sidebar_collapsed', _sidebarCollapsed ? '1' : '0'); } catch(e) {}
+  _applySidebarCollapse();
+}
+
+// ── Tooltip sidebar collapsed (pakai position:fixed agar tidak ke-clip overflow-y sidebar-nav) ──
+let _navTooltipEl = null;
+function _ensureNavTooltipEl() {
+  if (_navTooltipEl) return _navTooltipEl;
+  const el = document.createElement('div');
+  el.className = 'nav-fixed-tooltip';
+  document.body.appendChild(el);
+  _navTooltipEl = el;
+  return el;
+}
+function _bindNavTooltips() {
+  const nav = document.getElementById('sidebarNav');
+  if (!nav || nav._tooltipBound) return;
+  nav._tooltipBound = true;
+  nav.addEventListener('mouseover', (e) => {
+    if (!_sidebarCollapsed) return;
+    const target = e.target.closest('[data-tooltip]');
+    if (!target) return;
+    const tip = _ensureNavTooltipEl();
+    tip.textContent = target.dataset.tooltip;
+    const iconEl = target.querySelector('svg') || target;
+    const r = iconEl.getBoundingClientRect();
+    tip.style.left = (r.right + 10) + 'px';
+    tip.style.top  = (r.top + r.height / 2) + 'px';
+    tip.classList.add('show');
+  });
+  nav.addEventListener('mouseout', (e) => {
+    const target = e.target.closest('[data-tooltip]');
+    if (!target) return;
+    if (target.contains(e.relatedTarget)) return;
+    if (_navTooltipEl) _navTooltipEl.classList.remove('show');
+  });
+}
 
 // ── TOAST ────────────────────────────────────────────────────────────────
 const TOAST_ICONS = {
@@ -750,6 +929,7 @@ function _pgCall(containerId, page) { _pgCallbacks[containerId] && _pgCallbacks[
     .then(() => _cekKinerjaIndikator())
     .finally(() => {
       buildSidebar();
+      _applySidebarCollapse();
       _startPeriodeTimer();
 
       // ── Restore halaman terakhir sebelum refresh ───────────────────────
@@ -822,27 +1002,6 @@ document.querySelectorAll('.modal-overlay, .modal-overlay-main').forEach(overlay
 });
 
 // ── Tab switcher (kinerja admin) ────────────────────────────────────────
-function switchKinerjaAdminTab(tab) {
-  const isInd = tab === 'indikator';
-  const isGrp = tab === 'group';
-  const isLap = tab === 'laporan';
-  const panelInd = document.getElementById('tabPanelIndikator');
-  const panelGrp = document.getElementById('tabPanelGroup');
-  const panelLap = document.getElementById('tabPanelLaporan');
-  const btnInd   = document.getElementById('tabBtnIndikator');
-  const btnGrp   = document.getElementById('tabBtnGroup');
-  const btnLap   = document.getElementById('tabBtnLaporan');
-  if (panelInd) panelInd.style.display = isInd ? '' : 'none';
-  if (panelGrp) panelGrp.style.display = isGrp ? '' : 'none';
-  if (panelLap) panelLap.style.display = isLap ? '' : 'none';
-  if (btnInd)   btnInd.classList.toggle('active', isInd);
-  if (btnGrp)   btnGrp.classList.toggle('active', isGrp);
-  if (btnLap)   btnLap.classList.toggle('active', isLap);
-  if (tab === 'group')        loadGroupAdmin();
-  else if (tab === 'laporan') loadLapTemplateAdmin();
-  else                        loadIndikatorAdmin();
-}
-
 // Profile dropdown toggle
 function toggleProfileDD() {
   document.getElementById('topbarDropdown').classList.toggle('open');
@@ -1714,62 +1873,77 @@ function _dpLoadingHtml(msg = 'Memuat dokumen...') {
 // KELOLA LAPORAN TEMPLATE (Tab di Kelola Indikator)
 // ══════════════════════════════════════════════════════
 
-let _lapTemplateJenis = 'urusan'; // 'urusan' | 'tsp'
+let _lapMode = 'urusan'; // 'urusan' | 'tsp'
 let _lapTemplateList  = [];
 let _lapTemplateEditId = null;
 let _lapTplCurrentTemplateId = null;
-let _lapTplAllIndikator = []; // cache semua indikator
+let _lapTplAllIndikator = [];
 let _lapTplSelectedIds  = new Set();
 
-function switchLapTemplateJenis(jenis) {
-  _lapTemplateJenis = jenis;
-  const jenisMap = { urusan:'lapTplBtnUrusan', tujuan:'lapTplBtnTujuan', sasaran:'lapTplBtnSasaran', program:'lapTplBtnProgram', kegiatan:'lapTplBtnKegiatan' };
-  Object.entries(jenisMap).forEach(([j, id]) => {
-    const btn = document.getElementById(id);
-    if (!btn) return;
-    const isActive = j === jenis;
-    btn.classList.toggle('active', isActive);
-  });
-  loadLapTemplateAdmin();
+// State cascade TSP
+const LAP_CASCADE_LEVELS = ['tujuan', 'sasaran', 'program', 'kegiatan'];
+const LAP_JENIS_LABEL    = { urusan:'Urusan', tujuan:'Tujuan', sasaran:'Sasaran Strategis', program:'Program', kegiatan:'Kegiatan' };
+const LAP_JENIS_COLOR    = {
+  tujuan:   { bg:'#ede9fe', col:'#5b21b6', hdr:'#7c3aed', light:'#f5f3ff' },
+  sasaran:  { bg:'#dcfce7', col:'#166534', hdr:'#16a34a', light:'#f0fdf4' },
+  program:  { bg:'#fef3c7', col:'#92400e', hdr:'#d97706', light:'#fffbeb' },
+  kegiatan: { bg:'#fee2e2', col:'#991b1b', hdr:'#dc2626', light:'#fff5f5' },
+};
+// selectedId per level [tujuanId, sasaranId, programId] — null jika belum dipilih
+let _lapCascadeSel = [null, null, null];
+// cache data per level: Map<parentId|'root', items[]>
+let _lapCascadeCache = {};
+
+// ── _syncSelectTrigger (tetap dipakai untuk select lain di app) ────────────
+function _syncSelectTrigger(selectEl) {
+  if (!selectEl) return;
+  const wrap = selectEl.closest('.select-wrap');
+  if (!wrap) return;
+  const textEl = wrap.querySelector('[class*="trigger-text"]');
+  if (!textEl) return;
+  const opt = selectEl.options[selectEl.selectedIndex];
+  textEl.textContent = opt ? opt.text : '';
+  textEl.classList.toggle('placeholder', !opt || opt.value === '');
 }
 
+// ── Mode switch: Urusan vs TSP ─────────────────────────────────────────────
+function switchLapMode(mode) {
+  _lapMode = mode;
+  document.getElementById('lapModeUrusan').classList.toggle('active', mode === 'urusan');
+  document.getElementById('lapModeTSP').classList.toggle('active', mode === 'tsp');
+  document.getElementById('lapPanelUrusan').style.display = mode === 'urusan' ? '' : 'none';
+  document.getElementById('lapPanelTSP').style.display    = mode === 'tsp'    ? '' : 'none';
+  if (mode === 'urusan') loadLapTemplateAdmin();
+  else _initLapCascade();
+}
+
+// ── Entry point (dipanggil saat tab Laporan dibuka) ───────────────────────
 async function loadLapTemplateAdmin() {
+  // Mode urusan — tabel sederhana
   const tbody = document.getElementById('lapTemplateBody');
   if (!tbody) return;
-  tbody.innerHTML = `<tr class="empty-row"><td colspan="6">Memuat...</td></tr>`;
+  tbody.innerHTML = `<tr class="empty-row"><td colspan="5">Memuat...</td></tr>`;
   try {
-    const res  = await fetch(`/api/kinerja/laporan-template?jenis=${_lapTemplateJenis}`, { headers: authHeaders() });
+    const res  = await fetch('/api/kinerja/laporan-template?jenis=urusan', { headers: authHeaders() });
     const data = await res.json();
     _lapTemplateList = data.templates || [];
-    _renderLapTemplateTable();
+    _renderUrusanTable();
   } catch (e) {
-    tbody.innerHTML = `<tr class="empty-row"><td colspan="6">Gagal memuat data</td></tr>`;
+    tbody.innerHTML = `<tr class="empty-row"><td colspan="5">Gagal memuat data</td></tr>`;
   }
 }
 
-function _renderLapTemplateTable() {
+function _renderUrusanTable() {
   const tbody = document.getElementById('lapTemplateBody');
   if (!tbody) return;
   if (!_lapTemplateList.length) {
-    tbody.innerHTML = `<tr class="empty-row"><td colspan="6">Belum ada template ${_lapTemplateJenis === 'urusan' ? 'Urusan' : 'TSP'}</td></tr>`;
+    tbody.innerHTML = `<tr class="empty-row"><td colspan="5">Belum ada template Urusan</td></tr>`;
     return;
   }
-  const JENIS_BADGE = {
-    urusan:   ['#dbeafe','#1d4ed8','URUSAN'],
-    tujuan:   ['#ede9fe','#5b21b6','TUJUAN'],
-    sasaran:  ['#dcfce7','#166534','SASARAN'],
-    program:  ['#fef3c7','#92400e','PROGRAM'],
-    kegiatan: ['#fee2e2','#991b1b','KEGIATAN'],
-  };
-  const jenisBadge = (j) => {
-    const [bg, col, lbl] = JENIS_BADGE[j] || ['#f1f5f9','#475569', (j||'').toUpperCase()];
-    return `<span style="background:${bg};color:${col};border-radius:4px;padding:2px 8px;font-size:.72rem;font-weight:700">${lbl}</span>`;
-  };
   tbody.innerHTML = _lapTemplateList.map((t, i) => `
     <tr>
       <td style="text-align:center">${i+1}</td>
       <td style="font-weight:600">${escHtml(t.nama)}</td>
-      <td style="text-align:center">${jenisBadge(t.jenis)}</td>
       <td style="text-align:center">
         <span style="background:#f0fdf4;color:#166534;border-radius:12px;padding:2px 10px;font-size:.8rem;font-weight:700">${t.jumlah_indikator}</span>
       </td>
@@ -1777,18 +1951,18 @@ function _renderLapTemplateTable() {
       <td style="text-align:center">
         <div style="display:flex;gap:6px;justify-content:center">
           <button class="btn btn-sm" title="Kelola Indikator"
-            onclick="openLapTemplateIndikatorModal(${t.id}, '${escHtml(t.nama).replace(/'/g,"\\'")}', '${t.jenis}')"
+            onclick="openLapTemplateIndikatorModal(${t.id}, '${escHtml(t.nama).replace(/'/g,"\\'")}', 'urusan')"
             style="background:#e0f2fe;color:#0369a1;border:none;padding:4px 8px;font-size:.75rem">
             <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
             Indikator
           </button>
           <button class="btn btn-sm" title="Edit"
-            onclick="openLapTemplateModal(${t.id})"
+            onclick="openLapTemplateModal(${t.id}, 'urusan')"
             style="background:#f0fdf4;color:#166534;border:none;padding:4px 8px">
             <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
           </button>
           <button class="btn btn-sm" title="Hapus"
-            onclick="deleteLapTemplate(${t.id}, '${escHtml(t.nama).replace(/'/g,"\\'")}' )"
+            onclick="deleteLapTemplate(${t.id}, '${escHtml(t.nama).replace(/'/g,"\\'")}', 'urusan')"
             style="background:#fef2f2;color:#dc2626;border:none;padding:4px 8px">
             <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path stroke-linecap="round" stroke-linejoin="round" d="M19 6l-1 14H6L5 6m5 0V4h4v2"/></svg>
           </button>
@@ -1797,45 +1971,374 @@ function _renderLapTemplateTable() {
     </tr>`).join('');
 }
 
-function openLapTemplateModal(id = null) {
+// ═══════════════════════════════════════════════════════════════════════════
+// CASCADE WATERFALL — Tujuan → Sasaran → Program → Kegiatan
+// ═══════════════════════════════════════════════════════════════════════════
+
+async function _initLapCascade() {
+  _lapCascadeCache = {};
+  _lapCascadeSel   = [null, null, null];
+  _renderCascade();
+  await _loadCascadeLevel(0, null);
+}
+
+// level: 0=Tujuan, 1=Sasaran, 2=Program, 3=Kegiatan
+async function _loadCascadeLevel(level, parentId) {
+  const jenis = LAP_CASCADE_LEVELS[level];
+  const cacheKey = parentId ?? 'root';
+  const col = document.getElementById(`lapCol_${level}`);
+  if (!col) return;
+  const list = col.querySelector('.lap-col-list');
+  list.innerHTML = `<div class="lap-col-loading">Memuat...</div>`;
+  try {
+    const qs  = parentId ? `jenis=${jenis}&parent_id=${parentId}` : `jenis=${jenis}`;
+    const res  = await fetch(`/api/kinerja/laporan-template?${qs}`, { headers: authHeaders() });
+    const data = await res.json();
+    const items = data.templates || [];
+    _lapCascadeCache[`${level}_${cacheKey}`] = items;
+    _renderCascadeLevel(level, items);
+  } catch (e) {
+    list.innerHTML = `<div class="lap-col-loading" style="color:#dc2626">Gagal memuat</div>`;
+  }
+}
+
+function _renderCascade() {
+  const wrap = document.getElementById('lapCascadeWrap');
+  if (!wrap) return;
+  wrap.innerHTML = LAP_CASCADE_LEVELS.map((jenis, level) => {
+    const c = LAP_JENIS_COLOR[jenis];
+    return `
+      <div class="lap-cascade-col" id="lapCol_${level}">
+        <div class="lap-col-header" style="background:${c.hdr}">
+          <span>${LAP_JENIS_LABEL[jenis]}</span>
+          <button class="lap-col-add-btn" onclick="_openCascadeAdd(${level})" title="Tambah ${LAP_JENIS_LABEL[jenis]}">
+            <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>
+          </button>
+        </div>
+        <div class="lap-col-list" id="lapColList_${level}">
+          ${level > 0 ? '<div class="lap-col-hint">← Pilih item di kiri</div>' : '<div class="lap-col-loading">Memuat...</div>'}
+        </div>
+      </div>
+      ${level < 3 ? '<div class="lap-cascade-arrow">›</div>' : ''}
+    `;
+  }).join('');
+}
+
+function _renderCascadeLevel(level, items) {
+  const list = document.getElementById(`lapColList_${level}`);
+  if (!list) return;
+  const jenis = LAP_CASCADE_LEVELS[level];
+  const c = LAP_JENIS_COLOR[jenis];
+  const selId = _lapCascadeSel[level - 1]; // parent yang dipilih (untuk level > 0)
+
+  if (!items.length) {
+    list.innerHTML = `<div class="lap-col-empty">Belum ada ${LAP_JENIS_LABEL[jenis]}</div>`;
+    return;
+  }
+
+  list.innerHTML = items.map((t, idx) => {
+    const isActive = _lapCascadeSel[level] === t.id;
+    const nomorLabel = `${LAP_JENIS_LABEL[jenis]} ${idx + 1}`;
+    return `<div class="lap-col-item ${isActive ? 'active' : ''}" id="lapItem_${level}_${t.id}"
+        onclick="_selectCascadeItem(${level}, ${t.id})"
+        style="${isActive ? `background:${c.light};border-left:3px solid ${c.hdr}` : ''}">
+      <div style="font-size:0.7rem;font-weight:700;color:${c.hdr};margin-bottom:2px;text-transform:uppercase;letter-spacing:.3px">${nomorLabel}</div>
+      <div class="lap-col-item-name">${escHtml(t.nama)}</div>
+      <div class="lap-col-item-meta">
+        <span class="lap-ind-badge">${t.jumlah_indikator} indikator</span>
+        <div class="lap-col-item-actions">
+          <button onclick="event.stopPropagation();openLapTemplateIndikatorModal(${t.id},'${escHtml(t.nama).replace(/'/g,"\\'")}','${jenis}')" title="Kelola Indikator" class="lap-item-btn lap-item-btn-ind">
+            <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+          </button>
+          <button onclick="event.stopPropagation();_openCascadeEdit(${level},${t.id})" title="Edit" class="lap-item-btn lap-item-btn-edit">
+            <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+          </button>
+          <button onclick="event.stopPropagation();deleteLapTemplate(${t.id},'${escHtml(t.nama).replace(/'/g,"\\'")}','cascade',${level})" title="Hapus" class="lap-item-btn lap-item-btn-del">
+            <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path stroke-linecap="round" stroke-linejoin="round" d="M19 6l-1 14H6L5 6m5 0V4h4v2"/></svg>
+          </button>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+async function _selectCascadeItem(level, id) {
+  // Toggle: klik item aktif = deselect
+  const wasSelected = _lapCascadeSel[level] === id;
+  _lapCascadeSel[level] = wasSelected ? null : id;
+
+  // Reset seleksi semua level di bawahnya
+  for (let l = level + 1; l < LAP_CASCADE_LEVELS.length; l++) {
+    _lapCascadeSel[l] = null;
+  }
+
+  // Re-render kolom ini (update active style)
+  const cacheKey = level === 0 ? 'root' : (_lapCascadeSel[level - 1] ?? 'root');
+  const cached = _lapCascadeCache[`${level}_${cacheKey}`] || [];
+  _renderCascadeLevel(level, cached);
+
+  // Clear & reload kolom di bawahnya
+  for (let l = level + 1; l < LAP_CASCADE_LEVELS.length; l++) {
+    const parentId = _lapCascadeSel[l - 1];
+    const childList = document.getElementById(`lapColList_${l}`);
+    if (!parentId) {
+      if (childList) childList.innerHTML = '<div class="lap-col-hint">← Pilih item di kiri</div>';
+      for (let ll = l + 1; ll < LAP_CASCADE_LEVELS.length; ll++) {
+        const c2 = document.getElementById(`lapColList_${ll}`);
+        if (c2) c2.innerHTML = '<div class="lap-col-hint">← Pilih item di kiri</div>';
+      }
+      break;
+    }
+    await _loadCascadeLevel(l, parentId);
+  }
+}
+
+// ── Buka modal Tambah dari cascade ────────────────────────────────────────
+function _openCascadeAdd(level) {
+  const jenis = LAP_CASCADE_LEVELS[level];
+  const parentId   = level > 0 ? _lapCascadeSel[level - 1] : null;
+  const parentNama = level > 0 ? _getCascadeParentNama(level) : null;
+
+  if (level > 0 && !parentId) {
+    toast(`Pilih ${LAP_JENIS_LABEL[LAP_CASCADE_LEVELS[level-1]]} terlebih dahulu`, 'info');
+    return;
+  }
+  openLapTemplateModal(null, jenis, parentId, parentNama);
+}
+
+function _getCascadeParentNama(level) {
+  if (level === 0) return null;
+  const parentLevel = level - 1;
+  const parentId    = _lapCascadeSel[parentLevel];
+  const grandParentId = parentLevel > 0 ? _lapCascadeSel[parentLevel - 1] : null;
+  const cacheKey = grandParentId ?? 'root';
+  const items = _lapCascadeCache[`${parentLevel}_${cacheKey}`] || [];
+  return items.find(t => t.id === parentId)?.nama || null;
+}
+
+// ── Buka modal Edit dari cascade ──────────────────────────────────────────
+function _openCascadeEdit(level, id) {
+  const jenis = LAP_CASCADE_LEVELS[level];
+  const grandParentId = level > 0 ? _lapCascadeSel[level - 1] : null;
+  const cacheKey = grandParentId ?? 'root';
+  const items = _lapCascadeCache[`${level}_${cacheKey}`] || [];
+  const tpl = items.find(t => t.id === id);
+  if (!tpl) return;
+  openLapTemplateModal(id, jenis, tpl.parent_id || null, null, tpl.nama);
+}
+
+// ── Modal Tambah/Edit universal ───────────────────────────────────────────
+// ── Custom select untuk field Induk di modal TSP ──────────────────────────
+function _buildLapParentCsel(wrapperId, opts, selectedVal, placeholder, jenisLabel) {
+  const wrap = document.getElementById(wrapperId);
+  if (!wrap) return;
+  wrap.innerHTML = '';
+
+  // Hidden input untuk nilai
+  const hidden = document.createElement('input');
+  hidden.type  = 'hidden';
+  hidden.id    = 'lapTemplateParent';
+  hidden.value = selectedVal || '';
+  wrap.appendChild(hidden);
+
+  const selectedOpt = opts.find(o => o.value === String(selectedVal || ''));
+
+  // Trigger button
+  const trigger = document.createElement('button');
+  trigger.type      = 'button';
+  trigger.className = 'csel-trigger' + (opts.length === 0 ? ' disabled' : '');
+  trigger.innerHTML = `
+    <span class="csel-trigger-text${selectedOpt ? '' : ' placeholder'}">${selectedOpt ? escHtml(selectedOpt.label) : placeholder}</span>
+    <svg class="csel-chevron" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
+  `;
+  wrap.appendChild(trigger);
+
+  // Panel
+  const panel = document.createElement('div');
+  panel.className = 'csel-panel';
+  panel.style.display = 'none';
+
+  // Placeholder option
+  const phDiv = document.createElement('div');
+  phDiv.className = 'csel-option placeholder-opt';
+  phDiv.innerHTML = `<span class="csel-option-check"></span><span>${placeholder}</span>`;
+  phDiv.onclick = () => {
+    hidden.value = '';
+    trigger.querySelector('.csel-trigger-text').textContent = placeholder;
+    trigger.querySelector('.csel-trigger-text').classList.add('placeholder');
+    panel.querySelectorAll('.csel-option').forEach(o => o.classList.remove('selected'));
+    trigger.classList.remove('open');
+    panel.style.display = 'none';
+  };
+  panel.appendChild(phDiv);
+
+  opts.forEach(opt => {
+    const div = document.createElement('div');
+    const isSelected = opt.value === String(selectedVal || '');
+    div.className = 'csel-option' + (isSelected ? ' selected' : '');
+    div.innerHTML = `<span class="csel-option-check"><svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg></span><span>${escHtml(opt.label)}</span>`;
+    div.onclick = () => {
+      hidden.value = opt.value;
+      trigger.querySelector('.csel-trigger-text').textContent = opt.label;
+      trigger.querySelector('.csel-trigger-text').classList.remove('placeholder');
+      panel.querySelectorAll('.csel-option').forEach(o => o.classList.remove('selected'));
+      div.classList.add('selected');
+      trigger.classList.remove('open');
+      panel.style.display = 'none';
+    };
+    panel.appendChild(div);
+  });
+
+  wrap.appendChild(panel);
+
+  trigger.onclick = (e) => {
+    e.stopPropagation();
+    const isOpen = panel.style.display !== 'none';
+    // Tutup semua csel panel lain
+    document.querySelectorAll('.csel-panel').forEach(p => {
+      p.style.display = 'none';
+      p.parentElement?.querySelector('.csel-trigger')?.classList.remove('open');
+    });
+    if (!isOpen && opts.length > 0) {
+      panel.style.display = '';
+      trigger.classList.add('open');
+    }
+  };
+}
+
+function openLapTemplateModal(id = null, jenis = null, parentId = null, parentNama = null, nama = null) {
   _lapTemplateEditId = id;
-  const tpl = id ? _lapTemplateList.find(t => t.id === id) : null;
-  document.getElementById('modalLapTemplateTitle').textContent = id ? 'Edit Template' : 'Tambah Template';
-  document.getElementById('lapTemplateId').value    = id || '';
-  document.getElementById('lapTemplateJenis').value = tpl?.jenis  || _lapTemplateJenis;
-  document.getElementById('lapTemplateNama').value  = tpl?.nama   || '';
-  document.getElementById('lapTemplateUrutan').value = tpl?.urutan ?? 0;
+  const isUrusan = (jenis === 'urusan') || (_lapMode === 'urusan' && !jenis);
+  const resolvedJenis = jenis || (_lapMode === 'urusan' ? 'urusan' : 'tujuan');
+
+  document.getElementById('modalLapTemplateTitle').textContent = id ? `Edit ${LAP_JENIS_LABEL[resolvedJenis]}` : `Tambah ${LAP_JENIS_LABEL[resolvedJenis]}`;
+  document.getElementById('lapTemplateId').value     = id || '';
+  document.getElementById('lapTemplateJenis').value  = resolvedJenis;
+  document.getElementById('lapTemplateNama').value   = nama || '';
+
+  // Badge jenis
+  const badge = document.getElementById('lapTemplateJenisBadge');
+  const c = LAP_JENIS_COLOR[resolvedJenis] || {};
+  badge.style.background = c.bg || '#f1f5f9';
+  badge.style.color      = c.col || '#475569';
+  badge.textContent      = LAP_JENIS_LABEL[resolvedJenis] || resolvedJenis;
+
+  // Tampilkan badge jenis hanya di cascade (bukan urusan)
+  document.getElementById('lapTemplateJenisDisplay').style.display = !isUrusan ? '' : 'none';
+
+  // Tampilkan dropdown induk hanya di cascade (bukan urusan, bukan tujuan)
+  const parentDisplay = document.getElementById('lapTemplateParentDisplay');
+  const level = LAP_CASCADE_LEVELS.indexOf(resolvedJenis); // 0=tujuan,1=sasaran,2=program,3=kegiatan
+  if (!isUrusan && level > 0) {
+    parentDisplay.style.display = '';
+    const parentJenis = LAP_CASCADE_LEVELS[level - 1];
+    _buildLapParentCsel('lapTemplateParentWrap', [], parentId, '— Memuat Induk —', LAP_JENIS_LABEL[parentJenis]);
+    fetch(`/api/kinerja/laporan-template?jenis=${parentJenis}`, { headers: authHeaders() })
+      .then(r => r.json())
+      .then(data => {
+        const opts = (data.templates || []).map((t, i) => ({
+          value: String(t.id),
+          label: `${LAP_JENIS_LABEL[parentJenis]} ${i + 1}: ${t.nama}`
+        }));
+        _buildLapParentCsel('lapTemplateParentWrap', opts, parentId ? String(parentId) : '', `— Pilih ${LAP_JENIS_LABEL[parentJenis]} —`, LAP_JENIS_LABEL[parentJenis]);
+      })
+      .catch(() => {
+        _buildLapParentCsel('lapTemplateParentWrap', [], '', '— Gagal memuat —', '');
+      });
+  } else {
+    parentDisplay.style.display = 'none';
+  }
+
+  // Urutan manual hanya untuk Urusan
+  document.getElementById('lapTemplateUrutanWrap').style.display = isUrusan ? '' : 'none';
+  if (isUrusan) {
+    // Auto-suggest urutan berikutnya
+    const nextUrutan = _lapTemplateList.length ? Math.max(..._lapTemplateList.map(t => t.urutan || 0)) + 1 : 1;
+    document.getElementById('lapTemplateUrutanInput').value = id
+      ? (_lapTemplateList.find(t => t.id === id)?.urutan ?? 0)
+      : nextUrutan;
+  }
+
   openModal('modalLapTemplate');
   setTimeout(() => document.getElementById('lapTemplateNama').focus(), 100);
 }
 
 async function saveLapTemplate() {
-  const id     = document.getElementById('lapTemplateId').value;
-  const jenis  = document.getElementById('lapTemplateJenis').value;
-  const nama   = document.getElementById('lapTemplateNama').value.trim();
-  const urutan = parseInt(document.getElementById('lapTemplateUrutan').value) || 0;
+  const id       = document.getElementById('lapTemplateId').value;
+  const jenis    = document.getElementById('lapTemplateJenis').value;
+  const nama     = document.getElementById('lapTemplateNama').value.trim();
+  const parentId = document.getElementById('lapTemplateParent').value || null;
+  const isUrusan = jenis === 'urusan';
+  const urutan   = isUrusan
+    ? (parseInt(document.getElementById('lapTemplateUrutanInput').value) || 0)
+    : 0; // urutan cascade = auto (server pakai MAX+1 atau kita kirim 0)
+
   if (!nama) { toast('Nama template wajib diisi', 'error'); return; }
+
   try {
     const url    = id ? `/api/kinerja/laporan-template/${id}` : '/api/kinerja/laporan-template';
     const method = id ? 'PUT' : 'POST';
-    const res    = await fetch(url, { method, headers: { ...authHeaders(), 'Content-Type': 'application/json' }, body: JSON.stringify({ jenis, nama, urutan }) });
-    const data   = await res.json();
+    const res    = await fetch(url, {
+      method,
+      headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+      body: JSON.stringify({ jenis, nama, urutan, parent_id: parentId })
+    });
+    const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'Gagal menyimpan');
     toast(id ? 'Template berhasil diperbarui' : 'Template berhasil ditambahkan', 'success');
     closeModal('modalLapTemplate');
-    loadLapTemplateAdmin();
+
+    if (isUrusan) {
+      loadLapTemplateAdmin();
+    } else {
+      const level = LAP_CASCADE_LEVELS.indexOf(jenis);
+      const newParentId = parentId ? parseInt(parentId) : null;
+      const oldParentId = level > 0 ? _lapCascadeSel[level - 1] : null;
+      const parentChanged = level > 0 && newParentId !== oldParentId;
+
+      if (parentChanged && level > 0) {
+        // Clear state parent lama biar toggle logic tidak deselect
+        _lapCascadeSel[level - 1] = null;
+        // Pastikan cache kolom parent sudah ada sebelum _selectCascadeItem render
+        const parentLevel   = level - 1;
+        const grandParentId = parentLevel > 0 ? _lapCascadeSel[parentLevel - 1] : null;
+        if (!_lapCascadeCache[`${parentLevel}_${grandParentId ?? 'root'}`]) {
+          await _loadCascadeLevel(parentLevel, grandParentId);
+        }
+        // Simulasikan klik parent baru — otomatis handle highlight + reload child
+        await _selectCascadeItem(level - 1, newParentId);
+      } else {
+        // Parent sama, reload kolom ini saja
+        await _loadCascadeLevel(level, newParentId);
+      }
+    }
   } catch (e) {
     toast(e.message, 'error');
   }
 }
 
-async function deleteLapTemplate(id, nama) {
-  if (!confirm(`Hapus template "${nama}"? Semua mapping indikatornya juga akan dihapus.`)) return;
+async function deleteLapTemplate(id, nama, mode = 'urusan', cascadeLevel = null) {
+  const ok = await showConfirm({ title: 'Hapus Template', msg: `Hapus <b>${escHtml(nama)}</b>? Semua mapping indikatornya juga akan dihapus.`, okText: 'Ya, Hapus', type: 'danger', icon: 'trash' });
+  if (!ok) return;
   try {
     const res = await fetch(`/api/kinerja/laporan-template/${id}`, { method: 'DELETE', headers: authHeaders() });
     if (!res.ok) throw new Error('Gagal menghapus');
     toast('Template dihapus', 'success');
-    loadLapTemplateAdmin();
+
+    if (mode === 'cascade' && cascadeLevel !== null) {
+      // Jika item yang dihapus sedang aktif, reset seleksi level itu & bawahnya
+      if (_lapCascadeSel[cascadeLevel] === id) {
+        _lapCascadeSel[cascadeLevel] = null;
+        for (let l = cascadeLevel + 1; l < LAP_CASCADE_LEVELS.length; l++) {
+          const c2 = document.getElementById(`lapColList_${l}`);
+          if (c2) c2.innerHTML = '<div class="lap-col-hint">← Pilih item di kiri</div>';
+        }
+      }
+      const parentLevelId = cascadeLevel > 0 ? _lapCascadeSel[cascadeLevel - 1] : null;
+      await _loadCascadeLevel(cascadeLevel, parentLevelId);
+    } else {
+      loadLapTemplateAdmin();
+    }
   } catch (e) {
     toast(e.message, 'error');
   }
@@ -1944,7 +2447,20 @@ async function saveLapTemplateIndikator() {
     if (!res.ok) throw new Error('Gagal menyimpan');
     toast(`${ids.length} indikator berhasil disimpan`, 'success');
     closeModal('modalLapTemplateIndikator');
-    loadLapTemplateAdmin();
+
+    // Reload cascade level yang bersangkutan supaya jumlah_indikator update
+    // Cari level dari item yang sedang diedit
+    let reloaded = false;
+    for (let level = 0; level < LAP_CASCADE_LEVELS.length; level++) {
+      const cached = _lapCascadeCache[`${level}_${level === 0 ? 'root' : (_lapCascadeSel[level - 1] ?? 'root')}`] || [];
+      if (cached.some(t => t.id === _lapTplCurrentTemplateId)) {
+        const parentLevelId = level > 0 ? _lapCascadeSel[level - 1] : null;
+        await _loadCascadeLevel(level, parentLevelId);
+        reloaded = true;
+        break;
+      }
+    }
+    if (!reloaded) loadLapTemplateAdmin();
   } catch (e) {
     toast(e.message, 'error');
   }

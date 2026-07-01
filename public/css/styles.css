@@ -130,17 +130,59 @@ body::before {
   box-shadow: none;
 }
 .sidebar-header {
-  padding: 0 var(--sp-4);
+  padding: 0 var(--sp-3) 0 var(--sp-4);
   border-bottom: 1px solid var(--hijau-mid);
   background: var(--hijau);
   height: var(--topbar-h);
-  display: flex; align-items: center;
+  display: flex; align-items: center; justify-content: space-between;
 }
 .sidebar-brand { display: flex; align-items: center; gap: var(--sp-3); }
 .sidebar-brand-icon { display: flex; align-items: center; justify-content: center; }
-.sidebar-brand-icon img { width: 30px; height: 30px; object-fit: contain; display: block; filter: drop-shadow(0 1px 4px rgba(0,0,0,.3)); }
-.sidebar-brand-name { font-size: var(--fs-md); font-weight: 800; color: #ffffff; line-height: 1.1; white-space: nowrap; }
-.sidebar-brand-sub  { font-size: .55rem; color: rgba(255,255,255,.75); margin-top: 0; line-height: 1.2; }
+
+/* Loop entrance + idle glow — total siklus 6s */
+.sidebar-brand-icon img {
+  width: 30px; height: 30px; object-fit: contain; display: block;
+  animation: brandIconLoop 6s cubic-bezier(0.34,1.56,0.64,1) infinite;
+}
+.sidebar-brand-name {
+  font-size: var(--fs-md); font-weight: 800; color: #ffffff;
+  line-height: 1.1; white-space: nowrap;
+  animation: brandNameLoop 6s ease-in-out infinite;
+  animation-delay: 0.15s;
+}
+.sidebar-brand-sub {
+  font-size: .55rem; color: rgba(255,255,255,.75);
+  margin-top: 0; line-height: 1.2;
+  animation: brandSubLoop 6s ease-in-out infinite;
+  animation-delay: 0.25s;
+}
+
+@keyframes brandIconLoop {
+  /* masuk */
+  0%   { opacity: 0; transform: translateX(-18px) scale(0.7); filter: drop-shadow(0 0 0px rgba(167,243,208,0)); }
+  12%  { opacity: 1; transform: translateX(0) scale(1.08);    filter: drop-shadow(0 4px 10px rgba(0,0,0,.3)) drop-shadow(0 0 12px rgba(167,243,208,.7)); }
+  18%  { transform: scale(1); }
+  /* idle glow */
+  50%  { filter: drop-shadow(0 4px 10px rgba(0,0,0,.3)) drop-shadow(0 0 10px rgba(167,243,208,.5)); }
+  /* keluar */
+  82%  { opacity: 1; transform: translateX(0) scale(1); filter: drop-shadow(0 2px 6px rgba(0,0,0,.4)); }
+  92%  { opacity: 0; transform: translateX(-14px) scale(0.8); }
+  100% { opacity: 0; transform: translateX(-18px) scale(0.7); }
+}
+@keyframes brandNameLoop {
+  0%   { opacity: 0; transform: translateX(-12px); }
+  15%  { opacity: 1; transform: translateX(0); }
+  80%  { opacity: 1; transform: translateX(0); }
+  92%  { opacity: 0; transform: translateX(-10px); }
+  100% { opacity: 0; }
+}
+@keyframes brandSubLoop {
+  0%   { opacity: 0; transform: translateX(-10px); }
+  18%  { opacity: 1; transform: translateX(0); }
+  80%  { opacity: 1; transform: translateX(0); }
+  92%  { opacity: 0; transform: translateX(-8px); }
+  100% { opacity: 0; }
+}
 
 .sidebar-avatar {
   width: var(--sp-6); height: var(--sp-6); border-radius: var(--r-sm); flex-shrink: 0;
@@ -188,7 +230,7 @@ body::before {
   overflow: hidden; max-height: 0;
   transition: max-height .3s cubic-bezier(.4,0,.2,1);
 }
-.nav-sub.open { max-height: 300px; }
+.nav-sub.open { max-height: 600px; }
 .nav-sub-item {
   display: flex; align-items: center; gap: var(--sp-3); padding: var(--sp-2) var(--sp-3);
   border-radius: var(--r-sm); cursor: pointer; transition: all var(--transition);
@@ -211,14 +253,184 @@ body::before {
 }
 .sidebar-overlay.open { display: block; }
 
-/* ── Main area ── */
-.main { flex: 1; margin-left: var(--sidebar-w); display: flex; flex-direction: column; min-height: 100vh; }
+/* ── Sidebar collapse toggle — floating tab di tepi kanan sidebar ── */
+.btn-sidebar-collapse {
+  position: static;
+  flex-shrink: 0;
+  margin-left: var(--sp-3);
+  width: 24px; height: 24px;
+  display: flex; align-items: center; justify-content: center;
+  background: transparent; border: none;
+  border-radius: var(--r-sm);
+  color: #fff; cursor: pointer;
+  box-shadow: none;
+  transition: background var(--transition);
+  z-index: 1;
+}
+.btn-sidebar-collapse:hover { background: rgba(255,255,255,.12); }
+.btn-sidebar-collapse svg { transition: transform .3s ease; flex-shrink: 0; }
+
+/* ── Sidebar collapsed state ── */
+:root { --sidebar-w-collapsed: 56px; }
+
+.sidebar { transition: width .3s ease; }
+.sidebar.collapsed { width: var(--sidebar-w-collapsed); }
+
+/* Brand: sembunyikan teks, center icon */
+.sidebar.collapsed .sidebar-brand-text { display: none; }
+.sidebar.collapsed .sidebar-brand { justify-content: center; }
+.sidebar.collapsed .sidebar-header {
+  padding: 0;
+  justify-content: center;
+  background: var(--hijau);
+}
+.sidebar.collapsed .sidebar-brand-icon { display: none; }
+
+/* ── Toggle button: posisi & icon swap saat collapsed ── */
+
+/* Default (expanded): favicon hidden, toggle icon shown */
+.collapse-favicon { display: none; }
+.collapse-toggle-icon { display: block; }
+
+/* Collapsed: button sejajar nav-sub-item (40px) */
+.sidebar.collapsed .btn-sidebar-collapse {
+  width: 40px; height: 40px;
+  border-radius: var(--r-sm);
+  margin: 0;
+}
+
+/* Collapsed: tampilkan favicon grayscale putih (seperti icon submenu) */
+.sidebar.collapsed .collapse-favicon {
+  display: block;
+  width: 22px; height: 22px; object-fit: contain;
+  filter: grayscale(1) brightness(10);
+  opacity: 0.75;
+  transition: opacity .2s ease;
+}
+.sidebar.collapsed .collapse-toggle-icon {
+  display: none;
+}
+
+/* Hover saat collapsed: favicon hilang → toggle icon muncul */
+.sidebar.collapsed .btn-sidebar-collapse:hover .collapse-favicon {
+  display: none;
+}
+.sidebar.collapsed .btn-sidebar-collapse:hover .collapse-toggle-icon {
+  display: block;
+}
+
+/* Tooltip toggle button — sama style dengan nav-fixed-tooltip */
+#tooltipSidebarToggle {
+  position: fixed; transform: translateY(-50%);
+  background: #ccfbf1; color: var(--hijau); font-size: .72rem; font-weight: 600;
+  padding: 4px 10px; border-radius: var(--r-sm); white-space: nowrap;
+  opacity: 0; pointer-events: none;
+  transition: opacity .15s ease;
+  z-index: 9999;
+  box-shadow: 0 2px 8px rgba(13,148,136,.3);
+}
+#tooltipSidebarToggle.show { opacity: 1; }
+
+/* Nav container */
+.sidebar.collapsed .sidebar-nav { padding: var(--sp-2) var(--sp-1); }
+
+/* Label section (nav-label) hilang */
+.sidebar.collapsed .nav-label { display: none; }
+
+/* Group header — jadi divider tipis, tidak clickable feel */
+.sidebar.collapsed .nav-item {
+  justify-content: center;
+  padding: var(--sp-1) 0;
+  gap: 0;
+  min-height: 0;
+  height: 2px;
+  overflow: hidden;
+  opacity: 0;
+  pointer-events: none;
+  margin: var(--sp-1) var(--sp-2);
+  background: var(--abu-2);
+  border-radius: 2px;
+}
+.sidebar.collapsed .nav-item.active,
+.sidebar.collapsed .nav-item.has-active {
+  opacity: 0;
+}
+.sidebar.collapsed .nav-item::before { display: none; }
+.sidebar.collapsed .nav-item .nav-item-label,
+.sidebar.collapsed .nav-item .nav-chevron { display: none; }
+.sidebar.collapsed .nav-item svg:not(.nav-chevron) { display: none; }
+
+/* Sub jadi visible dan flat */
+.sidebar.collapsed .nav-sub {
+  display: block !important;
+  max-height: none !important;
+  margin-left: 0;
+  padding-left: 0;
+  border-left: none;
+  overflow: visible;
+}
+
+/* Sub-item: icon centered, full width */
+.sidebar.collapsed .nav-sub-item {
+  justify-content: center;
+  padding: 8px 0;
+  gap: 0;
+  border-radius: var(--r-sm);
+  position: relative;
+}
+.sidebar.collapsed .nav-sub-item > span:first-child {
+  opacity: 1;
+}
+.sidebar.collapsed .nav-sub-item-label { display: none; }
+
+/* Tooltip pada sub-item saat collapsed — dirender via JS (position:fixed) agar tidak ke-clip overflow-y .sidebar-nav */
+.nav-fixed-tooltip {
+  position: fixed; transform: translateY(-50%);
+  background: #ccfbf1; color: var(--hijau); font-size: .72rem; font-weight: 600;
+  padding: 4px 10px; border-radius: var(--r-sm); white-space: nowrap;
+  opacity: 0; pointer-events: none;
+  transition: opacity .15s ease;
+  z-index: 9999;
+  box-shadow: 0 2px 8px rgba(13,148,136,.3);
+}
+.nav-fixed-tooltip.show { opacity: 1; }
+
+/* Dashboard item collapsed */
+.sidebar.collapsed .nav-item[data-sub="dashboard"] {
+  justify-content: center;
+  padding: 8px 0;
+  gap: 0;
+  min-height: unset;
+  height: auto;
+  overflow: visible;
+  opacity: 1;
+  pointer-events: auto;
+  background: transparent;
+  margin: 0;
+}
+.sidebar.collapsed .nav-item[data-sub="dashboard"] svg { display: flex; }
+.sidebar.collapsed .nav-item[data-sub="dashboard"].active {
+  background: #ccfbf1;
+  opacity: 1;
+}
+.sidebar.collapsed .nav-item[data-sub="dashboard"]::before { display: block; }
+
+/* Main area offset transition — topbar TIDAK ikut collapse */
+.main { flex: 1; margin-left: var(--sidebar-w); display: flex; flex-direction: column; min-height: 100vh;
+  transition: margin-left .3s ease;
+}
+.main.sidebar-collapsed { margin-left: var(--sidebar-w-collapsed); }
 .topbar {
-  display: flex; align-items: center; gap: var(--sp-4); padding: 0 var(--sp-5);
+  display: flex; align-items: center; gap: var(--sp-4);
+  padding: 0 var(--sp-5) 0 calc(var(--sidebar-w) + var(--sp-5));
   height: var(--topbar-h); background: var(--hijau);
   border-bottom: 1px solid var(--hijau-mid);
-  position: fixed; top: 0; left: var(--sidebar-w); right: 0; z-index: 100; flex-shrink: 0;
+  position: fixed; top: 0; left: 0; right: 0; z-index: 99; flex-shrink: 0;
   box-shadow: 0 2px 8px rgba(15,118,110,.25);
+  transition: padding-left .3s ease;
+}
+.topbar.sidebar-collapsed {
+  padding-left: calc(var(--sidebar-w-collapsed) + var(--sp-5));
 }
 .btn-hamburger {
   width: var(--sp-6); height: var(--sp-6); border-radius: var(--r-sm);
@@ -894,11 +1106,17 @@ input[type="checkbox"].toggle:checked::after { left: 19px; }
 .kinerja-table { width:100%; border-collapse:collapse; font-size:.79rem; }
 .kinerja-table th {
   background:var(--hijau); color:#fff; padding:10px 10px;
-  text-align:left; font-weight:700; white-space:nowrap; position:sticky; top:0; z-index:2;
+  text-align:left; font-weight:700; white-space:nowrap; position:sticky; top:-1px; z-index:2;
   font-size:.72rem; letter-spacing:.4px; text-transform:uppercase;
 }
-.kinerja-table th[style*="left:0"]    { z-index:4; }
-.kinerja-table th[style*="left:34px"] { z-index:4; box-shadow:2px 0 6px -2px rgba(0,0,0,.08); left:44px !important; }
+.kinerja-table th:first-child { border-radius:0; }
+.kinerja-table th:last-child  { border-radius:0; }
+.kinerja-table thead, .kinerja-table thead tr, .kinerja-table thead th { background:var(--hijau) !important; color:#fff; border-color:var(--hijau) !important; outline:none; }
+.kinerja-table-wrap.card { overflow:hidden; }
+.card:has(> .kinerja-table),
+.card:has(> table.kinerja-table) { border-radius: var(--r-lg); overflow-y: hidden !important; }
+.kinerja-table th[style*="left:0"]    { z-index:4; background:var(--hijau); }
+.kinerja-table th[style*="left:34px"] { z-index:4; box-shadow:2px 0 6px -2px rgba(0,0,0,.08); left:44px !important; background:var(--hijau); }
 .kinerja-table td { padding:8px 10px; border-bottom:1px solid var(--abu-1); vertical-align:middle; user-select:text; overflow:hidden; }
 .kinerja-table td.td-sticky-no, .kinerja-table td.td-sticky-name { background:#fff !important; z-index:3 !important; }
 .kinerja-table td.td-sticky-no  { box-shadow:none; width:44px; min-width:44px; max-width:44px; overflow:hidden; }
@@ -919,7 +1137,7 @@ input[type="checkbox"].toggle:checked::after { left: 19px; }
 .kinerja-table tr:hover td:not(.td-sticky-no):not(.td-sticky-name) { background:var(--abu-1); }
 .kinerja-table .sasaran-row td { background:rgba(6,95,70,.07); font-weight:700; color:var(--teks); font-size:.78rem; padding:6px 10px; }
 /* Kolom satuan & target — cegah teks bocor ke belakang sticky */
-.kinerja-table td.td-satuan,
+.kinerja-table td.td-satuan { white-space:normal; word-break:break-word; max-width:80px; }
 .kinerja-table td.td-target { white-space:nowrap; overflow:hidden; max-width:80px; text-overflow:ellipsis; }
 
 .capaian-badge { display:inline-flex; align-items:center; gap:3px; padding:3px 9px; border-radius:20px; font-size:.73rem; font-weight:700; white-space:nowrap; }
@@ -1467,6 +1685,7 @@ body.login-page::before {
   .content { padding: var(--sp-4) var(--sp-4) var(--sp-7); padding-top: calc(var(--topbar-h) + var(--sp-4)); }
   .btn-hamburger { display: flex; }
   .topbar-user-info { display: none; }
+  .btn-sidebar-collapse { display: none; }
 
   /* ── Modal ── */
   .modal-overlay-main { left: 0; }
@@ -3691,6 +3910,34 @@ td.col-perihal {
 }
 
 /* ═══════════════════════════════════════════════════════
+   LAPORAN KINERJA — Filter bar responsive (override grid generik)
+   ═══════════════════════════════════════════════════════ */
+.lap-kinerja-toolbar .lap-kinerja-range { display:flex; align-items:center; flex:1; min-width:0; }
+.lap-kinerja-toolbar .lap-kinerja-jenis.select-wrap { min-width:160px; }
+.lap-kinerja-toolbar .lap-kinerja-bidang.select-wrap { min-width:240px; }
+@media (max-width: 900px) {
+  .lap-kinerja-toolbar.toolbar { display:flex !important; flex-wrap:wrap; }
+  .lap-kinerja-toolbar .lap-kinerja-range { flex:1 1 100% !important; order:1; min-width:0 !important; }
+  .lap-kinerja-toolbar .lap-kinerja-jenis.select-wrap,
+  .lap-kinerja-toolbar .lap-kinerja-bidang.select-wrap {
+    flex:1 1 calc(50% - 4px) !important;
+    max-width:calc(50% - 4px) !important;
+    min-width:0 !important;
+    order:2;
+  }
+  .lap-kinerja-toolbar .lap-kinerja-btn { flex:1 1 calc(50% - 4px) !important; order:3; }
+}
+@media (max-width: 480px) {
+  .lap-kinerja-toolbar .lap-kinerja-jenis.select-wrap,
+  .lap-kinerja-toolbar .lap-kinerja-bidang.select-wrap,
+  .lap-kinerja-toolbar .lap-kinerja-btn {
+    flex:1 1 100% !important;
+    max-width:100% !important;
+    width:100% !important;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════
    REALISASI IKK — Tambah class khusus IKK yang lebih sempit
    ═══════════════════════════════════════════════════════ */
 .ikk-table-wrap {
@@ -5170,13 +5417,14 @@ p:last-child { margin-bottom: 0; }
   display: flex;
   align-items: center;
   gap: var(--sp-4);
-  padding: 0 var(--sp-5);
+  padding: 0 var(--sp-5) 0 calc(var(--sidebar-w) + var(--sp-5));
   background: var(--hijau);
   border-bottom: 1px solid var(--hijau-mid);
   position: fixed;
-  top: 0; left: var(--sidebar-w); right: 0;
-  z-index: 100;
+  top: 0; left: 0; right: 0;
+  z-index: 99;
   box-shadow: 0 2px var(--sp-3) rgba(15,118,110,.25);
+  transition: padding-left .3s ease;
 }
 
 /* Main content — φ-spaced */
@@ -5186,6 +5434,7 @@ p:last-child { margin-bottom: 0; }
   display: flex;
   flex-direction: column;
   min-height: 100vh;
+  transition: margin-left .3s ease;
 }
 
 .content {
@@ -5317,7 +5566,7 @@ p:last-child { margin-bottom: 0; }
   max-height: 0;
   transition: max-height var(--dur-md) var(--ease);
 }
-.nav-sub.open { max-height: 300px; }
+.nav-sub.open { max-height: 600px; }
 
 .nav-sub-item {
   display: flex;
@@ -6239,7 +6488,7 @@ tr:hover td:not(.td-sticky-no):not(.td-sticky-name) { background: var(--abu-1); 
   font-weight: 700;
   white-space: nowrap;
   position: sticky;
-  top: 0;
+  top: -1px;
   z-index: 2;
   font-size: var(--fs-xs);
   letter-spacing: .4px;
@@ -7512,4 +7761,141 @@ tr:hover td:not(.td-sticky-no):not(.td-sticky-name) { background: var(--abu-1); 
 
 .cs-item.cs-item-other:hover {
   color: var(--teal, #0d9488);
+}
+/* ══════════════════════════════════════════════════════
+   CASCADE WATERFALL — Kelola Laporan TSP
+   ══════════════════════════════════════════════════════ */
+.lap-cascade-col {
+  flex: 1;
+  min-width: 220px;
+  max-width: 300px;
+  background: var(--bg-card, #fff);
+  border: 1.5px solid var(--border, #e2e8f0);
+  border-radius: 12px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 1px 4px rgba(0,0,0,.06);
+}
+.lap-col-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 9px 12px;
+  color: #fff;
+  font-size: .78rem;
+  font-weight: 800;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  flex-shrink: 0;
+}
+.lap-col-add-btn {
+  background: rgba(255,255,255,.22);
+  border: none;
+  border-radius: 6px;
+  width: 26px;
+  height: 26px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: #fff;
+  transition: background .15s;
+  flex-shrink: 0;
+}
+.lap-col-add-btn:hover { background: rgba(255,255,255,.38); }
+.lap-col-list {
+  flex: 1;
+  overflow-y: auto;
+  max-height: 480px;
+  padding: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.lap-col-hint {
+  text-align: center;
+  padding: 28px 12px;
+  color: var(--teks-muted, #94a3b8);
+  font-size: .78rem;
+}
+.lap-col-loading {
+  text-align: center;
+  padding: 24px 12px;
+  color: var(--teks-muted, #94a3b8);
+  font-size: .78rem;
+}
+.lap-col-empty {
+  text-align: center;
+  padding: 28px 12px;
+  color: var(--teks-muted, #94a3b8);
+  font-size: .78rem;
+  font-style: italic;
+}
+.lap-col-item {
+  border-radius: 8px;
+  padding: 8px 10px;
+  cursor: pointer;
+  border-left: 3px solid transparent;
+  transition: background .12s, border-color .12s;
+}
+.lap-col-item:hover { background: var(--bg-hover, #f8fafc); }
+.lap-col-item-name {
+  font-size: .8rem;
+  font-weight: 600;
+  color: var(--teks, #1e293b);
+  line-height: 1.4;
+  margin-bottom: 5px;
+}
+.lap-col-item-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+}
+.lap-ind-badge {
+  background: #f0f9ff;
+  color: #0369a1;
+  border-radius: 10px;
+  padding: 1px 7px;
+  font-size: .68rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.lap-col-item-actions {
+  display: flex;
+  gap: 3px;
+  opacity: 0;
+  transition: opacity .12s;
+}
+.lap-col-item:hover .lap-col-item-actions { opacity: 1; }
+.lap-col-item.active .lap-col-item-actions { opacity: 1; }
+.lap-item-btn {
+  border: none;
+  border-radius: 5px;
+  width: 22px;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background .12s;
+}
+.lap-item-btn-ind  { background: #e0f2fe; color: #0369a1; }
+.lap-item-btn-edit { background: #f0fdf4; color: #166534; }
+.lap-item-btn-del  { background: #fef2f2; color: #dc2626; }
+.lap-item-btn-ind:hover  { background: #bae6fd; }
+.lap-item-btn-edit:hover { background: #bbf7d0; }
+.lap-item-btn-del:hover  { background: #fecaca; }
+.lap-cascade-arrow {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--teks-muted, #cbd5e1);
+  font-size: 1.6rem;
+  font-weight: 300;
+  padding: 0 4px;
+  align-self: center;
+  margin-top: -20px;
+  flex-shrink: 0;
 }

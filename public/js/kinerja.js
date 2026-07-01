@@ -3,6 +3,11 @@ function normTarget(r) {
   if (r.target_tahun != null) r.target_tahun = parseFloat(r.target_tahun);
   if (r.target_display == null && r.target_tahun != null) r.target_display = null;
   r.bermakna_negatif = r.bermakna_negatif === true || r.bermakna_negatif === 'true';
+  // Parse jenis_custom: Neon JSONB bisa datang sebagai string
+  if (typeof r.jenis_custom === 'string') {
+    try { r.jenis_custom = JSON.parse(r.jenis_custom); } catch { r.jenis_custom = []; }
+  }
+  if (!Array.isArray(r.jenis_custom)) r.jenis_custom = [];
   return r;
 }
 
@@ -53,6 +58,36 @@ const JENIS_META = {
   program:  { label: 'Program',           cls: 'group-program'  },
   kegiatan: { label: 'Kegiatan',          cls: 'group-kegiatan' },
 };
+
+// ── Jenis Kinerja — state dinamis ────────────────────────────────────────
+// Diisi dari API /api/kinerja/jenis-kinerja saat loadIndikatorAdmin
+let _jenisList = [];  // [{id, kode, label, warna_bg, warna_teks, urutan, aktif, is_builtin}]
+let _editingJenisId = null;
+
+// Helper: render badge jenis untuk satu row indikator
+function _renderJenisBadges(row) {
+  const badges = [];
+  for (const j of _jenisList) {
+    if (!j.aktif) continue;
+    let aktif = false;
+    if (j.kode === 'iku') aktif = !!row.jenis_monev;
+    else if (j.kode === 'ikk') aktif = !!row.jenis_ikk;
+    else if (j.kode === 'spm') aktif = !!row.jenis_spm;
+    else aktif = Array.isArray(row.jenis_custom) && row.jenis_custom.includes(j.kode);
+    if (aktif) {
+      badges.push(`<span style="display:inline-flex;align-items:center;font-size:.7rem;font-weight:700;color:${j.warna_teks};background:${j.warna_bg};padding:2px 7px;border-radius:5px;margin-right:3px">${escHtml(j.label)}</span>`);
+    }
+  }
+  return badges.length ? badges.join('') : '<span style="color:var(--teks-muted);font-size:.75rem">—</span>';
+}
+
+// Helper: apakah row punya setidaknya satu jenis aktif
+function _rowHasJenis(row, kode) {
+  if (kode === 'iku') return !!row.jenis_monev;
+  if (kode === 'ikk')   return !!row.jenis_ikk;
+  if (kode === 'spm')   return !!row.jenis_spm;
+  return Array.isArray(row.jenis_custom) && row.jenis_custom.includes(kode);
+}
 
 // ── Cek apakah window input untuk bulan tertentu sedang terbuka (non-admin) ──
 // Jika bulan tidak diberikan, cek bulan yang sedang dipilih (_kinerja_bulan)
@@ -1544,19 +1579,22 @@ async function loadIndikatorAdmin({ keepFilter = false } = {}) {
   if (!tbody) return;
   tbody.innerHTML = `<tr class="empty-row"><td colspan="9">Memuat...</td></tr>`;
   try {
-    const [ri, rg, rb, rt] = await Promise.all([
-      fetch('/api/kinerja/indikator',  { headers: authHeaders() }),
-      fetch('/api/kinerja/group',      { headers: authHeaders() }),
-      fetch('/api/bidang',             { headers: authHeaders() }),
-      fetch('/api/kinerja/target?all=1', { headers: authHeaders() }),
+    const [ri, rg, rb, rt, rj] = await Promise.all([
+      fetch('/api/kinerja/indikator',        { headers: authHeaders() }),
+      fetch('/api/kinerja/group',            { headers: authHeaders() }),
+      fetch('/api/bidang',                   { headers: authHeaders() }),
+      fetch('/api/kinerja/target?all=1',     { headers: authHeaders() }),
+      fetch('/api/kinerja/jenis-kinerja',    { headers: authHeaders() }),
     ]);
     const di = await ri.json();
     const dg = await rg.json();
     const db = await rb.json();
     const dt = await rt.json();
+    const dj = await rj.json();
     _indikatorList     = (di.indikator || []).map(normTarget);
     _groupList         = dg.group    || [];
     _bidangListKinerja = db.bidang   || [];
+    _jenisList         = (dj.jenis   || []).filter(j => j.aktif);
     // Build targetMap: { indikator_id: [{tahun, target, target_display}] }
     _targetMap = {};
     for (const t of (dt.target || [])) {
@@ -1576,6 +1614,16 @@ async function loadIndikatorAdmin({ keepFilter = false } = {}) {
       if (jenisEl) jenisEl.value = '';
       const maknaEl = document.getElementById('indikatorFilterMakna');
       if (maknaEl) maknaEl.value = '';
+    }
+    // Populate filter Jenis Kinerja secara dinamis
+    const jenisFilterEl = document.getElementById('indikatorFilterJenis');
+    if (jenisFilterEl) {
+      const all = (dj.jenis || []).filter(j => j.aktif);
+      jenisFilterEl.innerHTML =
+        '<option value="">Semua Jenis</option>' +
+        all.map(j => `<option value="${escHtml(j.kode)}">${escHtml(j.label)}</option>`).join('') +
+        '<option value="none">Tanpa Jenis</option>';
+      if (keepFilter && _indikatorFilterJenis) jenisFilterEl.value = _indikatorFilterJenis;
     }
     // Populate tahun dropdown dari targetMap
     const tahunSet = new Set();
@@ -1610,6 +1658,12 @@ function filterIndikator() {
   renderIndikatorAdmin();
 }
 window.goIndikatorPage = (p) => { _indikatorPage = p; renderIndikatorAdmin(); };
+window.openJenisModal       = openJenisModal;
+window.saveJenis            = saveJenis;
+window.deleteJenis          = deleteJenis;
+window.loadKelolaJenis      = loadKelolaJenis;
+window._updateJenisPreview  = _updateJenisPreview;
+window._onJenisCbChange     = _onJenisCbChange;
 
 // Render formula sebagai pecahan matematis
 // Format input: "Pembilang / Penyebut × konstanta"
@@ -1688,11 +1742,13 @@ function renderIndikatorAdmin() {
       (row.satuan || '').toLowerCase().includes(_indikatorSearch) ||
       (Array.isArray(row.pic_users) && row.pic_users.some(n => (n || '').toLowerCase().includes(_indikatorSearch)))
     )) return false;
-    // Jenis Kinerja
-    if (_indikatorFilterJenis === 'iku' && !row.jenis_monev) return false;
-    if (_indikatorFilterJenis === 'ikk'   && !row.jenis_ikk)   return false;
-    if (_indikatorFilterJenis === 'spm'   && !row.jenis_spm)   return false;
-    if (_indikatorFilterJenis === 'none'  && (row.jenis_monev || row.jenis_ikk || row.jenis_spm)) return false;
+    // Jenis Kinerja — dinamis
+    if (_indikatorFilterJenis === 'none') {
+      const anyJenis = _jenisList.some(j => _rowHasJenis(row, j.kode));
+      if (anyJenis) return false;
+    } else if (_indikatorFilterJenis) {
+      if (!_rowHasJenis(row, _indikatorFilterJenis)) return false;
+    }
     // Makna
     if (_indikatorFilterMakna === 'negatif' && !row.bermakna_negatif)  return false;
     if (_indikatorFilterMakna === 'positif' &&  row.bermakna_negatif)  return false;
@@ -1749,10 +1805,7 @@ function renderIndikatorAdmin() {
           return pics.map(nama => `<span style="display:inline-flex;align-items:center;font-size:.7rem;font-weight:600;background:#eff6ff;color:#1e40af;border:1px solid #bfdbfe;border-radius:5px;padding:2px 7px;margin:1px 3px 1px 0">${escHtml(nama)}</span>`).join('');
         })()}</td>
         <td>
-          ${row.jenis_monev ? `<span style="display:inline-flex;align-items:center;gap:3px;font-size:.7rem;font-weight:700;color:#1e40af;background:#dbeafe;padding:2px 7px;border-radius:5px;margin-right:3px">IKU</span>` : ''}
-          ${row.jenis_ikk   ? `<span style="display:inline-flex;align-items:center;gap:3px;font-size:.7rem;font-weight:700;color:#065f46;background:#d1fae5;padding:2px 7px;border-radius:5px">IKK</span>` : ''}
-          ${row.jenis_spm ? `<span style="display:inline-flex;align-items:center;gap:3px;font-size:.7rem;font-weight:700;color:#b45309;background:#fef3c7;padding:2px 7px;border-radius:5px;margin-right:3px">SPM</span>` : ''}
-          ${!row.jenis_monev && !row.jenis_ikk && !row.jenis_spm ? '<span style="color:var(--teks-muted);font-size:.75rem">—</span>' : ''}
+          ${_renderJenisBadges(row)}
         </td>
         <td class="neg-col">
           ${row.bermakna_negatif
@@ -1951,10 +2004,31 @@ function openIndikatorModal(id) {
   document.getElementById('indikatorUrutan') && (document.getElementById('indikatorUrutan').value = row?.urutan ?? 0);
   document.getElementById('indikatorNegatif').value   = row?.bermakna_negatif ? 'negatif' : 'positif';
   document.getElementById('indikatorAktif') && (document.getElementById('indikatorAktif').checked = row ? row.aktif : true);
-  // Jenis kinerja checkboxes
-  document.getElementById('indikatorJenisMonev').checked = row ? !!row.jenis_monev : false;
-  document.getElementById('indikatorJenisIkk').checked   = row ? !!row.jenis_ikk   : false;
-  document.getElementById('indikatorJenisSpm').checked   = row ? !!row.jenis_spm   : false;
+  // Jenis kinerja checkboxes — dinamis dari _jenisList
+  const jenisWrap = document.getElementById('indikatorJenisWrap');
+  if (jenisWrap) {
+    const customArr = Array.isArray(row?.jenis_custom) ? row.jenis_custom : [];
+    jenisWrap.innerHTML = _jenisList.map(j => {
+      let checked = false;
+      if (j.kode === 'iku') checked = row ? !!row.jenis_monev : false;
+      else if (j.kode === 'ikk') checked = row ? !!row.jenis_ikk : false;
+      else if (j.kode === 'spm') checked = row ? !!row.jenis_spm : false;
+      else checked = customArr.includes(j.kode);
+      const chipColor = checked
+        ? `background:${j.warna_bg};border-color:${j.warna_teks}40;color:${j.warna_teks}`
+        : '';
+      return `<label class="jenis-chip" data-kode="${escHtml(j.kode)}"
+        style="display:flex;align-items:center;gap:7px;cursor:pointer;font-size:.85rem;font-weight:500;padding:6px 12px;border-radius:8px;border:1.5px solid #e2e8f0;background:#f8fafc;transition:background .2s,border-color .2s;${chipColor ? chipColor : ''}">
+        <input type="checkbox" class="jenis-cb-input" data-kode="${escHtml(j.kode)}"
+          ${checked ? 'checked' : ''}
+          onchange="_onJenisCbChange(this)"
+          style="width:14px;height:14px;accent-color:${j.warna_teks};flex-shrink:0">
+        <span>${escHtml(j.label)}</span>
+        ${j.is_builtin ? '' : `<span title="Jenis kustom" style="font-size:.62rem;color:${j.warna_teks};opacity:.7">✦</span>`}
+      </label>`;
+    }).join('')
+    || '<span style="color:var(--teks-muted);font-size:.82rem">Belum ada jenis. Tambah dari bagian Kelola Jenis di bawah.</span>';
+  }
   // Formula — parse JSON ke 4 field
   const fHidden = document.getElementById('indikatorFormula');
   const fNama      = document.getElementById('fNama');
@@ -2015,15 +2089,21 @@ function _removeTargetRow(i) {
 
 async function saveIndikator() {
   const groupVal = document.getElementById('indikatorGroup').value;
+  // Collect jenis dari checkboxes dinamis
+  const jenisChecked = new Set(
+    [...document.querySelectorAll('#indikatorJenisWrap input.jenis-cb-input:checked')]
+      .map(cb => cb.dataset.kode)
+  );
   const body = {
     group_id:          groupVal ? parseInt(groupVal) : null,
     indikator_kinerja: document.getElementById('indikatorNama').value.trim(),
     satuan:            document.getElementById('indikatorSatuan').value.trim(),
     penanggung_jawab:  document.getElementById('indikatorPJ').value.trim() || null,
     bermakna_negatif:  document.getElementById('indikatorNegatif').value === 'negatif',
-    jenis_monev:       document.getElementById('indikatorJenisMonev').checked,
-    jenis_ikk:         document.getElementById('indikatorJenisIkk').checked,
-    jenis_spm:         document.getElementById('indikatorJenisSpm').checked,
+    jenis_monev:       jenisChecked.has('iku'),
+    jenis_ikk:         jenisChecked.has('ikk'),
+    jenis_spm:         jenisChecked.has('spm'),
+    jenis_custom:      [...jenisChecked].filter(k => !['iku','ikk','spm'].includes(k)),
     formula:           document.getElementById('indikatorFormula').value.trim() || null,
   };
   if (!body.indikator_kinerja || !body.satuan) { toast('Indikator dan satuan wajib diisi', 'error'); return; }
@@ -2055,8 +2135,209 @@ async function deleteIndikator(id) {
   loadIndikatorAdmin({ keepFilter: true });
 }
 
+// ── Helper: toggle warna chip saat checkbox jenis di-klik ────────────────
+function _onJenisCbChange(cb) {
+  const kode  = cb.dataset.kode;
+  const label = _jenisList.find(j => j.kode === kode);
+  const chip  = cb.closest('.jenis-chip');
+  if (!chip || !label) return;
+  if (cb.checked) {
+    chip.style.background   = label.warna_bg;
+    chip.style.borderColor  = label.warna_teks + '60';
+    chip.style.color        = label.warna_teks;
+  } else {
+    chip.style.background   = '#f8fafc';
+    chip.style.borderColor  = '#e2e8f0';
+    chip.style.color        = '';
+  }
+}
+
 // ═══════════════════════════════════════════════════════════════════════════
-// KELOLA TARGET — halaman tersendiri di Master Data
+// KELOLA JENIS KINERJA — halaman tersendiri di Master Data
+// ═══════════════════════════════════════════════════════════════════════════
+let _allJenisList = []; // semua jenis termasuk nonaktif (untuk section kelola jenis)
+
+async function loadKelolaJenis() {
+  try {
+    const r = await fetch('/api/kinerja/jenis-kinerja', { headers: authHeaders() });
+    if (!r.ok) throw new Error('Gagal memuat jenis kinerja');
+    const data = await r.json();
+    renderKelolJenisSection(data.jenis || data || []);
+  } catch (err) {
+    const wrap = document.getElementById('kelolJenisSection');
+    if (wrap) wrap.innerHTML = `<p style="color:var(--merah);padding:16px">Gagal: ${err.message}</p>`;
+  }
+}
+
+function renderKelolJenisSection(allJenis) {
+  _allJenisList = allJenis;
+  const wrap = document.getElementById('kelolJenisSection');
+  if (!wrap) return;
+
+  const rows = allJenis.map((j, i) => `
+    <tr>
+      <td style="text-align:center;color:var(--teks-muted);font-size:.8rem">${i + 1}</td>
+      <td>
+        <span style="display:inline-flex;align-items:center;font-size:.78rem;font-weight:700;
+          color:${j.warna_teks};background:${j.warna_bg};padding:3px 10px;border-radius:6px">
+          ${escHtml(j.label)}
+        </span>
+      </td>
+      <td style="font-size:.78rem;color:var(--teks-muted);font-family:monospace">${escHtml(j.kode)}</td>
+      <td>${j.deskripsi ? `<span style="font-size:.78rem;color:var(--teks-muted)">${escHtml(j.deskripsi)}</span>` : '—'}</td>
+      <td style="text-align:center">
+        <span style="font-size:.72rem;font-weight:600;padding:2px 8px;border-radius:5px;
+          ${j.aktif ? 'background:#d1fae5;color:#065f46' : 'background:#f1f5f9;color:#94a3b8'}">
+          ${j.aktif ? 'Aktif' : 'Nonaktif'}
+        </span>
+      </td>
+      <td style="white-space:nowrap">
+        <button class="btn btn-ghost btn-sm" title="Edit" onclick="openJenisModal(${j.id})">
+          <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+        </button>
+        ${j.is_builtin ? '' : `
+        <button class="btn btn-danger btn-sm" title="Hapus" onclick="deleteJenis(${j.id}, '${escHtml(j.label)}')">
+          <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path stroke-linecap="round" stroke-linejoin="round" d="M19 6l-1 14H6L5 6"/><path stroke-linecap="round" stroke-linejoin="round" d="M10 11v6m4-6v6"/><path stroke-linecap="round" stroke-linejoin="round" d="M9 6V4h6v2"/></svg>
+        </button>`}
+      </td>
+    </tr>
+  `).join('');
+
+  wrap.innerHTML = `
+    <div class="page-title" style="display:flex;align-items:center;gap:10px">
+      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;opacity:.85"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/><rect width="6" height="4" x="9" y="3" rx="1"/><path d="M9 12h6"/><path d="M9 16h4"/></svg>
+      Kelola Jenis Kinerja
+    </div>
+    <div class="page-subtitle">Tambah atau ubah jenis kinerja yang tersedia di checkbox indikator</div>
+    <div style="display:flex;justify-content:flex-end;margin-top:14px;margin-bottom:16px">
+      <button class="btn btn-primary btn-sm" onclick="openJenisModal()">
+        <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>
+        Tambah Jenis
+      </button>
+    </div>
+    <div class="card" style="padding:0;overflow:auto;-webkit-overflow-scrolling:touch">
+      <table class="kinerja-table">
+        <thead>
+          <tr>
+            <th style="width:36px">No</th>
+            <th>Label</th>
+            <th style="width:120px">Kode</th>
+            <th>Deskripsi</th>
+            <th style="width:80px;text-align:center">Status</th>
+            <th style="width:90px">Aksi</th>
+          </tr>
+        </thead>
+        <tbody>${rows || '<tr class="empty-row"><td colspan="6">Belum ada jenis kinerja.</td></tr>'}</tbody>
+      </table>
+    </div>
+  `;
+}
+
+function openJenisModal(id) {
+  _editingJenisId = id || null;
+  const j = id ? _allJenisList.find(x => x.id === id) : null;
+
+  document.getElementById('modalJenisTitle').textContent = id ? 'Edit Jenis Kinerja' : 'Tambah Jenis Kinerja';
+  document.getElementById('jenisLabel').value      = j?.label      || '';
+  document.getElementById('jenisDeskripsi').value  = j?.deskripsi  || '';
+  document.getElementById('jenisWarnaBg').value    = j?.warna_bg   || '#e2e8f0';
+  document.getElementById('jenisWarnaTeks').value  = j?.warna_teks || '#334155';
+  document.getElementById('jenisUrutan').value     = j?.urutan ?? 99;
+  document.getElementById('jenisAktif').checked    = j ? j.aktif : true;
+
+  const kodeRow = document.getElementById('jenisKodeRow');
+  const kodeEl  = document.getElementById('jenisKodeDisplay');
+  if (j) {
+    if (kodeRow) kodeRow.style.display = '';
+    if (kodeEl)  kodeEl.textContent = j.kode;
+  } else {
+    if (kodeRow) kodeRow.style.display = 'none';
+  }
+
+  const isBuiltin = j?.is_builtin;
+  document.getElementById('jenisLabel').disabled     = !!isBuiltin;
+  document.getElementById('jenisWarnaBg').disabled   = false;
+  document.getElementById('jenisWarnaTeks').disabled = false;
+
+  _updateJenisPreview();
+  openModal('modalJenis');
+}
+
+function _updateJenisPreview() {
+  const label = document.getElementById('jenisLabel').value || 'Label';
+  const bg    = document.getElementById('jenisWarnaBg').value    || '#e2e8f0';
+  const teks  = document.getElementById('jenisWarnaTeks').value  || '#334155';
+  const prev  = document.getElementById('jenisBadgePreview');
+  if (prev) {
+    prev.textContent   = label;
+    prev.style.background = bg;
+    prev.style.color      = teks;
+  }
+}
+
+async function saveJenis() {
+  const label     = document.getElementById('jenisLabel').value.trim();
+  const deskripsi = document.getElementById('jenisDeskripsi').value.trim();
+  const warna_bg  = document.getElementById('jenisWarnaBg').value;
+  const warna_teks= document.getElementById('jenisWarnaTeks').value;
+  const urutan    = parseInt(document.getElementById('jenisUrutan').value) || 99;
+  const aktif     = document.getElementById('jenisAktif').checked;
+
+  if (!label) { toast('Label wajib diisi', 'error'); return; }
+
+  const id     = _editingJenisId;
+  const url    = id ? `/api/kinerja/jenis-kinerja/${id}` : '/api/kinerja/jenis-kinerja';
+  const method = id ? 'PUT' : 'POST';
+  const body   = { label, deskripsi: deskripsi || null, warna_bg, warna_teks, urutan, aktif };
+
+  try {
+    const r = await fetch(url, { method, headers: authHeaders(), body: JSON.stringify(body) });
+    const d = await r.json();
+    if (!r.ok) { toast(d.error || 'Gagal simpan', 'error'); return; }
+    toast(id ? 'Jenis diperbarui' : `Jenis "${d.jenis?.label}" ditambahkan`);
+    closeModal('modalJenis');
+    loadKelolaJenis();
+    loadIndikatorAdmin({ keepFilter: true });
+  } catch (err) { toast('Error: ' + err.message, 'error'); }
+}
+
+async function deleteJenis(id, label) {
+  const okAwal = await showConfirm({
+    title:  'Hapus Jenis Kinerja',
+    msg:    `Jenis "<b>${escHtml(label)}</b>" akan dihapus permanen.`,
+    okText: 'Ya, Hapus', okClass: 'btn-danger', icon: 'trash',
+  });
+  if (!okAwal) return;
+
+  // Pertama cek ke server apakah masih dipakai
+  const r = await fetch(`/api/kinerja/jenis-kinerja/${id}`, { method: 'DELETE', headers: authHeaders() });
+  const d = await r.json();
+
+  if (r.status === 409 && d.error === 'JENIS_MASIH_DIPAKAI') {
+    // Tampilkan dialog konfirmasi dengan daftar indikator yang terpengaruh
+    const daftarInd = d.indikator.slice(0, 5).map(x => `• ${escHtml(x.nama)}`).join('<br>');
+    const more = d.count > 5 ? `<br><span style="color:var(--teks-muted)">...dan ${d.count - 5} lainnya</span>` : '';
+    const ok = await showConfirm({
+      title:  `Jenis "${label}" Masih Dipakai`,
+      msg:    `Jenis ini masih digunakan oleh <b>${d.count} indikator</b>:<br><br>
+               <div style="max-height:120px;overflow:auto;font-size:.83rem;color:var(--teks-muted)">${daftarInd}${more}</div><br>
+               Hapus jenis ini akan menghapus keterangan jenis dari semua indikator tersebut. Lanjutkan?`,
+      okText: 'Hapus & Bersihkan', okClass: 'btn-danger', icon: 'trash',
+    });
+    if (!ok) return;
+    // Force delete via query param
+    const r2 = await fetch(`/api/kinerja/jenis-kinerja/${id}?force=1`, { method: 'DELETE', headers: authHeaders() });
+    if (!r2.ok) { toast('Gagal menghapus jenis', 'error'); return; }
+    toast(`Jenis "${label}" dihapus`);
+    loadKelolaJenis();
+    loadIndikatorAdmin({ keepFilter: true });
+    return;
+  }
+  if (!r.ok) { toast(d.error || 'Gagal menghapus', 'error'); return; }
+  toast(`Jenis "${label}" dihapus`);
+  loadKelolaJenis();
+  loadIndikatorAdmin({ keepFilter: true });
+}
 // ═══════════════════════════════════════════════════════════════════════════
 // State: satu objek per indikator, targets = { [tahun]: {id, target, target_display} }
 let _ktIndList    = [];   // [{id, indikator_kinerja, satuan, jenis_monev, jenis_ikk, jenis_spm, targets:{tahun:row}}]

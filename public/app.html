@@ -290,12 +290,17 @@
           <div class="sidebar-brand-sub">Satu Pintu Akses</div>
         </div>
       </div>
+      <button class="btn-sidebar-collapse" id="btnSidebarCollapse" onclick="toggleSidebarCollapse()">
+        <img class="collapse-favicon" src="/favicon.png" alt="SAPA" />
+        <svg class="collapse-toggle-icon" id="iconSidebarCollapse" xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="3" y="4" width="18" height="16" rx="2"/><line x1="9" y1="4" x2="9" y2="20"/>
+        </svg>
+      </button>
     </div>
 
     <nav class="sidebar-nav" id="sidebarNav">
       <!-- diisi JS berdasarkan permissions -->
     </nav>
-
 
   </aside>
   <div class="sidebar-overlay" id="sidebarOverlay" onclick="closeSidebar()"></div>
@@ -827,25 +832,7 @@
         <div class="page-title" style="display:flex;align-items:center;gap:10px"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;opacity:.85"><line x1="21" x2="14" y1="4" y2="4"/><line x1="10" x2="3" y1="4" y2="4"/><line x1="21" x2="12" y1="12" y2="12"/><line x1="8" x2="3" y1="12" y2="12"/><line x1="21" x2="16" y1="20" y2="20"/><line x1="12" x2="3" y1="20" y2="20"/><line x1="14" x2="14" y1="2" y2="6"/><line x1="8" x2="8" y1="10" y2="14"/><line x1="16" x2="16" y1="18" y2="22"/></svg>Kelola Indikator Kinerja</div>
         <div class="page-subtitle">Setting group, indikator, target, dan jenis pengukuran</div>
 
-        <!-- Tab switcher -->
-        <div class="toolbar" style="margin-bottom:0;border-bottom:2px solid var(--abu-1);padding-bottom:0;gap:0">
-          <button class="btn btn-sm kinerja-tab-btn active" id="tabBtnIndikator"
-                  onclick="switchKinerjaAdminTab('indikator')"
-                  style="border-radius:8px 8px 0 0;margin-bottom:-2px">
-            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"/></svg>
-            Indikator
-          </button>
-          <button class="btn btn-sm kinerja-tab-btn" id="tabBtnLaporan"
-                  onclick="switchKinerjaAdminTab('laporan')"
-                  style="border-radius:8px 8px 0 0;margin-bottom:-2px">
-            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
-            Kelola Laporan
-          </button>
-        </div>
-
-        <!-- Tab: Indikator -->
-        <div id="tabPanelIndikator">
-          <div class="toolbar" style="margin-top:14px;flex-wrap:wrap">
+        <div class="toolbar" style="margin-top:14px;flex-wrap:wrap">
             <div class="search-wrap">
               <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-4.35-4.35"/></svg>
               <input type="text" placeholder="Cari indikator, satuan…" id="indikatorSearch" oninput="filterIndikator()" />
@@ -899,41 +886,38 @@
             </table>
           </div>
           <div id="indikatorPagination"></div>
+      </div>
+
+      <!-- ══ KELOLA JENIS KINERJA (Admin Only) ══ -->
+      <div class="page" id="page-kelola-jenis">
+        <div id="kelolJenisSection"></div>
+      </div>
+
+      <!-- ══ KELOLA LAPORAN (Admin Only) ══ -->
+      <div class="page" id="page-kelola-laporan">
+        <div class="page-title" style="display:flex;align-items:center;gap:10px"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;opacity:.85"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>Kelola Laporan</div>
+        <div class="page-subtitle">Setting template laporan, urusan, dan hierarki TSP</div>
+
+        <!-- Toggle: Urusan vs Hierarki TSP -->
+        <div style="display:flex;align-items:center;gap:10px;margin-top:14px;margin-bottom:16px;flex-wrap:wrap">
+          <div role="tablist" style="display:flex;gap:0;background:#f0fdf9;border:1.5px solid #99f6e4;border-radius:10px;padding:4px;box-shadow:0 1px 3px rgba(13,148,136,.08)">
+            <button id="lapModeUrusan" class="lap-jenis-btn active" onclick="switchLapMode('urusan')">
+              <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+              Urusan
+            </button>
+            <button id="lapModeTSP" class="lap-jenis-btn" onclick="switchLapMode('tsp')">
+              <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3h7v7H3z"/><path d="M14 3h7v7h-7z"/><path d="M14 14h7v7h-7z"/><path d="M3 14h7v7H3z"/></svg>
+              Tujuan / Sasaran / Program / Kegiatan
+            </button>
+          </div>
         </div>
 
-        <!-- Tab: Group -->
-
-
-        <!-- Tab: Kelola Laporan -->
-        <div id="tabPanelLaporan" style="display:none">
-          <!-- Sub-tab: Urusan vs TSP -->
-          <div style="display:flex;align-items:center;gap:8px;margin-top:14px;margin-bottom:14px;flex-wrap:wrap">
-            <div role="tablist" style="display:flex;gap:0;background:#f0fdf9;border:1.5px solid #99f6e4;border-radius:10px;padding:4px;flex-wrap:wrap;box-shadow:0 1px 3px rgba(13,148,136,.08)">
-              <button id="lapTplBtnUrusan" role="tab" class="lap-jenis-btn active" onclick="switchLapTemplateJenis('urusan')">
-                <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
-                Urusan
-              </button>
-              <button id="lapTplBtnTujuan" role="tab" class="lap-jenis-btn" onclick="switchLapTemplateJenis('tujuan')">
-                <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>
-                Tujuan
-              </button>
-              <button id="lapTplBtnSasaran" role="tab" class="lap-jenis-btn" onclick="switchLapTemplateJenis('sasaran')">
-                <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
-                Sasaran Strategis
-              </button>
-              <button id="lapTplBtnProgram" role="tab" class="lap-jenis-btn" onclick="switchLapTemplateJenis('program')">
-                <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
-                Program
-              </button>
-              <button id="lapTplBtnKegiatan" role="tab" class="lap-jenis-btn" onclick="switchLapTemplateJenis('kegiatan')">
-                <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
-                Kegiatan
-              </button>
-            </div>
-            <div style="flex:1"></div>
+        <!-- Panel Urusan (tabel lama) -->
+        <div id="lapPanelUrusan">
+          <div style="display:flex;justify-content:flex-end;margin-bottom:12px">
             <button class="btn btn-primary btn-sm" onclick="openLapTemplateModal()">
               <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>
-              Tambah Template
+              Tambah Urusan
             </button>
           </div>
           <div class="card" style="padding:0;overflow:auto;-webkit-overflow-scrolling:touch">
@@ -941,17 +925,23 @@
               <thead>
                 <tr>
                   <th style="width:40px">No</th>
-                  <th>Nama Template</th>
-                  <th style="width:80px;text-align:center">Jenis</th>
+                  <th>Nama Urusan</th>
                   <th style="width:80px;text-align:center">Jml Indikator</th>
                   <th style="width:60px;text-align:center">Urutan</th>
-                  <th style="width:120px;text-align:center">Aksi</th>
+                  <th style="width:150px;text-align:center">Aksi</th>
                 </tr>
               </thead>
               <tbody id="lapTemplateBody">
-                <tr class="empty-row"><td colspan="6">Memuat...</td></tr>
+                <tr class="empty-row"><td colspan="5">Memuat...</td></tr>
               </tbody>
             </table>
+          </div>
+        </div>
+
+        <!-- Panel Hierarki TSP — Cascade Waterfall -->
+        <div id="lapPanelTSP" style="display:none">
+          <div style="overflow-x:auto;-webkit-overflow-scrolling:touch;padding-bottom:8px">
+            <div id="lapCascadeWrap" style="display:flex;gap:0;min-width:900px;align-items:flex-start"></div>
           </div>
         </div>
       </div>
@@ -1202,9 +1192,9 @@
               <option value="terlambat">Terlambat</option>
             </select>
           </div>
-          <button class="btn btn-primary btn-sm" onclick="downloadLaporanSuratPDF(this)" style="white-space:nowrap;flex-shrink:0;display:inline-flex;align-items:center;gap:6px">
-            <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M12 16l-5-5 1.41-1.41L11 12.17V4h2v8.17l2.59-2.58L17 11l-5 5zm-7 2h14v2H5v-2z"/></svg>
-            Download Laporan
+          <button class="btn btn-sm" onclick="downloadLaporanSuratPDF(this)" style="background:#0d9488;color:white;border:none;display:inline-flex;align-items:center;gap:6px;font-weight:600;white-space:nowrap;flex-shrink:0">
+            <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline stroke-linecap="round" stroke-linejoin="round" points="7 10 12 15 17 10"/><line stroke-linecap="round" stroke-linejoin="round" x1="12" y1="15" x2="12" y2="3"/></svg>
+            Laporan Surat
           </button>
         </div>
 
@@ -1217,7 +1207,7 @@
             <thead>
               <tr>
                 <th style="width:34px;text-align:center;position:sticky;left:0;z-index:3">No</th>
-                <th style="min-width:160px">No. Surat</th>
+                <th style="min-width:160px">Nomor Surat</th>
                 <th style="min-width:220px">Perihal</th>
                 <th style="width:90px;text-align:center">Jenis</th>
                 <th style="width:110px;text-align:center">Tanggal</th>
@@ -1239,12 +1229,12 @@
         <div class="page-subtitle">Rekap capaian indikator kinerja per triwulan</div>
 
         <!-- Filter Bar -->
-        <div class="toolbar" style="margin-bottom:1rem;gap:8px;flex-wrap:wrap;align-items:center">
+        <div class="toolbar lap-kinerja-toolbar" style="margin-bottom:1rem;gap:8px;flex-wrap:wrap;align-items:center">
           <!-- Month picker range — diisi oleh laporan.js -->
-          <div id="lapKinerjaRangeFilter" style="display:flex;align-items:center;flex:1;min-width:0"></div>
+          <div id="lapKinerjaRangeFilter" class="lap-kinerja-range"></div>
           <!-- Hidden select tahun — dipakai laporan.js untuk kompatibilitas -->
           <select id="laporanKinerjaTahun" style="display:none"></select>
-          <div class="select-wrap" style="min-width:160px;white-space:nowrap">
+          <div class="select-wrap lap-kinerja-jenis" style="white-space:nowrap">
             <select id="laporanKinerjaJenis" onchange="loadLaporanKinerja()" style="white-space:nowrap">
               <option value="semua">Semua Jenis</option>
               <option value="kinerja">IKU</option>
@@ -1252,22 +1242,18 @@
               <option value="spm">SPM</option>
             </select>
           </div>
-          <div class="select-wrap" style="min-width:420px">
+          <div class="select-wrap lap-kinerja-bidang">
             <select id="laporanKinerjaBidang" onchange="_filterLaporanKinerjaByBidang()">
               <option value="">Semua Bidang</option>
             </select>
           </div>
-          <button class="btn btn-sm" onclick="downloadLaporanKinerjaPDF(this)" id="btnDownloadLaporanKinerja" style="background:#0d9488;color:white;border:none;display:inline-flex;align-items:center;gap:6px;font-weight:600;white-space:nowrap;flex-shrink:0">
-            <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M12 16l-5-5 1.41-1.41L11 12.17V4h2v8.17l2.59-2.58L17 11l-5 5zm-7 2h14v2H5v-2z"/></svg>
-            Download Laporan
+          <button class="btn btn-sm lap-kinerja-btn" onclick="downloadLaporanByUrusan(this)" id="btnDownloadLaporanUrusan" style="background:#0d9488;color:white;border:none;display:inline-flex;align-items:center;gap:6px;font-weight:600;white-space:nowrap;flex-shrink:0">
+            <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline stroke-linecap="round" stroke-linejoin="round" points="7 10 12 15 17 10"/><line stroke-linecap="round" stroke-linejoin="round" x1="12" y1="15" x2="12" y2="3"/></svg>
+            Capaian Indikator
           </button>
-          <button class="btn btn-sm" onclick="downloadLaporanByUrusan(this)" id="btnDownloadLaporanUrusan" style="background:#0f766e;color:white;border:none;display:inline-flex;align-items:center;gap:6px;font-weight:600;white-space:nowrap;flex-shrink:0">
-            <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 7h18M3 12h18M3 17h18"/></svg>
-            Per Urusan
-          </button>
-          <button class="btn btn-sm" onclick="downloadLaporanByTSP(this)" id="btnDownloadLaporanTSP" style="background:#1e40af;color:white;border:none;display:inline-flex;align-items:center;gap:6px;font-weight:600;white-space:nowrap;flex-shrink:0">
-            <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
-            Per TSP
+          <button class="btn btn-sm lap-kinerja-btn" onclick="downloadLaporanByTSP(this)" id="btnDownloadLaporanTSP" style="background:#0d9488;color:white;border:none;display:inline-flex;align-items:center;gap:6px;font-weight:600;white-space:nowrap;flex-shrink:0">
+            <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline stroke-linecap="round" stroke-linejoin="round" points="7 10 12 15 17 10"/><line stroke-linecap="round" stroke-linejoin="round" x1="12" y1="15" x2="12" y2="3"/></svg>
+            Monev Kinerja
           </button>
         </div>
 
@@ -1275,15 +1261,17 @@
         <div id="laporanKinerjaStats" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-bottom:1.25rem"></div>
 
         <!-- Tabel Rekap Indikator -->
-        <div class="card" style="padding:0;overflow:auto;-webkit-overflow-scrolling:touch">
+        <div class="card" style="padding:0;overflow:hidden;border-radius:var(--r-lg)">
+          <div style="overflow:auto;-webkit-overflow-scrolling:touch">
           <table class="kinerja-table" style="min-width:1400px">
-            <thead id="laporanKinerjaThead">
+            <thead id="laporanKinerjaThead" style="background:var(--hijau)">
               <!-- dirender dinamis oleh loadLaporanKinerja() -->
             </thead>
             <tbody id="laporanKinerjaTableBody">
               <tr class="empty-row"><td colspan="20">Memuat data...</td></tr>
             </tbody>
           </table>
+          </div>
         </div>
         <div id="laporanKinerjaPagination"></div>
       </div>
@@ -1342,6 +1330,65 @@
           <div id="pegawaiPagination"></div>
         </div>
 
+      </div>
+
+      <!-- PAGE: Audit Trail -->
+      <div class="page" id="page-audit-trail">
+        <div class="page-title" style="display:flex;align-items:center;gap:10px">
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;opacity:.85"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/><path d="m9 12 2 2 4-4"/></svg>
+          Audit Trail
+        </div>
+        <div class="page-subtitle">Riwayat login dan aktivitas sistem untuk keperluan keamanan</div>
+
+        <div class="toolbar" style="flex-wrap:wrap;gap:8px">
+          <div class="search-wrap">
+            <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-4.35-4.35"/></svg>
+            <input type="text" placeholder="Cari nama, email, atau IP…" id="auditSearch" oninput="filterAuditTrail()" />
+          </div>
+          <div class="select-wrap" style="min-width:170px">
+            <select id="auditFilterAksi" onchange="filterAuditTrail()">
+              <option value="">Semua Aksi</option>
+              <option value="login_success">Login Berhasil</option>
+              <option value="login_failed">Login Gagal</option>
+              <option value="login_blocked">Login Diblokir</option>
+              <option value="change_password">Ganti Password</option>
+              <option value="create">Tambah Surat</option>
+              <option value="update">Update Surat</option>
+              <option value="delete">Hapus Surat</option>
+              <option value="update_status">Update Status Selesai</option>
+              <option value="create_user">Tambah Pengguna</option>
+              <option value="update_user">Update Pengguna</option>
+              <option value="update_permissions">Update Hak Akses</option>
+              <option value="reset_password">Reset Password Pengguna</option>
+              <option value="delete_user">Hapus Pengguna</option>
+              <option value="update_indikator">Update Indikator Pengguna</option>
+              <option value="force_logout">Paksa Logout Pengguna</option>
+              <option value="logout_all">Logout Semua Sesi</option>
+              <option value="refresh_token_reuse_detected">Sesi Dicurigai Dibajak</option>
+            </select>
+          </div>
+          <div class="cdtp-mount" data-cdtp="auditFilterDari" data-placeholder="Dari tanggal" style="min-width:170px"></div>
+          <input type="hidden" id="auditFilterDari" />
+          <div class="cdtp-mount" data-cdtp="auditFilterSampai" data-placeholder="Sampai tanggal" style="min-width:170px"></div>
+          <input type="hidden" id="auditFilterSampai" />
+        </div>
+
+        <div class="card" style="padding:0;overflow:auto;-webkit-overflow-scrolling:touch">
+          <table>
+            <thead>
+              <tr>
+                <th>Waktu</th>
+                <th>Pengguna</th>
+                <th>Aksi</th>
+                <th>Keterangan</th>
+                <th>IP Address</th>
+                <th>Lokasi</th>
+              </tr>
+            </thead>
+            <tbody id="auditTableBody"><tr class="empty-row"><td colspan="6">Memuat data...</td></tr></tbody>
+          </table>
+        </div>
+        <div id="auditPagination"></div>
       </div>
 
       <!-- PAGE: Dokumen Publik -->
@@ -2002,24 +2049,11 @@
             <option value="negatif">Negatif</option>
           </select></div>
         </div>
-        <div class="field" style="flex:0 0 180px">
+        <div class="field" style="flex:0 0 auto;min-width:220px">
           <label>Jenis Kinerja <span style="color:var(--merah)">*</span></label>
-          <div style="display:flex;gap:16px;margin-top:8px">
-            <label class="jenis-chip jenis-chip--iku" style="display:flex;align-items:center;gap:7px;cursor:pointer;font-size:.85rem;font-weight:500;padding:6px 12px;border-radius:8px;border:1.5px solid #e2e8f0;background:#f8fafc;transition:background .25s,border-color .25s,transform .25s">
-              <input type="checkbox" id="indikatorJenisMonev" class="jenis-cb-input">
-              <span class="jenis-cb-box"></span>
-              <span>IKU</span>
-            </label>
-            <label class="jenis-chip jenis-chip--ikk" style="display:flex;align-items:center;gap:7px;cursor:pointer;font-size:.85rem;font-weight:500;padding:6px 12px;border-radius:8px;border:1.5px solid #e2e8f0;background:#f8fafc;transition:background .25s,border-color .25s,transform .25s">
-              <input type="checkbox" id="indikatorJenisIkk" class="jenis-cb-input">
-              <span class="jenis-cb-box"></span>
-              <span>IKK</span>
-            </label>
-            <label class="jenis-chip jenis-chip--spm" style="display:flex;align-items:center;gap:7px;cursor:pointer;font-size:.85rem;font-weight:500;padding:6px 12px;border-radius:8px;border:1.5px solid #e2e8f0;background:#f8fafc;transition:background .25s,border-color .25s,transform .25s">
-              <input type="checkbox" id="indikatorJenisSpm" class="jenis-cb-input">
-              <span class="jenis-cb-box"></span>
-              <span>SPM</span>
-            </label>
+          <div id="indikatorJenisWrap" style="display:flex;flex-wrap:wrap;gap:8px;margin-top:8px">
+            <!-- Diisi dinamis oleh openIndikatorModal() -->
+            <span style="color:var(--teks-muted);font-size:.82rem">Memuat...</span>
           </div>
         </div>
       </div>
@@ -2066,7 +2100,92 @@
   </div>
 </div>
 
-<!-- Modal: Tambah Target Tahun -->
+<!-- Modal: Tambah / Edit Jenis Kinerja -->
+<div class="modal-overlay" id="modalJenis">
+  <div class="modal" style="max-width:480px">
+    <div class="modal-header">
+      <div>
+        <div class="modal-title" id="modalJenisTitle">Tambah Jenis Kinerja</div>
+        <div class="modal-subtitle">Jenis kinerja akan tersedia sebagai pilihan checkbox di semua indikator</div>
+      </div>
+      <button class="btn-close" onclick="closeModal('modalJenis')"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg></button>
+    </div>
+    <div class="modal-body" style="display:flex;flex-direction:column;gap:14px">
+
+      <!-- Kode (readonly, hanya tampil saat edit) -->
+      <div class="field" id="jenisKodeRow" style="display:none">
+        <label>Kode Sistem</label>
+        <div style="padding:7px 10px;background:#f1f5f9;border-radius:8px;border:1px solid #e2e8f0;font-size:.82rem;font-family:monospace;color:var(--teks-muted)" id="jenisKodeDisplay"></div>
+        <div style="font-size:.72rem;color:var(--teks-muted);margin-top:3px">Kode dibuat otomatis dari label dan tidak bisa diubah.</div>
+      </div>
+
+      <!-- Label -->
+      <div class="field">
+        <label>Label <span style="color:var(--merah)">*</span></label>
+        <input type="text" id="jenisLabel" class="input" placeholder="Contoh: IKU, IKK, SPM, IKD..."
+               oninput="_updateJenisPreview()" maxlength="30">
+        <div style="font-size:.72rem;color:var(--teks-muted);margin-top:3px">Label ditampilkan di checkbox indikator. Kode dibuat otomatis dari label saat pertama kali disimpan.</div>
+      </div>
+
+      <!-- Deskripsi -->
+      <div class="field">
+        <label>Deskripsi <span style="color:var(--teks-muted);font-weight:400">(opsional)</span></label>
+        <input type="text" id="jenisDeskripsi" class="input" placeholder="Contoh: Indikator Kinerja Utama" maxlength="100">
+      </div>
+
+      <!-- Warna -->
+      <div style="display:flex;gap:14px;flex-wrap:wrap">
+        <div class="field" style="flex:1;min-width:140px">
+          <label>Warna Latar Badge</label>
+          <div style="display:flex;align-items:center;gap:8px;margin-top:4px">
+            <input type="color" id="jenisWarnaBg" value="#e2e8f0" oninput="_updateJenisPreview()"
+                   style="width:36px;height:34px;padding:2px;border-radius:6px;border:1px solid #e2e8f0;cursor:pointer">
+            <span style="font-size:.78rem;color:var(--teks-muted)">Latar badge</span>
+          </div>
+        </div>
+        <div class="field" style="flex:1;min-width:140px">
+          <label>Warna Teks Badge</label>
+          <div style="display:flex;align-items:center;gap:8px;margin-top:4px">
+            <input type="color" id="jenisWarnaTeks" value="#334155" oninput="_updateJenisPreview()"
+                   style="width:36px;height:34px;padding:2px;border-radius:6px;border:1px solid #e2e8f0;cursor:pointer">
+            <span style="font-size:.78rem;color:var(--teks-muted)">Teks badge</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Preview badge -->
+      <div style="display:flex;align-items:center;gap:10px">
+        <span style="font-size:.78rem;color:var(--teks-muted)">Tampilan badge:</span>
+        <span id="jenisBadgePreview"
+              style="display:inline-flex;align-items:center;font-size:.78rem;font-weight:700;
+                     padding:3px 12px;border-radius:6px;background:#e2e8f0;color:#334155;
+                     transition:background .2s,color .2s">Label</span>
+      </div>
+
+      <!-- Urutan & Aktif -->
+      <div style="display:flex;gap:14px;flex-wrap:wrap">
+        <div class="field" style="flex:1;min-width:100px">
+          <label>Urutan</label>
+          <input type="number" id="jenisUrutan" class="input" value="99" min="0" max="999">
+        </div>
+        <div class="field" style="flex:1;min-width:120px;display:flex;align-items:flex-end;padding-bottom:2px">
+          <label style="display:flex;align-items:center;gap:8px;cursor:pointer;margin-bottom:0">
+            <input type="checkbox" id="jenisAktif" checked style="width:15px;height:15px;accent-color:var(--teal)">
+            <span>Aktif (tampil di checkbox)</span>
+          </label>
+        </div>
+      </div>
+
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('modalJenis')">Batal</button>
+      <button class="btn btn-primary" onclick="saveJenis()">
+        <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+        Simpan Jenis
+      </button>
+    </div>
+  </div>
+</div>
 <div class="modal-overlay" id="modalKtAddTarget">
   <div class="modal" style="max-width:400px">
     <div class="modal-header">
@@ -2169,24 +2288,25 @@
     </div>
     <div class="modal-body">
       <input type="hidden" id="lapTemplateId">
+      <input type="hidden" id="lapTemplateJenis">
+      <input type="hidden" id="lapTemplateUrutan" value="0">
       <div style="display:flex;flex-direction:column;gap:14px">
-        <div class="field">
-          <label>Jenis <span style="color:var(--merah)">*</span></label>
-          <div class="select-wrap"><select id="lapTemplateJenis">
-            <option value="urusan">Urusan</option>
-            <option value="tujuan">Tujuan</option>
-            <option value="sasaran">Sasaran Strategis</option>
-            <option value="program">Program</option>
-            <option value="kegiatan">Kegiatan</option>
-          </select></div>
+        <div class="field" id="lapTemplateJenisDisplay" style="display:none">
+          <label>Jenis</label>
+          <div id="lapTemplateJenisBadge" style="display:inline-flex;align-items:center;gap:6px;padding:5px 10px;border-radius:6px;font-size:.78rem;font-weight:700;background:#f1f5f9;color:#475569"></div>
+        </div>
+        <div class="field" id="lapTemplateParentDisplay" style="display:none">
+          <label>Induk <span style="color:var(--merah)">*</span></label>
+          <div class="select-wrap" id="lapTemplateParentWrap" style="position:relative"></div>
         </div>
         <div class="field">
           <label>Nama Template <span style="color:var(--merah)">*</span></label>
           <input type="text" id="lapTemplateNama" placeholder="Contoh: Urusan Kesehatan">
         </div>
-        <div class="field">
+        <!-- Field Urutan hanya muncul untuk mode Urusan -->
+        <div class="field" id="lapTemplateUrutanWrap" style="display:none">
           <label>Urutan</label>
-          <input type="number" id="lapTemplateUrutan" value="0" min="0" style="width:100px">
+          <input type="number" id="lapTemplateUrutanInput" value="0" min="0" style="width:100px">
         </div>
       </div>
     </div>
@@ -2447,6 +2567,67 @@
 
 <script>
 // ══ LOGIN OVERLAY LOGIC ══════════════════════════════════════════════════
+
+// ── Lock state persisten (survive ganti-ganti email / reload halaman) ──────
+// Disimpan di sessionStorage supaya kalau user ganti ke email lain lalu balik
+// lagi ke email yang masih terkunci, tombol Login tetap disabled sampai
+// waktu unlock-nya (15 menit) benar-benar lewat.
+const LOGIN_LOCK_KEY = 'sapa_login_lock'; // { email, until }
+
+function _getLoginLock() {
+  try {
+    const raw = sessionStorage.getItem(LOGIN_LOCK_KEY);
+    if (!raw) return null;
+    const data = JSON.parse(raw);
+    if (!data?.email || !data?.until) return null;
+    if (Date.now() >= data.until) { sessionStorage.removeItem(LOGIN_LOCK_KEY); return null; }
+    return data;
+  } catch { return null; }
+}
+
+function _setLoginLock(email, untilTs) {
+  try { sessionStorage.setItem(LOGIN_LOCK_KEY, JSON.stringify({ email: email.toLowerCase().trim(), until: untilTs })); } catch {}
+}
+
+function _clearLoginLock() {
+  try { sessionStorage.removeItem(LOGIN_LOCK_KEY); } catch {}
+}
+
+// Sinkronkan tombol Login + pesan error dengan lock state saat ini,
+// berdasarkan email yang sedang diketik di form.
+function _syncLoginLockUI() {
+  const emailEl = document.getElementById('loginEmail');
+  const btn     = document.getElementById('loginBtn');
+  if (!emailEl || !btn) return;
+  const lock     = _getLoginLock();
+  const curEmail = emailEl.value.trim().toLowerCase();
+
+  if (lock && lock.email === curEmail) {
+    btn.disabled = true;
+    const menit = Math.max(1, Math.ceil((lock.until - Date.now()) / 60000));
+    _loginShowErr(`Terlalu banyak percobaan login. Coba lagi dalam ${menit} menit.`, 'lock');
+  } else {
+    btn.disabled = false;
+  }
+}
+
+// Cek ulang tiap beberapa detik juga, supaya begitu 15 menit lewat sambil
+// user diam di form, tombol otomatis enabled tanpa perlu ngetik apa-apa.
+// Cek ulang tiap beberapa saat juga — browser autofill kadang tidak memicu
+// event 'input' secara konsisten, jadi polling ini jadi jaring pengaman supaya
+// email hasil autofill tetap kedeteksi locked walau tanpa event apa pun.
+setInterval(_syncLoginLockUI, 1000);
+
+document.addEventListener('DOMContentLoaded', () => {
+  const _emailEl = document.getElementById('loginEmail');
+  if (_emailEl) {
+    ['input', 'change', 'blur', 'keyup', 'animationstart'].forEach(ev => {
+      _emailEl.addEventListener(ev, _syncLoginLockUI);
+    });
+  }
+  _syncLoginLockUI();
+});
+
 function showLoginOverlay(msg) {
   const overlay = document.getElementById('loginOverlay');
   overlay.classList.remove('hidden');
@@ -2457,6 +2638,7 @@ function showLoginOverlay(msg) {
   document.getElementById('loginEmail').value    = '';
   document.getElementById('loginPassword').value = '';
   document.getElementById('loginErrMsg').innerHTML = '';
+  document.getElementById('loginBtn').disabled = false;
   if (msg) _loginShowErr(msg);
   setTimeout(() => document.getElementById('loginEmail').focus(), 100);
 }
@@ -2486,6 +2668,7 @@ async function doLogin() {
   const email    = document.getElementById('loginEmail').value.trim();
   const password = document.getElementById('loginPassword').value;
   const btn      = document.getElementById('loginBtn');
+  let _rateLimited = false;
 
   document.getElementById('loginErrMsg').innerHTML = '';
   document.getElementById('loginEmail').classList.remove('error');
@@ -2498,6 +2681,14 @@ async function doLogin() {
     return;
   }
 
+  // Kalau email ini masih dalam status lock (dari percobaan sebelumnya), jangan
+  // tembak API lagi — cukup sinkronkan UI (tombol disabled + pesan sisa waktu).
+  const _existingLock = _getLoginLock();
+  if (_existingLock && _existingLock.email === email.toLowerCase()) {
+    _syncLoginLockUI();
+    return;
+  }
+
   btn.disabled = true; btn.classList.add('loading');
   try {
     const r = await fetch('/api/auth/login', {
@@ -2506,9 +2697,29 @@ async function doLogin() {
       body: JSON.stringify({ email, password }),
     });
     const data = await r.json();
-    if (!r.ok) { _loginShowErr(data.error || 'Email atau password salah'); return; }
+    if (!r.ok) {
+      if (r.status === 429) {
+        const _lockUntil = Date.now() + 15 * 60 * 1000;
+        _setLoginLock(email, _lockUntil);
+        _syncLoginLockUI();
+        _rateLimited = true;
+        return;
+      }
+      let errMsg = data.error || 'Email atau password salah';
+      let errType = 'warn';
+      if (typeof data.sisa_percobaan === 'number') {
+        errMsg += data.sisa_percobaan > 0
+          ? ` (sisa ${data.sisa_percobaan}x percobaan)`
+          : ' (percobaan terakhir — akun akan terkunci sementara jika salah lagi)';
+        if (data.sisa_percobaan === 0) errType = 'lock';
+      }
+      _loginShowErr(errMsg, errType);
+      return;
+    }
 
     sessionStorage.setItem('sapa_token', data.token);
+    _clearLoginLock();
+    sessionStorage.setItem('sapa_refresh_token', data.refresh_token);
     sessionStorage.setItem('sapa_user', JSON.stringify(data.user));
 
     // Set flag agar app.js boot IIFE tidak double-init
@@ -2551,13 +2762,18 @@ async function doLogin() {
   } catch {
     _loginShowErr('Terjadi kesalahan koneksi. Coba lagi.');
   } finally {
-    btn.disabled = false; btn.classList.remove('loading');
+    btn.classList.remove('loading');
+    if (!_rateLimited) btn.disabled = false;
   }
 }
 
-function _loginShowErr(msg) {
-  document.getElementById('loginErrMsg').innerHTML =
-    `<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>${msg}`;
+function _loginShowErr(msg, type = 'warn') {
+  const icons = {
+    warn: `<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>`,
+    lock: `<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>`,
+  };
+  const icon = icons[type] || icons.warn;
+  document.getElementById('loginErrMsg').innerHTML = `${icon}${msg}`;
 }
 </script>
 
@@ -2718,6 +2934,7 @@ function _loginShowErr(msg) {
 <script src="js/kinerja.js?v=2"></script>
 <script src="js/laporan.js"></script>
 <script src="js/struktur_frontend.js"></script>
+<script src="js/audit_frontend.js"></script>
 <script src="js/dokumen_publik_frontend.js"></script>
 <script src="js/profil_frontend.js"></script>
 

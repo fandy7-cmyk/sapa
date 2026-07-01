@@ -245,6 +245,9 @@ function renderUsersTable() {
           <button class="btn btn-ghost btn-sm" title="Reset Password" onclick="resetUserPassword(${u.id}, '${esc(u.nama)}')">
             <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 7a2 2 0 012 2m0 0a2 2 0 01-2 2m2-2h3M9 7H6a2 2 0 00-2 2v9a2 2 0 002 2h9a2 2 0 002-2v-3"/></svg>
           </button>
+          <button class="btn btn-ghost btn-sm" title="Paksa Logout" onclick="forceLogoutUser(${u.id}, '${esc(u.nama)}')">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
+          </button>
           <button class="btn btn-danger btn-sm" title="Hapus" onclick="deleteUser(${u.id})">
             <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path stroke-linecap="round" stroke-linejoin="round" d="M19 6l-1 14H6L5 6"/><path stroke-linecap="round" stroke-linejoin="round" d="M10 11v6m4-6v6"/><path stroke-linecap="round" stroke-linejoin="round" d="M9 6V4h6v2"/></svg>
           </button>
@@ -342,6 +345,24 @@ async function deleteUser(id) {
   if (!ok) return;
   await fetch(`/api/users/${id}`, { method: 'DELETE', headers: authHeaders() });
   toast('Pengguna berhasil dihapus'); loadUsers();
+}
+
+// ── PAKSA LOGOUT (admin) ─────────────────────────────────────────────────
+async function forceLogoutUser(id, nama) {
+  const ok = await showConfirm({
+    title: 'Paksa Logout',
+    msg: `Semua sesi aktif <strong>${nama}</strong> akan dicabut. User akan diminta login ulang di semua perangkat (efektif maks. 1 jam untuk sesi yang sedang berjalan).`,
+    okText: 'Ya, Paksa Logout',
+    icon: 'person',
+    type: 'warning',
+  });
+  if (!ok) return;
+  try {
+    const r = await fetch(`/api/users/${id}/force-logout`, { method: 'POST', headers: authHeaders() });
+    const d = await r.json();
+    if (!r.ok) { toast(d.error || 'Gagal memaksa logout', 'error'); return; }
+    toast(d.sesi_dicabut > 0 ? `${d.sesi_dicabut} sesi berhasil dicabut` : 'Tidak ada sesi aktif untuk dicabut', 'success');
+  } catch { toast('Gagal memaksa logout', 'error'); }
 }
 
 // ── RESET PASSWORD (admin) ───────────────────────────────────────────────
