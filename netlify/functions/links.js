@@ -76,7 +76,7 @@ export const handler = async (event) => {
     if (!judul || !url) return errorResponse('Judul dan URL wajib diisi', 400);
 
     const slugVal = slug_pendek
-      ? slug_pendek.toLowerCase().replace(/[^a-z0-9\-]/g, '').trim() || null
+      ? slug_pendek.replace(/[^a-zA-Z0-9\-]/g, '').trim() || null
       : null;
 
     if (slugVal) {
@@ -103,7 +103,7 @@ export const handler = async (event) => {
     const { judul, url, deskripsi, ikon, warna_ikon, aktif, slug_pendek } = body;
 
     const slugVal = slug_pendek !== undefined
-      ? (slug_pendek ? slug_pendek.toLowerCase().replace(/[^a-z0-9\-]/g, '').trim() || null : null)
+      ? (slug_pendek ? slug_pendek.replace(/[^a-zA-Z0-9\-]/g, '').trim() || null : null)
       : undefined;
 
     if (slugVal) {
