@@ -26,8 +26,8 @@ export function jsonResponse(data, status = 200) {
   };
 }
 
-export function errorResponse(message, status = 500) {
-  return jsonResponse({ error: message }, status);
+export function errorResponse(message, status = 500, extra = {}) {
+  return jsonResponse({ error: message, ...extra }, status);
 }
 
 export function parseBody(event) {

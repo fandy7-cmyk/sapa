@@ -23,17 +23,18 @@ export const handler = async (event) => {
     try {
       let rows;
       if (auth && auth.is_admin) {
-        // Admin: semua pengumuman
+        // Admin: semua pengumuman yang belum dihapus
         rows = await sql`
           SELECT * FROM pengumuman
+          WHERE deleted_at IS NULL
           ORDER BY created_at DESC
         `;
       } else {
-        // Publik: hanya yang aktif, max 10
+        // Publik: hanya yang aktif & belum dihapus, max 10
         rows = await sql`
           SELECT id, judul, isi, tipe, created_at
           FROM pengumuman
-          WHERE aktif = true
+          WHERE aktif = true AND deleted_at IS NULL
           ORDER BY created_at DESC
           LIMIT 10
         `;
@@ -97,7 +98,12 @@ export const handler = async (event) => {
   // ── DELETE /api/pengumuman/:id ──────────────────────────────
   if (event.httpMethod === 'DELETE' && id) {
     try {
-      await sql`DELETE FROM pengumuman WHERE id = ${id}`;
+      const rows = await sql`
+        UPDATE pengumuman SET deleted_at = NOW()
+        WHERE id = ${id} AND deleted_at IS NULL
+        RETURNING id
+      `;
+      if (!rows.length) return errorResponse('Pengumuman tidak ditemukan', 404);
       return jsonResponse({ ok: true });
     } catch (err) {
       return errorResponse('Gagal menghapus pengumuman: ' + err.message);

@@ -10,6 +10,7 @@
 import bcrypt from 'bcryptjs';
 import { getDb, jsonResponse, errorResponse, parseBody } from './_db.js';
 import { requireAdmin, requireAuth } from './_auth.js';
+import { logAudit } from './_audit.js';
 
 const DEFAULT_PASSWORD = 'Balut2026';
 
@@ -27,6 +28,7 @@ export const handler = async (event) => {
   // /api/users/:id/permissions
   const isPermissions = segments[1] === 'permissions';
   const isResetPassword = segments[1] === 'reset-password';
+  const isForceLogout = segments[1] === 'force-logout';
   const isPerencanaan = segments[0] === 'perencanaan';
   const userId = segments[0] && !isNaN(segments[0]) ? parseInt(segments[0]) : null;
 
@@ -112,6 +114,11 @@ export const handler = async (event) => {
         VALUES (${nama.trim()}, ${email.toLowerCase().trim()}, ${hash}, FALSE, ${bidangVal})
         RETURNING id, nama, email, is_admin, last_login, created_at, bidang_id
       `;
+      await logAudit(sql, event, {
+        user_id: admin.id, nama: admin.nama, email: admin.email,
+        aksi: 'create_user', entitas: 'user', entitas_id: rows[0].id,
+        detail: { nama: nama.trim(), email: email.toLowerCase().trim() }
+      });
       return jsonResponse({ user: rows[0] }, 201);
     } catch (err) {
       console.error('[POST /api/users]', err);
@@ -151,6 +158,11 @@ export const handler = async (event) => {
         LEFT JOIN bidang b ON b.id = u.bidang_id
         WHERE u.id = ${rows[0].id} LIMIT 1
       `;
+      await logAudit(sql, event, {
+        user_id: admin.id, nama: admin.nama, email: admin.email,
+        aksi: 'update_user', entitas: 'user', entitas_id: userId,
+        detail: { nama: fullRows[0].nama, email: fullRows[0].email }
+      });
       return jsonResponse({ user: fullRows[0] });
     } catch (err) {
       console.error('[PUT /api/users/:id]', err);
@@ -173,6 +185,11 @@ export const handler = async (event) => {
           `;
         }
       }
+      await logAudit(sql, event, {
+        user_id: admin.id, nama: admin.nama, email: admin.email,
+        aksi: 'update_permissions', entitas: 'user', entitas_id: userId,
+        detail: { permissions }
+      });
       return jsonResponse({ ok: true, permissions });
     } catch (err) {
       console.error('[PUT /api/users/:id/permissions]', err);
@@ -189,10 +206,40 @@ export const handler = async (event) => {
 
       const hash = await bcrypt.hash(DEFAULT_PASSWORD, 10);
       await sql`UPDATE users SET password_hash = ${hash} WHERE id = ${userId}`;
+      await logAudit(sql, event, {
+        user_id: admin.id, nama: admin.nama, email: admin.email,
+        aksi: 'reset_password', entitas: 'user', entitas_id: userId
+      });
       return jsonResponse({ ok: true, default_password: DEFAULT_PASSWORD });
     } catch (err) {
       console.error('[POST /api/users/:id/reset-password]', err);
       return errorResponse('Gagal mereset password');
+    }
+  }
+
+  // ── POST /api/users/:id/force-logout (admin paksa logout user) ────────
+  if (event.httpMethod === 'POST' && userId && isForceLogout) {
+    try {
+      const check = await sql`SELECT id, nama, email FROM users WHERE id = ${userId} LIMIT 1`;
+      if (!check.length) return errorResponse('Pengguna tidak ditemukan', 404);
+
+      const revoked = await sql`
+        UPDATE refresh_tokens SET revoked_at = NOW()
+        WHERE user_id = ${userId} AND revoked_at IS NULL
+        RETURNING id
+      `;
+      await logAudit(sql, event, {
+        user_id: admin.id, nama: admin.nama, email: admin.email,
+        aksi: 'force_logout', entitas: 'user', entitas_id: userId,
+        detail: { target_nama: check[0].nama, target_email: check[0].email, sesi_dicabut: revoked.length }
+      });
+      // Catatan: access token (JWT) yang sudah terlanjur terbit tetap valid
+      // sampai masa berlakunya habis (maks. 1 jam) — ini bukan revoke instan,
+      // tapi user tidak akan bisa memperpanjang sesi lewat refresh token lagi.
+      return jsonResponse({ ok: true, sesi_dicabut: revoked.length });
+    } catch (err) {
+      console.error('[POST /api/users/:id/force-logout]', err);
+      return errorResponse('Gagal memaksa logout pengguna');
     }
   }
 
@@ -205,6 +252,10 @@ export const handler = async (event) => {
 
       await sql`DELETE FROM user_permissions WHERE user_id = ${userId}`;
       await sql`DELETE FROM users WHERE id = ${userId}`;
+      await logAudit(sql, event, {
+        user_id: admin.id, nama: admin.nama, email: admin.email,
+        aksi: 'delete_user', entitas: 'user', entitas_id: userId
+      });
       return jsonResponse({ ok: true });
     } catch (err) {
       console.error('[DELETE /api/users/:id]', err);
@@ -225,6 +276,11 @@ export const handler = async (event) => {
           ON CONFLICT DO NOTHING
         `;
       }
+      await logAudit(sql, event, {
+        user_id: admin.id, nama: admin.nama, email: admin.email,
+        aksi: 'update_indikator', entitas: 'user', entitas_id: userId,
+        detail: { indikator_ids }
+      });
       return jsonResponse({ ok: true, indikator_ids });
     } catch (err) {
       console.error('[PUT /api/users/:id/indikator]', err);

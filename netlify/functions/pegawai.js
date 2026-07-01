@@ -25,7 +25,8 @@ export const handler = async (event) => {
       const rows = await sql`
         SELECT p.*, par.nama AS parent_nama
         FROM pegawai p
-        LEFT JOIN pegawai par ON par.id = p.parent_id
+        LEFT JOIN pegawai par ON par.id = p.parent_id AND par.deleted_at IS NULL
+        WHERE p.deleted_at IS NULL
         ORDER BY p.urutan ASC NULLS LAST, p.nama ASC
       `;
       return jsonResponse({ pegawai: rows });
@@ -91,7 +92,12 @@ export const handler = async (event) => {
   // ── DELETE /api/pegawai/:id ───────────────────────────────
   if (event.httpMethod === 'DELETE' && id) {
     try {
-      await sql`DELETE FROM pegawai WHERE id = ${id}`;
+      const rows = await sql`
+        UPDATE pegawai SET deleted_at = NOW()
+        WHERE id = ${id} AND deleted_at IS NULL
+        RETURNING id
+      `;
+      if (!rows.length) return errorResponse('Pegawai tidak ditemukan', 404);
       return jsonResponse({ ok: true });
     } catch (err) {
       console.error('[DELETE /api/pegawai/:id]', err);

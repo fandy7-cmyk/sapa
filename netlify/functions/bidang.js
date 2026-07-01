@@ -22,6 +22,7 @@ export const handler = async (event) => {
     try {
       const rows = await sql`
         SELECT * FROM bidang
+        WHERE deleted_at IS NULL
         ORDER BY urutan ASC, nama ASC
       `;
       return jsonResponse({ bidang: rows });
@@ -73,10 +74,15 @@ export const handler = async (event) => {
   // ── DELETE /api/bidang/:id ──
   if (event.httpMethod === 'DELETE' && id) {
     try {
-      // Cek apakah ada user yang menggunakan bidang ini
+      // Cek apakah ada user aktif yang menggunakan bidang ini
       const inUse = await sql`SELECT id FROM users WHERE bidang_id = ${id} LIMIT 1`;
       if (inUse.length) return errorResponse('Bidang masih digunakan oleh pengguna, tidak dapat dihapus', 409);
-      await sql`DELETE FROM bidang WHERE id = ${id}`;
+      const rows = await sql`
+        UPDATE bidang SET deleted_at = NOW()
+        WHERE id = ${id} AND deleted_at IS NULL
+        RETURNING id
+      `;
+      if (!rows.length) return errorResponse('Bidang tidak ditemukan', 404);
       return jsonResponse({ ok: true });
     } catch (err) {
       return errorResponse('Gagal menghapus bidang: ' + err.message);

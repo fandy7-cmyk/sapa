@@ -24,6 +24,7 @@ export const handler = async (event) => {
     try {
       const rows = await sql`
         SELECT * FROM dokumen_publik
+        WHERE deleted_at IS NULL
         ORDER BY created_at DESC
       `;
       return jsonResponse({ dokumen: rows });
@@ -83,7 +84,12 @@ export const handler = async (event) => {
   // ── DELETE /api/dokumen-publik/:id ────────────────────────
   if (event.httpMethod === 'DELETE' && id) {
     try {
-      await sql`DELETE FROM dokumen_publik WHERE id = ${id}`;
+      const rows = await sql`
+        UPDATE dokumen_publik SET deleted_at = NOW()
+        WHERE id = ${id} AND deleted_at IS NULL
+        RETURNING id
+      `;
+      if (!rows.length) return errorResponse('Dokumen tidak ditemukan', 404);
       return jsonResponse({ ok: true });
     } catch (err) {
       console.error('[DELETE /api/dokumen-publik/:id]', err);

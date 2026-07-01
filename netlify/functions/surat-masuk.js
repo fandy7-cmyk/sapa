@@ -1,6 +1,7 @@
 // netlify/functions/surat-masuk.js
 import { getDb, jsonResponse, errorResponse, parseBody } from './_db.js';
 import { requireAuth } from './_auth.js';
+import { logAudit } from './_audit.js';
 
 async function checkAccess(auth, sql) {
   if (auth.is_admin) return true;
@@ -81,6 +82,11 @@ export const handler = async (event) => {
         VALUES (${no_agenda}, ${no_surat||null}, ${tanggal_surat||null}, ${tanggal_terima||null}, ${asal_surat}, ${perihal}, ${batas_waktu||null}, ${pegawai||null}, ${file_url||null}, ${file_name||null}, ${selesai===true}, ${keterangan||null})
         RETURNING *
       `;
+      await logAudit(sql, event, {
+        user_id: auth.id, nama: auth.nama, email: auth.email,
+        aksi: 'create', entitas: 'surat_masuk', entitas_id: rows[0].id,
+        detail: { no_agenda, perihal, asal_surat }
+      });
       return jsonResponse({ surat: rows[0] }, 201);
     } catch (err) { console.error('[POST surat-masuk]', err); return errorResponse('Gagal menyimpan surat masuk: ' + err.message); }
   }
@@ -107,6 +113,11 @@ export const handler = async (event) => {
         WHERE id = ${numId} RETURNING *
       `;
       if (!rows.length) return errorResponse('Surat tidak ditemukan', 404);
+      await logAudit(sql, event, {
+        user_id: auth.id, nama: auth.nama, email: auth.email,
+        aksi: 'update', entitas: 'surat_masuk', entitas_id: numId,
+        detail: { no_agenda: rows[0].no_agenda, perihal: rows[0].perihal }
+      });
       return jsonResponse({ surat: rows[0] });
     } catch (err) { console.error('[PUT surat-masuk]', err); return errorResponse('Gagal mengupdate surat masuk: ' + err.message); }
   }
@@ -116,13 +127,24 @@ export const handler = async (event) => {
     try {
       const rows = await sql`UPDATE surat_masuk SET selesai = ${Boolean(selesai)}, updated_at = NOW() WHERE id = ${numId} RETURNING *`;
       if (!rows.length) return errorResponse('Surat tidak ditemukan', 404);
+      await logAudit(sql, event, {
+        user_id: auth.id, nama: auth.nama, email: auth.email,
+        aksi: 'update_status', entitas: 'surat_masuk', entitas_id: numId,
+        detail: { selesai: Boolean(selesai) }
+      });
       return jsonResponse({ surat: rows[0] });
     } catch (err) { return errorResponse('Gagal mengupdate status: ' + err.message); }
   }
 
   if (event.httpMethod === 'DELETE' && numId) {
     try {
+      const before = await sql`SELECT no_agenda, perihal, asal_surat FROM surat_masuk WHERE id = ${numId}`;
       await sql`DELETE FROM surat_masuk WHERE id = ${numId}`;
+      await logAudit(sql, event, {
+        user_id: auth.id, nama: auth.nama, email: auth.email,
+        aksi: 'delete', entitas: 'surat_masuk', entitas_id: numId,
+        detail: before[0] || null
+      });
       return jsonResponse({ ok: true });
     } catch (err) { return errorResponse('Gagal menghapus surat masuk: ' + err.message); }
   }

@@ -5,6 +5,11 @@ function normTarget(r) {
   if (r.target_tahun != null) r.target_tahun = parseFloat(r.target_tahun);
   if (r.target_display == null && r.target_tahun != null) r.target_display = null;
   r.bermakna_negatif = r.bermakna_negatif === true || r.bermakna_negatif === 'true';
+  // Pastikan jenis_custom selalu array (Neon JSONB bisa datang sebagai string)
+  if (typeof r.jenis_custom === 'string') {
+    try { r.jenis_custom = JSON.parse(r.jenis_custom); } catch { r.jenis_custom = []; }
+  }
+  if (!Array.isArray(r.jenis_custom)) r.jenis_custom = [];
   return r;
 }
 
@@ -25,7 +30,7 @@ export const handler = async (event) => {
   const sql = getDb();
   const rawPath = event.path.replace(/.*\/kinerja/, '') || '/';
   const segments = rawPath.split('/').filter(Boolean);
-  const sub = segments[0] || null;  // 'group' | 'indikator' | 'realisasi' | 'rekap'
+  const sub = segments[0] || null;  // 'group' | 'indikator' | 'jenis-kinerja' | 'realisasi' | 'rekap'
   const id  = segments[1] && !isNaN(segments[1]) ? parseInt(segments[1]) : null;
   const qs  = event.queryStringParameters || {};
 
@@ -103,6 +108,166 @@ export const handler = async (event) => {
   }
 
   // ─────────────────────────────────────────────────────────────────────────────
+  // JENIS KINERJA  —  /api/kinerja/jenis-kinerja
+  // GET    → semua yang login bisa baca
+  // POST   → admin only — tambah jenis baru
+  // PUT    /jenis-kinerja/:id → admin only — edit
+  // DELETE /jenis-kinerja/:id → admin only — hapus (cek dulu apakah masih dipakai)
+  // ─────────────────────────────────────────────────────────────────────────────
+  if (sub === 'jenis-kinerja') {
+    const auth = requireAuth(event);
+    if (!auth) return errorResponse('Unauthorized', 401);
+
+    // Auto-migrate: buat tabel jika belum ada + kolom jenis_custom di kinerja_indikator
+    try {
+      await sql`
+        CREATE TABLE IF NOT EXISTS kinerja_jenis (
+          id         SERIAL PRIMARY KEY,
+          kode       TEXT UNIQUE NOT NULL,
+          label      TEXT NOT NULL,
+          deskripsi  TEXT,
+          warna_bg   TEXT NOT NULL DEFAULT '#e2e8f0',
+          warna_teks TEXT NOT NULL DEFAULT '#334155',
+          urutan     INT  NOT NULL DEFAULT 0,
+          aktif      BOOLEAN NOT NULL DEFAULT TRUE,
+          is_builtin BOOLEAN NOT NULL DEFAULT FALSE,
+          created_at TIMESTAMPTZ DEFAULT NOW(),
+          updated_at TIMESTAMPTZ DEFAULT NOW()
+        )
+      `;
+      // Seed 3 jenis bawaan jika tabel baru dibuat / belum ada seed
+      await sql`
+        INSERT INTO kinerja_jenis (kode, label, warna_bg, warna_teks, urutan, aktif, is_builtin)
+        VALUES
+          ('iku', 'IKU', '#dbeafe', '#1e40af', 1, TRUE, TRUE),
+          ('ikk',   'IKK', '#d1fae5', '#065f46', 2, TRUE, TRUE),
+          ('spm',   'SPM', '#fef3c7', '#b45309', 3, TRUE, TRUE)
+        ON CONFLICT (kode) DO NOTHING
+      `;
+      // Kolom jenis_custom (jsonb array of kode) untuk jenis di luar 3 builtin
+      await sql`
+        ALTER TABLE kinerja_indikator
+          ADD COLUMN IF NOT EXISTS jenis_custom JSONB DEFAULT '[]'::jsonb
+      `;
+    } catch (migErr) {
+      console.error('[jenis-kinerja migrate]', migErr);
+    }
+
+    // ── GET /api/kinerja/jenis-kinerja ─────────────────────────────────────
+    if (event.httpMethod === 'GET') {
+      try {
+        const rows = await sql`
+          SELECT * FROM kinerja_jenis ORDER BY urutan ASC, id ASC
+        `;
+        return jsonResponse({ jenis: rows });
+      } catch (err) {
+        return errorResponse('Gagal mengambil jenis kinerja: ' + err.message);
+      }
+    }
+
+    // Mutasi → admin only
+    const admin = requireAdmin(event);
+    if (!admin) return errorResponse('Unauthorized', 401);
+
+    // ── POST /api/kinerja/jenis-kinerja ────────────────────────────────────
+    if (event.httpMethod === 'POST') {
+      const { label, deskripsi, warna_bg, warna_teks, urutan } = parseBody(event);
+      if (!label?.trim()) return errorResponse('Label wajib diisi', 400);
+      // Buat kode dari label: uppercase, alfanumerik, max 20 karakter
+      const kode = label.trim().toUpperCase()
+        .replace(/[^A-Z0-9]/g, '_').replace(/_+/g, '_').replace(/^_|_$/g, '')
+        .substring(0, 20);
+      try {
+        const exist = await sql`SELECT id FROM kinerja_jenis WHERE kode = ${kode} LIMIT 1`;
+        if (exist.length) return errorResponse(`Kode "${kode}" sudah ada. Gunakan label yang berbeda.`, 409);
+        const rows = await sql`
+          INSERT INTO kinerja_jenis (kode, label, deskripsi, warna_bg, warna_teks, urutan, aktif, is_builtin)
+          VALUES (
+            ${kode},
+            ${label.trim()},
+            ${deskripsi?.trim() || null},
+            ${warna_bg  || '#e2e8f0'},
+            ${warna_teks || '#334155'},
+            ${urutan ?? 99},
+            TRUE,
+            FALSE
+          )
+          RETURNING *
+        `;
+        return jsonResponse({ jenis: rows[0] }, 201);
+      } catch (err) {
+        return errorResponse('Gagal menyimpan jenis: ' + err.message);
+      }
+    }
+
+    // ── PUT /api/kinerja/jenis-kinerja/:id ─────────────────────────────────
+    if (event.httpMethod === 'PUT' && id) {
+      const { label, deskripsi, warna_bg, warna_teks, urutan, aktif } = parseBody(event);
+      try {
+        const rows = await sql`
+          UPDATE kinerja_jenis SET
+            label      = COALESCE(${label?.trim() ?? null}, label),
+            deskripsi  = ${deskripsi !== undefined ? (deskripsi?.trim() || null) : sql`deskripsi`},
+            warna_bg   = COALESCE(${warna_bg  ?? null}, warna_bg),
+            warna_teks = COALESCE(${warna_teks ?? null}, warna_teks),
+            urutan     = COALESCE(${urutan ?? null}, urutan),
+            aktif      = COALESCE(${aktif !== undefined ? aktif : null}, aktif),
+            updated_at = NOW()
+          WHERE id = ${id} RETURNING *
+        `;
+        if (!rows.length) return errorResponse('Jenis tidak ditemukan', 404);
+        return jsonResponse({ jenis: rows[0] });
+      } catch (err) {
+        return errorResponse('Gagal mengupdate jenis: ' + err.message);
+      }
+    }
+
+    // ── DELETE /api/kinerja/jenis-kinerja/:id ──────────────────────────────
+    if (event.httpMethod === 'DELETE' && id) {
+      const force = qs.force === '1';
+      try {
+        const jenis = await sql`SELECT * FROM kinerja_jenis WHERE id = ${id} LIMIT 1`;
+        if (!jenis.length) return errorResponse('Jenis tidak ditemukan', 404);
+        if (jenis[0].is_builtin) return errorResponse('Jenis bawaan sistem tidak dapat dihapus', 403);
+
+        const kode = jenis[0].kode;
+        // Hitung indikator yang pakai jenis ini (via jenis_custom jsonb)
+        const usage = await sql`
+          SELECT id, indikator_kinerja FROM kinerja_indikator
+          WHERE jenis_custom @> ${JSON.stringify([kode])}::jsonb
+        `;
+        if (usage.length > 0 && !force) {
+          return jsonResponse({
+            error: 'JENIS_MASIH_DIPAKAI',
+            count: usage.length,
+            indikator: usage.map(r => ({ id: r.id, nama: r.indikator_kinerja })),
+          }, 409);
+        }
+        // force=1: bersihkan jenis dari semua indikator dulu
+        if (usage.length > 0 && force) {
+          for (const ind of usage) {
+            await sql`
+              UPDATE kinerja_indikator
+              SET jenis_custom = (
+                SELECT jsonb_agg(elem)
+                FROM jsonb_array_elements_text(COALESCE(jenis_custom,'[]'::jsonb)) AS elem
+                WHERE elem <> ${kode}
+              )
+              WHERE id = ${ind.id}
+            `;
+          }
+        }
+        await sql`DELETE FROM kinerja_jenis WHERE id = ${id}`;
+        return jsonResponse({ ok: true });
+      } catch (err) {
+        return errorResponse('Gagal menghapus jenis: ' + err.message);
+      }
+    }
+
+    return errorResponse('Not found', 404);
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────────
   // INDIKATOR
   // ─────────────────────────────────────────────────────────────────────────────
   if (sub === 'indikator') {
@@ -142,22 +307,24 @@ export const handler = async (event) => {
       const {
         group_id, sasaran, indikator_kinerja, satuan,
         penanggung_jawab, bermakna_negatif, urutan, aktif,
-        jenis_monev, jenis_ikk, jenis_spm, formula
+        jenis_monev, jenis_ikk, jenis_spm, jenis_custom, formula
       } = parseBody(event);
       if (!indikator_kinerja || !satuan) {
         return errorResponse('Indikator kinerja dan satuan wajib diisi', 400);
       }
+      const jenisCustomVal = Array.isArray(jenis_custom) ? JSON.stringify(jenis_custom) : '[]';
       try {
         const rows = await sql`
           INSERT INTO kinerja_indikator
             (group_id, sasaran, indikator_kinerja, satuan,
              penanggung_jawab, bermakna_negatif, urutan, aktif,
-             jenis_monev, jenis_ikk, jenis_spm, formula)
+             jenis_monev, jenis_ikk, jenis_spm, jenis_custom, formula)
           VALUES
             (${group_id || null}, ${sasaran || null}, ${indikator_kinerja},
              ${satuan}, ${penanggung_jawab || null},
              ${bermakna_negatif === true}, ${urutan || 0}, ${aktif !== false},
-             ${jenis_monev === true}, ${jenis_ikk === true}, ${jenis_spm === true}, ${formula || null})
+             ${jenis_monev === true}, ${jenis_ikk === true}, ${jenis_spm === true},
+             ${jenisCustomVal}::jsonb, ${formula || null})
           RETURNING *
         `;
         return jsonResponse({ indikator: normTarget(rows[0]) }, 201);
@@ -170,8 +337,10 @@ export const handler = async (event) => {
       const {
         group_id, sasaran, indikator_kinerja, satuan,
         penanggung_jawab, bermakna_negatif, urutan, aktif,
-        jenis_monev, jenis_ikk, jenis_spm, formula
+        jenis_monev, jenis_ikk, jenis_spm, jenis_custom, formula
       } = parseBody(event);
+      // jenis_custom selalu dikirim dari client (saveIndikator), normalize sama seperti POST
+      const jenisCustomVal = Array.isArray(jenis_custom) ? JSON.stringify(jenis_custom) : '[]';
       try {
         const rows = await sql`
           UPDATE kinerja_indikator SET
@@ -186,6 +355,7 @@ export const handler = async (event) => {
             jenis_monev       = ${jenis_monev !== undefined ? jenis_monev === true : sql`jenis_monev`},
             jenis_ikk         = ${jenis_ikk !== undefined ? jenis_ikk === true : sql`jenis_ikk`},
             jenis_spm         = ${jenis_spm !== undefined ? jenis_spm === true : sql`jenis_spm`},
+            jenis_custom      = ${jenisCustomVal}::jsonb,
             formula           = ${formula !== undefined ? (formula || null) : sql`formula`},
             updated_at        = NOW()
           WHERE id = ${id} RETURNING *
@@ -1587,11 +1757,14 @@ export const handler = async (event) => {
       await sql`CREATE TABLE IF NOT EXISTS laporan_template (
         id SERIAL PRIMARY KEY, jenis TEXT NOT NULL DEFAULT 'urusan',
         nama TEXT NOT NULL, urutan INT NOT NULL DEFAULT 0,
+        parent_id INT REFERENCES laporan_template(id) ON DELETE CASCADE,
         created_at TIMESTAMPTZ DEFAULT NOW())`;
       await sql`CREATE TABLE IF NOT EXISTS laporan_template_indikator (
         id SERIAL PRIMARY KEY, template_id INT NOT NULL,
         indikator_id INT NOT NULL, urutan INT NOT NULL DEFAULT 0,
         UNIQUE(template_id, indikator_id))`;
+      // Migrasi: tambah kolom parent_id jika tabel sudah dibuat sebelumnya tanpa kolom ini
+      await sql`ALTER TABLE laporan_template ADD COLUMN IF NOT EXISTS parent_id INT REFERENCES laporan_template(id) ON DELETE CASCADE`;
     } catch(_e) { /* tabel sudah ada, lanjut */ }
 
     const templateId = segments[1] ? parseInt(segments[1]) : null;
@@ -1632,10 +1805,27 @@ export const handler = async (event) => {
     // ── GET /api/kinerja/laporan-template ──
     if (event.httpMethod === 'GET' && !templateId) {
       try {
-        const jenis = event.queryStringParameters?.jenis || null;
-        const rows = jenis
-          ? await sql`SELECT * FROM laporan_template WHERE jenis = ${jenis} ORDER BY urutan ASC, id ASC`
-          : await sql`SELECT * FROM laporan_template ORDER BY jenis ASC, urutan ASC, id ASC`;
+        const jenis     = event.queryStringParameters?.jenis      || null;
+        const parentIdQ = event.queryStringParameters?.parent_id  || null;
+        const parentIdInt = parentIdQ ? parseInt(parentIdQ) : null;
+        const rows = jenis && parentIdInt
+          ? await sql`
+              SELECT t.*, p.nama AS parent_nama, p.jenis AS parent_jenis
+              FROM laporan_template t
+              LEFT JOIN laporan_template p ON p.id = t.parent_id
+              WHERE t.jenis = ${jenis} AND t.parent_id = ${parentIdInt}
+              ORDER BY t.urutan ASC, t.id ASC`
+          : jenis
+          ? await sql`
+              SELECT t.*, p.nama AS parent_nama, p.jenis AS parent_jenis
+              FROM laporan_template t
+              LEFT JOIN laporan_template p ON p.id = t.parent_id
+              WHERE t.jenis = ${jenis} ORDER BY t.urutan ASC, t.id ASC`
+          : await sql`
+              SELECT t.*, p.nama AS parent_nama, p.jenis AS parent_jenis
+              FROM laporan_template t
+              LEFT JOIN laporan_template p ON p.id = t.parent_id
+              ORDER BY t.jenis ASC, t.urutan ASC, t.id ASC`;
         const counts = await sql`
           SELECT template_id, COUNT(*) as jumlah FROM laporan_template_indikator GROUP BY template_id`;
         const countMap = {};
@@ -1651,11 +1841,11 @@ export const handler = async (event) => {
     if (event.httpMethod === 'POST' && !templateId) {
       try {
         const body = await parseBody(event);
-        const { jenis, nama, urutan = 0 } = body;
+        const { jenis, nama, urutan = 0, parent_id = null } = body;
         if (!jenis || !nama) return errorResponse('jenis dan nama wajib diisi');
         const [row] = await sql`
-          INSERT INTO laporan_template (jenis, nama, urutan)
-          VALUES (${jenis}, ${nama.trim()}, ${parseInt(urutan)})
+          INSERT INTO laporan_template (jenis, nama, urutan, parent_id)
+          VALUES (${jenis}, ${nama.trim()}, ${parseInt(urutan)}, ${parent_id ? parseInt(parent_id) : null})
           RETURNING *`;
         return jsonResponse({ template: row });
       } catch (err) {
@@ -1667,12 +1857,14 @@ export const handler = async (event) => {
     if (event.httpMethod === 'PUT' && templateId && !subAction) {
       try {
         const body = await parseBody(event);
-        const { jenis, nama, urutan } = body;
+        const { jenis, nama, urutan, parent_id } = body;
+        const parentVal = parent_id ? parseInt(parent_id) : null;
         const [row] = await sql`
           UPDATE laporan_template SET
-            jenis  = COALESCE(${jenis  ?? null}, jenis),
-            nama   = COALESCE(${nama   ? nama.trim() : null}, nama),
-            urutan = COALESCE(${urutan != null ? parseInt(urutan) : null}, urutan)
+            jenis     = COALESCE(${jenis  ?? null}, jenis),
+            nama      = COALESCE(${nama   ? nama.trim() : null}, nama),
+            urutan    = COALESCE(${urutan != null ? parseInt(urutan) : null}, urutan),
+            parent_id = ${parentVal}
           WHERE id = ${templateId} RETURNING *`;
         if (!row) return errorResponse('Template tidak ditemukan', 404);
         return jsonResponse({ template: row });
