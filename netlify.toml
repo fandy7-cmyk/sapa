@@ -241,6 +241,12 @@
   to     = "/.netlify/functions/profil"
   status = 200
 
+# ── AUDIT TRAIL ───────────────────────────────────────────────
+[[redirects]]
+  from   = "/api/audit-trail"
+  to     = "/.netlify/functions/audit-trail"
+  status = 200
+
 # ── LANDING: pegawai / dokumen / profil ───────────────────────
 [[redirects]]
   from   = "/api/landing/pegawai"
