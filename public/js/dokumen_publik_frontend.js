@@ -106,7 +106,7 @@ function renderDokumenTable() {
       </tr>`).join('');
   }
 
-  renderPagination('dokumenPagination', _dokumenPage, totalPages, p => {
+  renderPagination('dokumenPagination', total, _dokumenPage, _dokumenPerPage, p => {
     _dokumenPage = p;
     renderDokumenTable();
   });
