@@ -1464,6 +1464,7 @@ export const handler = async (event) => {
     try {
       let rows;
 
+      let belumRows;
       if (auth.is_admin) {
         // Admin: hitung semua indikator aktif
         rows = await sql`
@@ -1479,13 +1480,27 @@ export const handler = async (event) => {
            AND kr.realisasi IS NOT NULL
           WHERE ki.aktif = TRUE
         `;
+        belumRows = await sql`
+          SELECT ki.id, ki.indikator_kinerja AS nama, kg.nama AS bidang,
+                 ki.jenis_monev, ki.jenis_ikk, ki.jenis_spm, ki.bermakna_negatif
+          FROM kinerja_indikator ki
+          LEFT JOIN kinerja_group kg ON kg.id = ki.group_id
+          LEFT JOIN kinerja_realisasi kr
+            ON kr.indikator_id = ki.id
+           AND kr.bulan  = ${bulan}
+           AND kr.tahun  = ${tahun}
+           AND kr.realisasi IS NOT NULL
+          WHERE ki.aktif = TRUE AND kr.realisasi IS NULL
+          ORDER BY kg.urutan ASC NULLS LAST, ki.urutan ASC, ki.id ASC
+          LIMIT 200
+        `;
       } else {
         // User biasa: hitung hanya indikator yang di-assign ke user
         const assignRows = await sql`
           SELECT indikator_id FROM user_indikator WHERE user_id = ${auth.id}
         `;
         if (assignRows.length === 0) {
-          return jsonResponse({ total_indikator: 0, sudah_diisi: 0, belum_diisi: 0, no_assignment: true });
+          return jsonResponse({ total_indikator: 0, sudah_diisi: 0, belum_diisi: 0, belum_isi_list: [], no_assignment: true });
         }
         const ids = assignRows.map(r => r.indikator_id);
 
@@ -1503,6 +1518,20 @@ export const handler = async (event) => {
           WHERE ki.aktif = TRUE
             AND ki.id = ANY(${ids})
         `;
+        belumRows = await sql`
+          SELECT ki.id, ki.indikator_kinerja AS nama, kg.nama AS bidang,
+                 ki.jenis_monev, ki.jenis_ikk, ki.jenis_spm, ki.bermakna_negatif
+          FROM kinerja_indikator ki
+          LEFT JOIN kinerja_group kg ON kg.id = ki.group_id
+          LEFT JOIN kinerja_realisasi kr
+            ON kr.indikator_id = ki.id
+           AND kr.bulan  = ${bulan}
+           AND kr.tahun  = ${tahun}
+           AND kr.realisasi IS NOT NULL
+          WHERE ki.aktif = TRUE AND ki.id = ANY(${ids}) AND kr.realisasi IS NULL
+          ORDER BY kg.urutan ASC NULLS LAST, ki.urutan ASC, ki.id ASC
+          LIMIT 200
+        `;
       }
 
       const s = rows[0];
@@ -1510,6 +1539,7 @@ export const handler = async (event) => {
         total_indikator: s.total_indikator,
         sudah_diisi:     s.sudah_diisi,
         belum_diisi:     s.belum_diisi,
+        belum_isi_list:  belumRows,
       });
     } catch (err) {
       console.error('[GET kinerja/stats]', err);

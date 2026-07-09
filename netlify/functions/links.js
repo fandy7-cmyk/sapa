@@ -24,19 +24,49 @@ export const handler = async (event) => {
   const segments = rawPath.split('/').filter(Boolean);
   const id = segments[0] && !isNaN(segments[0]) ? parseInt(segments[0]) : null;
 
+  // ── GET /api/links/check-slug?slug=xxx&excludeId=xxx (PUBLIK) ──
+  // Real-time check ketersediaan slug_pendek, dipakai form Tambah/Edit Link
+  if (event.httpMethod === 'GET' && segments[0] === 'check-slug') {
+    const qs = event.queryStringParameters || {};
+    const raw = (qs.slug || '').trim();
+    const excludeId = qs.excludeId && !isNaN(qs.excludeId) ? parseInt(qs.excludeId) : null;
+    const slugVal = raw.replace(/[^a-zA-Z0-9\-]/g, '');
+    if (!slugVal) return jsonResponse({ available: null, slug: '' });
+    try {
+      const rows = excludeId
+        ? await sql`SELECT id FROM links WHERE slug_pendek = ${slugVal} AND id != ${excludeId} LIMIT 1`
+        : await sql`SELECT id FROM links WHERE slug_pendek = ${slugVal} LIMIT 1`;
+      return jsonResponse({ available: rows.length === 0, slug: slugVal });
+    } catch (err) {
+      return errorResponse('Gagal cek slug: ' + err.message);
+    }
+  }
+
   // ── GET /api/links (PUBLIK untuk aktif, auth untuk semua) ──
   if (event.httpMethod === 'GET' && !id) {
     const auth = requireAuth(event);
     try {
       let rows;
       if (auth) {
-        // Login: return semua link + total_klik
-        rows = await sql`
-          SELECT l.*,
-            COALESCE((SELECT COUNT(*) FROM klik_log kl WHERE kl.link_id = l.id), 0)::INT AS total_klik
-          FROM links l
-          ORDER BY l.id ASC
-        `;
+        // Login: return link + total_klik
+        // Admin lihat semua. User non-admin hanya lihat link yang dia buat sendiri
+        // (link buatan admin/lama dengan created_by NULL tidak ditampilkan ke user).
+        if (auth.is_admin) {
+          rows = await sql`
+            SELECT l.*,
+              COALESCE((SELECT COUNT(*) FROM klik_log kl WHERE kl.link_id = l.id), 0)::INT AS total_klik
+            FROM links l
+            ORDER BY l.id ASC
+          `;
+        } else {
+          rows = await sql`
+            SELECT l.*,
+              COALESCE((SELECT COUNT(*) FROM klik_log kl WHERE kl.link_id = l.id), 0)::INT AS total_klik
+            FROM links l
+            WHERE l.created_by = ${auth.id}
+            ORDER BY l.id ASC
+          `;
+        }
       } else {
         // Publik: hanya yang aktif, tanpa stats klik
         rows = await sql`
@@ -86,9 +116,9 @@ export const handler = async (event) => {
 
     try {
       const rows = await sql`
-        INSERT INTO links (judul, url, deskripsi, ikon, warna_ikon, aktif, slug_pendek)
+        INSERT INTO links (judul, url, deskripsi, ikon, warna_ikon, aktif, slug_pendek, created_by)
         VALUES (${judul}, ${url}, ${deskripsi || null}, ${ikon || '🔗'}, ${warna_ikon || '#0077B6'},
-                ${aktif !== false}, ${slugVal})
+                ${aktif !== false}, ${slugVal}, ${auth.id})
         RETURNING *
       `;
       return jsonResponse({ link: rows[0] }, 201);
@@ -99,6 +129,10 @@ export const handler = async (event) => {
 
   // ── PUT /api/links/:id ─────────────────────────────────────
   if (event.httpMethod === 'PUT' && id) {
+    if (!user.is_admin) {
+      const owner = await sql`SELECT created_by FROM links WHERE id = ${id} LIMIT 1`;
+      if (!owner.length || owner[0].created_by !== user.id) return errorResponse('Akses ditolak', 403);
+    }
     const body = parseBody(event);
     const { judul, url, deskripsi, ikon, warna_ikon, aktif, slug_pendek } = body;
 
@@ -134,6 +168,10 @@ export const handler = async (event) => {
 
   // ── DELETE /api/links/:id ──────────────────────────────────
   if (event.httpMethod === 'DELETE' && id) {
+    if (!user.is_admin) {
+      const owner = await sql`SELECT created_by FROM links WHERE id = ${id} LIMIT 1`;
+      if (!owner.length || owner[0].created_by !== user.id) return errorResponse('Akses ditolak', 403);
+    }
     try {
       await sql`DELETE FROM links WHERE id = ${id}`;
       return jsonResponse({ ok: true });

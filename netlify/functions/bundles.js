@@ -25,6 +25,24 @@ export const handler = async (event) => {
   const isItems = seg1 === 'items';
   const itemId = seg2 && !isNaN(seg2) ? parseInt(seg2) : null;
 
+  // ── GET /api/bundles/check-slug?slug=xxx&excludeId=xxx (PUBLIK) ──
+  // Real-time check ketersediaan slug, dipakai form Buat/Edit Bundle
+  if (event.httpMethod === 'GET' && seg0 === 'check-slug') {
+    const qs = event.queryStringParameters || {};
+    const raw = (qs.slug || '').trim();
+    const excludeId = qs.excludeId && !isNaN(qs.excludeId) ? parseInt(qs.excludeId) : null;
+    const slugVal = slugify(raw);
+    if (!slugVal) return jsonResponse({ available: null, slug: '' });
+    try {
+      const rows = excludeId
+        ? await sql`SELECT id FROM bundles WHERE slug = ${slugVal} AND id != ${excludeId} LIMIT 1`
+        : await sql`SELECT id FROM bundles WHERE slug = ${slugVal} LIMIT 1`;
+      return jsonResponse({ available: rows.length === 0, slug: slugVal });
+    } catch (err) {
+      return errorResponse('Gagal cek slug');
+    }
+  }
+
   // ── GET bundle by slug (PUBLIK) ────────────────────────────
   if (event.httpMethod === 'GET' && isSlug) {
     try {
@@ -51,11 +69,20 @@ export const handler = async (event) => {
   // ── GET /api/bundles ───────────────────────────────────────
   if (event.httpMethod === 'GET' && !seg0) {
     try {
-      const rows = await sql`
-        SELECT b.*, COUNT(bi.id)::INT AS jumlah_item
-        FROM bundles b LEFT JOIN bundle_items bi ON bi.bundle_id = b.id
-        GROUP BY b.id ORDER BY b.created_at DESC
-      `;
+      // Admin lihat semua bundle. User non-admin hanya lihat bundle buatannya sendiri
+      // (bundle buatan admin/lama dengan created_by NULL tidak ditampilkan ke user).
+      const rows = user.is_admin
+        ? await sql`
+            SELECT b.*, COUNT(bi.id)::INT AS jumlah_item
+            FROM bundles b LEFT JOIN bundle_items bi ON bi.bundle_id = b.id
+            GROUP BY b.id ORDER BY b.created_at DESC
+          `
+        : await sql`
+            SELECT b.*, COUNT(bi.id)::INT AS jumlah_item
+            FROM bundles b LEFT JOIN bundle_items bi ON bi.bundle_id = b.id
+            WHERE b.created_by = ${user.id}
+            GROUP BY b.id ORDER BY b.created_at DESC
+          `;
       return jsonResponse({ bundles: rows });
     } catch (err) { return errorResponse('Gagal mengambil data bundle'); }
   }
@@ -65,6 +92,7 @@ export const handler = async (event) => {
     try {
       const rows = await sql`SELECT * FROM bundles WHERE id = ${bundleId} LIMIT 1`;
       if (!rows.length) return errorResponse('Bundle tidak ditemukan', 404);
+      if (!user.is_admin && rows[0].created_by !== user.id) return errorResponse('Akses ditolak', 403);
       const items = await sql`SELECT * FROM bundle_items WHERE bundle_id = ${bundleId} ORDER BY id ASC`;
       return jsonResponse({ bundle: rows[0], items });
     } catch (err) { return errorResponse('Gagal mengambil bundle'); }
@@ -79,8 +107,8 @@ export const handler = async (event) => {
     if (exist.length) return errorResponse('Slug sudah digunakan', 409);
     try {
       const rows = await sql`
-        INSERT INTO bundles (judul, deskripsi, slug, aktif)
-        VALUES (${judul}, ${deskripsi||null}, ${slug}, ${aktif !== false}) RETURNING *
+        INSERT INTO bundles (judul, deskripsi, slug, aktif, created_by)
+        VALUES (${judul}, ${deskripsi||null}, ${slug}, ${aktif !== false}, ${user.id}) RETURNING *
       `;
       return jsonResponse({ bundle: rows[0] }, 201);
     } catch (err) { return errorResponse('Gagal membuat bundle'); }
@@ -88,6 +116,10 @@ export const handler = async (event) => {
 
   // ── PUT /api/bundles/:id ───────────────────────────────────
   if (event.httpMethod === 'PUT' && bundleId && !isItems) {
+    if (!user.is_admin) {
+      const owner = await sql`SELECT created_by FROM bundles WHERE id = ${bundleId} LIMIT 1`;
+      if (!owner.length || owner[0].created_by !== user.id) return errorResponse('Akses ditolak', 403);
+    }
     const { judul, deskripsi, slug: rawSlug, aktif } = parseBody(event);
     const slug = rawSlug ? slugify(rawSlug) : undefined;
     if (slug) {
@@ -111,6 +143,10 @@ export const handler = async (event) => {
 
   // ── DELETE /api/bundles/:id ────────────────────────────────
   if (event.httpMethod === 'DELETE' && bundleId && !isItems) {
+    if (!user.is_admin) {
+      const owner = await sql`SELECT created_by FROM bundles WHERE id = ${bundleId} LIMIT 1`;
+      if (!owner.length || owner[0].created_by !== user.id) return errorResponse('Akses ditolak', 403);
+    }
     await sql`DELETE FROM bundle_items WHERE bundle_id = ${bundleId}`;
     await sql`DELETE FROM bundles WHERE id = ${bundleId}`;
     return jsonResponse({ ok: true });
@@ -118,6 +154,10 @@ export const handler = async (event) => {
 
   // ── POST /api/bundles/:id/items ────────────────────────────
   if (event.httpMethod === 'POST' && bundleId && isItems && !itemId) {
+    if (!user.is_admin) {
+      const owner = await sql`SELECT created_by FROM bundles WHERE id = ${bundleId} LIMIT 1`;
+      if (!owner.length || owner[0].created_by !== user.id) return errorResponse('Akses ditolak', 403);
+    }
     const { judul, url, deskripsi, ikon } = parseBody(event);
     if (!judul || !url) return errorResponse('Judul dan URL wajib diisi', 400);
     try {
@@ -131,6 +171,10 @@ export const handler = async (event) => {
 
   // ── PUT /api/bundles/:id/items/:itemId ─────────────────────
   if (event.httpMethod === 'PUT' && bundleId && isItems && itemId) {
+    if (!user.is_admin) {
+      const owner = await sql`SELECT created_by FROM bundles WHERE id = ${bundleId} LIMIT 1`;
+      if (!owner.length || owner[0].created_by !== user.id) return errorResponse('Akses ditolak', 403);
+    }
     const { judul, url, deskripsi, ikon } = parseBody(event);
     try {
       const rows = await sql`
@@ -147,6 +191,10 @@ export const handler = async (event) => {
 
   // ── DELETE /api/bundles/:id/items/:itemId ──────────────────
   if (event.httpMethod === 'DELETE' && bundleId && isItems && itemId) {
+    if (!user.is_admin) {
+      const owner = await sql`SELECT created_by FROM bundles WHERE id = ${bundleId} LIMIT 1`;
+      if (!owner.length || owner[0].created_by !== user.id) return errorResponse('Akses ditolak', 403);
+    }
     await sql`DELETE FROM bundle_items WHERE id = ${itemId} AND bundle_id = ${bundleId}`;
     return jsonResponse({ ok: true });
   }
