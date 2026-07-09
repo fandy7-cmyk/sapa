@@ -53,7 +53,7 @@ async function loadDashboard() {
       <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;flex-wrap:nowrap">
         <div style="flex:1;min-width:0">
           <div class="dash-welcome-title">${salam}, <strong>${esc(_user?.nama || 'Pengguna')}</strong> <svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" fill="none" viewBox="0 0 24 24" stroke="#0d9488" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;margin-left:2px"><path d="M18 11V6a2 2 0 0 0-2-2a2 2 0 0 0-2 2"/><path d="M14 10V4a2 2 0 0 0-2-2a2 2 0 0 0-2 2v2"/><path d="M10 10.5V6a2 2 0 0 0-2-2a2 2 0 0 0-2 2v8"/><path d="M18 8a2 2 0 1 1 4 0v6a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.86-5.99-2.34l-3.6-3.6a2 2 0 0 1 2.83-2.82L7 15"/></svg></div>
-          <div class="dash-welcome-sub">Ringkasan aktivitas sistem hari ini${(showKinerja && _periodeAktif) ? ` &nbsp;&middot;&nbsp; Periode <span style="color:#0f766e;font-weight:700;display:inline">${esc(_periodeAktif.label || '')}</span>` : ''}.</div>
+          <div class="dash-welcome-sub">Ringkasan aktivitas hari ini</div>
         </div>
         <div style="text-align:right;flex-shrink:0;white-space:nowrap">
           <div style="font-size:.8rem;font-weight:600;color:#0f172a">${_wTgl}</div>
@@ -77,7 +77,6 @@ async function loadDashboard() {
 
   if (showSuratM && ss?.recent_masuk?.length) panels.push(_recentSuratPanel(ss.recent_masuk, 'masuk'));
   if (showSuratK && ss?.recent_keluar?.length) panels.push(_recentSuratPanel(ss.recent_keluar, 'keluar'));
-  if (showKinerja && ks?.belum_isi_list?.length) panels.push(_kinerjaAlertPanel(ks.belum_isi_list));
 
   if (panels.length) html += `<div class="dash-panels">${panels.join('')}</div>`;
 
@@ -98,7 +97,353 @@ async function loadDashboard() {
   if (showKinerja) _initKinerjaWatch();
 }
 
-// ── Fetch helpers ─────────────────────────────────────────────────────────────
+// ═══════════════════════════════════════════
+// DASHBOARD PER-MODUL — ringkasan scoped, muncul otomatis
+// ketika user cuma punya akses ke sebagian menu (bukan Dashboard Utama)
+// ═══════════════════════════════════════════
+
+function _dashModuleHeader(icon, title, subtitle) {
+  return `<div class="page-title" style="display:flex;align-items:center;gap:10px">${icon}${esc(title)}</div>
+    <div class="page-subtitle">${esc(subtitle)}</div>`;
+}
+
+// ── Superlink ────────────────────────────────────────────────────────────────
+async function _fetchSuperlinkDashData() {
+  try {
+    const [rl, rb, rs] = await Promise.all([
+      fetch('/api/links',   { headers: authHeaders() }),
+      fetch('/api/bundles', { headers: authHeaders() }),
+      fetch('/api/stats',   { headers: authHeaders() }),
+    ]);
+    const links   = rl.ok ? (await rl.json()).links   || [] : [];
+    const bundles = rb.ok ? (await rb.json()).bundles || [] : [];
+    const stats   = rs.ok ? await rs.json() : null;
+    return { links, bundles, stats };
+  } catch { return { links: [], bundles: [], stats: null }; }
+}
+
+async function loadDashboardSuperlink() {
+  const wrap = document.getElementById('dashSuperlinkStats');
+  if (!wrap) return;
+  wrap.innerHTML = `
+    <div class="dash-kpi-row">${Array(5).fill(0).map(() => `<div class="skeleton" style="height:98px;border-radius:14px"></div>`).join('')}</div>
+    <div class="skeleton" style="height:160px;border-radius:16px"></div>`;
+
+  const { links, bundles, stats } = await _fetchSuperlinkDashData();
+
+  const icon = `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;opacity:.85"><path d="M9 17H7A5 5 0 0 1 7 7h2"/><path d="M15 7h2a5 5 0 1 1 0 10h-2"/><line x1="8" x2="16" y1="12" y2="12"/></svg>`;
+  let html = _dashModuleHeader(icon, 'Dashboard', 'Ringkasan aktivitas Superlink');
+
+  const totalKlik    = stats?.total_klik    ?? links.reduce((sum, l) => sum + (l.total_klik || 0), 0);
+  const klikHariIni  = stats?.klik_hari_ini ?? 0;
+  const shortlinkCnt = links.filter(l => l.slug_pendek).length;
+  const linkAktif    = links.filter(l => l.aktif).length;
+  const linkNonaktif = links.length - linkAktif;
+  const bundleAktif  = bundles.filter(b => b.aktif).length;
+  const rataKlik     = links.length ? Math.round(totalKlik / links.length) : 0;
+  const shortlinkPct = links.length ? Math.round((shortlinkCnt / links.length) * 100) : 0;
+
+  // Delta klik hari ini vs kemarin, dari tren 7 hari
+  const trend = stats?.klik_7hari || [];
+  let deltaSub = null, deltaUp = null;
+  if (trend.length >= 2) {
+    const kemarin = trend[trend.length - 2]?.jumlah ?? 0;
+    if (kemarin > 0) {
+      const pct = Math.round(((klikHariIni - kemarin) / kemarin) * 100);
+      deltaUp = pct >= 0;
+      deltaSub = `${deltaUp ? '▲' : '▼'} ${Math.abs(pct)}% vs kemarin`;
+    } else if (klikHariIni > 0) {
+      deltaSub = '▲ baru hari ini'; deltaUp = true;
+    }
+  }
+
+  const iconShort  = `<svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13.828 10.172a4 4 0 0 0-5.656 0l-4 4a4 4 0 1 0 5.656 5.656l1.102-1.101m-.758-4.899a4 4 0 0 0 5.656 0l4-4a4 4 0 0 0-5.656-5.656l-1.1 1.1"/></svg>`;
+  const iconBundle = `<svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m7.5 4.27 9 5.15"/><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/></svg>`;
+  const iconClick  = `<svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 9 5 12 1.8-5.2L21 14Z"/><path d="M7.2 2.2 8 5.1"/><path d="m5.1 8-2.9-.8"/><path d="M14 4.1 12 6"/><path d="m6 12-1.9 2"/></svg>`;
+  const iconToday  = `<svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/><path d="M8 2v4"/><path d="M16 2v4"/></svg>`;
+
+  html += `<div class="dash-kpi-row">
+    ${_kpiCard({ icon, label: 'Total Link', value: links.length, sub: `${linkAktif} aktif · ${linkNonaktif} nonaktif`, color: 'teal' })}
+    ${_kpiCard({ icon: iconShort, label: 'Shortlink', value: shortlinkCnt, sub: `${shortlinkPct}% dari total link`, color: 'blue' })}
+    ${_kpiCard({ icon: iconBundle, label: 'Bundle', value: bundles.length, sub: `${bundleAktif} aktif`, color: 'purple' })}
+    ${_kpiCard({ icon: iconClick, label: 'Total Klik', value: totalKlik, sub: `± ${rataKlik} klik/link`, color: 'amber' })}
+    ${_kpiCard({ icon: iconToday, label: 'Klik Hari Ini', value: klikHariIni, sub: deltaSub, subUp: deltaUp, color: 'teal' })}
+  </div>`;
+
+  const panels = [];
+  if (trend.length) panels.push(_klikTrendPanel(trend));
+
+  panels.push(_miniDonutPanel({
+    icon: iconShort, title: 'Status Link',
+    segments: [
+      { label: 'Aktif',    value: linkAktif,    color: '#0d9488' },
+      { label: 'Nonaktif', value: linkNonaktif, color: '#cbd5e1' },
+    ],
+    centerVal: links.length, centerLbl: 'Total Link',
+  }));
+
+  const topLinks = stats?.top_links?.length
+    ? stats.top_links
+    : [...links].sort((a, b) => (b.total_klik || 0) - (a.total_klik || 0)).slice(0, 5);
+  if (topLinks.length) {
+    panels.push(_barListPanel({
+      icon: iconClick, title: 'Top 5 Link Terpopuler',
+      rows: topLinks.slice(0, 5).map(l => ({ label: l.judul, value: l.total_klik || 0, suffix: ' klik', color: '#0d9488' })),
+    }));
+  }
+
+  if (bundles.length) {
+    panels.push(_barListPanel({
+      icon: iconBundle, title: 'Ringkasan Bundle',
+      rows: bundles.slice(0, 5).map(b => ({
+        label: b.judul,
+        sublabel: `/${b.slug}${b.aktif ? '' : ' · Nonaktif'}`,
+        value: b.jumlah_item ?? 0, suffix: ' item',
+        color: b.aktif ? '#8b5cf6' : '#cbd5e1',
+      })),
+    }));
+  }
+
+  if (panels.length) html += `<div class="dash-panels">${panels.join('')}</div>`;
+
+  wrap.innerHTML = html;
+}
+
+// Grafik tren klik 7 hari terakhir — dari stats.klik_7hari [{tanggal, jumlah}]
+function _klikTrendPanel(data) {
+  const HARI = ['Min','Sen','Sel','Rab','Kam','Jum','Sab'];
+  const pad2 = n => String(n).padStart(2, '0');
+  // Pastikan 7 titik berurutan (isi 0 utk tanggal yg tidak ada datanya)
+  const map = new Map(data.map(d => [d.tanggal, d.jumlah]));
+  const days = [];
+  for (let i = 6; i >= 0; i--) {
+    const d = new Date();
+    d.setDate(d.getDate() - i);
+    // PENTING: pakai komponen tanggal lokal, JANGAN toISOString() (itu convert ke UTC
+    // dan bakal salah tanggal kalau jam lokal masih dini hari, mis. 00:00–07:59 WITA
+    // = tanggal kemarin di UTC — bikin key gak match sama `tanggal` dari backend yg
+    // udah dihitung di WITA).
+    const key = `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+    days.push({ key, hari: HARI[d.getDay()], tgl: d.getDate(), jumlah: map.get(key) || 0 });
+  }
+  const max = Math.max(1, ...days.map(d => d.jumlah));
+  const bars = days.map(d => {
+    const h = Math.max(3, Math.round((d.jumlah / max) * 74));
+    return `
+      <div class="dash-trend-bar-wrap" title="${d.jumlah} klik">
+        <div class="dash-trend-val">${d.jumlah || ''}</div>
+        <div class="dash-trend-bar" style="height:${h}px"></div>
+        <div class="dash-trend-lbl">${d.hari}</div>
+      </div>`;
+  }).join('');
+  return `<div class="dash-panel">
+    <div class="dash-panel-header"><svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-3 3"/></svg> Tren Klik 7 Hari Terakhir</div>
+    <div class="dash-trend"><div class="dash-trend-bars">${bars}</div></div>
+  </div>`;
+}
+
+// ── Surat ────────────────────────────────────────────────────────────────────
+async function loadDashboardSurat() {
+  const wrap = document.getElementById('dashSuratStats');
+  if (!wrap) return;
+  wrap.innerHTML = `
+    <div class="dash-kpi-row">${Array(5).fill(0).map(() => `<div class="skeleton" style="height:98px;border-radius:14px"></div>`).join('')}</div>
+    <div class="skeleton" style="height:160px;border-radius:16px"></div>`;
+
+  const ss = await _fetchSuratDashData();
+
+  const icon = `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;opacity:.85"><rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>`;
+  let html = _dashModuleHeader(icon, 'Dashboard', 'Ringkasan surat masuk & keluar');
+
+  const totalMasuk   = Number(ss?.total_masuk)  || 0;
+  const belumProses  = Number(ss?.belum_proses) || 0;
+  const terlambat    = Number(ss?.terlambat)    || 0;
+  const totalKeluar  = Number(ss?.total_keluar) || 0;
+  const masukBulan   = ss?.masuk_bulan_ini  ?? 0;
+  const keluarBulan  = ss?.keluar_bulan_ini ?? 0;
+  const selesai      = Math.max(0, totalMasuk - belumProses);
+  const pctSelesai   = totalMasuk > 0 ? Math.round((selesai / totalMasuk) * 100) : 0;
+
+  const iconMasuk  = `<svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.2 8.4c.5.38.8.97.8 1.6v10a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V10a2 2 0 0 1 .8-1.6l8-6a2 2 0 0 1 2.4 0l8 6Z"/><path d="m22 10-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 10"/></svg>`;
+  const iconKeluar = `<svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3.714 3.048a.498.498 0 0 0-.683.627l2.843 7.627a2 2 0 0 1 0 1.396l-2.842 7.627a.498.498 0 0 0 .682.627l18-8.5a.5.5 0 0 0 0-.904z"/><path d="M6 12h16"/></svg>`;
+  const iconWarn   = `<svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><line x1="12" x2="12" y1="9" y2="13"/><line x1="12" x2="12.01" y1="17" y2="17"/></svg>`;
+  const iconClock  = `<svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>`;
+  const iconCal    = `<svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/><path d="M8 2v4"/><path d="M16 2v4"/></svg>`;
+
+  html += `<div class="dash-kpi-row">
+    ${_kpiCard({ icon: iconMasuk, label: 'Surat Masuk', value: ss?.total_masuk ?? '—', sub: `${pctSelesai}% selesai`, color: 'tealMuda' })}
+    ${_kpiCard({ icon: iconClock, label: 'Belum Diproses', value: ss?.belum_proses ?? '—', color: 'amber' })}
+    ${_kpiCard({ icon: iconWarn, label: 'Terlambat', value: terlambat, color: 'red' })}
+    ${_kpiCard({ icon: iconKeluar, label: 'Surat Keluar', value: ss?.total_keluar ?? '—', color: 'biruMuda' })}
+    ${_kpiCard({ icon: iconCal, label: 'Bulan Ini', value: masukBulan + keluarBulan, sub: `${masukBulan} masuk · ${keluarBulan} keluar`, color: 'teal' })}
+  </div>`;
+
+  const panels = [];
+  if (ss?.overdue_list?.length) panels.push(_overdueSuratPanel(ss.overdue_list));
+
+  if (totalMasuk > 0) {
+    panels.push(_miniDonutPanel({
+      icon: iconMasuk, title: 'Status Surat Masuk',
+      segments: [
+        { label: 'Selesai', value: selesai,     color: '#10b981' },
+        { label: 'Proses',  value: belumProses, color: '#f59e0b' },
+      ],
+      centerVal: `${pctSelesai}%`, centerLbl: 'Selesai',
+    }));
+  }
+
+  if (masukBulan || keluarBulan) {
+    panels.push(_barListPanel({
+      icon: iconCal, title: 'Perbandingan Bulan Ini',
+      rows: [
+        { label: 'Surat Masuk',  value: masukBulan,  color: _KPI_COLORS.tealMuda.text },
+        { label: 'Surat Keluar', value: keluarBulan, color: _KPI_COLORS.biruMuda.text },
+      ],
+    }));
+  }
+
+  const panelsRecent = [];
+  if (ss?.recent_masuk?.length)  panelsRecent.push(_recentSuratPanel(ss.recent_masuk, 'masuk'));
+  if (ss?.recent_keluar?.length) panelsRecent.push(_recentSuratPanel(ss.recent_keluar, 'keluar'));
+  if (panels.length) html += `<div class="dash-panels">${panels.join('')}</div>`;
+  if (panelsRecent.length) html += `<div class="dash-panels dash-panels--2col">${panelsRecent.join('')}</div>`;
+
+  wrap.innerHTML = html;
+}
+// Panel "Perlu Perhatian" — surat masuk yang belum diproses & lewat batas waktu
+function _overdueSuratPanel(list) {
+  const rows = list.slice(0, 5).map(s => `
+    <tr><td>
+      <div style="font-weight:500;font-size:.78rem">${esc(s.perihal||'—')}</div>
+      <div style="font-size:.7rem;opacity:.55">${esc(s.no_agenda||'')}${s.no_agenda?' · ':''}Batas: ${fmtDate(s.batas_waktu)}</div>
+    </td><td style="text-align:right"><span class="badge badge-merah">Terlambat</span></td></tr>`).join('');
+  return `<div class="dash-panel dash-panel--urgent">
+    <div class="dash-panel-header"><svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg> Perlu Perhatian — Surat Terlambat</div>
+    <table class="dash-panel-table"><tbody>${rows}</tbody></table>
+  </div>`;
+}
+
+// ── Kinerja ──────────────────────────────────────────────────────────────────
+// Catatan: endpoint /api/kinerja/rekap men-default ke jenis=monev kalau param
+// `jenis` tidak dikirim (lihat kinerja_function.js). Supaya dapat gambaran
+// lengkap IKU+IKK+SPM, kita panggil 3x lalu digabung (dedup per id).
+async function _fetchKinerjaRekapForDash() {
+  try {
+    const pa    = getPeriodeAktif();
+    const bulan = pa?.bulan || new Date().getMonth() + 1;
+    const tahun = pa?.tahun || new Date().getFullYear();
+    const jenisList = ['monev', 'ikk', 'spm'];
+    const results = await Promise.all(jenisList.map(j =>
+      fetch(`/api/kinerja/rekap?bulan=${bulan}&tahun=${tahun}&jenis=${j}`, { headers: authHeaders() })
+        .then(r => r.ok ? r.json() : { rekap: [] })
+        .catch(() => ({ rekap: [] }))
+    ));
+    const merged = new Map();
+    results.forEach(d => (d.rekap || []).forEach(row => {
+      if (row && row.id != null) merged.set(row.id, row);
+    }));
+    return [...merged.values()];
+  } catch { return []; }
+}
+
+async function loadDashboardKinerja() {
+  const wrap = document.getElementById('dashKinerjaStats');
+  if (!wrap) return;
+  wrap.innerHTML = `
+    <div class="dash-kpi-row">${Array(5).fill(0).map(() => `<div class="skeleton" style="height:98px;border-radius:14px"></div>`).join('')}</div>
+    <div class="skeleton" style="height:160px;border-radius:16px"></div>`;
+
+  const [ks, rekap] = await Promise.all([_fetchKinerjaStats(), _fetchKinerjaRekapForDash()]);
+
+  const icon = `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;opacity:.85"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg>`;
+  let html = _dashModuleHeader(icon, 'Dashboard', 'Ringkasan capaian indikator kinerja periode berjalan');
+
+  const total = ks?.total_indikator ?? rekap.length;
+  const sudah = ks?.sudah_diisi ?? rekap.filter(x => x.realisasi != null).length;
+  const belum = ks?.belum_diisi ?? Math.max(0, total - sudah);
+  const pct   = total > 0 ? Math.round((sudah / total) * 100) : 0;
+
+  const withCapaian  = rekap.filter(x => x.capaian_persen != null);
+  const tercapai     = withCapaian.filter(x => Number(x.capaian_persen) >= 100).length;
+  const mendekati    = withCapaian.filter(x => Number(x.capaian_persen) >= 75 && Number(x.capaian_persen) < 100).length;
+  const perluTindakan= withCapaian.filter(x => Number(x.capaian_persen) < 75).length;
+  const onTrack      = tercapai + mendekati;
+
+  const jenisMap = { IKU: 0, IKK: 0, SPM: 0 };
+  rekap.forEach(x => {
+    if (x.jenis_monev === true) jenisMap.IKU++;
+    if (x.jenis_ikk   === true) jenisMap.IKK++;
+    if (x.jenis_spm   === true) jenisMap.SPM++;
+  });
+  Object.keys(jenisMap).forEach(k => { if (!jenisMap[k]) delete jenisMap[k]; });
+  const jenisColors = { IKU: '#3b82f6', IKK: '#10b981', SPM: '#f59e0b' }; // sinkron dgn badge Jenis Kinerja di Kelola Kinerja
+
+  const iconTarget = `<svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>`;
+  const iconCheck  = `<svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>`;
+  const iconWarn   = `<svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><line x1="12" x2="12" y1="9" y2="13"/><line x1="12" x2="12.01" y1="17" y2="17"/></svg>`;
+  const iconTrend  = `<svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg>`;
+  const iconFlag   = `<svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" x2="4" y1="22" y2="15"/></svg>`;
+
+  html += `<div class="dash-kpi-row">
+    ${_kpiCard({ icon: iconTarget, label: 'Total Indikator', value: total, color: 'teal' })}
+    ${_kpiCard({ icon: iconCheck, label: 'Sudah Diisi', value: sudah, sub: `${pct}% dari total`, color: 'blue' })}
+    ${_kpiCard({ icon: iconWarn, label: 'Belum Diisi', value: belum, color: belum > 0 ? 'red' : 'blue' })}
+    ${_kpiCard({ icon: iconTrend, label: 'On Track (≥75%)', value: onTrack, sub: withCapaian.length ? `dari ${withCapaian.length} terisi` : null, color: 'green' })}
+    ${_kpiCard({ icon: iconFlag, label: 'Perlu Tindakan', value: perluTindakan, color: perluTindakan > 0 ? 'amber' : 'blue' })}
+  </div>`;
+
+  const panelsTop = [];
+  const panels = [];
+
+  // Progres pengisian bulan ini — baris sendiri bareng Sebaran Jenis Indikator
+  panelsTop.push(`<div class="dash-panel">
+    <div class="dash-panel-header">${iconCheck} Progres Pengisian Bulan Ini</div>
+    <div style="padding:14px 18px">
+      <div style="display:flex;align-items:center;justify-content:space-between;font-size:.78rem;color:var(--teks-muted);font-weight:700;margin-bottom:2px">
+        <span>Terisi</span><span style="color:#0f172a">${pct}%</span>
+      </div>
+      <div class="dash-progress-track" style="--card-accent:#f59e0b"><div class="dash-progress-fill" style="width:${pct}%"></div></div>
+    </div>
+  </div>`);
+
+  if (Object.keys(jenisMap).length) {
+    panelsTop.push(_barListPanel({
+      icon: iconTarget, title: 'Sebaran Jenis Indikator',
+      rows: Object.entries(jenisMap).map(([j, c]) => ({ label: j, value: c, color: jenisColors[j] || '#94a3b8' })),
+    }));
+  }
+
+  if (withCapaian.length) {
+    panels.push(_barListPanel({
+      icon: iconTrend, title: 'Distribusi Capaian Indikator',
+      rows: [
+        { label: 'Tercapai (≥100%)',     value: tercapai,      color: '#10b981' },
+        { label: 'Mendekati (75–99%)',   value: mendekati,     color: '#f59e0b' },
+        { label: 'Perlu Tindakan (<75%)',value: perluTindakan, color: '#ef4444' },
+      ],
+    }));
+  }
+
+  if (withCapaian.length) {
+    const top5 = [...withCapaian].sort((a, b) => Number(b.capaian_persen) - Number(a.capaian_persen)).slice(0, 5);
+    panels.push(_barListPanel({
+      icon: iconCheck, title: 'Capaian Tertinggi',
+      rows: top5.map(x => {
+        const cap = Number(x.capaian_persen);
+        return { label: x.indikator_kinerja, value: Math.round(cap), suffix: '%', color: cap >= 100 ? '#10b981' : cap >= 75 ? '#f59e0b' : '#ef4444' };
+      }),
+    }));
+  }
+
+  const belumList = ks?.belum_isi_list ?? [];
+  if (belumList.length) panels.push(_kinerjaAlertPanel(belumList, belum));
+
+  if (panelsTop.length) html += `<div class="dash-panels">${panelsTop.join('')}</div>`;
+  if (panels.length)    html += `<div class="dash-panels">${panels.join('')}</div>`;
+
+  wrap.innerHTML = html;
+  if (belumList.length) _kbRenderPagination();
+}
 async function _fetchStats() {
   try { const r = await fetch('/api/stats', { headers: authHeaders() }); return r.ok ? r.json() : null; } catch { return null; }
 }
@@ -116,6 +461,52 @@ async function _fetchSuratStats() {
       total_keluar: keluar.total         ?? '—',
       recent_masuk:  [],
       recent_keluar: [],
+    };
+  } catch { return null; }
+}
+
+// Khusus Dashboard Surat (per-modul) — sama seperti _fetchSuratStats tapi
+// juga narik 5 surat terbaru buat panel "Terbaru". Dipisah biar Dashboard
+// Utama tidak ikut berubah tampilannya.
+async function _fetchSuratDashData() {
+  try {
+    const [rm, rk, rrm, rrk, rov] = await Promise.all([
+      fetch('/api/surat-masuk/stats',                       { headers: authHeaders() }),
+      fetch('/api/surat-keluar/stats',                      { headers: authHeaders() }),
+      fetch('/api/surat-masuk?page=1&limit=5&q=&sort=terbaru',  { headers: authHeaders() }),
+      fetch('/api/surat-keluar?page=1&limit=5&q=&sort=terbaru', { headers: authHeaders() }),
+      fetch('/api/surat-masuk?page=1&limit=50&selesai=false&q=', { headers: authHeaders() }),
+    ]);
+    const masuk  = rm.ok  ? await rm.json()  : {};
+    const keluar = rk.ok  ? await rk.json()  : {};
+    const rmList = rrm.ok ? (await rrm.json()).surat || [] : [];
+    const rkList = rrk.ok ? (await rrk.json()).surat || [] : [];
+    const belumList = rov.ok ? (await rov.json()).surat || [] : [];
+
+    const today = new Date().toISOString().slice(0, 10);
+    const overdue_list = belumList
+      .filter(s => s.batas_waktu && s.batas_waktu.slice(0, 10) < today)
+      .sort((a, b) => a.batas_waktu.localeCompare(b.batas_waktu));
+
+    return {
+      total_masuk:       masuk.total          ?? '—',
+      belum_proses:      masuk.belum_selesai  ?? '—',
+      terlambat:         masuk.terlambat      ?? 0,
+      masuk_bulan_ini:   masuk.bulan_ini      ?? 0,
+      total_keluar:      keluar.total         ?? '—',
+      keluar_bulan_ini:  keluar.bulan_ini     ?? 0,
+      overdue_list,
+      recent_masuk: rmList.map(s => ({
+        perihal: s.perihal,
+        nomor:   s.no_surat,
+        tanggal: s.tanggal_terima,
+        status:  s.selesai ? 'Selesai' : 'Proses',
+      })),
+      recent_keluar: rkList.map(s => ({
+        perihal: s.perihal,
+        nomor:   s.no_surat,
+        tanggal: s.tanggal_surat,
+      })),
     };
   } catch { return null; }
 }
@@ -731,22 +1122,25 @@ function _ikuRenderChartSection() {
 
 // ── Komponen: 1 card = 1 modul, sub-stat berjejer di bawah ──────────────────
 const _MOD_COLORS = {
-  teal:   { bg: '#ccfbf1', text: '#0f766e', accent: '#0d9488' },
-  blue:   { bg: '#dbeafe', text: '#1d4ed8', accent: '#3b82f6' },
-  purple: { bg: '#ede9fe', text: '#6d28d9', accent: '#8b5cf6' },
-  amber:  { bg: '#fef3c7', text: '#b45309', accent: '#f59e0b' },
+  teal:   { bg: '#ccfbf1', text: '#0f766e', accent: '#0d9488', dots: ['#0d9488', '#2dd4bf', '#5eead4', '#99f6e4', '#94a3b8'] },
+  blue:   { bg: '#dbeafe', text: '#1d4ed8', accent: '#3b82f6', dots: ['#3b82f6', '#60a5fa', '#93c5fd', '#bfdbfe', '#94a3b8'] },
+  purple: { bg: '#ede9fe', text: '#6d28d9', accent: '#8b5cf6', dots: ['#8b5cf6', '#a78bfa', '#c4b5fd', '#ddd6fe', '#94a3b8'] },
+  amber:  { bg: '#fef3c7', text: '#b45309', accent: '#f59e0b', dots: ['#f59e0b', '#fbbf24', '#fcd34d', '#fde68a', '#94a3b8'] },
 };
+
+// Maksimal stat yang ikut jadi segmen arc donut. Stat ke-4 dst hanya jadi baris
+// biasa (tanpa arc) — mencegah donut "numpuk"/berantakan saat beda skala jauh
+// (mis. jumlah link vs total klik) digabung jadi satu lingkaran proporsional.
+const _DONUT_MAX_SEG = 3;
 
 function _moduleCard({ icon, title, color, stats }) {
   const c = _MOD_COLORS[color] || _MOD_COLORS.blue;
+  const DOTS = c.dots;
 
-  // ── Donut chart: gunakan stat[0] sebagai nilai utama, stat[1]+stat[2] sebagai segmen ──
-  // Hitung total dari semua nilai numerik yang valid
-  const numVals = stats.map(s => parseFloat(s.value)).filter(v => !isNaN(v) && v >= 0);
-  const total   = numVals.reduce((a, b) => a + b, 0);
-
-  // Warna segmen (accent + lighter variant)
-  const SEG_COLORS = [c.accent, c.bg === '#ccfbf1' ? '#5eead4' : c.bg, '#e2e8f0'];
+  // ── Donut chart: hanya stat 1–3 yang jadi arc, sisanya baris polos ──────
+  const arcStats = stats.slice(0, _DONUT_MAX_SEG);
+  const numVals  = arcStats.map(s => parseFloat(s.value)).filter(v => !isNaN(v) && v >= 0);
+  const total    = numVals.reduce((a, b) => a + b, 0);
 
   // Buat path arc SVG untuk donut
   function _arc(cx, cy, r, startDeg, endDeg) {
@@ -763,17 +1157,16 @@ function _moduleCard({ icon, title, color, stats }) {
   if (total > 0 && numVals.length > 1) {
     const cx = 40, cy = 40, R = 30, strokeW = 10;
     let cursor = 0;
-    const paths = stats.map((s, i) => {
+    const paths = arcStats.map((s, i) => {
       const val = parseFloat(s.value);
       if (isNaN(val) || val <= 0) return '';
       const deg  = (val / total) * 360;
-      const end  = cursor + deg;
       // hindari full circle (360 = no path)
       const safeDeg = deg >= 359.9 ? 359.9 : deg;
       const path = _arc(cx, cy, R, cursor, cursor + safeDeg);
       cursor += deg;
-      const col = s.highlight ? '#ef4444' : (SEG_COLORS[i] || c.accent);
-      return `<path d="${path}" fill="none" stroke="${col}" stroke-width="${strokeW}" stroke-linecap="round" opacity="${i === 0 ? 1 : 0.55}"/>`;
+      const col = s.highlight ? '#ef4444' : (DOTS[i] || c.accent);
+      return `<path d="${path}" fill="none" stroke="${col}" stroke-width="${strokeW}" stroke-linecap="butt" opacity="${i === 0 ? 1 : 0.7}"/>`;
     }).join('');
 
     // Nilai utama di tengah donut
@@ -806,9 +1199,9 @@ function _moduleCard({ icon, title, color, stats }) {
       </div>`;
   }
 
-  // Stat list di kanan donut (semua item)
+  // Stat list di kanan donut (semua item, warna dot konsisten dgn arc utk 3 pertama)
   const items = stats.map((s, i) => {
-    const col = s.highlight ? '#ef4444' : (SEG_COLORS[i] || c.accent);
+    const col = s.highlight ? '#ef4444' : (DOTS[i] || DOTS[DOTS.length - 1]);
     return `
       <div class="dash-mod-stat-row">
         <span class="dash-mod-stat-dot" style="background:${col}"></span>
@@ -850,8 +1243,8 @@ function _recentSuratPanel(list, jenis) {
     : `<svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3.714 3.048a.498.498 0 0 0-.683.627l2.843 7.627a2 2 0 0 1 0 1.396l-2.842 7.627a.498.498 0 0 0 .682.627l18-8.5a.5.5 0 0 0 0-.904z"/><path d="M6 12h16"/></svg>`;
   const rows = list.map(s => `
     <tr><td>
-      <div style="font-weight:500;font-size:.85rem">${esc(s.perihal||s.judul||'—')}</div>
-      <div style="font-size:.75rem;opacity:.55">${esc(s.nomor||'')}${s.nomor?' · ':''}${fmtDate(s.tanggal||s.tgl_surat)}</div>
+      <div style="font-weight:500;font-size:.78rem">${esc(s.perihal||s.judul||'—')}</div>
+      <div style="font-size:.7rem;opacity:.55">${esc(s.nomor||'')}${s.nomor?' · ':''}${fmtDate(s.tanggal||s.tgl_surat)}</div>
     </td><td style="text-align:right">${s.status?`<span class="badge ${_suratBadge(s.status)}">${esc(s.status)}</span>`:''}</td></tr>`).join('');
   return `<div class="dash-panel">
     <div class="dash-panel-header">${icon} ${title}</div>
@@ -864,15 +1257,168 @@ function _suratBadge(s) {
   return s.includes('proses')||s.includes('pending') ? 'badge-warning' : s.includes('selesai')||s.includes('done') ? 'badge-success' : 'badge-blue';
 }
 
-function _kinerjaAlertPanel(list) {
-  const rows = list.slice(0,5).map(i => `
+// ── Pagination state utk panel "Indikator Belum Diisi" ─────────────────────
+let _kbList = [];
+let _kbPage = 1;
+const _KB_PAGE_SIZE = 5;
+
+// Warna jenis indikator — HARUS sama persis dgn `jenisColors` di panel "Sebaran Jenis Indikator"
+const _KB_JENIS_COLORS = { IKU: '#3b82f6', IKK: '#10b981', SPM: '#f59e0b' };
+function _kbJenisBadge(label) {
+  const c = _KB_JENIS_COLORS[label] || '#94a3b8';
+  return `<span class="badge" style="font-size:.63rem;background:${c}1f;color:${c}">${label}</span>`;
+}
+function _kbJenisBadges(i) {
+  const badges = [];
+  if (i.jenis_monev) badges.push(_kbJenisBadge('IKU'));
+  if (i.jenis_ikk)   badges.push(_kbJenisBadge('IKK'));
+  if (i.jenis_spm)   badges.push(_kbJenisBadge('SPM'));
+  return badges.join(' ');
+}
+
+function _kbBuildRows(pageItems) {
+  return pageItems.map(i => `
     <tr><td>
-      <div style="font-weight:500;font-size:.85rem">${esc(i.nama||i.indikator||'—')}</div>
-      ${i.bidang?`<div style="font-size:.75rem;opacity:.55">${esc(i.bidang)}</div>`:''}
-    </td><td style="text-align:right"><span class="badge badge-warning">Belum diisi</span></td></tr>`).join('');
+      <div style="display:flex;align-items:center;gap:4px;font-weight:500;font-size:.78rem">${esc(i.nama||i.indikator||'—')}${_polarIcon(i.bermakna_negatif, 13)}</div>
+      <div style="display:flex;flex-wrap:wrap;align-items:center;gap:5px;margin-top:5px">
+        ${_kbJenisBadges(i)}
+        ${i.bidang?`<span style="font-size:.7rem;opacity:.55">${esc(i.bidang)}</span>`:''}
+      </div>
+    </td><td style="text-align:right;vertical-align:top;padding-top:12px"><span class="badge badge-warning">Belum diisi</span></td></tr>`).join('');
+}
+
+// Render ulang pagination pakai komponen baku situs (renderPagination → .pagination/.page-btn)
+function _kbRenderPagination() {
+  if (document.getElementById('kbAlertPagination')) {
+    renderPagination('kbAlertPagination', _kbList.length, _kbPage, _KB_PAGE_SIZE, '_kbSetPage');
+  }
+}
+
+function _kbSetPage(p) {
+  const totalPages = Math.max(1, Math.ceil(_kbList.length / _KB_PAGE_SIZE));
+  _kbPage = Math.min(Math.max(1, p), totalPages);
+  const start = (_kbPage - 1) * _KB_PAGE_SIZE;
+  const body = document.getElementById('kbAlertBody');
+  if (body) body.innerHTML = _kbBuildRows(_kbList.slice(start, start + _KB_PAGE_SIZE));
+  _kbRenderPagination();
+}
+window._kbSetPage = _kbSetPage;
+
+function _kinerjaAlertPanel(list, totalBelum = null) {
+  _kbList = list;
+  _kbPage = 1;
+  const total = totalBelum ?? list.length;
+  const rows = _kbBuildRows(list.slice(0, _KB_PAGE_SIZE));
   return `<div class="dash-panel">
-    <div class="dash-panel-header"><svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><line x1="12" x2="12" y1="9" y2="13"/><line x1="12" x2="12.01" y1="17" y2="17"/></svg> Indikator Belum Diisi</div>
-    <table class="dash-panel-table"><tbody>${rows}</tbody></table>
+    <div class="dash-panel-header">
+      <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><line x1="12" x2="12" y1="9" y2="13"/><line x1="12" x2="12.01" y1="17" y2="17"/></svg>
+      <span style="flex:1">Indikator Belum Diisi</span>
+      <span class="badge badge-warning">${total}</span>
+    </div>
+    <table class="dash-panel-table"><tbody id="kbAlertBody">${rows}</tbody></table>
+    <div id="kbAlertPagination" style="padding:8px 12px 12px"></div>
+  </div>`;
+}
+
+// ── Komponen generik dashboard modul (KPI card, bar list, mini donut) ────────
+const _KPI_COLORS = {
+  teal:   { bg: '#ccfbf1', text: '#0f766e' },
+  blue:   { bg: '#dbeafe', text: '#1d4ed8' },
+  purple: { bg: '#ede9fe', text: '#6d28d9' },
+  amber:  { bg: '#fef3c7', text: '#d97706' },
+  red:    { bg: '#fee2e2', text: '#b91c1c' },
+  green:  { bg: '#d1fae5', text: '#047857' },
+  // Dipakai khusus utk statcard & barlist Surat Masuk/Keluar — biar warnanya
+  // gak "tua" kayak teal/blue biasa, dan konsisten di kedua tempat sekaligus.
+  tealMuda: { bg: '#ccfbf1', text: '#2dd4bf' },
+  biruMuda: { bg: '#e0f2fe', text: '#38bdf8' },
+};
+
+// Kartu KPI tunggal — ikon + angka besar + label + sub-info opsional (mis. tren)
+function _kpiCard({ icon, label, value, sub = null, subUp = null, color = 'teal' }) {
+  const c = _KPI_COLORS[color] || _KPI_COLORS.teal;
+  const subCls  = subUp === true ? 'up' : subUp === false ? 'down' : '';
+  const subHtml = sub ? `<div class="dash-kpi-sub ${subCls}">${esc(sub)}</div>` : '';
+  return `
+    <div class="dash-kpi-card${color === 'red' ? ' dash-kpi-card--alert' : ''}" style="border-left-color:${c.text}">
+      <div class="dash-kpi-body">
+        <div class="dash-kpi-lbl">${esc(label)}</div>
+        <div class="dash-kpi-val" style="color:${c.text}">${esc(String(value))}</div>
+        ${subHtml}
+      </div>
+      <div class="dash-kpi-icon" style="color:${c.text}">${icon}</div>
+    </div>`;
+}
+
+// Panel daftar dengan bar proporsional — dipakai utk top list, distribusi, perbandingan
+function _barListPanel({ icon, title, rows, emptyText = 'Belum ada data' }) {
+  if (!rows || !rows.length) {
+    return `<div class="dash-panel">
+      <div class="dash-panel-header">${icon} ${esc(title)}</div>
+      <div class="dash-panel-empty">${esc(emptyText)}</div>
+    </div>`;
+  }
+  const max  = Math.max(1, ...rows.map(r => Number(r.value) || 0));
+  const body = rows.map(r => {
+    const val = Number(r.value) || 0;
+    const pct = Math.max(2, Math.round((val / max) * 100));
+    const col = r.color || '#0d9488';
+    return `
+      <div class="dash-barlist-row">
+        <div class="dash-barlist-top">
+          <span style="font-size:.82rem;font-weight:600;color:#0f172a;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:68%">${esc(r.label)}</span>
+          <span style="font-size:.8rem;font-weight:700;color:${col};white-space:nowrap">${esc(String(r.value))}${r.suffix || ''}</span>
+        </div>
+        ${r.sublabel ? `<div style="font-size:.7rem;color:var(--teks-muted);margin-bottom:2px">${esc(r.sublabel)}</div>` : ''}
+        <div class="dash-barlist-track"><div class="dash-barlist-fill" style="width:${pct}%;background:${col}"></div></div>
+      </div>`;
+  }).join('');
+  return `<div class="dash-panel">
+    <div class="dash-panel-header">${icon} ${esc(title)}</div>
+    <div class="dash-barlist">${body}</div>
+  </div>`;
+}
+
+// Panel donut mini dengan legenda — dipakai utk status/proporsi (aktif/nonaktif, selesai/proses, dst)
+function _miniDonutPanel({ icon, title, segments, centerVal, centerLbl }) {
+  const total = segments.reduce((a, s) => a + (Number(s.value) || 0), 0);
+  const cx = 40, cy = 40, R = 30, strokeW = 10;
+  function _arc(cx, cy, r, startDeg, endDeg) {
+    const toRad = d => (d - 90) * Math.PI / 180;
+    const x1 = cx + r * Math.cos(toRad(startDeg)), y1 = cy + r * Math.sin(toRad(startDeg));
+    const x2 = cx + r * Math.cos(toRad(endDeg)),   y2 = cy + r * Math.sin(toRad(endDeg));
+    const large = (endDeg - startDeg) > 180 ? 1 : 0;
+    return `M ${x1} ${y1} A ${r} ${r} 0 ${large} 1 ${x2} ${y2}`;
+  }
+  let cursor = 0;
+  const paths = total > 0 ? segments.map(s => {
+    const val = Number(s.value) || 0;
+    if (!val) return '';
+    const deg = (val / total) * 360;
+    const safeDeg = deg >= 359.9 ? 359.9 : deg;
+    const path = _arc(cx, cy, R, cursor, cursor + safeDeg);
+    cursor += deg;
+    return `<path d="${path}" fill="none" stroke="${s.color}" stroke-width="${strokeW}"/>`;
+  }).join('') : '';
+  const legend = segments.map(s => `
+    <div style="display:flex;align-items:center;gap:8px">
+      <span style="width:8px;height:8px;border-radius:50%;background:${s.color};flex-shrink:0"></span>
+      <span style="font-size:.78rem;color:#334155;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(s.label)}</span>
+      <span style="font-size:.8rem;font-weight:700;color:#0f172a">${esc(String(s.value))}</span>
+    </div>`).join('');
+  return `<div class="dash-panel">
+    <div class="dash-panel-header">${icon} ${esc(title)}</div>
+    <div class="dash-panel--split">
+      <div class="dash-mod-donut" style="flex-shrink:0">
+        <svg viewBox="0 0 80 80" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="40" cy="40" r="30" fill="none" stroke="#f1f5f9" stroke-width="10"/>
+          ${paths}
+          <text x="40" y="37" text-anchor="middle" dominant-baseline="middle" font-size="13" font-weight="800" fill="#0f172a" font-family="inherit">${esc(String(centerVal))}</text>
+          <text x="40" y="50" text-anchor="middle" dominant-baseline="middle" font-size="6" fill="#94a3b8" font-family="inherit">${esc((centerLbl || '').toUpperCase().slice(0, 10))}</text>
+        </svg>
+      </div>
+      <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:8px">${legend}</div>
+    </div>
   </div>`;
 }
 
@@ -3067,10 +3613,17 @@ const DASH_STYLE_CSS = `
 @media (max-width: 600px) {
   .dash-panels { grid-template-columns: 1fr !important; }
 }
+/* Varian fix 2 kolom — dipakai utk panel yg butuh lebar lebih (mis. Surat Masuk/Keluar
+   Terbaru), supaya gak ikut auto-fit nyempit jadi 3-4 kolom dan bikin tabelnya
+   overflow-scroll horizontal sendiri. */
+.dash-panels--2col { grid-template-columns: repeat(2, 1fr) !important; }
+@media (max-width: 900px) {
+  .dash-panels--2col { grid-template-columns: 1fr !important; }
+}
 .dash-panel       { border-radius: 14px !important; border: 1px solid #e2e8f0 !important; box-shadow: 0 1px 4px rgba(0,0,0,.04); overflow-x: auto; -webkit-overflow-scrolling: touch; }
 .dash-panel-header { font-size: 0.84rem !important; padding: 12px 16px !important; letter-spacing: -.01em; background: #f8fafc !important; border-bottom: 1px solid #f1f5f9 !important; }
 .dash-panel-table th { padding: 8px 16px !important; font-size: 0.63rem !important; background: #f8fafc !important; }
-.dash-panel-table td { padding: 9px 16px !important; font-size: 0.84rem !important; }
+.dash-panel-table td { padding: 9px 16px !important; font-size: 0.78rem !important; }
 .dash-panel-table tr:hover td { background: #f0fdfa !important; }
 .dash-panel-table { min-width: 400px; }
 
@@ -3476,9 +4029,9 @@ div.kw-stat-row {
 .kw-gap-info { display: flex !important; align-items: center !important; gap: 6px !important; padding: 8px 12px !important; border-radius: 10px !important; font-size: 0.75rem !important; font-weight: 600 !important; margin-top: 8px !important; margin-bottom: 12px !important; }
 
 /* Tabel bulan */
-.kw-month-table-v2 { width: 100% !important; border-collapse: collapse !important; font-size: 0.84rem !important; margin-top: 6px !important; }
+.kw-month-table-v2 { width: 100% !important; border-collapse: collapse !important; font-size: 0.78rem !important; margin-top: 6px !important; }
 .kw-month-table-v2 th { font-size: 0.63rem !important; text-transform: uppercase !important; letter-spacing: .06em !important; color: #94a3b8 !important; font-weight: 700 !important; padding: 6px 8px !important; border-bottom: 1.5px solid #f1f5f9 !important; text-align: left !important; }
-.kw-month-table-v2 td { padding: 8px 8px !important; border-bottom: 1px solid #f8fafc !important; font-size: 0.84rem !important; color: #334155 !important; vertical-align: middle !important; text-align: left !important; }
+.kw-month-table-v2 td { padding: 8px 8px !important; border-bottom: 1px solid #f8fafc !important; font-size: 0.78rem !important; color: #334155 !important; vertical-align: middle !important; text-align: left !important; }
 .kw-month-label-cell  { display: flex !important; align-items: center !important; gap: 7px !important; }
 .kw-month-active-bar  { width: 3px !important; height: 14px !important; border-radius: 2px !important; flex-shrink: 0 !important; }
 .kw-cap-pill-v2       { display: inline-block !important; padding: 2px 8px !important; border-radius: 99px !important; font-size: 0.72rem !important; font-weight: 700 !important; }

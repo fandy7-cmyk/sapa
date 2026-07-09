@@ -146,17 +146,6 @@ async function loadLaporanSurat() {
   const now       = new Date();
   const terlambat = smFiltered.filter(r => !r.selesai && r.batas_waktu && new Date(r.batas_waktu) < now).length;
 
-  const statsEl = document.getElementById('laporanSuratStats');
-  if (statsEl) {
-    statsEl.innerHTML = `
-      ${_statCard('Total Surat Masuk', totalSM, '#10b981', `<path stroke-linecap="round" stroke-linejoin="round" d="M16 17l-4 4m0 0l-4-4m4 4V3"/>`)}
-      ${_statCard('Sudah Selesai', selesaiSM, '#3b82f6', `<path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/>`)}
-      ${_statCard('Belum Selesai', belumSM, '#f59e0b', `<circle cx="12" cy="12" r="10"/><path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3"/>`)}
-      ${_statCard('Terlambat', terlambat, '#ef4444', `<path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>`)}
-      ${_statCard('Total Surat Keluar', totalSK, '#8b5cf6', `<path stroke-linecap="round" stroke-linejoin="round" d="M8 7l4-4m0 0l4 4m-4-4v18"/>`)}
-    `;
-  }
-
   // ── Gabung & normalisasi semua baris ──
   let allRows = [];
 
@@ -736,16 +725,6 @@ async function loadLaporanKinerja() {
     ? (capRows.reduce((s, r) => s + parseFloat(r._capaian), 0) / capRows.length).toFixed(1)
     : '—';
 
-  const statsEl = document.getElementById('laporanKinerjaStats');
-  if (statsEl) {
-    statsEl.innerHTML = `
-      ${_statCard('Total Indikator', total, '#10b981', `<path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>`)}
-      ${_statCard('Sudah Diisi', sudahDiisi, '#3b82f6', `<path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/>`)}
-      ${_statCard('Belum Diisi', belumDiisi, '#f59e0b', `<circle cx="12" cy="12" r="10"/><path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3"/>`)}
-      ${_statCard('Rata-rata Capaian', rataCapaian + '%', '#8b5cf6', `<path stroke-linecap="round" stroke-linejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>`)}
-    `;
-  }
-
   // ── Render tabel — kolom bulan dibatasi s.d bulanPelaporan ──
   const BULAN_PENDEK  = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];
   const BULAN_PANJANG = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
@@ -1124,16 +1103,6 @@ function _filterLaporanKinerjaByBidang() {
   const rataCapaian = capRows.length
     ? (capRows.reduce((s, r) => s + parseFloat(r._capaian), 0) / capRows.length).toFixed(1)
     : '0.0';
-
-  const statsEl = document.getElementById('laporanKinerjaStats');
-  if (statsEl) {
-    statsEl.innerHTML = `
-      ${_statCard('Total Indikator', total, '#10b981', '<path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>')}
-      ${_statCard('Sudah Diisi', sudahDiisi, '#3b82f6', '<path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/>')}
-      ${_statCard('Belum Diisi', belumDiisi, '#f59e0b', '<circle cx="12" cy="12" r="10"/><path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3"/>')}
-      ${_statCard('Rata-rata Capaian', rataCapaian + '%', '#8b5cf6', '<path stroke-linecap="round" stroke-linejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>')}
-    `;
-  }
 
   const bulanList   = Array.from({length: 12}, (_, i) => i + 1);
   const bulanTampil = bulanList.filter(b => b >= bulanDari && b <= bulanSampai);

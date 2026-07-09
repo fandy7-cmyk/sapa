@@ -231,10 +231,16 @@ function setSMFilter(v) {
 
 async function loadSuratMasuk(page = 1) {
   _smPage = page;
+  const isAdmin = !!(_user && _user.is_admin);
+  // isFull = admin ATAU non-admin dengan hak akses "surat.masuk.full" (setara admin khusus surat masuk)
+  const isFull  = isAdmin || (typeof hasAccess === 'function' && hasAccess('surat.masuk.full'));
+  // Non-full cuma bisa lihat suratnya sendiri, jadi filter Pegawai nggak relevan
+  const pegawaiWrap = document.getElementById('smFilterPegawai')?.closest('.select-wrap');
+  if (pegawaiWrap) pegawaiWrap.style.display = isFull ? '' : 'none';
   const q      = document.getElementById('smSearch')?.value || '';
   const tahun  = document.getElementById('smFilterTahun')?.value || '';
   const bulan  = document.getElementById('smFilterBulan')?.value || '';
-  const pegawai = document.getElementById('smFilterPegawai')?.value || '';
+  const pegawai = isFull ? (document.getElementById('smFilterPegawai')?.value || '') : '';
   const params = new URLSearchParams({ page, limit: 20, q });
   if (_smFilter) params.set('selesai', _smFilter);
   if (tahun)     params.set('tahun', tahun);
@@ -244,9 +250,10 @@ async function loadSuratMasuk(page = 1) {
     const r = await fetch(`/api/surat-masuk?${params}`, { headers: authHeaders() });
     const d = await r.json();
     const tb = document.getElementById('smTableBody');
-    tb.innerHTML = (d.surat||[]).length ? d.surat.map(s => `
+    const smOffset = (page - 1) * 20;
+    tb.innerHTML = (d.surat||[]).length ? d.surat.map((s, idx) => `
       <tr>
-        <td><strong>${esc(String(s.no_agenda).replace(/^0+(?=\d)/, ""))}</strong></td>
+        <td>${smOffset + idx + 1}</td>
         <td>${esc(s.asal_surat)}</td>
         <td>${s.no_surat ? esc(s.no_surat) : '—'}</td>
         <td>${s.tanggal_surat ? fmtDateOnly(s.tanggal_surat) : '—'}</td>
@@ -259,9 +266,9 @@ async function loadSuratMasuk(page = 1) {
           <span class="badge ${s.selesai?'badge-green':'badge-yellow'}">${s.selesai?'Selesai':'Proses'}</span>
         </td>
         <td style="white-space:nowrap">
-          <button class="btn btn-ghost btn-sm" title="Edit" onclick="editSM(${s.id})"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg></button>
+          ${(isFull || s.created_by === (_user && _user.id)) ? `<button class="btn btn-ghost btn-sm" title="Edit" onclick="editSM(${s.id})"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg></button>` : ''}
           <button class="btn btn-ghost btn-sm" title="${s.selesai?'Buka Kembali':'Tandai Selesai'}" onclick="toggleSMSelesai(${s.id},${s.selesai})">${s.selesai?'<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>':'<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>'}</button>
-          <button class="btn btn-danger btn-sm" title="Hapus" onclick="deleteSM(${s.id})"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path stroke-linecap="round" stroke-linejoin="round" d="M19 6l-1 14H6L5 6"/><path stroke-linecap="round" stroke-linejoin="round" d="M10 11v6m4-6v6"/><path stroke-linecap="round" stroke-linejoin="round" d="M9 6V4h6v2"/></svg></button>
+          ${(isFull || s.created_by === (_user && _user.id)) ? `<button class="btn btn-danger btn-sm" title="Hapus" onclick="deleteSM(${s.id})"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path stroke-linecap="round" stroke-linejoin="round" d="M19 6l-1 14H6L5 6"/><path stroke-linecap="round" stroke-linejoin="round" d="M10 11v6m4-6v6"/><path stroke-linecap="round" stroke-linejoin="round" d="M9 6V4h6v2"/></svg></button>` : ''}
         </td>
       </tr>`).join('')
       : '<tr class="empty-row"><td colspan="11">Tidak ada data</td></tr>';
@@ -275,25 +282,11 @@ async function loadSuratMasuk(page = 1) {
         _populateSuratTahun(dAll.surat || [], 'smFilterTahun');
         _populateSuratBulan(dAll.surat || [], 'smFilterBulan', 'tanggal_terima');
         _populateSuratStatus(dAll.surat || [], 'smFilterStatus');
-        _populateSuratPegawai(dAll.surat || [], 'smFilterPegawai');
+        if (isFull) _populateSuratPegawai(dAll.surat || [], 'smFilterPegawai');
         setTimeout(() => { if (typeof initCustomSelects === 'function') initCustomSelects(); }, 50);
       } catch {}
     }
 
-    // Stats
-    const rs = await fetch('/api/surat-masuk/stats', { headers: authHeaders() });
-    const dsRaw = await rs.json();
-    const ds = rs.ok ? dsRaw : {};
-    document.getElementById('suratMasukStats').innerHTML = `
-      ${_smStatCard('Total Surat Masuk', ds.total ?? 0, '#10b981',
-        `<path stroke-linecap="round" stroke-linejoin="round" d="M16 17l-4 4m0 0l-4-4m4 4V3"/>`)}
-      ${_smStatCard('Sudah Selesai', ds.total - ds.belum_selesai ?? 0, '#3b82f6',
-        `<path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>`)}
-      ${_smStatCard('Belum Selesai', ds.belum_selesai ?? 0, '#f59e0b',
-        `<circle cx="12" cy="12" r="10"/><path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3"/>`)}
-      ${_smStatCard('Terlambat', ds.terlambat ?? 0, '#ef4444',
-        `<path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>`)}
-    `;
   } catch {}
 }
 
@@ -319,7 +312,7 @@ function renderPegawaiOptions(selectedNama) {
 async function openSMModal() {
   await loadPegawaiPerencanaan();
   document.getElementById('smId').value = '';
-  ['smNoAgenda','smNoSurat','smAsal','smPerihal','smKeterangan']
+  ['smNoSurat','smAsal','smPerihal','smKeterangan']
     .forEach(id => document.getElementById(id).value = '');
   document.getElementById('smPegawai').innerHTML = renderPegawaiOptions(null);
   dpSetValue('smTglSurat', null);
@@ -339,7 +332,6 @@ async function editSM(id) {
     const d = await r.json();
     const s = d.surat.find(x => x.id === id); if (!s) return;
     document.getElementById('smId').value = s.id;
-    document.getElementById('smNoAgenda').value = s.no_agenda || '';
     document.getElementById('smNoSurat').value = s.no_surat || '';
     dpSetValue('smTglSurat',  s.tanggal_surat?.split('T')[0] || null);
     dpSetValue('smTglTerima', s.tanggal_terima?.split('T')[0] || null);
@@ -359,7 +351,6 @@ async function editSM(id) {
 async function saveSM() {
   const id = document.getElementById('smId').value;
   const body = {
-    no_agenda: document.getElementById('smNoAgenda').value.trim(),
     no_surat: document.getElementById('smNoSurat').value.trim() || null,
     tanggal_surat: dpGetValue('smTglSurat') || null,
     tanggal_terima: dpGetValue('smTglTerima') || null,
@@ -372,7 +363,7 @@ async function saveSM() {
     file_name: getUploadName('sm') || null,
     selesai: document.getElementById('smSelesai').checked,
   };
-  if (!body.no_agenda || !body.asal_surat || !body.perihal) { toast('No. agenda, asal, perihal wajib diisi', 'error'); return; }
+  if (!body.asal_surat || !body.perihal) { toast('Asal surat dan perihal wajib diisi', 'error'); return; }
   try {
     const r = await fetch(id ? `/api/surat-masuk/${id}` : '/api/surat-masuk', {
       method: id ? 'PUT' : 'POST', headers: authHeaders(), body: JSON.stringify(body),
@@ -408,10 +399,16 @@ let _skPage = 1;
 
 async function loadSuratKeluar(page = 1) {
   _skPage = page;
+  const isAdmin = !!(_user && _user.is_admin);
+  // isFull = admin ATAU non-admin dengan hak akses "surat.keluar.full" (setara admin khusus surat keluar)
+  const isFull  = isAdmin || (typeof hasAccess === 'function' && hasAccess('surat.keluar.full'));
+  // Non-full cuma bisa lihat suratnya sendiri, jadi filter Pegawai nggak relevan
+  const pegawaiWrap = document.getElementById('skFilterPegawai')?.closest('.select-wrap');
+  if (pegawaiWrap) pegawaiWrap.style.display = isFull ? '' : 'none';
   const q       = document.getElementById('skSearch')?.value || '';
   const tahun   = document.getElementById('skFilterTahun')?.value || '';
   const bulan   = document.getElementById('skFilterBulan')?.value || '';
-  const pegawai = document.getElementById('skFilterPegawai')?.value || '';
+  const pegawai = isFull ? (document.getElementById('skFilterPegawai')?.value || '') : '';
   const params = new URLSearchParams({ page, limit: 20, q });
   if (tahun)   params.set('tahun', tahun);
   if (bulan)   params.set('bulan', bulan);
@@ -420,9 +417,10 @@ async function loadSuratKeluar(page = 1) {
     const r = await fetch(`/api/surat-keluar?${params}`, { headers: authHeaders() });
     const d = await r.json();
     const tb = document.getElementById('skTableBody');
-    tb.innerHTML = (d.surat||[]).length ? d.surat.map(s => `
+    const skOffset = (page - 1) * 20;
+    tb.innerHTML = (d.surat||[]).length ? d.surat.map((s, idx) => `
       <tr>
-        <td><strong>${esc(String(s.no_agenda).replace(/^0+(?=\d)/, ""))}</strong></td>
+        <td>${skOffset + idx + 1}</td>
         <td>${esc(s.tujuan_surat)}</td>
         <td>${s.no_surat ? esc(s.no_surat) : '—'}</td>
         <td>${s.tanggal_surat ? fmtDateOnly(s.tanggal_surat) : '—'}</td>
@@ -430,8 +428,8 @@ async function loadSuratKeluar(page = 1) {
         <td>${s.pegawai ? esc(s.pegawai) : '—'}</td>
         <td style="text-align:center">${renderDocsBadge(s.file_url, 'Surat Keluar — ' + (s.perihal||''))}</td>
         <td style="white-space:nowrap">
-          <button class="btn btn-ghost btn-sm" title="Edit" onclick="editSK(${s.id})"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg></button>
-          <button class="btn btn-danger btn-sm" title="Hapus" onclick="deleteSK(${s.id})"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path stroke-linecap="round" stroke-linejoin="round" d="M19 6l-1 14H6L5 6"/><path stroke-linecap="round" stroke-linejoin="round" d="M10 11v6m4-6v6"/><path stroke-linecap="round" stroke-linejoin="round" d="M9 6V4h6v2"/></svg></button>
+          ${(isFull || s.created_by === (_user && _user.id)) ? `<button class="btn btn-ghost btn-sm" title="Edit" onclick="editSK(${s.id})"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg></button>
+          <button class="btn btn-danger btn-sm" title="Hapus" onclick="deleteSK(${s.id})"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path stroke-linecap="round" stroke-linejoin="round" d="M19 6l-1 14H6L5 6"/><path stroke-linecap="round" stroke-linejoin="round" d="M10 11v6m4-6v6"/><path stroke-linecap="round" stroke-linejoin="round" d="M9 6V4h6v2"/></svg></button>` : '<span style="color:var(--teks-muted)">—</span>'}
         </td>
       </tr>`).join('')
       : '<tr class="empty-row"><td colspan="8">Tidak ada data</td></tr>';
@@ -444,29 +442,18 @@ async function loadSuratKeluar(page = 1) {
         const dAll = await rAll.json();
         _populateSuratTahun(dAll.surat || [], 'skFilterTahun');
         _populateSuratBulan(dAll.surat || [], 'skFilterBulan', 'tanggal_surat');
-        _populateSuratPegawai(dAll.surat || [], 'skFilterPegawai');
+        if (isFull) _populateSuratPegawai(dAll.surat || [], 'skFilterPegawai');
         setTimeout(() => { if (typeof initCustomSelects === 'function') initCustomSelects(); }, 50);
       } catch {}
     }
 
-    const rs = await fetch('/api/surat-keluar/stats', { headers: authHeaders() });
-    const dsRaw = await rs.json();
-    const ds = rs.ok ? dsRaw : {};
-    document.getElementById('suratKeluarStats').innerHTML = `
-      ${_smStatCard('Total Surat Keluar', ds.total ?? 0, '#8b5cf6',
-        `<path stroke-linecap="round" stroke-linejoin="round" d="M8 7l4-4m0 0l4 4m-4-4v18"/>`)}
-      ${_smStatCard('Bulan Ini', ds.bulan_ini ?? 0, '#10b981',
-        `<path stroke-linecap="round" stroke-linejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>`)}
-      ${_smStatCard('Tahun Ini', ds.tahun_ini ?? 0, '#3b82f6',
-        `<path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>`)}
-    `;
   } catch {}
 }
 
 async function openSKModal() {
   await loadPegawaiPerencanaan();
   document.getElementById('skId').value = '';
-  ['skNoAgenda','skNoSurat','skTujuan','skPerihal','skKeterangan']
+  ['skNoSurat','skTujuan','skPerihal','skKeterangan']
     .forEach(id => document.getElementById(id).value = '');
   document.getElementById('skPegawai').innerHTML = renderPegawaiOptions(null);
   dpSetValue('skTglSurat', null);
@@ -482,7 +469,6 @@ async function editSK(id) {
     const d = await r.json();
     const s = d.surat.find(x => x.id === id); if (!s) return;
     document.getElementById('skId').value = s.id;
-    document.getElementById('skNoAgenda').value = s.no_agenda || '';
     document.getElementById('skNoSurat').value = s.no_surat || '';
     dpSetValue('skTglSurat', s.tanggal_surat?.split('T')[0] || null);
     document.getElementById('skTujuan').value = s.tujuan_surat || '';
@@ -499,7 +485,6 @@ async function editSK(id) {
 async function saveSK() {
   const id = document.getElementById('skId').value;
   const body = {
-    no_agenda: document.getElementById('skNoAgenda').value.trim(),
     no_surat: document.getElementById('skNoSurat').value.trim() || null,
     tanggal_surat: dpGetValue('skTglSurat') || null,
     tujuan_surat: document.getElementById('skTujuan').value.trim(),
@@ -509,7 +494,7 @@ async function saveSK() {
     file_url: getUploadUrl('sk'),
     file_name: getUploadName('sk') || null,
   };
-  if (!body.no_agenda || !body.tujuan_surat || !body.perihal) { toast('No. agenda, tujuan, perihal wajib diisi', 'error'); return; }
+  if (!body.tujuan_surat || !body.perihal) { toast('Tujuan dan perihal wajib diisi', 'error'); return; }
   try {
     const r = await fetch(id ? `/api/surat-keluar/${id}` : '/api/surat-keluar', {
       method: id ? 'PUT' : 'POST', headers: authHeaders(), body: JSON.stringify(body),

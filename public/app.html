@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
-  <link rel="stylesheet" href="css/styles.css?v=2" />
+  <link rel="stylesheet" href="css/styles.css?v=3" />
   <style>
     /* ── LOGIN OVERLAY ── */
     #loginOverlay {
@@ -331,7 +331,15 @@
     <div class="sidebar-header">
       <div class="sidebar-brand">
         <div class="sidebar-brand-icon">
-          <img src="/favicon.png" alt="SAPA" />
+          <span class="sidebar-brand-ring-spin"></span>
+          <span class="sidebar-brand-particles">
+            <span class="sbpp sbpp-1"></span>
+            <span class="sbpp sbpp-2"></span>
+            <span class="sbpp sbpp-3"></span>
+            <span class="sbpp sbpp-4"></span>
+            <span class="sbpp sbpp-5"></span>
+          </span>
+          <img src="/favicon.png" alt="SAPA" style="position:relative;z-index:2" />
         </div>
         <div class="sidebar-brand-text">
           <div class="sidebar-brand-name">SAPA <span style="color:#a7f3d0">Perencanaan</span></div>
@@ -339,7 +347,17 @@
         </div>
       </div>
       <button class="btn-sidebar-collapse" id="btnSidebarCollapse" onclick="toggleSidebarCollapse()">
-        <img class="collapse-favicon" src="/favicon.png" alt="SAPA" />
+        <span class="collapse-favicon-wrap">
+          <span class="sidebar-brand-ring-spin"></span>
+          <span class="sidebar-brand-particles">
+            <span class="sbpp sbpp-1"></span>
+            <span class="sbpp sbpp-2"></span>
+            <span class="sbpp sbpp-3"></span>
+            <span class="sbpp sbpp-4"></span>
+            <span class="sbpp sbpp-5"></span>
+          </span>
+          <img class="collapse-favicon" src="/favicon.png" alt="SAPA" style="position:relative;z-index:2" />
+        </span>
         <svg class="collapse-toggle-icon" id="iconSidebarCollapse" xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
           <rect x="3" y="4" width="18" height="16" rx="2"/><line x1="9" y1="4" x2="9" y2="20"/>
         </svg>
@@ -393,52 +411,48 @@
         <div id="dashStats"></div>
       </div>
 
-      <!-- ══ SUPERLINK › LINK ══ -->
-      <div class="page" id="page-link">
-        <div class="page-title" style="display:flex;align-items:center;gap:10px"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;opacity:.85"><path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></svg>Link</div>
-        <div class="page-subtitle">Kelola semua link aktif</div>
-        <!-- Filter + Toolbar sejajar -->
-        <div class="toolbar">
-          <div class="select-wrap" style="min-width:160px">
-            <select id="linkFilterStatus" onchange="filterLinks()">
-              <option value="">Semua Status</option>
-            </select>
-          </div>
-          <div class="search-wrap" style="flex:1">
-            <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-4.35-4.35"/></svg>
-            <input type="text" placeholder="Cari link..." id="linkSearch" oninput="filterLinks()" />
-          </div>
-          <button class="btn btn-primary btn-sm" onclick="openLinkModal()"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>Tambah Link</button>
-        </div>
-        <div class="card" style="padding:0;overflow:auto;-webkit-overflow-scrolling:touch">
-          <table>
-            <thead><tr><th>Judul</th><th>URL</th><th>Slug</th><th>Klik</th><th>Status</th><th>Aksi</th></tr></thead>
-            <tbody id="linkTableBody"><tr class="empty-row"><td colspan="6">Memuat data...</td></tr></tbody>
-          </table>
-        </div>
-        <div id="linkPagination"></div>
+      <!-- ══ SUPERLINK › DASHBOARD ══ -->
+      <div class="page" id="page-dashboard-superlink">
+        <div id="dashSuperlinkStats"></div>
       </div>
 
-      <!-- ══ SUPERLINK › SHORTLINK ══ -->
+      <!-- ══ SURAT › DASHBOARD ══ -->
+      <div class="page" id="page-dashboard-surat">
+        <div id="dashSuratStats"></div>
+      </div>
+
+      <!-- ══ KINERJA › DASHBOARD ══ -->
+      <div class="page" id="page-dashboard-kinerja">
+        <div id="dashKinerjaStats"></div>
+      </div>
+
+      <!-- ══ SUPERLINK › SHORTLINK (unified: semua link + shortlink) ══ -->
       <div class="page" id="page-shortlink">
         <div class="page-title" style="display:flex;align-items:center;gap:10px"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;opacity:.85"><path d="M4 14a1 1 0 0 1-.78-1.63l9.9-10.2a.5.5 0 0 1 .86.46l-1.92 6.02A1 1 0 0 0 13 10h7a1 1 0 0 1 .78 1.63l-9.9 10.2a.5.5 0 0 1-.86-.46l1.92-6.02A1 1 0 0 0 11 14z"/></svg>Shortlink</div>
-        <div class="page-subtitle">Kelola link pendek</div>
+        <div class="page-subtitle">Kelola semua link, baik link biasa maupun shortlink</div>
         <!-- Filter + Toolbar sejajar -->
         <div class="toolbar">
-          <div class="select-wrap" style="min-width:160px">
+          <div class="select-wrap" style="min-width:150px">
+            <select id="slFilterJenis" onchange="filterShortlinks()">
+              <option value="">Semua Jenis</option>
+              <option value="biasa">Link Biasa</option>
+              <option value="shortlink">Shortlink</option>
+            </select>
+          </div>
+          <div class="select-wrap" style="min-width:150px">
             <select id="slFilterStatus" onchange="filterShortlinks()">
               <option value="">Semua Status</option>
             </select>
           </div>
           <div class="search-wrap" style="flex:1">
             <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-4.35-4.35"/></svg>
-            <input type="text" placeholder="Cari shortlink..." id="slSearch" oninput="filterShortlinks()" />
+            <input type="text" placeholder="Cari link..." id="slSearch" oninput="filterShortlinks()" />
           </div>
-          <button class="btn btn-primary btn-sm" onclick="openShortlinkModal()"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>Tambah Shortlink</button>
+          <button class="btn btn-primary btn-sm" onclick="openLinkModal()"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>Tambah Link</button>
         </div>
         <div class="card" style="padding:0;overflow:auto;-webkit-overflow-scrolling:touch">
           <table>
-            <thead><tr><th>Judul</th><th>Slug Pendek</th><th>URL Tujuan</th><th>Klik</th><th>Status</th><th>Aksi</th></tr></thead>
+            <thead><tr><th>Judul</th><th>URL</th><th>Slug</th><th>Klik</th><th>Status</th><th>Aksi</th></tr></thead>
             <tbody id="slTableBody"><tr class="empty-row"><td colspan="6">Memuat data...</td></tr></tbody>
           </table>
         </div>
@@ -543,7 +557,6 @@
       <div class="page" id="page-surat-masuk">
         <div class="page-title" style="display:flex;align-items:center;gap:10px"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;opacity:.85"><path d="M21.2 8.4c.5.38.8.97.8 1.6v10a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V10a2 2 0 0 1 .8-1.6l8-6a2 2 0 0 1 2.4 0l8 6Z"/><path d="m22 10-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 10"/></svg>Surat Masuk</div>
         <div class="page-subtitle">Manajemen surat masuk</div>
-        <div class="stat-grid" id="suratMasukStats" style="grid-template-columns:repeat(4,1fr)"></div>
         <!-- Filter Bar -->
         <div class="toolbar">
           <div class="select-wrap" style="flex:1">
@@ -570,7 +583,7 @@
             <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-4.35-4.35"/></svg>
             <input type="text" placeholder="Cari surat..." id="smSearch" oninput="loadSuratMasuk(1)" />
           </div>
-          <button class="btn btn-primary btn-sm" onclick="openSMModal()"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>Tambah</button>
+          <button class="btn btn-primary btn-sm" id="btnTambahSM" onclick="openSMModal()"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>Tambah</button>
         </div>
         <div class="card" style="padding:0;overflow:auto;-webkit-overflow-scrolling:touch">
           <table>
@@ -585,7 +598,6 @@
       <div class="page" id="page-surat-keluar">
         <div class="page-title" style="display:flex;align-items:center;gap:10px"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;opacity:.85"><path d="M3.714 3.048a.498.498 0 0 0-.683.627l2.843 7.627a2 2 0 0 1 0 1.396l-2.842 7.627a.498.498 0 0 0 .682.627l18-8.5a.5.5 0 0 0 0-.904z"/><path d="M6 12h16"/></svg>Surat Keluar</div>
         <div class="page-subtitle">Manajemen surat keluar</div>
-        <div class="stat-grid" id="suratKeluarStats" style="grid-template-columns:repeat(3,1fr)"></div>
         <!-- Filter Bar -->
         <div class="toolbar">
           <div class="select-wrap" style="flex:1">
@@ -607,7 +619,7 @@
             <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-4.35-4.35"/></svg>
             <input type="text" placeholder="Cari surat..." id="skSearch" oninput="loadSuratKeluar(1)" />
           </div>
-          <button class="btn btn-primary btn-sm" onclick="openSKModal()"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>Tambah</button>
+          <button class="btn btn-primary btn-sm" id="btnTambahSK" onclick="openSKModal()"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>Tambah</button>
         </div>
         <div class="card" style="padding:0;overflow:auto;-webkit-overflow-scrolling:touch">
           <table>
@@ -1251,12 +1263,9 @@
           </button>
         </div>
 
-        <!-- Summary Cards -->
-        <div id="laporanSuratStats" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-bottom:1.25rem"></div>
-
         <!-- Tabel Detail Surat -->
         <div class="card" style="padding:0;overflow:auto;-webkit-overflow-scrolling:touch">
-          <table id="laporanSuratDetailTable">
+          <table id="laporanSuratDetailTable" class="surat-table">
             <thead>
               <tr>
                 <th style="width:34px;text-align:center;position:sticky;left:0;z-index:3">No</th>
@@ -1310,9 +1319,6 @@
           </button>
         </div>
 
-        <!-- Summary Cards -->
-        <div id="laporanKinerjaStats" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-bottom:1.25rem"></div>
-
         <!-- Tabel Rekap Indikator -->
         <div class="card" style="padding:0;overflow:hidden;border-radius:var(--r-lg)">
           <div style="overflow:auto;-webkit-overflow-scrolling:touch">
@@ -1332,8 +1338,8 @@
       <!-- PAGE: Pegawai / Struktur Organisasi -->
       <div class="page" id="page-pegawai">
         <div class="page-title" style="display:flex;align-items:center;gap:10px">
-          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;opacity:.85"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-          Pegawai &amp; Struktur Organisasi
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;opacity:.85"><rect x="9" y="2" width="6" height="6" rx="1"/><rect x="2" y="16" width="6" height="6" rx="1"/><rect x="16" y="16" width="6" height="6" rx="1"/><path d="M12 8v4M12 12H5v4M12 12h7v4"/></svg>
+          Struktur Organisasi
         </div>
         <div class="page-subtitle">Kelola data pegawai yang tampil di halaman publik</div>
 
@@ -1773,6 +1779,7 @@
       <div class="field"><label>URL *</label><input type="url" id="linkUrl" placeholder="https://..." /></div>
       <div class="field"><label>Slug Pendek</label><input type="text" id="linkSlug" placeholder="contoh: laporan-spm" />
         <div class="field-hint">Biarkan kosong jika tidak perlu shortlink. URL: /<span id="slugPreview">—</span></div>
+        <div class="slug-status" id="linkSlugStatus"></div>
       </div>
       <div class="toggle-wrap">
         <input type="checkbox" class="toggle" id="linkAktif" checked />
@@ -1781,7 +1788,7 @@
     </div>
     <div class="modal-footer">
       <button class="btn btn-ghost" onclick="closeModal('modalLink')"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>Batal</button>
-      <button class="btn btn-primary" onclick="saveLink()"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>Simpan</button>
+      <button class="btn btn-primary" id="btnSaveLink" onclick="saveLink()"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>Simpan</button>
     </div>
   </div>
 </div>
@@ -1801,6 +1808,7 @@
         <div class="field"><label>Judul Bundle *</label><input type="text" id="bundleJudul" placeholder="Nama bundle" /></div>
         <div class="field"><label>Slug (URL)</label><input type="text" id="bundleSlug" placeholder="auto-generate dari judul" />
           <div class="field-hint">URL publik: /<span id="bundleSlugPreview">—</span></div>
+          <div class="slug-status" id="bundleSlugStatus"></div>
         </div>
         <div class="field"><label>Deskripsi <span style="font-weight:400;color:var(--teks-muted)">(opsional)</span></label><input type="text" id="bundleDeskripsi" placeholder="Keterangan singkat bundle ini" /></div>
         <div class="toggle-wrap">
@@ -1850,10 +1858,7 @@
     </div>
     <div class="modal-body">
       <input type="hidden" id="smId" />
-      <div class="field-row">
-        <div class="field"><label>No. Agenda *</label><input type="number" id="smNoAgenda" min="1" placeholder="1, 2, 3…" style="appearance:textfield;-moz-appearance:textfield" /></div>
-        <div class="field"><label>No. Surat</label><input type="text" id="smNoSurat" /></div>
-      </div>
+      <div class="field"><label>No. Surat</label><input type="text" id="smNoSurat" /></div>
       <div class="field-row">
         <div class="field"><label>Tanggal Surat</label><div class="dp-wrap" id="dp-smTglSurat"></div></div>
         <div class="field"><label>Tanggal Terima</label><div class="dp-wrap" id="dp-smTglTerima"></div></div>
@@ -1903,10 +1908,7 @@
     </div>
     <div class="modal-body">
       <input type="hidden" id="skId" />
-      <div class="field-row">
-        <div class="field"><label>No. Agenda *</label><input type="number" id="skNoAgenda" min="1" placeholder="1, 2, 3…" style="appearance:textfield;-moz-appearance:textfield" /></div>
-        <div class="field"><label>No. Surat</label><input type="text" id="skNoSurat" /></div>
-      </div>
+      <div class="field"><label>No. Surat</label><input type="text" id="skNoSurat" /></div>
       <div class="field"><label>Tanggal Surat</label><div class="dp-wrap" id="dp-skTglSurat"></div></div>
       <div class="field"><label>Tujuan Surat *</label><input type="text" id="skTujuan" /></div>
       <div class="field"><label>Perihal *</label><input type="text" id="skPerihal" /></div>
@@ -2831,7 +2833,7 @@ function _loginShowErr(msg, type = 'warn') {
 </script>
 
 <!-- ════════════════ SCRIPTS ════════════════ -->
-<script src="js/periode_frontend.js?v=1"></script>
+<script src="js/periode_frontend.js?v=3"></script>
 <script>
 /* ── CDTP Teleport: pindahkan panel kalender ke <body> saat dibuka ──────────
    Ini satu-satunya cara yang benar-benar reliable agar panel tidak terpotong
@@ -2978,18 +2980,18 @@ function _loginShowErr(msg, type = 'warn') {
 })();
 </script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/quill/1.3.7/quill.min.js"></script>
-  <script src="js/app.js?v=1"></script>
-<script src="js/dashboard.js?v=6"></script>
-<script src="js/superlink.js?v=1"></script>
-<script src="js/pengumuman_frontend.js?v=1"></script>
-<script src="js/surat.js?v=1"></script>
-<script src="js/users_frontend.js?v=1"></script>
-<script src="js/kinerja.js?v=2"></script>
-<script src="js/laporan.js?v=1"></script>
-<script src="js/struktur_frontend.js?v=1"></script>
-<script src="js/audit_frontend.js?v=1"></script>
-<script src="js/dokumen_publik_frontend.js?v=1"></script>
-<script src="js/profil_frontend.js?v=1"></script>
+  <script src="js/app.js?v=3"></script>
+<script src="js/dashboard.js?v=3"></script>
+<script src="js/superlink.js?v=3"></script>
+<script src="js/pengumuman_frontend.js?v=3"></script>
+<script src="js/surat.js?v=3"></script>
+<script src="js/users_frontend.js?v=3"></script>
+<script src="js/kinerja.js?v=3"></script>
+<script src="js/laporan.js?v=3"></script>
+<script src="js/struktur_frontend.js?v=3"></script>
+<script src="js/audit_frontend.js?v=3"></script>
+<script src="js/dokumen_publik_frontend.js?v=3"></script>
+<script src="js/profil_frontend.js?v=3"></script>
 
 <script>
 /* ═══════════════════════════════════════════════════════════════════════════

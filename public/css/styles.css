@@ -136,8 +136,46 @@ body::before {
   height: var(--topbar-h);
   display: flex; align-items: center; justify-content: space-between;
 }
-.sidebar-brand { display: flex; align-items: center; gap: var(--sp-3); }
-.sidebar-brand-icon { display: flex; align-items: center; justify-content: center; }
+.sidebar-brand { display: flex; align-items: center; gap: 18px; }
+.sidebar-brand-icon { position: relative; display: flex; align-items: center; justify-content: center; }
+
+/* Ring conic yang berputar di belakang logo sidebar */
+.sidebar-brand-ring-spin {
+  position: absolute; inset: -6px;
+  border-radius: 50%;
+  background: conic-gradient(from 0deg, transparent 0%, rgba(20,184,166,.7) 14%, rgba(45,212,191,.9) 22%, transparent 34%, transparent 55%, rgba(13,148,136,.6) 68%, rgba(45,212,191,.8) 76%, transparent 88%);
+  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 2px), #000 calc(100% - 2px));
+          mask: radial-gradient(farthest-side, transparent calc(100% - 2px), #000 calc(100% - 2px));
+  animation: sbPortalSpin 2.6s linear infinite;
+  pointer-events: none;
+  z-index: 0;
+}
+/* Partikel mini mengorbit logo sidebar */
+.sidebar-brand-particles { position: absolute; inset: -14px; pointer-events: none; z-index: 1; }
+.sbpp {
+  position: absolute; top: 50%; left: 50%;
+  border-radius: 50%;
+  transform-origin: 0 0;
+  animation: sbOrbit linear infinite, sbTwinkle ease-in-out infinite;
+}
+.sbpp-1 { --r: 17px; width: 1.5px; height: 1.5px; background: #2dd4bf; box-shadow: 0 0 3px 1px rgba(45,212,191,.8); animation-duration: 4.6s, 1.9s; animation-delay: -1.6s, -.4s; }
+.sbpp-2 { --r: 22px; width: 2px;   height: 2px;   background: #0d9488; box-shadow: 0 0 3px 1px rgba(13,148,136,.7); animation-duration: 5.5s, 2.3s; animation-delay: -2.3s, -.6s; }
+.sbpp-3 { --r: 14px; width: 1.5px; height: 1.5px; background: #fff;    box-shadow: 0 0 3px 1px rgba(255,255,255,.85); animation-duration: 3.9s, 1.6s; animation-delay: -1.1s, -.3s; }
+.sbpp-4 { --r: 25px; width: 1.5px; height: 1.5px; background: #5eead4; box-shadow: 0 0 3px 1px rgba(94,234,212,.7); animation-duration: 6.2s, 2.6s; animation-delay: -2.8s, -.7s; }
+.sbpp-5 { --r: 19px; width: 2px;   height: 2px;   background: #14b8a6; box-shadow: 0 0 3px 1px rgba(20,184,166,.75); animation-duration: 4.9s, 2.1s; animation-delay: -1.9s, -.5s; }
+
+@keyframes sbPortalSpin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+@keyframes sbOrbit {
+  from { transform: rotate(0deg)   translateX(var(--r, 20px)) rotate(0deg); }
+  to   { transform: rotate(360deg) translateX(var(--r, 20px)) rotate(-360deg); }
+}
+@keyframes sbTwinkle {
+  0%, 100% { opacity: .25; }
+  50%      { opacity: 1; }
+}
 
 /* Loop entrance + idle glow — total siklus 6s */
 .sidebar-brand-icon img {
@@ -262,12 +300,12 @@ body::before {
   display: flex; align-items: center; justify-content: center;
   background: transparent; border: none;
   border-radius: var(--r-sm);
-  color: #fff; cursor: pointer;
+  color: rgba(255,255,255,.6); cursor: pointer;
   box-shadow: none;
-  transition: background var(--transition);
+  transition: background var(--transition), color var(--transition);
   z-index: 1;
 }
-.btn-sidebar-collapse:hover { background: rgba(255,255,255,.12); }
+.btn-sidebar-collapse:hover { background: rgba(255,255,255,.12); color: #fff; }
 .btn-sidebar-collapse svg { transition: transform .3s ease; flex-shrink: 0; }
 
 /* ── Sidebar collapsed state ── */
@@ -298,6 +336,13 @@ body::before {
   border-radius: var(--r-sm);
   margin: 0;
 }
+
+.collapse-favicon-wrap { position: relative; display: none; align-items: center; justify-content: center; }
+.sidebar.collapsed .collapse-favicon-wrap { display: inline-flex; }
+.sidebar.collapsed .btn-sidebar-collapse:hover .collapse-favicon-wrap { display: none; }
+/* Ring/partikel di dalam tombol collapse lebih kecil (favicon 22px) */
+.collapse-favicon-wrap .sidebar-brand-ring-spin { inset: -4px; }
+.collapse-favicon-wrap .sidebar-brand-particles { inset: -10px; }
 
 /* Collapsed: tampilkan favicon grayscale putih (seperti icon submenu) */
 .sidebar.collapsed .collapse-favicon {
@@ -509,7 +554,7 @@ th {
   border-bottom: 1.5px solid var(--abu-2); white-space: nowrap;
 }
 td {
-  font-size: var(--fs-base); color: var(--teks);
+  font-size: .78rem; color: var(--teks);
   padding: var(--sp-3) var(--sp-3); border-bottom: 1px solid var(--abu-1); vertical-align: middle;
 }
 tr:last-child td { border-bottom: none; }
@@ -829,6 +874,23 @@ tr:hover td:not(.td-sticky-no):not(.td-sticky-name) { background: var(--abu-1); 
 .field textarea { resize: vertical; min-height: 89px; }
 .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: var(--sp-4); }
 .field-hint { font-size: var(--fs-xs); color: var(--teks-muted); margin-top: var(--sp-1); }
+
+.slug-status {
+  font-size: var(--fs-xs); margin-top: 4px; min-height: 15px;
+  display: flex; align-items: center; gap: 5px; font-weight: 600;
+  transition: color .15s ease;
+}
+.slug-status svg { width: 12px; height: 12px; flex-shrink: 0; }
+.slug-status.checking { color: var(--teks-muted); font-weight: 500; }
+.slug-status.checking svg { animation: slugSpin .7s linear infinite; }
+.slug-status.available { color: var(--hijau); }
+.slug-status.taken { color: var(--merah); }
+@keyframes slugSpin { to { transform: rotate(360deg); } }
+
+.btn-primary:disabled, .btn-primary[disabled] {
+  opacity: .5; cursor: not-allowed; filter: grayscale(.3);
+}
+.btn-primary:disabled:hover, .btn-primary[disabled]:hover { transform: none; }
 .toggle-wrap { display: flex; align-items: center; gap: var(--sp-3); padding: var(--sp-3) 0; }
 .toggle-label { font-size: var(--fs-base); font-weight: 600; color: var(--teks); }
 input[type="checkbox"].toggle { width: 38px; height: 22px; appearance: none; background: var(--abu-2); border-radius: 999px; cursor: pointer; position: relative; transition: background var(--transition); flex-shrink: 0; }
@@ -1345,7 +1407,7 @@ input[type="checkbox"].toggle:checked::after { left: 19px; }
 .dash-welcome-sub   { font-size: .82rem; color: var(--teks-muted); opacity: 1; }
 
 .dash-module-grid {
-  display: grid; grid-template-columns: repeat(auto-fit, minmax(0, 1fr));
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
   gap: 14px; margin-bottom: 22px;
 }
 .dash-module-card {
@@ -1356,6 +1418,35 @@ input[type="checkbox"].toggle:checked::after { left: 19px; }
 .dash-mod-header { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
 .dash-mod-icon { width: 36px; height: 36px; border-radius: 10px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
 .dash-mod-title { font-size: .9rem; font-weight: 700; }
+
+/* Body modul: donut di kiri, list stat di kanan */
+.dash-mod-body { display: flex; align-items: center; gap: 18px; }
+.dash-mod-donut { width: 80px; height: 80px; flex-shrink: 0; }
+.dash-mod-donut svg { width: 100%; height: 100%; }
+.dash-mod-stat-list { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 8px; }
+.dash-mod-stat-row { display: flex; align-items: center; gap: 9px; }
+.dash-mod-stat-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.dash-mod-stat-body { flex: 1; min-width: 0; display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+.dash-mod-stat-val { font-size: 1.3rem; font-weight: 800; line-height: 1; }
+.dash-mod-stat-val--alert { color: #dc2626; }
+.dash-mod-stat-lbl { font-size: .7rem; color: var(--teks-muted); font-weight: 600; letter-spacing: .02em; text-align: right; }
+
+/* Panel "perlu perhatian" — highlight merah utk item overdue */
+.dash-panel--urgent .dash-panel-header { color: #dc2626; }
+.dash-panel-empty { padding: 22px 18px; text-align: center; color: var(--teks-muted); font-size: .84rem; }
+
+/* Mini trend chart (sparkline bar) di panel dashboard */
+.dash-trend { padding: 4px 4px 0; }
+.dash-trend-bars { display: flex; align-items: flex-end; gap: 6px; height: 90px; padding: 0 4px; }
+.dash-trend-bar-wrap { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; height: 100%; gap: 6px; }
+.dash-trend-bar { width: 100%; max-width: 30px; border-radius: 5px 5px 2px 2px; background: var(--card-accent, #0d9488); opacity: .85; transition: opacity .15s; min-height: 3px; }
+.dash-trend-bar-wrap:hover .dash-trend-bar { opacity: 1; }
+.dash-trend-val { font-size: .68rem; font-weight: 700; color: var(--teks); }
+.dash-trend-lbl { font-size: .66rem; color: var(--teks-muted); }
+
+/* Progress bar tipis utk capaian pengisian kinerja */
+.dash-progress-track { width: 100%; height: 7px; border-radius: 99px; background: var(--abu-1, #f1f5f9); overflow: hidden; margin-top: 10px; }
+.dash-progress-fill { height: 100%; border-radius: 99px; background: var(--card-accent, #0d9488); transition: width .4s ease; }
 
 
 /* ═══════════════════════════════════════════════════════════════════════════
@@ -2023,7 +2114,7 @@ body.login-page::before {
 /* Module grid — 1 card per modul */
 .dash-module-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
   gap: 14px;
   margin-bottom: 22px;
 }
@@ -2094,7 +2185,7 @@ body.login-page::before {
 /* Panel bawah (tabel) */
 .dash-panels {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
   gap: 16px;
   margin-bottom: 22px;
 }
@@ -2111,7 +2202,7 @@ body.login-page::before {
   border-bottom: 1px solid var(--batas, #e5e7eb);
   background: var(--latar, #f9fafb);
 }
-.dash-panel-table { width: 100%; border-collapse: collapse; font-size: .84rem; }
+.dash-panel-table { width: 100%; border-collapse: collapse; font-size: .78rem; }
 .dash-panel-table th {
   padding: 9px 18px; font-size: .7rem; font-weight: 600;
   text-transform: uppercase; letter-spacing: .04em; opacity: .5;
@@ -5814,7 +5905,7 @@ th {
 }
 
 td {
-  font-size: var(--fs-base);
+  font-size: .78rem;
   color: var(--teks);
   padding: var(--sp-3) var(--sp-4);
   border-bottom: 1px solid var(--abu-1);
@@ -6020,7 +6111,7 @@ tr:hover td:not(.td-sticky-no):not(.td-sticky-name) { background: var(--abu-1); 
 /* Module grid: auto-fit, each card ≥ 160px */
 .dash-module-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
   gap: var(--sp-4);       /* Fibonacci gap */
   margin-bottom: var(--sp-6);
 }
@@ -6097,7 +6188,7 @@ tr:hover td:not(.td-sticky-no):not(.td-sticky-name) { background: var(--abu-1); 
 /* Panels row */
 .dash-panels {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
   gap: var(--sp-4);
   margin-bottom: var(--sp-6);
 }
@@ -7029,8 +7120,8 @@ tr:hover td:not(.td-sticky-no):not(.td-sticky-name) { background: var(--abu-1); 
 .surat-table th {
   background: var(--hijau);
   color: #fff;
-  padding: var(--sp-3) var(--sp-4);
-  font-size: var(--fs-xs);
+  padding: 8px 10px;
+  font-size: .72rem;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: .4px;
@@ -7039,9 +7130,9 @@ tr:hover td:not(.td-sticky-no):not(.td-sticky-name) { background: var(--abu-1); 
   z-index: 2;
 }
 .surat-table td {
-  padding: var(--sp-3) var(--sp-4);
+  padding: 8px 10px;
   border-bottom: 1px solid var(--abu-1);
-  font-size: var(--fs-sm);
+  font-size: .78rem;
   line-height: var(--lh-body);
   vertical-align: middle;
 }
@@ -8037,4 +8128,61 @@ tr:hover td:not(.td-sticky-no):not(.td-sticky-name) { background: var(--abu-1); 
   align-self: center;
   margin-top: -20px;
   flex-shrink: 0;
+}
+/* ═══════════════════════════════════════════
+   DASHBOARD MODUL — KPI ROW & BAR LIST (Superlink/Surat/Kinerja)
+   ═══════════════════════════════════════════ */
+.dash-kpi-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: var(--sp-4, 14px);
+  margin-bottom: 18px;
+}
+.dash-kpi-card {
+  background: rgba(255,255,255,.92); backdrop-filter: blur(12px);
+  border: 1.5px solid rgba(255,255,255,.7);
+  border-left: 3.5px solid var(--hijau);
+  border-radius: var(--radius, 14px);
+  padding: var(--sp-4, 16px) var(--sp-5, 20px);
+  box-shadow: var(--shadow-sm);
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--sp-3, 12px);
+  transition: box-shadow var(--transition, .15s), transform var(--transition, .15s);
+  min-width: 0;
+}
+.dash-kpi-card:hover { box-shadow: var(--shadow-md, 0 6px 20px rgba(0,0,0,.08)); transform: translateY(-1px); }
+.dash-kpi-body { flex: 1; min-width: 0; }
+.dash-kpi-icon {
+  flex-shrink: 0; width: 34px; height: 34px; border-radius: var(--r-sm, 8px);
+  display: flex; align-items: center; justify-content: center;
+  opacity: .75; margin-top: 2px;
+}
+.dash-kpi-val { font-size: var(--fs-2xl, 1.618rem); font-weight: 800; margin-top: var(--sp-1, 4px); line-height: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.dash-kpi-lbl {
+  font-size: var(--fs-xs, .72rem); font-weight: 700; color: var(--teks-muted);
+  text-transform: uppercase; letter-spacing: .6px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.dash-kpi-sub { font-size: .68rem; font-weight: 700; color: #94a3b8; display: flex; align-items: center; gap: 3px; margin-top: 3px; }
+.dash-kpi-sub.up   { color: #10b981; }
+.dash-kpi-sub.down { color: #ef4444; }
+.dash-kpi-card--alert { border-left-color: #ef4444; }
+
+.dash-barlist { display: flex; flex-direction: column; padding: 5px 18px 15px; }
+.dash-barlist-row { padding: 9px 0; border-bottom: 1px solid #f1f5f9; }
+.dash-barlist-row:last-child { border-bottom: none; padding-bottom: 2px; }
+.dash-barlist-row:first-child { padding-top: 2px; }
+.dash-barlist-top { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; margin-bottom: 3px; }
+.dash-barlist-track { height: 6px; border-radius: 99px; background: #f1f5f9; overflow: hidden; }
+.dash-barlist-fill { height: 100%; border-radius: 99px; transition: width .5s ease; }
+
+.dash-panel--split { display: flex; align-items: center; gap: 18px; padding: 16px 18px; }
+
+@media (max-width: 640px) {
+  .dash-kpi-row { grid-template-columns: repeat(2, 1fr); gap: 10px; }
+  .dash-kpi-card { padding: 12px 12px 11px; }
+  .dash-kpi-val { font-size: 1.25rem; }
+  .dash-kpi-lbl { font-size: .66rem; }
 }

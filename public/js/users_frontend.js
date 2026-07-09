@@ -390,7 +390,9 @@ const PERM_DEFS = [
   { key: 'superlink.shortlink', name: 'Superlink › Shortlink',    desc: 'Kelola link pendek' },
   { key: 'superlink.bundle',    name: 'Superlink › Bundle',       desc: 'Kelola bundle link' },
   { key: 'surat.masuk',         name: 'Surat Masuk',              desc: 'Kelola surat masuk' },
+  { key: 'surat.masuk.full',    name: 'Surat Masuk › Admin Penuh', desc: 'Bisa edit/hapus/ubah status surat masuk milik siapapun (setara admin)' },
   { key: 'surat.keluar',        name: 'Surat Keluar',             desc: 'Kelola surat keluar' },
+  { key: 'surat.keluar.full',   name: 'Surat Keluar › Admin Penuh', desc: 'Bisa edit/hapus surat keluar milik siapapun (setara admin)' },
   { key: 'kinerja.monev',       name: 'IKU (Indikator Kinerja Utama)', desc: 'Input realisasi IKU' },
   { key: 'kinerja.ikk',         name: 'IKK (Indikator Kinerja Kunci)',    desc: 'Input realisasi IKK' },
   { key: 'kinerja.spm',         name: 'SPM (Standar Pelayanan Minimal)', desc: 'Input realisasi SPM' },
@@ -441,6 +443,9 @@ function togglePerm(key, el) {
     if (key === 'superlink.shortlink' || key === 'superlink.bundle') {
       _selectedPerms.add('superlink.link');
     }
+    // Admin Penuh surat butuh akses menu surat dasarnya juga
+    if (key === 'surat.masuk.full') _selectedPerms.add('surat.masuk');
+    if (key === 'surat.keluar.full') _selectedPerms.add('surat.keluar');
   }
   // Re-render supaya state checkbox semua sinkron
   renderPermsGrid();

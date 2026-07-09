@@ -16,61 +16,100 @@ function _buildStatusOptions(data, getAktif = d => d.aktif) {
   return opts;
 }
 
+// ── Debounce helper ──────────────────────────────────────
+function _debounce(fn, delay = 400) {
+  let timer;
+  return function (...args) {
+    clearTimeout(timer);
+    timer = setTimeout(() => fn.apply(this, args), delay);
+  };
+}
+
+// ── Slug availability checker (dipakai Link & Bundle) ────
+const SlugIcons = {
+  check: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>`,
+  cross: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18M6 6l12 12"/></svg>`,
+  spin: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="M21 12a9 9 0 1 1-9-9"/></svg>`,
+};
+
+/**
+ * Cek ketersediaan slug ke backend & update UI status + tombol simpan.
+ * @param {string} endpoint - '/api/links' atau '/api/bundles'
+ * @param {string} rawSlug - nilai slug mentah dari input
+ * @param {string|number|null} excludeId - id record saat ini (mode edit)
+ * @param {string} statusElId - id elemen div status
+ * @param {string} btnId - id tombol simpan
+ * @param {(available: boolean|null) => void} onResult - callback simpan state availability
+ */
+async function _checkSlugAvailability(endpoint, rawSlug, excludeId, statusElId, btnId, onResult) {
+  const statusEl = document.getElementById(statusElId);
+  const btn = document.getElementById(btnId);
+  const slug = (rawSlug || '').trim();
+
+  if (!slug) {
+    // Slug kosong = tidak masalah (khusus link, opsional). Selalu boleh simpan.
+    if (statusEl) { statusEl.className = 'slug-status'; statusEl.innerHTML = ''; }
+    if (btn) btn.disabled = false;
+    onResult(true);
+    return;
+  }
+
+  if (statusEl) {
+    statusEl.className = 'slug-status checking';
+    statusEl.innerHTML = `${SlugIcons.spin} Mengecek ketersediaan...`;
+  }
+  if (btn) btn.disabled = true;
+
+  try {
+    const qs = new URLSearchParams({ slug });
+    if (excludeId) qs.set('excludeId', excludeId);
+    const r = await fetch(`${endpoint}/check-slug?${qs.toString()}`, { headers: authHeaders() });
+    const d = await r.json();
+    const available = d.available;
+    if (statusEl) {
+      if (available === true) {
+        statusEl.className = 'slug-status available';
+        statusEl.innerHTML = `${SlugIcons.check} Slug tersedia`;
+      } else if (available === false) {
+        statusEl.className = 'slug-status taken';
+        statusEl.innerHTML = `${SlugIcons.cross} Slug sudah digunakan`;
+      } else {
+        statusEl.className = 'slug-status'; statusEl.innerHTML = '';
+      }
+    }
+    if (btn) btn.disabled = available === false;
+    onResult(available !== false);
+  } catch {
+    // Gagal cek (mis. offline) — jangan blokir user, biarkan validasi final terjadi di server saat submit
+    if (statusEl) { statusEl.className = 'slug-status'; statusEl.innerHTML = ''; }
+    if (btn) btn.disabled = false;
+    onResult(true);
+  }
+}
+
 // ═══════════════════════════════════════════
-// LINKS
+// LINKS (data source) — dipakai bareng oleh halaman Shortlink
 // ═══════════════════════════════════════════
-let _links = [], _linksFiltered = [], _linkPage = 1, _linkPageSize = 15;
+let _links = [];
+let _linkSlugAvailable = true;
+const _checkLinkSlugDebounced = _debounce(function () {
+  const val = document.getElementById('linkSlug').value.trim();
+  const excludeId = document.getElementById('linkId').value || null;
+  _checkSlugAvailability('/api/links', val, excludeId, 'linkSlugStatus', 'btnSaveLink', (avail) => {
+    _linkSlugAvailable = avail;
+  });
+}, 450);
 
 async function loadLinks() {
   try {
     const lr = await fetch('/api/links', { headers: authHeaders() });
     const ld = await lr.json();
     _links = ld.links || [];
-    _linksFiltered = [..._links]; _linkPage = 1;
-    renderLinks();
-    // Rebuild filter dropdowns — hanya tampilkan opsi yg ada datanya
-    const lfs = document.getElementById('linkFilterStatus');
-    if (lfs) lfs.innerHTML = _buildStatusOptions(_links);
+    // Rebuild filter status dropdown — hanya tampilkan opsi yg ada datanya
     const slfs = document.getElementById('slFilterStatus');
-    if (slfs) slfs.innerHTML = _buildStatusOptions(_links.filter(l => l.slug_pendek));
+    if (slfs) slfs.innerHTML = _buildStatusOptions(_links);
   } catch (e) { console.error(e); }
 }
-
-function filterLinks() {
-  const q      = document.getElementById('linkSearch').value.toLowerCase();
-  const status = document.getElementById('linkFilterStatus')?.value || '';
-  _linksFiltered = _links.filter(l => {
-    const matchQ = l.judul.toLowerCase().includes(q) || l.url.toLowerCase().includes(q);
-    const matchS = !status || (status === 'aktif' ? l.aktif : !l.aktif);
-    return matchQ && matchS;
-  });
-  _linkPage = 1; renderLinks();
-}
-
-function renderLinks() {
-  const start = (_linkPage - 1) * _linkPageSize;
-  const slice = _linksFiltered.slice(start, start + _linkPageSize);
-  const tb = document.getElementById('linkTableBody');
-  tb.innerHTML = slice.length ? slice.map(l => `
-    <tr>
-      <td><span style="display:inline-flex;align-items:center;gap:6px">
-        ${l.ikon ? esc(l.ikon) : '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"/></svg>'}
-        <strong>${esc(l.judul)}</strong>
-      </span></td>
-      <td><a href="${esc(l.url)}" target="_blank" style="color:var(--hijau);font-size:.75rem">${esc(l.url.length > 40 ? l.url.slice(0,40)+'…' : l.url)}</a></td>
-      <td>${l.slug_pendek ? `<code style="font-size:.78rem;background:var(--abu-1);padding:2px 7px;border-radius:5px">/${esc(l.slug_pendek)}</code>` : '<span style="color:var(--teks-muted)">—</span>'}</td>
-      <td><span class="badge badge-blue">${l.total_klik ?? 0}</span></td>
-      <td><span class="badge ${l.aktif ? 'badge-green' : 'badge-red'}">${l.aktif ? 'Aktif' : 'Nonaktif'}</span></td>
-      <td style="white-space:nowrap">
-        <button class="btn btn-ghost btn-sm" title="Edit" onclick="editLink(${l.id})"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg></button>
-        <button class="btn btn-danger btn-sm" title="Hapus" onclick="deleteLink(${l.id})"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path stroke-linecap="round" stroke-linejoin="round" d="M19 6l-1 14H6L5 6"/><path stroke-linecap="round" stroke-linejoin="round" d="M10 11v6m4-6v6"/><path stroke-linecap="round" stroke-linejoin="round" d="M9 6V4h6v2"/></svg></button>
-      </td>
-    </tr>`).join('')
-    : '<tr class="empty-row"><td colspan="6">Tidak ada link</td></tr>';
-  renderPagination('linkPagination', _linksFiltered.length, _linkPage, _linkPageSize, 'goLinkPage');
-}
-
-window.goLinkPage = (p) => { _linkPage = p; renderLinks(); };
 
 function openLinkModal(id) {
   document.getElementById('linkId').value = '';
@@ -80,6 +119,10 @@ function openLinkModal(id) {
   document.getElementById('linkAktif').checked = true;
   _updateToggleLabel('linkAktif');
   document.getElementById('slugPreview').textContent = '—';
+  document.getElementById('linkSlugStatus').className = 'slug-status';
+  document.getElementById('linkSlugStatus').innerHTML = '';
+  _linkSlugAvailable = true;
+  document.getElementById('btnSaveLink').disabled = false;
   document.getElementById('modalLinkTitle').textContent = 'Tambah Link';
   openModal('modalLink');
 }
@@ -93,6 +136,10 @@ function editLink(id) {
   document.getElementById('linkAktif').checked = l.aktif === true || l.aktif === 'true';
   _updateToggleLabel('linkAktif');
   document.getElementById('slugPreview').textContent = l.slug_pendek || '—';
+  document.getElementById('linkSlugStatus').className = 'slug-status';
+  document.getElementById('linkSlugStatus').innerHTML = '';
+  _linkSlugAvailable = true;
+  document.getElementById('btnSaveLink').disabled = false;
   document.getElementById('modalLinkTitle').textContent = 'Edit Link';
   openModal('modalLink');
 }
@@ -103,6 +150,7 @@ document.getElementById('linkAktif').addEventListener('change', function() {
 
 document.getElementById('linkSlug').addEventListener('input', function() {
   document.getElementById('slugPreview').textContent = this.value || '—';
+  _checkLinkSlugDebounced();
 });
 
 async function saveLink() {
@@ -114,6 +162,7 @@ async function saveLink() {
     slug_pendek:document.getElementById('linkSlug').value.trim() || null,
   };
   if (!body.judul || !body.url) { toast('Judul dan URL wajib diisi', 'error'); return; }
+  if (!_linkSlugAvailable) { toast('Slug pendek sudah digunakan, ganti dulu', 'error'); return; }
   try {
     const r = await fetch(id ? `/api/links/${id}` : '/api/links', {
       method: id ? 'PUT' : 'POST', headers: authHeaders(), body: JSON.stringify(body),
@@ -123,9 +172,7 @@ async function saveLink() {
     toast(id ? 'Link diperbarui' : 'Link ditambahkan');
     closeModal('modalLink');
     await loadLinks();
-    // Sync shortlink view jika sedang aktif
-    _slFiltered = _links.filter(l => l.slug_pendek);
-    if (document.getElementById('page-shortlink')?.classList.contains('active')) renderShortlinks();
+    if (document.getElementById('page-shortlink')?.classList.contains('active')) filterShortlinks();
   } catch { toast('Gagal menyimpan', 'error'); }
 }
 
@@ -136,29 +183,32 @@ async function deleteLink(id) {
     await fetch(`/api/links/${id}`, { method: 'DELETE', headers: authHeaders() });
     toast('Link berhasil dihapus');
     await loadLinks();
-    _slFiltered = _links.filter(l => l.slug_pendek);
-    if (document.getElementById('page-shortlink')?.classList.contains('active')) renderShortlinks();
+    if (document.getElementById('page-shortlink')?.classList.contains('active')) filterShortlinks();
   } catch { toast('Gagal menghapus', 'error'); }
 }
 
 // ═══════════════════════════════════════════
-// SHORTLINKS (subset dari links yg punya slug_pendek)
+// SHORTLINK — halaman unified: semua link + shortlink
 // ═══════════════════════════════════════════
 let _slFiltered = [], _slPage = 1, _slPageSize = 15;
 
 async function loadShortlinks() {
-  if (!_links.length) await loadLinks();
-  _slFiltered = _links.filter(l => l.slug_pendek);
-  _slPage = 1;
-  renderShortlinks();
+  await loadLinks();
+  filterShortlinks();
 }
 
 function filterShortlinks() {
   const q      = document.getElementById('slSearch').value.toLowerCase();
   const status = document.getElementById('slFilterStatus')?.value || '';
-  _slFiltered = _links.filter(l => l.slug_pendek && (
-    l.judul.toLowerCase().includes(q) || l.slug_pendek.toLowerCase().includes(q)
-  ) && (!status || (status === 'aktif' ? l.aktif : !l.aktif)));
+  const jenis  = document.getElementById('slFilterJenis')?.value || '';
+  _slFiltered = _links.filter(l => {
+    const matchQ = l.judul.toLowerCase().includes(q) ||
+                   l.url.toLowerCase().includes(q) ||
+                   (l.slug_pendek||'').toLowerCase().includes(q);
+    const matchS = !status || (status === 'aktif' ? l.aktif : !l.aktif);
+    const matchJ = !jenis || (jenis === 'shortlink' ? !!l.slug_pendek : !l.slug_pendek);
+    return matchQ && matchS && matchJ;
+  });
   _slPage = 1;
   renderShortlinks();
 }
@@ -172,24 +222,18 @@ function renderShortlinks() {
   tb.innerHTML = slice.length ? slice.map(l => `
     <tr>
       <td><span style="display:inline-flex;align-items:center;gap:6px">${l.ikon ? esc(l.ikon) : `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"/></svg>`} <strong>${esc(l.judul)}</strong></span></td>
-      <td>
+      <td><a href="${esc(l.url)}" target="_blank" style="color:var(--hijau);font-size:.75rem">${esc(l.url.length>35?l.url.slice(0,35)+'…':l.url)}</a></td>
+      <td>${l.slug_pendek ? `
         <code style="font-size:.78rem;background:var(--abu-1);padding:2px 7px;border-radius:5px">/${esc(l.slug_pendek)}</code>
         <button class="btn btn-ghost btn-sm" style="margin-left:4px" title="Salin URL" onclick="copySlug('${esc(l.slug_pendek)}')"><svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path stroke-linecap="round" stroke-linejoin="round" d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg></button>
-      </td>
-      <td><a href="${esc(l.url)}" target="_blank" style="color:var(--hijau);font-size:.75rem">${esc(l.url.length>35?l.url.slice(0,35)+'…':l.url)}</a></td>
-      <td>${l.total_klik ?? 0}</td>
+      ` : '<span style="color:var(--teks-muted)">—</span>'}</td>
+      <td><span class="badge badge-blue">${l.total_klik ?? 0}</span></td>
       <td><span class="badge ${l.aktif?'badge-green':'badge-red'}">${l.aktif?'Aktif':'Nonaktif'}</span></td>
-      <td><button class="btn btn-ghost btn-sm" title="Edit" onclick="editLink(${l.id}); closeModal('modalLink'); openModal('modalLink')"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg></button>
+      <td style="white-space:nowrap"><button class="btn btn-ghost btn-sm" title="Edit" onclick="editLink(${l.id})"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg></button>
           <button class="btn btn-danger btn-sm" title="Hapus" onclick="deleteLink(${l.id})"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path stroke-linecap="round" stroke-linejoin="round" d="M19 6l-1 14H6L5 6"/><path stroke-linecap="round" stroke-linejoin="round" d="M10 11v6m4-6v6"/><path stroke-linecap="round" stroke-linejoin="round" d="M9 6V4h6v2"/></svg></button></td>
     </tr>`).join('')
-    : '<tr class="empty-row"><td colspan="6">Tidak ada shortlink</td></tr>';
+    : '<tr class="empty-row"><td colspan="6">Tidak ada link</td></tr>';
   renderPagination('slPagination', _slFiltered.length, _slPage, _slPageSize, 'goSlPage');
-}
-
-function openShortlinkModal() {
-  openLinkModal();
-  // auto-focus slug
-  setTimeout(() => document.getElementById('linkSlug').focus(), 100);
 }
 
 function copySlug(slug) {
@@ -270,6 +314,18 @@ function _setBundleItemsLocked(locked) {
   }
 }
 
+let _bundleSlugAvailable = true;
+const _checkBundleSlugDebounced = _debounce(function () {
+  const explicit = document.getElementById('bundleSlug').value.trim();
+  const judul = document.getElementById('bundleJudul').value;
+  // Kalau field slug dikosongkan, backend auto-generate dari judul → cek slug hasil generate itu
+  const val = explicit || judul.toLowerCase().replace(/[^a-z0-9\s-]/g,'').trim().replace(/\s+/g,'-').substring(0,60);
+  const excludeId = document.getElementById('bundleId').value || null;
+  _checkSlugAvailability('/api/bundles', val, excludeId, 'bundleSlugStatus', 'btnSaveBundle', (avail) => {
+    _bundleSlugAvailable = avail;
+  });
+}, 450);
+
 function openBundleModal() {
   _currentBundleId = null; _currentBundleItems = [];
   document.getElementById('bundleId').value = '';
@@ -279,6 +335,10 @@ function openBundleModal() {
   document.getElementById('bundleAktif').checked = true;
   _updateToggleLabel('bundleAktif');
   document.getElementById('bundleSlugPreview').textContent = '—';
+  document.getElementById('bundleSlugStatus').className = 'slug-status';
+  document.getElementById('bundleSlugStatus').innerHTML = '';
+  _bundleSlugAvailable = true;
+  document.getElementById('btnSaveBundle').disabled = false;
   document.getElementById('bundleItemsList').innerHTML =
     '<div style="text-align:center;color:var(--teks-muted);padding:16px;font-size:.82rem">Simpan info bundle dulu untuk mulai menambah item.</div>';
   document.getElementById('bundleInlineItemForm').style.display = 'none';
@@ -293,6 +353,7 @@ document.getElementById('bundleJudul').addEventListener('input', function() {
   if (!document.getElementById('bundleSlug').value) {
     const slug = this.value.toLowerCase().replace(/[^a-z0-9\s-]/g,'').trim().replace(/\s+/g,'-').substring(0,60);
     document.getElementById('bundleSlugPreview').textContent = slug || '—';
+    _checkBundleSlugDebounced();
   }
 });
 document.getElementById('bundleAktif').addEventListener('change', function() {
@@ -301,6 +362,7 @@ document.getElementById('bundleAktif').addEventListener('change', function() {
 
 document.getElementById('bundleSlug').addEventListener('input', function() {
   document.getElementById('bundleSlugPreview').textContent = this.value || '—';
+  _checkBundleSlugDebounced();
 });
 
 async function editBundle(id) {
@@ -313,6 +375,10 @@ async function editBundle(id) {
   document.getElementById('bundleAktif').checked = b.aktif === true || b.aktif === 'true';
   _updateToggleLabel('bundleAktif');
   document.getElementById('bundleSlugPreview').textContent = b.slug;
+  document.getElementById('bundleSlugStatus').className = 'slug-status';
+  document.getElementById('bundleSlugStatus').innerHTML = '';
+  _bundleSlugAvailable = true;
+  document.getElementById('btnSaveBundle').disabled = false;
   document.getElementById('modalBundleTitle').textContent = 'Edit Bundle';
   document.getElementById('btnSaveBundle').innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>Simpan Info';
   document.getElementById('bundleInlineItemForm').style.display = 'none';
@@ -351,6 +417,7 @@ async function saveBundle() {
   const aktif = document.getElementById('bundleAktif').checked;
   const deskripsi = document.getElementById('bundleDeskripsi').value.trim() || null;
   if (!judul) { toast('Judul wajib diisi', 'error'); return; }
+  if (!_bundleSlugAvailable) { toast('Slug sudah digunakan, ganti dulu', 'error'); return; }
   try {
     const r = await fetch(id ? `/api/bundles/${id}` : '/api/bundles', {
       method: id ? 'PUT' : 'POST', headers: authHeaders(),
