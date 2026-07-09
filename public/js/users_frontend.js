@@ -644,7 +644,7 @@ function _renderAssignIndikatorList() {
     html += `
       <div style="padding:6px 14px 4px;background:#f8fafc;border-bottom:1px solid #e2e8f0;display:flex;align-items:center;gap:8px;position:sticky;top:0;z-index:1">
         <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:.75rem;font-weight:700;color:#475569">
-          <input type="checkbox" ${allSelected ? 'checked' : ''} onchange="_assignTogglePJ(${JSON.stringify(pj)}, this.checked)"
+          <input type="checkbox" ${allSelected ? 'checked' : ''} onchange="_assignTogglePJ(${esc(JSON.stringify(pj))}, this.checked)"
             style="width:14px;height:14px;accent-color:var(--primer,#2563eb);cursor:pointer">
           ${esc(pj)}
           <span style="font-weight:400;color:#94a3b8">(${items.length})</span>

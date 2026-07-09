@@ -78,6 +78,7 @@ function initAuth() {
     sessionStorage.removeItem('sapa_user');
   }
   if (!_token || !_user) { showLoginOverlay(); return false; }
+  document.body.classList.toggle('is-admin', !!_user.is_admin);
 
   // Cek token expired saat halaman dimuat
   if (_isTokenExpired(_token)) {

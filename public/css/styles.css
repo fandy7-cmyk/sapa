@@ -93,7 +93,6 @@
    ═══════════════════════════════════════════════════════════════════════════ */
 body {
   font-family: 'Plus Jakarta Sans', sans-serif;
-  background: url('/bg.jpg') center/cover fixed no-repeat;
   color: var(--teks);
   min-height: 100vh;
   overflow-x: hidden;
@@ -112,6 +111,43 @@ body::before {
   background: linear-gradient(135deg, #f0fdfa 0%, #e6f7f6 50%, #f8fafc 100%);
   pointer-events: none;
 }
+
+/* ==== Aurora lembut di background halaman login ====
+   Ganti starfield/orbit lama (150+ elemen animasi) dengan percikan cahaya
+   kecil yang melayang naik pelan — ringan (transform+opacity saja, tanpa JS)
+   dan tidak mengganggu kehalusan gradient dasar. */
+.lp-aurora {
+  position: absolute; inset: 0; z-index: 0;
+  overflow: hidden; pointer-events: none;
+}
+
+/* Percikan cahaya yang berotasi mengelilingi titik pusat layar — pola sama
+   dengan .portal-particle di landing.html (orbit + twinkle), bukan lagi
+   lurus dari bawah ke atas. Radius tiap partikel di-generate JS lewat
+   custom property --r. */
+.lp-aurora-spark {
+  position: absolute; top: 50%; left: 50%; border-radius: 50%;
+  background: radial-gradient(circle, #ffffff 0%, rgba(94,234,212,.9) 45%, rgba(94,234,212,0) 100%);
+  box-shadow: 0 0 1vmin rgba(45,212,191,.5);
+  transform-origin: 0 0;
+  animation: lpOrbit linear infinite, lpTwinkle ease-in-out infinite;
+}
+/* Posisi (radius), ukuran, durasi & delay tiap partikel di-generate lewat
+   inline style oleh JS (lihat #lpAurora di app.html) supaya jumlahnya bisa
+   banyak tanpa perlu ratusan baris CSS manual. */
+@keyframes lpOrbit {
+  from { transform: rotate(0deg)   translateX(var(--r, 30vmin)) rotate(0deg); }
+  to   { transform: rotate(360deg) translateX(var(--r, 30vmin)) rotate(-360deg); }
+}
+@keyframes lpTwinkle {
+  0%, 100% { opacity: .3; }
+  50%      { opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lp-aurora-spark { animation: none !important; }
+}
+
 
 
 /* ═══════════════════════════════════════════════════════════════════════════
@@ -137,7 +173,7 @@ body::before {
   display: flex; align-items: center; justify-content: space-between;
 }
 .sidebar-brand { display: flex; align-items: center; gap: 18px; }
-.sidebar-brand-icon { position: relative; display: flex; align-items: center; justify-content: center; }
+.sidebar-brand-icon { position: relative; display: flex; align-items: center; justify-content: center; animation: brandIconLoop 6s cubic-bezier(0.34,1.56,0.64,1) infinite; }
 
 /* Ring conic yang berputar di belakang logo sidebar */
 .sidebar-brand-ring-spin {
@@ -180,7 +216,6 @@ body::before {
 /* Loop entrance + idle glow — total siklus 6s */
 .sidebar-brand-icon img {
   width: 30px; height: 30px; object-fit: contain; display: block;
-  animation: brandIconLoop 6s cubic-bezier(0.34,1.56,0.64,1) infinite;
 }
 .sidebar-brand-name {
   font-size: var(--fs-md); font-weight: 800; color: #ffffff;
@@ -547,6 +582,8 @@ body::before {
 .card-title-sm { font-size: var(--fs-lg); font-weight: 700; color: var(--teks); }
 
 table { width: 100%; border-collapse: collapse; }
+/* Kolom "Dibuat Oleh" hanya untuk Super Admin — sembunyikan untuk user biasa */
+body:not(.is-admin) .col-admin-only { display: none; }
 th {
   font-size: var(--fs-xs); font-weight: 700; color: var(--teks-muted);
   text-transform: uppercase; letter-spacing: .6px;
@@ -902,9 +939,9 @@ input[type="checkbox"].toggle:checked::after { left: 19px; }
 /* ═══════════════════════════════════════════════════════════════════════════
    12. PERMISSIONS GRID
    ═══════════════════════════════════════════════════════════════════════════ */
-.perm-grid { display: grid; grid-template-columns: 1fr 1fr; gap: var(--sp-3); }
+.perm-grid { display: grid; grid-template-columns: 1fr 1fr; gap: var(--sp-2); }
 .perm-item {
-  display: flex; align-items: center; gap: var(--sp-3); padding: var(--sp-3) var(--sp-4);
+  display: flex; align-items: center; gap: var(--sp-2); padding: 8px 10px;
   border-radius: var(--r-sm); border: 1.5px solid var(--abu-2); cursor: pointer;
   transition: all var(--transition); background: var(--abu-1);
 }
@@ -912,15 +949,15 @@ input[type="checkbox"].toggle:checked::after { left: 19px; }
 .perm-item.selected { border-color: var(--hijau); background: var(--hijau-light); }
 .perm-item input { display: none; }
 .perm-check {
-  width: var(--sp-5); height: var(--sp-5); border-radius: var(--sp-2); flex-shrink: 0;
+  width: 16px; height: 16px; border-radius: 5px; flex-shrink: 0;
   border: 2px solid var(--abu-2); background: #fff;
   display: flex; align-items: center; justify-content: center;
   transition: all var(--transition);
 }
 .perm-item.selected .perm-check { background: var(--hijau); border-color: var(--hijau); }
-.perm-item.selected .perm-check::after { content: '✓'; font-size: var(--fs-xs); color: #fff; font-weight: 800; }
-.perm-name { font-size: var(--fs-base); font-weight: 600; color: var(--teks); }
-.perm-desc { font-size: var(--fs-xs); color: var(--teks-muted); }
+.perm-item.selected .perm-check::after { content: '✓'; font-size: .55rem; color: #fff; font-weight: 800; }
+.perm-name { font-size: var(--fs-sm); font-weight: 600; color: var(--teks); }
+.perm-desc { font-size: .58rem; color: var(--teks-muted); }
 
 
 /* ═══════════════════════════════════════════════════════════════════════════
@@ -1514,13 +1551,13 @@ body.login-page::before {
 }
 
 /* logos */
-.left-logos { display: flex; align-items: center; gap: var(--sp-4); justify-content: center; margin-bottom: var(--sp-6); position: relative; z-index: 1; }
+.left-logos { display: flex; align-items: center; gap: var(--sp-4); justify-content: center; margin-bottom: var(--sp-6); position: relative; z-index: 1; animation: lpFadeUp .6s cubic-bezier(.4,0,.2,1) .1s both; }
 .left-logos img { height: 52px; width: 52px; object-fit: contain; filter: drop-shadow(0 2px 8px rgba(0,0,0,.5)); transition: transform var(--tr); }
 .left-logos img:hover { transform: scale(1.1); }
 .logo-divider { width: 1px; height: 44px; background: rgba(255,255,255,.25); }
 
 /* brand */
-.left-brand { position: relative; z-index: 1; flex: 1; text-align: center; }
+.left-brand { position: relative; z-index: 1; flex: 1; text-align: center; animation: lpFadeUp .6s cubic-bezier(.4,0,.2,1) .18s both; }
 .brand-pill {
   display: inline-flex; align-items: center; gap: var(--sp-2);
   background: rgba(5,150,105,.15); border: 1px solid rgba(5,150,105,.25);
@@ -1554,7 +1591,7 @@ body.login-page::before {
 .moto-dot { display: inline-block; width: var(--sp-2); height: var(--sp-2); background: var(--cyan); border-radius: 50%; margin: var(--sp-4) auto 0; opacity: .4; box-shadow: 0 0 8px var(--cyan); }
 
 /* left footer */
-.left-footer { position: relative; z-index: 1; font-size: var(--fs-xs); color: rgba(255,255,255,.75); line-height: var(--phi); text-align: center; }
+.left-footer { position: relative; z-index: 1; font-size: var(--fs-xs); color: rgba(255,255,255,.75); line-height: var(--phi); text-align: center; animation: lpFadeUp .6s cubic-bezier(.4,0,.2,1) .5s both; }
 
 /* right panel — form (61.8% = major φ) */
 .panel-right { flex: 1; background: #ffffff; padding: var(--sp-7) var(--sp-7); display: flex; flex-direction: column; justify-content: center; border-radius: 0 var(--r-xl) var(--r-xl) 0; }
@@ -1565,10 +1602,39 @@ body.login-page::before {
   background: radial-gradient(circle at 30% 25%, rgba(13,148,136,.12), rgba(13,148,136,.03) 70%);
   display: flex; align-items: center; justify-content: center;
   margin: 0 auto var(--sp-5);
+  animation: lpFadeUp .6s cubic-bezier(.4,0,.2,1) .15s both,
+             lpIconBreathe 3.6s ease-in-out 1s infinite;
 }
 .welcome-icon svg { color: var(--cyan); }
-.welcome-title { font-size: var(--fs-2xl); font-weight: 800; color: var(--teks); letter-spacing: -.7px; margin-bottom: var(--sp-2); text-align: center; }
-.welcome-sub { font-size: var(--fs-sm); color: var(--teks-muted); margin-bottom: var(--sp-6); font-weight: 500; text-align: center; }
+.welcome-title { font-size: var(--fs-2xl); font-weight: 800; color: var(--teks); letter-spacing: -.7px; margin-bottom: var(--sp-2); text-align: center; animation: lpFadeUp .6s cubic-bezier(.4,0,.2,1) .22s both; }
+.welcome-sub { font-size: var(--fs-sm); color: var(--teks-muted); margin-bottom: var(--sp-6); font-weight: 500; text-align: center; animation: lpFadeUp .6s cubic-bezier(.4,0,.2,1) .28s both; }
+
+/* ── entrance halus utk form login: fade + slide up bertahap ── */
+.panel-right .field:nth-of-type(1) { animation: lpFadeUp .55s cubic-bezier(.4,0,.2,1) .34s both; }
+.panel-right .field:nth-of-type(2) { animation: lpFadeUp .55s cubic-bezier(.4,0,.2,1) .4s both; }
+.panel-right .forgot-row { animation: lpFadeUp .55s cubic-bezier(.4,0,.2,1) .46s both; }
+.panel-right .btn-login  { animation: lpFadeUp .55s cubic-bezier(.4,0,.2,1) .52s both; }
+/* NOTE: .info-banner sengaja TIDAK diberi entrance animation — elemen ini
+   defaultnya hidden (opacity:0) dan baru muncul lewat class .show saat user
+   klik "Lupa password?". animation ...both sebelumnya maksa opacity:1 di
+   akhir animasi, nabrak logic show/hide-nya (makanya banner muncul sendiri). */
+
+@keyframes lpFadeUp {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes lpIconBreathe {
+  0%, 100% { transform: scale(1);    box-shadow: 0 0 0 0 rgba(13,148,136,0); }
+  50%      { transform: scale(1.045); box-shadow: 0 0 0 8px rgba(13,148,136,.06); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .welcome-icon, .welcome-title, .welcome-sub,
+  .panel-right .field, .panel-right .forgot-row,
+  .panel-right .btn-login,
+  .left-logos, .left-brand, .left-footer {
+    animation: none !important;
+  }
+}
 
 /* login fields */
 .field-lbl { display: block; font-size: var(--fs-sm); font-weight: 600; color: var(--teks-mid); margin-bottom: var(--sp-3); }
@@ -6871,13 +6937,13 @@ tr:hover td:not(.td-sticky-no):not(.td-sticky-name) { background: var(--abu-1); 
 .perm-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: var(--sp-3);
+  gap: var(--sp-2);
 }
 .perm-item {
   display: flex;
   align-items: center;
-  gap: var(--sp-3);
-  padding: var(--sp-3) var(--sp-4);
+  gap: var(--sp-2);
+  padding: 8px 10px;
   border-radius: var(--r-sm);
   border: 1.5px solid var(--abu-2);
   cursor: pointer;
@@ -6887,11 +6953,11 @@ tr:hover td:not(.td-sticky-no):not(.td-sticky-name) { background: var(--abu-1); 
 .perm-item:hover { border-color: var(--hijau-mid); background: var(--hijau-light); }
 .perm-item.selected { border-color: var(--hijau); background: var(--hijau-light); }
 
-/* Checkbox: Fibonacci 21px */
+/* Checkbox: diperkecil */
 .perm-check {
-  width: var(--sp-5);
-  height: var(--sp-5);
-  border-radius: var(--r-sm);
+  width: 16px;
+  height: 16px;
+  border-radius: 5px;
   flex-shrink: 0;
   border: 2px solid var(--abu-2);
   background: #fff;
@@ -6901,7 +6967,7 @@ tr:hover td:not(.td-sticky-no):not(.td-sticky-name) { background: var(--abu-1); 
   transition: all var(--transition);
 }
 .perm-item.selected .perm-check { background: var(--hijau); border-color: var(--hijau); }
-.perm-item.selected .perm-check::after { content: '✓'; font-size: var(--fs-xs); color: #fff; font-weight: 800; }
+.perm-item.selected .perm-check::after { content: '✓'; font-size: .55rem; color: #fff; font-weight: 800; }
 
 
 /* ═══════════════════════════════════════════════════════════════════════════

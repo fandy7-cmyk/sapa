@@ -221,7 +221,7 @@ function renderShortlinks() {
   const slice = _slFiltered.slice(start, start + _slPageSize);
   tb.innerHTML = slice.length ? slice.map(l => `
     <tr>
-      <td><span style="display:inline-flex;align-items:center;gap:6px">${l.ikon ? esc(l.ikon) : `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"/></svg>`} <strong>${esc(l.judul)}</strong></span></td>
+      <td><span style="display:inline-flex;align-items:center;gap:6px"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"/></svg> <strong>${esc(l.judul)}</strong></span></td>
       <td><a href="${esc(l.url)}" target="_blank" style="color:var(--hijau);font-size:.75rem">${esc(l.url.length>35?l.url.slice(0,35)+'…':l.url)}</a></td>
       <td>${l.slug_pendek ? `
         <code style="font-size:.78rem;background:var(--abu-1);padding:2px 7px;border-radius:5px">/${esc(l.slug_pendek)}</code>
@@ -229,10 +229,11 @@ function renderShortlinks() {
       ` : '<span style="color:var(--teks-muted)">—</span>'}</td>
       <td><span class="badge badge-blue">${l.total_klik ?? 0}</span></td>
       <td><span class="badge ${l.aktif?'badge-green':'badge-red'}">${l.aktif?'Aktif':'Nonaktif'}</span></td>
+      <td class="col-admin-only" style="color:var(--teks-muted);font-size:.78rem">${l.created_by_nama ? esc(l.created_by_nama) : '—'}</td>
       <td style="white-space:nowrap"><button class="btn btn-ghost btn-sm" title="Edit" onclick="editLink(${l.id})"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg></button>
           <button class="btn btn-danger btn-sm" title="Hapus" onclick="deleteLink(${l.id})"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path stroke-linecap="round" stroke-linejoin="round" d="M19 6l-1 14H6L5 6"/><path stroke-linecap="round" stroke-linejoin="round" d="M10 11v6m4-6v6"/><path stroke-linecap="round" stroke-linejoin="round" d="M9 6V4h6v2"/></svg></button></td>
     </tr>`).join('')
-    : '<tr class="empty-row"><td colspan="6">Tidak ada link</td></tr>';
+    : '<tr class="empty-row"><td colspan="7">Tidak ada link</td></tr>';
   renderPagination('slPagination', _slFiltered.length, _slPage, _slPageSize, 'goSlPage');
 }
 
@@ -285,12 +286,13 @@ function renderBundles() {
       </td>
       <td>${b.jumlah_item ?? 0} item</td>
       <td><span class="badge ${b.aktif?'badge-green':'badge-red'}">${b.aktif?'Aktif':'Nonaktif'}</span></td>
+      <td class="col-admin-only" style="color:var(--teks-muted);font-size:.78rem">${b.created_by_nama ? esc(b.created_by_nama) : '—'}</td>
       <td style="white-space:nowrap">
         <button class="btn btn-ghost btn-sm" title="Edit" onclick="editBundle(${b.id})"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg></button>
         <button class="btn btn-danger btn-sm" title="Hapus" onclick="deleteBundle(${b.id})"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path stroke-linecap="round" stroke-linejoin="round" d="M19 6l-1 14H6L5 6"/><path stroke-linecap="round" stroke-linejoin="round" d="M10 11v6m4-6v6"/><path stroke-linecap="round" stroke-linejoin="round" d="M9 6V4h6v2"/></svg></button>
       </td>
     </tr>`).join('')
-    : '<tr class="empty-row"><td colspan="5">Tidak ada bundle</td></tr>';
+    : '<tr class="empty-row"><td colspan="6">Tidak ada bundle</td></tr>';
   renderPagination('bundlePagination', _bundlesFiltered.length, _bundlePage, _bundlePageSize, 'goBundlePage');
 }
 
@@ -398,7 +400,7 @@ function renderBundleItems() {
     _currentBundleItems.length ? `(${_currentBundleItems.length})` : '';
   c.innerHTML = _currentBundleItems.length ? _currentBundleItems.map(item => `
     <div style="display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:9px;border:1.5px solid var(--abu-2);margin-bottom:7px;background:#fff">
-      <span style="font-size:18px;flex-shrink:0;display:flex;align-items:center">${item.ikon ? esc(item.ikon) : `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"/></svg>`}</span>
+      <span style="font-size:18px;flex-shrink:0;display:flex;align-items:center"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"/></svg></span>
       <div style="flex:1;min-width:0">
         <div style="font-size:.82rem;font-weight:700">${esc(item.judul)}</div>
         <div style="font-size:.72rem;color:var(--teks-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(item.url)}</div>

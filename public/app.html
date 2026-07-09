@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
-  <link rel="stylesheet" href="css/styles.css?v=3" />
+  <link rel="stylesheet" href="css/styles.css?v=8" />
   <style>
     /* ── LOGIN OVERLAY ── */
     #loginOverlay {
@@ -209,6 +209,39 @@
 
 <!-- ══ LOGIN OVERLAY ══════════════════════════════════════════════════════ -->
 <div id="loginOverlay">
+<div class="lp-aurora" id="lpAurora" aria-hidden="true"></div>
+<script>
+// ── Generate partikel aurora login secara dinamis ──
+// Sekarang berotasi mengelilingi titik pusat layar (pola sama seperti
+// .portal-particle di landing.html), bukan lurus dari bawah ke atas.
+// Tetap ringan: hanya animasi CSS (transform+opacity, GPU-accelerated),
+// JS cuma dipakai sekali untuk membuat elemennya saja (tidak ada loop
+// per-frame / requestAnimationFrame).
+(function() {
+  var aurora = document.getElementById('lpAurora');
+  if (!aurora) return;
+  var count = window.innerWidth < 640 ? 90 : 200;
+  var minR = 6, maxR = 55; // radius orbit dalam vmin, biar proporsional ke layar
+  var frag = document.createDocumentFragment();
+  for (var i = 0; i < count; i++) {
+    var s = document.createElement('span');
+    s.className = 'lp-aurora-spark';
+    var r = minR + Math.random() * (maxR - minR);
+    // Durasi orbit proporsional radius — orbit besar berputar lebih lambat,
+    // mirip Hukum Kepler, biar terasa natural (bukan seragam & kaku).
+    var orbitDur   = (8 + (r - minR) / (maxR - minR) * 22).toFixed(1);   // 8s - 30s
+    var orbitDelay = (-(Math.random() * orbitDur)).toFixed(1);
+    var twinkleDur   = (Math.random() * 2 + 1.5).toFixed(1);            // 1.5s - 3.5s
+    var twinkleDelay = (-(Math.random() * twinkleDur)).toFixed(1);
+    var size = (Math.random() * 0.8 + 0.6).toFixed(2); // 0.6vmin - 1.4vmin (~6-14px di layar biasa), unit disamakan dgn --r biar scale konsisten
+    s.style.cssText = '--r:' + r.toFixed(1) + 'vmin;width:' + size + 'vmin;height:' + size + 'vmin;' +
+      'animation-duration:' + orbitDur + 's,' + twinkleDur + 's;' +
+      'animation-delay:' + orbitDelay + 's,' + twinkleDelay + 's;';
+    frag.appendChild(s);
+  }
+  aurora.appendChild(frag);
+})();
+</script>
 <div class="card login-card">
 
   <!-- LEFT PANEL -->
@@ -291,6 +324,8 @@
 </div>
 </div>
 <!-- ══ END LOGIN OVERLAY ══════════════════════════════════════════════════ -->
+
+
 
 <!-- ══ EARLY AUTH GUARD ═══════════════════════════════════════════════════
      Dieksekusi SEGERA setelah loginOverlay ada di DOM, jauh sebelum app.js
@@ -452,8 +487,8 @@
         </div>
         <div class="card" style="padding:0;overflow:auto;-webkit-overflow-scrolling:touch">
           <table>
-            <thead><tr><th>Judul</th><th>URL</th><th>Slug</th><th>Klik</th><th>Status</th><th>Aksi</th></tr></thead>
-            <tbody id="slTableBody"><tr class="empty-row"><td colspan="6">Memuat data...</td></tr></tbody>
+            <thead><tr><th>Judul</th><th>URL</th><th>Slug</th><th>Klik</th><th>Status</th><th class="col-admin-only">Dibuat Oleh</th><th>Aksi</th></tr></thead>
+            <tbody id="slTableBody"><tr class="empty-row"><td colspan="7">Memuat data...</td></tr></tbody>
           </table>
         </div>
         <div id="slPagination"></div>
@@ -478,8 +513,8 @@
         </div>
         <div class="card" style="padding:0;overflow:auto;-webkit-overflow-scrolling:touch">
           <table>
-            <thead><tr><th>Judul</th><th>Slug</th><th>Item</th><th>Status</th><th>Aksi</th></tr></thead>
-            <tbody id="bundleTableBody"><tr class="empty-row"><td colspan="5">Memuat data...</td></tr></tbody>
+            <thead><tr><th>Judul</th><th>Slug</th><th>Item</th><th>Status</th><th class="col-admin-only">Dibuat Oleh</th><th>Aksi</th></tr></thead>
+            <tbody id="bundleTableBody"><tr class="empty-row"><td colspan="6">Memuat data...</td></tr></tbody>
           </table>
         </div>
         <div id="bundlePagination"></div>
@@ -1992,7 +2027,8 @@
       <div style="font-size:.82rem;color:#64748b;margin-bottom:10px">
         User: <strong id="assignIndikatorUserInfo"></strong>
       </div>
-      <div class="input-wrap" style="margin-bottom:6px">
+      <div class="search-wrap" style="margin-bottom:6px;min-width:0">
+        <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-4.35-4.35"/></svg>
         <input type="text" id="assignIndikatorSearch" placeholder="Cari indikator atau PJ..."
           oninput="filterAssignIndikator()" style="width:100%;box-sizing:border-box">
       </div>
@@ -2719,6 +2755,28 @@ function loginTogglePw() {
     : `<path stroke-linecap="round" stroke-linejoin="round" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21"/>`;
 }
 
+// Ambil lokasi presisi dari browser (GPS/WiFi via Geolocation API), lalu reverse-geocode
+// jadi nama kota pakai BigDataCloud (gratis, tanpa API key, CORS-enabled utk browser).
+// Kalau user menolak izin lokasi / browser tidak mendukung / timeout → return null,
+// backend akan fallback otomatis ke IP-based lookup.
+async function _getBrowserLokasi() {
+  try {
+    if (!navigator.geolocation) return null;
+    const pos = await new Promise((resolve, reject) => {
+      navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 3000, maximumAge: 600000 });
+    });
+    const { latitude, longitude } = pos.coords;
+    const r = await fetch(`https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${latitude}&longitude=${longitude}&localityLanguage=id`, {
+      signal: AbortSignal.timeout(2500),
+    });
+    if (!r.ok) return null;
+    const d = await r.json();
+    return [d.locality, d.principalSubdivision, d.countryName].filter(Boolean).join(', ') || null;
+  } catch {
+    return null;
+  }
+}
+
 async function doLogin() {
   const email    = document.getElementById('loginEmail').value.trim();
   const password = document.getElementById('loginPassword').value;
@@ -2746,10 +2804,11 @@ async function doLogin() {
 
   btn.disabled = true; btn.classList.add('loading');
   try {
+    const _lokasi = await _getBrowserLokasi();
     const r = await fetch('/api/auth/login', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password }),
+      body: JSON.stringify({ email, password, lokasi: _lokasi }),
     });
     const data = await r.json();
     if (!r.ok) {
@@ -2833,7 +2892,7 @@ function _loginShowErr(msg, type = 'warn') {
 </script>
 
 <!-- ════════════════ SCRIPTS ════════════════ -->
-<script src="js/periode_frontend.js?v=3"></script>
+<script src="js/periode_frontend.js?v=8"></script>
 <script>
 /* ── CDTP Teleport: pindahkan panel kalender ke <body> saat dibuka ──────────
    Ini satu-satunya cara yang benar-benar reliable agar panel tidak terpotong
@@ -2980,18 +3039,18 @@ function _loginShowErr(msg, type = 'warn') {
 })();
 </script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/quill/1.3.7/quill.min.js"></script>
-  <script src="js/app.js?v=4"></script>
-<script src="js/dashboard.js?v=3"></script>
-<script src="js/superlink.js?v=3"></script>
-<script src="js/pengumuman_frontend.js?v=3"></script>
-<script src="js/surat.js?v=3"></script>
-<script src="js/users_frontend.js?v=3"></script>
-<script src="js/kinerja.js?v=3"></script>
-<script src="js/laporan.js?v=3"></script>
-<script src="js/struktur_frontend.js?v=4"></script>
-<script src="js/audit_frontend.js?v=3"></script>
-<script src="js/dokumen_publik_frontend.js?v=4"></script>
-<script src="js/profil_frontend.js?v=3"></script>
+  <script src="js/app.js?v=8"></script>
+<script src="js/dashboard.js?v=8"></script>
+<script src="js/superlink.js?v=8"></script>
+<script src="js/pengumuman_frontend.js?v=8"></script>
+<script src="js/surat.js?v=8"></script>
+<script src="js/users_frontend.js?v=8"></script>
+<script src="js/kinerja.js?v=8"></script>
+<script src="js/laporan.js?v=8"></script>
+<script src="js/struktur_frontend.js?v=8"></script>
+<script src="js/audit_frontend.js?v=8"></script>
+<script src="js/dokumen_publik_frontend.js?v=8"></script>
+<script src="js/profil_frontend.js?v=8"></script>
 
 <script>
 /* ═══════════════════════════════════════════════════════════════════════════
