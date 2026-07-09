@@ -94,7 +94,7 @@ function renderPegawaiTable() {
     }).join('');
   }
 
-  renderPagination('pegawaiPagination', _pegawaiPage, totalPages, p => {
+  renderPagination('pegawaiPagination', total, _pegawaiPage, _pegawaiPerPage, p => {
     _pegawaiPage = p;
     renderPegawaiTable();
   });

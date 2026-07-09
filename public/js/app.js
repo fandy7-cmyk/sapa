@@ -834,6 +834,7 @@ function renderPagination(containerId, total, page, limit, onPageChange) {
   const c = document.getElementById(containerId);
   if (pages <= 1) { c.innerHTML = ''; return; }
   const cb = typeof onPageChange === 'function' ? onPageChange : (p => { window[onPageChange] && window[onPageChange](p); });
+  if (typeof onPageChange === 'function') _pgRegister(containerId, cb);
   const btn = (disabled, onclick, svg) =>
     `<button class="page-btn" ${disabled ? 'disabled' : ''} onclick="${onclick}">${svg}</button>`;
   const svgFirst = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M11 19l-7-7 7-7M18 19l-7-7 7-7"/></svg>`;
