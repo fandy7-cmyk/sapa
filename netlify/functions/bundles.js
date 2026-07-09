@@ -73,15 +73,19 @@ export const handler = async (event) => {
       // (bundle buatan admin/lama dengan created_by NULL tidak ditampilkan ke user).
       const rows = user.is_admin
         ? await sql`
-            SELECT b.*, COUNT(bi.id)::INT AS jumlah_item
-            FROM bundles b LEFT JOIN bundle_items bi ON bi.bundle_id = b.id
-            GROUP BY b.id ORDER BY b.created_at DESC
+            SELECT b.*, u.nama AS created_by_nama, COUNT(bi.id)::INT AS jumlah_item
+            FROM bundles b
+            LEFT JOIN bundle_items bi ON bi.bundle_id = b.id
+            LEFT JOIN users u ON u.id = b.created_by
+            GROUP BY b.id, u.nama ORDER BY b.created_at DESC
           `
         : await sql`
-            SELECT b.*, COUNT(bi.id)::INT AS jumlah_item
-            FROM bundles b LEFT JOIN bundle_items bi ON bi.bundle_id = b.id
+            SELECT b.*, u.nama AS created_by_nama, COUNT(bi.id)::INT AS jumlah_item
+            FROM bundles b
+            LEFT JOIN bundle_items bi ON bi.bundle_id = b.id
+            LEFT JOIN users u ON u.id = b.created_by
             WHERE b.created_by = ${user.id}
-            GROUP BY b.id ORDER BY b.created_at DESC
+            GROUP BY b.id, u.nama ORDER BY b.created_at DESC
           `;
       return jsonResponse({ bundles: rows });
     } catch (err) { return errorResponse('Gagal mengambil data bundle'); }

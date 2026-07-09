@@ -16,7 +16,7 @@ export const handler = async (event) => {
 
   // ── LOGIN ──────────────────────────────────────────────────
   if (event.httpMethod === 'POST' && path === '/login') {
-    const { email, password } = parseBody(event);
+    const { email, password, lokasi } = parseBody(event);
     if (!email || !password) return errorResponse('Email dan password wajib diisi', 400);
 
     const emailNorm = email.toLowerCase().trim();
@@ -24,7 +24,7 @@ export const handler = async (event) => {
 
     const rateCheck = await checkLoginRateLimit(sql, emailNorm, ip);
     if (!rateCheck.allowed) {
-      await logAudit(sql, event, { email: emailNorm, aksi: 'login_blocked' });
+      await logAudit(sql, event, { email: emailNorm, aksi: 'login_blocked', lokasi_client: lokasi });
       return errorResponse('Terlalu banyak percobaan login. Coba lagi dalam 15 menit.', 429);
     }
 
@@ -37,7 +37,7 @@ export const handler = async (event) => {
       `;
       if (!rows.length) {
         await recordLoginAttempt(sql, emailNorm, ip);
-        await logAudit(sql, event, { email: emailNorm, aksi: 'login_failed', detail: { reason: 'email_not_found' } });
+        await logAudit(sql, event, { email: emailNorm, aksi: 'login_failed', detail: { reason: 'email_not_found' }, lokasi_client: lokasi });
         const sisa = Math.max(0, MAX_LOGIN_ATTEMPTS - (rateCheck.count + 1));
         return errorResponse('Email atau password salah', 401, { sisa_percobaan: sisa });
       }
@@ -46,14 +46,14 @@ export const handler = async (event) => {
       const valid = await bcrypt.compare(password, user.password_hash);
       if (!valid) {
         await recordLoginAttempt(sql, emailNorm, ip);
-        await logAudit(sql, event, { user_id: user.id, nama: user.nama, email: emailNorm, aksi: 'login_failed', detail: { reason: 'wrong_password' } });
+        await logAudit(sql, event, { user_id: user.id, nama: user.nama, email: emailNorm, aksi: 'login_failed', detail: { reason: 'wrong_password' }, lokasi_client: lokasi });
         const sisa = Math.max(0, MAX_LOGIN_ATTEMPTS - (rateCheck.count + 1));
         return errorResponse('Email atau password salah', 401, { sisa_percobaan: sisa });
       }
 
       await sql`UPDATE users SET last_login = NOW() WHERE id = ${user.id}`;
       await clearLoginAttempts(sql, emailNorm);
-      await logAudit(sql, event, { user_id: user.id, nama: user.nama, email: emailNorm, aksi: 'login_success' });
+      await logAudit(sql, event, { user_id: user.id, nama: user.nama, email: emailNorm, aksi: 'login_success', lokasi_client: lokasi });
 
       let permissions = [];
       if (!user.is_admin) {

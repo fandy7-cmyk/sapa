@@ -53,16 +53,18 @@ export const handler = async (event) => {
         // (link buatan admin/lama dengan created_by NULL tidak ditampilkan ke user).
         if (auth.is_admin) {
           rows = await sql`
-            SELECT l.*,
+            SELECT l.*, u.nama AS created_by_nama,
               COALESCE((SELECT COUNT(*) FROM klik_log kl WHERE kl.link_id = l.id), 0)::INT AS total_klik
             FROM links l
+            LEFT JOIN users u ON u.id = l.created_by
             ORDER BY l.id ASC
           `;
         } else {
           rows = await sql`
-            SELECT l.*,
+            SELECT l.*, u.nama AS created_by_nama,
               COALESCE((SELECT COUNT(*) FROM klik_log kl WHERE kl.link_id = l.id), 0)::INT AS total_klik
             FROM links l
+            LEFT JOIN users u ON u.id = l.created_by
             WHERE l.created_by = ${auth.id}
             ORDER BY l.id ASC
           `;

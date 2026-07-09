@@ -23,9 +23,13 @@ async function fetchLokasi(ip) {
   }
 }
 
-export async function logAudit(sql, event, { user_id = null, nama = null, email = null, aksi, entitas = null, entitas_id = null, detail = null }) {
+export async function logAudit(sql, event, { user_id = null, nama = null, email = null, aksi, entitas = null, entitas_id = null, detail = null, lokasi_client = null }) {
   const { ip } = getReqMeta(event);
-  const lokasi = await fetchLokasi(ip);
+  // Prioritas: lokasi presisi dari browser (GPS/WiFi via Geolocation API, dikirim client)
+  // → jauh lebih akurat drpd IP geolocation, apalagi di daerah yg ISP-nya routing lewat
+  // kota lain (mis. Banggai Laut sering kebaca "Palu" kalau cuma andalin IP).
+  // Fallback ke IP-based lookup kalau user tidak mengizinkan/browser tidak mendukung.
+  const lokasi = lokasi_client || await fetchLokasi(ip);
   try {
     await sql`
       INSERT INTO audit_log (user_id, nama, email, aksi, entitas, entitas_id, detail, ip_address, lokasi)
