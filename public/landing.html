@@ -2122,6 +2122,13 @@ window.closeMobileMenu = function() {
     let activeId = null;
     let bestDist = Infinity;
 
+    // Jangan tandai nav manapun sebagai aktif kalau user belum scroll
+    // (mencegah "Pengumuman" auto-active saat pertama kali landing dibuka)
+    if (window.scrollY < 40) {
+      links.forEach(a => a.classList.remove('nav-active'));
+      return;
+    }
+
     sectionMap.forEach(m => {
       const el = document.getElementById(m.sectionId) || document.getElementById(m.anchorId);
       if (!el || el.style.display === 'none') return;
