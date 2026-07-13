@@ -629,9 +629,13 @@ async function loadLaporanKinerja() {
   // Fetch semua 12 bulan secara parallel untuk tiap jenis
   const bulanList = [1,2,3,4,5,6,7,8,9,10,11,12];
 
+  // Selalu minta scope=bidang ke backend (superset terluas yang boleh dilihat user utk jenis
+  // IKK/SPM: semua indikator di bidang yg sama, bukan cuma yg di-assign). Untuk non-admin, kita
+  // filter lagi ke "punya sendiri" di frontend kalau dropdown scope di-set ke 'mine' — jadi cukup
+  // satu kali fetch, nggak perlu round-trip dua kali tiap ganti dropdown.
   const fetchBulan = async (b, jenisParam) => {
     try {
-      const r = await fetch(`/api/kinerja/rekap?bulan=${b}&tahun=${tahun}&jenis=${jenisParam}`, { headers: authHeaders() });
+      const r = await fetch(`/api/kinerja/rekap?bulan=${b}&tahun=${tahun}&jenis=${jenisParam}&scope=bidang`, { headers: authHeaders() });
       if (!r.ok) return [];
       const d = await r.json();
       return (d.rekap || []).map(row => ({ ...row, _bulan: b }));
@@ -676,34 +680,26 @@ async function loadLaporanKinerja() {
 
   let rows = Object.values(allBulanData);
 
-  // Non-admin: defaultnya cuma boleh lihat indikator yang di-assign ke akun-nya.
-  // Tapi user bisa switch ke "Semua di Bidang Saya" lewat dropdown laporanKinerjaScope
-  // untuk lihat semua indikator (bukan cuma miliknya) di bidang yang sama dengan
-  // indikator-indikator yang jadi tanggung jawabnya.
-  let _lapScopeBidangSet = null; // dipakai lagi di bawah utk tentuin visibility dropdown scope
+  // Non-admin: hasil fetch di atas (scope=bidang) sudah berisi SEMUA indikator IKK/SPM
+  // di bidang yang sama dengan tanggung jawab user (dari backend), plus semua IKU.
+  // Dropdown "Indikator Saya" vs "Semua Indikator Bidang" tinggal milih mau ditampilin
+  // full (bidang) atau dipersempit ke yang eksplisit di-assign ke akunnya (mine).
   if (!_user?.is_admin) {
+    const bidangRows = rows; // superset dari backend (scope=bidang)
     const myRows = (_userIndikatorIds && _userIndikatorIds.size > 0)
-      ? rows.filter(row => _userIndikatorIds.has(Number(row.id)))
+      ? bidangRows.filter(row => _userIndikatorIds.has(Number(row.id)))
       : [];
-    _lapScopeBidangSet = new Set(myRows.map(r => r.penanggung_jawab).filter(Boolean));
 
     const scopeSel = document.getElementById('laporanKinerjaScope');
     const scope = scopeSel?.value || 'mine';
-    if (scope === 'bidang' && _lapScopeBidangSet.size > 0) {
-      rows = rows.filter(row => _lapScopeBidangSet.has(row.penanggung_jawab));
-    } else {
-      rows = myRows;
-    }
+    rows = scope === 'bidang' ? bidangRows : myRows;
 
     // Dropdown scope cuma relevan kalau bidang si-user beranggotakan indikator
-    // lain di luar miliknya sendiri — kalau enggak, "Semua di Bidang Saya" bakal
-    // sama persis hasilnya dgn "Tanggung Jawab Saya", jadi disembunyikan aja.
+    // lain di luar miliknya sendiri — kalau enggak, "Semua Indikator Bidang" bakal
+    // sama persis hasilnya dgn "Indikator Saya", jadi disembunyikan aja.
     const scopeWrap = document.getElementById('laporanKinerjaScopeWrap');
     if (scopeWrap) {
-      const bidangRowsCount = _lapScopeBidangSet.size > 0
-        ? Object.values(allBulanData).filter(r => _lapScopeBidangSet.has(r.penanggung_jawab)).length
-        : 0;
-      const showScope = _lapScopeBidangSet.size > 0 && bidangRowsCount > myRows.length;
+      const showScope = bidangRows.length > myRows.length;
       scopeWrap.style.display = showScope ? '' : 'none';
       if (!showScope && scopeSel) scopeSel.value = 'mine';
     }
