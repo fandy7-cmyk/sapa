@@ -184,9 +184,9 @@
   force = true
 
 
-# ── /masuk → app.html (tanpa expose nama file) ───────────────
+# ── /login → app.html (tanpa expose nama file) ───────────────
 [[redirects]]
-  from = "/masuk"
+  from = "/login"
   to = "/app.html"
   status = 200
   force = true
