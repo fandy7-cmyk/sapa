@@ -763,6 +763,64 @@ function _bindNavTooltips() {
   });
 }
 
+// ── Tooltip custom generik (pengganti native `title`) ───────────────────────
+// Cara pakai: kasih attribute data-tip="teks tooltip" ke elemen manapun.
+// Posisi fixed + auto-flip (atas/bawah) + auto-clamp biar gak kepotong layar.
+let _qtipEl = null;
+function _ensureQtipEl() {
+  if (_qtipEl) return _qtipEl;
+  const el = document.createElement('div');
+  el.className = 'qtip-box';
+  document.body.appendChild(el);
+  _qtipEl = el;
+  return el;
+}
+function _qtipPosition(target) {
+  const tip = _ensureQtipEl();
+  const r = target.getBoundingClientRect();
+  const tipRect = tip.getBoundingClientRect();
+
+  let top = r.top - tipRect.height - 8;
+  let placement = 'qtip-top';
+  if (top < 4) { top = r.bottom + 8; placement = 'qtip-bottom'; }
+
+  let left = r.left + r.width / 2 - tipRect.width / 2;
+  left = Math.max(6, Math.min(left, window.innerWidth - tipRect.width - 6));
+
+  tip.classList.remove('qtip-top', 'qtip-bottom');
+  tip.classList.add(placement);
+  tip.style.left = left + 'px';
+  tip.style.top  = top + 'px';
+
+  // arrow tetap nunjuk ke tengah target, bukan ke tengah box tooltip
+  const arrowLeft = Math.max(10, Math.min(r.left + r.width / 2 - left, tipRect.width - 10));
+  tip.style.setProperty('--qtip-arrow-left', arrowLeft + 'px');
+}
+function _bindQtips() {
+  if (document.body._qtipBound) return;
+  document.body._qtipBound = true;
+  document.body.addEventListener('mouseover', (e) => {
+    const target = e.target.closest('[data-tip]');
+    if (!target || !target.dataset.tip) return;
+    const tip = _ensureQtipEl();
+    tip.textContent = target.dataset.tip;
+    tip.classList.remove('qtip-danger', 'qtip-success');
+    if (target.dataset.tipVariant) tip.classList.add('qtip-' + target.dataset.tipVariant);
+    tip.classList.add('show');
+    _qtipPosition(target);
+  });
+  document.body.addEventListener('mouseout', (e) => {
+    const target = e.target.closest('[data-tip]');
+    if (!target) return;
+    if (target.contains(e.relatedTarget)) return;
+    if (_qtipEl) _qtipEl.classList.remove('show');
+  });
+  document.body.addEventListener('scroll', () => {
+    if (_qtipEl) _qtipEl.classList.remove('show');
+  }, true);
+}
+_bindQtips();
+
 // ── TOAST ────────────────────────────────────────────────────────────────
 const TOAST_ICONS = {
   success: `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>`,
@@ -2119,9 +2177,20 @@ function _openCascadeEdit(level, id) {
 
 // ── Modal Tambah/Edit universal ───────────────────────────────────────────
 // ── Custom select untuk field Induk di modal TSP ──────────────────────────
+// Panel dirender floating position:fixed di document.body saat dibuka (bukan
+// position:absolute nested di wrap), biar gak ke-clip overflow-y:auto pada
+// .modal-body — sama pola dgn initIndikatorPJSearchable() di kinerja.js &
+// buildCustomSelect() di app.html.
 function _buildLapParentCsel(wrapperId, opts, selectedVal, placeholder, jenisLabel) {
   const wrap = document.getElementById(wrapperId);
   if (!wrap) return;
+
+  // Buang panel + listener dari instance sebelumnya (fungsi ini dipanggil ulang
+  // tiap modal dibuka) biar gak numpuk/orphan di document.body.
+  if (wrap._lapCselPanel) { wrap._lapCselPanel.remove(); wrap._lapCselPanel = null; }
+  if (wrap._lapCselOutside) document.removeEventListener('click', wrap._lapCselOutside);
+  if (wrap._lapCselScroll)  window.removeEventListener('scroll', wrap._lapCselScroll, true);
+  if (wrap._lapCselResize)  window.removeEventListener('resize', wrap._lapCselResize, true);
   wrap.innerHTML = '';
 
   // Hidden input untuk nilai
@@ -2143,57 +2212,98 @@ function _buildLapParentCsel(wrapperId, opts, selectedVal, placeholder, jenisLab
   `;
   wrap.appendChild(trigger);
 
-  // Panel
+  // Panel — dibuat sekarang tapi baru di-append ke document.body saat dibuka
   const panel = document.createElement('div');
-  panel.className = 'csel-panel';
+  panel.className = 'csel-panel csel-panel-fixed';
   panel.style.display = 'none';
+
+  function selectValue(val, label, isPlaceholder) {
+    hidden.value = isPlaceholder ? '' : val;
+    const textEl = trigger.querySelector('.csel-trigger-text');
+    textEl.textContent = label;
+    textEl.classList.toggle('placeholder', isPlaceholder);
+    panel.querySelectorAll('.csel-option').forEach(o => o.classList.toggle('selected', o.dataset.value === val && !isPlaceholder));
+    closePanel();
+  }
 
   // Placeholder option
   const phDiv = document.createElement('div');
   phDiv.className = 'csel-option placeholder-opt';
+  phDiv.dataset.value = '';
   phDiv.innerHTML = `<span class="csel-option-check"></span><span>${placeholder}</span>`;
-  phDiv.onclick = () => {
-    hidden.value = '';
-    trigger.querySelector('.csel-trigger-text').textContent = placeholder;
-    trigger.querySelector('.csel-trigger-text').classList.add('placeholder');
-    panel.querySelectorAll('.csel-option').forEach(o => o.classList.remove('selected'));
-    trigger.classList.remove('open');
-    panel.style.display = 'none';
-  };
+  phDiv.onclick = () => selectValue('', placeholder, true);
   panel.appendChild(phDiv);
 
   opts.forEach(opt => {
     const div = document.createElement('div');
     const isSelected = opt.value === String(selectedVal || '');
     div.className = 'csel-option' + (isSelected ? ' selected' : '');
+    div.dataset.value = opt.value;
     div.innerHTML = `<span class="csel-option-check"><svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg></span><span>${escHtml(opt.label)}</span>`;
-    div.onclick = () => {
-      hidden.value = opt.value;
-      trigger.querySelector('.csel-trigger-text').textContent = opt.label;
-      trigger.querySelector('.csel-trigger-text').classList.remove('placeholder');
-      panel.querySelectorAll('.csel-option').forEach(o => o.classList.remove('selected'));
-      div.classList.add('selected');
-      trigger.classList.remove('open');
-      panel.style.display = 'none';
-    };
+    div.onclick = () => selectValue(opt.value, opt.label, false);
     panel.appendChild(div);
   });
 
-  wrap.appendChild(panel);
+  function positionPanel() {
+    const r = trigger.getBoundingClientRect();
+    panel.style.width = r.width + 'px';
+    const pr = panel.getBoundingClientRect();
+    let top = r.bottom + 5;
+    if (top + pr.height > window.innerHeight - 8) top = Math.max(8, r.top - pr.height - 5);
+    const left = Math.max(6, Math.min(r.left, window.innerWidth - pr.width - 6));
+    panel.style.top  = top + 'px';
+    panel.style.left = left + 'px';
+  }
+
+  function openPanel() {
+    // Tutup csel panel lain yang lagi kebuka (termasuk punya engine lain)
+    document.querySelectorAll('.csel-panel').forEach(p => {
+      if (p !== panel) {
+        p.style.display = 'none';
+        (p._cselTrigger || p.parentElement?.querySelector('.csel-trigger'))?.classList.remove('open');
+      }
+    });
+    document.body.appendChild(panel);
+    wrap._lapCselPanel = panel;
+    panel.style.visibility = 'hidden';
+    panel.style.display = 'block';
+    positionPanel();
+    panel.style.visibility = 'visible';
+    trigger.classList.add('open');
+  }
+
+  function closePanel() {
+    panel.style.display = 'none';
+    trigger.classList.remove('open');
+    if (panel.parentElement === document.body) wrap.appendChild(panel);
+    wrap._lapCselPanel = null;
+  }
 
   trigger.onclick = (e) => {
     e.stopPropagation();
     const isOpen = panel.style.display !== 'none';
-    // Tutup semua csel panel lain
-    document.querySelectorAll('.csel-panel').forEach(p => {
-      p.style.display = 'none';
-      p.parentElement?.querySelector('.csel-trigger')?.classList.remove('open');
-    });
-    if (!isOpen && opts.length > 0) {
-      panel.style.display = '';
-      trigger.classList.add('open');
-    }
+    isOpen ? closePanel() : (opts.length > 0 && openPanel());
   };
+  panel.addEventListener('click', e => e.stopPropagation());
+
+  const outsideHandler = (e) => {
+    if (panel.style.display === 'none') return;
+    if (!panel.contains(e.target) && !trigger.contains(e.target)) closePanel();
+  };
+  // Cek e.target: scroll DI DALAM panel sendiri (list opsi overflow-y:auto)
+  // gak boleh nutup panel — 'scroll' event gak bubble tapi tetap lewat capture
+  // phase, jadi kalau gak dicek target-nya bakal ke-capture juga di sini.
+  const scrollHandler = (e) => {
+    if (panel.style.display === 'none') return;
+    if (panel.contains(e.target)) return;
+    closePanel();
+  };
+  document.addEventListener('click', outsideHandler);
+  window.addEventListener('scroll', scrollHandler, true);
+  window.addEventListener('resize', scrollHandler, true);
+  wrap._lapCselOutside = outsideHandler;
+  wrap._lapCselScroll  = scrollHandler;
+  wrap._lapCselResize  = scrollHandler;
 }
 
 function openLapTemplateModal(id = null, jenis = null, parentId = null, parentNama = null, nama = null) {

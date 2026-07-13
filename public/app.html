@@ -8,8 +8,7 @@
   <link rel="icon" type="image/png" href="/favicon.png" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
-  <link rel="stylesheet" href="css/styles.css?v=8" />
+  <link rel="stylesheet" href="css/styles.css?v=12" />
   <style>
     /* ── LOGIN OVERLAY ── */
     #loginOverlay {
@@ -94,21 +93,21 @@
       margin-bottom: 10px;
     }
 
-    /* ── Jarak dropdown tahun dari badge periode ── */
-    .tahun-select-wrap {
-      margin-left: 20px !important;
-    }
     .tahun-select-wrap .csel-trigger,
     .tahun-select-wrap .csel-trigger-text,
-    .tahun-select-wrap select {
-      font-size: .78rem !important;
+    .tahun-select-wrap select,
+    .bulan-select-wrap .csel-trigger,
+    .bulan-select-wrap .csel-trigger-text,
+    .bulan-select-wrap select {
+      font-size: .72rem !important;
     }
-    .tahun-select-wrap .csel-trigger {
-      padding-top: 7px !important;
-      padding-bottom: 7px !important;
-      padding-left: 14px !important;
-      padding-right: 12px !important;
-      gap: 10px !important;
+    .tahun-select-wrap .csel-trigger,
+    .bulan-select-wrap .csel-trigger {
+      padding-top: 6px !important;
+      padding-bottom: 6px !important;
+      padding-left: 12px !important;
+      padding-right: 10px !important;
+      gap: 8px !important;
     }
     #kinerjaTahunWrap,
     #ikkTahunWrap,
@@ -116,20 +115,9 @@
       gap: 12px !important;
     }
 
-    /* ── Icon info banner akumulasi: pulse ringan biar noticeable ── */
-    .akumulasi-info-icon {
-      animation: akumulasiIconPulse 2.4s ease-in-out infinite;
-    }
-    @keyframes akumulasiIconPulse {
-      0%, 100% {
-        box-shadow: 0 0 0 0 rgba(245, 158, 11, .55);
-      }
-      50% {
-        box-shadow: 0 0 0 6px rgba(245, 158, 11, 0);
-      }
-    }
-    @media (prefers-reduced-motion: reduce) {
-      .akumulasi-info-icon { animation: none; }
+    /* ── Jarak baris Skala Nilai ke baris Tahun/Bulan di atasnya ── */
+    .skala-nilai-row {
+      margin-top: 18px !important;
     }
 
     /* ── Skala Nilai Peringkat Kinerja: rapikan di mobile ── */
@@ -487,8 +475,8 @@
         </div>
         <div class="card" style="padding:0;overflow:auto;-webkit-overflow-scrolling:touch">
           <table>
-            <thead><tr><th>Judul</th><th>URL</th><th>Slug</th><th>Klik</th><th>Status</th><th class="col-admin-only">Dibuat Oleh</th><th>Aksi</th></tr></thead>
-            <tbody id="slTableBody"><tr class="empty-row"><td colspan="7">Memuat data...</td></tr></tbody>
+            <thead><tr><th>URL</th><th>Slug</th><th>Klik</th><th>Status</th><th class="col-admin-only">Dibuat Oleh</th><th>Aksi</th></tr></thead>
+            <tbody id="slTableBody"><tr class="empty-row"><td colspan="6">Memuat data...</td></tr></tbody>
           </table>
         </div>
         <div id="slPagination"></div>
@@ -569,7 +557,7 @@
               Tambah Ticker
             </button>
           </div>
-          <div class="card" style="padding:0;overflow:auto;-webkit-overflow-scrolling:touch">
+          <div class="kinerja-table-wrap card" style="padding:0">
             <table class="kinerja-table">
               <thead>
                 <tr>
@@ -671,60 +659,38 @@
         <div class="page-subtitle">Capaian Indikator Kinerja Perangkat Daerah</div>
 
         <!-- Periode aktif info + Selector Bulan -->
-        <div id="kinerjaBulanWrapper" style="display:flex;flex-direction:column;gap:32px;margin-bottom:16px">
+        <div id="kinerjaBulanWrapper" style="display:flex;flex-direction:column;gap:18px;margin-bottom:16px">
           <div style="display:flex;align-items:center;gap:18px;flex-wrap:wrap;row-gap:12px">
             <div id="kinerjaActivePeriodeInfo" class="periode-info-bar" style="display:none;margin-bottom:0;align-self:center">
               <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
             </div>
-            <div id="kinerjaTahunWrap" style="display:none;align-items:center;gap:8px">
-              <span style="font-size:.82rem;font-weight:600;color:var(--text-secondary,#64748b);white-space:nowrap;letter-spacing:.01em">Tahun</span>
-              <div class="select-wrap tahun-select-wrap" style="min-width:110px">
+            <div id="kinerjaTahunWrap" style="display:none;align-items:center;gap:12px">
+              <span style="font-size:.72rem;font-weight:600;color:var(--text-secondary,#64748b);white-space:nowrap;letter-spacing:.01em;margin-right:2px">Tahun</span>
+              <div class="select-wrap tahun-select-wrap" style="min-width:88px">
                 <select id="kinerjaTahunSelect"></select>
               </div>
+              <!-- Selector Bulan (sejajar dengan Tahun) -->
+              <span style="font-size:.72rem;font-weight:600;color:var(--text-secondary,#64748b);white-space:nowrap;letter-spacing:.01em;margin-right:2px">Bulan</span>
+              <div class="select-wrap bulan-select-wrap" style="min-width:118px">
+                <select id="bulanSelector"></select>
+              </div>
             </div>
-            <!-- Skala Nilai Permendagri 86/2017 -->
-            <div class="skala-nilai-row" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-left:8px;row-gap:8px">
-              <span class="skala-label" style="font-size:.65rem;font-weight:700;color:var(--teks);white-space:nowrap;margin-right:6px">Skala Nilai Peringkat Kinerja:</span>
-              <span class="skala-badge" style="display:flex;align-items:center;gap:5px;padding:4px 10px;border-radius:20px;background:#4ade80;border:1px solid #22c55e;font-size:.65rem;font-weight:700;color:#14532d;white-space:nowrap"><span style="width:8px;height:8px;border-radius:50%;background:currentColor;opacity:.5;display:inline-block;flex-shrink:0"></span>91–100% Sangat Tinggi</span>
-              <span class="skala-badge" style="display:flex;align-items:center;gap:5px;padding:4px 10px;border-radius:20px;background:#bbf7d0;border:1px solid #6ee7b7;font-size:.65rem;font-weight:700;color:#14532d;white-space:nowrap"><span style="width:8px;height:8px;border-radius:50%;background:currentColor;opacity:.5;display:inline-block;flex-shrink:0"></span>76–90% Tinggi</span>
-              <span class="skala-badge" style="display:flex;align-items:center;gap:5px;padding:4px 10px;border-radius:20px;background:#fef9c3;border:1px solid #fde047;font-size:.65rem;font-weight:700;color:#854d0e;white-space:nowrap"><span style="width:8px;height:8px;border-radius:50%;background:currentColor;opacity:.5;display:inline-block;flex-shrink:0"></span>66–75% Sedang</span>
-              <span class="skala-badge" style="display:flex;align-items:center;gap:5px;padding:4px 10px;border-radius:20px;background:#ffedd5;border:1px solid #fdba74;font-size:.65rem;font-weight:700;color:#9a3412;white-space:nowrap"><span style="width:8px;height:8px;border-radius:50%;background:currentColor;opacity:.5;display:inline-block;flex-shrink:0"></span>51–65% Rendah</span>
-              <span class="skala-badge" style="display:flex;align-items:center;gap:5px;padding:4px 10px;border-radius:20px;background:#fee2e2;border:1px solid #fca5a5;font-size:.65rem;font-weight:700;color:#991b1b;white-space:nowrap"><span style="width:8px;height:8px;border-radius:50%;background:currentColor;opacity:.5;display:inline-block;flex-shrink:0"></span>≤50% Sangat Rendah</span>
-              <span class="skala-sumber" style="font-size:.68rem;color:var(--teks-muted);font-style:italic;white-space:nowrap;padding-left:10px;margin-left:4px;border-left:1px solid var(--abu-2, #e2e8f0)">Sumber: Lampiran Permendagri No. 86 Tahun 2017</span>
-            </div>
+          </div>
+          <!-- Skala Nilai Permendagri 86/2017 -->
+          <div class="skala-nilai-row" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;row-gap:8px">
+            <span class="skala-label" style="font-size:.65rem;font-weight:700;color:var(--teks);white-space:nowrap;margin-right:6px">Skala Nilai Peringkat Kinerja:</span>
+            <span class="skala-badge" style="display:flex;align-items:center;gap:5px;padding:4px 10px;border-radius:20px;background:#4ade80;border:1px solid #22c55e;font-size:.65rem;font-weight:700;color:#14532d;white-space:nowrap"><span style="width:8px;height:8px;border-radius:50%;background:currentColor;opacity:.5;display:inline-block;flex-shrink:0"></span>91–100% Sangat Tinggi</span>
+            <span class="skala-badge" style="display:flex;align-items:center;gap:5px;padding:4px 10px;border-radius:20px;background:#bbf7d0;border:1px solid #6ee7b7;font-size:.65rem;font-weight:700;color:#14532d;white-space:nowrap"><span style="width:8px;height:8px;border-radius:50%;background:currentColor;opacity:.5;display:inline-block;flex-shrink:0"></span>76–90% Tinggi</span>
+            <span class="skala-badge" style="display:flex;align-items:center;gap:5px;padding:4px 10px;border-radius:20px;background:#fef9c3;border:1px solid #fde047;font-size:.65rem;font-weight:700;color:#854d0e;white-space:nowrap"><span style="width:8px;height:8px;border-radius:50%;background:currentColor;opacity:.5;display:inline-block;flex-shrink:0"></span>66–75% Sedang</span>
+            <span class="skala-badge" style="display:flex;align-items:center;gap:5px;padding:4px 10px;border-radius:20px;background:#ffedd5;border:1px solid #fdba74;font-size:.65rem;font-weight:700;color:#9a3412;white-space:nowrap"><span style="width:8px;height:8px;border-radius:50%;background:currentColor;opacity:.5;display:inline-block;flex-shrink:0"></span>51–65% Rendah</span>
+            <span class="skala-badge" style="display:flex;align-items:center;gap:5px;padding:4px 10px;border-radius:20px;background:#fee2e2;border:1px solid #fca5a5;font-size:.65rem;font-weight:700;color:#991b1b;white-space:nowrap"><span style="width:8px;height:8px;border-radius:50%;background:currentColor;opacity:.5;display:inline-block;flex-shrink:0"></span>≤50% Sangat Rendah</span>
+            <span class="skala-sumber" style="font-size:.68rem;color:var(--teks-muted);font-style:italic;white-space:nowrap;padding-left:10px;margin-left:4px;border-left:1px solid var(--abu-2, #e2e8f0)">Sumber: Lampiran Permendagri No. 86 Tahun 2017</span>
           </div>
           <!-- Countdown timer periode input Monev -->
           <div id="kinerjaCountdownBar" style="display:none"></div>
-
-          <!-- Info banner akumulasi Jumlah -->
-          <div id="kinerjaAkumulasiInfo" style="display:none;align-items:center;gap:10px;margin-top:6px;padding:9px 14px;background:linear-gradient(90deg,#f0fdfa 0%,#ccfbf1 100%);border:1.5px solid #5eead4;border-radius:10px;font-size:.72rem;font-weight:600;color:#0f766e;line-height:1.4">
-            <span class="akumulasi-info-icon" style="display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;background:#fde68a;border-radius:50%;flex-shrink:0">
-              <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="#b45309" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
-            </span>
-            <span>
-              Terdapat <strong id="kinerjaAkumulasiCount"></strong> indikator bertipe <strong>"Jumlah..."</strong> pada halaman ini.
-              Nilai <strong>Capaian</strong> yang ditampilkan adalah <strong>akumulasi</strong> dari Januari s.d. bulan yang dipilih.
-            </span>
-          </div>
-
-          <!-- Selector Bulan -->
-          <div id="bulanSelector" class="seg-bulan-wrap" style="margin-top:8px">
-          <button class="bulan-btn" data-bulan="1"  onclick="setKinerjaBulan(1)">Januari</button>
-          <button class="bulan-btn" data-bulan="2"  onclick="setKinerjaBulan(2)">Februari</button>
-          <button class="bulan-btn" data-bulan="3"  onclick="setKinerjaBulan(3)">Maret</button>
-          <button class="bulan-btn" data-bulan="4"  onclick="setKinerjaBulan(4)">April</button>
-          <button class="bulan-btn" data-bulan="5"  onclick="setKinerjaBulan(5)">Mei</button>
-          <button class="bulan-btn" data-bulan="6"  onclick="setKinerjaBulan(6)">Juni</button>
-          <button class="bulan-btn" data-bulan="7"  onclick="setKinerjaBulan(7)">Juli</button>
-          <button class="bulan-btn" data-bulan="8"  onclick="setKinerjaBulan(8)">Agustus</button>
-          <button class="bulan-btn" data-bulan="9"  onclick="setKinerjaBulan(9)">September</button>
-          <button class="bulan-btn" data-bulan="10" onclick="setKinerjaBulan(10)">Oktober</button>
-          <button class="bulan-btn" data-bulan="11" onclick="setKinerjaBulan(11)">November</button>
-          <button class="bulan-btn" data-bulan="12" onclick="setKinerjaBulan(12)">Desember</button>
-          </div>
         </div><!-- /periode+bulan wrapper -->
         <!-- Tabel rekap -->
-        <div class="card" style="padding:0;overflow:auto;-webkit-overflow-scrolling:touch">
+        <div class="kinerja-table-wrap card" style="padding:0">
           <table class="kinerja-table">
             <thead>
               <tr>
@@ -757,60 +723,38 @@
         <div class="page-subtitle">Capaian Indikator Kinerja Kunci (IKK) Perangkat Daerah</div>
 
         <!-- Periode aktif info + Selector Bulan IKK -->
-        <div id="ikkBulanWrapper" style="display:flex;flex-direction:column;gap:32px;margin-bottom:16px">
+        <div id="ikkBulanWrapper" style="display:flex;flex-direction:column;gap:18px;margin-bottom:16px">
           <div style="display:flex;align-items:center;gap:18px;flex-wrap:wrap;row-gap:12px">
             <div id="ikkActivePeriodeInfo" class="periode-info-bar" style="display:none;margin-bottom:0;align-self:center">
               <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
             </div>
-            <div id="ikkTahunWrap" style="display:none;align-items:center;gap:8px">
-              <span style="font-size:.82rem;font-weight:600;color:var(--text-secondary,#64748b);white-space:nowrap;letter-spacing:.01em">Tahun</span>
-              <div class="select-wrap tahun-select-wrap" style="min-width:110px">
+            <div id="ikkTahunWrap" style="display:none;align-items:center;gap:12px">
+              <span style="font-size:.72rem;font-weight:600;color:var(--text-secondary,#64748b);white-space:nowrap;letter-spacing:.01em;margin-right:2px">Tahun</span>
+              <div class="select-wrap tahun-select-wrap" style="min-width:88px">
                 <select id="ikkTahunSelect"></select>
               </div>
+              <!-- Selector Bulan IKK (sejajar dengan Tahun) -->
+              <span style="font-size:.72rem;font-weight:600;color:var(--text-secondary,#64748b);white-space:nowrap;letter-spacing:.01em;margin-right:2px">Bulan</span>
+              <div class="select-wrap bulan-select-wrap" style="min-width:118px">
+                <select id="ikkBulanSelector"></select>
+              </div>
             </div>
-            <!-- Skala Nilai Permendagri 86/2017 -->
-            <div class="skala-nilai-row" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-left:8px;row-gap:8px">
-              <span class="skala-label" style="font-size:.65rem;font-weight:700;color:var(--teks);white-space:nowrap;margin-right:6px">Skala Nilai Peringkat Kinerja:</span>
-              <span class="skala-badge" style="display:flex;align-items:center;gap:5px;padding:4px 10px;border-radius:20px;background:#4ade80;border:1px solid #22c55e;font-size:.65rem;font-weight:700;color:#14532d;white-space:nowrap"><span style="width:8px;height:8px;border-radius:50%;background:currentColor;opacity:.5;display:inline-block;flex-shrink:0"></span>91–100% Sangat Tinggi</span>
-              <span class="skala-badge" style="display:flex;align-items:center;gap:5px;padding:4px 10px;border-radius:20px;background:#bbf7d0;border:1px solid #6ee7b7;font-size:.65rem;font-weight:700;color:#14532d;white-space:nowrap"><span style="width:8px;height:8px;border-radius:50%;background:currentColor;opacity:.5;display:inline-block;flex-shrink:0"></span>76–90% Tinggi</span>
-              <span class="skala-badge" style="display:flex;align-items:center;gap:5px;padding:4px 10px;border-radius:20px;background:#fef9c3;border:1px solid #fde047;font-size:.65rem;font-weight:700;color:#854d0e;white-space:nowrap"><span style="width:8px;height:8px;border-radius:50%;background:currentColor;opacity:.5;display:inline-block;flex-shrink:0"></span>66–75% Sedang</span>
-              <span class="skala-badge" style="display:flex;align-items:center;gap:5px;padding:4px 10px;border-radius:20px;background:#ffedd5;border:1px solid #fdba74;font-size:.65rem;font-weight:700;color:#9a3412;white-space:nowrap"><span style="width:8px;height:8px;border-radius:50%;background:currentColor;opacity:.5;display:inline-block;flex-shrink:0"></span>51–65% Rendah</span>
-              <span class="skala-badge" style="display:flex;align-items:center;gap:5px;padding:4px 10px;border-radius:20px;background:#fee2e2;border:1px solid #fca5a5;font-size:.65rem;font-weight:700;color:#991b1b;white-space:nowrap"><span style="width:8px;height:8px;border-radius:50%;background:currentColor;opacity:.5;display:inline-block;flex-shrink:0"></span>≤50% Sangat Rendah</span>
-              <span class="skala-sumber" style="font-size:.68rem;color:var(--teks-muted);font-style:italic;white-space:nowrap;padding-left:10px;margin-left:4px;border-left:1px solid var(--abu-2, #e2e8f0)">Sumber: Lampiran Permendagri No. 86 Tahun 2017</span>
-            </div>
+          </div>
+          <!-- Skala Nilai Permendagri 86/2017 -->
+          <div class="skala-nilai-row" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;row-gap:8px">
+            <span class="skala-label" style="font-size:.65rem;font-weight:700;color:var(--teks);white-space:nowrap;margin-right:6px">Skala Nilai Peringkat Kinerja:</span>
+            <span class="skala-badge" style="display:flex;align-items:center;gap:5px;padding:4px 10px;border-radius:20px;background:#4ade80;border:1px solid #22c55e;font-size:.65rem;font-weight:700;color:#14532d;white-space:nowrap"><span style="width:8px;height:8px;border-radius:50%;background:currentColor;opacity:.5;display:inline-block;flex-shrink:0"></span>91–100% Sangat Tinggi</span>
+            <span class="skala-badge" style="display:flex;align-items:center;gap:5px;padding:4px 10px;border-radius:20px;background:#bbf7d0;border:1px solid #6ee7b7;font-size:.65rem;font-weight:700;color:#14532d;white-space:nowrap"><span style="width:8px;height:8px;border-radius:50%;background:currentColor;opacity:.5;display:inline-block;flex-shrink:0"></span>76–90% Tinggi</span>
+            <span class="skala-badge" style="display:flex;align-items:center;gap:5px;padding:4px 10px;border-radius:20px;background:#fef9c3;border:1px solid #fde047;font-size:.65rem;font-weight:700;color:#854d0e;white-space:nowrap"><span style="width:8px;height:8px;border-radius:50%;background:currentColor;opacity:.5;display:inline-block;flex-shrink:0"></span>66–75% Sedang</span>
+            <span class="skala-badge" style="display:flex;align-items:center;gap:5px;padding:4px 10px;border-radius:20px;background:#ffedd5;border:1px solid #fdba74;font-size:.65rem;font-weight:700;color:#9a3412;white-space:nowrap"><span style="width:8px;height:8px;border-radius:50%;background:currentColor;opacity:.5;display:inline-block;flex-shrink:0"></span>51–65% Rendah</span>
+            <span class="skala-badge" style="display:flex;align-items:center;gap:5px;padding:4px 10px;border-radius:20px;background:#fee2e2;border:1px solid #fca5a5;font-size:.65rem;font-weight:700;color:#991b1b;white-space:nowrap"><span style="width:8px;height:8px;border-radius:50%;background:currentColor;opacity:.5;display:inline-block;flex-shrink:0"></span>≤50% Sangat Rendah</span>
+            <span class="skala-sumber" style="font-size:.68rem;color:var(--teks-muted);font-style:italic;white-space:nowrap;padding-left:10px;margin-left:4px;border-left:1px solid var(--abu-2, #e2e8f0)">Sumber: Lampiran Permendagri No. 86 Tahun 2017</span>
           </div>
           <!-- Countdown timer periode input IKK -->
           <div id="ikkCountdownBar" style="display:none"></div>
-
-          <!-- Info banner akumulasi Jumlah IKK -->
-          <div id="ikkAkumulasiInfo" style="display:none;align-items:center;gap:10px;margin-top:6px;padding:9px 14px;background:linear-gradient(90deg,#f0fdfa 0%,#ccfbf1 100%);border:1.5px solid #5eead4;border-radius:10px;font-size:.72rem;font-weight:600;color:#0f766e;line-height:1.4">
-            <span class="akumulasi-info-icon" style="display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;background:#fde68a;border-radius:50%;flex-shrink:0">
-              <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="#b45309" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
-            </span>
-            <span>
-              Terdapat <strong id="ikkAkumulasiCount"></strong> indikator bertipe <strong>"Jumlah..."</strong> pada halaman ini.
-              Nilai <strong>Capaian</strong> yang ditampilkan adalah <strong>akumulasi</strong> dari Januari s.d. bulan yang dipilih.
-            </span>
-          </div>
-
-          <!-- Selector Bulan IKK -->
-          <div id="ikkBulanSelector" class="seg-bulan-wrap" style="margin-top:8px">
-          <button class="bulan-btn" data-bulan="1"  onclick="setIkkBulan(1)">Januari</button>
-          <button class="bulan-btn" data-bulan="2"  onclick="setIkkBulan(2)">Februari</button>
-          <button class="bulan-btn" data-bulan="3"  onclick="setIkkBulan(3)">Maret</button>
-          <button class="bulan-btn" data-bulan="4"  onclick="setIkkBulan(4)">April</button>
-          <button class="bulan-btn" data-bulan="5"  onclick="setIkkBulan(5)">Mei</button>
-          <button class="bulan-btn" data-bulan="6"  onclick="setIkkBulan(6)">Juni</button>
-          <button class="bulan-btn" data-bulan="7"  onclick="setIkkBulan(7)">Juli</button>
-          <button class="bulan-btn" data-bulan="8"  onclick="setIkkBulan(8)">Agustus</button>
-          <button class="bulan-btn" data-bulan="9"  onclick="setIkkBulan(9)">September</button>
-          <button class="bulan-btn" data-bulan="10" onclick="setIkkBulan(10)">Oktober</button>
-          <button class="bulan-btn" data-bulan="11" onclick="setIkkBulan(11)">November</button>
-          <button class="bulan-btn" data-bulan="12" onclick="setIkkBulan(12)">Desember</button>
-          </div>
         </div><!-- /periode+bulan wrapper -->
         <!-- Tabel rekap IKK -->
-        <div class="card" style="padding:0;overflow:auto;-webkit-overflow-scrolling:touch">
+        <div class="kinerja-table-wrap card" style="padding:0">
           <table class="kinerja-table">
             <thead>
               <tr>
@@ -843,60 +787,38 @@
         <div class="page-subtitle">Capaian Standar Pelayanan Minimal Perangkat Daerah</div>
 
         <!-- Periode aktif info + Selector Bulan SPM -->
-        <div id="spmBulanWrapper" style="display:flex;flex-direction:column;gap:32px;margin-bottom:16px">
+        <div id="spmBulanWrapper" style="display:flex;flex-direction:column;gap:18px;margin-bottom:16px">
           <div style="display:flex;align-items:center;gap:18px;flex-wrap:wrap;row-gap:12px">
             <div id="spmActivePeriodeInfo" class="periode-info-bar" style="display:none;margin-bottom:0;align-self:center">
               <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
             </div>
-            <div id="spmTahunWrap" style="display:none;align-items:center;gap:8px">
-              <span style="font-size:.82rem;font-weight:600;color:var(--text-secondary,#64748b);white-space:nowrap;letter-spacing:.01em">Tahun</span>
-              <div class="select-wrap tahun-select-wrap" style="min-width:110px">
+            <div id="spmTahunWrap" style="display:none;align-items:center;gap:12px">
+              <span style="font-size:.72rem;font-weight:600;color:var(--text-secondary,#64748b);white-space:nowrap;letter-spacing:.01em;margin-right:2px">Tahun</span>
+              <div class="select-wrap tahun-select-wrap" style="min-width:88px">
                 <select id="spmTahunSelect"></select>
               </div>
+              <!-- Selector Bulan SPM (sejajar dengan Tahun) -->
+              <span style="font-size:.72rem;font-weight:600;color:var(--text-secondary,#64748b);white-space:nowrap;letter-spacing:.01em;margin-right:2px">Bulan</span>
+              <div class="select-wrap bulan-select-wrap" style="min-width:118px">
+                <select id="spmBulanSelector"></select>
+              </div>
             </div>
-            <!-- Skala Nilai Permendagri 86/2017 -->
-            <div class="skala-nilai-row" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-left:8px;row-gap:8px">
-              <span class="skala-label" style="font-size:.65rem;font-weight:700;color:var(--teks);white-space:nowrap;margin-right:6px">Skala Nilai Peringkat Kinerja:</span>
-              <span class="skala-badge" style="display:flex;align-items:center;gap:5px;padding:4px 10px;border-radius:20px;background:#4ade80;border:1px solid #22c55e;font-size:.65rem;font-weight:700;color:#14532d;white-space:nowrap"><span style="width:8px;height:8px;border-radius:50%;background:currentColor;opacity:.5;display:inline-block;flex-shrink:0"></span>91–100% Sangat Tinggi</span>
-              <span class="skala-badge" style="display:flex;align-items:center;gap:5px;padding:4px 10px;border-radius:20px;background:#bbf7d0;border:1px solid #6ee7b7;font-size:.65rem;font-weight:700;color:#14532d;white-space:nowrap"><span style="width:8px;height:8px;border-radius:50%;background:currentColor;opacity:.5;display:inline-block;flex-shrink:0"></span>76–90% Tinggi</span>
-              <span class="skala-badge" style="display:flex;align-items:center;gap:5px;padding:4px 10px;border-radius:20px;background:#fef9c3;border:1px solid #fde047;font-size:.65rem;font-weight:700;color:#854d0e;white-space:nowrap"><span style="width:8px;height:8px;border-radius:50%;background:currentColor;opacity:.5;display:inline-block;flex-shrink:0"></span>66–75% Sedang</span>
-              <span class="skala-badge" style="display:flex;align-items:center;gap:5px;padding:4px 10px;border-radius:20px;background:#ffedd5;border:1px solid #fdba74;font-size:.65rem;font-weight:700;color:#9a3412;white-space:nowrap"><span style="width:8px;height:8px;border-radius:50%;background:currentColor;opacity:.5;display:inline-block;flex-shrink:0"></span>51–65% Rendah</span>
-              <span class="skala-badge" style="display:flex;align-items:center;gap:5px;padding:4px 10px;border-radius:20px;background:#fee2e2;border:1px solid #fca5a5;font-size:.65rem;font-weight:700;color:#991b1b;white-space:nowrap"><span style="width:8px;height:8px;border-radius:50%;background:currentColor;opacity:.5;display:inline-block;flex-shrink:0"></span>≤50% Sangat Rendah</span>
-              <span class="skala-sumber" style="font-size:.68rem;color:var(--teks-muted);font-style:italic;white-space:nowrap;padding-left:10px;margin-left:4px;border-left:1px solid var(--abu-2, #e2e8f0)">Sumber: Lampiran Permendagri No. 86 Tahun 2017</span>
-            </div>
+          </div>
+          <!-- Skala Nilai Permendagri 86/2017 -->
+          <div class="skala-nilai-row" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;row-gap:8px">
+            <span class="skala-label" style="font-size:.65rem;font-weight:700;color:var(--teks);white-space:nowrap;margin-right:6px">Skala Nilai Peringkat Kinerja:</span>
+            <span class="skala-badge" style="display:flex;align-items:center;gap:5px;padding:4px 10px;border-radius:20px;background:#4ade80;border:1px solid #22c55e;font-size:.65rem;font-weight:700;color:#14532d;white-space:nowrap"><span style="width:8px;height:8px;border-radius:50%;background:currentColor;opacity:.5;display:inline-block;flex-shrink:0"></span>91–100% Sangat Tinggi</span>
+            <span class="skala-badge" style="display:flex;align-items:center;gap:5px;padding:4px 10px;border-radius:20px;background:#bbf7d0;border:1px solid #6ee7b7;font-size:.65rem;font-weight:700;color:#14532d;white-space:nowrap"><span style="width:8px;height:8px;border-radius:50%;background:currentColor;opacity:.5;display:inline-block;flex-shrink:0"></span>76–90% Tinggi</span>
+            <span class="skala-badge" style="display:flex;align-items:center;gap:5px;padding:4px 10px;border-radius:20px;background:#fef9c3;border:1px solid #fde047;font-size:.65rem;font-weight:700;color:#854d0e;white-space:nowrap"><span style="width:8px;height:8px;border-radius:50%;background:currentColor;opacity:.5;display:inline-block;flex-shrink:0"></span>66–75% Sedang</span>
+            <span class="skala-badge" style="display:flex;align-items:center;gap:5px;padding:4px 10px;border-radius:20px;background:#ffedd5;border:1px solid #fdba74;font-size:.65rem;font-weight:700;color:#9a3412;white-space:nowrap"><span style="width:8px;height:8px;border-radius:50%;background:currentColor;opacity:.5;display:inline-block;flex-shrink:0"></span>51–65% Rendah</span>
+            <span class="skala-badge" style="display:flex;align-items:center;gap:5px;padding:4px 10px;border-radius:20px;background:#fee2e2;border:1px solid #fca5a5;font-size:.65rem;font-weight:700;color:#991b1b;white-space:nowrap"><span style="width:8px;height:8px;border-radius:50%;background:currentColor;opacity:.5;display:inline-block;flex-shrink:0"></span>≤50% Sangat Rendah</span>
+            <span class="skala-sumber" style="font-size:.68rem;color:var(--teks-muted);font-style:italic;white-space:nowrap;padding-left:10px;margin-left:4px;border-left:1px solid var(--abu-2, #e2e8f0)">Sumber: Lampiran Permendagri No. 86 Tahun 2017</span>
           </div>
           <!-- Countdown timer periode input SPM -->
           <div id="spmCountdownBar" style="display:none"></div>
-
-          <!-- Info banner akumulasi Jumlah SPM -->
-          <div id="spmAkumulasiInfo" style="display:none;align-items:center;gap:10px;margin-top:6px;padding:9px 14px;background:linear-gradient(90deg,#f0fdfa 0%,#ccfbf1 100%);border:1.5px solid #5eead4;border-radius:10px;font-size:.72rem;font-weight:600;color:#0f766e;line-height:1.4">
-            <span class="akumulasi-info-icon" style="display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;background:#fde68a;border-radius:50%;flex-shrink:0">
-              <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="#b45309" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
-            </span>
-            <span>
-              Terdapat <strong id="spmAkumulasiCount"></strong> indikator bertipe <strong>"Jumlah..."</strong> pada halaman ini.
-              Nilai <strong>Capaian</strong> yang ditampilkan adalah <strong>akumulasi</strong> dari Januari s.d. bulan yang dipilih.
-            </span>
-          </div>
-
-          <!-- Selector Bulan SPM -->
-          <div id="spmBulanSelector" class="seg-bulan-wrap" style="margin-top:8px">
-          <button class="bulan-btn" data-bulan="1"  onclick="setSpmBulan(1)">Januari</button>
-          <button class="bulan-btn" data-bulan="2"  onclick="setSpmBulan(2)">Februari</button>
-          <button class="bulan-btn" data-bulan="3"  onclick="setSpmBulan(3)">Maret</button>
-          <button class="bulan-btn" data-bulan="4"  onclick="setSpmBulan(4)">April</button>
-          <button class="bulan-btn" data-bulan="5"  onclick="setSpmBulan(5)">Mei</button>
-          <button class="bulan-btn" data-bulan="6"  onclick="setSpmBulan(6)">Juni</button>
-          <button class="bulan-btn" data-bulan="7"  onclick="setSpmBulan(7)">Juli</button>
-          <button class="bulan-btn" data-bulan="8"  onclick="setSpmBulan(8)">Agustus</button>
-          <button class="bulan-btn" data-bulan="9"  onclick="setSpmBulan(9)">September</button>
-          <button class="bulan-btn" data-bulan="10" onclick="setSpmBulan(10)">Oktober</button>
-          <button class="bulan-btn" data-bulan="11" onclick="setSpmBulan(11)">November</button>
-          <button class="bulan-btn" data-bulan="12" onclick="setSpmBulan(12)">Desember</button>
-          </div>
         </div><!-- /periode+bulan wrapper -->
         <!-- Tabel rekap SPM -->
-        <div class="card" style="padding:0;overflow:auto;-webkit-overflow-scrolling:touch">
+        <div class="kinerja-table-wrap card" style="padding:0">
           <table class="kinerja-table">
             <thead>
               <tr>
@@ -938,6 +860,18 @@
                 <option value="">Semua Tahun</option>
               </select>
             </div>
+            <div class="select-wrap" style="min-width:170px">
+              <select id="indikatorSort" onchange="filterIndikator()">
+                <option value="urutan">Urutan Default</option>
+                <option value="jenis_kinerja">Jenis Kinerja</option>
+                <option value="nama_asc">Nama (A-Z)</option>
+                <option value="nama_desc">Nama (Z-A)</option>
+                <option value="terbaru">Input Terbaru</option>
+                <option value="terlama">Input Terlama</option>
+                <option value="target_desc">Target Tertinggi</option>
+                <option value="target_asc">Target Terendah</option>
+              </select>
+            </div>
             <div class="select-wrap" style="min-width:140px">
               <select id="indikatorFilterJenis" onchange="filterIndikator()">
                 <option value="">Semua Jenis</option>
@@ -965,12 +899,12 @@
               Download Indikator
             </button>
           </div>
-          <div class="card" style="padding:0;overflow:auto;-webkit-overflow-scrolling:touch">
+          <div class="kinerja-table-wrap card" style="padding:0">
             <table class="kinerja-table indikator-admin-table">
               <thead>
                 <tr>
-                  <th>No</th>
-                  <th>Indikator Kinerja</th>
+                  <th style="width:34px;text-align:center;position:sticky;left:0;z-index:3">No</th>
+                  <th style="min-width:200px;position:sticky;left:34px;z-index:3">Indikator Kinerja</th>
                   <th>Satuan</th>
                   <th id="thTarget">Target</th>
                   <th>Bidang / Sub Bagian</th>
@@ -1020,7 +954,7 @@
               Tambah Urusan
             </button>
           </div>
-          <div class="card" style="padding:0;overflow:auto;-webkit-overflow-scrolling:touch">
+          <div class="kinerja-table-wrap card" style="padding:0">
             <table class="kinerja-table indikator-admin-table">
               <thead>
                 <tr>
@@ -1152,7 +1086,7 @@
         <div id="monPJCards"></div>
 
         <!-- Tabel detail -->
-        <div class="card" style="padding:0;overflow:auto;-webkit-overflow-scrolling:touch">
+        <div class="kinerja-table-wrap card" style="padding:0">
           <table class="kinerja-table" style="min-width:900px">
             <thead>
               <tr id="monTableHeadRow">
@@ -1339,6 +1273,12 @@
               <option value="spm">SPM</option>
             </select>
           </div>
+          <div class="select-wrap lap-kinerja-scope" id="laporanKinerjaScopeWrap" style="display:none">
+            <select id="laporanKinerjaScope" onchange="loadLaporanKinerja()">
+              <option value="mine">Indikator Saya</option>
+              <option value="bidang">Semua Indikator Bidang</option>
+            </select>
+          </div>
           <div class="select-wrap lap-kinerja-bidang">
             <select id="laporanKinerjaBidang" onchange="_filterLaporanKinerjaByBidang()">
               <option value="">Semua Bidang</option>
@@ -1356,7 +1296,7 @@
 
         <!-- Tabel Rekap Indikator -->
         <div class="card" style="padding:0;overflow:hidden;border-radius:var(--r-lg)">
-          <div style="overflow:auto;-webkit-overflow-scrolling:touch">
+          <div style="overflow:auto;-webkit-overflow-scrolling:touch;max-height:70vh">
           <table class="kinerja-table" style="min-width:1400px">
             <thead id="laporanKinerjaThead" style="background:var(--hijau)">
               <!-- dirender dinamis oleh loadLaporanKinerja() -->
@@ -1810,7 +1750,6 @@
     </div>
     <div class="modal-body">
       <input type="hidden" id="linkId" />
-      <div class="field"><label>Judul *</label><input type="text" id="linkJudul" placeholder="Nama link" /></div>
       <div class="field"><label>URL *</label><input type="url" id="linkUrl" placeholder="https://..." /></div>
       <div class="field"><label>Slug Pendek</label><input type="text" id="linkSlug" placeholder="contoh: laporan-spm" />
         <div class="field-hint">Biarkan kosong jika tidak perlu shortlink. URL: /<span id="slugPreview">—</span></div>
@@ -2138,6 +2077,21 @@
           <div class="select-wrap"><select id="indikatorNegatif">
             <option value="positif">Positif</option>
             <option value="negatif">Negatif</option>
+          </select></div>
+        </div>
+        <div class="field" style="flex:0 0 200px">
+          <label>Tipe Perhitungan <span style="color:var(--merah)">*</span></label>
+          <div class="select-wrap"><select id="indikatorTipePerhitungan" title="Menentukan cara realisasi dihitung setiap bulan, ditampilkan ke user saat mengisi realisasi">
+            <option value="non_kumulatif">Non-Kumulatif</option>
+            <option value="kumulatif">Kumulatif</option>
+            <option value="rata_rata">Rata-rata</option>
+          </select></div>
+        </div>
+        <div class="field" style="flex:0 0 200px">
+          <label>Tipe Nilai <span style="color:var(--merah)">*</span></label>
+          <div class="select-wrap"><select id="indikatorTipeNilai" title="Predikat: realisasi/target diisi lewat dropdown huruf (AA/A/BB/dst), bukan angka bebas">
+            <option value="angka">Angka</option>
+            <option value="predikat">Predikat (AA/A/BB/dst)</option>
           </select></div>
         </div>
         <div class="field" style="flex:0 0 auto;min-width:220px">
@@ -2500,6 +2454,9 @@
 <style>
   #docPreviewPanel { user-select:none; }
   @keyframes spin { from { transform:rotate(0deg); } to { transform:rotate(360deg); } }
+  /* Non-admin cuma butuh laporan flat per-indikator (Capaian Indikator);
+     Monev Kinerja (grouping Tujuan/Sasaran/Program/Kegiatan) khusus admin. */
+  body:not(.is-admin) #btnDownloadLaporanTSP { display:none !important; }
   .dp-topbtn {
     display:flex;align-items:center;justify-content:center;
     width:32px;height:32px;border-radius:8px;border:1px solid rgba(255,255,255,.12);
@@ -2892,7 +2849,7 @@ function _loginShowErr(msg, type = 'warn') {
 </script>
 
 <!-- ════════════════ SCRIPTS ════════════════ -->
-<script src="js/periode_frontend.js?v=8"></script>
+<script src="js/periode_frontend.js?v=12"></script>
 <script>
 /* ── CDTP Teleport: pindahkan panel kalender ke <body> saat dibuka ──────────
    Ini satu-satunya cara yang benar-benar reliable agar panel tidak terpotong
@@ -3039,18 +2996,18 @@ function _loginShowErr(msg, type = 'warn') {
 })();
 </script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/quill/1.3.7/quill.min.js"></script>
-  <script src="js/app.js?v=8"></script>
-<script src="js/dashboard.js?v=8"></script>
-<script src="js/superlink.js?v=8"></script>
-<script src="js/pengumuman_frontend.js?v=8"></script>
-<script src="js/surat.js?v=8"></script>
-<script src="js/users_frontend.js?v=8"></script>
-<script src="js/kinerja.js?v=8"></script>
-<script src="js/laporan.js?v=8"></script>
-<script src="js/struktur_frontend.js?v=8"></script>
-<script src="js/audit_frontend.js?v=8"></script>
-<script src="js/dokumen_publik_frontend.js?v=8"></script>
-<script src="js/profil_frontend.js?v=8"></script>
+  <script src="js/app.js?v=12"></script>
+<script src="js/dashboard.js?v=12"></script>
+<script src="js/superlink.js?v=12"></script>
+<script src="js/pengumuman_frontend.js?v=12"></script>
+<script src="js/surat.js?v=12"></script>
+<script src="js/users_frontend.js?v=12"></script>
+<script src="js/kinerja.js?v=12"></script>
+<script src="js/laporan.js?v=12"></script>
+<script src="js/struktur_frontend.js?v=12"></script>
+<script src="js/audit_frontend.js?v=12"></script>
+<script src="js/dokumen_publik_frontend.js?v=12"></script>
+<script src="js/profil_frontend.js?v=12"></script>
 
 <script>
 /* ═══════════════════════════════════════════════════════════════════════════
@@ -3076,11 +3033,15 @@ function _loginShowErr(msg, type = 'warn') {
     trigger.innerHTML = `<span class="csel-trigger-text placeholder">${_getLabel(sel)}</span>${SVG_CHEV}`;
     wrap.appendChild(trigger);
 
-    // ── Panel ──────────────────────────────────────────────────────────────
+    // ── Panel — dirender floating position:fixed di document.body, bukan nested
+    // di dalam wrap, biar gak ke-clip overflow:hidden container manapun (mis.
+    // .kinerja-table-wrap.card). Posisi dihitung di positionPanel() saat dibuka. ──
     const panel = document.createElement('div');
-    panel.className = 'csel-panel';
+    panel.className = 'csel-panel csel-panel-fixed';
     panel.style.display = 'none';
-    wrap.appendChild(panel);
+    document.body.appendChild(panel);
+    wrap._cselPanel   = panel;   // referensi buat syncCustomSelect() & cleanup
+    panel._cselTrigger = trigger; // referensi balik buat closePanel lintas-closure
 
     function renderOptions() {
       panel.innerHTML = '';
@@ -3124,10 +3085,31 @@ function _loginShowErr(msg, type = 'warn') {
       });
     }
 
+    // Hitung posisi panel relatif viewport (sama pola dgn toggleFormulaPanel di
+    // kinerja.js) — lebar ngikut trigger, flip ke atas kalau kepentok bawah layar.
+    function positionPanel() {
+      const r = trigger.getBoundingClientRect();
+      panel.style.width = r.width + 'px';
+      const pr = panel.getBoundingClientRect();
+      let top = r.bottom + 5;
+      if (top + pr.height > window.innerHeight - 8) top = Math.max(8, r.top - pr.height - 5);
+      const left = Math.max(6, Math.min(r.left, window.innerWidth - pr.width - 6));
+      panel.style.top  = top + 'px';
+      panel.style.left = left + 'px';
+    }
+
     function openPanel() {
       if (_openPanel && _openPanel !== panel) closePanel(_openPanel);
       renderOptions();
+      // Panel dirender di document.body (di luar .select-wrap), jadi selector
+      // scoped semacam .bulan-select-wrap .csel-trigger { font-size:.72rem }
+      // gak pernah nyampe ke panel/option-nya. Samain font-size trigger → panel
+      // di sini biar gak keliatan "beda font" antara teks selected & list opsi.
+      panel.style.fontSize = getComputedStyle(trigger).fontSize;
+      panel.style.visibility = 'hidden';
       panel.style.display = 'block';
+      positionPanel();
+      panel.style.visibility = 'visible';
       trigger.classList.add('open');
       _openPanel = panel;
 
@@ -3139,19 +3121,28 @@ function _loginShowErr(msg, type = 'warn') {
     function closePanel(p) {
       const target = p || panel;
       target.style.display = 'none';
-      const t = target.parentElement?.querySelector('.csel-trigger');
+      const t = target._cselTrigger;
       if (t) t.classList.remove('open');
       if (_openPanel === target) _openPanel = null;
     }
 
     trigger.addEventListener('click', e => {
       e.stopPropagation();
+      if (sel.disabled) return; // hormati <select disabled> — jangan buka panel kalau lagi terkunci
       panel.style.display === 'none' ? openPanel() : closePanel();
     });
+
+    // Sinkronkan tampilan trigger (cursor/opacity) tiap kali sel.disabled berubah
+    // (mis. toggle Edit/Save pada baris predikat kinerja).
+    function syncDisabledLook() {
+      trigger.classList.toggle('csel-disabled', sel.disabled);
+    }
+    syncDisabledLook();
 
     // ── Mutation observer: re-render when options change (innerHTML = ...) ─
     const observer = new MutationObserver(() => {
       updateTrigger();
+      syncDisabledLook();
       if (panel.style.display !== 'none') renderOptions();
     });
     observer.observe(sel, { childList: true, subtree: true, attributes: true });
@@ -3166,15 +3157,31 @@ function _loginShowErr(msg, type = 'warn') {
     return (opt && opt.value === '') ? opt.text : (opt ? opt.text : '— Pilih —');
   }
 
+  // ── Close panel yang lagi terbuka (dipakai outside-click, scroll, resize) ──
+  function _closeOpenPanel() {
+    if (!_openPanel) return;
+    _openPanel.style.display = 'none';
+    const t = _openPanel._cselTrigger;
+    if (t) t.classList.remove('open');
+    _openPanel = null;
+  }
+
   // ── Close on outside click ─────────────────────────────────────────────
-  document.addEventListener('click', () => {
-    if (_openPanel) {
-      _openPanel.style.display = 'none';
-      const t = _openPanel.parentElement?.querySelector('.csel-trigger');
-      if (t) t.classList.remove('open');
-      _openPanel = null;
-    }
-  });
+  document.addEventListener('click', _closeOpenPanel);
+
+  // Panel dirender position:fixed berdasar getBoundingClientRect() saat dibuka;
+  // kalau ada scroll DI LUAR panel (mis. scroll horizontal .kinerja-table-wrap.card
+  // atau scroll body) posisinya jadi basi — tutup aja, sama seperti pola .fx-float-panel.
+  // PENTING: 'scroll' event gak bubble tapi tetap lewat capture phase di window, jadi
+  // scroll DI DALAM panel sendiri (list opsi yg overflow-y:auto) juga ikut ke-capture di
+  // sini — kalau gak dicek e.target, panel bakal langsung ke-close tiap kali user coba
+  // scroll listnya (kesannya "gak bisa discroll"). Makanya di-skip kalau target-nya
+  // masih di dalam panel yang lagi terbuka.
+  window.addEventListener('scroll', (e) => {
+    if (_openPanel && _openPanel.contains(e.target)) return;
+    _closeOpenPanel();
+  }, true);
+  window.addEventListener('resize', _closeOpenPanel);
 
   // ── Init all existing .select-wrap ────────────────────────────────────
   function initAll() {
@@ -3192,7 +3199,7 @@ function _loginShowErr(msg, type = 'warn') {
     const wrap = sel.closest('.select-wrap');
     if (!wrap) return;
     const trigger = wrap.querySelector('.csel-trigger');
-    const panel   = wrap.querySelector('.csel-panel');
+    const panel   = wrap._cselPanel; // panel dirender di document.body, bukan child wrap
     if (!trigger) return;
     const opt = sel.options[sel.selectedIndex];
     const textEl = trigger.querySelector('.csel-trigger-text');

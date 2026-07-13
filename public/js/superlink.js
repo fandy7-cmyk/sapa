@@ -113,7 +113,6 @@ async function loadLinks() {
 
 function openLinkModal(id) {
   document.getElementById('linkId').value = '';
-  document.getElementById('linkJudul').value = '';
   document.getElementById('linkUrl').value = '';
   document.getElementById('linkSlug').value = '';
   document.getElementById('linkAktif').checked = true;
@@ -130,7 +129,6 @@ function openLinkModal(id) {
 function editLink(id) {
   const l = _links.find(x => x.id === id); if (!l) return;
   document.getElementById('linkId').value = l.id;
-  document.getElementById('linkJudul').value = l.judul;
   document.getElementById('linkUrl').value = l.url;
   document.getElementById('linkSlug').value = l.slug_pendek || '';
   document.getElementById('linkAktif').checked = l.aktif === true || l.aktif === 'true';
@@ -153,15 +151,25 @@ document.getElementById('linkSlug').addEventListener('input', function() {
   _checkLinkSlugDebounced();
 });
 
+function _autoJudulLink(url, slug) {
+  if (slug) return slug;
+  try {
+    const u = new URL(url);
+    return u.hostname.replace(/^www\./, '');
+  } catch { return (url || '').slice(0, 40) || 'Link'; }
+}
+
 async function saveLink() {
   const id  = document.getElementById('linkId').value;
+  const url  = document.getElementById('linkUrl').value.trim();
+  const slug = document.getElementById('linkSlug').value.trim() || null;
   const body = {
-    judul:      document.getElementById('linkJudul').value.trim(),
-    url:        document.getElementById('linkUrl').value.trim(),
+    judul:      _autoJudulLink(url, slug),
+    url,
     aktif:      document.getElementById('linkAktif').checked,
-    slug_pendek:document.getElementById('linkSlug').value.trim() || null,
+    slug_pendek:slug,
   };
-  if (!body.judul || !body.url) { toast('Judul dan URL wajib diisi', 'error'); return; }
+  if (!body.url) { toast('URL wajib diisi', 'error'); return; }
   if (!_linkSlugAvailable) { toast('Slug pendek sudah digunakan, ganti dulu', 'error'); return; }
   try {
     const r = await fetch(id ? `/api/links/${id}` : '/api/links', {
@@ -221,11 +229,10 @@ function renderShortlinks() {
   const slice = _slFiltered.slice(start, start + _slPageSize);
   tb.innerHTML = slice.length ? slice.map(l => `
     <tr>
-      <td><span style="display:inline-flex;align-items:center;gap:6px"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"/></svg> <strong>${esc(l.judul)}</strong></span></td>
       <td><a href="${esc(l.url)}" target="_blank" style="color:var(--hijau);font-size:.75rem">${esc(l.url.length>35?l.url.slice(0,35)+'…':l.url)}</a></td>
       <td>${l.slug_pendek ? `
-        <code style="font-size:.78rem;background:var(--abu-1);padding:2px 7px;border-radius:5px">/${esc(l.slug_pendek)}</code>
-        <button class="btn btn-ghost btn-sm" style="margin-left:4px" title="Salin URL" onclick="copySlug('${esc(l.slug_pendek)}')"><svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path stroke-linecap="round" stroke-linejoin="round" d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg></button>
+        <code style="font-size:.75rem;font-weight:600;background:var(--abu-1);padding:2px 7px;border-radius:5px;font-family:'Plus Jakarta Sans',sans-serif">/${esc(l.slug_pendek)}</code>
+        <button class="btn btn-ghost btn-sm" style="margin-left:4px" data-tip="Salin URL" onclick="copySlug('${esc(l.slug_pendek)}')"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="12" height="12" rx="2.5"/><path d="M15 5H6a2 2 0 0 0-2 2v9"/></svg></button>
       ` : '<span style="color:var(--teks-muted)">—</span>'}</td>
       <td><span class="badge badge-blue">${l.total_klik ?? 0}</span></td>
       <td><span class="badge ${l.aktif?'badge-green':'badge-red'}">${l.aktif?'Aktif':'Nonaktif'}</span></td>
@@ -233,7 +240,7 @@ function renderShortlinks() {
       <td style="white-space:nowrap"><button class="btn btn-ghost btn-sm" title="Edit" onclick="editLink(${l.id})"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg></button>
           <button class="btn btn-danger btn-sm" title="Hapus" onclick="deleteLink(${l.id})"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path stroke-linecap="round" stroke-linejoin="round" d="M19 6l-1 14H6L5 6"/><path stroke-linecap="round" stroke-linejoin="round" d="M10 11v6m4-6v6"/><path stroke-linecap="round" stroke-linejoin="round" d="M9 6V4h6v2"/></svg></button></td>
     </tr>`).join('')
-    : '<tr class="empty-row"><td colspan="7">Tidak ada link</td></tr>';
+    : '<tr class="empty-row"><td colspan="6">Tidak ada link</td></tr>';
   renderPagination('slPagination', _slFiltered.length, _slPage, _slPageSize, 'goSlPage');
 }
 
@@ -281,8 +288,8 @@ function renderBundles() {
     <tr>
       <td><strong>${esc(b.judul)}</strong></td>
       <td>
-        <code style="font-size:.75rem;background:var(--abu-1);padding:2px 6px;border-radius:5px">/${esc(b.slug)}</code>
-        <button class="btn btn-ghost btn-sm" style="margin-left:4px" title="Salin URL" onclick="copyBundleUrl('${esc(b.slug)}')"><svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path stroke-linecap="round" stroke-linejoin="round" d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg></button>
+        <code style="font-size:.75rem;font-weight:600;background:var(--abu-1);padding:2px 6px;border-radius:5px;font-family:'Plus Jakarta Sans',sans-serif">/${esc(b.slug)}</code>
+        <button class="btn btn-ghost btn-sm" style="margin-left:4px" data-tip="Salin URL" onclick="copyBundleUrl('${esc(b.slug)}')"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="12" height="12" rx="2.5"/><path d="M15 5H6a2 2 0 0 0-2 2v9"/></svg></button>
       </td>
       <td>${b.jumlah_item ?? 0} item</td>
       <td><span class="badge ${b.aktif?'badge-green':'badge-red'}">${b.aktif?'Aktif':'Nonaktif'}</span></td>

@@ -691,6 +691,7 @@ async function processFile(prefix, file) {
   try {
     const formData = new FormData();
     formData.append('file', file);
+    formData.append('kategori', prefix === 'sk' ? 'surat_keluar' : 'surat_masuk');
     const r = await fetch('/api/upload', {
       method: 'POST',
       headers: { 'Authorization': authHeaders()['Authorization'] },

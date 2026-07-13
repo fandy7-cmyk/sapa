@@ -21,18 +21,19 @@
     .lap-mp-cell:hover:not(.disabled) { background:#f0fdfa; color:#0d9488; }
     .lap-mp-cell.active { background:#0d9488; color:#fff !important; }
     .lap-mp-cell.disabled { color:#cbd5e1; cursor:default; }
-    .lap-range-filter { display:flex; align-items:center; gap:10px; flex-wrap:wrap; width:100%; }
-    .lap-range-icon { display:flex; flex-shrink:0; }
-    .lap-range-group { display:flex; align-items:center; gap:8px; flex:0 1 auto; min-width:0; }
-    .lap-range-label { font-size:0.72rem; font-weight:600; color:#94a3b8; white-space:nowrap; flex-shrink:0; }
-    .lap-range-group .lap-mp { flex:1 1 auto; min-width:0; }
+    .lap-range-filter { display:inline-flex; align-items:center; gap:8px; flex-wrap:wrap; width:fit-content; max-width:100%; padding:5px 10px 5px 8px; background:#f8fafc; border:1.5px solid #e2e8f0; border-radius:10px; box-sizing:border-box; }
+    .lap-range-icon { display:flex; align-items:center; justify-content:center; flex-shrink:0; width:26px; height:26px; border-radius:7px; background:#f0fdfa; color:#0d9488; }
+    .lap-range-icon svg { width:15px; height:15px; }
+    .lap-range-group { display:flex; align-items:center; gap:7px; flex:0 1 auto; min-width:0; }
+    .lap-range-label { font-size:0.72rem; font-weight:700; color:#64748b; white-space:nowrap; flex-shrink:0; }
+    .lap-range-group .lap-mp { flex:1 1 auto; min-width:0; border-color:transparent; background:#fff; }
     @media (max-width: 900px) {
-      .lap-range-icon { display:none; }
-      .lap-range-filter { width:100%; }
-      .lap-range-group { flex:1 1 calc(50% - 5px); }
+      .lap-range-filter { width:100%; max-width:100%; }
+      .lap-range-group { flex:1 1 calc(50% - 30px); }
     }
     @media (max-width: 480px) {
-      .lap-range-filter { gap:6px; flex-wrap:nowrap; }
+      .lap-range-filter { gap:6px; flex-wrap:nowrap; padding:5px 8px; }
+      .lap-range-icon { display:none; }
       .lap-range-group { flex:1 1 50%; min-width:0; }
       .lap-range-label { font-size:0.66rem; }
       .lap-mp { min-width:0; width:100%; padding:6px 8px; box-sizing:border-box; gap:4px; }
@@ -318,19 +319,31 @@ function _lapKinerjaRowHtml(r, no, bulanTampil) {
     : parseFloat(r._capaian) >= 100 ? '#059669'
     : parseFloat(r._capaian) >= 80  ? '#2563eb'
     : parseFloat(r._capaian) >= 60  ? '#d97706' : '#dc2626';
+  const negBadge = r.bermakna_negatif
+    ? `<span data-tip="Bermakna Negatif" data-tip-variant="danger" style="display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;background:#fee2e2;border-radius:50%;margin-left:5px;vertical-align:middle;flex-shrink:0"><svg xmlns="http://www.w3.org/2000/svg" width="9" height="9" fill="none" viewBox="0 0 24 24" stroke="#991b1b" stroke-width="2.8"><path stroke-linecap="round" stroke-linejoin="round" d="M19 14l-7 7m0 0l-7-7m7 7V3"/></svg></span>`
+    : `<span data-tip="Bermakna Positif" data-tip-variant="success" style="display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;background:#d1fae5;border-radius:50%;margin-left:5px;vertical-align:middle;flex-shrink:0"><svg xmlns="http://www.w3.org/2000/svg" width="9" height="9" fill="none" viewBox="0 0 24 24" stroke="#065f46" stroke-width="2.8"><path stroke-linecap="round" stroke-linejoin="round" d="M5 10l7-7m0 0l7 7m-7-7v18"/></svg></span>`;
+  const tipeBadge = typeof _tipeBadge === 'function' ? _tipeBadge(r.tipe_perhitungan) : '';
+  const jenisBadges = [
+    r.jenis_monev ? `<span style="background:#dbeafe;color:#1d4ed8;border-radius:4px;padding:1px 5px;font-size:.63rem;font-weight:700">IKU</span>` : '',
+    r.jenis_ikk   ? `<span style="background:#ede9fe;color:#7c3aed;border-radius:4px;padding:1px 5px;font-size:.63rem;font-weight:700">IKK</span>`   : '',
+    r.jenis_spm   ? `<span style="background:#fef3c7;color:#b45309;border-radius:4px;padding:1px 5px;font-size:.63rem;font-weight:700">SPM</span>`   : '',
+  ].filter(Boolean).join('');
   return `<tr>
-    <td style="text-align:center">${no}</td>
-    <td>${r.nama_indikator}</td>
+    <td class="td-sticky-no" style="text-align:center;position:sticky;left:0;z-index:3">${no}</td>
+    <td class="td-sticky-name" style="position:sticky;left:34px;z-index:3">
+      <div style="font-weight:600;line-height:1.6"><span>${r.nama_indikator}</span>${negBadge}</div>
+      <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:5px">${tipeBadge}${jenisBadges}</div>
+    </td>
     <td style="text-align:center;color:#000000">${r.target ?? '—'}</td>
     <td style="text-align:center;color:#000000">${r.satuan || '—'}</td>
     <td style="font-size:.75rem;color:${r.penanggung_jawab?'#1e293b':'#94a3b8'}">${r.penanggung_jawab || '—'}</td>
     ${bulanCells}
     <td style="text-align:center;font-weight:600;color:${sdPelaporan==='—'?'#000000':'#1e293b'}">${sdPelaporan}</td>
     <td style="text-align:center;font-weight:700;color:${capColor}">${capaian}</td>
-    <td style="font-size:.75rem;color:${r._fpenghambat?'#1e293b':'#000000'}">${r._fpenghambat || '—'}</td>
-    <td style="font-size:.75rem;color:${r._solusi?'#1e293b':'#000000'}">${r._solusi || '—'}</td>
-    <td style="font-size:.75rem;color:${r._fpendukung?'#1e293b':'#000000'}">${r._fpendukung || '—'}</td>
-    <td style="font-size:.75rem;color:${r._rencana_tl?'#1e293b':'#000000'}">${r._rencana_tl || '—'}</td>
+    <td style="font-size:.75rem;color:${r._fpenghambat?'#1e293b':'#000000'};max-width:180px;white-space:normal;word-break:break-word;overflow-wrap:anywhere">${r._fpenghambat || '—'}</td>
+    <td style="font-size:.75rem;color:${r._solusi?'#1e293b':'#000000'};max-width:180px;white-space:normal;word-break:break-word;overflow-wrap:anywhere">${r._solusi || '—'}</td>
+    <td style="font-size:.75rem;color:${r._fpendukung?'#1e293b':'#000000'};max-width:180px;white-space:normal;word-break:break-word;overflow-wrap:anywhere">${r._fpendukung || '—'}</td>
+    <td style="font-size:.75rem;color:${r._rencana_tl?'#1e293b':'#000000'};max-width:180px;white-space:normal;word-break:break-word;overflow-wrap:anywhere">${r._rencana_tl || '—'}</td>
   </tr>`;
 }
 
@@ -525,7 +538,7 @@ function _lapRenderRangeFilter(tahunList) {
   container.innerHTML = `
     <div class="lap-range-filter">
       <span class="lap-range-icon">
-        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="#94a3b8" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 4a1 1 0 011-1h1m0 0V2m0 1h12m0 0V2m0 1h1a1 1 0 011 1v3H3V4zm0 4h18v11a1 1 0 01-1 1H4a1 1 0 01-1-1V8z"/></svg>
+        <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M8 2v3M16 2v3M3.5 9h17M5 4.5h14A1.5 1.5 0 0 1 20.5 6v13a1.5 1.5 0 0 1-1.5 1.5H5A1.5 1.5 0 0 1 3.5 19V6A1.5 1.5 0 0 1 5 4.5Z"/></svg>
       </span>
       <div class="lap-range-group">
         <span class="lap-range-label">Dari</span>
@@ -604,6 +617,7 @@ function _showLaporanLoading() {
 async function loadLaporanKinerja() {
   _showLaporanLoading();
   await _initLaporanKinerjaFilter();
+  if (!_user?.is_admin && typeof _ensureUserIndikatorIds === 'function') await _ensureUserIndikatorIds();
 
   // Ambil tahun dari range (gunakan tahun dari, atau fallback ke select)
   const bulanDari   = _lapRangeFrom?.bulan   ?? 1;
@@ -660,7 +674,43 @@ async function loadLaporanKinerja() {
     });
   }
 
-  const rows = Object.values(allBulanData);
+  let rows = Object.values(allBulanData);
+
+  // Non-admin: defaultnya cuma boleh lihat indikator yang di-assign ke akun-nya.
+  // Tapi user bisa switch ke "Semua di Bidang Saya" lewat dropdown laporanKinerjaScope
+  // untuk lihat semua indikator (bukan cuma miliknya) di bidang yang sama dengan
+  // indikator-indikator yang jadi tanggung jawabnya.
+  let _lapScopeBidangSet = null; // dipakai lagi di bawah utk tentuin visibility dropdown scope
+  if (!_user?.is_admin) {
+    const myRows = (_userIndikatorIds && _userIndikatorIds.size > 0)
+      ? rows.filter(row => _userIndikatorIds.has(Number(row.id)))
+      : [];
+    _lapScopeBidangSet = new Set(myRows.map(r => r.penanggung_jawab).filter(Boolean));
+
+    const scopeSel = document.getElementById('laporanKinerjaScope');
+    const scope = scopeSel?.value || 'mine';
+    if (scope === 'bidang' && _lapScopeBidangSet.size > 0) {
+      rows = rows.filter(row => _lapScopeBidangSet.has(row.penanggung_jawab));
+    } else {
+      rows = myRows;
+    }
+
+    // Dropdown scope cuma relevan kalau bidang si-user beranggotakan indikator
+    // lain di luar miliknya sendiri — kalau enggak, "Semua di Bidang Saya" bakal
+    // sama persis hasilnya dgn "Tanggung Jawab Saya", jadi disembunyikan aja.
+    const scopeWrap = document.getElementById('laporanKinerjaScopeWrap');
+    if (scopeWrap) {
+      const bidangRowsCount = _lapScopeBidangSet.size > 0
+        ? Object.values(allBulanData).filter(r => _lapScopeBidangSet.has(r.penanggung_jawab)).length
+        : 0;
+      const showScope = _lapScopeBidangSet.size > 0 && bidangRowsCount > myRows.length;
+      scopeWrap.style.display = showScope ? '' : 'none';
+      if (!showScope && scopeSel) scopeSel.value = 'mine';
+    }
+  } else {
+    const scopeWrap = document.getElementById('laporanKinerjaScopeWrap');
+    if (scopeWrap) scopeWrap.style.display = 'none';
+  }
 
   // Hitung realisasi & capaian s.d bulan pelaporan (bulan terakhir yang ada data)
   const fmtNum = v => {
@@ -746,9 +796,9 @@ async function loadLaporanKinerja() {
   const thead = document.getElementById('laporanKinerjaThead');
   if (thead) {
     thead.innerHTML = `
-      <tr style="background:var(--hijau)">
-        <th rowspan="2" style="width:34px;text-align:center">No</th>
-        <th rowspan="2" style="min-width:200px">Indikator Kinerja</th>
+      <tr class="lap-th-row1" style="background:var(--hijau)">
+        <th rowspan="2" style="width:34px;text-align:center;position:sticky;left:0;z-index:3">No</th>
+        <th rowspan="2" style="min-width:220px;position:sticky;left:34px;z-index:3">Indikator Kinerja</th>
         <th rowspan="2" style="width:65px;text-align:center">Target Tahunan</th>
         <th rowspan="2" style="width:55px;text-align:center">Satuan</th>
         <th rowspan="2" style="min-width:130px">Bidang / Sub Bagian</th>
@@ -760,7 +810,7 @@ async function loadLaporanKinerja() {
         <th rowspan="2" style="min-width:100px">Faktor Pendukung</th>
         <th rowspan="2" style="min-width:100px">Rencana Tindak Lanjut</th>
       </tr>
-      <tr style="background:var(--hijau)">${bulanSubHeaders}</tr>`;
+      <tr class="lap-th-row2" style="background:var(--hijau)">${bulanSubHeaders}</tr>`;
     // Fix gap putih di pojok thead: set teal di table, reset di tbody
     const teal = getComputedStyle(document.documentElement).getPropertyValue('--hijau').trim() || '#0d9488';
     thead.style.background = teal;
@@ -772,22 +822,97 @@ async function loadLaporanKinerja() {
       const tb = tbl.querySelector('tbody');
       if (tb) { tb.style.background = '#fff'; tb.style.backgroundColor = '#fff'; }
     }
+    // Baris 2 (nama bulan) harus sticky NEMPEL DI BAWAH baris 1 (TW), bukan
+    // top:0 juga — kalau top:0 dua-duanya, pas discroll baris bulan numpuk
+    // balik ke atas nabrak baris TW alih-alih nempel di bawahnya.
+    // Tinggi baris 1 diukur dinamis (bukan hardcode) karena tergantung
+    // konten (mis. "Indikator Kinerja" bisa wrap 2 baris di layar sempit).
+    const row1 = thead.querySelector('tr.lap-th-row1');
+    const row2 = thead.querySelector('tr.lap-th-row2');
+    if (row1 && row2) {
+      requestAnimationFrame(() => {
+        const h1 = row1.getBoundingClientRect().height;
+        row2.querySelectorAll('th').forEach(th => { th.style.top = h1 + 'px'; });
+      });
+    }
   }
 
-  _lapKinerjaPage = 1;
-  _lapRenderKinerjaTbody(rows, bulanTampil, colspanTotal, 'Tidak ada data');
+  // ── Sesuaikan dropdown Jenis untuk user non-admin: hanya tampilkan jenis
+  //    (IKU/IKK/SPM) yang benar-benar menjadi tanggung jawab user, berdasarkan
+  //    hasil fetch "Semua Jenis" (baseline lengkap sebelum difilter jenis tertentu) ──
+  if (!_user?.is_admin && jenis === 'semua') {
+    const jenisSel = document.getElementById('laporanKinerjaJenis');
+    if (jenisSel) {
+      const present  = new Set(rows.map(r => r._jenis));
+      const optsMap  = [['kinerja', 'IKU'], ['ikk', 'IKK'], ['spm', 'SPM']];
+      const relevant = optsMap.filter(([, label]) => present.has(label));
+      let optsHtml = relevant.length > 1 ? `<option value="semua">Semua Jenis</option>` : '';
+      optsHtml += relevant.map(([val, label]) => `<option value="${val}">${label}</option>`).join('');
+      if (optsHtml && jenisSel.innerHTML !== optsHtml) {
+        const cur = jenisSel.value;
+        jenisSel.innerHTML = optsHtml;
+        jenisSel.value = [...jenisSel.options].some(o => o.value === cur) ? cur : (relevant[0]?.[0] || 'semua');
+      }
+      // Kalau cuma 1 jenis, kunci dropdown-nya (tetap kelihatan nilainya) alih-alih disembunyikan,
+      // biar user tetap tau laporan yang sedang ditampilkan itu jenis apa.
+      jenisSel.disabled = relevant.length <= 1;
+      if (typeof syncCustomSelect === 'function') syncCustomSelect('laporanKinerjaJenis');
+    }
+  } else if (_user?.is_admin) {
+    const jenisSel = document.getElementById('laporanKinerjaJenis');
+    if (jenisSel) jenisSel.disabled = false;
+  }
 
-  window._laporanKinerjaData = { rows, tahun, bulanPelaporan, bulanDari, bulanSampai, jenis };
-
-  // ── Populate dropdown bidang ──
+  // ── Populate dropdown Bidang. Untuk non-admin: opsi cuma bidang yang ada di
+  //    antara indikator yang di-assign ke dia (rows sudah di-scope di atas).
+  //    Kalau cuma 1 bidang, langsung ke-select otomatis & dropdown dikunci (disabled) ──
   const bidangSel = document.getElementById('laporanKinerjaBidang');
+  // Dropdown Bidang tetap tampil, tapi cuma untuk admin; non-admin sudah digantikan
+  // dropdown scope "Tanggung Jawab Saya" / "Semua di Bidang Saya".
+  const bidangWrapEl = bidangSel?.closest('.select-wrap');
+  if (!_user?.is_admin) {
+    if (bidangWrapEl) bidangWrapEl.style.display = 'none';
+  } else {
+    if (bidangWrapEl) bidangWrapEl.style.display = '';
+  }
   if (bidangSel) {
     const currentBidang = bidangSel.value;
     const bidangList = [...new Set(rows.map(r => r.penanggung_jawab).filter(Boolean))].sort();
-    bidangSel.innerHTML = `<option value="">Semua Bidang</option>` +
+    const optsHtml = `<option value="">Semua Bidang</option>` +
       bidangList.map(b => `<option value="${b}"${b === currentBidang ? ' selected' : ''}>${b}</option>`).join('');
-    if (typeof syncCustomSelect === 'function') syncCustomSelect('laporanKinerjaBidang');
+    if (bidangSel.innerHTML !== optsHtml) {
+      bidangSel.innerHTML = optsHtml;
+      if ([...bidangSel.options].some(o => o.value === currentBidang)) bidangSel.value = currentBidang;
+    }
+    if (!_user?.is_admin) {
+      if (bidangList.length <= 1) bidangSel.value = bidangList[0] || '';
+      // Kalau cuma 1 bidang, kunci dropdown-nya (tetap kelihatan nilainya) alih-alih disembunyikan.
+      bidangSel.disabled = bidangList.length <= 1;
+    } else {
+      bidangSel.disabled = false;
+    }
+    // Rebuild custom select widget dari nol (bukan cuma sync nilai terpilih) supaya
+    // daftar opsi Bidang yang baru ikut ter-render di panel dropdown-nya.
+    const bidangWrap = bidangSel.closest('.select-wrap');
+    if (bidangWrap) {
+      bidangWrap.querySelector('.csel-trigger')?.remove();
+      bidangWrap.querySelector('.csel-panel')?.remove();
+      if (typeof window.initCustomSelects === 'function') window.initCustomSelects();
+    } else if (typeof syncCustomSelect === 'function') {
+      syncCustomSelect('laporanKinerjaBidang');
+    }
   }
+
+  window._laporanKinerjaData = { rows, tahun, bulanPelaporan, bulanDari, bulanSampai, jenis };
+
+  const filteredRows = _applyLaporanKinerjaFilters(rows);
+
+  _lapKinerjaPage = 1;
+  const emptyMsg = (!_user?.is_admin && (!_userIndikatorIds || _userIndikatorIds.size === 0))
+    ? 'Belum ada indikator yang di-assign ke akun Anda. Hubungi Admin untuk mengatur assignment indikator.'
+    : 'Tidak ada data untuk filter ini';
+  if (typeof syncCustomSelect === 'function') syncCustomSelect('laporanKinerjaScope');
+  _lapRenderKinerjaTbody(filteredRows, bulanTampil, colspanTotal, emptyMsg);
 }
 
 function _renderKinerjaEmpty(tahun) {
@@ -1089,31 +1214,71 @@ async function _fetchKepalaDinas() {
   } catch { return null; }
 }
 
+// Dipanggil saat dropdown Bidang berubah: refresh tabel.
 function _filterLaporanKinerjaByBidang() {
+  _renderLaporanKinerjaFiltered();
+}
+
+// Terapkan filter Bidang yang sedang aktif ke rows lengkap, lalu render ulang tabel.
+function _renderLaporanKinerjaFiltered() {
   const data = window._laporanKinerjaData;
   if (!data) return;
-  const bidang = document.getElementById('laporanKinerjaBidang')?.value || '';
   const { rows, bulanDari, bulanSampai } = data;
-  const filtered = bidang ? rows.filter(r => r.penanggung_jawab === bidang) : rows;
-
-  const total      = filtered.length;
-  const sudahDiisi = filtered.filter(r => r._realisasiSd !== null && r._realisasiSd !== undefined && r._realisasiSd !== '').length;
-  const belumDiisi = total - sudahDiisi;
-  const capRows    = filtered.filter(r => r._capaian !== null);
-  const rataCapaian = capRows.length
-    ? (capRows.reduce((s, r) => s + parseFloat(r._capaian), 0) / capRows.length).toFixed(1)
-    : '0.0';
+  const filtered = _applyLaporanKinerjaFilters(rows);
 
   const bulanList   = Array.from({length: 12}, (_, i) => i + 1);
   const bulanTampil = bulanList.filter(b => b >= bulanDari && b <= bulanSampai);
   const colspanTotal = 5 + bulanTampil.length + 6;
   _lapKinerjaPage = 1;
-  _lapRenderKinerjaTbody(filtered, bulanTampil, colspanTotal, 'Tidak ada data untuk bidang ini');
+  _lapRenderKinerjaTbody(filtered, bulanTampil, colspanTotal, 'Tidak ada data untuk filter ini');
 }
+
+// Filter rows berdasarkan pilihan dropdown Bidang yang sedang aktif.
+function _applyLaporanKinerjaFilters(rows) {
+  const bidangValue = document.getElementById('laporanKinerjaBidang')?.value || '';
+  return bidangValue ? rows.filter(r => r.penanggung_jawab === bidangValue) : rows;
+}
+
 // ══════════════════════════════════════════════════════
 //  DOWNLOAD LAPORAN PER URUSAN — PDF
 //  Struktur: header urusan + baris indikator (sama seperti laporan utama)
 // ══════════════════════════════════════════════════════
+
+// Render baris <tr> untuk satu indikator pada tabel PDF Capaian/Monev Kinerja.
+// Dipakai baik di mode ter-grouping (per Urusan/TSP, untuk admin) maupun mode
+// flat langsung dari data.rows (untuk non-admin, tanpa perlu template).
+function _lapKinerjaPdfRowHtml(r, no, displayCols, namaIndikatorOverride) {
+  const bulanCells = displayCols.map(c => {
+    const v = c.type === 'tw' ? r.realisasiPerBulan?.[c.lastBulan] : r.realisasiPerBulan?.[c.bulan];
+    const empty = v === null || v === undefined || v === '';
+    return `<td style="padding:3px 2px;border:1px solid #000;text-align:center;vertical-align:top;font-size:10px;color:${empty ? '#000000' : '#1e293b'}">${empty ? '—' : v}</td>`;
+  }).join('');
+  const capColor = r._capaian === null ? '#000000'
+    : parseFloat(r._capaian) >= 100 ? '#059669'
+    : parseFloat(r._capaian) >= 80  ? '#2563eb'
+    : parseFloat(r._capaian) >= 60  ? '#d97706' : '#dc2626';
+  return `<tr>
+    <td style="padding:4px 5px;border:1px solid #000;text-align:center;vertical-align:top;font-size:10px;color:#000000;min-width:36px;white-space:nowrap">${no}</td>
+    <td style="padding:4px 5px;border:1px solid #000;vertical-align:top;font-size:10px">${namaIndikatorOverride || r.nama_indikator}</td>
+    <td style="padding:4px 3px;border:1px solid #000;text-align:center;vertical-align:top;font-size:10px;color:#000000">${r.target ?? '—'}</td>
+    <td style="padding:4px 3px;border:1px solid #000;text-align:center;vertical-align:top;font-size:10px;color:#000000">${r.satuan || '—'}</td>
+    <td style="padding:4px 5px;border:1px solid #000;text-align:center;vertical-align:top;font-size:10px;color:#1e293b;min-width:110px">${r.penanggung_jawab || '—'}</td>
+    ${bulanCells}
+    <td style="padding:4px 3px;border:1px solid #000;text-align:center;vertical-align:top;font-size:10px;font-weight:700;color:#000000">${r._realisasiSd ?? '—'}</td>
+    <td style="padding:4px 3px;border:1px solid #000;text-align:center;vertical-align:top;font-size:10px;font-weight:700;color:${capColor}">${r._capaian !== null ? r._capaian + '%' : '—'}</td>
+    <td style="padding:4px 5px;border:1px solid #000;text-align:center;vertical-align:top;font-size:10px;max-width:150px;word-break:break-word;overflow-wrap:anywhere">${r._fpenghambat || ''}</td>
+    <td style="padding:4px 5px;border:1px solid #000;text-align:center;vertical-align:top;font-size:10px;max-width:150px;word-break:break-word;overflow-wrap:anywhere">${r._solusi || ''}</td>
+    <td style="padding:4px 5px;border:1px solid #000;text-align:center;vertical-align:top;font-size:10px;max-width:150px;word-break:break-word;overflow-wrap:anywhere">${r._fpendukung || ''}</td>
+    <td style="padding:4px 5px;border:1px solid #000;text-align:center;vertical-align:top;font-size:10px;max-width:150px;word-break:break-word;overflow-wrap:anywhere">${r._rencana_tl || ''}</td>
+  </tr>`;
+}
+
+// Baris flat langsung dari data.rows (tanpa grouping Urusan/TSP) — dipakai untuk non-admin,
+// yang laporannya cuma berisi indikator tanggung jawabnya sendiri jadi grouping gak diperlukan.
+function _lapKinerjaFlatRowsHtml(rows, displayCols) {
+  let no = 0;
+  return rows.map(r => _lapKinerjaPdfRowHtml(r, ++no, displayCols)).join('');
+}
 
 async function downloadLaporanByUrusan(btnEl) {
   const data = window._laporanKinerjaData;
@@ -1121,18 +1286,23 @@ async function downloadLaporanByUrusan(btnEl) {
 
   if (btnEl) { btnEl.disabled = true; btnEl.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="animation:spin 1s linear infinite"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg> Memuat...`; }
   try {
-    // Ambil semua template urusan + indikatornya
-    const res = await fetch('/api/kinerja/laporan-template?jenis=urusan', { headers: authHeaders() });
-    const tplData = await res.json();
-    const templates = tplData.templates || [];
-    if (!templates.length) { toast('Belum ada template Urusan. Buat dulu di Master Data → Kelola Indikator → Kelola Laporan.', 'error'); return; }
+    // Non-admin: langsung tampilkan indikator tanggung jawabnya sendiri (flat),
+    // gak perlu template Urusan yang notabene struktur punya admin/instansi.
+    let tplWithIndikator = null;
+    if (_user?.is_admin) {
+      // Ambil semua template urusan + indikatornya
+      const res = await fetch('/api/kinerja/laporan-template?jenis=urusan', { headers: authHeaders() });
+      const tplData = await res.json();
+      const templates = tplData.templates || [];
+      if (!templates.length) { toast('Belum ada template Urusan. Buat dulu di Master Data → Kelola Indikator → Kelola Laporan.', 'error'); return; }
 
-    // Fetch indikator per template
-    const tplWithIndikator = await Promise.all(templates.map(async t => {
-      const r = await fetch(`/api/kinerja/laporan-template/${t.id}/indikator`, { headers: authHeaders() });
-      const d = await r.json();
-      return { ...t, indikator: d.indikator || [] };
-    }));
+      // Fetch indikator per template
+      tplWithIndikator = await Promise.all(templates.map(async t => {
+        const r = await fetch(`/api/kinerja/laporan-template/${t.id}/indikator`, { headers: authHeaders() });
+        const d = await r.json();
+        return { ...t, indikator: d.indikator || [] };
+      }));
+    }
 
     const { tahun, bulanDari = 1, bulanSampai = 12 } = data;
     const rowMap = {};
@@ -1167,46 +1337,30 @@ async function downloadLaporanByUrusan(btnEl) {
         return `<th colspan="${cols}" ${isLengkapTw ? 'rowspan="2"' : ''} style="color:white;padding:4px 3px;border:1px solid #000;text-align:center;font-size:10px">${tw.tw}</th>`;
       }).join('');
 
-    let no = 0;
-    const rowsHtml = tplWithIndikator.map(tpl => {
-      const headerRow = `<tr style="background:#99f6e4">
-        <td colspan="${5 + displayCols.length + 6}" style="padding:5px 8px;font-size:10px;font-weight:700;color:#000000;border:1px solid #000;text-transform:uppercase;letter-spacing:.3px">
-          ${tpl.nama}
-        </td>
-      </tr>`;
-
-      const indRows = tpl.indikator.map(ind => {
-        const r = data.rows.find(row => row.indikator_id === ind.id || row.id === ind.id);
-        if (!r) return '';
-        no++;
-        const bg = 'white';
-        const bulanCells = displayCols.map(c => {
-          const v = c.type === 'tw' ? r.realisasiPerBulan?.[c.lastBulan] : r.realisasiPerBulan?.[c.bulan];
-          const empty = v === null || v === undefined || v === '';
-          return `<td style="padding:3px 2px;border:1px solid #000;text-align:center;font-size:10px;color:${empty ? '#000000' : '#1e293b'}">${empty ? '—' : v}</td>`;
-        }).join('');
-        const capColor = r._capaian === null ? '#000000'
-          : parseFloat(r._capaian) >= 100 ? '#059669'
-          : parseFloat(r._capaian) >= 80  ? '#2563eb'
-          : parseFloat(r._capaian) >= 60  ? '#d97706' : '#dc2626';
-        return `<tr style="background:${bg}">
-          <td style="padding:4px 5px;border:1px solid #000;text-align:center;font-size:10px;color:#000000;min-width:36px;white-space:nowrap">${no}</td>
-          <td style="padding:4px 5px;border:1px solid #000;font-size:10px">${r.nama_indikator || ind.indikator_kinerja}</td>
-          <td style="padding:4px 3px;border:1px solid #000;text-align:center;font-size:10px;color:#000000">${r.target ?? '—'}</td>
-          <td style="padding:4px 3px;border:1px solid #000;text-align:center;font-size:10px;color:#000000">${r.satuan || '—'}</td>
-          <td style="padding:4px 5px;border:1px solid #000;font-size:10px;color:#1e293b;min-width:110px">${r.penanggung_jawab || '—'}</td>
-          ${bulanCells}
-          <td style="padding:4px 3px;border:1px solid #000;text-align:center;font-size:10px;font-weight:700;color:#000000">${r._realisasiSd ?? '—'}</td>
-          <td style="padding:4px 3px;border:1px solid #000;text-align:center;font-size:10px;font-weight:700;color:${capColor}">${r._capaian !== null ? r._capaian + '%' : '—'}</td>
-          <td style="padding:4px 5px;border:1px solid #000;font-size:10px">${r._fpenghambat || ''}</td>
-          <td style="padding:4px 5px;border:1px solid #000;font-size:10px">${r._solusi || ''}</td>
-          <td style="padding:4px 5px;border:1px solid #000;font-size:10px">${r._fpendukung || ''}</td>
-          <td style="padding:4px 5px;border:1px solid #000;font-size:10px">${r._rencana_tl || ''}</td>
+    let rowsHtml;
+    if (tplWithIndikator) {
+      // Admin: grouping per template Urusan
+      let no = 0;
+      rowsHtml = tplWithIndikator.map(tpl => {
+        const headerRow = `<tr style="background:#99f6e4">
+          <td colspan="${5 + displayCols.length + 6}" style="padding:5px 8px;font-size:10px;font-weight:700;color:#000000;border:1px solid #000;text-transform:uppercase;letter-spacing:.3px">
+            ${tpl.nama}
+          </td>
         </tr>`;
-      }).filter(Boolean).join('');
 
-      return headerRow + indRows;
-    }).join('');
+        const indRows = tpl.indikator.map(ind => {
+          const r = data.rows.find(row => row.indikator_id === ind.id || row.id === ind.id);
+          if (!r) return '';
+          no++;
+          return _lapKinerjaPdfRowHtml(r, no, displayCols, r.nama_indikator || ind.indikator_kinerja);
+        }).filter(Boolean).join('');
+
+        return headerRow + indRows;
+      }).join('');
+    } else {
+      // Non-admin: flat langsung dari indikator tanggung jawabnya sendiri
+      rowsHtml = _lapKinerjaFlatRowsHtml(data.rows, displayCols);
+    }
 
     const _witaOffset = new Date(new Date().getTime() + new Date().getTimezoneOffset() * 60000 + 8 * 3600000);
     const nowStr = new Date().toLocaleDateString('id-ID', { day:'2-digit', month:'long', year:'numeric' });
@@ -1262,40 +1416,45 @@ async function downloadLaporanByTSP(btnEl) {
 
   if (btnEl) { btnEl.disabled = true; btnEl.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="animation:spin 1s linear infinite"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg> Memuat...`; }
   try {
-    // Ambil SEMUA template kecuali urusan (tujuan + sasaran + program + kegiatan)
-    const res = await fetch('/api/kinerja/laporan-template', { headers: authHeaders() });
-    const tplData = await res.json();
-    const allTemplates = (tplData.templates || []).filter(t => t.jenis !== 'urusan');
-    if (!allTemplates.length) { toast('Belum ada template TSP. Buat dulu di Master Data → Kelola Indikator → Kelola Laporan.', 'error'); return; }
+    // Non-admin: langsung tampilkan indikator tanggung jawabnya sendiri (flat),
+    // gak perlu template TSP (Tujuan/Sasaran/Program/Kegiatan) yang notabene struktur instansi.
+    let orderedTpl = null;
+    if (_user?.is_admin) {
+      // Ambil SEMUA template kecuali urusan (tujuan + sasaran + program + kegiatan)
+      const res = await fetch('/api/kinerja/laporan-template', { headers: authHeaders() });
+      const tplData = await res.json();
+      const allTemplates = (tplData.templates || []).filter(t => t.jenis !== 'urusan');
+      if (!allTemplates.length) { toast('Belum ada template TSP. Buat dulu di Master Data → Kelola Indikator → Kelola Laporan.', 'error'); return; }
 
-    const tplWithIndikator = await Promise.all(allTemplates.map(async t => {
-      const r = await fetch(`/api/kinerja/laporan-template/${t.id}/indikator`, { headers: authHeaders() });
-      const d = await r.json();
-      return { ...t, indikator: d.indikator || [] };
-    }));
+      const tplWithIndikator = await Promise.all(allTemplates.map(async t => {
+        const r = await fetch(`/api/kinerja/laporan-template/${t.id}/indikator`, { headers: authHeaders() });
+        const d = await r.json();
+        return { ...t, indikator: d.indikator || [] };
+      }));
 
-    // Urutkan hierarkis: build tree dari parent_id, lalu DFS
-    const tplMap = {};
-    tplWithIndikator.forEach(t => { tplMap[t.id] = { ...t, _children: [] }; });
-    const roots = [];
-    tplWithIndikator.forEach(t => {
-      if (t.parent_id && tplMap[t.parent_id]) {
-        tplMap[t.parent_id]._children.push(tplMap[t.id]);
-      } else {
-        roots.push(tplMap[t.id]);
-      }
-    });
-    const sortByUrutan = arr => arr.sort((a, b) => (a.urutan || 0) - (b.urutan || 0));
-    const flattenTree = (nodes) => {
-      sortByUrutan(nodes);
-      let result = [];
-      nodes.forEach(n => {
-        result.push(n);
-        if (n._children.length) result = result.concat(flattenTree(n._children));
+      // Urutkan hierarkis: build tree dari parent_id, lalu DFS
+      const tplMap = {};
+      tplWithIndikator.forEach(t => { tplMap[t.id] = { ...t, _children: [] }; });
+      const roots = [];
+      tplWithIndikator.forEach(t => {
+        if (t.parent_id && tplMap[t.parent_id]) {
+          tplMap[t.parent_id]._children.push(tplMap[t.id]);
+        } else {
+          roots.push(tplMap[t.id]);
+        }
       });
-      return result;
-    };
-    const orderedTpl = flattenTree(roots);
+      const sortByUrutan = arr => arr.sort((a, b) => (a.urutan || 0) - (b.urutan || 0));
+      const flattenTree = (nodes) => {
+        sortByUrutan(nodes);
+        let result = [];
+        nodes.forEach(n => {
+          result.push(n);
+          if (n._children.length) result = result.concat(flattenTree(n._children));
+        });
+        return result;
+      };
+      orderedTpl = flattenTree(roots);
+    }
 
     const { tahun, bulanSampai = 12, bulanDari = 1 } = data;
     const BULAN_FULL = ['','Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
@@ -1352,7 +1511,7 @@ async function downloadLaporanByTSP(btnEl) {
     let kegiatanInGroup = 0; // reset tiap ganti program/sasaran
     let lastParentJenis = null;
 
-    const rowsHtml = orderedTpl.map((tpl, tplIdx) => {
+    const rowsHtml = !orderedTpl ? _lapKinerjaFlatRowsHtml(data.rows, displayCols) : orderedTpl.map((tpl, tplIdx) => {
       const cfg = JENIS_CFG[tpl.jenis] || { label: tpl.jenis.toUpperCase() };
       if (tpl.jenis in jenisCounter) jenisCounter[tpl.jenis]++;
       const jenisNo = jenisCounter[tpl.jenis] || '';
@@ -1421,7 +1580,7 @@ async function downloadLaporanByTSP(btnEl) {
           <td style="padding:5px 8px;border:1px solid #000;font-size:10px;vertical-align:top;line-height:1.4">${namaInd}</td>
           <td style="padding:5px 6px;border:1px solid #000;text-align:center;font-size:10px;vertical-align:top">${satuan}</td>
           <td style="padding:5px 6px;border:1px solid #000;text-align:center;font-size:10px;font-weight:700;vertical-align:top">${target}</td>
-          <td style="padding:5px 6px;border:1px solid #000;font-size:10px;color:#1e293b;vertical-align:top;min-width:110px">${r?.penanggung_jawab || '—'}</td>
+          <td style="padding:5px 6px;border:1px solid #000;text-align:center;font-size:10px;color:#1e293b;vertical-align:top;min-width:110px">${r?.penanggung_jawab || '—'}</td>
           ${bulanCells}
           <td style="padding:5px 6px;border:1px solid #000;text-align:center;font-size:10px;font-weight:700;vertical-align:top">${realisasi}</td>
           <td style="padding:5px 6px;border:1px solid #000;text-align:center;font-size:10px;font-weight:700;color:${capColor};vertical-align:top">${capaian}</td>
@@ -1432,6 +1591,44 @@ async function downloadLaporanByTSP(btnEl) {
         </tr>`;
       }).join('');
     }).join('');
+
+    // Non-admin gak punya hierarki Tujuan/Sasaran/Program/Kegiatan, jadi kolom
+    // grouping-nya di-skip — pakai header tabel yang sama sederhananya kayak
+    // laporan Capaian Indikator (flat per-indikator).
+    const theadHtml = orderedTpl ? `
+          <tr style="background:#0d9488">
+            <th rowspan="3" style="color:white;padding:6px 4px;border:1px solid #000;text-align:center;font-size:10px;width:36px">NO</th>
+            <th rowspan="3" style="color:white;padding:6px 8px;border:1px solid #000;text-align:center;font-size:10px;width:180px">SASARAN STRATEGIS /<br>PROGRAM / KEGIATAN</th>
+            <th rowspan="3" style="color:white;padding:6px 8px;border:1px solid #000;text-align:center;font-size:10px">INDIKATOR KINERJA</th>
+            <th rowspan="3" style="color:white;padding:6px 5px;border:1px solid #000;text-align:center;font-size:10px;width:50px">SATUAN</th>
+            <th rowspan="3" style="color:white;padding:6px 5px;border:1px solid #000;text-align:center;font-size:10px;width:55px">TARGET ${tahun}</th>
+            <th rowspan="3" style="color:white;padding:6px 5px;border:1px solid #000;text-align:center;font-size:10px;min-width:110px">BIDANG / SUB BAGIAN</th>
+            ${twJudulHeader}
+            <th rowspan="3" style="color:white;padding:6px 5px;border:1px solid #000;text-align:center;font-size:10px;width:55px">REALISASI S.D ${BULAN_FULL[bulanSampai].toUpperCase()}</th>
+            <th rowspan="3" style="color:white;padding:6px 5px;border:1px solid #000;text-align:center;font-size:10px;width:50px">CAPAIAN</th>
+            <th rowspan="3" style="color:white;padding:6px 6px;border:1px solid #000;text-align:center;font-size:10px;min-width:80px">FAKTOR PENGHAMBAT</th>
+            <th rowspan="3" style="color:white;padding:6px 6px;border:1px solid #000;text-align:center;font-size:10px;min-width:80px">SOLUSI</th>
+            <th rowspan="3" style="color:white;padding:6px 6px;border:1px solid #000;text-align:center;font-size:10px;min-width:80px">FAKTOR PENDUKUNG</th>
+            <th rowspan="3" style="color:white;padding:6px 6px;border:1px solid #000;text-align:center;font-size:10px;min-width:80px">RENCANA TINDAK LANJUT</th>
+          </tr>
+          <tr style="background:#0d9488">${twHeaders}</tr>
+          <tr style="background:#0d9488">${bulanHeaderCells}</tr>` : `
+          <tr style="background:#0d9488">
+            <th rowspan="3" style="color:white;padding:5px 4px;border:1px solid #000;text-align:center;font-size:10px;width:36px">NO</th>
+            <th rowspan="3" style="color:white;padding:5px 4px;border:1px solid #000;text-align:center;font-size:10px;min-width:150px">INDIKATOR KINERJA</th>
+            <th rowspan="3" style="color:white;padding:5px 3px;border:1px solid #000;text-align:center;font-size:10px;width:40px">TARGET ${tahun}</th>
+            <th rowspan="3" style="color:white;padding:5px 3px;border:1px solid #000;text-align:center;font-size:10px;width:38px">SATUAN</th>
+            <th rowspan="3" style="color:white;padding:5px 3px;border:1px solid #000;text-align:center;font-size:10px;min-width:110px">BIDANG / SUB BAGIAN</th>
+            ${twJudulHeader}
+            <th rowspan="3" style="color:white;padding:5px 3px;border:1px solid #000;text-align:center;font-size:10px;width:50px">REALISASI S.D ${BULAN_FULL[bulanSampai].toUpperCase()}</th>
+            <th rowspan="3" style="color:white;padding:5px 3px;border:1px solid #000;text-align:center;font-size:10px;width:45px">CAPAIAN</th>
+            <th rowspan="3" style="color:white;padding:5px 4px;border:1px solid #000;text-align:center;font-size:10px;min-width:70px">FAKTOR PENGHAMBAT</th>
+            <th rowspan="3" style="color:white;padding:5px 4px;border:1px solid #000;text-align:center;font-size:10px;min-width:70px">SOLUSI</th>
+            <th rowspan="3" style="color:white;padding:5px 4px;border:1px solid #000;text-align:center;font-size:10px;min-width:70px">FAKTOR PENDUKUNG</th>
+            <th rowspan="3" style="color:white;padding:5px 4px;border:1px solid #000;text-align:center;font-size:10px;min-width:70px">RENCANA TINDAK LANJUT</th>
+          </tr>
+          <tr style="background:#0d9488">${twHeaders}</tr>
+          <tr style="background:#0d9488">${bulanHeaderCells}</tr>`;
 
     const bodyHtml = `
       ${_kopSuratHtml()}
@@ -1452,25 +1649,7 @@ async function downloadLaporanByTSP(btnEl) {
         <div style="font-size:10px;color:#475569;margin-top:3px">${sdLabel}</div>
       </div>
       <table style="border-collapse:collapse;border-spacing:0;width:100%">
-        <thead>
-          <tr style="background:#0d9488">
-            <th rowspan="3" style="color:white;padding:6px 4px;border:1px solid #000;text-align:center;font-size:10px;width:36px">NO</th>
-            <th rowspan="3" style="color:white;padding:6px 8px;border:1px solid #000;text-align:center;font-size:10px;width:180px">SASARAN STRATEGIS /<br>PROGRAM / KEGIATAN</th>
-            <th rowspan="3" style="color:white;padding:6px 8px;border:1px solid #000;text-align:center;font-size:10px">INDIKATOR KINERJA</th>
-            <th rowspan="3" style="color:white;padding:6px 5px;border:1px solid #000;text-align:center;font-size:10px;width:50px">SATUAN</th>
-            <th rowspan="3" style="color:white;padding:6px 5px;border:1px solid #000;text-align:center;font-size:10px;width:55px">TARGET ${tahun}</th>
-            <th rowspan="3" style="color:white;padding:6px 5px;border:1px solid #000;text-align:center;font-size:10px;min-width:110px">BIDANG / SUB BAGIAN</th>
-            ${twJudulHeader}
-            <th rowspan="3" style="color:white;padding:6px 5px;border:1px solid #000;text-align:center;font-size:10px;width:55px">REALISASI S.D ${BULAN_FULL[bulanSampai].toUpperCase()}</th>
-            <th rowspan="3" style="color:white;padding:6px 5px;border:1px solid #000;text-align:center;font-size:10px;width:50px">CAPAIAN</th>
-            <th rowspan="3" style="color:white;padding:6px 6px;border:1px solid #000;text-align:center;font-size:10px;min-width:80px">FAKTOR PENGHAMBAT</th>
-            <th rowspan="3" style="color:white;padding:6px 6px;border:1px solid #000;text-align:center;font-size:10px;min-width:80px">SOLUSI</th>
-            <th rowspan="3" style="color:white;padding:6px 6px;border:1px solid #000;text-align:center;font-size:10px;min-width:80px">FAKTOR PENDUKUNG</th>
-            <th rowspan="3" style="color:white;padding:6px 6px;border:1px solid #000;text-align:center;font-size:10px;min-width:80px">RENCANA TINDAK LANJUT</th>
-          </tr>
-          <tr style="background:#0d9488">${twHeaders}</tr>
-          <tr style="background:#0d9488">${bulanHeaderCells}</tr>
-        </thead>
+        <thead>${theadHtml}</thead>
         <tbody>${rowsHtml}</tbody>
       </table>
       ${_ttdHtml(kepalaDinas, nowStr)}`;

@@ -262,6 +262,7 @@ async function loadDashboardSurat() {
   const masukBulan   = ss?.masuk_bulan_ini  ?? 0;
   const keluarBulan  = ss?.keluar_bulan_ini ?? 0;
   const selesai      = Math.max(0, totalMasuk - belumProses);
+  const prosesOnTime = Math.max(0, belumProses - terlambat);
   const pctSelesai   = totalMasuk > 0 ? Math.round((selesai / totalMasuk) * 100) : 0;
 
   const iconMasuk  = `<svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.2 8.4c.5.38.8.97.8 1.6v10a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V10a2 2 0 0 1 .8-1.6l8-6a2 2 0 0 1 2.4 0l8 6Z"/><path d="m22 10-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 10"/></svg>`;
@@ -285,8 +286,9 @@ async function loadDashboardSurat() {
     panels.push(_miniDonutPanel({
       icon: iconMasuk, title: 'Status Surat Masuk',
       segments: [
-        { label: 'Selesai', value: selesai,     color: '#10b981' },
-        { label: 'Proses',  value: belumProses, color: '#f59e0b' },
+        { label: 'Selesai',   value: selesai,      color: '#10b981' },
+        { label: 'Proses',    value: prosesOnTime, color: '#f59e0b' },
+        { label: 'Terlambat', value: terlambat,    color: '#ef4444' },
       ],
       centerVal: `${pctSelesai}%`, centerLbl: 'Selesai',
     }));
@@ -353,7 +355,16 @@ async function loadDashboardKinerja() {
     <div class="dash-kpi-row">${Array(5).fill(0).map(() => `<div class="skeleton" style="height:98px;border-radius:14px"></div>`).join('')}</div>
     <div class="skeleton" style="height:160px;border-radius:16px"></div>`;
 
-  const [ks, rekap] = await Promise.all([_fetchKinerjaStats(), _fetchKinerjaRekapForDash()]);
+  const [ks, rekapRaw] = await Promise.all([_fetchKinerjaStats(), _fetchKinerjaRekapForDash()]);
+
+  // Non-admin: rekap IKU dari backend memang tampil untuk semua user (indikator
+  // kadis), jadi harus di-scope manual di sini ke indikator yang di-assign ke
+  // akunnya saja — biar konsisten dgn statcard "Total Indikator" & panel-panel
+  // lain (Sebaran Jenis Indikator, Distribusi Capaian, Capaian Tertinggi, dst).
+  if (!_user?.is_admin && typeof _ensureUserIndikatorIds === 'function') await _ensureUserIndikatorIds();
+  const rekap = !_user?.is_admin
+    ? rekapRaw.filter(x => _userIndikatorIds && _userIndikatorIds.has(Number(x.id)))
+    : rekapRaw;
 
   const icon = `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;opacity:.85"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg>`;
   let html = _dashModuleHeader(icon, 'Dashboard', 'Ringkasan capaian indikator kinerja periode berjalan');
@@ -500,7 +511,9 @@ async function _fetchSuratDashData() {
         perihal: s.perihal,
         nomor:   s.no_surat,
         tanggal: s.tanggal_terima,
-        status:  s.selesai ? 'Selesai' : 'Proses',
+        status:  !s.selesai && s.batas_waktu && s.batas_waktu.slice(0, 10) < today
+          ? 'Terlambat'
+          : (s.selesai ? 'Selesai' : 'Proses'),
       })),
       recent_keluar: rkList.map(s => ({
         perihal: s.perihal,
@@ -1254,7 +1267,9 @@ function _recentSuratPanel(list, jenis) {
 
 function _suratBadge(s) {
   s = (s||'').toLowerCase();
-  return s.includes('proses')||s.includes('pending') ? 'badge-warning' : s.includes('selesai')||s.includes('done') ? 'badge-success' : 'badge-blue';
+  return s.includes('terlambat') ? 'badge-merah'
+    : s.includes('proses')||s.includes('pending') ? 'badge-warning'
+    : s.includes('selesai')||s.includes('done') ? 'badge-success' : 'badge-blue';
 }
 
 // ── Pagination state utk panel "Indikator Belum Diisi" ─────────────────────

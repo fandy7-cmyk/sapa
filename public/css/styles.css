@@ -475,6 +475,70 @@ body::before {
 }
 .nav-fixed-tooltip.show { opacity: 1; }
 
+/* ── Tooltip custom generik (pengganti native `title`) — pakai attribute data-tip="teks" ──
+   Dirender via JS position:fixed biar gak ke-clip overflow:auto di tabel manapun.
+   Tema disamakan dengan .nav-fixed-tooltip yang udah ada. */
+.qtip-box {
+  position: fixed;
+  max-width: 230px;
+  background: #ccfbf1; color: var(--hijau);
+  font-size: .60rem; font-weight: 600; line-height: 1.35;
+  padding: 3px 8px; border-radius: var(--r-sm);
+  text-align: center;
+  box-shadow: 0 2px 8px rgba(13,148,136,.3);
+  opacity: 0; pointer-events: none;
+  transition: opacity .15s ease;
+  z-index: 99999;
+}
+.qtip-box.show { opacity: 1; }
+.qtip-box::after {
+  content: '';
+  position: absolute;
+  left: var(--qtip-arrow-left, 50%);
+  transform: translateX(-50%);
+  border: 5px solid transparent;
+}
+.qtip-box.qtip-top::after    { top: 100%;    border-top-color: #ccfbf1; }
+.qtip-box.qtip-bottom::after { bottom: 100%; border-bottom-color: #ccfbf1; }
+
+/* Varian warna qtip — dipakai via data-tip-variant="danger|success" pada elemen sumbernya */
+.qtip-box.qtip-danger { background: #fee2e2; color: #991b1b; }
+.qtip-box.qtip-danger.qtip-top::after    { border-top-color: #fee2e2; }
+.qtip-box.qtip-danger.qtip-bottom::after { border-bottom-color: #fee2e2; }
+
+.qtip-box.qtip-success { background: #d1fae5; color: #065f46; }
+.qtip-box.qtip-success.qtip-top::after    { border-top-color: #d1fae5; }
+.qtip-box.qtip-success.qtip-bottom::after { border-bottom-color: #d1fae5; }
+
+/* Reset padding tersembunyi bawaan Firefox pada <button>, biar tinggi tombol Σ
+   presisi sama dengan badge tipe perhitungan di sebelahnya (keduanya height:24px). */
+.fx-wrap button::-moz-focus-inner {
+  border: 0;
+  padding: 0;
+}
+
+/* ── Panel formula "Σ" — floating position:fixed, di-append ke body (lihat toggleFormulaPanel di kinerja.js).
+   Sengaja gak nested di dalam td sticky biar gak ke-clip overflow:hidden / dorong tinggi baris tabel. ── */
+.fx-float-panel {
+  position: fixed;
+  z-index: 99999;
+  min-width: 160px;
+  max-width: 260px;
+  border-radius: 0 6px 6px 0;
+  box-shadow: 0 6px 20px rgba(0,0,0,.16);
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(-4px);
+  transition: opacity .12s ease, transform .12s ease;
+  pointer-events: none;
+}
+.fx-float-panel.show {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0);
+  pointer-events: auto;
+}
+
 /* Dashboard item collapsed */
 .sidebar.collapsed .nav-item[data-sub="dashboard"] {
   justify-content: center;
@@ -859,6 +923,8 @@ tr:hover td:not(.td-sticky-no):not(.td-sticky-name) { background: var(--abu-1); 
 }
 .csel-trigger:hover { border-color: var(--hijau-mid); }
 .csel-trigger.open  { background: #fff; border-color: var(--hijau); box-shadow: 0 0 0 var(--sp-1) rgba(6,95,70,.1); }
+.csel-trigger.csel-disabled { cursor: not-allowed; opacity: .65; background: #f3f4f6; }
+.csel-trigger.csel-disabled:hover { border-color: inherit; }
 .csel-trigger-text  { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .csel-trigger-text.placeholder { color: var(--teks-muted); }
 .csel-chevron {
@@ -868,6 +934,18 @@ tr:hover td:not(.td-sticky-no):not(.td-sticky-name) { background: var(--abu-1); 
   transition: transform var(--transition), color var(--transition);
 }
 .csel-trigger.open .csel-chevron { transform: rotate(180deg); color: var(--hijau); }
+
+/* Varian compact khusus dropdown Tahun & Bulan di toolbar Kinerja (IKU/IKK/SPM) */
+.tahun-select-wrap .csel-trigger,
+.bulan-select-wrap .csel-trigger {
+  padding: 6px 10px;
+  font-size: .72rem;
+  font-weight: 600;
+}
+.tahun-select-wrap .csel-chevron,
+.bulan-select-wrap .csel-chevron {
+  width: 14px; height: 14px;
+}
 
 /* Dropdown panel */
 .csel-panel {
@@ -908,6 +986,16 @@ tr:hover td:not(.td-sticky-no):not(.td-sticky-name) { background: var(--abu-1); 
   opacity: 0;
 }
 .csel-option.selected .csel-option-check { opacity: 1; }
+
+/* Varian floating position:fixed — dipakai custom-select generik (buildCustomSelect
+   di app.html) biar panel dropdown gak ke-clip overflow:hidden di container manapun
+   (mis. .kinerja-table-wrap.card yang overflow-y:hidden buat scroll horizontal).
+   Posisi top/left/width di-set inline via JS saat dibuka — sama pola dgn .fx-float-panel. */
+.csel-panel.csel-panel-fixed {
+  position: fixed;
+  top: auto; left: auto; right: auto;
+  z-index: 9999;
+}
 .field textarea { resize: vertical; min-height: 89px; }
 .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: var(--sp-4); }
 .field-hint { font-size: var(--fs-xs); color: var(--teks-muted); margin-top: var(--sp-1); }
@@ -1202,24 +1290,41 @@ input[type="checkbox"].toggle:checked::after { left: 19px; }
   box-shadow:0 2px 8px rgba(15,118,110,.3);
 }
 
-.kinerja-table { width:100%; border-collapse:collapse; font-size:.79rem; }
+.kinerja-table { width:100%; border-collapse:separate; border-spacing:0; font-size:.79rem; }
 .kinerja-table th {
   background:var(--hijau); color:#fff; padding:10px 10px;
-  text-align:left; font-weight:700; white-space:nowrap; position:sticky; top:-1px; z-index:2;
+  text-align:center; font-weight:700; white-space:nowrap; position:sticky; top:0; z-index:2;
   font-size:.72rem; letter-spacing:.4px; text-transform:uppercase;
+  border:none;
 }
 .kinerja-table th:first-child { border-radius:0; }
 .kinerja-table th:last-child  { border-radius:0; }
 .kinerja-table thead, .kinerja-table thead tr, .kinerja-table thead th { background:var(--hijau) !important; color:#fff; border-color:var(--hijau) !important; outline:none; }
-.kinerja-table-wrap.card { overflow-x:auto !important; overflow-y:hidden; -webkit-overflow-scrolling:touch; }
+.kinerja-table thead th { box-shadow: 0 0 0 2px var(--hijau); }
+/* Header 2 baris (mis. TW I/II lalu nama bulan di Laporan Kinerja): baris 1
+   nempel top:0, baris 2 HARUS nempel di bawah baris 1 (top diisi dinamis via
+   JS = tinggi baris 1), bukan ikut top:0 dari rule .kinerja-table th di atas
+   — kalau ikut top:0, pas discroll baris 2 numpuk balik ke atas nabrak
+   baris 1 alih-alih nempel di bawahnya (freeze jadi keliatan "gak maksimal"). */
+.kinerja-table thead tr.lap-th-row1 th { top:0; z-index:3; }
+.kinerja-table thead tr.lap-th-row2 th { z-index:2; }
+.kinerja-table-wrap.card { overflow-x:auto !important; overflow-y:auto; max-height:70vh; -webkit-overflow-scrolling:touch; scrollbar-width:thin; scrollbar-color:#cbd5e1 transparent; }
+.kinerja-table-wrap.card::-webkit-scrollbar { width:6px; height:6px; }
+.kinerja-table-wrap.card::-webkit-scrollbar-thumb { background:#cbd5e1; border-radius:3px; }
 .card:has(> .kinerja-table),
-.card:has(> table.kinerja-table) { border-radius: var(--r-lg); overflow-y: hidden !important; }
-.kinerja-table th[style*="left:0"]    { z-index:4; background:var(--hijau); }
-.kinerja-table th[style*="left:34px"] { z-index:4; box-shadow:2px 0 6px -2px rgba(0,0,0,.08); left:44px !important; background:var(--hijau); }
-.kinerja-table td { padding:8px 10px; border-bottom:1px solid var(--abu-1); vertical-align:middle; user-select:text; overflow:hidden; }
-.kinerja-table td.td-sticky-no, .kinerja-table td.td-sticky-name { background:#fff !important; z-index:3 !important; }
+.card:has(> table.kinerja-table) { border-radius: var(--r-lg); overflow-y: auto !important; }
+/* Header sticky nempel pas di sudut atas wrapper — sudut atas dibikin kotak
+   biar gak ke-clip lengkung sama border-radius wrapper (r-lg). Sudut bawah tetap lengkung. */
+.kinerja-table-wrap.card,
+.card:has(> .kinerja-table),
+.card:has(> table.kinerja-table) { border-top-left-radius:0 !important; border-top-right-radius:0 !important; }
+.kinerja-table th[style*="left:0"]    { z-index:5 !important; background:var(--hijau); }
+.kinerja-table th[style*="left:34px"] { z-index:5 !important; border-right:1px solid rgba(0,0,0,.12); left:44px !important; background:var(--hijau); }
+.kinerja-table td { padding:8px 10px; border-bottom:1px solid var(--abu-1); vertical-align:middle; user-select:text; overflow:hidden; background:#fff; }
+.kinerja-table tbody tr { background:#fff; }
+.kinerja-table td.td-sticky-no, .kinerja-table td.td-sticky-name { background:#fff !important; z-index:3 !important; transition:background-color .25s ease; }
 .kinerja-table td.td-sticky-no  { box-shadow:none; width:44px; min-width:44px; max-width:44px; overflow:hidden; }
-.kinerja-table td.td-sticky-name { box-shadow:3px 0 8px -2px rgba(0,0,0,.10); max-width:220px; width:220px; overflow:hidden; left:44px !important; background:#fff; }
+.kinerja-table td.td-sticky-name { border-right:1px solid var(--abu-1); max-width:220px; width:220px; overflow:hidden; left:44px !important; background:#fff; }
 .kinerja-table td.td-sticky-name > div { overflow:hidden; max-width:200px; white-space:normal; word-break:break-word; }
 .kinerja-table tr.row-state-saved td.td-sticky-no,
 .kinerja-table tr.row-state-saved td.td-sticky-name   { background:#ecfdf5 !important; z-index:3 !important; }
@@ -1257,10 +1362,27 @@ input[type="checkbox"].toggle:checked::after { left: 19px; }
 .realisasi-input-cell input::-webkit-outer-spin-button,
 .realisasi-input-cell input::-webkit-inner-spin-button { -webkit-appearance:none; margin:0; }
 .realisasi-input-cell input[type=number] { -moz-appearance:textfield; }
+/* Dropdown predikat (select tipe_nilai='predikat') — samakan tampilan dgn input
+   angka di kolom yang sama (font-size .82rem, bold, padding senada) supaya gak
+   kelihatan lebih besar/beda gaya dari cell realisasi angka biasa. */
+.realisasi-input-cell select,
+.realisasi-input-cell .csel-trigger {
+  font-size:.82rem;
+  font-weight:700;
+}
+.realisasi-input-cell .csel-trigger { padding-top:6px; padding-bottom:6px; }
+.realisasi-input-cell .csel-trigger-text { text-align:center; }
+.kinerja-table td.textarea-cell { max-width:220px; }
+
+/* Laporan Kinerja: isi tabel rata tengah & nempel atas (bukan di tengah row
+   yang tinggi karena konten kolom lain). Kolom nama indikator tetap rata kiri. */
+#page-laporan-kinerja .kinerja-table td { text-align:center; vertical-align:top; }
+#page-laporan-kinerja .kinerja-table td.td-sticky-name { text-align:left; }
+
 .textarea-cell textarea {
   width:100%; padding:6px 9px; border:1.5px solid var(--abu-2);
   border-radius:7px; font-size:.75rem; font-family:inherit; color:var(--teks);
-  background:transparent; resize:none; overflow:hidden; min-height:36px; transition:border-color var(--transition);
+  background:transparent; resize:none; overflow:hidden; min-height:36px; transition:border-color var(--transition), background-color .25s ease;
 }
 .textarea-cell textarea:focus { outline:none; border-color:var(--hijau); }
 /* Textarea ikut warna row saat saved/editing */
@@ -1304,7 +1426,7 @@ input[type="checkbox"].toggle:checked::after { left: 19px; }
   padding:4px 10px; border-radius:7px; border:1.5px solid var(--abu-2);
   cursor:pointer; font-size:.73rem; font-weight:600;
   background:var(--putih); color:var(--teks-mid);
-  transition:all var(--transition); white-space:nowrap; font-family:inherit;
+  transition:background-color .2s ease, border-color .2s ease, color .2s ease, transform var(--transition); white-space:nowrap; font-family:inherit;
 }
 .btn-edit-row:hover { background:var(--abu-1); color:var(--teks); border-color:var(--abu-3,#cbd5e1); }
 .btn-edit-row svg { pointer-events:none; flex-shrink:0; }
@@ -6667,7 +6789,8 @@ tr:hover td:not(.td-sticky-no):not(.td-sticky-name) { background: var(--abu-1); 
 
 .kinerja-table {
   width: 100%;
-  border-collapse: collapse;
+  border-collapse: separate;
+  border-spacing: 0;
   font-size: var(--fs-sm);
 }
 
@@ -6675,17 +6798,24 @@ tr:hover td:not(.td-sticky-no):not(.td-sticky-name) { background: var(--abu-1); 
   background: var(--hijau);
   color: #fff;
   padding: var(--sp-3) var(--sp-4);
-  text-align: left;
+  text-align: center;
   font-weight: 700;
   white-space: nowrap;
   position: sticky;
-  top: -1px;
+  top: 0;
   z-index: 2;
   font-size: var(--fs-xs);
   letter-spacing: .4px;
   text-transform: uppercase;
   line-height: var(--lh-tight);
+  border: none;
+  box-shadow: 0 0 0 2px var(--hijau);
 }
+.kinerja-table th[style*="left:0"]    { z-index: 5 !important; background: var(--hijau); }
+.kinerja-table th[style*="left:34px"] { z-index: 5 !important; border-right: 1px solid rgba(0,0,0,.12); left: 44px !important; background: var(--hijau); }
+.card:has(> .kinerja-table),
+.card:has(> table.kinerja-table),
+.kinerja-table-wrap.card { border-top-left-radius: 0 !important; border-top-right-radius: 0 !important; }
 
 .kinerja-table td {
   padding: var(--sp-3) var(--sp-4);
@@ -6693,6 +6823,7 @@ tr:hover td:not(.td-sticky-no):not(.td-sticky-name) { background: var(--abu-1); 
   vertical-align: middle;
   line-height: var(--lh-body);
   font-size: var(--fs-sm);
+  background: #fff;
 }
 
 .kinerja-table tr:last-child td { border-bottom: none; }
