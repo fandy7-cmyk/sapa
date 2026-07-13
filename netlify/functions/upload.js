@@ -21,6 +21,20 @@ cloudinary.config({
   secure:     true,
 });
 
+// Struktur folder Cloudinary per kategori — sebelumnya semua upload (surat
+// maupun data dukung kinerja) numpuk jadi satu di folder 'surat-dinkes'.
+// Sekarang dipisah per modul supaya gampang di-audit di Media Library.
+// 'kategori' dikirim dari frontend (kinerja.js / surat.js); kalau tidak
+// dikenali atau tidak dikirim, fallback ke folder lama demi kompatibilitas.
+const FOLDER_MAP = {
+  kinerja_iku:  'SAPA/Kinerja/IKU',
+  kinerja_ikk:  'SAPA/Kinerja/IKK',
+  kinerja_spm:  'SAPA/Kinerja/SPM',
+  surat_keluar: 'SAPA/Surat/Surat Keluar',
+  surat_masuk:  'SAPA/Surat/Surat Masuk',
+};
+const DEFAULT_FOLDER = 'surat-dinkes';
+
 const MAX_SIZE_MB = 2;
 
 const ALLOWED_TYPES = {
@@ -70,11 +84,13 @@ export const handler = async (event) => {
       event.isBase64Encoded ? 'base64' : 'utf-8'
     );
 
-    const { fileBuffer, fileName, mimeType } = parseMultipart(bodyBuffer, boundaryMatch[1]);
+    const { fileBuffer, fileName, mimeType, fields } = parseMultipart(bodyBuffer, boundaryMatch[1]);
 
     if (!fileBuffer || !fileBuffer.length) {
       return errorResponse('File tidak ditemukan dalam request', 400);
     }
+
+    const folder = FOLDER_MAP[fields.kategori] || DEFAULT_FOLDER;
 
     // ── Validasi ───────────────────────────────────────────────────────────
     if (fileBuffer.length > MAX_SIZE_MB * 1024 * 1024) {
@@ -95,7 +111,7 @@ export const handler = async (event) => {
 
       const stream = cloudinary.uploader.upload_stream(
         {
-          folder:         'surat-dinkes',
+          folder:         folder,
           public_id:      `${Date.now()}_${auth.id}_${safeName}`,
           resource_type:  getResourceType(mimeType), // 'raw' untuk PDF/doc/xlsx, 'image' untuk jpg/png
           use_filename:   false,
@@ -125,7 +141,7 @@ export const handler = async (event) => {
 // MULTIPART PARSER — tanpa dependency tambahan
 // ═══════════════════════════════════════════════════════════════════════════
 function parseMultipart(buffer, boundary) {
-  const result = { fileBuffer: null, fileName: 'file', mimeType: 'application/octet-stream' };
+  const result = { fileBuffer: null, fileName: 'file', mimeType: 'application/octet-stream', fields: {} };
 
   const bBuf      = Buffer.from(`--${boundary}`);
   const delimiter = Buffer.from(`\r\n--${boundary}`);
@@ -147,13 +163,18 @@ function parseMultipart(buffer, boundary) {
     const bodyBuf   = partBuf.slice(headerEnd + 4);
 
     const dispMatch = headerStr.match(/Content-Disposition:[^\r\n]*filename="([^"]+)"/i);
+    const nameMatch = headerStr.match(/Content-Disposition:[^\r\n]*name="([^"]+)"/i);
     const typeMatch = headerStr.match(/Content-Type:\s*([^\r\n]+)/i);
 
     if (dispMatch) {
+      // Part file — JANGAN break di sini. Field lain (mis. 'kategori') bisa
+      // saja diletakkan setelah 'file' di FormData, jadi tetap lanjut scan
+      // supaya semua field kebaca terlepas dari urutannya.
       result.fileName   = dispMatch[1];
       result.mimeType   = typeMatch ? typeMatch[1].trim() : 'application/octet-stream';
       result.fileBuffer = bodyBuf;
-      break;
+    } else if (nameMatch) {
+      result.fields[nameMatch[1]] = bodyBuf.toString('utf-8');
     }
 
     if (nextDelim === -1) break;

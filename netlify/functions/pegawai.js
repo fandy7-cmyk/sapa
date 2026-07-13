@@ -1,11 +1,11 @@
 // netlify/functions/pegawai.js
-// GET    /api/pegawai        → admin only (semua)
+// GET    /api/pegawai        → semua user login (dipakai juga utk ambil nama Kepala Dinas di laporan PDF non-admin)
 // POST   /api/pegawai        → admin only
 // PUT    /api/pegawai/:id    → admin only
 // DELETE /api/pegawai/:id    → admin only
 
 import { getDb, jsonResponse, errorResponse, parseBody } from './_db.js';
-import { requireAdmin } from './_auth.js';
+import { requireAuth, requireAdmin } from './_auth.js';
 
 export const handler = async (event) => {
   if (event.httpMethod === 'OPTIONS') return jsonResponse({});
@@ -15,9 +15,15 @@ export const handler = async (event) => {
   const segments = rawPath.split('/').filter(Boolean);
   const id = segments[0] && !isNaN(segments[0]) ? parseInt(segments[0]) : null;
 
-  // Semua endpoint butuh admin
-  const admin = requireAdmin(event);
-  if (!admin) return errorResponse('Unauthorized', 401);
+  // GET: cukup login (non-admin butuh ini buat nampilin nama Kepala Dinas di TTD PDF laporan)
+  // Selain GET (POST/PUT/DELETE): wajib admin
+  if (event.httpMethod === 'GET') {
+    const auth = requireAuth(event);
+    if (!auth) return errorResponse('Unauthorized', 401);
+  } else {
+    const admin = requireAdmin(event);
+    if (!admin) return errorResponse('Unauthorized', 401);
+  }
 
   // ── GET /api/pegawai ──────────────────────────────────────
   if (event.httpMethod === 'GET' && !id) {

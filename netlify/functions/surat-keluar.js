@@ -2,6 +2,7 @@
 import { getDb, jsonResponse, errorResponse, parseBody } from './_db.js';
 import { requireAuth } from './_auth.js';
 import { logAudit } from './_audit.js';
+import { deleteFromCloudinary } from './_cloudinary.js';
 
 async function checkAccess(auth, sql) {
   if (auth.is_admin) return true;
@@ -158,8 +159,16 @@ export const handler = async (event) => {
       if (!owner.length || owner[0].created_by !== auth.id) return errorResponse('Akses ditolak', 403);
     }
     try {
-      const before = await sql`SELECT no_agenda, perihal, tujuan_surat FROM surat_keluar WHERE id = ${numId}`;
+      const before = await sql`SELECT no_agenda, perihal, tujuan_surat, file_url FROM surat_keluar WHERE id = ${numId}`;
       await sql`DELETE FROM surat_keluar WHERE id = ${numId}`;
+      // Best-effort: ikut hapus file lampiran di Cloudinary supaya tidak numpuk.
+      // WAJIB di-await — kalau fire-and-forget, Netlify Function bisa freeze
+      // begitu response dikirim, dan request destroy ke Cloudinary keputus
+      // di tengah jalan sebelum sempat selesai (file jadi tetap nyangkut).
+      // Kegagalannya sendiri tetap tidak boleh menggagalkan penghapusan record.
+      if (before[0]?.file_url) {
+        await deleteFromCloudinary(before[0].file_url).catch(() => {});
+      }
       await logAudit(sql, event, {
         user_id: auth.id, nama: auth.nama, email: auth.email,
         aksi: 'delete', entitas: 'surat_keluar', entitas_id: numId,

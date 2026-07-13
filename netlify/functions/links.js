@@ -57,7 +57,7 @@ export const handler = async (event) => {
               COALESCE((SELECT COUNT(*) FROM klik_log kl WHERE kl.link_id = l.id), 0)::INT AS total_klik
             FROM links l
             LEFT JOIN users u ON u.id = l.created_by
-            ORDER BY l.id ASC
+            ORDER BY l.id DESC
           `;
         } else {
           rows = await sql`
@@ -66,7 +66,7 @@ export const handler = async (event) => {
             FROM links l
             LEFT JOIN users u ON u.id = l.created_by
             WHERE l.created_by = ${auth.id}
-            ORDER BY l.id ASC
+            ORDER BY l.id DESC
           `;
         }
       } else {
@@ -75,7 +75,7 @@ export const handler = async (event) => {
           SELECT id, judul, url, deskripsi, ikon, warna_ikon, kategori_id, slug_pendek
           FROM links
           WHERE aktif = TRUE
-          ORDER BY id ASC
+          ORDER BY id DESC
         `;
       }
       return jsonResponse({ links: rows });

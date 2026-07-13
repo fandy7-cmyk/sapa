@@ -2,6 +2,7 @@
 import { getDb, jsonResponse, errorResponse, parseBody } from './_db.js';
 import { requireAuth } from './_auth.js';
 import { logAudit } from './_audit.js';
+import { deleteFromCloudinary } from './_cloudinary.js';
 
 async function checkAccess(auth, sql) {
   if (auth.is_admin) return true;
@@ -41,8 +42,8 @@ export const handler = async (event) => {
       const isFull  = await checkFullAccess(auth, sql);
       const [{ total }] = await sql`SELECT COUNT(*)::INT AS total FROM surat_masuk WHERE (${isAdmin} = TRUE OR ${isFull} = TRUE OR pegawai = ${auth.nama})`;
       const [{ belum_selesai }] = await sql`SELECT COUNT(*)::INT AS belum_selesai FROM surat_masuk WHERE selesai = FALSE AND (${isAdmin} = TRUE OR ${isFull} = TRUE OR pegawai = ${auth.nama})`;
-      const [{ bulan_ini }] = await sql`SELECT COUNT(*)::INT AS bulan_ini FROM surat_masuk WHERE DATE_TRUNC('month', tanggal_terima) = DATE_TRUNC('month', CURRENT_DATE) AND (${isAdmin} = TRUE OR ${isFull} = TRUE OR pegawai = ${auth.nama})`;
-      const [{ terlambat }] = await sql`SELECT COUNT(*)::INT AS terlambat FROM surat_masuk WHERE selesai = FALSE AND batas_waktu < CURRENT_DATE AND (${isAdmin} = TRUE OR ${isFull} = TRUE OR pegawai = ${auth.nama})`;
+      const [{ bulan_ini }] = await sql`SELECT COUNT(*)::INT AS bulan_ini FROM surat_masuk WHERE DATE_TRUNC('month', tanggal_terima) = DATE_TRUNC('month', (NOW() AT TIME ZONE 'Asia/Makassar')::date) AND (${isAdmin} = TRUE OR ${isFull} = TRUE OR pegawai = ${auth.nama})`;
+      const [{ terlambat }] = await sql`SELECT COUNT(*)::INT AS terlambat FROM surat_masuk WHERE selesai = FALSE AND batas_waktu < (NOW() AT TIME ZONE 'Asia/Makassar')::date AND (${isAdmin} = TRUE OR ${isFull} = TRUE OR pegawai = ${auth.nama})`;
       return jsonResponse({ total, belum_selesai, bulan_ini, terlambat });
     } catch (err) { console.error('[STATS surat-masuk]', err); return errorResponse('Gagal mengambil statistik: ' + err.message); }
   }
@@ -197,8 +198,16 @@ export const handler = async (event) => {
       if (!owner.length || owner[0].created_by !== auth.id) return errorResponse('Akses ditolak', 403);
     }
     try {
-      const before = await sql`SELECT no_agenda, perihal, asal_surat FROM surat_masuk WHERE id = ${numId}`;
+      const before = await sql`SELECT no_agenda, perihal, asal_surat, file_url FROM surat_masuk WHERE id = ${numId}`;
       await sql`DELETE FROM surat_masuk WHERE id = ${numId}`;
+      // Best-effort: ikut hapus file lampiran di Cloudinary supaya tidak numpuk.
+      // WAJIB di-await — kalau fire-and-forget, Netlify Function bisa freeze
+      // begitu response dikirim, dan request destroy ke Cloudinary keputus
+      // di tengah jalan sebelum sempat selesai (file jadi tetap nyangkut).
+      // Kegagalannya sendiri tetap tidak boleh menggagalkan penghapusan record.
+      if (before[0]?.file_url) {
+        await deleteFromCloudinary(before[0].file_url).catch(() => {});
+      }
       await logAudit(sql, event, {
         user_id: auth.id, nama: auth.nama, email: auth.email,
         aksi: 'delete', entitas: 'surat_masuk', entitas_id: numId,

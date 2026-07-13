@@ -8,6 +8,7 @@
 
 import crypto from 'crypto';
 import { verifyToken } from './_auth.js';
+import { isRawExtension, deleteFromCloudinary } from './_cloudinary.js';
 
 // ── JWT verify (pakai signature check yang sama dengan _auth.js) ──────────
 // SEBELUMNYA fungsi ini hanya base64-decode payload tanpa cek signature
@@ -20,14 +21,6 @@ function decodeJwt(token) {
     return { ...payload, _expired: true };
   }
   return payload;
-}
-
-// ── Deteksi apakah ekstensi file seharusnya resource_type=raw ─────────────
-const RAW_EXTENSIONS = new Set(['pdf','doc','docx','xls','xlsx','ppt','pptx','zip','rar','txt','csv']);
-
-function isRawExtension(filename) {
-  const ext = (filename || '').split('.').pop().toLowerCase();
-  return RAW_EXTENSIONS.has(ext);
 }
 
 // ── Perbaiki URL Cloudinary jika resource_type-nya salah ─────────────────
@@ -230,62 +223,6 @@ async function fetchViaCloudinaryAdmin(rawUrl, resourceType = 'raw') {
   } catch (e) {
     console.error('[sign-url] fetchViaCloudinaryAdmin error:', e.message);
     return null;
-  }
-}
-
-// ── Delete file dari Cloudinary via Management API ─────────────────────────
-async function deleteFromCloudinary(rawUrl) {
-  const apiKey    = process.env.CLOUDINARY_API_KEY    || '';
-  const apiSecret = process.env.CLOUDINARY_API_SECRET || '';
-  const cloudName = process.env.CLOUDINARY_CLOUD_NAME || '';
-  if (!apiKey || !apiSecret || !cloudName) return { ok: false, error: 'Env vars tidak di-set' };
-
-  try {
-    const urlObj    = new URL(rawUrl);
-    const parts     = urlObj.pathname.split('/');
-    const uploadIdx = parts.indexOf('upload');
-    if (uploadIdx === -1) return { ok: false, error: 'Bukan Cloudinary upload URL' };
-
-    let pidParts = parts.slice(uploadIdx + 1);
-    if (pidParts[0] && /^v\d+$/.test(pidParts[0])) pidParts = pidParts.slice(1);
-
-    const pidWithExt = pidParts.join('/');
-    const publicId   = pidWithExt.replace(/\.[^.]+$/, '');
-    // FIX: deteksi resource type dari ekstensi, bukan hanya dari path
-    const resourceType = urlObj.pathname.includes('/raw/') || isRawExtension(pidWithExt) ? 'raw' : 'image';
-
-    const timestamp = Math.floor(Date.now() / 1000);
-    const toSign    = `public_id=${publicId}&timestamp=${timestamp}${apiSecret}`;
-    const signature = crypto.createHash('sha1').update(toSign).digest('hex');
-
-    const form = new URLSearchParams();
-    form.set('public_id', publicId);
-    form.set('timestamp', timestamp);
-    form.set('api_key',   apiKey);
-    form.set('signature', signature);
-
-    const apiUrl = `https://api.cloudinary.com/v1_1/${cloudName}/${resourceType}/destroy`;
-    const resp   = await fetch(apiUrl, {
-      method:  'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body:    form.toString(),
-    });
-    const data = await resp.json();
-    if (data.result === 'ok') return { ok: true };
-    // Jika gagal dengan resource type pertama, coba resource type lain
-    if (resourceType === 'raw') {
-      const apiUrl2 = `https://api.cloudinary.com/v1_1/${cloudName}/image/destroy`;
-      const resp2 = await fetch(apiUrl2, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: form.toString(),
-      });
-      const data2 = await resp2.json();
-      if (data2.result === 'ok') return { ok: true };
-    }
-    return { ok: false, error: data.result || 'Gagal hapus di Cloudinary' };
-  } catch (e) {
-    return { ok: false, error: e.message };
   }
 }
 
