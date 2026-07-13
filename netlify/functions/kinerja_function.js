@@ -742,10 +742,15 @@ export const handler = async (event) => {
     const bulan = parseInt(qs.bulan || new Date().getMonth() + 1);
     const tahun = parseInt(qs.tahun || new Date().getFullYear());
     const jenis = qs.jenis || 'monev'; // 'monev' | 'ikk' | 'spm'
+    const scope = qs.scope === 'bidang' ? 'bidang' : 'mine'; // 'mine' = punya sendiri, 'bidang' = semua indikator di bidang yg sama
 
     // Untuk non-admin:
     // - IKU (jenis=monev): tampilkan SEMUA indikator IKU (indikator utama kadis, semua user boleh lihat)
-    // - IKK / SPM: hanya tampilkan indikator yang di-assign via user_indikator
+    // - IKK / SPM:
+    //     scope=mine   → hanya indikator yang di-assign via user_indikator ke akun ini
+    //     scope=bidang → SEMUA indikator (aktif, jenis sama) yang bidangnya (penanggung_jawab)
+    //                    sama dengan bidang dari indikator-indikator yang jadi tanggung jawab user,
+    //                    meskipun indikator tsb tidak eksplisit di-assign ke user ini
     let bidangNama = null;
     let userIndikatorIds = null; // null = tampil semua; array = filter per id
     if (!auth.is_admin && jenis !== 'monev') {
@@ -753,11 +758,38 @@ export const handler = async (event) => {
         const assignRows = await sql`
           SELECT indikator_id FROM user_indikator WHERE user_id = ${auth.id}
         `;
-        if (assignRows.length > 0) {
-          userIndikatorIds = assignRows.map(r => r.indikator_id);
-        } else {
+        if (assignRows.length === 0) {
           // Tidak ada assignment → return kosong, tidak ada fallback
           return jsonResponse({ rekap: [], bulan, tahun, no_assignment: true });
+        }
+
+        const myIds = assignRows.map(r => r.indikator_id);
+
+        if (scope === 'bidang') {
+          const bidangRows = await sql`
+            SELECT DISTINCT penanggung_jawab FROM kinerja_indikator
+            WHERE id = ANY(${myIds}) AND penanggung_jawab IS NOT NULL
+          `;
+          const bidangList = bidangRows.map(r => r.penanggung_jawab).filter(Boolean);
+
+          if (bidangList.length === 0) {
+            // Indikator user nggak punya info bidang → fallback ke punya dia sendiri aja
+            userIndikatorIds = myIds;
+          } else {
+            const jenisIndikRows = jenis === 'ikk'
+              ? await sql`
+                  SELECT id FROM kinerja_indikator
+                  WHERE aktif = TRUE AND jenis_ikk = TRUE AND penanggung_jawab = ANY(${bidangList})
+                `
+              : await sql`
+                  SELECT id FROM kinerja_indikator
+                  WHERE aktif = TRUE AND jenis_spm = TRUE AND penanggung_jawab = ANY(${bidangList})
+                `;
+            userIndikatorIds = jenisIndikRows.map(r => r.id);
+            if (userIndikatorIds.length === 0) userIndikatorIds = myIds; // safety net
+          }
+        } else {
+          userIndikatorIds = myIds;
         }
       } catch (_) {
         return jsonResponse({ rekap: [], bulan, tahun, no_assignment: true });
