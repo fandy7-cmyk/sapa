@@ -2810,10 +2810,11 @@ async function doLogin() {
           buildSidebar();
 
           // ── Samakan dengan logic landing page di app.js (_domReady) ──────────
-          // Non-admin yang satu-satunya modul accessible-nya cuma "Kinerja" →
-          // Dashboard Utama generik nggak ada gunanya, langsung ke menu Kinerja
-          // pertama yang bisa dia akses. Non-admin tanpa permission dashboard sama
-          // sekali → buka menu pertama yang accessible. Selain itu → Dashboard Utama.
+          // Aturan: kalau user (admin atau non-admin) punya akses ke Dashboard
+          // Utama → selalu ke situ dulu. Baru kalau non-admin SAMA SEKALI gak
+          // punya akses ke Dashboard Utama, langsung ke menu pertama yang bisa
+          // dia akses — diutamakan Kinerja kalau itu satu-satunya modul yang
+          // dia punya (biar gak nyasar ke child menu grup lain).
           const _firstAccessibleChild = (onlyGroupId) => {
             for (const g of MENUS) {
               if (onlyGroupId && g.id !== onlyGroupId) continue;
@@ -2827,24 +2828,22 @@ async function doLogin() {
             }
             return null;
           };
-          const _onlyKinerjaAvailable = !_u.is_admin && (() => {
-            const hasOtherModule = MENUS.some(g => {
-              if (g.id === 'kinerja' || g.adminOnly) return false;
-              return (g.children || []).some(c => {
-                const keyOk  = !c.key || hasAccess(c.key);
-                const showOk = !c.showIf || c.showIf();
-                return keyOk && showOk;
-              });
-            });
-            const hasKinerjaMenu = !!_firstAccessibleChild('kinerja');
-            return !hasOtherModule && hasKinerjaMenu;
-          })();
 
-          if (_onlyKinerjaAvailable) {
-            const found = _firstAccessibleChild('kinerja');
-            navigateTo(found.child.id, found.child.label, found.child.loader, found.group.id, found.child.page);
-          } else if (!_u.is_admin && !hasAccess('dashboard')) {
-            const found = _firstAccessibleChild(null);
+          if (!_u.is_admin && !hasAccess('dashboard')) {
+            const _onlyKinerjaAvailable = (() => {
+              const hasOtherModule = MENUS.some(g => {
+                if (g.id === 'kinerja' || g.adminOnly) return false;
+                return (g.children || []).some(c => {
+                  const keyOk  = !c.key || hasAccess(c.key);
+                  const showOk = !c.showIf || c.showIf();
+                  return keyOk && showOk;
+                });
+              });
+              return !hasOtherModule && !!_firstAccessibleChild('kinerja');
+            })();
+            const found = _onlyKinerjaAvailable
+              ? _firstAccessibleChild('kinerja')
+              : _firstAccessibleChild(null);
             if (found) {
               navigateTo(found.child.id, found.child.label, found.child.loader, found.group.id, found.child.page);
             } else {

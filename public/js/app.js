@@ -1001,9 +1001,10 @@ function _pgCall(containerId, page) { _pgCallbacks[containerId] && _pgCallbacks[
       };
 
       // Non-admin yang satu-satunya modul accessible-nya cuma "Kinerja" (nggak ada akses
-      // Surat/Superlink/dll) → Dashboard Utama generik nggak ada gunanya buat dia, jadi
-      // langsung diarahin ke menu Kinerja pertama yang bisa dia akses (dashboard-nya sendiri,
-      // atau IKU/IKK/SPM/Laporan sesuai indikator yang di-assign ke akunnya).
+      // Surat/Superlink/dll) → dipakai SEBAGAI FALLBACK doang kalau user memang nggak
+      // punya akses ke Dashboard Utama. Kalau dia punya akses dashboard, dashboard tetap
+      // yang diutamakan — biar konsisten sama aturan "kalau ada akses dashboard, ke situ
+      // dulu; baru kalau nggak ada, ke menu yang di-assign."
       const _onlyKinerjaAvailable = !_user.is_admin && (() => {
         const hasOtherModule = MENUS.some(g => {
           if (g.id === 'kinerja' || g.adminOnly) return false;
@@ -1022,12 +1023,12 @@ function _pgCall(containerId, page) { _pgCallbacks[containerId] && _pgCallbacks[
         if (_saved) {
           const nav = JSON.parse(_saved);
           // Cari loader dari MENUS berdasarkan subId yang tersimpan
-          if (nav.subId === 'dashboard' && (_user.is_admin || hasAccess('dashboard')) && !_onlyKinerjaAvailable) {
+          if (nav.subId === 'dashboard' && (_user.is_admin || hasAccess('dashboard'))) {
             loadDashboard();
             _restored = true;
           } else if (nav.subId === 'dashboard') {
-            // Sesi lama simpan dashboard tapi user tidak punya akses (atau cuma modul
-            // Kinerja yang accessible) → biarkan fallback handler jalan
+            // Sesi lama simpan dashboard tapi user sekarang tidak punya akses ke situ
+            // → biarkan fallback handler jalan
             _restored = false;
           } else if (nav.subId && nav.subId !== 'dashboard') {
             for (const g of MENUS) {
@@ -1049,12 +1050,10 @@ function _pgCall(containerId, page) { _pgCallbacks[containerId] && _pgCallbacks[
       } catch(e) {}
 
       if (!_restored) {
-        if (_onlyKinerjaAvailable) {
-          const found = _firstAccessibleChild('kinerja');
-          navigateTo(found.child.id, found.child.label, found.child.loader, found.group.id, found.child.page);
-        } else if (!_user.is_admin && !hasAccess('dashboard')) {
-          // Non-admin tanpa permission dashboard → buka menu pertama yang accessible
-          const found = _firstAccessibleChild(null);
+        if (!_user.is_admin && !hasAccess('dashboard')) {
+          // Non-admin tanpa permission dashboard → buka menu pertama yang accessible,
+          // diutamakan Kinerja kalau itu satu-satunya modul yang dia punya
+          const found = _onlyKinerjaAvailable ? _firstAccessibleChild('kinerja') : _firstAccessibleChild(null);
           if (found) {
             navigateTo(found.child.id, found.child.label, found.child.loader, found.group.id, found.child.page);
           } else {
