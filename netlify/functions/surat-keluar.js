@@ -88,10 +88,12 @@ export const handler = async (event) => {
     } catch (err) { return errorResponse('Gagal mengambil data surat keluar: ' + err.message); }
   }
 
-  // ── POST — siapapun yang punya akses menu surat.keluar boleh input, bebas assign pegawai ──
+  // ── POST — hanya admin & user "surat.keluar.full" yang boleh input surat baru ──
   // No. agenda di-generate OTOMATIS oleh sistem (reset ke 1 tiap ganti tahun, berdasarkan tahun tanggal_surat),
   // supaya nggak bentrok antar user yang input manual.
   if (event.httpMethod === 'POST' && !numId) {
+    const fullAccess = await checkFullAccess(auth, sql);
+    if (!fullAccess) return errorResponse('Akses ditolak', 403);
     const { no_surat, tanggal_surat, tujuan_surat, perihal, pegawai, file_url, file_name, keterangan } = parseBody(event);
     if (!tujuan_surat || !perihal) return errorResponse('Tujuan surat dan perihal wajib diisi', 400);
     try {
