@@ -237,6 +237,9 @@ async function loadSuratMasuk(page = 1) {
   // Non-full cuma bisa lihat suratnya sendiri, jadi filter Pegawai nggak relevan
   const pegawaiWrap = document.getElementById('smFilterPegawai')?.closest('.select-wrap');
   if (pegawaiWrap) pegawaiWrap.style.display = isFull ? '' : 'none';
+  // Hanya admin & user "Surat Masuk > Admin Penuh" yang boleh input surat baru
+  const btnTambahSM = document.getElementById('btnTambahSM');
+  if (btnTambahSM) btnTambahSM.style.display = isFull ? '' : 'none';
   const q      = document.getElementById('smSearch')?.value || '';
   const tahun  = document.getElementById('smFilterTahun')?.value || '';
   const bulan  = document.getElementById('smFilterBulan')?.value || '';
@@ -405,6 +408,9 @@ async function loadSuratKeluar(page = 1) {
   // Non-full cuma bisa lihat suratnya sendiri, jadi filter Pegawai nggak relevan
   const pegawaiWrap = document.getElementById('skFilterPegawai')?.closest('.select-wrap');
   if (pegawaiWrap) pegawaiWrap.style.display = isFull ? '' : 'none';
+  // Hanya admin & user "Surat Keluar > Admin Penuh" yang boleh input surat baru
+  const btnTambahSK = document.getElementById('btnTambahSK');
+  if (btnTambahSK) btnTambahSK.style.display = isFull ? '' : 'none';
   const q       = document.getElementById('skSearch')?.value || '';
   const tahun   = document.getElementById('skFilterTahun')?.value || '';
   const bulan   = document.getElementById('skFilterBulan')?.value || '';

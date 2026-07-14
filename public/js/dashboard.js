@@ -634,10 +634,6 @@ async function _ikuApplyFilter() {
     const r = await fetch(`/api/kinerja/rekap?bulan=${bulan}&tahun=${tahun}`, { headers: authHeaders() });
     const d = r.ok ? await r.json() : { rekap: [] };
     let rows = (d.rekap || []).filter(x => x.jenis_monev);
-    if (!_user?.is_admin && typeof _ensureUserIndikatorIds === 'function') {
-      await _ensureUserIndikatorIds();
-      rows = rows.filter(x => _userIndikatorIds && _userIndikatorIds.has(Number(x.id)));
-    }
     _ikuGridData = rows;
   } catch { _ikuGridData = []; }
 
@@ -677,12 +673,9 @@ async function _initIkuGrid() {
     const r = await fetch(`/api/kinerja/rekap?bulan=${bulan}&tahun=${tahun}`, { headers: authHeaders() });
     const d = r.ok ? await r.json() : { rekap: [] };
     let rows = (d.rekap || []).filter(x => x.jenis_monev);
-    // Non-admin: scope ke indikator yang di-assign ke akunnya saja — konsisten
-    // dengan loadDashboardKinerja() & panel-panel lain di Dashboard Utama.
-    if (!_user?.is_admin && typeof _ensureUserIndikatorIds === 'function') {
-      await _ensureUserIndikatorIds();
-      rows = rows.filter(x => _userIndikatorIds && _userIndikatorIds.has(Number(x.id)));
-    }
+    // IKU Grid di Dashboard Utama = ringkasan level organisasi, jadi tetap
+    // ditampilkan utuh utk semua user berakses dashboard — tidak di-scope ke
+    // indikator assignment personal (beda dgn halaman kerja Kelola Kinerja).
     _ikuGridData = rows;
   } catch { _ikuGridData = []; }
 
