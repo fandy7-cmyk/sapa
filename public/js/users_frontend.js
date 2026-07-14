@@ -385,8 +385,7 @@ async function resetUserPassword(id, nama) {
 
 // ── PERMISSIONS ──────────────────────────────────────────────────────────
 const PERM_DEFS = [
-  { key: 'dashboard',           name: 'Dashboard',                desc: 'Lihat halaman dashboard' },
-  { key: 'superlink.link',      name: 'Superlink › Link',         desc: 'Kelola semua link' },
+  { key: 'dashboard',           name: 'Dashboard Utama',          desc: 'Lihat halaman dashboard' },
   { key: 'superlink.shortlink', name: 'Superlink › Shortlink',    desc: 'Kelola link pendek' },
   { key: 'superlink.bundle',    name: 'Superlink › Bundle',       desc: 'Kelola bundle link' },
   { key: 'surat.masuk',         name: 'Surat Masuk',              desc: 'Kelola surat masuk' },
