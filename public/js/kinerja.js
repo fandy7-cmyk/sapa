@@ -245,6 +245,14 @@ function _renderKinerjaWindowBanner(containerId, jenis) {
 let _kinerjaCountdownTimer = null;
 const _kinerjaCountdownTimers = {};
 
+function _kperiodeJenisMeta(jenis) {
+  const checklistIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 11l3 3L22 4"/><path stroke-linecap="round" stroke-linejoin="round" d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>`;
+  if (jenis === 'monev') return { label: 'IKU', bg: '#dbeafe', fg: '#1d4ed8', icon: checklistIcon };
+  if (jenis === 'ikk') return { label: 'IKK', bg: '#ede9fe', fg: '#7c3aed', icon: checklistIcon };
+  if (jenis === 'spm') return { label: 'SPM', bg: '#fef3c7', fg: '#b45309', icon: checklistIcon };
+  return { label: 'INPUT', bg: '#f1f5f9', fg: '#64748b', icon: checklistIcon };
+}
+
 function _renderKinerjaCountdown(containerId, jenis) {
   const wrap = document.getElementById(containerId);
   if (!wrap) return;
@@ -260,23 +268,62 @@ function _renderKinerjaCountdown(containerId, jenis) {
   if (!pa || !pa.close_at) { wrap.style.display = 'none'; wrap.innerHTML = ''; return; }
 
   const closeMs = new Date(pa.close_at).getTime();
+  const openMs  = pa.open_at ? new Date(pa.open_at).getTime() : null;
+  const openLabel  = pa.open_at  ? new Date(pa.open_at).toLocaleString('id-ID', { day:'2-digit', month:'long', year:'numeric', hour:'2-digit', minute:'2-digit' }).replace(' pukul','') : '—';
+  const closeLabel = new Date(pa.close_at).toLocaleString('id-ID', { day:'2-digit', month:'long', year:'numeric', hour:'2-digit', minute:'2-digit' }).replace(' pukul','');
+  const bulanTahunLabel = `${BULAN_FULL[pa.bulan]} ${pa.tahun}`;
+  const jm = _kperiodeJenisMeta(jenis);
+
+  wrap.style.display = 'block';
+  wrap.style.marginTop = '18px';
+  wrap.innerHTML = `
+    <div class="kperiode-card" id="${containerId}_card">
+      <div class="kperiode-header">
+        <span class="kperiode-header-title">
+          <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M8 2v4"/><path d="M16 2v4"/><path d="M3 10h18"/></svg>
+          ${bulanTahunLabel}
+        </span>
+        <span class="kperiode-header-timer" id="${containerId}_timer">…</span>
+      </div>
+      <div class="kperiode-body">
+        <div class="kperiode-action-label">
+          <span class="kperiode-jenis-pill" style="background:${jm.bg};color:${jm.fg}">${jm.icon}${jm.label}</span>
+          PENGISIAN INDIKATOR
+        </div>
+        <div class="kperiode-progress-track">
+          <div class="kperiode-progress-fill ok" id="${containerId}_fill" style="width:0%"></div>
+        </div>
+        <div class="kperiode-window-row">
+          <span class="kperiode-window-open">
+            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 9.9-1"/></svg>
+            ${openLabel} WITA
+          </span>
+          <span class="kperiode-window-close">
+            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+            ${closeLabel} WITA
+          </span>
+        </div>
+        <div class="kperiode-expired-msg" id="${containerId}_expired" style="display:none">
+          Waktu input telah <strong>ditutup</strong>. Periode ini tidak bisa diisi lagi.
+        </div>
+      </div>
+    </div>`;
 
   function _tick() {
     const now  = Date.now();
     const diff = closeMs - now;
+    const timerEl    = document.getElementById(`${containerId}_timer`);
+    const fillEl     = document.getElementById(`${containerId}_fill`);
+    const cardEl     = document.getElementById(`${containerId}_card`);
+    const expiredEl  = document.getElementById(`${containerId}_expired`);
+    if (!timerEl || !fillEl || !cardEl) { clearInterval(_kinerjaCountdownTimers[containerId]); return; }
 
     if (diff <= 0) {
       // Waktu habis
-      wrap.style.display = 'flex';
-      wrap.style.marginTop = '18px';
-      wrap.innerHTML = `
-        <div style="display:flex;align-items:center;gap:10px;padding:10px 16px;border-radius:10px;
-                    background:#fff1f2;border:1px solid #fecdd3;color:#be123c;font-size:.72rem;font-weight:600;width:100%;box-sizing:border-box">
-          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-            <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
-          </svg>
-          <span>Waktu input telah <strong>ditutup</strong>. Periode ini tidak bisa diisi lagi.</span>
-        </div>`;
+      timerEl.textContent = 'Ditutup';
+      cardEl.className = 'kperiode-card expired';
+      fillEl.style.width = '100%';
+      if (expiredEl) expiredEl.style.display = 'block';
       clearInterval(_kinerjaCountdownTimers[containerId]);
       _kinerjaCountdownTimers[containerId] = null;
       // Hapus periode ini dari list terbuka → button bulan langsung disabled
@@ -290,39 +337,28 @@ function _renderKinerjaCountdown(containerId, jenis) {
     const jam   = Math.floor((diff % 86400000) / 3600000);
     const menit = Math.floor((diff % 3600000) / 60000);
     const detik = Math.floor((diff % 60000) / 1000);
-
-    // Tentukan warna berdasarkan sisa waktu
-    let bg, border, fg, urgency = '';
-    if (diff < 3600000) {           // < 1 jam → merah
-      bg = '#fff1f2'; border = '#fecdd3'; fg = '#be123c'; urgency = ' <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="#be123c" style="vertical-align:-1px"><circle cx="12" cy="12" r="10"/></svg>';
-    } else if (diff < 86400000) {   // < 1 hari → oranye
-      bg = '#fff7ed'; border = '#fed7aa'; fg = '#9a3412'; urgency = ' <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="#f97316" style="vertical-align:-1px"><circle cx="12" cy="12" r="10"/></svg>';
-    } else {                        // > 1 hari → hijau
-      bg = '#f0fdf4'; border = '#bbf7d0'; fg = '#166534';
-    }
-
     const pad = n => String(n).padStart(2, '0');
-    const sisaStr = hari > 0
-      ? `${hari} Hari ${pad(jam)} Jam ${pad(menit)} Menit ${pad(detik)} Detik`
-      : `${pad(jam)} Jam ${pad(menit)} Menit ${pad(detik)} Detik`;
 
-    wrap.style.display = 'flex';
-    wrap.style.marginTop = '18px';
-    wrap.innerHTML = `
-      <div style="display:flex;align-items:center;gap:10px;padding:10px 16px;border-radius:10px;
-                  background:${bg};border:1px solid ${border};color:${fg};font-size:.72rem;font-weight:500;
-                  width:100%;box-sizing:border-box;flex-wrap:wrap;gap:8px">
-        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" style="flex-shrink:0">
-          <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
-        </svg>
-        <span style="flex:1;min-width:0">
-          Batas pengisian periode ini:
-          <strong style="letter-spacing:.3px"> ${sisaStr} lagi${urgency}</strong>
-        </span>
-        <span style="opacity:.7;white-space:nowrap">
-          Tutup: ${new Date(pa.close_at).toLocaleString('id-ID',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'})} WITA
-        </span>
-      </div>`;
+    // Urgency relatif terhadap panjang periode (bukan patokan jam absolut aja),
+    // sinkron dgn perhitungan di halaman Kelola Periode (admin).
+    const total   = openMs && closeMs > openMs ? (closeMs - openMs) : null;
+    const sisaPct = total ? (diff / total) * 100 : 100;
+    let urgency = 'ok';
+    if (diff < 3600000 || sisaPct <= 10) urgency = 'urgent';       // sisa < 1 jam ATAU < 10% durasi
+    else if (diff < 86400000 || sisaPct <= 25) urgency = 'warn';   // sisa < 1 hari ATAU < 25% durasi
+
+    timerEl.textContent = hari > 0
+      ? `${hari}h ${pad(jam)}:${pad(menit)}:${pad(detik)}`
+      : `${pad(jam)}:${pad(menit)}:${pad(detik)}`;
+    cardEl.className = `kperiode-card ${urgency}`;
+    fillEl.className = `kperiode-progress-fill ${urgency}`;
+
+    if (openMs && closeMs > openMs) {
+      const pct = Math.min(100, Math.max(0, ((now - openMs) / (closeMs - openMs)) * 100));
+      fillEl.style.width = pct + '%';
+    } else {
+      fillEl.style.width = '100%';
+    }
   }
 
   // Clear timer sebelumnya jika ada (per container)

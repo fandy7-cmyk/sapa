@@ -7,6 +7,7 @@ let _periodeAktif = null;   // cache { id, tahun, bulan, label, open_at, close_a
 // ── Pagination state ──
 let _periodePage     = 1;
 const _periodePageSize = 10;
+const _periodeCardPageSize = 6; // per-group (bukan per-row), card lebih tinggi dari baris tabel
 let _periodeSearch   = '';
 let _periodeFilterStatus = '';   // '' | 'aktif' | 'ditutup' | 'belum'
 let _periodeFilterTahun  = '';   // '' | '2026' | '2027' dst
@@ -94,7 +95,7 @@ async function loadPeriodePage() {
     _populatePeriodeTahunFilter();
     const tahunEl = document.getElementById('periodeFilterTahun');
     if (tahunEl) tahunEl.value = '';
-    renderPeriodeTable();
+    renderPeriodeCards();
   } catch {
     toast('Gagal memuat daftar periode', 'error');
   }
@@ -113,22 +114,105 @@ function filterPeriode() {
   _periodeFilterStatus = document.getElementById('periodeFilterStatus')?.value || '';
   _periodeFilterTahun  = document.getElementById('periodeFilterTahun')?.value  || '';
   _periodePage         = 1;
-  renderPeriodeTable();
+  renderPeriodeCards();
 }
 
-function renderPeriodeTable() {
-  const tb = document.getElementById('periodeTableBody');
-  if (!tb) return;
+// Timer countdown per row (key = periode id) — supaya bisa di-clear pas re-render
+const _periodeCardTimers = {};
+
+function _clearPeriodeCardTimers() {
+  Object.values(_periodeCardTimers).forEach(t => t && clearInterval(t));
+  for (const k in _periodeCardTimers) delete _periodeCardTimers[k];
+}
+
+// Format sisa/menuju waktu → "2 Hari 03:14:07 lagi" (mirip gaya di halaman input kinerja)
+function _fmtSisaWaktu(diffMs) {
+  const hari  = Math.floor(diffMs / 86400000);
+  const jam   = Math.floor((diffMs % 86400000) / 3600000);
+  const menit = Math.floor((diffMs % 3600000) / 60000);
+  const detik = Math.floor((diffMs % 60000) / 1000);
+  const pad = n => String(n).padStart(2, '0');
+  return hari > 0
+    ? `${hari} Hari ${pad(jam)}:${pad(menit)}:${pad(detik)}`
+    : `${pad(jam)}:${pad(menit)}:${pad(detik)}`;
+}
+
+function _jenisMeta(jenis) {
+  if (jenis === 'monev') return { label: 'IKU', bg: '#dbeafe', fg: '#1d4ed8' };
+  if (jenis === 'ikk')   return { label: 'IKK', bg: '#ede9fe', fg: '#7c3aed' };
+  if (jenis === 'spm')   return { label: 'SPM', bg: '#fef3c7', fg: '#b45309' };
+  return { label: '—', bg: '#f1f5f9', fg: '#94a3b8' };
+}
+
+const _iconUnlock = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 9.9-1"/></svg>`;
+const _iconLock   = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>`;
+
+// Tick 1 baris jenis (dipanggil pertama kali + tiap detik via setInterval)
+function _tickPeriodeJenisRow(p) {
+  const countdownEl = document.getElementById(`periodeCountdown_${p.id}`);
+  const fillEl       = document.getElementById(`periodeFill_${p.id}`);
+  if (!countdownEl || !fillEl) { clearInterval(_periodeCardTimers[p.id]); return; }
+
+  const now   = Date.now();
+  const open  = p.open_at  ? new Date(p.open_at).getTime()  : null;
+  const close = p.close_at ? new Date(p.close_at).getTime() : null;
+
+  if (!open || !close) {
+    countdownEl.textContent = '—';
+    countdownEl.className = 'periode-countdown';
+    fillEl.style.width = '0%';
+    fillEl.className = 'periode-progress-fill';
+    clearInterval(_periodeCardTimers[p.id]);
+    return;
+  }
+
+  if (now < open) {
+    // Belum dibuka
+    countdownEl.textContent = `Dibuka ${_fmtSisaWaktu(open - now)} lagi`;
+    countdownEl.className = 'periode-countdown pending';
+    fillEl.style.width = '0%';
+    fillEl.className = 'periode-progress-fill pending';
+  } else if (now > close) {
+    // Sudah ditutup
+    countdownEl.textContent = 'Ditutup';
+    countdownEl.className = 'periode-countdown expired';
+    fillEl.style.width = '100%';
+    fillEl.className = 'periode-progress-fill expired';
+    clearInterval(_periodeCardTimers[p.id]);
+    _periodeCardTimers[p.id] = null;
+  } else {
+    // Sedang berjalan
+    const diff  = close - now;
+    const total = close - open;
+    const pct   = Math.min(100, Math.max(0, ((now - open) / total) * 100));
+    const sisaPct = total > 0 ? (diff / total) * 100 : 100;
+
+    // Urgency relatif terhadap panjang periode (bukan patokan jam absolut),
+    // supaya periode pendek & panjang sama-sama dapet warning yang proporsional.
+    // Tetep ada lantai absolut biar periode yang sangat panjang nggak nunggu
+    // ketinggalan terlalu jauh, dan periode yang sangat pendek tetep kebagian warna.
+    let urgency = 'ok';
+    if (diff < 3600000 || sisaPct <= 10) urgency = 'urgent';       // sisa < 1 jam ATAU < 10% durasi
+    else if (diff < 86400000 || sisaPct <= 25) urgency = 'warn';   // sisa < 1 hari ATAU < 25% durasi
+
+    countdownEl.textContent = `${_fmtSisaWaktu(diff)} lagi`;
+    countdownEl.className = `periode-countdown ${urgency}`;
+    fillEl.style.width = pct + '%';
+    fillEl.className = `periode-progress-fill ${urgency}`;
+  }
+}
+
+function renderPeriodeCards() {
+  const wrap = document.getElementById('periodeCardsWrap');
+  if (!wrap) return;
+  _clearPeriodeCardTimers();
 
   const filtered = _periodeList.filter(p => {
-    // Filter teks
     if (_periodeSearch) {
       const label = `${BULAN_FULL_P[p.bulan]} ${p.tahun}`.toLowerCase();
       if (!label.includes(_periodeSearch) && !String(p.tahun).includes(_periodeSearch)) return false;
     }
-    // Filter tahun
     if (_periodeFilterTahun && String(p.tahun) !== _periodeFilterTahun) return false;
-    // Filter status
     if (_periodeFilterStatus) {
       const open  = isPeriodeInputOpen(p);
       const now   = Date.now();
@@ -142,93 +226,92 @@ function renderPeriodeTable() {
   });
 
   if (!filtered.length) {
-    tb.innerHTML = '<tr class="empty-row"><td colspan="6">' +
-      (_periodeSearch ? 'Tidak ada hasil pencarian.' : 'Belum ada periode. Klik "+ Tambah Periode".') +
-      '</td></tr>';
-    renderPagination('periodePagination', 0, 1, _periodePageSize, 'goPeriodePage');
+    wrap.innerHTML = `<div class="periode-empty">${_periodeSearch || _periodeFilterTahun || _periodeFilterStatus
+      ? 'Tidak ada hasil pencarian.' : 'Belum ada periode. Klik "+ Tambah Periode".'}</div>`;
+    renderPagination('periodePagination', 0, 1, _periodeCardPageSize, 'goPeriodePage');
     return;
   }
 
+  // Group per tahun+bulan
+  const groups = {};
+  filtered.forEach(p => {
+    const key = `${p.tahun}-${p.bulan}`;
+    if (!groups[key]) groups[key] = { tahun: p.tahun, bulan: p.bulan, items: [] };
+    groups[key].items.push(p);
+  });
+  const groupList = Object.values(groups).sort((a, b) =>
+    a.tahun !== b.tahun ? a.tahun - b.tahun : a.bulan - b.bulan);
 
-  filtered.sort((a, b) => a.tahun !== b.tahun ? a.tahun - b.tahun : a.bulan - b.bulan);
+  const start = (_periodePage - 1) * _periodeCardPageSize;
+  const slice = groupList.slice(start, start + _periodeCardPageSize);
 
-  const start = (_periodePage - 1) * _periodePageSize;
-  const slice = filtered.slice(start, start + _periodePageSize);
+  const now = new Date();
+  const isBulanIni = (t, b) => t === now.getFullYear() && b === (now.getMonth() + 1);
 
-  tb.innerHTML = slice.map(p => {
-    const inputOpen = isPeriodeInputOpen(p);
-
-    // Window info (tanpa badge) — 2 baris dengan dot warna, "WITA" nyambung ke jam
-    let windowInfo = '—';
-    if (p.open_at || p.close_at) {
-      windowInfo = `
-        <div style="display:flex;align-items:center;gap:6px">
-          <span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:#10b981;flex-shrink:0"></span>
-          <span>${_fmtDT(p.open_at)}</span>
-        </div>
-        <div style="display:flex;align-items:center;gap:6px;margin-top:3px">
-          <span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:#ef4444;flex-shrink:0"></span>
-          <span>${_fmtDT(p.close_at)}</span>
-        </div>
-      `;
-    }
-
-    // Badge status — kolom terpisah, "Terbuka" → "Aktif"
-    let statusBadge = '—';
-    if (p.open_at || p.close_at) {
-      if (inputOpen) {
-        statusBadge = '<span class="badge badge-aktif" style="background:#D1FAE5;color:#065F46;border:1px solid #6EE7B7">Aktif</span>';
-      } else {
-        const now   = Date.now();
-        const close = p.close_at ? new Date(p.close_at).getTime() : null;
-        if (close && now > close) {
-          statusBadge = '<span class="badge" style="background:#f9191920;color:#f91919;border:1px solid #f9191940">Ditutup</span>';
-        } else {
-          statusBadge = '<span class="badge" style="background:#f5a62320;color:#b45309;border:1px solid #f5a62340">Belum Buka</span>';
-        }
-      }
-    }
-
-    // Jenis badge
-    const jenisBadge = p.jenis === 'monev'
-      ? '<span style="background:#dbeafe;color:#1d4ed8;border-radius:5px;padding:2px 8px;font-size:.72rem;font-weight:700">IKU</span>'
-      : p.jenis === 'ikk'
-      ? '<span style="background:#ede9fe;color:#7c3aed;border-radius:5px;padding:2px 8px;font-size:.72rem;font-weight:700">IKK</span>'
-      : p.jenis === 'spm'
-      ? '<span style="background:#fef3c7;color:#b45309;border-radius:5px;padding:2px 8px;font-size:.72rem;font-weight:700">SPM</span>'
-      : '<span style="color:#94a3b8;font-size:.72rem">—</span>';
+  wrap.innerHTML = slice.map(g => {
+    const jenisRows = [...g.items].sort((a, b) => a.jenis.localeCompare(b.jenis)).map(p => {
+      const meta = _jenisMeta(p.jenis);
+      const hasWindow = !!(p.open_at || p.close_at);
+      return `
+        <div class="periode-jenis-row">
+          <div class="periode-jenis-top">
+            <div class="periode-jenis-label">
+              <span class="jenis-badge" style="background:${meta.bg};color:${meta.fg}">${meta.label}</span>
+            </div>
+            <span class="periode-countdown" id="periodeCountdown_${p.id}">${hasWindow ? '…' : '—'}</span>
+          </div>
+          ${hasWindow ? `
+            <div class="periode-progress-track">
+              <div class="periode-progress-fill" id="periodeFill_${p.id}" style="width:0%"></div>
+            </div>` : ''}
+          <div class="periode-jenis-bottom">
+            <div class="periode-window-info">
+              <span class="periode-window-item open">${_iconUnlock}${_fmtDT(p.open_at)}</span>
+              <span class="periode-window-item close">${_iconLock}${_fmtDT(p.close_at)}</span>
+            </div>
+            <div class="periode-jenis-actions">
+              <button class="btn btn-ghost btn-sm" title="Edit" onclick="openPeriodeModal(${p.id})">
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+                </svg>
+              </button>
+              <button class="btn btn-danger btn-sm" title="Hapus" onclick="deletePeriode(${p.id})">
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                  <polyline points="3 6 5 6 21 6"/>
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M19 6l-1 14H6L5 6"/>
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M10 11v6m4-6v6"/>
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M9 6V4h6v2"/>
+                </svg>
+              </button>
+            </div>
+          </div>
+        </div>`;
+    }).join('');
 
     return `
-      <tr>
-        <td style="text-align:center;font-weight:700">${p.tahun}</td>
-        <td style="text-align:center">${BULAN_FULL_P[p.bulan] || '—'}</td>
-        <td style="text-align:center">${jenisBadge}</td>
-        <td>
-          <div style="font-size:.75rem;color:var(--teks);line-height:1.4">${windowInfo}</div>
-        </td>
-        <td style="text-align:center">${statusBadge}</td>
-        <td style="text-align:center;white-space:nowrap">
-          <button class="btn btn-ghost btn-sm" title="Edit" onclick="openPeriodeModal(${p.id})">
-            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
-            </svg>
-          </button>
-          <button class="btn btn-danger btn-sm" title="Hapus" onclick="deletePeriode(${p.id})">
-            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-              <polyline points="3 6 5 6 21 6"/>
-              <path stroke-linecap="round" stroke-linejoin="round" d="M19 6l-1 14H6L5 6"/>
-              <path stroke-linecap="round" stroke-linejoin="round" d="M10 11v6m4-6v6"/>
-              <path stroke-linecap="round" stroke-linejoin="round" d="M9 6V4h6v2"/>
-            </svg>
-          </button>
-        </td>
-      </tr>`;
+      <div class="periode-group-card">
+        <div class="periode-group-header">
+          <div class="periode-group-title">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M8 2v4"/><path d="M16 2v4"/><path d="M3 10h18"/></svg>
+            Periode ${BULAN_FULL_P[g.bulan]} ${g.tahun}
+          </div>
+          ${isBulanIni(g.tahun, g.bulan) ? '<span class="periode-group-pill">Aktif Hari Ini</span>' : ''}
+        </div>
+        ${jenisRows}
+      </div>`;
   }).join('');
 
-  renderPagination('periodePagination', filtered.length, _periodePage, _periodePageSize, 'goPeriodePage');
+  // Pasang timer live per baris jenis yang punya window
+  slice.forEach(g => g.items.forEach(p => {
+    if (!p.open_at && !p.close_at) return;
+    _tickPeriodeJenisRow(p);
+    _periodeCardTimers[p.id] = setInterval(() => _tickPeriodeJenisRow(p), 1000);
+  }));
+
+  renderPagination('periodePagination', groupList.length, _periodePage, _periodeCardPageSize, 'goPeriodePage');
 }
 
-window.goPeriodePage = (p) => { _periodePage = p; renderPeriodeTable(); };
+window.goPeriodePage = (p) => { _periodePage = p; renderPeriodeCards(); };
 
 // Helper: ubah ISO string → format datetime-local (YYYY-MM-DDTHH:mm) dalam WITA (UTC+8)
 // Harus konsisten dengan _fmtDT() yang juga pakai UTC+8 manual,

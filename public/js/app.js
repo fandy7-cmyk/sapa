@@ -984,16 +984,50 @@ function _pgCall(containerId, page) { _pgCallbacks[containerId] && _pgCallbacks[
       // sessionStorage hilang saat tab ditutup (bukan saat refresh),
       // sehingga aman: sesi baru selalu mulai dari dashboard.
       let _restored = false;
+
+      // Helper: cari child menu pertama yang bisa diakses user, opsional dibatasi ke 1 grup
+      const _firstAccessibleChild = (onlyGroupId) => {
+        for (const g of MENUS) {
+          if (onlyGroupId && g.id !== onlyGroupId) continue;
+          if (g.adminOnly && !_user.is_admin) continue;
+          for (const c of (g.children || [])) {
+            const canAccess = !c.adminOnly || _user.is_admin;
+            const keyOk     = !c.key || hasAccess(c.key);
+            const showOk    = !c.showIf || c.showIf();
+            if (canAccess && keyOk && showOk) return { child: c, group: g };
+          }
+        }
+        return null;
+      };
+
+      // Non-admin yang satu-satunya modul accessible-nya cuma "Kinerja" (nggak ada akses
+      // Surat/Superlink/dll) → Dashboard Utama generik nggak ada gunanya buat dia, jadi
+      // langsung diarahin ke menu Kinerja pertama yang bisa dia akses (dashboard-nya sendiri,
+      // atau IKU/IKK/SPM/Laporan sesuai indikator yang di-assign ke akunnya).
+      const _onlyKinerjaAvailable = !_user.is_admin && (() => {
+        const hasOtherModule = MENUS.some(g => {
+          if (g.id === 'kinerja' || g.adminOnly) return false;
+          return (g.children || []).some(c => {
+            const keyOk  = !c.key || hasAccess(c.key);
+            const showOk = !c.showIf || c.showIf();
+            return keyOk && showOk;
+          });
+        });
+        const hasKinerjaMenu = !!_firstAccessibleChild('kinerja');
+        return !hasOtherModule && hasKinerjaMenu;
+      })();
+
       try {
         const _saved = sessionStorage.getItem('sapa_nav');
         if (_saved) {
           const nav = JSON.parse(_saved);
           // Cari loader dari MENUS berdasarkan subId yang tersimpan
-          if (nav.subId === 'dashboard' && (_user.is_admin || hasAccess('dashboard'))) {
+          if (nav.subId === 'dashboard' && (_user.is_admin || hasAccess('dashboard')) && !_onlyKinerjaAvailable) {
             loadDashboard();
             _restored = true;
-          } else if (nav.subId === 'dashboard' && !_user.is_admin && !hasAccess('dashboard')) {
-            // Sesi lama simpan dashboard tapi user tidak punya akses → biarkan fallback handler jalan
+          } else if (nav.subId === 'dashboard') {
+            // Sesi lama simpan dashboard tapi user tidak punya akses (atau cuma modul
+            // Kinerja yang accessible) → biarkan fallback handler jalan
             _restored = false;
           } else if (nav.subId && nav.subId !== 'dashboard') {
             for (const g of MENUS) {
@@ -1015,24 +1049,15 @@ function _pgCall(containerId, page) { _pgCallbacks[containerId] && _pgCallbacks[
       } catch(e) {}
 
       if (!_restored) {
-        // Non-admin tanpa permission dashboard → buka menu pertama yang accessible
-        if (!_user.is_admin && !hasAccess('dashboard')) {
-          let fallbackLoaded = false;
-          for (const g of MENUS) {
-            if (g.adminOnly && !_user.is_admin) continue;
-            for (const c of (g.children || [])) {
-              const canAccess = !c.adminOnly || _user.is_admin;
-              const keyOk     = !c.key || hasAccess(c.key);
-              const showOk    = !c.showIf || c.showIf();
-              if (canAccess && keyOk && showOk) {
-                navigateTo(c.id, c.label, c.loader, g.id, c.page);
-                fallbackLoaded = true;
-                break;
-              }
-            }
-            if (fallbackLoaded) break;
-          }
-          if (!fallbackLoaded) {
+        if (_onlyKinerjaAvailable) {
+          const found = _firstAccessibleChild('kinerja');
+          navigateTo(found.child.id, found.child.label, found.child.loader, found.group.id, found.child.page);
+        } else if (!_user.is_admin && !hasAccess('dashboard')) {
+          // Non-admin tanpa permission dashboard → buka menu pertama yang accessible
+          const found = _firstAccessibleChild(null);
+          if (found) {
+            navigateTo(found.child.id, found.child.label, found.child.loader, found.group.id, found.child.page);
+          } else {
             // Tidak ada menu apapun — tampilkan pesan
             document.getElementById('mainContent').innerHTML =
               '<div style="padding:2rem;text-align:center;color:#6b7280;">Belum ada menu yang dapat diakses. Hubungi administrator.</div>';
@@ -2000,19 +2025,17 @@ function _renderUrusanTable() {
         <div style="display:flex;gap:6px;justify-content:center">
           <button class="btn btn-sm" title="Kelola Indikator"
             onclick="openLapTemplateIndikatorModal(${t.id}, '${escHtml(t.nama).replace(/'/g,"\\'")}', 'urusan')"
-            style="background:#e0f2fe;color:#0369a1;border:none;padding:4px 8px;font-size:.75rem">
+            style="background:#e0f2fe;color:#0369a1;border:none">
             <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
             Indikator
           </button>
-          <button class="btn btn-sm" title="Edit"
-            onclick="openLapTemplateModal(${t.id}, 'urusan')"
-            style="background:#f0fdf4;color:#166534;border:none;padding:4px 8px">
+          <button class="btn btn-ghost btn-sm" title="Edit"
+            onclick="openLapTemplateModal(${t.id}, 'urusan')">
             <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
           </button>
-          <button class="btn btn-sm" title="Hapus"
-            onclick="deleteLapTemplate(${t.id}, '${escHtml(t.nama).replace(/'/g,"\\'")}', 'urusan')"
-            style="background:#fef2f2;color:#dc2626;border:none;padding:4px 8px">
-            <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path stroke-linecap="round" stroke-linejoin="round" d="M19 6l-1 14H6L5 6m5 0V4h4v2"/></svg>
+          <button class="btn btn-danger btn-sm" title="Hapus"
+            onclick="deleteLapTemplate(${t.id}, '${escHtml(t.nama).replace(/'/g,"\\'")}', 'urusan')">
+            <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path stroke-linecap="round" stroke-linejoin="round" d="M19 6l-1 14H6L5 6"/><path stroke-linecap="round" stroke-linejoin="round" d="M10 11v6m4-6v6"/><path stroke-linecap="round" stroke-linejoin="round" d="M9 6V4h6v2"/></svg>
           </button>
         </div>
       </td>

@@ -633,7 +633,12 @@ async function _ikuApplyFilter() {
   try {
     const r = await fetch(`/api/kinerja/rekap?bulan=${bulan}&tahun=${tahun}`, { headers: authHeaders() });
     const d = r.ok ? await r.json() : { rekap: [] };
-    _ikuGridData = (d.rekap || []).filter(x => x.jenis_monev);
+    let rows = (d.rekap || []).filter(x => x.jenis_monev);
+    if (!_user?.is_admin && typeof _ensureUserIndikatorIds === 'function') {
+      await _ensureUserIndikatorIds();
+      rows = rows.filter(x => _userIndikatorIds && _userIndikatorIds.has(Number(x.id)));
+    }
+    _ikuGridData = rows;
   } catch { _ikuGridData = []; }
 
   // Pastikan semua tahun dalam range sudah ada di _kwAllRekap (untuk chart per bulan)
@@ -671,7 +676,14 @@ async function _initIkuGrid() {
   try {
     const r = await fetch(`/api/kinerja/rekap?bulan=${bulan}&tahun=${tahun}`, { headers: authHeaders() });
     const d = r.ok ? await r.json() : { rekap: [] };
-    _ikuGridData = (d.rekap || []).filter(x => x.jenis_monev);
+    let rows = (d.rekap || []).filter(x => x.jenis_monev);
+    // Non-admin: scope ke indikator yang di-assign ke akunnya saja — konsisten
+    // dengan loadDashboardKinerja() & panel-panel lain di Dashboard Utama.
+    if (!_user?.is_admin && typeof _ensureUserIndikatorIds === 'function') {
+      await _ensureUserIndikatorIds();
+      rows = rows.filter(x => _userIndikatorIds && _userIndikatorIds.has(Number(x.id)));
+    }
+    _ikuGridData = rows;
   } catch { _ikuGridData = []; }
 
   // Bangun tahun list dari periode (untuk dropdown filter)

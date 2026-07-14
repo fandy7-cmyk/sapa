@@ -33,7 +33,7 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" />
   <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400;1,700&display=swap" rel="stylesheet" />
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -396,7 +396,7 @@
     ══════════════════════════════════════════════ */
     .hero {
       background: #ffffff;
-      padding: clamp(36px, 5.5vw, 80px) clamp(16px, 5vw, 68px);
+      padding: clamp(36px, 5vw, 60px) clamp(16px, 5vw, 68px) clamp(36px, 5.5vw, 80px);
       overflow: hidden;
     }
     .hero-inner {
@@ -410,6 +410,13 @@
 
     .hero-text { display: flex; flex-direction: column; align-items: flex-start; }
 
+    .hero-visual-top {
+      display: flex; flex-direction: column; align-items: center;
+      text-align: center;
+      margin-top: var(--sp-1);
+    }
+    .hero-visual-top .portal-wrap { margin-left: 0; margin-bottom: var(--sp-4); }
+
     /* ══════════════════════════════════════════════
        PORTAL ICON — pintu besar + icon melayang masuk
     ══════════════════════════════════════════════ */
@@ -418,7 +425,7 @@
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      width: 89px; height: 89px;
+      width: 64px; height: 64px;
       margin-bottom: var(--sp-4);
       margin-left: 18px;
     }
@@ -552,7 +559,7 @@
     .portal-main-icon {
       position: relative;
       z-index: 2;
-      width: 55px; height: 55px;
+      width: 40px; height: 40px;
       background: transparent;
       border-radius: var(--r-xl);
       border: none;
@@ -572,7 +579,7 @@
       pointer-events: none;
     }
     .portal-main-icon img {
-      width: 44px; height: 44px;
+      width: 32px; height: 32px;
       object-fit: contain;
       animation: logoGlow 2.6s ease-in-out infinite;
     }
@@ -664,8 +671,25 @@
       64%,100% { opacity:0; transform:translate(-47px,-47px) rotate(-8deg) scale(0); }
     }
 
+    .hero-visi {
+      width: 100%;
+      text-align: center;
+      font-size: clamp(16px, 2.2vw, 20px);
+      font-weight: 700;
+      font-style: italic;
+      line-height: 1.5;
+      color: var(--amber);
+      margin-top: var(--sp-2);
+      margin-bottom: var(--sp-5);
+      animation: profilFadeUp .6s cubic-bezier(.22,.61,.36,1) both;
+    }
+    .hero-visi:empty { display: none; margin: 0; }
+    @media (prefers-reduced-motion: reduce) {
+      .hero-visi { animation: none; }
+    }
+
     .hero-title {
-      font-size: clamp(32px, 4.5vw, 54px);
+      font-size: clamp(24px, 3.4vw, 40px);
       font-weight: 800;
       color: var(--slate-900);
       line-height: 1.236;
@@ -1182,7 +1206,7 @@
       .topbar-nav { display: none; }
 
       /* Hero */
-      .hero { padding: var(--sp-6) clamp(16px, 5vw, 42px); }
+      .hero { padding: var(--sp-4) clamp(16px, 5vw, 42px) var(--sp-6); }
       .hero-inner { grid-template-columns: 1fr; text-align: center; gap: var(--sp-4); }
       .hero-text { align-items: center; }
       .portal-wrap { margin-left: 0; }
@@ -1222,11 +1246,11 @@
       .topbar-brand-sub { display: none; }
 
       /* Hero */
-      .hero { padding: var(--sp-5) var(--sp-3); }
-      .hero-title { font-size: clamp(26px, 7vw, 36px); }
-      .portal-wrap { width: 72px; height: 72px; margin-left: 0; }
-      .portal-main-icon { width: 44px; height: 44px; }
-      .portal-main-icon img { width: 28px; height: 28px; }
+      .hero { padding: var(--sp-3) var(--sp-3) var(--sp-5); }
+      .hero-title { font-size: clamp(22px, 6vw, 30px); }
+      .portal-wrap { width: 56px; height: 56px; margin-left: 0; }
+      .portal-main-icon { width: 34px; height: 34px; }
+      .portal-main-icon img { width: 24px; height: 24px; }
       .portal-particles { transform: scale(.8); }
       .btn-hero-login, .btn-hero-ghost { height: 42px; font-size: var(--fs-sm); }
 
@@ -1278,7 +1302,7 @@
 
     /* ── Small mobile (≤380px) ── */
     @media (max-width: 380px) {
-      .hero-title { font-size: 24px; }
+      .hero-title { font-size: 20px; }
       .stat-bar-inner { grid-template-columns: repeat(2, 1fr); }
       .struktur-grid { grid-template-columns: repeat(2, 1fr); }
       .topbar-brand-name { font-size: 13px; }
@@ -1303,10 +1327,22 @@
     .profil-section-label svg { flex-shrink: 0; }
     .profil-title {
       font-size: var(--fs-xl); font-weight: 800; color: var(--slate-900);
-      letter-spacing: -.02em; line-height: 1.2; margin-bottom: var(--sp-3);
+      letter-spacing: -.02em; line-height: 1.2;
     }
-    .profil-visi {
-      font-size: var(--fs-md); color: var(--slate-500); line-height: 1.618; font-style: italic;
+
+    /* ── Animasi masuk ringan untuk label/judul ── */
+    @keyframes profilFadeUp {
+      from { opacity: 0; transform: translateY(10px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    .profil-section-label,
+    .profil-title {
+      animation: profilFadeUp .6s cubic-bezier(.22,.61,.36,1) both;
+    }
+    .profil-section-label { animation-delay: 0s; }
+    .profil-title           { animation-delay: .1s; }
+    @media (prefers-reduced-motion: reduce) {
+      .profil-section-label, .profil-title, .hero-visi { animation: none; }
     }
     .profil-content {
       font-size: var(--fs-md); color: var(--slate-700); line-height: 1.618;
@@ -1686,57 +1722,60 @@
 
 <!-- HERO -->
 <section class="hero">
+  <div class="hero-visual-top">
+    <div class="portal-wrap">
+      <div class="portal-bg"></div>
+      <div class="portal-ring-fade"><div class="portal-ring-spin"></div></div>
+      <div class="portal-particles">
+        <span class="portal-particle pp-1"></span>
+        <span class="portal-particle pp-2"></span>
+        <span class="portal-particle pp-3"></span>
+        <span class="portal-particle pp-4"></span>
+        <span class="portal-particle pp-5"></span>
+        <span class="portal-particle pp-6"></span>
+        <span class="portal-particle pp-7"></span>
+        <span class="portal-particle pp-8"></span>
+        <span class="portal-particle pp-9"></span>
+        <span class="portal-particle pp-10"></span>
+        <span class="portal-particle pp-11"></span>
+        <span class="portal-particle pp-12"></span>
+        <span class="portal-particle pp-13"></span>
+        <span class="portal-particle pp-14"></span>
+        <span class="portal-particle pp-15"></span>
+        <span class="portal-particle pp-16"></span>
+        <span class="portal-particle pp-17"></span>
+        <span class="portal-particle pp-18"></span>
+        <span class="portal-particle pp-19"></span>
+        <span class="portal-particle pp-20"></span>
+        <span class="portal-particle pp-21"></span>
+        <span class="portal-particle pp-22"></span>
+        <span class="portal-particle pp-23"></span>
+        <span class="portal-particle pp-24"></span>
+      </div>
+
+      <!-- Icon kecil melayang masuk -->
+      <div class="portal-icon pi-1">
+        <svg viewBox="0 0 24 24"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>
+      </div>
+      <div class="portal-icon pi-2">
+        <svg viewBox="0 0 24 24"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+      </div>
+      <div class="portal-icon pi-3">
+        <svg viewBox="0 0 24 24"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/></svg>
+      </div>
+      <div class="portal-icon pi-4">
+        <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+      </div>
+
+      <!-- Icon utama: logo SAPA -->
+      <div class="portal-main-icon">
+        <img src="/favicon.png" alt="SAPA" />
+      </div>
+    </div>
+    <div class="hero-visi" id="profilVisiPublik"></div>
+  </div>
   <div class="hero-inner">
     <div class="hero-text">
-      <div class="portal-wrap">
-        <div class="portal-bg"></div>
-        <div class="portal-ring-fade"><div class="portal-ring-spin"></div></div>
-        <div class="portal-particles">
-          <span class="portal-particle pp-1"></span>
-          <span class="portal-particle pp-2"></span>
-          <span class="portal-particle pp-3"></span>
-          <span class="portal-particle pp-4"></span>
-          <span class="portal-particle pp-5"></span>
-          <span class="portal-particle pp-6"></span>
-          <span class="portal-particle pp-7"></span>
-          <span class="portal-particle pp-8"></span>
-          <span class="portal-particle pp-9"></span>
-          <span class="portal-particle pp-10"></span>
-          <span class="portal-particle pp-11"></span>
-          <span class="portal-particle pp-12"></span>
-          <span class="portal-particle pp-13"></span>
-          <span class="portal-particle pp-14"></span>
-          <span class="portal-particle pp-15"></span>
-          <span class="portal-particle pp-16"></span>
-          <span class="portal-particle pp-17"></span>
-          <span class="portal-particle pp-18"></span>
-          <span class="portal-particle pp-19"></span>
-          <span class="portal-particle pp-20"></span>
-          <span class="portal-particle pp-21"></span>
-          <span class="portal-particle pp-22"></span>
-          <span class="portal-particle pp-23"></span>
-          <span class="portal-particle pp-24"></span>
-        </div>
-
-        <!-- Icon kecil melayang masuk -->
-        <div class="portal-icon pi-1">
-          <svg viewBox="0 0 24 24"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>
-        </div>
-        <div class="portal-icon pi-2">
-          <svg viewBox="0 0 24 24"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
-        </div>
-        <div class="portal-icon pi-3">
-          <svg viewBox="0 0 24 24"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/></svg>
-        </div>
-        <div class="portal-icon pi-4">
-          <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-        </div>
-
-        <!-- Icon utama: logo SAPA -->
-        <div class="portal-main-icon">
-          <img src="/favicon.png" alt="SAPA" />
-        </div>
-      </div>
       <h1 class="hero-title">
         Informasi &amp; Layanan<br><em>Sub Bagian Perencanaan</em>
       </h1>
@@ -1988,7 +2027,6 @@
       <div>
         <div class="profil-section-label"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>Tentang Kami</div>
         <div class="profil-title">Sub Bagian Perencanaan</div>
-        <div class="profil-visi" id="profilVisiPublik"></div>
       </div>
       <div>
         <div class="profil-section-label" style="margin-bottom:var(--sp-3)"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m3 17 2 2 4-4"/><path d="m3 7 2 2 4-4"/><path d="M13 6h8"/><path d="M13 12h8"/><path d="M13 18h8"/></svg>Uraian Tugas</div>
@@ -2524,14 +2562,16 @@ async function loadProfilLanding() {
     if (!r.ok) throw new Error();
     const d = await r.json();
 
+    // Tagline hero (di bawah topbar, di atas judul)
+    const vEl = document.getElementById('profilVisiPublik');
+    if (vEl) { if (d.visi) vEl.textContent = d.visi; else vEl.style.display = 'none'; }
+
     // Tugas & Fungsi
     const sec = document.getElementById('sectionProfil');
-    if ((d.tugas_fungsi || d.visi) && sec) {
+    if (d.tugas_fungsi && sec) {
       sec.style.display = '';
-      const vEl = document.getElementById('profilVisiPublik');
-      if (vEl && d.visi) vEl.textContent = d.visi;
       const tEl2 = document.getElementById('profilTugasFungsiPublik');
-      if (tEl2 && d.tugas_fungsi) tEl2.innerHTML = d.tugas_fungsi;
+      if (tEl2) tEl2.innerHTML = d.tugas_fungsi;
     }
 
     // Kontak

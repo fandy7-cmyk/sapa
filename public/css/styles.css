@@ -104,6 +104,19 @@ body.login-mode {
   height: 100vh !important;
 }
 
+/* ═══════════════════════════════════════════════════════════════════════════
+   SCROLLBAR GLOBAL — satu sumber untuk semua elemen scrollable di sistem
+   (tabel, modal, sidebar, dsb). Ubah di sini, berlaku ke seluruh app.
+   ═══════════════════════════════════════════════════════════════════════════ */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #cbd5e1 transparent;
+}
+*::-webkit-scrollbar { width: 6px; height: 6px; }
+*::-webkit-scrollbar-track { background: transparent; }
+*::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+*::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+
 /* overlay gradient — putih dominan */
 body::before {
   content: '';
@@ -1292,13 +1305,13 @@ input[type="checkbox"].toggle:checked::after { left: 19px; }
 
 .kinerja-table { width:100%; border-collapse:separate; border-spacing:0; font-size:.79rem; }
 .kinerja-table th {
-  background:var(--hijau); color:#fff; padding:10px 10px;
+  background:var(--hijau); color:#fff; padding:10px var(--sp-4);
   text-align:center; font-weight:700; white-space:nowrap; position:sticky; top:0; z-index:2;
   font-size:.72rem; letter-spacing:.4px; text-transform:uppercase;
   border:none;
 }
-.kinerja-table th:first-child { border-radius:0; }
-.kinerja-table th:last-child  { border-radius:0; }
+.kinerja-table th:first-child { border-radius: var(--r-sm) 0 0 0; }
+.kinerja-table th:last-child  { border-radius: 0 var(--r-sm) 0 0; }
 .kinerja-table thead, .kinerja-table thead tr, .kinerja-table thead th { background:var(--hijau) !important; color:#fff; border-color:var(--hijau) !important; outline:none; }
 .kinerja-table thead th { box-shadow: 0 0 0 2px var(--hijau); }
 /* Header 2 baris (mis. TW I/II lalu nama bulan di Laporan Kinerja): baris 1
@@ -1308,19 +1321,12 @@ input[type="checkbox"].toggle:checked::after { left: 19px; }
    baris 1 alih-alih nempel di bawahnya (freeze jadi keliatan "gak maksimal"). */
 .kinerja-table thead tr.lap-th-row1 th { top:0; z-index:3; }
 .kinerja-table thead tr.lap-th-row2 th { z-index:2; }
-.kinerja-table-wrap.card { overflow-x:auto !important; overflow-y:auto; max-height:70vh; -webkit-overflow-scrolling:touch; scrollbar-width:thin; scrollbar-color:#cbd5e1 transparent; }
-.kinerja-table-wrap.card::-webkit-scrollbar { width:6px; height:6px; }
-.kinerja-table-wrap.card::-webkit-scrollbar-thumb { background:#cbd5e1; border-radius:3px; }
+.kinerja-table-wrap.card { overflow-x:auto !important; overflow-y:auto; max-height:70vh; -webkit-overflow-scrolling:touch; }
 .card:has(> .kinerja-table),
 .card:has(> table.kinerja-table) { border-radius: var(--r-lg); overflow-y: auto !important; }
-/* Header sticky nempel pas di sudut atas wrapper — sudut atas dibikin kotak
-   biar gak ke-clip lengkung sama border-radius wrapper (r-lg). Sudut bawah tetap lengkung. */
-.kinerja-table-wrap.card,
-.card:has(> .kinerja-table),
-.card:has(> table.kinerja-table) { border-top-left-radius:0 !important; border-top-right-radius:0 !important; }
 .kinerja-table th[style*="left:0"]    { z-index:5 !important; background:var(--hijau); }
 .kinerja-table th[style*="left:34px"] { z-index:5 !important; border-right:1px solid rgba(0,0,0,.12); left:44px !important; background:var(--hijau); }
-.kinerja-table td { padding:8px 10px; border-bottom:1px solid var(--abu-1); vertical-align:middle; user-select:text; overflow:hidden; background:#fff; }
+.kinerja-table td { padding:var(--sp-3) var(--sp-3); border-bottom:1px solid var(--abu-1); vertical-align:middle; user-select:text; overflow:hidden; background:#fff; }
 .kinerja-table tbody tr { background:#fff; }
 .kinerja-table td.td-sticky-no, .kinerja-table td.td-sticky-name { background:#fff !important; z-index:3 !important; transition:background-color .25s ease; }
 .kinerja-table td.td-sticky-no  { box-shadow:none; width:44px; min-width:44px; max-width:44px; overflow:hidden; }
@@ -1343,6 +1349,28 @@ input[type="checkbox"].toggle:checked::after { left: 19px; }
 /* Kolom satuan & target — cegah teks bocor ke belakang sticky */
 .kinerja-table td.td-satuan { white-space:normal; word-break:break-word; max-width:80px; }
 .kinerja-table td.td-target { white-space:nowrap; overflow:hidden; max-width:80px; text-overflow:ellipsis; }
+
+/* ── Tabel Running Text (ticker) — kolom Teks wrap, jangan scroll horizontal ── */
+#tickerTable { table-layout: fixed; min-width: 0; }
+#tickerTable td, #tickerTable th { white-space: normal; }
+/* Samakan padding dengan tabel default (.card table) agar konsisten dgn tabel Pengumuman di atasnya */
+#tickerTable th { padding: 10px var(--sp-4); }
+#tickerTable td { padding: var(--sp-3) var(--sp-3); }
+#tickerTable td:nth-child(2) { white-space: normal; word-break: break-word; overflow-wrap: anywhere; overflow: visible; }
+#tickerTable td:last-child { overflow: visible; }
+#tickerTable td:last-child > div { flex-wrap: nowrap; }
+.kinerja-table-wrap:has(#tickerTable) { overflow-x: auto; }
+#tickerTable thead th {
+  background: var(--hijau) !important;
+  color: #fff !important;
+  border-radius: 0 !important;
+}
+#tickerTable thead th:first-child {
+  border-radius: var(--r-sm) 0 0 0 !important;
+}
+#tickerTable thead th:last-child {
+  border-radius: 0 var(--r-sm) 0 0 !important;
+}
 
 .capaian-badge { display:inline-flex; align-items:center; gap:3px; padding:3px 9px; border-radius:20px; font-size:.73rem; font-weight:700; white-space:nowrap; }
 .capaian-badge.st   { background:#4ade80; color:#14532d; }  /* Sangat Tinggi  91-100 */
@@ -2870,7 +2898,6 @@ body.login-page::before {
 .kw-dd-list {
   max-height: 220px; overflow-y: auto;
   padding: 6px 6px;
-  scrollbar-width: thin; scrollbar-color: #e2e8f0 transparent;
 }
 .kw-dd-item {
   display: flex; align-items: center; justify-content: space-between; gap: 8px;
@@ -4297,14 +4324,7 @@ td.col-perihal {
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;
   width: 100%;
-  /* scrollbar tipis */
-  scrollbar-width: thin;
-  scrollbar-color: var(--abu-2) transparent;
 }
-.table-scroll-x::-webkit-scrollbar { height: 4px; }
-.table-scroll-x::-webkit-scrollbar-track { background: transparent; }
-.table-scroll-x::-webkit-scrollbar-thumb { background: var(--abu-2); border-radius: 2px; }
-.table-scroll-x::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
 
 /* Tabel di dalam wrapper scroll */
 .table-scroll-x > table,
@@ -4427,11 +4447,7 @@ td.col-perihal {
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;
   width: 100%;
-  scrollbar-width: thin;
-  scrollbar-color: #cbd5e1 transparent;
 }
-.kinerja-table-wrap::-webkit-scrollbar { height: 4px; }
-.kinerja-table-wrap::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 2px; }
 
 .kinerja-table-wrap .kinerja-table,
 .kinerja-table-wrap > table {
@@ -4452,12 +4468,8 @@ td.col-perihal {
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;
   width: 100%;
-  scrollbar-width: thin;
-  scrollbar-color: #cbd5e1 transparent;
   border-radius: var(--r-md);
 }
-.table-scroll-x::-webkit-scrollbar { height: 4px; }
-.table-scroll-x::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 2px; }
 .table-scroll-x > table {
   min-width: max-content;
   width: 100%;
@@ -6797,7 +6809,7 @@ tr:hover td:not(.td-sticky-no):not(.td-sticky-name) { background: var(--abu-1); 
 .kinerja-table th {
   background: var(--hijau);
   color: #fff;
-  padding: var(--sp-3) var(--sp-4);
+  padding: 10px var(--sp-4);
   text-align: center;
   font-weight: 700;
   white-space: nowrap;
@@ -6813,12 +6825,9 @@ tr:hover td:not(.td-sticky-no):not(.td-sticky-name) { background: var(--abu-1); 
 }
 .kinerja-table th[style*="left:0"]    { z-index: 5 !important; background: var(--hijau); }
 .kinerja-table th[style*="left:34px"] { z-index: 5 !important; border-right: 1px solid rgba(0,0,0,.12); left: 44px !important; background: var(--hijau); }
-.card:has(> .kinerja-table),
-.card:has(> table.kinerja-table),
-.kinerja-table-wrap.card { border-top-left-radius: 0 !important; border-top-right-radius: 0 !important; }
 
 .kinerja-table td {
-  padding: var(--sp-3) var(--sp-4);
+  padding: var(--sp-3) var(--sp-3);
   border-bottom: 1px solid var(--abu-1);
   vertical-align: middle;
   line-height: var(--lh-body);
@@ -8382,4 +8391,179 @@ tr:hover td:not(.td-sticky-no):not(.td-sticky-name) { background: var(--abu-1); 
   .dash-kpi-card { padding: 12px 12px 11px; }
   .dash-kpi-val { font-size: 1.25rem; }
   .dash-kpi-lbl { font-size: .66rem; }
+}
+/* ═══════════════════════════════════════════════════════════════════════
+   KELOLA PERIODE — card style (gantiin tabel lama, ala "Periode Aktif")
+   ═══════════════════════════════════════════════════════════════════════ */
+#periodeCardsWrap {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+  gap: var(--sp-4);
+  align-items: start;
+}
+.periode-group-card {
+  background: rgba(255,255,255,.92);
+  border-radius: var(--radius);
+  overflow: hidden;
+  margin-bottom: 0;
+  box-shadow: var(--shadow-md);
+}
+.periode-group-header {
+  display: flex; align-items: center; justify-content: space-between; gap: var(--sp-2);
+  background: linear-gradient(135deg, var(--hijau), var(--hijau-mid));
+  color: #fff;
+  padding: var(--sp-3) var(--sp-4);
+  flex-wrap: wrap;
+}
+.periode-group-title {
+  display: flex; align-items: center; gap: 7px;
+  font-weight: 700; font-size: var(--fs-sm); letter-spacing: .2px;
+}
+.periode-group-title svg { flex-shrink: 0; opacity: .9; width: 15px; height: 15px; }
+.periode-group-pill {
+  background: rgba(255,255,255,.18);
+  border: 1px solid rgba(255,255,255,.4);
+  color: #fff; font-size: 11px; font-weight: 700;
+  padding: 3px 10px; border-radius: 999px; white-space: nowrap;
+}
+
+.periode-jenis-row {
+  padding: 12px var(--sp-4);
+  border-bottom: 1px solid var(--abu-1, #f1f5f9);
+}
+.periode-jenis-row:last-child { border-bottom: none; }
+.periode-jenis-top {
+  display: flex; align-items: center; justify-content: space-between; gap: 6px;
+  flex-wrap: wrap; margin-bottom: 8px;
+}
+.periode-jenis-label { display: flex; align-items: center; gap: 7px; min-width: 0; }
+.periode-jenis-label .jenis-badge {
+  border-radius: 6px; padding: 2px 8px; font-size: 11px; font-weight: 700; flex-shrink: 0;
+}
+.periode-jenis-name { font-weight: 700; font-size: 13.5px; color: var(--teks); }
+.periode-countdown { font-size: 11px; font-weight: 700; white-space: nowrap; }
+.periode-countdown.ok      { color: #166534; }
+.periode-countdown.warn    { color: #9a3412; }
+.periode-countdown.urgent  { color: #be123c; }
+.periode-countdown.expired { color: #94a3b8; }
+.periode-countdown.pending { color: #b45309; }
+
+.periode-progress-track {
+  width: 100%; height: 5px; border-radius: 999px;
+  background: var(--abu-1, #e2e8f0); overflow: hidden; margin-bottom: 8px;
+}
+.periode-progress-fill {
+  height: 100%; border-radius: 999px;
+  background: linear-gradient(90deg, var(--hijau-mid), var(--hijau));
+  transition: width .4s ease, background .3s ease;
+}
+.periode-progress-fill.ok      { background: linear-gradient(90deg, var(--hijau-mid), var(--hijau)); }
+.periode-progress-fill.warn    { background: linear-gradient(90deg, #f59e0b, #ea580c); }
+.periode-progress-fill.urgent  { background: linear-gradient(90deg, #f43f5e, #be123c); }
+.periode-progress-fill.pending { background: #cbd5e1; }
+.periode-progress-fill.expired { background: #cbd5e1; }
+
+.periode-jenis-bottom {
+  display: flex; align-items: flex-end; justify-content: space-between; gap: 8px;
+}
+.periode-window-info { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.periode-window-item {
+  display: grid; grid-template-columns: 13px auto; align-items: center; gap: 6px;
+  font-size: 11.5px; line-height: 1.3; color: var(--teks-muted);
+}
+.periode-window-item svg { flex-shrink: 0; width: 12px; height: 12px; justify-self: center; }
+.periode-window-item.open  svg { color: #10b981; }
+.periode-window-item.close svg { color: #ef4444; }
+.periode-jenis-actions { display: flex; justify-content: flex-end; gap: 6px; flex-shrink: 0; }
+.periode-jenis-actions .btn-sm { padding: 4px 9px; font-size: 12px; }
+
+.periode-empty {
+  grid-column: 1 / -1;
+  background: rgba(255,255,255,.88); border-radius: var(--radius);
+  padding: var(--sp-7) var(--sp-5); text-align: center;
+  color: var(--teks-muted); font-style: italic; box-shadow: var(--shadow-md);
+}
+
+@media (max-width: 1400px) {
+  #periodeCardsWrap { grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); }
+}
+@media (max-width: 640px) {
+  #periodeCardsWrap { grid-template-columns: 1fr; }
+  .periode-group-header { padding: var(--sp-3) var(--sp-4); }
+  .periode-jenis-row { padding: var(--sp-3) var(--sp-4); }
+}
+/* ── Banner countdown "Periode Aktif" di halaman Input Kinerja (non-admin) ── */
+.kperiode-card {
+  background: #fff;
+  border-radius: var(--radius);
+  overflow: hidden;
+  box-shadow: var(--shadow-md);
+}
+.kperiode-header {
+  display: flex; align-items: center; justify-content: space-between; gap: var(--sp-3);
+  background: linear-gradient(135deg, var(--hijau), var(--hijau-mid));
+  color: #fff;
+  padding: var(--sp-3) var(--sp-5);
+  flex-wrap: wrap;
+}
+.kperiode-header-title {
+  display: flex; align-items: center; gap: var(--sp-2);
+  font-weight: 700; font-size: var(--fs-base);
+}
+.kperiode-header-timer {
+  background: rgba(0,0,0,.18);
+  border-radius: 999px;
+  padding: 3px 12px;
+  font-size: var(--fs-xs); font-weight: 700; font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.kperiode-card.expired .kperiode-header { background: linear-gradient(90deg, #64748b, #94a3b8); }
+
+.kperiode-body { padding: var(--sp-4) var(--sp-5); }
+.kperiode-action-label {
+  display: flex; align-items: center; gap: 8px;
+  font-size: var(--fs-xs); font-weight: 700; color: var(--hijau);
+  text-transform: uppercase; letter-spacing: .4px;
+  margin-bottom: var(--sp-3);
+}
+.kperiode-card.expired .kperiode-action-label { color: #94a3b8; }
+.kperiode-jenis-pill {
+  display: inline-flex; align-items: center; gap: 5px;
+  border-radius: 6px; padding: 3px 9px;
+  font-size: 11px; font-weight: 700; letter-spacing: .2px;
+}
+.kperiode-card.expired .kperiode-jenis-pill { background: #f1f5f9 !important; color: #94a3b8 !important; }
+
+.kperiode-progress-track {
+  width: 100%; height: 7px; border-radius: 999px;
+  background: var(--abu-1, #e2e8f0); overflow: hidden; margin-bottom: var(--sp-3);
+}
+.kperiode-progress-fill {
+  height: 100%; border-radius: 999px;
+  background: linear-gradient(90deg, var(--hijau-mid), var(--hijau));
+  transition: width .4s ease, background .3s ease;
+}
+.kperiode-progress-fill.ok      { background: linear-gradient(90deg, var(--hijau-mid), var(--hijau)); }
+.kperiode-progress-fill.warn    { background: linear-gradient(90deg, #f59e0b, #ea580c); }
+.kperiode-progress-fill.urgent  { background: linear-gradient(90deg, #f43f5e, #be123c); }
+.kperiode-card.expired .kperiode-progress-fill { background: #cbd5e1; }
+
+.kperiode-window-row {
+  display: flex; align-items: center; justify-content: space-between; gap: var(--sp-3); flex-wrap: wrap;
+}
+.kperiode-window-open, .kperiode-window-close {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: var(--fs-xs); color: var(--teks-muted); white-space: nowrap;
+}
+.kperiode-window-open  svg { color: #10b981; flex-shrink: 0; }
+.kperiode-window-close svg { color: #ef4444; flex-shrink: 0; }
+
+.kperiode-expired-msg {
+  margin-top: var(--sp-3); font-size: var(--fs-xs); color: #be123c;
+}
+
+@media (max-width: 640px) {
+  .kperiode-header { padding: var(--sp-3) var(--sp-4); }
+  .kperiode-body { padding: var(--sp-3) var(--sp-4); }
+  .kperiode-window-row { flex-direction: column; align-items: flex-start; gap: var(--sp-2); }
 }
