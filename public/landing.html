@@ -4,6 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>SAPA Perencanaan</title>
+  <meta name="app-version" content="1.0.0" />
   <meta property="og:type"         content="website" />
   <meta property="og:site_name"    content="SAPA Perencanaan" />
   <meta property="og:title"        content="SAPA Perencanaan" />
@@ -3041,6 +3042,53 @@ async function loadTicker() {
   }
 }
 loadTicker();
+</script>
+
+<!-- ===== Version checker: auto-detect update tanpa perlu hard reset ===== -->
+<script>
+(function () {
+  var CURRENT_VERSION = document.querySelector('meta[name="app-version"]').content;
+  var CHECK_INTERVAL_MS = 5 * 60 * 1000; // cek tiap 5 menit
+  var banner = null;
+
+  function showUpdateBanner() {
+    if (banner) return; // sudah tampil
+    banner = document.createElement('div');
+    banner.setAttribute('role', 'status');
+    banner.style.cssText = [
+      'position:fixed', 'left:50%', 'bottom:20px', 'transform:translateX(-50%)',
+      'z-index:99999', 'background:var(--teal-900,#042c26)', 'color:#fff',
+      'padding:12px 18px', 'border-radius:999px', 'box-shadow:0 8px 24px rgba(0,0,0,.25)',
+      'display:flex', 'align-items:center', 'gap:12px', 'font-size:14px',
+      'font-family:inherit', 'max-width:92vw'
+    ].join(';');
+    banner.innerHTML =
+      '<span>Ada pembaruan tersedia.</span>' +
+      '<button type="button" style="background:var(--teal-500,#14b8a6);color:#042c26;border:none;' +
+      'padding:6px 14px;border-radius:999px;font-weight:600;font-size:13px;cursor:pointer;">Muat ulang</button>';
+    banner.querySelector('button').addEventListener('click', function () {
+      window.location.reload();
+    });
+    document.body.appendChild(banner);
+  }
+
+  function checkVersion() {
+    fetch('/version.json?_=' + Date.now(), { cache: 'no-store' })
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (data) {
+        if (data && data.version && data.version !== CURRENT_VERSION) showUpdateBanner();
+      })
+      .catch(function () {});
+  }
+
+  // Cek saat load (delay dikit biar gak ganggu render awal),
+  // saat tab balik fokus/visible, dan berkala tiap CHECK_INTERVAL_MS.
+  setTimeout(checkVersion, 3000);
+  document.addEventListener('visibilitychange', function () {
+    if (document.visibilityState === 'visible') checkVersion();
+  });
+  setInterval(checkVersion, CHECK_INTERVAL_MS);
+})();
 </script>
 </body>
 </html>
