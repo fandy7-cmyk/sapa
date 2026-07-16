@@ -26,6 +26,14 @@
     Pragma = "no-cache"
     Expires = "0"
 
+# version.json: selalu fresh (dipakai buat cek update)
+[[headers]]
+  for = "/version.json"
+  [headers.values]
+    Cache-Control = "no-cache, no-store, must-revalidate"
+    Pragma = "no-cache"
+    Expires = "0"
+
 # JS & CSS: cache agresif (sudah ada versioning ?v=xxx di URL)
 [[headers]]
   for = "/js/*"
