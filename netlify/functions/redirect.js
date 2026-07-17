@@ -39,6 +39,68 @@ function getBundleHtml() {
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="/css/styles.css" />
+  <style>
+    /* ── Logo brand-footer: animasi sama persis kayak .topbar-icon-wrap di
+       landing.html (ring spin conic-gradient + partikel orbit berkedip +
+       loop fade-in/scale/glow tiap 6 detik) — di-prefix "bf-" biar gak
+       nabrak style lain yang mungkin dipakai css/styles.css. ── */
+    .bf-icon-wrap {
+      position: relative;
+      display: inline-flex; align-items: center; justify-content: center;
+      width: 32px; height: 32px;
+      margin-bottom: 10px;
+      animation: bfIconLoop 6s cubic-bezier(0.34,1.56,0.64,1) infinite;
+    }
+    .bf-icon-wrap img {
+      width: 32px; height: 32px; object-fit: contain;
+      position: relative; z-index: 2;
+    }
+    .bf-ring-spin {
+      position: absolute; inset: -6px;
+      border-radius: 50%;
+      background: conic-gradient(from 0deg, transparent 0%, rgba(20,184,166,.7) 14%, rgba(45,212,191,.9) 22%, transparent 34%, transparent 55%, rgba(13,148,136,.6) 68%, rgba(45,212,191,.8) 76%, transparent 88%);
+      -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 2px), #000 calc(100% - 2px));
+              mask: radial-gradient(farthest-side, transparent calc(100% - 2px), #000 calc(100% - 2px));
+      animation: bfRingSpin 2.6s linear infinite;
+      pointer-events: none;
+      z-index: 0;
+    }
+    .bf-particles-mini { position: absolute; inset: -14px; pointer-events: none; z-index: 1; }
+    .bfp {
+      position: absolute; top: 50%; left: 50%;
+      border-radius: 50%;
+      transform-origin: 0 0;
+      animation: bfOrbit linear infinite, bfTwinkle ease-in-out infinite;
+    }
+    .bfp-1 { --r: 17px; width: 1.5px; height: 1.5px; background: #2dd4bf; box-shadow: 0 0 3px 1px rgba(45,212,191,.8); animation-duration: 4.6s, 1.9s; animation-delay: -1.6s, -.4s; }
+    .bfp-2 { --r: 22px; width: 2px;   height: 2px;   background: #0d9488; box-shadow: 0 0 3px 1px rgba(13,148,136,.7); animation-duration: 5.5s, 2.3s; animation-delay: -2.3s, -.6s; }
+    .bfp-3 { --r: 14px; width: 1.5px; height: 1.5px; background: #fff; box-shadow: 0 0 3px 1px rgba(255,255,255,.85); animation-duration: 3.9s, 1.6s; animation-delay: -1.1s, -.3s; }
+    .bfp-4 { --r: 25px; width: 1.5px; height: 1.5px; background: #5eead4; box-shadow: 0 0 3px 1px rgba(94,234,212,.7); animation-duration: 6.2s, 2.6s; animation-delay: -2.8s, -.7s; }
+    .bfp-5 { --r: 19px; width: 2px;   height: 2px;   background: #14b8a6; box-shadow: 0 0 3px 1px rgba(20,184,166,.75); animation-duration: 4.9s, 2.1s; animation-delay: -1.9s, -.5s; }
+
+    @keyframes bfRingSpin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+    @keyframes bfOrbit {
+      from { transform: rotate(0deg)   translateX(var(--r, 20px)) rotate(0deg); }
+      to   { transform: rotate(360deg) translateX(var(--r, 20px)) rotate(-360deg); }
+    }
+    @keyframes bfTwinkle {
+      0%, 100% { opacity: .25; }
+      50%      { opacity: 1; }
+    }
+    @keyframes bfIconLoop {
+      0%   { opacity: 0; transform: scale(0.6); filter: drop-shadow(0 0 0px rgba(13,148,136,0)); }
+      12%  { opacity: 1; transform: scale(1.12); filter: drop-shadow(0 4px 10px rgba(0,0,0,.15)) drop-shadow(0 0 12px rgba(13,148,136,.5)); }
+      18%  { transform: scale(1); }
+      50%  { filter: drop-shadow(0 2px 8px rgba(0,0,0,.12)) drop-shadow(0 0 8px rgba(13,148,136,.35)); }
+      82%  { opacity: 1; transform: scale(1); }
+      92%  { opacity: 0; transform: scale(0.75); }
+      100% { opacity: 0; transform: scale(0.6); }
+    }
+    /* Icon link default di item-card: paksa ikut warna tema app (teal), bukan
+       warna ungu/lavender yang kebawa dari style lain. */
+    .item-card .item-icon { color: var(--hijau, #0f766e); }
+    .item-card .item-icon svg { color: var(--hijau, #0f766e); stroke: currentColor; }
+  </style>
 </head>
 <body class="bundle-page">
 <div class="page-wrap">
@@ -82,7 +144,17 @@ function getBundleHtml() {
 
 <!-- BRAND FOOTER -->
 <div class="brand-footer">
-  <img src="/favicon.png" alt="SAPA" />
+  <span class="bf-icon-wrap">
+    <span class="bf-ring-spin"></span>
+    <span class="bf-particles-mini">
+      <span class="bfp bfp-1"></span>
+      <span class="bfp bfp-2"></span>
+      <span class="bfp bfp-3"></span>
+      <span class="bfp bfp-4"></span>
+      <span class="bfp bfp-5"></span>
+    </span>
+    <img src="/favicon.png" alt="SAPA" />
+  </span>
   <span>Sub Bagian Perencanaan</span>
   <span>Dinas Kesehatan, Pengendalian Penduduk dan Keluarga Berencana</span>
   <span>Kabupaten Banggai Laut</span>
@@ -163,7 +235,7 @@ async function loadBundle(slug) {
         \${items.map((item, i) => \`
           <a class="item-card" href="\${esc(item.url)}" target="_blank" rel="noopener"
              style="animation-delay:\${i * 0.05}s">
-            <div class="item-icon">\${item.ikon ? esc(item.ikon) : \`<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"/></svg>\`}</div>
+            <div class="item-icon">\${item.ikon && item.ikon.includes('<svg') ? item.ikon : \`<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"/></svg>\`}</div>
             <div class="item-body">
               <div class="item-title">\${esc(item.judul)}</div>
               \${item.deskripsi ? \`<div class="item-desc">\${esc(item.deskripsi)}</div>\` : ''}

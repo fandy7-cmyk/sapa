@@ -119,7 +119,7 @@ export const handler = async (event) => {
     try {
       const rows = await sql`
         INSERT INTO links (judul, url, deskripsi, ikon, warna_ikon, aktif, slug_pendek, created_by)
-        VALUES (${judul}, ${url}, ${deskripsi || null}, ${ikon || '🔗'}, ${warna_ikon || '#0077B6'},
+        VALUES (${judul}, ${url}, ${deskripsi || null}, ${ikon || null}, ${warna_ikon || '#0077B6'},
                 ${aktif !== false}, ${slugVal}, ${auth.id})
         RETURNING *
       `;
