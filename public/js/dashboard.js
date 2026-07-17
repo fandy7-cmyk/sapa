@@ -441,7 +441,7 @@ async function loadDashboardKinerja() {
       icon: iconCheck, title: 'Capaian Tertinggi',
       rows: top5.map(x => {
         const cap = Number(x.capaian_persen);
-        return { label: x.indikator_kinerja, value: Math.round(cap), suffix: '%', color: cap >= 100 ? '#10b981' : cap >= 75 ? '#f59e0b' : '#ef4444' };
+        return { label: x.indikator_kinerja, value: Math.round(cap), suffix: '%', color: _kwCapaianColor(cap) };
       }),
     }));
   }
@@ -657,17 +657,11 @@ async function _initIkuGrid() {
   const bulan = pa?.bulan || new Date().getMonth() + 1;
   const tahun = pa?.tahun || new Date().getFullYear();
 
-  // Skeleton
-  el.innerHTML = `
-    <div class="iku-grid-wrap">
-      <div class="iku-grid-header">
-        <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
-        <span class="iku-grid-title">IKU — Indikator Kinerja Utama</span>
-      </div>
-      <div class="iku-cards-grid">${Array(4).fill(0).map(() =>
-        `<div class="skeleton" style="height:88px;border-radius:12px;opacity:.35"></div>`
-      ).join('')}</div>
-    </div>`;
+  // Skeleton — samain sama Pantau Indikator: blok polos aja, header/judul
+  // "IKU — Indikator Kinerja Utama" baru muncul bareng data asli (di _renderIkuGrid),
+  // jangan duluan ditulis di sini biar gak kesan section-nya "udah siap" padahal
+  // datanya masih nunggu fetch.
+  el.innerHTML = `<div class="iku-grid-wrap"><div class="skeleton" style="height:280px;border-radius:14px"></div></div>`;
 
   try {
     const r = await fetch(`/api/kinerja/rekap?bulan=${bulan}&tahun=${tahun}`, { headers: authHeaders() });
@@ -753,13 +747,13 @@ function _renderIkuGrid(bulan, tahun, pa) {
         const hasData = real != null;
 
         // Warna berdasarkan capaian — sama dengan kw-* palette
-        const col   = cap === null ? '#94a3b8' : cap >= 100 ? '#10b981' : cap >= 75 ? '#f59e0b' : '#ef4444';
-        const colBg = cap === null ? '#f8fafc'  : cap >= 100 ? '#f0fdf4' : cap >= 75 ? '#fffbeb' : '#fff1f2';
+        const col   = _kwCapaianColor(cap);
+        const colBg = _kwCapaianBg(cap);
         const _svgCheck   = `<svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1px;margin-right:3px"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>`;
         const _svgWarn    = `<svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1px;margin-right:3px"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><line x1="12" x2="12" y1="9" y2="13"/><line x1="12" x2="12.01" y1="17" y2="17"/></svg>`;
         const _svgX       = `<svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1px;margin-right:3px"><circle cx="12" cy="12" r="10"/><line x1="15" x2="9" y1="9" y2="15"/><line x1="9" x2="15" y1="9" y2="15"/></svg>`;
         const _svgMinus   = `<svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1px;margin-right:3px"><line x1="5" x2="19" y1="12" y2="12"/></svg>`;
-        const label = cap === null ? `${_svgMinus}Belum diisi` : cap >= 100 ? `${_svgCheck}Tercapai` : cap >= 75 ? `${_svgWarn}Mendekati` : `${_svgX}Perlu tindakan`;
+        const label = cap === null ? `${_svgMinus}Belum diisi` : cap >= 91 ? `${_svgCheck}Sangat Tinggi` : cap >= 76 ? `${_svgCheck}Tinggi` : cap >= 66 ? `${_svgWarn}Sedang` : cap >= 51 ? `${_svgWarn}Rendah` : `${_svgX}Sangat Rendah`;
         const pct   = cap !== null ? Math.min(cap, 100) : 0;
 
         // Target display
@@ -881,6 +875,7 @@ function _renderIkuGrid(bulan, tahun, pa) {
         <span class="iku-grid-title">IKU — Indikator Kinerja Utama</span>
         <span class="iku-grid-periode">${esc(periodeLabel)}</span>
       </div>
+      ${_kwSkalaLegendHtml()}
       ${filterBarHtml}
       <div id="ikuChartSection" style="margin-top:14px"></div>
     </div>`;
@@ -932,6 +927,7 @@ function _ikuRenderChartSection() {
                 penanggung_jawab:  r.penanggung_jawab,
                 group_nama:        r.group_nama,
                 bermakna_negatif:  r.bermakna_negatif,
+                tipe_nilai:        r.tipe_nilai,
               }));
           }
         } catch {}
@@ -964,6 +960,7 @@ function _ikuRenderChartSection() {
               penanggung_jawab:  r.penanggung_jawab,
               group_nama:        r.group_nama,
               bermakna_negatif:  r.bermakna_negatif,
+              tipe_nilai:        r.tipe_nilai,
             }));
         }
       } catch {}
@@ -1054,6 +1051,7 @@ function _ikuRenderChartSection() {
     const targetDisp = meta?.target_display     ?? row.target_display ?? (targetThn !== null ? parseFloat(targetThn) : null);
     const satuan     = meta?.satuan             || row.satuan || '';
     const berneg     = meta?.bermakna_negatif   ?? row.bermakna_negatif ?? false;
+    const isPredikatMini = (meta?.tipe_nilai ?? row.tipe_nilai) === 'predikat';
     const tgt        = targetThn !== null ? parseFloat(targetThn) : null;
 
     // Mode "Tahun": 1 entri per tahun (rentang Dari–Sampai). Mode "Bulan": 12 bulan dipotong sesuai range.
@@ -1069,15 +1067,15 @@ function _ikuRenderChartSection() {
     const capLast   = latest?.capaian ?? null;
     const realLast  = latest?.realisasi ?? null;
     const totalSlots = _ikuYearMode ? data.length : 12;
-    const col = capLast === null ? '#94a3b8' : capLast >= 100 ? '#10b981' : capLast >= 75 ? '#f59e0b' : '#ef4444';
+    const col = _kwCapaianColor(capLast);
     const _svgCheckL  = `<svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1px;margin-right:3px"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>`;
     const _svgWarnL   = `<svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1px;margin-right:3px"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><line x1="12" x2="12" y1="9" y2="13"/><line x1="12" x2="12.01" y1="17" y2="17"/></svg>`;
     const _svgXL      = `<svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1px;margin-right:3px"><circle cx="12" cy="12" r="10"/><line x1="15" x2="9" y1="9" y2="15"/><line x1="9" x2="15" y1="9" y2="15"/></svg>`;
     const _svgMinusL  = `<svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1px;margin-right:3px"><line x1="5" x2="19" y1="12" y2="12"/></svg>`;
-    const capLbl = capLast === null ? `${_svgMinusL}Belum diisi` : capLast >= 100 ? `${_svgCheckL}Tercapai` : capLast >= 75 ? `${_svgWarnL}Mendekati` : `${_svgXL}Perlu tindakan`;
+    const capLbl = capLast === null ? `${_svgMinusL}Belum diisi` : capLast >= 91 ? `${_svgCheckL}Sangat Tinggi` : capLast >= 76 ? `${_svgCheckL}Tinggi` : capLast >= 66 ? `${_svgWarnL}Sedang` : capLast >= 51 ? `${_svgWarnL}Rendah` : `${_svgXL}Sangat Rendah`;
 
     const chartSvg = (typeof _kwComboChart === 'function')
-      ? _kwComboChart(data, bulanList, tgt, targetDisp, satuan)
+      ? _kwComboChart(data, bulanList, tgt, targetDisp, satuan, isPredikatMini)
       : '';
 
     return `
@@ -1480,7 +1478,14 @@ function _kwGetPeriodeAdaData(indId) {
   for (const thn of tahunList) {
     for (let b = 1; b <= 12; b++) {
       const rec = (_kwAllRekap[thn]?.['b' + b] || []).find(r => r.id === indId);
-      if (rec && rec.realisasi !== null && rec.realisasi !== undefined && rec.realisasi !== '') {
+      const _hasNonEmpty = v => v !== null && v !== undefined && v !== '';
+      if (rec && (
+        _hasNonEmpty(rec.realisasi) ||
+        _hasNonEmpty(rec.f_penghambat) ||
+        _hasNonEmpty(rec.solusi) ||
+        _hasNonEmpty(rec.f_pendukung) ||
+        _hasNonEmpty(rec.rencana_tl)
+      )) {
         hasil.push({ bulan: b, tahun: thn, key: `${thn}-${String(b).padStart(2,'0')}` });
       }
     }
@@ -1510,6 +1515,108 @@ function _kwGetRangePairs(from, to) {
 }
 
 // ── Helper hitung capaian sesuai jenis indikator ────────────────────────
+// Predikat SAKIP — sinkron dengan PREDIKAT_LEVELS di kinerja.js. Dipakai untuk
+// indikator bertipe_nilai 'predikat' (realisasi/target berupa huruf, bukan angka
+// bebas) supaya dashboard bisa: (1) rekonstruksi target numerik dari target_display
+// kalau target_tahun kosong/NaN (data lama), dan (2) tampilkan realisasi sebagai
+// huruf, bukan angka tier mentah.
+const _KW_PREDIKAT_LEVELS = [
+  { label: 'D',  tier: 1 },
+  { label: 'C',  tier: 2 },
+  { label: 'CC', tier: 3 },
+  { label: 'B',  tier: 4 },
+  { label: 'BB', tier: 5 },
+  { label: 'A',  tier: 6 },
+  { label: 'AA', tier: 7 },
+];
+const _KW_PREDIKAT_TIER_BY_LABEL = Object.fromEntries(_KW_PREDIKAT_LEVELS.map(p => [p.label, p.tier]));
+function _kwPredikatLabelForTier(tier) {
+  const t = Math.round(Number(tier));
+  const found = _KW_PREDIKAT_LEVELS.find(p => p.tier === t);
+  return found ? found.label : null;
+}
+// Target numerik efektif untuk indikator — sama seperti _targetNumForRow di
+// kinerja.js: kalau target_tahun (kolom numerik) kosong/NaN dan indikatornya
+// predikat, coba rekonstruksi tier dari label huruf (target_display).
+// Target numerik/display efektif untuk 1 indikator PADA TAHUN TERTENTU.
+// _kwAllIndikator (dari /api/kinerja/indikator) TIDAK di-JOIN ke kinerja_target,
+// jadi ind.target_tahun/target_display di sana tidak year-aware (bisa null/stale).
+// Sumber yang benar adalah _kwAllRekap[tahun], yang berasal dari /api/kinerja/rekap
+// dan sudah di-JOIN ke kinerja_target untuk tahun yang diminta.
+function _kwTargetFromRekap(indId, tahun) {
+  const rekapTahun = (typeof _kwAllRekap !== 'undefined') ? _kwAllRekap[tahun] : null;
+  if (!rekapTahun) return null;
+  for (let b = 1; b <= 12; b++) {
+    const row = (rekapTahun['b' + b] || []).find(r => r.id === indId);
+    if (row && (row.target_tahun != null || row.target_display != null)) {
+      return { target_tahun: row.target_tahun, target_display: row.target_display };
+    }
+  }
+  return null;
+}
+
+function _kwTargetNumForInd(ind) {
+  let t = parseFloat(ind?.target_tahun);
+  if (isNaN(t) && ind?.tipe_nilai === 'predikat' && ind?.target_display) {
+    const tier = _KW_PREDIKAT_TIER_BY_LABEL[String(ind.target_display).trim().toUpperCase()];
+    if (tier != null) t = tier;
+  }
+  return t;
+}
+
+// ── Skala Nilai Peringkat Kinerja (Lampiran Permendagri No. 86 Tahun 2017) ──
+// Skala resmi yang sama dipakai di badge capaian tabel IKU/IKK/SPM (kinerja.js,
+// class .capaian-badge.st/.ti/.sd/.rd/.sr). Dipakai di sini juga (widget Pantau
+// Indikator & IKU dashboard) supaya warna & label capaian konsisten di semua modul,
+// bukan cuma ambang 100%/75% biner spt sebelumnya.
+//   91–100  Sangat Tinggi | 76–90  Tinggi | 66–75  Sedang | 51–65  Rendah | ≤50 Sangat Rendah
+function _kwCapaianColor(cap) {
+  if (cap === null || cap === undefined || isNaN(cap)) return '#94a3b8';
+  const c = Number(cap);
+  if (c >= 91) return '#16a34a';
+  if (c >= 76) return '#4ade80';
+  if (c >= 66) return '#eab308';
+  if (c >= 51) return '#f97316';
+  return '#ef4444';
+}
+function _kwCapaianBg(cap) {
+  if (cap === null || cap === undefined || isNaN(cap)) return '#f1f5f9';
+  const c = Number(cap);
+  if (c >= 91) return '#dcfce7';
+  if (c >= 76) return '#dcfce7';
+  if (c >= 66) return '#fef9c3';
+  if (c >= 51) return '#ffedd5';
+  return '#fee2e2';
+}
+function _kwCapaianLabel(cap) {
+  if (cap === null || cap === undefined || isNaN(cap)) return 'Belum diisi';
+  const c = Number(cap);
+  if (c >= 91) return 'Sangat Tinggi';
+  if (c >= 76) return 'Tinggi';
+  if (c >= 66) return 'Sedang';
+  if (c >= 51) return 'Rendah';
+  return 'Sangat Rendah';
+}
+
+// Legend "Skala Nilai Peringkat Kinerja" — markup & warnanya sama persis dgn
+// .skala-badge yg sudah ada di app.html (halaman Kelola Kinerja/tabel IKU-IKK-SPM),
+// dipakai jg di sini (widget IKU & Pantau Indikator Dashboard Utama) supaya user
+// tahu sumber warna tiap capaian konsisten di semua tempat.
+function _kwSkalaLegendHtml() {
+  const badge = (bg, border, text, label) =>
+    `<span class="skala-badge" style="display:flex;align-items:center;gap:5px;padding:4px 10px;border-radius:20px;background:${bg};border:1px solid ${border};font-size:.65rem;font-weight:700;color:${text};white-space:nowrap"><span style="width:8px;height:8px;border-radius:50%;background:currentColor;opacity:.5;display:inline-block;flex-shrink:0"></span>${label}</span>`;
+  return `
+    <div class="skala-nilai-row" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;row-gap:8px;margin-top:10px;margin-bottom:14px">
+      <span class="skala-label" style="font-size:.65rem;font-weight:700;color:var(--teks);white-space:nowrap;margin-right:6px">Skala Nilai Peringkat Kinerja:</span>
+      ${badge('#4ade80', '#22c55e', '#14532d', '91–100% Sangat Tinggi')}
+      ${badge('#bbf7d0', '#6ee7b7', '#14532d', '76–90% Tinggi')}
+      ${badge('#fef9c3', '#fde047', '#854d0e', '66–75% Sedang')}
+      ${badge('#ffedd5', '#fdba74', '#9a3412', '51–65% Rendah')}
+      ${badge('#fee2e2', '#fca5a5', '#991b1b', '≤50% Sangat Rendah')}
+      <span class="skala-sumber" style="font-size:.68rem;color:var(--teks-muted);font-style:italic;white-space:nowrap;padding-left:10px;margin-left:4px;border-left:1px solid var(--abu-2, #e2e8f0)">Sumber: Lampiran Permendagri No. 86 Tahun 2017</span>
+    </div>`;
+}
+
 function _kwHitungCapaian(realisasi, target_tahun, bermakna_negatif) {
   const real   = parseFloat(realisasi);
   const target = parseFloat(target_tahun);
@@ -1522,7 +1629,13 @@ function _kwHitungCapaian(realisasi, target_tahun, bermakna_negatif) {
 // ── Agregasi cross-tahun (extend _kwAggregate) ────────────────────────────
 function _kwAggregateRange(indId, pairs) {
   const recs = pairs
-    .map(p => (_kwAllRekap[p.tahun]?.['b' + p.bulan] || []).find(r => r.id === indId))
+    .map(p => {
+      const r = (_kwAllRekap[p.tahun]?.['b' + p.bulan] || []).find(r => r.id === indId);
+      // Record dari _kwAllRekap[tahun]['bN'] tidak membawa field tahun/bulan sendiri
+      // (posisinya cuma tersirat dari key objek) — tempelkan di sini supaya sort
+      // "latest" & lookup target per-tahun (_kwTargetFromRekap) di bawah bisa akurat.
+      return r ? { ...r, tahun: p.tahun, bulan: p.bulan } : null;
+    })
     .filter(Boolean);
 
   if (!recs.length) return { realisasi: null, capaian: null, permasalahan: null, solusi: null, bulanAda: [], count: 0, total: pairs.length };
@@ -1537,8 +1650,10 @@ function _kwAggregateRange(indId, pairs) {
 
   const realisasi = latest ? parseFloat(latest.realisasi) : null;
   // Hitung ulang capaian dari realisasi terakhir / target_tahun (bukan ambil dari DB per bulan)
-  const ind     = _kwAllIndikator.find(x => x.id === indId);
-  const capaian = _kwHitungCapaian(realisasi, ind?.target_tahun, ind?.bermakna_negatif);
+  const ind      = _kwAllIndikator.find(x => x.id === indId);
+  const _tgtInfo = latest ? _kwTargetFromRekap(indId, latest.tahun) : null;
+  const _effInd  = _tgtInfo ? { ...ind, ...(_tgtInfo) } : ind;
+  const capaian  = _kwHitungCapaian(realisasi, _kwTargetNumForInd(_effInd), ind?.bermakna_negatif);
 
   return {
     realisasi, capaian,
@@ -1692,8 +1807,10 @@ function _kwAggregate(indId, bulanList, tahun) {
 
   const realisasi = latest ? parseFloat(latest.realisasi) : null;
   // Hitung ulang capaian dari realisasi terakhir / target_tahun (bukan ambil dari DB per bulan)
-  const ind     = _kwAllIndikator.find(x => x.id === indId);
-  const capaian = _kwHitungCapaian(realisasi, ind?.target_tahun, ind?.bermakna_negatif);
+  const ind      = _kwAllIndikator.find(x => x.id === indId);
+  const _tgtInfo = _kwTargetFromRekap(indId, tahun);
+  const _effInd  = _tgtInfo ? { ...ind, ...(_tgtInfo) } : ind;
+  const capaian  = _kwHitungCapaian(realisasi, _kwTargetNumForInd(_effInd), ind?.bermakna_negatif);
 
   return {
     realisasi,
@@ -1797,6 +1914,7 @@ async function _initKinerjaWatch() {
             penanggung_jawab:  r.penanggung_jawab,
             group_nama:        r.group_nama,
             bermakna_negatif:  r.bermakna_negatif,
+            tipe_nilai:        r.tipe_nilai,
           }));
       }
     } catch { _kwAllIndikator = []; }
@@ -1814,21 +1932,35 @@ async function _initKinerjaWatch() {
 }
 
 // ── Fetch 12 bulan untuk 1 tahun ─────────────────────────────────────────
+// Catatan: endpoint /api/kinerja/rekap defaultnya cuma ambil indikator
+// jenis_monev=TRUE. Widget "Pantau Indikator" bisa milih indikator jenis
+// apapun (monev/ikk/spm), jadi di sini kita fetch ketiga jenisnya lalu
+// digabung per bulan (dedupe by id) supaya realisasi IKK/SPM ikut ke-cache.
+const _KW_JENIS_LIST = ['monev', 'ikk', 'spm'];
+
 async function _kwFetchTahun(tahun) {
   if (_kwAllRekap[tahun]) return; // already fetched
   _kwAllRekap[tahun] = {};
 
   const bulanResps = await Promise.all(
     Array.from({length: 12}, (_, i) => i + 1).map(b =>
-      fetch(`/api/kinerja/rekap?bulan=${b}&tahun=${tahun}`, { headers: authHeaders() })
-        .then(r => r.ok ? r.json() : { rekap: [] })
-        .catch(() => ({ rekap: [] }))
+      Promise.all(
+        _KW_JENIS_LIST.map(jenis =>
+          fetch(`/api/kinerja/rekap?bulan=${b}&tahun=${tahun}&jenis=${jenis}`, { headers: authHeaders() })
+            .then(r => r.ok ? r.json() : { rekap: [] })
+            .catch(() => ({ rekap: [] }))
+        )
+      )
     )
   );
 
-  bulanResps.forEach((d, i) => {
+  bulanResps.forEach((jenisResults, i) => {
     const bulan = i + 1;
-    _kwAllRekap[tahun]['b' + bulan] = (d.rekap || []).map(r => ({ ...r, bulan }));
+    const merged = new Map();
+    jenisResults.forEach(d => {
+      (d.rekap || []).forEach(r => { if (!merged.has(r.id)) merged.set(r.id, { ...r, bulan }); });
+    });
+    _kwAllRekap[tahun]['b' + bulan] = Array.from(merged.values());
   });
 }
 
@@ -1853,8 +1985,11 @@ function _kwYearlyChartData(indId) {
       }
     }
     const real    = latestRec ? parseFloat(latestRec.realisasi) : null;
-    const capaian = _kwHitungCapaian(real, ind?.target_tahun, ind?.bermakna_negatif);
-    hasil.push({ tahun: thn, realisasi: real, capaian, target: ind?.target_tahun ? parseFloat(ind.target_tahun) : null });
+    const _tgtInfoThn = _kwTargetFromRekap(indId, thn);
+    const _effIndThn  = _tgtInfoThn ? { ...ind, ...(_tgtInfoThn) } : ind;
+    const _tgtNum = _kwTargetNumForInd(_effIndThn);
+    const capaian = _kwHitungCapaian(real, _tgtNum, ind?.bermakna_negatif);
+    hasil.push({ tahun: thn, realisasi: real, capaian, target: !isNaN(_tgtNum) ? _tgtNum : null });
   }
   return hasil;
 }
@@ -1893,10 +2028,7 @@ function _kwYearlyChart(yearlyData, targetDisplay, satuan) {
   yearlyData.forEach((d, i) => {
     const x   = toX(i);
     const y   = toY(d.capaian);
-    const col = d.capaian === null ? '#e2e8f0'
-      : d.capaian >= 100 ? '#10b981'
-      : d.capaian >= 75  ? '#f59e0b'
-      : '#ef4444';
+    const col = d.capaian === null ? '#e2e8f0' : _kwCapaianColor(d.capaian);
 
     const bH = d.capaian !== null ? Math.max(4, (Math.min(d.capaian, maxCap) / maxCap) * cH) : 4;
     const bY = PAD.t + cH - bH;
@@ -2473,6 +2605,7 @@ function _renderKinerjaWatch() {
         <span class="kw-title-v2">Pantau Indikator</span>
         ${_kwWatchedId ? `<span class="kw-period-badge">${esc(periodLabel)}</span>` : ""}
       </div>
+      ${_kwSkalaLegendHtml()}
 
       <!-- Filter bar — tampil di bawah header, hanya saat indikator dipilih -->
       ${_kwWatchedId ? `
@@ -2518,25 +2651,44 @@ function _renderKinerjaWatch() {
   const aggr    = _kwAggregateRange(ind.id, rangePairs);
   const real    = aggr.realisasi;
   const cap     = aggr.capaian;
-  const target  = ind.target_tahun;
-  const targetDisplay = ind.target_display != null ? ind.target_display : (target !== null ? parseFloat(target) : null);
+  const isPredikatInd = ind.tipe_nilai === 'predikat';
+  // Target harus year-aware — ambil dari rekap tahun yang sedang ditampilkan,
+  // fallback ke field flat di ind kalau rekap tahun itu belum/tidak ada datanya.
+  const _targetFromRekap = _kwTargetFromRekap(ind.id, tahun);
+  const _effInd = _targetFromRekap ? { ...ind, ...(_targetFromRekap) } : ind;
+  const _targetRaw = _kwTargetNumForInd(_effInd);
+  const target  = !isNaN(_targetRaw) ? _targetRaw : null;
+  const targetDisplay = _effInd.target_display != null ? _effInd.target_display : (target !== null ? parseFloat(target) : null);
   const pct     = cap !== null ? Math.min(Math.max(cap, 0), 100) : null;
   const pctRaw  = cap !== null ? parseFloat(cap).toFixed(1) : null;
 
-  const fmtReal = v => v !== null ? +parseFloat(v).toFixed(2) : '—';
+  // Untuk indikator predikat, realisasi tersimpan sbg tier angka (1-7) — tampilkan
+  // sebagai huruf predikat (mis. "BB"), bukan angka mentah, di semua kartu/tabel.
+  const fmtReal = v => {
+    if (v === null) return '—';
+    if (isPredikatInd) return _kwPredikatLabelForTier(v) ?? '—';
+    return +parseFloat(v).toFixed(2);
+  };
 
   // Warna identik dengan logika chart bar/combo/line/area:
   // capaian% (pctRaw) dibandingkan dengan target absolut (target)
-  const _tgt        = target !== null ? parseFloat(target) : null;
-  const _capVal     = cap !== null ? parseFloat(cap) : null;   // nilai capaian%, mis 84.5
-  const _capReached = _capVal !== null && _tgt !== null && _capVal >= _tgt;
-  const _capNearby  = _capVal !== null && _tgt !== null && _capVal >= _tgt * 0.75;
-  const col   = _capVal === null ? '#94a3b8' : _capReached ? '#10b981' : _capNearby ? '#f59e0b' : '#ef4444';
-  const colBg = _capVal === null ? '#f1f5f9' : _capReached ? '#d1fae5' : _capNearby ? '#fef3c7' : '#fee2e2';
-  const label = _capVal === null ? 'Belum diisi' : _capReached ? 'Tercapai <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1px"><path d="M20 6 9 17l-5-5"/></svg>' : _capNearby ? 'Hampir Tercapai' : 'Perlu Perhatian';
+  // Warna & status status capaian: samakan dgn pattern yg dipakai konsisten di
+  // IKU (dashboard.js _renderIkuGrid), IKK, SPM, dan seluruh chart Pantau Indikator
+  // lain — capaian% dibandingkan ke ambang tetap 100/75, BUKAN capaian% dibandingkan
+  // ke nilai target absolut (_tgt). Sebelumnya `_capVal >= _tgt` keliru: utk indikator
+  // predikat, capaian% (mis. 80) nyaris selalu >= tier target (mis. 5), jadi status
+  // selalu "Tercapai" walau capaian belum tembus 100%.
+  const _capVal = cap !== null ? parseFloat(cap) : null;   // nilai capaian%, mis 84.5
+  const col   = _kwCapaianColor(_capVal);
+  const colBg = _kwCapaianBg(_capVal);
+  const label = _kwCapaianLabel(_capVal);
 
   const gap    = (real !== null && target !== null) ? (target - real) : null;
-  const gapStr = gap !== null ? (gap > 0 ? `Kurang ${(+gap.toFixed(2))} ${esc(ind.satuan||'')}` : 'Target terpenuhi') : '—';
+  const gapStr = gap !== null
+    ? (isPredikatInd
+        ? (gap > 0 ? `Kurang ${Math.round(gap)} tingkat menuju ${esc(targetDisplay ?? '')}` : 'Target terpenuhi')
+        : (gap > 0 ? `Kurang ${(+gap.toFixed(2))} ${esc(ind.satuan||'')}` : 'Target terpenuhi'))
+    : '—';
 
   // ── Data per bulan untuk chart & tabel (cross-tahun) ─────────────────────
   // Kalau mode "Semua" (_kwModePerTahun = true): 1 entry per tahun, pakai bulan terakhir ada data
@@ -2555,7 +2707,9 @@ function _renderKinerjaWatch() {
           }
         }
         const _rvVal = latestRec ? parseFloat(latestRec.realisasi) : null;
-        const _cvCalc = _kwHitungCapaian(_rvVal, ind.target_tahun, ind.bermakna_negatif);
+        const _tgtInfoThn = _kwTargetFromRekap(ind.id, thn);
+        const _tgtThn = _tgtInfoThn ? _kwTargetNumForInd({ ...ind, ...(_tgtInfoThn) }) : target;
+        const _cvCalc = _kwHitungCapaian(_rvVal, _tgtThn, ind.bermakna_negatif);
         return {
           bulan:     latestRec?.bulan || 12,
           tahun:     thn,
@@ -2573,7 +2727,9 @@ function _renderKinerjaWatch() {
       const _rv = _rc(rec?.realisasi);
       const multiTahun = (_kwRangeFrom?.tahun !== _kwRangeTo?.tahun);
       const _rvVal = (_rv !== null && !isNaN(_rv)) ? _rv : null;
-      const _cvCalc = _kwHitungCapaian(_rvVal, ind.target_tahun, ind.bermakna_negatif);
+      const _tgtInfoP = multiTahun ? _kwTargetFromRekap(ind.id, p.tahun) : null;
+      const _tgtP = _tgtInfoP ? _kwTargetNumForInd({ ...ind, ...(_tgtInfoP) }) : target;
+      const _cvCalc = _kwHitungCapaian(_rvVal, _tgtP, ind.bermakna_negatif);
       return {
         bulan:       p.bulan,
         tahun:       p.tahun,
@@ -2591,7 +2747,7 @@ function _renderKinerjaWatch() {
     const _rc = v => (v !== null && v !== undefined && v !== '') ? parseFloat(v) : null;
     const _rv = _rc(rec?.realisasi);
     const _rvVal = (_rv !== null && !isNaN(_rv)) ? _rv : null;
-    const _cvCalc = _kwHitungCapaian(_rvVal, ind.target_tahun, ind.bermakna_negatif);
+    const _cvCalc = _kwHitungCapaian(_rvVal, target, ind.bermakna_negatif);
     return {
       bulan: b, tahun, label: _KW_BULAN_LABEL[b],
       realisasi: _rvVal,
@@ -2615,7 +2771,7 @@ function _renderKinerjaWatch() {
   const tableRows = bulanChartData
     .map(d => {
       const c  = d.capaian !== null ? parseFloat(d.capaian).toFixed(1) : null;
-      const tc = d.capaian === null ? '#94a3b8' : d.capaian >= 100 ? '#10b981' : d.capaian >= 75 ? '#f59e0b' : '#ef4444';
+      const tc = _kwCapaianColor(d.capaian);
       const barW = c !== null ? Math.min(c, 100) : 0;
       const isFuture  = d.tahun > nowTahun || (d.tahun === nowTahun && d.bulan > nowBulan);
       const isActive  = d.realisasi !== null;
@@ -2663,11 +2819,11 @@ function _renderKinerjaWatch() {
   const filledData = bulanChartData.filter(d => d.capaian !== null);
   const lastFilledBulan = filledData.length ? filledData[filledData.length - 1].bulan : null;
   const avgCapaian = filledData.length ? filledData.reduce((s, d) => s + d.capaian, 0) / filledData.length : null;
-  const proyeksiColor = avgCapaian === null ? '#94a3b8' : avgCapaian >= 100 ? '#10b981' : avgCapaian >= 75 ? '#f59e0b' : '#ef4444';
+  const proyeksiColor = _kwCapaianColor(avgCapaian);
 
   // ── Combo chart: bar realisasi + line capaian (semua mode, termasuk per tahun) ──
   _activeChartFs = _KW_CHART_FS;
-  const comboChart = _kwComboChart(bulanChartData, bulanList, target, targetDisplay, ind.satuan);
+  const comboChart = _kwComboChart(bulanChartData, bulanList, target, targetDisplay, ind.satuan, isPredikatInd);
 
   // ── KPI strip: 4 kartu baru ────────────────────────────────────────────────
   const summaryCards = `
@@ -2706,7 +2862,7 @@ function _renderKinerjaWatch() {
       <div class="kw-kpi-card" style="--kc:${gapColor}">
         <div style="margin-top:0">
           <div style="font-size:0.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#94a3b8;margin-bottom:4px">Gap ke Target</div>
-          <div style="font-size:1.8rem;font-weight:800;color:${gapColor};line-height:1;letter-spacing:-.02em">${gap !== null ? (gap > 0 ? '+'+(+parseFloat(gap).toFixed(2)) : '✓') : '—'}</div>
+          <div style="font-size:1.8rem;font-weight:800;color:${gapColor};line-height:1;letter-spacing:-.02em">${gap !== null ? (gap > 0 ? '+'+(isPredikatInd ? Math.round(gap) : +parseFloat(gap).toFixed(2)) : '✓') : '—'}</div>
           <div style="font-size:0.75rem;color:${gapColor};margin-top:4px;font-weight:600">${gap === null ? 'Data kosong' : gap > 0 ? 'Perlu ditingkatkan' : 'Target tercapai'}</div>
         </div>
         <div style="margin-top:10px;padding-top:8px;border-top:1px solid #f1f5f9;display:flex;justify-content:space-between;align-items:center">
@@ -2796,7 +2952,7 @@ function _renderKinerjaWatch() {
             <tbody>${
               bulanChartData.map(d => {
                 const c  = d.capaian !== null ? parseFloat(d.capaian).toFixed(1) : null;
-                const tc = d.capaian === null ? '#94a3b8' : d.capaian >= 100 ? '#10b981' : d.capaian >= 75 ? '#f59e0b' : '#ef4444';
+                const tc = _kwCapaianColor(d.capaian);
                 const cellLabel = _kwModePerTahun
                   ? d.label   // sudah = string tahun, mis "2026"
                   : (_kwRangeFrom?.tahun !== _kwRangeTo?.tahun)
@@ -2901,30 +3057,53 @@ function _renderKinerjaWatch() {
 
         <!-- Permasalahan & Solusi per Bulan -->
         ${(() => {
-          // Kumpulkan bulan yang ada permasalahan atau solusi
-          const psItems = bulanChartData.filter(d => {
+          // Untuk tiap bulan: kalau capaian < 100% → tampilkan Faktor Penghambat + Solusi.
+          // Kalau capaian >= 100% (capai/lewati target) → tampilkan Faktor Pendukung + Rencana Tindak Lanjut.
+          // Kalau capaian belum bisa dihitung (null), anggap seperti di bawah target (fallback penghambat/solusi).
+          const psItems = bulanChartData.map(d => {
             const rec = (_kwAllRekap[d.tahun]?.['b'+d.bulan]||[]).find(r=>r.id===ind.id);
-            return rec?.permasalahan || rec?.solusi;
-          }).map(d => {
-            const rec = (_kwAllRekap[d.tahun]?.['b'+d.bulan]||[]).find(r=>r.id===ind.id);
-            return { label: d.label, permasalahan: rec?.permasalahan||null, solusi: rec?.solusi||null };
-          });
+            if (!rec) return null;
+            const tercapai = d.capaian !== null && d.capaian >= 100;
+            const primary   = tercapai ? (rec.f_pendukung || null) : (rec.f_penghambat || null);
+            const secondary = tercapai ? (rec.rencana_tl   || null) : (rec.solusi        || null);
+            if (!primary && !secondary) return null;
+            return {
+              label: d.label,
+              tercapai,
+              primaryLabel:   tercapai ? 'Faktor Pendukung'    : 'Faktor Penghambat',
+              secondaryLabel: tercapai ? 'Rencana Tindak Lanjut' : 'Solusi',
+              primaryCls:     tercapai ? 'pendukung' : 'masalah',
+              secondaryCls:   tercapai ? 'rencana'   : 'solusi',
+              primary, secondary,
+            };
+          }).filter(Boolean);
 
           const panelHeader = `
             <div style="padding:10px 14px 8px;border-bottom:1px solid #f1f5f9;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:6px">
               <div class="kw-panel-title" style="margin-bottom:0">
-                <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><line x1="12" x2="12" y1="9" y2="13"/><line x1="12" x2="12.01" y1="17" y2="17"/></svg>
-                Permasalahan &amp; Solusi per Bulan
+                <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/></svg>
+                Analisis Capaian per Bulan
               </div>
               <div style="display:flex;gap:10px;font-size:0.63rem;font-weight:600;color:#64748b;flex-wrap:wrap">
-                <span style="display:flex;align-items:center;gap:4px">
-                  <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#f97316"></span>Ada permasalahan
+                <span style="display:flex;align-items:center;gap:4px;color:#f97316">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><line x1="12" x2="12" y1="9" y2="13"/><line x1="12" x2="12.01" y1="17" y2="17"/></svg>
+                  Faktor Penghambat
                 </span>
-                <span style="display:flex;align-items:center;gap:4px">
-                  <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#0d9488"></span>Ada solusi
+                <span style="display:flex;align-items:center;gap:4px;color:#0d9488">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="m9 11 3 3L22 4"/></svg>
+                  Solusi
+                </span>
+                <span style="display:flex;align-items:center;gap:4px;color:#3b82f6">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 20v-6M12 20V10M17 20V4"/></svg>
+                  Faktor Pendukung
+                </span>
+                <span style="display:flex;align-items:center;gap:4px;color:#8b5cf6">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="m9 14 2 2 4-4"/></svg>
+                  Rencana Tindak Lanjut
                 </span>
               </div>
             </div>`;
+
 
           if (!psItems.length) return `
             <div class="kw-card-panel" style="padding:0;overflow:hidden">
@@ -2933,7 +3112,7 @@ function _renderKinerjaWatch() {
                 <div class="kw-detail-box kw-ok" style="margin-top:0">
                   <div class="kw-detail-label" style="color:${real !== null ? '#10b981' : '#94a3b8'}">
                     <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="m9 11 3 3L22 4"/></svg>
-                    ${real !== null ? 'Tidak ada permasalahan dilaporkan' : 'Data belum diisi untuk periode ini'}
+                    ${real !== null ? 'Tidak ada catatan dilaporkan' : 'Data belum diisi untuk periode ini'}
                   </div>
                 </div>
               </div>
@@ -2950,29 +3129,29 @@ function _renderKinerjaWatch() {
               <button type="button" class="kw-ps-acc-header" onclick="_kwToggleAcc(this)" aria-expanded="${openByDefault}" aria-controls="${itemId}">
                 <span class="kw-ps-acc-month">${esc(item.label)}</span>
                 <span class="kw-ps-acc-dots">
-                  ${item.permasalahan ? '<span class="kw-ps-dot kw-ps-dot--masalah" title="Ada permasalahan"></span>' : ''}
-                  ${item.solusi       ? '<span class="kw-ps-dot kw-ps-dot--solusi"  title="Ada solusi"></span>'       : ''}
+                  ${item.primary   ? `<span class="kw-ps-dot kw-ps-dot--${item.primaryCls}" title="${esc(item.primaryLabel)}"></span>` : ''}
+                  ${item.secondary ? `<span class="kw-ps-dot kw-ps-dot--${item.secondaryCls}" title="${esc(item.secondaryLabel)}"></span>` : ''}
                 </span>
                 <svg class="kw-ps-acc-chevron" xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
               </button>
               <div class="kw-ps-acc-body" id="${itemId}" ${openByDefault ? '' : 'hidden'}>
-                ${item.permasalahan ? `
-                <div class="kw-detail-box kw-masalah" style="margin-bottom:${item.solusi?'6px':'0'}">
-                  <div class="kw-detail-label">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><line x1="12" x2="12" y1="9" y2="13"/><line x1="12" x2="12.01" y1="17" y2="17"/></svg>
-                    Permasalahan
+                ${item.primary ? `
+                <div class="kw-detail-box kw-${item.primaryCls}" style="margin-bottom:${item.secondary?'6px':'0'}">
+                  <div class="kw-detail-label"${item.tercapai ? ' style="color:#1d4ed8"' : ''}>
+                    <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${item.tercapai ? '<path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="m9 11 3 3L22 4"/>' : '<path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><line x1="12" x2="12" y1="9" y2="13"/><line x1="12" x2="12.01" y1="17" y2="17"/>'}</svg>
+                    ${esc(item.primaryLabel)}
                   </div>
-                  <div class="kw-detail-text">${esc(item.permasalahan)}</div>
+                  <div class="kw-detail-text"${item.tercapai ? ' style="color:#1e3a8a"' : ''}>${esc(item.primary)}</div>
                 </div>` : ''}
-                ${item.solusi ? `
-                <div class="kw-detail-box kw-solusi">
-                  <div class="kw-detail-label" style="color:#0f766e">
+                ${item.secondary ? `
+                <div class="kw-detail-box kw-${item.secondaryCls}">
+                  <div class="kw-detail-label" style="color:${item.tercapai ? '#6d28d9' : '#0f766e'}">
                     <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="m9 11 3 3L22 4"/></svg>
-                    Solusi / Tindak Lanjut
+                    ${esc(item.secondaryLabel)}
                   </div>
-                  <div class="kw-detail-text" style="color:#134e4a">${esc(item.solusi)}</div>
-                </div>` : `
-                <div style="font-size:0.75rem;color:#94a3b8;font-style:italic;padding:2px 0">Belum ada solusi dilaporkan</div>`}
+                  <div class="kw-detail-text" style="color:${item.tercapai ? '#4c1d95' : '#134e4a'}">${esc(item.secondary)}</div>
+                </div>` : (!item.primary ? `
+                <div style="font-size:0.75rem;color:#94a3b8;font-style:italic;padding:2px 0">Belum ada ${item.tercapai ? 'rencana tindak lanjut' : 'solusi'} dilaporkan</div>` : '')}
               </div>
             </div>${idx < psItems.length-1 ? '<hr class="kw-ps-divider">' : ''}`;
             }).join('')}
@@ -3117,19 +3296,19 @@ function _kwBarChart(data, activeRange, target) {
 }
 
 // ── Combo chart: Bar realisasi + Line capaian% ────────────────────────────
-function _kwComboChart(data, activeRange, target, targetDisplay, satuan) {
+function _kwComboChart(data, activeRange, target, targetDisplay, satuan, isPredikat = false) {
   // Dispatch ke chart type yg dipilih user
-  if (_kwChartType === 'bar')    return _kwChartBar(data, activeRange, target, targetDisplay, satuan);
-  if (_kwChartType === 'line')   return _kwChartLine(data, activeRange, target, targetDisplay, satuan);
-  if (_kwChartType === 'area')   return _kwChartArea(data, activeRange, target, targetDisplay, satuan);
-  if (_kwChartType === 'radar')  return _kwChartRadar(data, activeRange, target, targetDisplay, satuan);
-  if (_kwChartType === 'bullet') return _kwChartBullet(data, activeRange, target, targetDisplay, satuan);
+  if (_kwChartType === 'bar')    return _kwChartBar(data, activeRange, target, targetDisplay, satuan, isPredikat);
+  if (_kwChartType === 'line')   return _kwChartLine(data, activeRange, target, targetDisplay, satuan, isPredikat);
+  if (_kwChartType === 'area')   return _kwChartArea(data, activeRange, target, targetDisplay, satuan, isPredikat);
+  if (_kwChartType === 'radar')  return _kwChartRadar(data, activeRange, target, targetDisplay, satuan, isPredikat);
+  if (_kwChartType === 'bullet') return _kwChartBullet(data, activeRange, target, targetDisplay, satuan, isPredikat);
   // default: bar
-  return _kwChartBar(data, activeRange, target, targetDisplay, satuan);
+  return _kwChartBar(data, activeRange, target, targetDisplay, satuan, isPredikat);
 }
 
 // ── CHART: Bullet (realisasi bar + zona target + marker capaian%) ──
-function _kwChartBullet(data, activeRange, target, targetDisplay, satuan) {
+function _kwChartBullet(data, activeRange, target, targetDisplay, satuan, isPredikat = false) {
   // Bullet chart: tiap bulan = 1 horizontal bullet
   // Zona bg: merah (0–75% target) | kuning (75–100%) | hijau (>= 100%)
   // Bar dalam: realisasi (nilai absolut)
@@ -3185,11 +3364,9 @@ function _kwChartBullet(data, activeRange, target, targetDisplay, satuan) {
     const zoneY = cy - zoneH / 2;
     const barY  = cy - barH / 2;
 
-    // Capaian color
-    const col = d.capaian === null ? '#94a3b8'
-      : (tgt !== null && d.capaian >= tgt) ? '#10b981'
-      : (tgt !== null && d.capaian >= tgt * 0.75) ? '#f59e0b'
-      : '#ef4444';
+    // Capaian color — skala 5-tier Permendagri (samakan dgn IKU/IKK/SPM),
+    // bukan capaian% dibandingkan ke nilai target absolut (bug lama)
+    const col = _kwCapaianColor(d.capaian);
 
     // Zona background 3 segmen (merah → kuning → hijau)
     if (tgt !== null) {
@@ -3228,7 +3405,9 @@ function _kwChartBullet(data, activeRange, target, targetDisplay, satuan) {
 
     // Label kanan: capaian% + realisasi
     const capStr = d.capaian !== null ? parseFloat(d.capaian).toFixed(1) + '%' : '—';
-    const realStr = d.realisasi !== null ? (+parseFloat(d.realisasi).toFixed(2)) + (satuan ? ' ' + satuan : '') : '—';
+    const realStr = d.realisasi !== null
+      ? (isPredikat ? (_kwPredikatLabelForTier(d.realisasi) ?? '—') : (+parseFloat(d.realisasi).toFixed(2)) + (satuan ? ' ' + satuan : ''))
+      : '—';
     rowsEl += `<text x="${(W - PR + 8).toFixed(1)}" y="${(cy - 4).toFixed(1)}" font-size="${11*_activeChartFs}" font-weight="800" fill="${col}" dominant-baseline="middle">${capStr}</text>`;
     rowsEl += `<text x="${(W - PR + 8).toFixed(1)}" y="${(cy + 7).toFixed(1)}" font-size="${9*_activeChartFs}" fill="#94a3b8" dominant-baseline="middle">${realStr}</text>`;
   });
@@ -3239,7 +3418,26 @@ function _kwChartBullet(data, activeRange, target, targetDisplay, satuan) {
 }
 
 // ── CHART: Bar only (capaian % saja) ─────────────────────────────────────
-function _kwChartBar(data, activeRange, target, targetDisplay, satuan) {
+// Tick Y-axis chart bar/line/area. Untuk indikator biasa: 4 pembagian linear
+// dari 0..maxV seperti sebelumnya. Untuk indikator predikat (Peringkat, nilai
+// realisasi/target berupa tier 1-7): jangan bagi rata maxV/4 (hasilnya angka
+// pecahan aneh macam 1.44/2.88 yang gak match label predikat manapun) — pakai
+// tier aslinya (1,2,3...) yang muat di bawah maxV, dilabeli hurufnya langsung.
+function _kwYAxisTicks(maxV, isPredikat) {
+  if (isPredikat) {
+    const ticks = _KW_PREDIKAT_LEVELS
+      .filter(p => p.tier <= maxV + 0.01)
+      .map(p => ({ v: p.tier, label: p.label }));
+    if (!ticks.length || ticks[0].v !== 0) ticks.unshift({ v: 0, label: null });
+    return ticks;
+  }
+  return [0, 1, 2, 3, 4].map(t => {
+    const v = (maxV / 4) * t;
+    return { v, label: t > 0 ? v.toFixed(2) : null };
+  });
+}
+
+function _kwChartBar(data, activeRange, target, targetDisplay, satuan, isPredikat = false) {
   const W = 700, H = 400, PL = 46, PR = 18, PT = 36, PB = 48;
   const iW = W - PL - PR, iH = H - PT - PB;
   const tgtF = target !== null && target !== undefined ? parseFloat(target) : null;
@@ -3252,12 +3450,12 @@ function _kwChartBar(data, activeRange, target, targetDisplay, satuan) {
   const yOf = v => PT + iH - (v / maxV) * iH;
 
   let grid = '';
-  for (let t = 0; t <= 4; t++) {
-    const v = (maxV / 4) * t;
-    const y = yOf(v).toFixed(1);
-    grid += `<line x1="${PL}" y1="${y}" x2="${W-PR}" y2="${y}" stroke="${t===0?'#e2e8f0':'#f1f5f9'}" stroke-width="${t===0?'1':'.5'}"/>`;
-    if (t > 0) grid += `<text x="${(PL-5).toFixed(1)}" y="${y}" text-anchor="end" font-size="${10*_activeChartFs}" fill="#94a3b8" dominant-baseline="middle">${v.toFixed(2)}</text>`;
-  }
+  _kwYAxisTicks(maxV, isPredikat).forEach(tk => {
+    const isBase = tk.v === 0;
+    const y = yOf(tk.v).toFixed(1);
+    grid += `<line x1="${PL}" y1="${y}" x2="${W-PR}" y2="${y}" stroke="${isBase?'#e2e8f0':'#f1f5f9'}" stroke-width="${isBase?'1':'.5'}"/>`;
+    if (tk.label !== null) grid += `<text x="${(PL-5).toFixed(1)}" y="${y}" text-anchor="end" font-size="${10*_activeChartFs}" fill="#94a3b8" dominant-baseline="middle">${tk.label}</text>`;
+  });
 
   // Garis target pada nilai absolut
   if (tgtF !== null) {
@@ -3274,14 +3472,14 @@ function _kwChartBar(data, activeRange, target, targetDisplay, satuan) {
     xlbls += `<text x="${x.toFixed(1)}" y="${(H-PB+14).toFixed(1)}" text-anchor="middle" font-size="${11*_activeChartFs}" fill="#0d9488" font-weight="700">${d.label}</text>`;
     if (d.realisasi !== null) {
       const rv  = Number(d.realisasi);
-      const col = d.capaian !== null ? (d.capaian >= 100 ? '#10b981' : d.capaian >= 75 ? '#f59e0b' : '#ef4444') : '#0d9488';
+      const col = d.capaian !== null ? _kwCapaianColor(d.capaian) : '#0d9488';
       const fillCol = isRange ? col : 'rgba(148,163,184,0.2)';
       const y = yOf(Math.min(rv, maxV));
       const bH = (PT + iH) - y;
       bars += `<rect x="${(x-barW/2).toFixed(1)}" y="${y.toFixed(1)}" width="${barW.toFixed(1)}" height="${bH.toFixed(1)}" rx="5" fill="${fillCol}"/>`;
       if (isRange) {
         bars += `<rect x="${(x-barW/2).toFixed(1)}" y="${y.toFixed(1)}" width="${barW.toFixed(1)}" height="${(bH*0.3).toFixed(1)}" rx="5" fill="white" opacity=".15"/>`;
-        const vStr = +rv.toFixed(2);
+        const vStr = isPredikat ? (_kwPredikatLabelForTier(rv) ?? '—') : +rv.toFixed(2);
         bars += `<text x="${x.toFixed(1)}" y="${(y-10).toFixed(1)}" text-anchor="middle" font-size="${11*_activeChartFs}" fill="${col}" font-weight="800">${vStr}</text>`;
         linePointsB.push({ x, y, col });
       }
@@ -3302,7 +3500,7 @@ function _kwChartBar(data, activeRange, target, targetDisplay, satuan) {
 }
 
 // ── CHART: Line (capaian % saja) ──────────────────────────────────────────
-function _kwChartLine(data, activeRange, target, targetDisplay, satuan) {
+function _kwChartLine(data, activeRange, target, targetDisplay, satuan, isPredikat = false) {
   const W = 700, H = 380, PL = 46, PR = 24, PT = 36, PB = 48;
   const iW = W - PL - PR, iH = H - PT - PB;
   const tgtF = target !== null && target !== undefined ? parseFloat(target) : null;
@@ -3313,12 +3511,12 @@ function _kwChartLine(data, activeRange, target, targetDisplay, satuan) {
   const yOf = v => PT + iH - (v / maxV) * iH;
 
   let grid = '';
-  for (let t = 0; t <= 4; t++) {
-    const v = (maxV / 4) * t;
-    const y = yOf(v).toFixed(1);
-    grid += `<line x1="${PL}" y1="${y}" x2="${W-PR}" y2="${y}" stroke="${t===0?'#e2e8f0':'#f1f5f9'}" stroke-width="${t===0?'1':'.5'}"/>`;
-    if (t > 0) grid += `<text x="${(PL-5).toFixed(1)}" y="${y}" text-anchor="end" font-size="${10*_activeChartFs}" fill="#94a3b8" dominant-baseline="middle">${v.toFixed(2)}</text>`;
-  }
+  _kwYAxisTicks(maxV, isPredikat).forEach(tk => {
+    const isBase = tk.v === 0;
+    const y = yOf(tk.v).toFixed(1);
+    grid += `<line x1="${PL}" y1="${y}" x2="${W-PR}" y2="${y}" stroke="${isBase?'#e2e8f0':'#f1f5f9'}" stroke-width="${isBase?'1':'.5'}"/>`;
+    if (tk.label !== null) grid += `<text x="${(PL-5).toFixed(1)}" y="${y}" text-anchor="end" font-size="${10*_activeChartFs}" fill="#94a3b8" dominant-baseline="middle">${tk.label}</text>`;
+  });
 
   // Garis target pada nilai absolut
   if (tgtF !== null) {
@@ -3339,10 +3537,10 @@ function _kwChartLine(data, activeRange, target, targetDisplay, satuan) {
     xlbls += `<text x="${p.x.toFixed(1)}" y="${(H-PB+14).toFixed(1)}" text-anchor="middle" font-size="${11*_activeChartFs}" fill="#0d9488" font-weight="700">${p.label}</text>`;
     if (p.y !== null) {
       const rv = p.v !== null ? Number(p.v) : null;
-      const col = p.cap !== null ? (p.cap >= 100 ? '#10b981' : p.cap >= 75 ? '#f59e0b' : '#ef4444') : '#0d9488';
+      const col = p.cap !== null ? _kwCapaianColor(p.cap) : '#0d9488';
       lineEl += `<circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="${p.isRange?7:4}" fill="${p.isRange?col:'#cbd5e1'}" stroke="white" stroke-width="2"/>`;
       if (p.isRange) {
-        const vStr = rv !== null ? +rv.toFixed(2) : '—';
+        const vStr = rv !== null ? (isPredikat ? (_kwPredikatLabelForTier(rv) ?? '—') : +rv.toFixed(2)) : '—';
         lineEl += `<text x="${p.x.toFixed(1)}" y="${(p.y-12).toFixed(1)}" text-anchor="middle" font-size="${11*_activeChartFs}" fill="${col}" font-weight="800">${vStr}</text>`;
       }
     }
@@ -3352,7 +3550,7 @@ function _kwChartLine(data, activeRange, target, targetDisplay, satuan) {
 }
 
 // ── CHART: Area (capaian % dengan fill di bawah) ──────────────────────────
-function _kwChartArea(data, activeRange, target, targetDisplay, satuan) {
+function _kwChartArea(data, activeRange, target, targetDisplay, satuan, isPredikat = false) {
   const W = 700, H = 380, PL = 46, PR = 24, PT = 36, PB = 48;
   const iW = W - PL - PR, iH = H - PT - PB;
   const tgtF = target !== null && target !== undefined ? parseFloat(target) : null;
@@ -3364,12 +3562,12 @@ function _kwChartArea(data, activeRange, target, targetDisplay, satuan) {
   const yBase = PT + iH;
 
   let grid = '';
-  for (let t = 0; t <= 4; t++) {
-    const v = (maxV / 4) * t;
-    const y = yOf(v).toFixed(1);
-    grid += `<line x1="${PL}" y1="${y}" x2="${W-PR}" y2="${y}" stroke="${t===0?'#e2e8f0':'#f1f5f9'}" stroke-width="${t===0?'1':'.5'}"/>`;
-    if (t > 0) grid += `<text x="${(PL-5).toFixed(1)}" y="${y}" text-anchor="end" font-size="${10*_activeChartFs}" fill="#94a3b8" dominant-baseline="middle">${v.toFixed(2)}</text>`;
-  }
+  _kwYAxisTicks(maxV, isPredikat).forEach(tk => {
+    const isBase = tk.v === 0;
+    const y = yOf(tk.v).toFixed(1);
+    grid += `<line x1="${PL}" y1="${y}" x2="${W-PR}" y2="${y}" stroke="${isBase?'#e2e8f0':'#f1f5f9'}" stroke-width="${isBase?'1':'.5'}"/>`;
+    if (tk.label !== null) grid += `<text x="${(PL-5).toFixed(1)}" y="${y}" text-anchor="end" font-size="${10*_activeChartFs}" fill="#94a3b8" dominant-baseline="middle">${tk.label}</text>`;
+  });
 
   // Garis target pada nilai absolut
   if (tgtF !== null) {
@@ -3395,10 +3593,10 @@ function _kwChartArea(data, activeRange, target, targetDisplay, satuan) {
     xlbls += `<text x="${p.x.toFixed(1)}" y="${(H-PB+14).toFixed(1)}" text-anchor="middle" font-size="${11*_activeChartFs}" fill="#0d9488" font-weight="700">${p.label}</text>`;
     if (p.y !== null) {
       const rv = p.v !== null ? Number(p.v) : null;
-      const col = p.cap !== null ? (p.cap >= 100 ? '#10b981' : p.cap >= 75 ? '#f59e0b' : '#ef4444') : '#0d9488';
+      const col = p.cap !== null ? _kwCapaianColor(p.cap) : '#0d9488';
       areaEl += `<circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="${p.isRange?7:4}" fill="${p.isRange?col:'#cbd5e1'}" stroke="white" stroke-width="2"/>`;
       if (p.isRange) {
-        const vStr = rv !== null ? +rv.toFixed(2) : '—';
+        const vStr = rv !== null ? (isPredikat ? (_kwPredikatLabelForTier(rv) ?? '—') : +rv.toFixed(2)) : '—';
         areaEl += `<text x="${p.x.toFixed(1)}" y="${(p.y-12).toFixed(1)}" text-anchor="middle" font-size="${11*_activeChartFs}" fill="${col}" font-weight="800">${vStr}</text>`;
       }
     }
@@ -3408,13 +3606,13 @@ function _kwChartArea(data, activeRange, target, targetDisplay, satuan) {
 }
 
 // ── CHART: Radar/Spider ───────────────────────────────────────────────────
-function _kwChartRadar(data, activeRange, target, targetDisplay, satuan) {
+function _kwChartRadar(data, activeRange, target, targetDisplay, satuan, isPredikat = false) {
   const W = 500, H = 460, CX = 250, CY = 220, R = 160;
   const pts = data.filter(d => d.isInRange);
   const n = pts.length;
   if (n < 3) {
     // Fallback ke bar chart kalau data < 3
-    return _kwChartBar(data, activeRange, target, targetDisplay, satuan);
+    return _kwChartBar(data, activeRange, target, targetDisplay, satuan, isPredikat);
   }
 
   const toRad = deg => deg * Math.PI / 180;
@@ -3450,7 +3648,7 @@ function _kwChartRadar(data, activeRange, target, targetDisplay, satuan) {
 
   // Dots & labels
   dPts.forEach((p, i) => {
-    const col = p.v === null ? '#94a3b8' : p.v >= 100 ? '#10b981' : p.v >= 75 ? '#f59e0b' : '#ef4444';
+    const col = _kwCapaianColor(p.v);
     dataEl += `<circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="6" fill="${col}" stroke="white" stroke-width="2"/>`;
 
     // Label bulan
@@ -3918,8 +4116,8 @@ div.kw-kpi-card {
 
 /* Dropdown panel */
 .kw-dd-panel        { position: absolute !important; top: calc(100% + 6px) !important; left: 0 !important; right: 0 !important; background: #ffffff !important; border: 1.5px solid #e2e8f0 !important; border-radius: 14px !important; box-shadow: 0 10px 30px rgba(0,0,0,.12) !important; z-index: 900 !important; overflow: hidden !important; }
-.kw-dd-search-wrap  { position: relative !important; padding: 10px 12px 6px !important; border-bottom: 1px solid #f1f5f9 !important; }
-.kw-dd-search-icon  { position: absolute !important; left: 22px !important; top: 19px !important; color: #94a3b8 !important; pointer-events: none !important; }
+.kw-dd-search-wrap  { position: relative !important; padding: 10px 12px !important; border-bottom: 1px solid #f1f5f9 !important; }
+.kw-dd-search-icon  { position: absolute !important; left: 22px !important; top: 50% !important; transform: translateY(-50%) !important; color: #94a3b8 !important; pointer-events: none !important; }
 .kw-dd-search       { width: 100% !important; padding: 7px 10px 7px 30px !important; border-radius: 8px !important; border: 1.5px solid #e2e8f0 !important; background: #f8fafc !important; font-family: inherit !important; font-size: 0.84rem !important; outline: none !important; color: #0f172a !important; }
 .kw-dd-search:focus { border-color: #0d9488 !important; background: #ffffff !important; box-shadow: 0 0 0 3px rgba(13,148,136,.08) !important; }
 .kw-dd-list         { max-height: 220px !important; overflow-y: auto !important; padding: 4px !important; }
@@ -4160,8 +4358,10 @@ div.kw-insight-card-v2 {
 .kw-ps-acc-month { flex:1; }
 .kw-ps-acc-dots { display:flex; gap:4px; align-items:center; }
 .kw-ps-dot { display:inline-block; width:7px; height:7px; border-radius:50%; }
-.kw-ps-dot--masalah { background:#f97316; }
-.kw-ps-dot--solusi  { background:#0d9488; }
+.kw-ps-dot--masalah   { background:#f97316; }
+.kw-ps-dot--solusi    { background:#0d9488; }
+.kw-ps-dot--pendukung { background:#3b82f6; }
+.kw-ps-dot--rencana   { background:#8b5cf6; }
 .kw-ps-acc-chevron { flex-shrink:0; color:#94a3b8; transition:transform .2s; }
 .kw-ps-acc-open .kw-ps-acc-chevron { transform:rotate(180deg); }
 
@@ -4176,6 +4376,18 @@ div.kw-insight-card-v2 {
   background: #f0fdfa !important; background-color: #f0fdfa !important;
   border: 1.5px solid #99f6e4 !important;
   border-left: 3px solid #0d9488 !important;
+  border-radius: 0 12px 12px 0 !important;
+}
+.kw-pendukung {
+  background: #eff6ff !important; background-color: #eff6ff !important;
+  border: 1.5px solid #bfdbfe !important;
+  border-left: 3px solid #3b82f6 !important;
+  border-radius: 0 12px 12px 0 !important;
+}
+.kw-rencana {
+  background: #f5f3ff !important; background-color: #f5f3ff !important;
+  border: 1.5px solid #ddd6fe !important;
+  border-left: 3px solid #8b5cf6 !important;
   border-radius: 0 12px 12px 0 !important;
 }
 .kw-ok {

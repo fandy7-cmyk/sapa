@@ -46,7 +46,7 @@ function _targetNumForRow(row) {
 
 function _predikatOptionsHtml(selectedTier) {
   const sel = (selectedTier != null && selectedTier !== '') ? Number(selectedTier) : null;
-  return `<option value="">Pilih...</option>` + PREDIKAT_LEVELS.map(p =>
+  return `<option value="">-</option>` + PREDIKAT_LEVELS.map(p =>
     `<option value="${p.tier}" ${sel === p.tier ? 'selected' : ''}>${p.label}</option>`
   ).join('');
 }
@@ -58,7 +58,16 @@ function _renderRealisasiInputCell(row, idPrefix, onchangeFn) {
   const id = `${idPrefix}_${row.id}`;
   const disabled = !!row.realisasi_id;
   if (row.tipe_nilai === 'predikat') {
+    // Belum PERNAH diisi sama sekali (gak ada baris realisasi tersimpan sama sekali,
+    // termasuk yang sengaja dikosongkan/"-") → trigger custom select tampilkan
+    // placeholder netral ("Pilih Peringkat"), BUKAN "-", supaya user gak salah kira
+    // "-" itu udah kepilih otomatis. Begitu user aktif milih apapun (termasuk "-"),
+    // data-placeholder ini dihapus di sisi klik (lihat buildCustomSelect/app.html)
+    // dan tampilannya balik jadi teks opsi asli ("-", "D", dst) — perilaku sama
+    // persis kayak sebelumnya begitu user sudah menentukan pilihan.
+    const belumPernahDiisi = row.realisasi == null && !row.realisasi_id;
     const selectEl = `<select id="${id}" ${disabled ? 'disabled readonly' : ''}
+             ${belumPernahDiisi ? 'data-placeholder="Pilih Peringkat"' : ''}
              title="${disabled ? 'Klik tombol Edit untuk mengisi realisasi' : ''}"
              style="${disabled ? 'cursor:not-allowed' : ''}"
              onchange="${onchangeFn}(${row.id})">${_predikatOptionsHtml(row.realisasi != null ? row.realisasi : null)}</select>`;
@@ -74,7 +83,7 @@ function _renderRealisasiInputCell(row, idPrefix, onchangeFn) {
              placeholder="0" step="0.01" ${disabled ? 'readonly' : ''}
              title="${disabled ? 'Klik tombol Edit untuk mengisi realisasi' : ''}"
              style="${disabled ? 'cursor:not-allowed' : ''}"
-             onchange="${onchangeFn}(${row.id})">`;
+             oninput="${onchangeFn}(${row.id})">`;
 }
 
 // Ambil label tampilan realisasi buat dikirim sebagai realisasi_display: kalau
@@ -97,6 +106,7 @@ let _targetMap  = {}; // {indikator_id: [{tahun, target, target_display}]}
 let _kinerja_bulan  = new Date().getMonth() + 1;   // 1–12
 let _kinerja_tahun  = new Date().getFullYear();
 let _kinerjaData    = [];
+let _kinerjaSearch  = '';   // teks pencarian indikator (tabel rekap IKU)
 let _indikatorList  = [];
 let _groupList      = [];
 let _bidangListKinerja = [];   // cache bidang untuk dropdown PJ indikator
@@ -107,11 +117,13 @@ let _editingGroupId     = null;
 let _ikk_bulan  = new Date().getMonth() + 1;   // 1–12
 let _ikk_tahun = new Date().getFullYear();
 let _ikkData   = [];
+let _ikkSearch = '';   // teks pencarian indikator (tabel rekap IKK)
 
 // ── SPM state ────────────────────────────────────────────────────────────
 let _spm_bulan  = new Date().getMonth() + 1;   // 1–12
 let _spm_tahun  = new Date().getFullYear();
 let _spmData    = [];
+let _spmSearch  = '';   // teks pencarian indikator (tabel rekap SPM)
 
 // ── Pagination & search — Indikator Admin ────────────────────────────────
 let _indikatorPage      = 1;
@@ -738,6 +750,13 @@ function _goIkkPage(p) { _ikkPage = p; _renderIkkTable(document.getElementById('
 function _goSpmPage(p) { _spmPage = p; _renderSpmTable(document.getElementById('spmTableBody')); }
 
 
+// Dipanggil dari input #kinerjaSearch (sejajar Tahun/Bulan) — filter tabel rekap IKU
+function filterKinerjaTable() {
+  _kinerjaSearch = (document.getElementById('kinerjaSearch')?.value || '').trim().toLowerCase();
+  _ikuPage = 1;
+  renderKinerjaTable(document.getElementById('kinerjaTableBody'));
+}
+
 function renderKinerjaTable(tbody) {
   if (!_kinerjaData.length) {
     let emptyMsg = 'Belum ada indikator aktif. Admin perlu menambahkan indikator terlebih dahulu.';
@@ -751,13 +770,29 @@ function renderKinerjaTable(tbody) {
     tbody.innerHTML = `<tr class="empty-row"><td colspan="11">${emptyMsg}</td></tr>`;
     return;
   }
+
+  // Filter berdasarkan kata kunci pencarian (nama indikator, satuan, bidang/PJ)
+  const _filtered = _kinerjaSearch
+    ? _kinerjaData.filter(row =>
+        (row.indikator_kinerja || '').toLowerCase().includes(_kinerjaSearch) ||
+        (row.satuan || '').toLowerCase().includes(_kinerjaSearch) ||
+        (row.penanggung_jawab || '').toLowerCase().includes(_kinerjaSearch)
+      )
+    : _kinerjaData;
+
+  if (!_filtered.length) {
+    tbody.innerHTML = `<tr class="empty-row"><td colspan="11">Tidak ada indikator yang cocok dengan pencarian "${escHtml(_kinerjaSearch)}".</td></tr>`;
+    renderPagination('ikuPagination', 0, 1, _ikuPageSize, '_goIkuPage');
+    return;
+  }
+
   const canEdit = _isMonevInputOpen();
   let html = '';
   let lastGroupId = null;
   let no = 0;
 
   const _ikuStart = (_ikuPage - 1) * _ikuPageSize;
-  const _ikuRows  = _kinerjaData.slice(_ikuStart, _ikuStart + _ikuPageSize);
+  const _ikuRows  = _filtered.slice(_ikuStart, _ikuStart + _ikuPageSize);
 
   _ikuRows.forEach(row => {
     // Baris group header jika group berubah
@@ -800,7 +835,7 @@ function renderKinerjaTable(tbody) {
       <td class="td-sticky-name" style="position:sticky;left:34px;z-index:3"><div style="font-weight:600;line-height:1.6"><span>${escHtml(row.indikator_kinerja)}</span>${negBadge}</div><div style="display:flex;align-items:center;gap:6px;margin-top:5px">${row.formula ? `<div class="fx-wrap"><button style="display:inline-flex;align-items:center;justify-content:center;gap:4px;box-sizing:border-box;height:24px;font-size:0.62rem;font-weight:700;line-height:1;color:#0f766e;background:#f0fdfa;border:1px solid #99f6e4;border-radius:4px;padding:0 8px;cursor:pointer;font-family:inherit;appearance:none;-webkit-appearance:none;margin:0" data-tip="Lihat formula perhitungan" data-formula="${escHtml(row.formula)}" onclick="toggleFormulaPanel(this)"><span>Σ</span><span class=\"fx-arrow\" style=\"display:inline-block;transition:transform .2s;font-style:normal\">▾</span></button></div>` : ''}${_tipeBadge(row.tipe_perhitungan)}</div></td>
       <td class="td-satuan">${escHtml(row.satuan || '')}</td>
       <td class="td-target" style="font-weight:700">${targetFmt}</td>
-      ${_user?.is_admin ? `<td style="color:var(--teks-mid)">${escHtml(row.penanggung_jawab || '—')}</td>` : ''}
+      ${_user?.is_admin ? `<td class="td-bidang" style="color:var(--teks-mid)">${escHtml(row.penanggung_jawab || '—')}</td>` : ''}
       <td class="realisasi-input-cell">
         ${_renderRealisasiInputCell(row, 'real', 'markDirty')}
       </td>
@@ -808,16 +843,16 @@ function renderKinerjaTable(tbody) {
         <span class="capaian-badge ${badgeClass}" id="badge_${row.id}">${badgeText}</span>
       </td>
       <td class="textarea-cell">
-        ${_renderPSCell('fpenghambat', row.id, row.f_penghambat, capaian, canEdit, 'faktor penghambat', 'markDirty', !!row.realisasi_id, false)}
+        ${_renderPSCell('fpenghambat', row.id, row.f_penghambat, capaian, canEdit, 'faktor penghambat', 'markDirty', !!row.realisasi_id, false, row.tipe_nilai === 'predikat', row.realisasi == null && !row.realisasi_id)}
       </td>
       <td class="textarea-cell">
-        ${_renderPSCell('solusi', row.id, row.solusi, capaian, canEdit, 'solusi', 'markDirty', !!row.realisasi_id, false)}
+        ${_renderPSCell('solusi', row.id, row.solusi, capaian, canEdit, 'solusi', 'markDirty', !!row.realisasi_id, false, row.tipe_nilai === 'predikat', row.realisasi == null && !row.realisasi_id)}
       </td>
       <td class="textarea-cell">
-        ${_renderPSCell('fpendukung', row.id, row.f_pendukung, capaian, canEdit, 'faktor pendukung', 'markDirty', !!row.realisasi_id, true)}
+        ${_renderPSCell('fpendukung', row.id, row.f_pendukung, capaian, canEdit, 'faktor pendukung', 'markDirty', !!row.realisasi_id, true, row.tipe_nilai === 'predikat', row.realisasi == null && !row.realisasi_id)}
       </td>
       <td class="textarea-cell">
-        ${_renderPSCell('rencana', row.id, row.rencana_tl, capaian, canEdit, 'rencana tindak lanjut', 'markDirty', !!row.realisasi_id, true)}
+        ${_renderPSCell('rencana', row.id, row.rencana_tl, capaian, canEdit, 'rencana tindak lanjut', 'markDirty', !!row.realisasi_id, true, row.tipe_nilai === 'predikat', row.realisasi == null && !row.realisasi_id)}
       </td>
       <td style="text-align:center" data-col="dukung">
         ${_renderDukungBtn(row, _kinerja_bulan, _kinerja_tahun, 'monev', !row.realisasi_id)}
@@ -852,7 +887,7 @@ function renderKinerjaTable(tbody) {
   if (typeof window.initCustomSelects === 'function') window.initCustomSelects();
   // Toggle header kolom Bidang / Sub Bagian (hanya tampil untuk admin)
   document.querySelectorAll('.col-bidang-iku').forEach(el => { el.style.display = _user?.is_admin ? '' : 'none'; });
-  renderPagination('ikuPagination', _kinerjaData.length, _ikuPage, _ikuPageSize, '_goIkuPage');
+  renderPagination('ikuPagination', _filtered.length, _ikuPage, _ikuPageSize, '_goIkuPage');
   // Tampilkan warning di kolom Data Dukung untuk baris yang sudah tersimpan
   // tapi belum punya file dukung
   if (canEdit) {
@@ -1268,7 +1303,17 @@ function _checkSymbolOnlyInput(el, label) {
 // Cek apakah baris boleh disimpan: realisasi harus diisi,
 // serta field wajib sesuai kondisi capaian.
 function _canSaveRow({ row, realVal, targetVal, bermakna_negatif, fpenghambatVal, solusiVal, fpendukungVal, rencanaVal, hasDukung }, requireDukung = true) {
-  if (realVal === '' || realVal === null || realVal === undefined) return false;
+  const realEmpty = realVal === '' || realVal === null || realVal === undefined;
+  if (realEmpty) {
+    // Indikator bertipe predikat (mis. Peringkat SAKIP) sering baru dinilai di
+    // akhir tahun — untuk bulan-bulan menunggu penilaian, realisasi boleh
+    // dikosongkan ("-") asal Faktor Penghambat & Solusi tetap dijelaskan
+    // (mis. "menunggu hasil penilaian"), supaya baris tetap bisa disimpan.
+    if (row?.tipe_nilai !== 'predikat') return false;
+    if (_isSymbolOnly(fpenghambatVal) || _isSymbolOnly(solusiVal)) return false;
+    if (requireDukung && !hasDukung) return false;
+    return true;
+  }
   const r = parseFloat(realVal);
   const t = parseFloat(targetVal);
   if (isNaN(r) || isNaN(t)) return false;
@@ -3660,6 +3705,13 @@ async function loadIkkRekap() {
   }
 }
 
+// Dipanggil dari input #ikkSearch (sejajar Tahun/Bulan) — filter tabel rekap IKK
+function filterIkkTable() {
+  _ikkSearch = (document.getElementById('ikkSearch')?.value || '').trim().toLowerCase();
+  _ikkPage = 1;
+  _renderIkkTable(document.getElementById('ikkTableBody'));
+}
+
 function _renderIkkTable(tbody) {
   if (!_ikkData.length) {
     let emptyMsg = 'Belum ada indikator IKK aktif. Admin perlu menambahkan indikator dengan jenis IKK.';
@@ -3673,13 +3725,28 @@ function _renderIkkTable(tbody) {
     tbody.innerHTML = `<tr class="empty-row"><td colspan="11">${emptyMsg}</td></tr>`;
     return;
   }
+
+  const _filtered = _ikkSearch
+    ? _ikkData.filter(row =>
+        (row.indikator_kinerja || '').toLowerCase().includes(_ikkSearch) ||
+        (row.satuan || '').toLowerCase().includes(_ikkSearch) ||
+        (row.penanggung_jawab || '').toLowerCase().includes(_ikkSearch)
+      )
+    : _ikkData;
+
+  if (!_filtered.length) {
+    tbody.innerHTML = `<tr class="empty-row"><td colspan="11">Tidak ada indikator yang cocok dengan pencarian "${escHtml(_ikkSearch)}".</td></tr>`;
+    renderPagination('ikkPagination', 0, 1, _ikkPageSize, '_goIkkPage');
+    return;
+  }
+
   const canEdit = _isIkkInputOpen();
   let html = '';
   let lastGroupId = null;
   let no = 0;
 
   const _ikkStart = (_ikkPage - 1) * _ikkPageSize;
-  const _ikkRows  = _ikkData.slice(_ikkStart, _ikkStart + _ikkPageSize);
+  const _ikkRows  = _filtered.slice(_ikkStart, _ikkStart + _ikkPageSize);
 
   _ikkRows.forEach(row => {
     if (row.group_id !== lastGroupId) {
@@ -3720,7 +3787,7 @@ function _renderIkkTable(tbody) {
       <td class="td-sticky-name" style="position:sticky;left:34px;z-index:3"><div style="font-weight:600;line-height:1.6"><span>${escHtml(row.indikator_kinerja)}</span>${row.bermakna_negatif ? `<span data-tip="Bermakna Negatif" data-tip-variant="danger" style="display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;background:#fee2e2;border-radius:50%;margin-left:5px;vertical-align:middle;flex-shrink:0"><svg xmlns=\"http://www.w3.org/2000/svg\" width=\"9\" height=\"9\" fill=\"none\" viewBox=\"0 0 24 24\" stroke=\"#991b1b\" stroke-width=\"2.8\"><path stroke-linecap=\"round\" stroke-linejoin=\"round\" d=\"M19 14l-7 7m0 0l-7-7m7 7V3\"/></svg></span>` : `<span data-tip="Bermakna Positif" data-tip-variant="success" style="display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;background:#d1fae5;border-radius:50%;margin-left:5px;vertical-align:middle;flex-shrink:0"><svg xmlns=\"http://www.w3.org/2000/svg\" width=\"9\" height=\"9\" fill=\"none\" viewBox=\"0 0 24 24\" stroke=\"#065f46\" stroke-width=\"2.8\"><path stroke-linecap=\"round\" stroke-linejoin=\"round\" d=\"M5 10l7-7m0 0l7 7m-7-7v18\"/></svg></span>`}</div><div style="display:flex;align-items:center;gap:6px;margin-top:5px">${row.formula ? `<div class="fx-wrap"><button style="display:inline-flex;align-items:center;justify-content:center;gap:4px;box-sizing:border-box;height:24px;font-size:0.62rem;font-weight:700;line-height:1;color:#0f766e;background:#f0fdfa;border:1px solid #99f6e4;border-radius:4px;padding:0 8px;cursor:pointer;font-family:inherit;appearance:none;-webkit-appearance:none;margin:0" data-tip="Lihat formula perhitungan" data-formula="${escHtml(row.formula)}" onclick="toggleFormulaPanel(this)"><span>Σ</span><span class=\"fx-arrow\" style=\"display:inline-block;transition:transform .2s;font-style:normal\">▾</span></button></div>` : ''}${_tipeBadge(row.tipe_perhitungan)}</div></td>
       <td class="td-satuan">${escHtml(row.satuan || '')}</td>
       <td class="td-target" style="font-weight:700">${targetFmt}</td>
-      ${_user?.is_admin ? `<td style="color:var(--teks-mid)">${escHtml(row.penanggung_jawab || '—')}</td>` : ''}
+      ${_user?.is_admin ? `<td class="td-bidang" style="color:var(--teks-mid)">${escHtml(row.penanggung_jawab || '—')}</td>` : ''}
       <td class="realisasi-input-cell">
         ${_renderRealisasiInputCell(row, 'ikk_real', 'markIkkDirty')}
       </td>
@@ -3728,16 +3795,16 @@ function _renderIkkTable(tbody) {
         <span class="capaian-badge ${badgeClass}" id="ikk_badge_${row.id}">${badgeText}</span>
       </td>
       <td class="textarea-cell">
-        ${_renderPSCell('ikk_fpenghambat', row.id, row.f_penghambat, capaian, canEdit, 'faktor penghambat', 'markIkkDirty', !!row.realisasi_id, false)}
+        ${_renderPSCell('ikk_fpenghambat', row.id, row.f_penghambat, capaian, canEdit, 'faktor penghambat', 'markIkkDirty', !!row.realisasi_id, false, row.tipe_nilai === 'predikat', row.realisasi == null && !row.realisasi_id)}
       </td>
       <td class="textarea-cell">
-        ${_renderPSCell('ikk_solusi', row.id, row.solusi, capaian, canEdit, 'solusi', 'markIkkDirty', !!row.realisasi_id, false)}
+        ${_renderPSCell('ikk_solusi', row.id, row.solusi, capaian, canEdit, 'solusi', 'markIkkDirty', !!row.realisasi_id, false, row.tipe_nilai === 'predikat', row.realisasi == null && !row.realisasi_id)}
       </td>
       <td class="textarea-cell">
-        ${_renderPSCell('ikk_fpendukung', row.id, row.f_pendukung, capaian, canEdit, 'faktor pendukung', 'markIkkDirty', !!row.realisasi_id, true)}
+        ${_renderPSCell('ikk_fpendukung', row.id, row.f_pendukung, capaian, canEdit, 'faktor pendukung', 'markIkkDirty', !!row.realisasi_id, true, row.tipe_nilai === 'predikat', row.realisasi == null && !row.realisasi_id)}
       </td>
       <td class="textarea-cell">
-        ${_renderPSCell('ikk_rencana', row.id, row.rencana_tl, capaian, canEdit, 'rencana tindak lanjut', 'markIkkDirty', !!row.realisasi_id, true)}
+        ${_renderPSCell('ikk_rencana', row.id, row.rencana_tl, capaian, canEdit, 'rencana tindak lanjut', 'markIkkDirty', !!row.realisasi_id, true, row.tipe_nilai === 'predikat', row.realisasi == null && !row.realisasi_id)}
       </td>
       <td style="text-align:center" data-col="dukung">${_renderDukungBtn(row, _ikk_bulan, _ikk_tahun, 'ikk', !row.realisasi_id)}</td>
       <td style="text-align:center;white-space:nowrap">
@@ -3770,7 +3837,7 @@ function _renderIkkTable(tbody) {
   if (typeof window.initCustomSelects === 'function') window.initCustomSelects();
   // Toggle header kolom Bidang / Sub Bagian (hanya tampil untuk admin)
   document.querySelectorAll('.col-bidang-ikk').forEach(el => { el.style.display = _user?.is_admin ? '' : 'none'; });
-  renderPagination('ikkPagination', _ikkData.length, _ikkPage, _ikkPageSize, '_goIkkPage');
+  renderPagination('ikkPagination', _filtered.length, _ikkPage, _ikkPageSize, '_goIkkPage');
   // Sinkronkan status tombol Upload/Simpan begitu tabel selesai di-render, supaya
   // baris yang sudah punya realisasi (mis. dari reload/edit) langsung tampil status
   // tombol yang benar tanpa nunggu user ngetik ulang buat memicu event onchange.
@@ -4037,10 +4104,22 @@ function _autoResizeAllTA(tr) {
   tr.querySelectorAll('.textarea-cell textarea').forEach(_autoResizeTA);
 }
 
-function _renderPSCell(idBase, indikatorId, value, capaian, canEdit, label, onchangeFn, locked = true, tercapaiCol = false) {
+function _renderPSCell(idBase, indikatorId, value, capaian, canEdit, label, onchangeFn, locked = true, tercapaiCol = false, isPredikat = false, belumPernahDiisi = false) {
   const tercapai  = capaian !== null && !isNaN(capaian) && capaian >= 100;
   const belumIsi  = capaian === null || isNaN(capaian);
-  const hideTA    = belumIsi || (tercapaiCol ? !tercapai : tercapai);
+  // Indikator predikat (mis. Peringkat SAKIP) yang realisasinya sengaja
+  // dikosongkan ("-", menunggu penilaian akhir tahun) tetap perlu bisa diisi
+  // Faktor Penghambat & Solusi untuk menjelaskan progresnya — jangan
+  // disembunyikan total seperti indikator angka biasa yang belum diisi apa-apa.
+  // TAPI kalau user belum PERNAH sama sekali interaksi sama dropdown peringkat
+  // (belumPernahDiisi: gak ada realisasi_id sama sekali, baris masih perawan),
+  // tetap sembunyikan dulu — jangan langsung aktif dari awal sebelum user
+  // menentukan pilihan apapun (termasuk "-"). Begitu user pilih apapun di
+  // dropdown, _togglePermasalahanSolusi() di runtime yang nampilin fieldnya.
+  const predikatBelumDisentuh = isPredikat && belumPernahDiisi;
+  const hideTA    = tercapaiCol
+    ? !tercapai
+    : (tercapai || (belumIsi && (!isPredikat || predikatBelumDisentuh)));
   const showNote  = !tercapaiCol && tercapai;
   const hasValue  = (value || '').trim().length > 0;
   const LIMIT     = 80; // karakter sebelum dipotong
@@ -4062,7 +4141,7 @@ function _renderPSCell(idBase, indikatorId, value, capaian, canEdit, label, onch
               ${locked ? 'readonly' : ''}
               title="${locked ? `Klik tombol Edit untuk mengisi ${label}` : ''}"
               style="${locked ? 'cursor:not-allowed;display:none;' : ''}resize:none"
-              oninput="_autoResizeTA(this); _checkSymbolOnlyInput(this, '${label}')" onchange="${onchangeFn}(${indikatorId})">${escHtml(value || '')}</textarea>
+              oninput="_autoResizeTA(this); _checkSymbolOnlyInput(this, '${label}'); ${onchangeFn}(${indikatorId})">${escHtml(value || '')}</textarea>
           </div>
           <div id="${idBase}note_${indikatorId}" class="ps-tercapai-note" style="${showNote && hasValue ? '' : 'display:none'}">
             —
@@ -4112,13 +4191,22 @@ document.addEventListener('click', function(e) {
 // Toggle tampilan textarea Permasalahan/Solusi vs catatan "Target tercapai"
 // berdasarkan nilai capaian terbaru (dipanggil saat preview capaian live)
 function _togglePermasalahanSolusi(prefix, indikatorId, capaian) {
+  const dataArr = prefix === 'ikk' ? _ikkData : prefix === 'spm' ? _spmData : _kinerjaData;
+  const row = dataArr.find(r => r.id === indikatorId);
+  const isPredikat = row?.tipe_nilai === 'predikat';
   const tercapai = capaian !== null && !isNaN(capaian) && capaian >= 100;
   const belumIsi = capaian === null || isNaN(capaian);
-  // Kolom < 100: f_penghambat, solusi
-  const hideBawah  = belumIsi || tercapai;
+  const p = prefix ? prefix + '_' : '';
+  // Kolom < 100: f_penghambat, solusi — untuk indikator predikat yang realisasinya
+  // sengaja dikosongkan ("-", menunggu penilaian akhir tahun), tetap tampilkan
+  // supaya user bisa menjelaskan progres, bukan disembunyikan total. TAPI kalau
+  // dropdown-nya masih data-placeholder (belum pernah disentuh user sama sekali),
+  // tetap sembunyikan dulu — samain dengan logic initial render di _renderPSCell.
+  const realEl = isPredikat ? document.getElementById(`${p}real_${indikatorId}`) : null;
+  const predikatBelumDisentuh = isPredikat && realEl?.tagName === 'SELECT' && !!realEl.dataset.placeholder;
+  const hideBawah  = tercapai || (belumIsi && (!isPredikat || predikatBelumDisentuh));
   // Kolom >= 100: f_pendukung, rencana_tl
   const hideAtas   = belumIsi || !tercapai;
-  const p = prefix ? prefix + '_' : '';
   const tr = document.querySelector(`tr[data-id="${indikatorId}"]`);
   const isEditingRow = !!tr?.classList.contains('row-state-editing');
 
@@ -4761,6 +4849,13 @@ async function loadSpmRekap() {
   }
 }
 
+// Dipanggil dari input #spmSearch (sejajar Tahun/Bulan) — filter tabel rekap SPM
+function filterSpmTable() {
+  _spmSearch = (document.getElementById('spmSearch')?.value || '').trim().toLowerCase();
+  _spmPage = 1;
+  _renderSpmTable(document.getElementById('spmTableBody'));
+}
+
 function _renderSpmTable(tbody) {
   if (!_spmData.length) {
     let emptyMsg = 'Belum ada indikator SPM aktif. Admin perlu menambahkan indikator dengan jenis SPM.';
@@ -4774,10 +4869,25 @@ function _renderSpmTable(tbody) {
     tbody.innerHTML = `<tr class="empty-row"><td colspan="11">${emptyMsg}</td></tr>`;
     return;
   }
+
+  const _filtered = _spmSearch
+    ? _spmData.filter(row =>
+        (row.nama_indikator || row.indikator_kinerja || '').toLowerCase().includes(_spmSearch) ||
+        (row.satuan || '').toLowerCase().includes(_spmSearch) ||
+        (row.penanggung_jawab || '').toLowerCase().includes(_spmSearch)
+      )
+    : _spmData;
+
+  if (!_filtered.length) {
+    tbody.innerHTML = `<tr class="empty-row"><td colspan="11">Tidak ada indikator yang cocok dengan pencarian "${escHtml(_spmSearch)}".</td></tr>`;
+    renderPagination('spmPagination', 0, 1, _spmPageSize, '_goSpmPage');
+    return;
+  }
+
   const canEdit = _isKinerjaInputOpen(null, 'spm');
   let html = '';
   const _spmStart = (_spmPage - 1) * _spmPageSize;
-  const _spmRows  = _spmData.slice(_spmStart, _spmStart + _spmPageSize);
+  const _spmRows  = _filtered.slice(_spmStart, _spmStart + _spmPageSize);
   let i = _spmStart;
 
   _spmRows.forEach(row => {
@@ -4800,7 +4910,7 @@ function _renderSpmTable(tbody) {
       <td class="td-sticky-name" style="position:sticky;left:34px;z-index:3"><div style="font-weight:600;line-height:1.6"><span>${escHtml(row.nama_indikator || row.indikator_kinerja || '')}</span>${row.bermakna_negatif ? `<span data-tip="Bermakna Negatif" data-tip-variant="danger" style="display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;background:#fee2e2;border-radius:50%;margin-left:5px;vertical-align:middle;flex-shrink:0"><svg xmlns=\"http://www.w3.org/2000/svg\" width=\"9\" height=\"9\" fill=\"none\" viewBox=\"0 0 24 24\" stroke=\"#991b1b\" stroke-width=\"2.8\"><path stroke-linecap=\"round\" stroke-linejoin=\"round\" d=\"M19 14l-7 7m0 0l-7-7m7 7V3\"/></svg></span>` : `<span data-tip="Bermakna Positif" data-tip-variant="success" style="display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;background:#d1fae5;border-radius:50%;margin-left:5px;vertical-align:middle;flex-shrink:0"><svg xmlns=\"http://www.w3.org/2000/svg\" width=\"9\" height=\"9\" fill=\"none\" viewBox=\"0 0 24 24\" stroke=\"#065f46\" stroke-width=\"2.8\"><path stroke-linecap=\"round\" stroke-linejoin=\"round\" d=\"M5 10l7-7m0 0l7 7m-7-7v18\"/></svg></span>`}</div><div style="display:flex;align-items:center;gap:6px;margin-top:5px">${row.formula ? `<div class="fx-wrap"><button style="display:inline-flex;align-items:center;justify-content:center;gap:4px;box-sizing:border-box;height:24px;font-size:0.62rem;font-weight:700;line-height:1;color:#0f766e;background:#f0fdfa;border:1px solid #99f6e4;border-radius:4px;padding:0 8px;cursor:pointer;font-family:inherit;appearance:none;-webkit-appearance:none;margin:0" data-tip="Lihat formula perhitungan" data-formula="${escHtml(row.formula)}" onclick="toggleFormulaPanel(this)"><span>Σ</span><span class=\"fx-arrow\" style=\"display:inline-block;transition:transform .2s;font-style:normal\">▾</span></button></div>` : ''}${_tipeBadge(row.tipe_perhitungan)}</div></td>
       <td class="td-satuan">${escHtml(row.satuan || '')}</td>
       <td class="td-target" style="font-weight:700">${targetFmt}</td>
-      ${_user?.is_admin ? `<td style="color:var(--teks-mid)">${escHtml(row.penanggung_jawab || '—')}</td>` : ''}
+      ${_user?.is_admin ? `<td class="td-bidang" style="color:var(--teks-mid)">${escHtml(row.penanggung_jawab || '—')}</td>` : ''}
       <td class="realisasi-input-cell">
         ${_renderRealisasiInputCell(row, 'spm_real', 'markSpmDirty')}
       </td>
@@ -4808,16 +4918,16 @@ function _renderSpmTable(tbody) {
         <span class="capaian-badge ${badgeClass}" id="spm_badge_${row.id}">${badgeText}</span>
       </td>
       <td class="textarea-cell">
-        ${_renderPSCell('spm_fpenghambat', row.id, row.f_penghambat, capaian, canEdit, 'faktor penghambat', 'markSpmDirty', !!row.realisasi_id, false)}
+        ${_renderPSCell('spm_fpenghambat', row.id, row.f_penghambat, capaian, canEdit, 'faktor penghambat', 'markSpmDirty', !!row.realisasi_id, false, row.tipe_nilai === 'predikat', row.realisasi == null && !row.realisasi_id)}
       </td>
       <td class="textarea-cell">
-        ${_renderPSCell('spm_solusi', row.id, row.solusi, capaian, canEdit, 'solusi', 'markSpmDirty', !!row.realisasi_id, false)}
+        ${_renderPSCell('spm_solusi', row.id, row.solusi, capaian, canEdit, 'solusi', 'markSpmDirty', !!row.realisasi_id, false, row.tipe_nilai === 'predikat', row.realisasi == null && !row.realisasi_id)}
       </td>
       <td class="textarea-cell">
-        ${_renderPSCell('spm_fpendukung', row.id, row.f_pendukung, capaian, canEdit, 'faktor pendukung', 'markSpmDirty', !!row.realisasi_id, true)}
+        ${_renderPSCell('spm_fpendukung', row.id, row.f_pendukung, capaian, canEdit, 'faktor pendukung', 'markSpmDirty', !!row.realisasi_id, true, row.tipe_nilai === 'predikat', row.realisasi == null && !row.realisasi_id)}
       </td>
       <td class="textarea-cell">
-        ${_renderPSCell('spm_rencana', row.id, row.rencana_tl, capaian, canEdit, 'rencana tindak lanjut', 'markSpmDirty', !!row.realisasi_id, true)}
+        ${_renderPSCell('spm_rencana', row.id, row.rencana_tl, capaian, canEdit, 'rencana tindak lanjut', 'markSpmDirty', !!row.realisasi_id, true, row.tipe_nilai === 'predikat', row.realisasi == null && !row.realisasi_id)}
       </td>
       <td style="text-align:center" data-col="dukung">
         ${_renderDukungBtn(row, _spm_bulan, _spm_tahun, 'spm', !row.realisasi_id)}
@@ -4854,7 +4964,7 @@ function _renderSpmTable(tbody) {
   document.querySelectorAll('.col-bidang-spm').forEach(el => {
     el.style.display = _user?.is_admin ? '' : 'none';
   });
-  renderPagination('spmPagination', _spmData.length, _spmPage, _spmPageSize, '_goSpmPage');
+  renderPagination('spmPagination', _filtered.length, _spmPage, _spmPageSize, '_goSpmPage');
   // Warning "Belum diupload" untuk baris yang tersimpan tapi belum ada file dukung
   if (canEdit) {
     _spmData.forEach(row => {

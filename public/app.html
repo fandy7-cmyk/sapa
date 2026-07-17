@@ -5,11 +5,11 @@
   <script>history.replaceState(null, '', location.origin);</script>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>SAPA Perencanaan</title>
-  <meta name="app-version" content="1.0.0" />
+  <meta name="app-version" content="1.0.1" />
   <link rel="icon" type="image/png" href="/favicon.png" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="css/styles.css?v=1.0.0" />
+  <link rel="stylesheet" href="css/styles.css?v=1.0.1" />
   <style>
     /* ── LOGIN OVERLAY ── */
     #loginOverlay {
@@ -675,6 +675,11 @@
               <div class="select-wrap bulan-select-wrap" style="min-width:118px">
                 <select id="bulanSelector"></select>
               </div>
+              <!-- Cari indikator (sejajar dengan Tahun/Bulan) -->
+              <div class="search-wrap" style="min-width:220px;flex:1;max-width:320px">
+                <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-4.35-4.35"/></svg>
+                <input type="text" placeholder="Cari indikator…" id="kinerjaSearch" oninput="filterKinerjaTable()" />
+              </div>
             </div>
           </div>
           <!-- Skala Nilai Permendagri 86/2017 -->
@@ -739,6 +744,11 @@
               <div class="select-wrap bulan-select-wrap" style="min-width:118px">
                 <select id="ikkBulanSelector"></select>
               </div>
+              <!-- Cari indikator IKK (sejajar dengan Tahun/Bulan) -->
+              <div class="search-wrap" style="min-width:220px;flex:1;max-width:320px">
+                <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-4.35-4.35"/></svg>
+                <input type="text" placeholder="Cari indikator…" id="ikkSearch" oninput="filterIkkTable()" />
+              </div>
             </div>
           </div>
           <!-- Skala Nilai Permendagri 86/2017 -->
@@ -802,6 +812,11 @@
               <span style="font-size:.72rem;font-weight:600;color:var(--text-secondary,#64748b);white-space:nowrap;letter-spacing:.01em;margin-right:2px">Bulan</span>
               <div class="select-wrap bulan-select-wrap" style="min-width:118px">
                 <select id="spmBulanSelector"></select>
+              </div>
+              <!-- Cari indikator SPM (sejajar dengan Tahun/Bulan) -->
+              <div class="search-wrap" style="min-width:220px;flex:1;max-width:320px">
+                <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-4.35-4.35"/></svg>
+                <input type="text" placeholder="Cari indikator…" id="spmSearch" oninput="filterSpmTable()" />
               </div>
             </div>
           </div>
@@ -2880,7 +2895,7 @@ function _loginShowErr(msg, type = 'warn') {
 </script>
 
 <!-- ════════════════ SCRIPTS ════════════════ -->
-<script src="js/periode_frontend.js?v=1.0.0"></script>
+<script src="js/periode_frontend.js?v=1.0.1"></script>
 <script>
 /* ── CDTP Teleport: pindahkan panel kalender ke <body> saat dibuka ──────────
    Ini satu-satunya cara yang benar-benar reliable agar panel tidak terpotong
@@ -3027,18 +3042,18 @@ function _loginShowErr(msg, type = 'warn') {
 })();
 </script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/quill/1.3.7/quill.min.js"></script>
-  <script src="js/app.js?v=1.0.0"></script>
-<script src="js/dashboard.js?v=1.0.0"></script>
-<script src="js/superlink.js?v=1.0.0"></script>
-<script src="js/pengumuman_frontend.js?v=1.0.0"></script>
-<script src="js/surat.js?v=1.0.0"></script>
-<script src="js/users_frontend.js?v=1.0.0"></script>
-<script src="js/kinerja.js?v=1.0.0"></script>
-<script src="js/laporan.js?v=1.0.0"></script>
-<script src="js/struktur_frontend.js?v=1.0.0"></script>
-<script src="js/audit_frontend.js?v=1.0.0"></script>
-<script src="js/dokumen_publik_frontend.js?v=1.0.0"></script>
-<script src="js/profil_frontend.js?v=1.0.0"></script>
+  <script src="js/app.js?v=1.0.1"></script>
+<script src="js/dashboard.js?v=1.0.1"></script>
+<script src="js/superlink.js?v=1.0.1"></script>
+<script src="js/pengumuman_frontend.js?v=1.0.1"></script>
+<script src="js/surat.js?v=1.0.1"></script>
+<script src="js/users_frontend.js?v=1.0.1"></script>
+<script src="js/kinerja.js?v=1.0.1"></script>
+<script src="js/laporan.js?v=1.0.1"></script>
+<script src="js/struktur_frontend.js?v=1.0.1"></script>
+<script src="js/audit_frontend.js?v=1.0.1"></script>
+<script src="js/dokumen_publik_frontend.js?v=1.0.1"></script>
+<script src="js/profil_frontend.js?v=1.0.1"></script>
 
 <script>
 /* ═══════════════════════════════════════════════════════════════════════════
@@ -3077,7 +3092,13 @@ function _loginShowErr(msg, type = 'warn') {
     function renderOptions() {
       panel.innerHTML = '';
       Array.from(sel.options).forEach((opt, i) => {
-        const isSelected = sel.selectedIndex === i;
+        // Kalau data-placeholder masih aktif (user belum PERNAH interaksi sama
+        // dropdown ini), jangan tandai opsi manapun sebagai "selected" — termasuk
+        // opsi "-" yang kebetulan ada di selectedIndex 0 secara default bawaan
+        // <select> native. Checkmark cuma boleh nongol setelah user benar-benar
+        // klik salah satu opsi (lihat listener klik di bawah yang hapus
+        // sel.dataset.placeholder).
+        const isSelected = sel.selectedIndex === i && !sel.dataset.placeholder;
         const isPlaceholder = opt.value === '';
         const div = document.createElement('div');
         div.className = 'csel-option' + (isSelected ? ' selected' : '') + (isPlaceholder ? ' placeholder-opt' : '');
@@ -3087,6 +3108,11 @@ function _loginShowErr(msg, type = 'warn') {
         div.innerHTML = `<span class="csel-option-check">${SVG_CHECK}</span>${optIcon ? `<span style="display:inline-flex;align-items:center;gap:6px">${optIcon}<span>${opt.text}</span></span>` : `<span>${opt.text}</span>`}`;
         div.addEventListener('click', () => {
           sel.selectedIndex = i;
+          // User baru aktif MEMILIH sesuatu (termasuk opsi kosong/"-") — ini beda
+          // dari kondisi awal "belum pernah diisi sama sekali". Begitu ada pilihan
+          // eksplisit, buang data-placeholder supaya trigger nampilin label opsi
+          // asli (mis. "-"), bukan placeholder netral lagi.
+          if (sel.dataset.placeholder) delete sel.dataset.placeholder;
           sel.dispatchEvent(new Event('change', { bubbles: true }));
           updateTrigger();
           closePanel();
@@ -3099,7 +3125,10 @@ function _loginShowErr(msg, type = 'warn') {
       const opt = sel.options[sel.selectedIndex];
       const textEl = trigger.querySelector('.csel-trigger-text');
       if (!opt || opt.value === '') {
-        textEl.textContent = opt ? opt.text : '—';
+        // Belum pernah diisi (data-placeholder masih ada) → tampilkan placeholder
+        // netral (mis. "Pilih Peringkat"), BUKAN teks opsi kosong ("-"), supaya gak
+        // kesan "-" itu udah otomatis kepilih padahal user belum pernah interaksi.
+        textEl.textContent = (opt && opt.value === '' && sel.dataset.placeholder) ? sel.dataset.placeholder : (opt ? opt.text : '—');
         textEl.classList.add('placeholder');
       } else {
         const icon = opt.dataset?.icon || '';
@@ -3110,9 +3139,10 @@ function _loginShowErr(msg, type = 'warn') {
         }
         textEl.classList.remove('placeholder');
       }
-      // update selected highlight in panel
+      // update selected highlight in panel — sama aturan kayak renderOptions():
+      // jangan highlight apapun selagi placeholder masih aktif (belum pernah dipilih)
       panel.querySelectorAll('.csel-option').forEach((el, i) => {
-        el.classList.toggle('selected', i === sel.selectedIndex);
+        el.classList.toggle('selected', i === sel.selectedIndex && !sel.dataset.placeholder);
       });
     }
 
@@ -3185,6 +3215,7 @@ function _loginShowErr(msg, type = 'warn') {
 
   function _getLabel(sel) {
     const opt = sel.options[sel.selectedIndex];
+    if (opt && opt.value === '' && sel.dataset.placeholder) return sel.dataset.placeholder;
     return (opt && opt.value === '') ? opt.text : (opt ? opt.text : '— Pilih —');
   }
 
@@ -3236,7 +3267,7 @@ function _loginShowErr(msg, type = 'warn') {
     const textEl = trigger.querySelector('.csel-trigger-text');
     if (!textEl) return;
     if (!opt || opt.value === '') {
-      textEl.textContent = opt ? opt.text : '—';
+      textEl.textContent = (opt && opt.value === '' && sel.dataset.placeholder) ? sel.dataset.placeholder : (opt ? opt.text : '—');
       textEl.classList.add('placeholder');
     } else {
       textEl.textContent = opt.text;
@@ -3244,7 +3275,7 @@ function _loginShowErr(msg, type = 'warn') {
     }
     if (panel) {
       panel.querySelectorAll('.csel-option').forEach((el, i) => {
-        el.classList.toggle('selected', i === sel.selectedIndex);
+        el.classList.toggle('selected', i === sel.selectedIndex && !sel.dataset.placeholder);
       });
     }
   };
