@@ -16,8 +16,13 @@ async function fetchLokasi(ip) {
     if (!r.ok) return null;
     const d = await r.json();
     if (d.status !== 'success') return null;
-    // Format: "Banggai Laut, Sulawesi Tengah, Indonesia"
-    return [d.city, d.regionName, d.country].filter(Boolean).join(', ') || null;
+    // Catatan: IP-based geolocation cuma akurat sampai level kota/kabupaten —
+    // tidak mungkin dapat desa/kecamatan dari IP saja. Ini fallback kalau
+    // browser tidak kasih izin lokasi GPS (lihat _getBrowserLokasi di app.html).
+    // Label disamakan gaya dgn versi GPS (Kabupaten/Kota, Provinsi) biar konsisten.
+    const kabKota = d.city ? (/kota/i.test(d.city) ? d.city : `Kabupaten/Kota ${d.city}`) : null;
+    const prov = d.regionName ? `Provinsi ${d.regionName}` : null;
+    return [kabKota, prov, d.country].filter(Boolean).join(', ') || null;
   } catch {
     return null;
   }

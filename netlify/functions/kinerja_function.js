@@ -66,11 +66,6 @@ export const handler = async (event) => {
       ALTER TABLE kinerja_indikator
         ADD COLUMN IF NOT EXISTS tipe_perhitungan TEXT NOT NULL DEFAULT 'non_kumulatif'
     `;
-    await sql`
-      UPDATE kinerja_indikator
-      SET tipe_perhitungan = 'kumulatif'
-      WHERE indikator_kinerja ILIKE 'Jumlah%' AND tipe_perhitungan = 'non_kumulatif'
-    `;
   } catch (migErr) {
     console.error('[migrate tipe_perhitungan]', migErr);
   }
