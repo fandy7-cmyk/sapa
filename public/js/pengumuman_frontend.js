@@ -11,6 +11,8 @@ let _quillPengumuman = null; // Quill rich-text instance
 
 /* ── Load & render ────────────────────────────────────────────── */
 async function loadPengumuman() {
+  const tb0 = document.getElementById('pengumumanTableBody');
+  if (tb0) tb0.innerHTML = `<tr class="empty-row"><td colspan="5"><span class="btn-spin" style="width:11px;height:11px;vertical-align:-1px;margin-right:6px"></span>Memuat data...</td></tr>`;
   try {
     const r = await fetch('/api/pengumuman', { headers: authHeaders() });
     if (!r.ok) throw new Error(await r.text());
@@ -70,13 +72,13 @@ function renderPengumumanTable() {
         <td style="font-size:.8rem;color:var(--teks-muted)">${formatTanggal(p.created_at)}</td>
         <td>
           <div style="display:flex;gap:6px">
-            <button class="btn btn-ghost btn-sm" onclick="openPengumumanModal(${p.id})" title="Edit">
+            <button class="btn btn-ghost btn-sm" onclick="openPengumumanModal(${p.id})" data-tip="Edit">
               <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5H6a2 2 0 0 0-2 2v11a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2v-5"/><path d="M18.586 2.586a2 2 0 1 1 2.828 2.828L11.828 15 9 16l1-2.828 8.586-8.586z"/></svg>
             </button>
-            <button class="btn btn-ghost btn-sm" onclick="togglePengumuman(${p.id}, ${p.aktif})" title="${p.aktif ? 'Nonaktifkan' : 'Aktifkan'}">
+            <button class="btn btn-ghost btn-sm" onclick="togglePengumuman(${p.id}, ${p.aktif})" data-tip="${p.aktif ? 'Nonaktifkan' : 'Aktifkan'}">
               <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${p.aktif ? '<path d="M18.36 6.64A9 9 0 0 1 20.77 15"/><path d="M6.16 6.16a9 9 0 1 0 12.68 12.68"/><path d="M12 2v4"/><path d="M2 12h4"/>' : '<path d="M9 12l2 2 4-4"/><circle cx="12" cy="12" r="10"/>'}</svg>
             </button>
-            <button class="btn btn-danger btn-sm" onclick="deletePengumuman(${p.id})" title="Hapus">
+            <button class="btn btn-danger btn-sm" onclick="deletePengumuman(${p.id})" data-tip="Hapus">
               <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6m4-6v6"/><path d="M9 6V4h6v2"/></svg>
             </button>
           </div>
@@ -110,7 +112,7 @@ function _renderAksiList() {
           style="width:100%;height:30px;font-size:.78rem;border:1px solid var(--border,#e2e8f0);border-radius:6px;padding:0 8px;font-family:inherit;color:var(--teks);background:var(--bg)"
           oninput="_aksiItems[${i}].url = this.value">
       </div>
-      <button type="button" class="btn btn-ghost btn-sm" onclick="_removeAksi(${i})" title="Hapus" style="color:var(--merah);flex-shrink:0">
+      <button type="button" class="btn btn-ghost btn-sm" onclick="_removeAksi(${i})" data-tip="Hapus" style="color:var(--merah);flex-shrink:0">
         <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/></svg>
       </button>
     </div>`).join('');
@@ -271,6 +273,8 @@ function goPengumumanPage(p) { _pengumumanPage = p; renderPengumumanTable(); }
 let _tickerAll = [];
 
 async function loadTicker() {
+  const tb0 = document.getElementById('tickerTableBody');
+  if (tb0) tb0.innerHTML = `<tr class="empty-row"><td colspan="5"><span class="btn-spin" style="width:11px;height:11px;vertical-align:-1px;margin-right:6px"></span>Memuat data...</td></tr>`;
   try {
     const r = await fetch('/api/ticker', { headers: authHeaders() });
     if (!r.ok) throw new Error(await r.text());
@@ -296,8 +300,8 @@ function renderTickerTable() {
       <td style="color:var(--teks-muted);font-size:.8rem">${i + 1}</td>
       <td style="font-size:.85rem">
         <span style="display:inline-flex;align-items:center;gap:6px">
-          <span style="width:10px;height:10px;border-radius:50%;background:${esc(t.warna_teks||'#1e293b')};flex-shrink:0;border:1px solid rgba(0,0,0,.1)" title="Warna teks: ${esc(t.warna_teks||'#1e293b')}"></span>
-          ${t.warna_bg ? `<span style="width:10px;height:10px;border-radius:50%;background:${esc(t.warna_bg)};flex-shrink:0;border:1px solid rgba(0,0,0,.1)" title="Warna bg: ${esc(t.warna_bg)}"></span>` : ''}
+          <span style="width:10px;height:10px;border-radius:50%;background:${esc(t.warna_teks||'#1e293b')};flex-shrink:0;border:1px solid rgba(0,0,0,.1)" data-tip="Warna teks: ${esc(t.warna_teks||'#1e293b')}"></span>
+          ${t.warna_bg ? `<span style="width:10px;height:10px;border-radius:50%;background:${esc(t.warna_bg)};flex-shrink:0;border:1px solid rgba(0,0,0,.1)" data-tip="Warna bg: ${esc(t.warna_bg)}"></span>` : ''}
           ${esc(t.teks)}
         </span>
       </td>
@@ -307,13 +311,13 @@ function renderTickerTable() {
       </td>
       <td>
         <div style="display:flex;gap:6px">
-          <button class="btn btn-ghost btn-sm" onclick="openTickerModal(${t.id})" title="Edit">
+          <button class="btn btn-ghost btn-sm" onclick="openTickerModal(${t.id})" data-tip="Edit">
             <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5H6a2 2 0 0 0-2 2v11a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2v-5"/><path d="M18.586 2.586a2 2 0 1 1 2.828 2.828L11.828 15 9 16l1-2.828 8.586-8.586z"/></svg>
           </button>
-          <button class="btn btn-ghost btn-sm" onclick="toggleTicker(${t.id}, ${t.aktif})" title="${t.aktif ? 'Nonaktifkan' : 'Aktifkan'}">
+          <button class="btn btn-ghost btn-sm" onclick="toggleTicker(${t.id}, ${t.aktif})" data-tip="${t.aktif ? 'Nonaktifkan' : 'Aktifkan'}">
             <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${t.aktif ? '<path d="M18.36 6.64A9 9 0 0 1 20.77 15"/><path d="M6.16 6.16a9 9 0 1 0 12.68 12.68"/><path d="M12 2v4"/><path d="M2 12h4"/>' : '<path d="M9 12l2 2 4-4"/><circle cx="12" cy="12" r="10"/>'}</svg>
           </button>
-          <button class="btn btn-danger btn-sm" onclick="deleteTicker(${t.id})" title="Hapus">
+          <button class="btn btn-danger btn-sm" onclick="deleteTicker(${t.id})" data-tip="Hapus">
             <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6m4-6v6"/><path d="M9 6V4h6v2"/></svg>
           </button>
         </div>

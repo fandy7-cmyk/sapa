@@ -26,6 +26,15 @@ function _initQuillProfil() {
 
 /* ── Load ──────────────────────────────────────────────────────── */
 async function loadProfil() {
+  const card = document.querySelector('#page-profil .card');
+  let loadingEl = null;
+  if (card) {
+    loadingEl = document.createElement('div');
+    loadingEl.id = 'profilLoadingIndicator';
+    loadingEl.style.cssText = 'text-align:center;padding:20px;color:var(--teks-muted)';
+    loadingEl.innerHTML = '<span class="btn-spin" style="width:11px;height:11px;vertical-align:-1px;margin-right:6px"></span>Memuat data...';
+    card.prepend(loadingEl);
+  }
   try {
     const r = await fetch('/api/profil', { headers: authHeaders() });
     if (!r.ok) throw new Error(await r.text());
@@ -34,6 +43,8 @@ async function loadProfil() {
   } catch (err) {
     console.error('[loadProfil]', err);
     toast('Gagal memuat profil instansi', 'error');
+  } finally {
+    loadingEl?.remove();
   }
 }
 

@@ -68,7 +68,7 @@ function _renderRealisasiInputCell(row, idPrefix, onchangeFn) {
     const belumPernahDiisi = row.realisasi == null && !row.realisasi_id;
     const selectEl = `<select id="${id}" ${disabled ? 'disabled readonly' : ''}
              ${belumPernahDiisi ? 'data-placeholder="Pilih Peringkat"' : ''}
-             title="${disabled ? 'Klik tombol Edit untuk mengisi realisasi' : ''}"
+             data-tip="${disabled ? 'Klik tombol Edit untuk mengisi realisasi' : ''}"
              style="${disabled ? 'cursor:not-allowed' : ''}"
              onchange="${onchangeFn}(${row.id})">${_predikatOptionsHtml(row.realisasi != null ? row.realisasi : null)}</select>`;
     // Selalu dibungkus .select-wrap (termasuk saat disabled/terkunci) supaya custom
@@ -81,7 +81,7 @@ function _renderRealisasiInputCell(row, idPrefix, onchangeFn) {
   }
   return `<input type="number" id="${id}" value="${row.realisasi_display != null ? row.realisasi_display : (row.realisasi != null ? parseFloat(row.realisasi) : '')}"
              placeholder="0" step="0.01" ${disabled ? 'readonly' : ''}
-             title="${disabled ? 'Klik tombol Edit untuk mengisi realisasi' : ''}"
+             data-tip="${disabled ? 'Klik tombol Edit untuk mengisi realisasi' : ''}"
              style="${disabled ? 'cursor:not-allowed' : ''}"
              oninput="${onchangeFn}(${row.id})">`;
 }
@@ -594,7 +594,7 @@ async function loadKinerjaRekap() {
   const _msgEl = document.getElementById('kinerjaNoperiodeMsg');
   if (_msgEl) _msgEl.style.display = 'none';
 
-  tbody.innerHTML = `<tr class="empty-row"><td colspan="11">Memuat data...</td></tr>`;
+  tbody.innerHTML = `<tr class="empty-row"><td colspan="11"><span class="btn-spin" style="width:11px;height:11px;vertical-align:-1px;margin-right:6px"></span>Memuat data...</td></tr>`;
   try {
     const r = await fetch(`/api/kinerja/rekap?bulan=${_kinerja_bulan}&tahun=${_kinerja_tahun}`, { headers: authHeaders() });
     const d = await r.json();
@@ -639,14 +639,14 @@ function _lockDukungButtons(indikatorId) {
     dukungBtn.disabled = true;
     dukungBtn.style.cursor = 'not-allowed';
     dukungBtn.style.opacity = '.85';
-    dukungBtn.title = 'Klik Edit terlebih dahulu untuk mengganti file';
+    dukungBtn.dataset.tip = 'Klik Edit terlebih dahulu untuk mengganti file';
     dukungBtn.onclick = null;
   }
   if (deleteBtn) {
     deleteBtn.disabled = true;
     deleteBtn.style.cursor = 'not-allowed';
     deleteBtn.style.opacity = '.5';
-    deleteBtn.title = 'Klik Edit terlebih dahulu untuk menghapus file';
+    deleteBtn.dataset.tip = 'Klik Edit terlebih dahulu untuk menghapus file';
     deleteBtn.onclick = null;
   }
   if (uploadOnlyBtn) {
@@ -657,7 +657,7 @@ function _lockDukungButtons(indikatorId) {
     uploadOnlyBtn.style.borderColor = '#fca5a5';
     uploadOnlyBtn.style.background = '#fee2e2';
     uploadOnlyBtn.style.color = '#991b1b';
-    uploadOnlyBtn.title = 'Klik Edit terlebih dahulu untuk mengupload file';
+    uploadOnlyBtn.dataset.tip = 'Klik Edit terlebih dahulu untuk mengupload file';
     uploadOnlyBtn.onclick = null;
   }
 }
@@ -669,7 +669,7 @@ function _ensureResetBtn(indikatorId, prefix, jenis) {
   const saveBtn = document.getElementById(`${prefix}savebtn_${indikatorId}`);
   if (!saveBtn) return;
   saveBtn.insertAdjacentHTML('afterend', `
-    <button class="btn-reset-row" id="${prefix}resetbtn_${indikatorId}" title="Reset data realisasi baris ini (admin)"
+    <button class="btn-reset-row" id="${prefix}resetbtn_${indikatorId}" data-tip="Reset data realisasi baris ini (admin)"
       onclick="resetRealisasiRow(${indikatorId}, '${jenis}')">
       <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
       Reset
@@ -702,19 +702,19 @@ function _renderDukungBtn(row, tw, tahun, source, initialEditable = false) {
       <button
         class="dukung-uploaded-btn"
         data-indikator-id="${row.id}" data-tw="${twVal}" data-tahun="${tahunVal}" data-source="${source}"
-        title="${isEditable ? 'Kelola / ganti file' : 'Klik Edit terlebih dahulu untuk mengganti file'}"
+        data-tip="${isEditable ? 'Kelola / ganti file' : 'Klik Edit terlebih dahulu untuk mengganti file'}"
         ${isEditable ? `onclick="${uploadFnAlt}"` : 'disabled'}
         style="display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:6px;border:none;${isEditable ? 'cursor:pointer' : 'cursor:not-allowed'};font-size:.75rem;font-weight:600;font-family:inherit;background:#d1fae5;color:#065f46;opacity:.85">
         <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
         ${label}
       </button>
-      <button onclick="${previewFn}" title="Preview data dukung"
+      <button onclick="${previewFn}" data-tip="Preview data dukung"
         style="display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;border-radius:6px;border:none;cursor:pointer;background:#dbeafe;color:#1d4ed8">
         <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
       </button>
       <button class="dukung-delete-btn" ${isEditable ? '' : 'disabled'}
         data-indikator-id="${row.id}" data-tw="${twVal}" data-tahun="${tahunVal}" data-source="${source}"
-        title="${isEditable ? 'Hapus file' : 'Klik Edit terlebih dahulu untuk menghapus file'}"
+        data-tip="${isEditable ? 'Hapus file' : 'Klik Edit terlebih dahulu untuk menghapus file'}"
         ${isEditable ? `onclick="deleteDukungAll(${row.id}, ${twVal}, ${tahunVal}, '${source}')"` : ''}
         style="display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;border-radius:6px;border:none;${isEditable ? 'cursor:pointer' : 'cursor:not-allowed'};background:#fee2e2;color:#991b1b;${isEditable ? '' : 'opacity:.5'}">
         <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path stroke-linecap="round" stroke-linejoin="round" d="M19 6l-1 14H6L5 6"/><path stroke-linecap="round" stroke-linejoin="round" d="M10 11v6m4-6v6"/><path stroke-linecap="round" stroke-linejoin="round" d="M9 6V4h6v2"/></svg>
@@ -725,7 +725,7 @@ function _renderDukungBtn(row, tw, tahun, source, initialEditable = false) {
   if (initialEditable) {
     return `<button class="dukung-upload-btn" disabled
       data-indikator-id="${row.id}" data-tw="${twVal}" data-tahun="${tahunVal}" data-source="${source}"
-      title="Isi realisasi dan field wajib terlebih dahulu"
+      data-tip="Isi realisasi dan field wajib terlebih dahulu"
       style="display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:6px;border:1.5px dashed #fca5a5;cursor:not-allowed;font-size:.75rem;font-weight:600;font-family:inherit;background:#fee2e2;color:#991b1b;opacity:.65">
       <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>
       Upload
@@ -733,7 +733,7 @@ function _renderDukungBtn(row, tw, tahun, source, initialEditable = false) {
   }
   return `<button class="dukung-upload-btn" disabled
     data-indikator-id="${row.id}" data-tw="${twVal}" data-tahun="${tahunVal}" data-source="${source}"
-    title="Klik Edit terlebih dahulu untuk mengupload file"
+    data-tip="Klik Edit terlebih dahulu untuk mengupload file"
     style="display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:6px;border:1.5px dashed #fca5a5;cursor:not-allowed;font-size:.75rem;font-weight:600;font-family:inherit;background:#fee2e2;color:#991b1b;opacity:.65">
     <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>
     Upload
@@ -859,14 +859,14 @@ function renderKinerjaTable(tbody) {
       </td>
       <td style="text-align:center;white-space:nowrap">
         ${canEdit ? `
-          <button class="btn-edit-row" id="editbtn_${row.id}" title="Edit baris ini"
+          <button class="btn-edit-row" id="editbtn_${row.id}" data-tip="Edit baris ini"
             onclick="toggleEditRow(${row.id})"
             style="${row.realisasi_id ? '' : 'display:none'}">
             <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
             Edit
           </button>
           <button class="save-row-btn" id="savebtn_${row.id}" disabled
-            onclick="saveRealisasiRow(${row.id})" title="Simpan"
+            onclick="saveRealisasiRow(${row.id})" data-tip="Simpan"
             style="font-family:'Plus Jakarta Sans',sans-serif!important;${row.realisasi_id ? 'background:var(--sukses);color:#fff' : ''}">
             ${row.realisasi_id
   ? '<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/><path d="M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7"/><path d="M7 3v4a1 1 0 0 0 1 1h7"/></svg> Tersimpan'
@@ -874,7 +874,7 @@ function renderKinerjaTable(tbody) {
           </button>
         ` : ''}
         ${_user?.is_admin && row.realisasi_id ? `
-          <button class="btn-reset-row" id="resetbtn_${row.id}" title="Reset data realisasi baris ini (admin)"
+          <button class="btn-reset-row" id="resetbtn_${row.id}" data-tip="Reset data realisasi baris ini (admin)"
             onclick="resetRealisasiRow(${row.id}, 'monev')">
             <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
             Reset
@@ -896,7 +896,7 @@ function renderKinerjaTable(tbody) {
         const dukungCell = document.querySelector(`tr[data-id="${row.id}"] td[data-col="dukung"]`);
         if (dukungCell && !dukungCell.querySelector('.dukung-warning')) {
           dukungCell.insertAdjacentHTML('beforeend', `
-            <div class="dukung-warning" title="Data dukung belum diupload untuk indikator ini">
+            <div class="dukung-warning" data-tip="Data dukung belum diupload untuk indikator ini">
               <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v4m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/></svg>
               Belum diupload
             </div>`);
@@ -938,14 +938,14 @@ function toggleEditRow(indikatorId) {
       el.style.background = 'var(--putih)';
       el.style.cursor = '';
       el.style.resize = '';
-      el.title = '';
+      el.dataset.tip = '';
     } else {
       el.setAttribute('readonly', '');
       if (el.tagName === 'SELECT') el.disabled = true; // predikat: kunci balik pakai disabled
       el.style.background = '';
       el.style.cursor = 'not-allowed';
       if (el.tagName === 'TEXTAREA') el.style.resize = 'none';
-      el.title = 'Klik tombol Edit untuk mengisi';
+      el.dataset.tip = 'Klik tombol Edit untuk mengisi';
     }
   });
 
@@ -987,7 +987,7 @@ function toggleEditRow(indikatorId) {
       dukungBtn.disabled = false;
       dukungBtn.style.cursor = 'pointer';
       dukungBtn.style.opacity = '1';
-      dukungBtn.title = 'Kelola / ganti file data dukung';
+      dukungBtn.dataset.tip = 'Kelola / ganti file data dukung';
       const twV = dukungBtn.dataset.tw;
       const tahunV = dukungBtn.dataset.tahun;
       dukungBtn.onclick = () => openDukungModal(indikatorId, parseInt(twV), parseInt(tahunV));
@@ -995,7 +995,7 @@ function toggleEditRow(indikatorId) {
       dukungBtn.disabled = true;
       dukungBtn.style.cursor = 'not-allowed';
       dukungBtn.style.opacity = '.85';
-      dukungBtn.title = 'Klik Edit terlebih dahulu untuk mengganti file';
+      dukungBtn.dataset.tip = 'Klik Edit terlebih dahulu untuk mengganti file';
       dukungBtn.onclick = null;
     }
   }
@@ -1006,7 +1006,7 @@ function toggleEditRow(indikatorId) {
       deleteBtn.disabled = false;
       deleteBtn.style.cursor = 'pointer';
       deleteBtn.style.opacity = '1';
-      deleteBtn.title = 'Hapus semua file data dukung';
+      deleteBtn.dataset.tip = 'Hapus semua file data dukung';
       const twV    = deleteBtn.dataset.tw;
       const tahunV = deleteBtn.dataset.tahun;
       const srcV   = deleteBtn.dataset.source;
@@ -1015,7 +1015,7 @@ function toggleEditRow(indikatorId) {
       deleteBtn.disabled = true;
       deleteBtn.style.cursor = 'not-allowed';
       deleteBtn.style.opacity = '.5';
-      deleteBtn.title = 'Klik Edit terlebih dahulu untuk menghapus file';
+      deleteBtn.dataset.tip = 'Klik Edit terlebih dahulu untuk menghapus file';
       deleteBtn.onclick = null;
     }
   }
@@ -1027,7 +1027,7 @@ function toggleEditRow(indikatorId) {
       uploadOnlyBtn.style.cursor = 'pointer';
       uploadOnlyBtn.style.opacity = '1';
       uploadOnlyBtn.style.borderStyle = 'solid';
-      uploadOnlyBtn.title = 'Upload file data dukung';
+      uploadOnlyBtn.dataset.tip = 'Upload file data dukung';
       const twV    = uploadOnlyBtn.dataset.tw;
       const tahunV = uploadOnlyBtn.dataset.tahun;
       const src    = uploadOnlyBtn.dataset.source;
@@ -1038,7 +1038,7 @@ function toggleEditRow(indikatorId) {
       uploadOnlyBtn.style.cursor = 'not-allowed';
       uploadOnlyBtn.style.opacity = '.65';
       uploadOnlyBtn.style.borderStyle = 'dashed';
-      uploadOnlyBtn.title = 'Klik Edit terlebih dahulu untuk mengupload file';
+      uploadOnlyBtn.dataset.tip = 'Klik Edit terlebih dahulu untuk mengupload file';
       uploadOnlyBtn.onclick = null;
     }
   }
@@ -1054,7 +1054,7 @@ function toggleEditRow(indikatorId) {
     if (editBtn) {
       editBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg> Sedang Diedit`;
       editBtn.classList.add('btn-edit-row--active');
-      editBtn.title = 'Klik untuk batalkan edit';
+      editBtn.dataset.tip = 'Klik untuk batalkan edit';
     }
     if (saveBtn) {
       saveBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/><path d="M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7"/><path d="M7 3v4a1 1 0 0 0 1 1h7"/></svg> Simpan`;
@@ -1075,7 +1075,7 @@ function toggleEditRow(indikatorId) {
     if (editBtn) {
       editBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg> Edit`;
       editBtn.classList.remove('btn-edit-row--active');
-      editBtn.title = 'Edit baris ini';
+      editBtn.dataset.tip = 'Edit baris ini';
     }
     if (saveBtn) {
       saveBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/><path d="M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7"/><path d="M7 3v4a1 1 0 0 0 1 1h7"/></svg> Simpan`;
@@ -1118,14 +1118,14 @@ function toggleIkkEditRow(indikatorId) {
       el.style.background = 'var(--putih)';
       el.style.cursor = '';
       el.style.resize = '';
-      el.title = '';
+      el.dataset.tip = '';
     } else {
       el.setAttribute('readonly', '');
       if (el.tagName === 'SELECT') el.disabled = true; // predikat: kunci balik pakai disabled
       el.style.background = '';
       el.style.cursor = 'not-allowed';
       if (el.tagName === 'TEXTAREA') el.style.resize = 'none';
-      el.title = 'Klik tombol Edit untuk mengisi';
+      el.dataset.tip = 'Klik tombol Edit untuk mengisi';
     }
   });
 
@@ -1167,7 +1167,7 @@ function toggleIkkEditRow(indikatorId) {
       ikkDukungBtn.disabled = false;
       ikkDukungBtn.style.cursor = 'pointer';
       ikkDukungBtn.style.opacity = '1';
-      ikkDukungBtn.title = 'Kelola / ganti file data dukung';
+      ikkDukungBtn.dataset.tip = 'Kelola / ganti file data dukung';
       const twV = ikkDukungBtn.dataset.tw;
       const tahunV = ikkDukungBtn.dataset.tahun;
       ikkDukungBtn.onclick = () => openIkkDukungModal(indikatorId, parseInt(twV), parseInt(tahunV));
@@ -1175,7 +1175,7 @@ function toggleIkkEditRow(indikatorId) {
       ikkDukungBtn.disabled = true;
       ikkDukungBtn.style.cursor = 'not-allowed';
       ikkDukungBtn.style.opacity = '.85';
-      ikkDukungBtn.title = 'Klik Edit terlebih dahulu untuk mengganti file';
+      ikkDukungBtn.dataset.tip = 'Klik Edit terlebih dahulu untuk mengganti file';
       ikkDukungBtn.onclick = null;
     }
   }
@@ -1186,7 +1186,7 @@ function toggleIkkEditRow(indikatorId) {
       ikkDeleteBtn.disabled = false;
       ikkDeleteBtn.style.cursor = 'pointer';
       ikkDeleteBtn.style.opacity = '1';
-      ikkDeleteBtn.title = 'Hapus semua file data dukung';
+      ikkDeleteBtn.dataset.tip = 'Hapus semua file data dukung';
       const twV    = ikkDeleteBtn.dataset.tw;
       const tahunV = ikkDeleteBtn.dataset.tahun;
       const srcV   = ikkDeleteBtn.dataset.source;
@@ -1195,7 +1195,7 @@ function toggleIkkEditRow(indikatorId) {
       ikkDeleteBtn.disabled = true;
       ikkDeleteBtn.style.cursor = 'not-allowed';
       ikkDeleteBtn.style.opacity = '.5';
-      ikkDeleteBtn.title = 'Klik Edit terlebih dahulu untuk menghapus file';
+      ikkDeleteBtn.dataset.tip = 'Klik Edit terlebih dahulu untuk menghapus file';
       ikkDeleteBtn.onclick = null;
     }
   }
@@ -1206,7 +1206,7 @@ function toggleIkkEditRow(indikatorId) {
       ikkUploadOnlyBtn.style.cursor = 'pointer';
       ikkUploadOnlyBtn.style.opacity = '1';
       ikkUploadOnlyBtn.style.borderStyle = 'solid';
-      ikkUploadOnlyBtn.title = 'Upload file data dukung';
+      ikkUploadOnlyBtn.dataset.tip = 'Upload file data dukung';
       const twV    = ikkUploadOnlyBtn.dataset.tw;
       const tahunV = ikkUploadOnlyBtn.dataset.tahun;
       const src    = ikkUploadOnlyBtn.dataset.source;
@@ -1216,7 +1216,7 @@ function toggleIkkEditRow(indikatorId) {
       ikkUploadOnlyBtn.style.cursor = 'not-allowed';
       ikkUploadOnlyBtn.style.opacity = '.65';
       ikkUploadOnlyBtn.style.borderStyle = 'dashed';
-      ikkUploadOnlyBtn.title = 'Klik Edit terlebih dahulu untuk mengupload file';
+      ikkUploadOnlyBtn.dataset.tip = 'Klik Edit terlebih dahulu untuk mengupload file';
       ikkUploadOnlyBtn.onclick = null;
     }
   }
@@ -1230,7 +1230,7 @@ function toggleIkkEditRow(indikatorId) {
     if (editBtn) {
       editBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg> Sedang Diedit`;
       editBtn.classList.add('btn-edit-row--active');
-      editBtn.title = 'Klik untuk batalkan edit';
+      editBtn.dataset.tip = 'Klik untuk batalkan edit';
     }
     if (saveBtn) {
       saveBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/><path d="M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7"/><path d="M7 3v4a1 1 0 0 0 1 1h7"/></svg> Simpan`;
@@ -1250,7 +1250,7 @@ function toggleIkkEditRow(indikatorId) {
     if (editBtn) {
       editBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg> Edit`;
       editBtn.classList.remove('btn-edit-row--active');
-      editBtn.title = 'Edit baris ini';
+      editBtn.dataset.tip = 'Edit baris ini';
     }
     if (saveBtn) {
       saveBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/><path d="M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7"/><path d="M7 3v4a1 1 0 0 0 1 1h7"/></svg> Simpan`;
@@ -1379,7 +1379,7 @@ function _updateSaveBtnState(indikatorId) {
       _uploadBtn_iku.style.borderColor = '#6ee7b7';
       _uploadBtn_iku.style.background = '#ecfdf5';
       _uploadBtn_iku.style.color = '#065f46';
-      _uploadBtn_iku.title = 'Upload data dukung';
+      _uploadBtn_iku.dataset.tip = 'Upload data dukung';
       _uploadBtn_iku.onclick = () => _openDukungFromBtn(_uploadBtn_iku);
     } else {
       _uploadBtn_iku.disabled = true;
@@ -1389,7 +1389,7 @@ function _updateSaveBtnState(indikatorId) {
       _uploadBtn_iku.style.borderColor = '#fca5a5';
       _uploadBtn_iku.style.background = '#fee2e2';
       _uploadBtn_iku.style.color = '#991b1b';
-      _uploadBtn_iku.title = 'Isi realisasi dan field wajib terlebih dahulu';
+      _uploadBtn_iku.dataset.tip = 'Isi realisasi dan field wajib terlebih dahulu';
       _uploadBtn_iku.onclick = null;
     }
   }
@@ -1496,7 +1496,7 @@ async function saveRealisasiRow(indikatorId) {
 
   if (btn) {
     btn.disabled = true;
-    btn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" style="animation:spin .8s linear infinite"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg> ...`;
+    btn.innerHTML = `<span class="btn-spin" style="width:11px;height:11px"></span> Menyimpan...`;
   }
   try {
     const r = await fetch('/api/kinerja/realisasi', {
@@ -1523,7 +1523,7 @@ async function saveRealisasiRow(indikatorId) {
           el.style.background = '';
           el.style.cursor = 'not-allowed';
           if (el.tagName === 'TEXTAREA') { el.style.resize = 'none'; el.style.display = 'none'; }
-          el.title = 'Klik tombol Edit untuk mengisi';
+          el.dataset.tip = 'Klik tombol Edit untuk mengisi';
         }
       });
       // Kunci kembali tombol data dukung (Upload kembali ke warna default)
@@ -1540,7 +1540,7 @@ async function saveRealisasiRow(indikatorId) {
       if (editBtn) {
         editBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg> Edit`;
         editBtn.classList.remove('btn-edit-row--active');
-        editBtn.title = 'Edit baris ini';
+        editBtn.dataset.tip = 'Edit baris ini';
         editBtn.style.display = ''; // tampilkan tombol Edit setelah data tersimpan
       }
       if (btn) {
@@ -1608,7 +1608,7 @@ async function saveRealisasiRow(indikatorId) {
         const dukungCell = document.querySelector(`tr[data-id="${indikatorId}"] td[data-col="dukung"]`);
         if (dukungCell && !dukungCell.querySelector('.dukung-warning')) {
           dukungCell.insertAdjacentHTML('beforeend', `
-            <div class="dukung-warning" title="Data dukung belum diupload untuk indikator ini">
+            <div class="dukung-warning" data-tip="Data dukung belum diupload untuk indikator ini">
               <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v4m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/></svg>
               Belum diupload
             </div>`);
@@ -1627,7 +1627,7 @@ async function saveRealisasiRow(indikatorId) {
 async function loadGroupAdmin() {
   const tbody = document.getElementById('groupAdminBody');
   if (!tbody) return;
-  tbody.innerHTML = `<tr class="empty-row"><td colspan="5">Memuat...</td></tr>`;
+  tbody.innerHTML = `<tr class="empty-row"><td colspan="5"><span class="btn-spin" style="width:11px;height:11px;vertical-align:-1px;margin-right:6px"></span>Memuat...</td></tr>`;
   try {
     const r = await fetch('/api/kinerja/group', { headers: authHeaders() });
     const d = await r.json();
@@ -1680,8 +1680,8 @@ function renderGroupAdmin() {
         <td>${escHtml(g.nama)}</td>
         <td style="text-align:center">${g.urutan}</td>
         <td style="white-space:nowrap">
-          <button class="btn btn-ghost btn-sm" title="Edit" onclick="openGroupModal(${g.id})"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg></button>
-          <button class="btn btn-danger btn-sm" title="Hapus" onclick="deleteGroup(${g.id})"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path stroke-linecap="round" stroke-linejoin="round" d="M19 6l-1 14H6L5 6"/><path stroke-linecap="round" stroke-linejoin="round" d="M10 11v6m4-6v6"/><path stroke-linecap="round" stroke-linejoin="round" d="M9 6V4h6v2"/></svg></button>
+          <button class="btn btn-ghost btn-sm" data-tip="Edit" onclick="openGroupModal(${g.id})"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg></button>
+          <button class="btn btn-danger btn-sm" data-tip="Hapus" onclick="deleteGroup(${g.id})"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path stroke-linecap="round" stroke-linejoin="round" d="M19 6l-1 14H6L5 6"/><path stroke-linecap="round" stroke-linejoin="round" d="M10 11v6m4-6v6"/><path stroke-linecap="round" stroke-linejoin="round" d="M9 6V4h6v2"/></svg></button>
         </td>
       </tr>`;
   }).join('');
@@ -1738,7 +1738,7 @@ async function deleteGroup(id) {
 async function loadIndikatorAdmin({ keepFilter = false } = {}) {
   const tbody = document.getElementById('indikatorAdminBody');
   if (!tbody) return;
-  tbody.innerHTML = `<tr class="empty-row"><td colspan="9">Memuat...</td></tr>`;
+  tbody.innerHTML = `<tr class="empty-row"><td colspan="9"><span class="btn-spin" style="width:11px;height:11px;vertical-align:-1px;margin-right:6px"></span>Memuat...</td></tr>`;
   try {
     const [ri, rg, rb, rt, rj] = await Promise.all([
       fetch('/api/kinerja/indikator',        { headers: authHeaders() }),
@@ -2103,7 +2103,7 @@ function renderIndikatorAdmin() {
             return `<span style="display:inline-flex;align-items:center;gap:3px;font-size:.72rem;font-weight:600;background:#f0fdfa;color:#0f766e;border:1px solid #99f6e4;border-radius:5px;padding:2px 6px;margin:1px 2px 1px 0">${t.tahun}<span style="color:#64748b;font-weight:400">:</span>${escHtml(val)}</span>`;
           }).join('');
           const moreBadge = rest > 0
-            ? `<span title="Buka edit untuk lihat semua target" style="display:inline-flex;align-items:center;font-size:.72rem;font-weight:600;background:#f1f5f9;color:#64748b;border:1px solid #e2e8f0;border-radius:5px;padding:2px 6px;margin:1px 0;cursor:default">+${rest} lagi</span>`
+            ? `<span data-tip="Buka edit untuk lihat semua target" style="display:inline-flex;align-items:center;font-size:.72rem;font-weight:600;background:#f1f5f9;color:#64748b;border:1px solid #e2e8f0;border-radius:5px;padding:2px 6px;margin:1px 0;cursor:default">+${rest} lagi</span>`
             : '';
           return badges + moreBadge;
         })()}</td>
@@ -2127,8 +2127,8 @@ function renderIndikatorAdmin() {
           }
         </td>
         <td style="white-space:nowrap">
-          <button class="btn btn-ghost btn-sm" title="Edit" onclick="openIndikatorModal(${row.id})"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg></button>
-          <button class="btn btn-danger btn-sm" title="Hapus" onclick="deleteIndikator(${row.id})"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path stroke-linecap="round" stroke-linejoin="round" d="M19 6l-1 14H6L5 6"/><path stroke-linecap="round" stroke-linejoin="round" d="M10 11v6m4-6v6"/><path stroke-linecap="round" stroke-linejoin="round" d="M9 6V4h6v2"/></svg></button>
+          <button class="btn btn-ghost btn-sm" data-tip="Edit" onclick="openIndikatorModal(${row.id})"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg></button>
+          <button class="btn btn-danger btn-sm" data-tip="Hapus" onclick="deleteIndikator(${row.id})"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path stroke-linecap="round" stroke-linejoin="round" d="M19 6l-1 14H6L5 6"/><path stroke-linecap="round" stroke-linejoin="round" d="M10 11v6m4-6v6"/><path stroke-linecap="round" stroke-linejoin="round" d="M9 6V4h6v2"/></svg></button>
         </td>
       </tr>`;
   });
@@ -2168,7 +2168,7 @@ async function downloadIndikatorPDF(btnEl) {
   if (!_indikatorList.length) { toast('Belum ada data indikator untuk didownload.', 'error'); return; }
 
   const originalHtml = btnEl ? btnEl.innerHTML : null;
-  if (btnEl) { btnEl.disabled = true; btnEl.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="animation:spin 1s linear infinite"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg> Memuat...`; }
+  if (btnEl) { btnEl.disabled = true; btnEl.innerHTML = `<span class="btn-spin" style="width:12px;height:12px"></span> Memuat...`; }
 
   try {
     const filtered = _getFilteredIndikatorRows();
@@ -2468,7 +2468,7 @@ function openIndikatorModal(id) {
           onchange="_onJenisCbChange(this)"
           style="width:14px;height:14px;accent-color:${j.warna_teks};flex-shrink:0">
         <span>${escHtml(j.label)}</span>
-        ${j.is_builtin ? '' : `<span title="Jenis kustom" style="font-size:.62rem;color:${j.warna_teks};opacity:.7">✦</span>`}
+        ${j.is_builtin ? '' : `<span data-tip="Jenis kustom" style="font-size:.62rem;color:${j.warna_teks};opacity:.7">✦</span>`}
       </label>`;
     }).join('')
     || '<span style="color:var(--teks-muted);font-size:.82rem">Belum ada jenis. Tambah dari bagian Kelola Jenis di bawah.</span>';
@@ -2513,7 +2513,7 @@ function _renderTargetRows() {
         oninput="_targetRows[${i}].target_display=this.value;_targetRows[${i}].target=this.value"
         style="width:120px;padding:5px 8px;border:1.5px solid #e2e8f0;border-radius:6px;font-size:.83rem"></td>
       <td style="text-align:center">
-        <button onclick="_removeTargetRow(${i})" title="Hapus" style="background:none;border:none;cursor:pointer;color:var(--merah);padding:2px 6px;font-size:1rem">&#x2715;</button>
+        <button onclick="_removeTargetRow(${i})" data-tip="Hapus" style="background:none;border:none;cursor:pointer;color:var(--merah);padding:2px 6px;font-size:1rem">&#x2715;</button>
       </td>
     </tr>`).join('');
 }
@@ -2565,6 +2565,12 @@ async function saveIndikator() {
     toast(id ? 'Indikator diperbarui' : 'Indikator ditambahkan. Atur target di menu "Kelola Target".');
     closeModal('modalIndikator');
     loadIndikatorAdmin({ keepFilter: true });
+    // Refresh juga tabel realisasi IKU/IKK/SPM (kalau lagi dimuat) — supaya capaian
+    // langsung ikut ke-update begitu tipe_perhitungan / bermakna_negatif / target diubah,
+    // tanpa user harus manual reload/pindah bulan dulu.
+    try { if (typeof loadKinerjaRekap === 'function') await loadKinerjaRekap(); } catch (_) {}
+    try { if (typeof loadIkkRekap === 'function') await loadIkkRekap(); } catch (_) {}
+    try { if (typeof loadSpmRekap === 'function') await loadSpmRekap(); } catch (_) {}
   } catch (err) { toast('Error: ' + err.message, 'error'); }
 }
 
@@ -2623,14 +2629,14 @@ function renderKelolJenisSection(allJenis) {
   const rows = allJenis.map((j, i) => `
     <tr>
       <td style="text-align:center;color:var(--teks-muted);font-size:.8rem">${i + 1}</td>
-      <td>
+      <td style="text-align:center">
         <span style="display:inline-flex;align-items:center;font-size:.78rem;font-weight:700;
           color:${j.warna_teks};background:${j.warna_bg};padding:3px 10px;border-radius:6px">
           ${escHtml(j.label)}
         </span>
       </td>
-      <td style="font-size:.78rem;color:var(--teks-muted);font-family:monospace">${escHtml(j.kode)}</td>
-      <td>${j.deskripsi ? `<span style="font-size:.78rem;color:var(--teks-muted)">${escHtml(j.deskripsi)}</span>` : '—'}</td>
+      <td style="text-align:center;font-size:.78rem;color:var(--teks-muted);font-family:monospace">${escHtml(j.kode)}</td>
+      <td style="text-align:center">${j.deskripsi ? `<span style="font-size:.78rem;color:var(--teks-muted)">${escHtml(j.deskripsi)}</span>` : '—'}</td>
       <td style="text-align:center">
         <span style="font-size:.72rem;font-weight:600;padding:2px 8px;border-radius:5px;
           ${j.aktif ? 'background:#d1fae5;color:#065f46' : 'background:#f1f5f9;color:#94a3b8'}">
@@ -2638,11 +2644,11 @@ function renderKelolJenisSection(allJenis) {
         </span>
       </td>
       <td style="white-space:nowrap">
-        <button class="btn btn-ghost btn-sm" title="Edit" onclick="openJenisModal(${j.id})">
+        <button class="btn btn-ghost btn-sm" data-tip="Edit" onclick="openJenisModal(${j.id})">
           <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
         </button>
         ${j.is_builtin ? '' : `
-        <button class="btn btn-danger btn-sm" title="Hapus" onclick="deleteJenis(${j.id}, '${escHtml(j.label)}')">
+        <button class="btn btn-danger btn-sm" data-tip="Hapus" onclick="deleteJenis(${j.id}, '${escHtml(j.label)}')">
           <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path stroke-linecap="round" stroke-linejoin="round" d="M19 6l-1 14H6L5 6"/><path stroke-linecap="round" stroke-linejoin="round" d="M10 11v6m4-6v6"/><path stroke-linecap="round" stroke-linejoin="round" d="M9 6V4h6v2"/></svg>
         </button>`}
       </td>
@@ -2669,7 +2675,7 @@ function renderKelolJenisSection(allJenis) {
             <th>Label</th>
             <th style="width:120px">Kode</th>
             <th>Deskripsi</th>
-            <th style="width:80px;text-align:center">Status</th>
+            <th style="width:80px">Status</th>
             <th style="width:90px">Aksi</th>
           </tr>
         </thead>
@@ -2798,7 +2804,7 @@ const _ktPageSize = 15;
 async function loadKelolaTarget() {
   const container = document.getElementById('ktCardContainer');
   if (!container) return;
-  container.innerHTML = '<div style="text-align:center;padding:32px;color:var(--teks-muted)">Memuat…</div>';
+  container.innerHTML = '<div style="text-align:center;padding:32px;color:var(--teks-muted)"><span class="btn-spin" style="width:12px;height:12px;vertical-align:-1px;margin-right:6px"></span>Memuat…</div>';
   try {
     const [ri, rt] = await Promise.all([
       fetch('/api/kinerja/indikator',    { headers: authHeaders() }),
@@ -2949,7 +2955,7 @@ function renderKelolaTarget() {
             onchange="saveKtTarget(this)"
             onfocus="this.style.borderColor='var(--hijau)'" onblur="this.style.borderColor='${isStuck ? '#f59e0b' : ''}'"
             style="width:82px;text-align:center;padding:4px 6px;border:1.5px solid ${isStuck ? '#f59e0b' : '#e2e8f0'};border-radius:6px;font-size:.82rem;font-family:inherit;transition:border-color .15s">`}
-          ${isStuck ? `<span onclick="forceSaveKtTarget(${t.id},${ind.id})" title="Belum tersimpan ke database — klik untuk simpan ulang" style="position:absolute;top:-7px;right:-7px;width:16px;height:16px;background:#f59e0b;color:#fff;border-radius:50%;font-size:.62rem;font-weight:700;display:flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 1px 3px rgba(0,0,0,.25)">!</span>` : ''}
+          ${isStuck ? `<span onclick="forceSaveKtTarget(${t.id},${ind.id})" data-tip="Belum tersimpan ke database — klik untuk simpan ulang" style="position:absolute;top:-7px;right:-7px;width:16px;height:16px;background:#f59e0b;color:#fff;border-radius:50%;font-size:.62rem;font-weight:700;display:flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 1px 3px rgba(0,0,0,.25)">!</span>` : ''}
           </div>
         </td>`;
       } else {
@@ -2971,8 +2977,8 @@ function renderKelolaTarget() {
     const hasAnyTarget = Object.keys(ind.targets).length > 0;
     const addCell = `<td style="text-align:center;border-left:1px solid var(--abu-1)">
       <div style="display:inline-flex;align-items:center;gap:6px">
-        <button class="btn btn-ghost btn-sm" title="Tambah tahun lain" onclick="openKtAddTarget(${ind.id})"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg></button>
-        <button class="btn btn-danger btn-sm" title="Hapus target" ${!hasAnyTarget ? 'disabled' : ''} onclick="openKtDeleteTarget(${ind.id})"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path stroke-linecap="round" stroke-linejoin="round" d="M19 6l-1 14H6L5 6"/><path stroke-linecap="round" stroke-linejoin="round" d="M10 11v6m4-6v6"/><path stroke-linecap="round" stroke-linejoin="round" d="M9 6V4h6v2"/></svg></button>
+        <button class="btn btn-ghost btn-sm" data-tip="Tambah tahun lain" onclick="openKtAddTarget(${ind.id})"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg></button>
+        <button class="btn btn-danger btn-sm" data-tip="Hapus target" ${!hasAnyTarget ? 'disabled' : ''} onclick="openKtDeleteTarget(${ind.id})"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path stroke-linecap="round" stroke-linejoin="round" d="M19 6l-1 14H6L5 6"/><path stroke-linecap="round" stroke-linejoin="round" d="M10 11v6m4-6v6"/><path stroke-linecap="round" stroke-linejoin="round" d="M9 6V4h6v2"/></svg></button>
       </div>
     </td>`;
 
@@ -3321,13 +3327,13 @@ function _renderDukungList() {
               : `<div class="mfc-icon" style="background:${iconColor}"><span>${ext.toUpperCase()}</span></div>`
             }
             <div class="mfc-info">
-              <div class="mfc-name" title="${escHtml(f.name)}">${f._loading ? '<em>Mengupload...</em>' : escHtml(f.name)}</div>
+              <div class="mfc-name" data-tip="${escHtml(f.name)}">${f._loading ? '<em>Mengupload...</em>' : escHtml(f.name)}</div>
             </div>
             <div class="mfc-actions">
-              ${f.url && !f._loading ? `<button type="button" class="btn btn-ghost btn-sm" title="Preview" onclick="viewDoc(decodeURIComponent('${encodeURIComponent(f.url)}'), decodeURIComponent('${encodeURIComponent(f.name || "")}'))">
+              ${f.url && !f._loading ? `<button type="button" class="btn btn-ghost btn-sm" data-tip="Preview" onclick="viewDoc(decodeURIComponent('${encodeURIComponent(f.url)}'), decodeURIComponent('${encodeURIComponent(f.name || "")}'))">
                 <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
               </button>` : ''}
-              ${!f._loading ? `<button type="button" class="btn btn-ghost btn-sm" title="Hapus" onclick="_removeDukungFile(${idx})">
+              ${!f._loading ? `<button type="button" class="btn btn-ghost btn-sm" data-tip="Hapus" onclick="_removeDukungFile(${idx})">
                 <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
               </button>` : ''}
             </div>
@@ -3348,6 +3354,30 @@ function handleDukungDrop(e) {
   Array.from(e.dataTransfer?.files || []).forEach(f => _processDukungFile(f));
 }
 
+// Upload file via XHR (bukan fetch) supaya bisa dapat progress asli dari browser
+function _uploadFileWithProgress(file, kategori, onProgress) {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    const fd  = new FormData();
+    fd.append('file', file);
+    fd.append('kategori', kategori);
+    xhr.open('POST', '/api/upload');
+    const auth = authHeaders()['Authorization'];
+    if (auth) xhr.setRequestHeader('Authorization', auth);
+    xhr.upload.onprogress = (e) => {
+      if (e.lengthComputable && onProgress) onProgress(Math.round((e.loaded / e.total) * 100));
+    };
+    xhr.onload = () => {
+      let data = {};
+      try { data = JSON.parse(xhr.responseText); } catch {}
+      if (xhr.status >= 200 && xhr.status < 300) resolve(data);
+      else reject(new Error(data.error || 'Gagal upload'));
+    };
+    xhr.onerror = () => reject(new Error('Gagal upload (koneksi bermasalah)'));
+    xhr.send(fd);
+  });
+}
+
 async function _processDukungFile(file) {
   if (file.size > 2 * 1024 * 1024) { toast(`${file.name}: terlalu besar (maks. 2 MB)`, 'error'); return; }
 
@@ -3363,7 +3393,12 @@ async function _processDukungFile(file) {
     const dukungTd = tr?.querySelector('td[data-col="dukung"]');
     if (dukungTd) {
       dukungTd.innerHTML = `<button disabled style="display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:6px;border:none;font-size:.75rem;font-weight:600;font-family:inherit;background:#fef3c7;color:#92400e">
-        <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" style="animation:spin .8s linear infinite"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+        <svg width="12" height="12" viewBox="0 0 36 36" style="display:inline-block;flex-shrink:0">
+          <circle cx="18" cy="18" r="15" fill="none" stroke="#d1e9e4" stroke-width="5"/>
+          <circle id="dukungRing_${indikatorId}" cx="18" cy="18" r="15" fill="none" stroke="#0f766e" stroke-width="5"
+            stroke-linecap="round" pathLength="100" stroke-dasharray="100" stroke-dashoffset="100"
+            transform="rotate(-90 18 18)" style="transition:stroke-dashoffset .15s linear"></circle>
+        </svg>
         Mengupload...
       </button>`;
     }
@@ -3377,20 +3412,20 @@ async function _processDukungFile(file) {
   const pw = document.getElementById('dukungProgressWrap');
   const pb = document.getElementById('dukungProgressBar');
   if (!isAutoSave && pw) pw.style.display = '';
-  if (!isAutoSave && pb) pb.style.width = '30%';
+  if (!isAutoSave && pb) pb.style.width = '0%';
+
+  const onProgress = (pct) => {
+    if (isAutoSave) {
+      const ring = document.getElementById(`dukungRing_${indikatorId}`);
+      if (ring) ring.setAttribute('stroke-dashoffset', String(100 - pct));
+    } else if (pb) {
+      pb.style.width = pct + '%';
+    }
+  };
 
   try {
-    const fd = new FormData();
-    fd.append('file', file);
-    fd.append('kategori', _source === 'ikk' ? 'kinerja_ikk' : _source === 'spm' ? 'kinerja_spm' : 'kinerja_iku');
-    const r = await fetch('/api/upload', {
-      method: 'POST',
-      headers: { 'Authorization': authHeaders()['Authorization'] },
-      body: fd,
-    });
-    if (!isAutoSave && pb) pb.style.width = '90%';
-    if (!r.ok) { const d = await r.json().catch(()=>({})); throw new Error(d.error || 'Gagal upload'); }
-    const d = await r.json();
+    const kategori = _source === 'ikk' ? 'kinerja_ikk' : _source === 'spm' ? 'kinerja_spm' : 'kinerja_iku';
+    const d = await _uploadFileWithProgress(file, kategori, onProgress);
     if (!isAutoSave && pb) { pb.style.width = '100%'; setTimeout(() => { if (pw) pw.style.display = 'none'; }, 600); }
     _dukungState.files[idx] = { url: d.url, name: d.name || file.name };
     if (!isAutoSave) {
@@ -3490,7 +3525,7 @@ async function deleteDukungAll(indikatorId, tw, tahun, source) {
         uploadBtn.style.cursor = 'pointer';
         uploadBtn.style.opacity = '1';
         uploadBtn.style.borderStyle = 'solid';
-        uploadBtn.title = 'Upload file data dukung';
+        uploadBtn.dataset.tip = 'Upload file data dukung';
         uploadBtn.onclick = () => triggerDukungUpload(indikatorId, tw, tahun, source);
       }
     }
@@ -3682,7 +3717,7 @@ async function loadIkkRekap() {
   const _msgEl = document.getElementById('ikkNoperiodeMsg');
   if (_msgEl) _msgEl.style.display = 'none';
 
-  tbody.innerHTML = `<tr class="empty-row"><td colspan="11">Memuat data...</td></tr>`;
+  tbody.innerHTML = `<tr class="empty-row"><td colspan="11"><span class="btn-spin" style="width:11px;height:11px;vertical-align:-1px;margin-right:6px"></span>Memuat data...</td></tr>`;
   try {
     const r = await fetch(`/api/kinerja/rekap?bulan=${_ikk_bulan}&tahun=${_ikk_tahun}&jenis=ikk`, { headers: authHeaders() });
     const d = await r.json();
@@ -3809,14 +3844,14 @@ function _renderIkkTable(tbody) {
       <td style="text-align:center" data-col="dukung">${_renderDukungBtn(row, _ikk_bulan, _ikk_tahun, 'ikk', !row.realisasi_id)}</td>
       <td style="text-align:center;white-space:nowrap">
         ${canEdit ? `
-          <button class="btn-edit-row" id="ikk_editbtn_${row.id}" title="Edit baris ini"
+          <button class="btn-edit-row" id="ikk_editbtn_${row.id}" data-tip="Edit baris ini"
             onclick="toggleIkkEditRow(${row.id})"
             style="${row.realisasi_id ? '' : 'display:none'}">
             <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
             Edit
           </button>
           <button class="save-row-btn" id="ikk_savebtn_${row.id}" disabled
-            onclick="saveIkkRealisasiRow(${row.id})" title="Simpan"
+            onclick="saveIkkRealisasiRow(${row.id})" data-tip="Simpan"
             style="font-family:'Plus Jakarta Sans',sans-serif!important;${row.realisasi_id ? 'background:var(--sukses);color:#fff' : ''}">
             ${row.realisasi_id
   ? '<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/><path d="M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7"/><path d="M7 3v4a1 1 0 0 0 1 1h7"/></svg> Tersimpan'
@@ -3824,7 +3859,7 @@ function _renderIkkTable(tbody) {
           </button>
         ` : ''}
         ${_user?.is_admin && row.realisasi_id ? `
-          <button class="btn-reset-row" id="ikk_resetbtn_${row.id}" title="Reset data realisasi baris ini (admin)"
+          <button class="btn-reset-row" id="ikk_resetbtn_${row.id}" data-tip="Reset data realisasi baris ini (admin)"
             onclick="resetRealisasiRow(${row.id}, 'ikk')">
             <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
             Reset
@@ -3908,7 +3943,7 @@ function _updateIkkSaveBtnState(indikatorId) {
       _uploadBtn_ikk.style.borderColor = '#6ee7b7';
       _uploadBtn_ikk.style.background = '#ecfdf5';
       _uploadBtn_ikk.style.color = '#065f46';
-      _uploadBtn_ikk.title = 'Upload data dukung';
+      _uploadBtn_ikk.dataset.tip = 'Upload data dukung';
       _uploadBtn_ikk.onclick = () => _openDukungFromBtn(_uploadBtn_ikk);
     } else {
       _uploadBtn_ikk.disabled = true;
@@ -3918,7 +3953,7 @@ function _updateIkkSaveBtnState(indikatorId) {
       _uploadBtn_ikk.style.borderColor = '#fca5a5';
       _uploadBtn_ikk.style.background = '#fee2e2';
       _uploadBtn_ikk.style.color = '#991b1b';
-      _uploadBtn_ikk.title = 'Isi realisasi dan field wajib terlebih dahulu';
+      _uploadBtn_ikk.dataset.tip = 'Isi realisasi dan field wajib terlebih dahulu';
       _uploadBtn_ikk.onclick = null;
     }
   }
@@ -3954,7 +3989,7 @@ async function saveIkkRealisasiRow(indikatorId) {
     }
   }
 
-  if (btn) { btn.disabled = true; btn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" style="animation:spin .8s linear infinite"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg> ...`; }
+  if (btn) { btn.disabled = true; btn.innerHTML = `<span class="btn-spin" style="width:11px;height:11px"></span> Menyimpan...`; }
   try {
     const r = await fetch('/api/kinerja/realisasi', {
       method: 'POST', headers: authHeaders(),
@@ -3980,7 +4015,7 @@ async function saveIkkRealisasiRow(indikatorId) {
           el.style.background = '';
           el.style.cursor = 'not-allowed';
           if (el.tagName === 'TEXTAREA') { el.style.resize = 'none'; el.style.display = 'none'; }
-          el.title = 'Klik tombol Edit untuk mengisi';
+          el.dataset.tip = 'Klik tombol Edit untuk mengisi';
         }
       });
       // Update warna baris → hijau (tersimpan)
@@ -3993,7 +4028,7 @@ async function saveIkkRealisasiRow(indikatorId) {
       if (editBtn) {
         editBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg> Edit`;
         editBtn.classList.remove('btn-edit-row--active');
-        editBtn.title = 'Edit baris ini';
+        editBtn.dataset.tip = 'Edit baris ini';
         editBtn.style.display = ''; // tampilkan tombol Edit setelah data tersimpan
       }
       if (btn) {
@@ -4090,6 +4125,12 @@ function escHtml(str) {
   return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
+// Aman dipakai di dalam onclick='...(${_jsAttr(val)})' — JSON.stringify menghasilkan
+// tanda kutip ganda, jadi attribute HTML-nya WAJIB pakai kutip tunggal (onclick='...').
+function _jsAttr(val) {
+  return JSON.stringify(val).replace(/'/g, '&#39;');
+}
+
 // ── Permasalahan & Solusi: hanya tampil jika capaian < 100% ───────────────
 // Jika capaian >= 100% (target tercapai), textarea disembunyikan & diganti
 // catatan "Target tercapai". Jika capaian null/NaN (belum diisi), textarea tetap tampil.
@@ -4139,7 +4180,7 @@ function _renderPSCell(idBase, indikatorId, value, capaian, canEdit, label, onch
             <!-- Edit mode: textarea -->
             <textarea id="${idBase}_${indikatorId}" placeholder="${canEdit ? 'Ketik di sini...' : '—'}"
               ${locked ? 'readonly' : ''}
-              title="${locked ? `Klik tombol Edit untuk mengisi ${label}` : ''}"
+              data-tip="${locked ? `Klik tombol Edit untuk mengisi ${label}` : ''}"
               style="${locked ? 'cursor:not-allowed;display:none;' : ''}resize:none"
               oninput="_autoResizeTA(this); _checkSymbolOnlyInput(this, '${label}'); ${onchangeFn}(${indikatorId})">${escHtml(value || '')}</textarea>
           </div>
@@ -4268,6 +4309,7 @@ let _mon_tahun  = new Date().getFullYear();
 let _mon_jenis  = 'all';   // 'monev' | 'ikk' | 'all'
 let _mon_status = 'all';     // 'all' | 'terisi' | 'belum'
 let _mon_pj     = '';
+let _mon_user   = '';   // filter by individual user (PIC)
 let _mon_search = '';
 let _mon_page   = 1;
 const _MON_PER_PAGE = 15;
@@ -4342,7 +4384,7 @@ async function loadMonitoringKinerja() {
   const body = document.getElementById('monTableBody');
   if (!body) return;
   body.innerHTML = `<tr><td colspan="7" style="text-align:center;padding:28px;color:#94a3b8">
-    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" style="animation:spin .9s linear infinite;vertical-align:-4px;margin-right:6px"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+    <span class="btn-spin" style="width:14px;height:14px;vertical-align:-2px;margin-right:6px"></span>
     Memuat data monitoring…</td></tr>`;
 
   try {
@@ -4364,6 +4406,8 @@ async function loadMonitoringKinerja() {
 
   _monRenderSummary();
   _monRenderPJCards();
+  _monPopulateUserSelect();
+  _monRenderUserCards();
   _monRenderTable();
 }
 
@@ -4414,6 +4458,24 @@ function _monRenderSummary() {
     </div>`;
 }
 
+// ── Populate filter User dari data yang sedang termuat (scoped ke Bidang aktif) ──
+function _monPopulateUserSelect() {
+  const sel = document.getElementById('monUserSelect');
+  if (!sel || !_mon_data) return;
+  const rows = _mon_pj
+    ? (_mon_data.indikator || []).filter(r => r.penanggung_jawab === _mon_pj)
+    : (_mon_data.indikator || []);
+  const users = new Set();
+  rows.forEach(r => (Array.isArray(r.pic_users) ? r.pic_users : []).forEach(u => u && users.add(u)));
+  const list = [...users].sort((a, b) => a.localeCompare(b, 'id'));
+  // Reset kalau user yang lagi difilter sudah tidak relevan lagi (mis. ganti bidang)
+  if (_mon_user && !list.includes(_mon_user)) _mon_user = '';
+  sel.innerHTML = '<option value="">Semua User</option>' +
+    list.map(u => `<option value="${escHtml(u)}"${u === _mon_user ? ' selected' : ''}>${escHtml(u)}</option>`).join('');
+  sel.disabled = !list.length;
+  if (typeof syncCustomSelect === 'function') syncCustomSelect('monUserSelect');
+}
+
 // ── Progress per Bidang / Sub Bagian ─────────────────────────────────────────
 function _monRenderPJCards() {
   const el = document.getElementById('monPJCards');
@@ -4440,7 +4502,7 @@ function _monRenderPJCards() {
         <text x="26" y="30.5" text-anchor="middle" font-size="12.5" font-weight="800" fill="${tone.c}" font-family="inherit">${pct}%</text>
       </svg>`;
 
-    return `<div onclick="setMonPJ(${JSON.stringify(pj.penanggung_jawab)})" title="Klik untuk filter"
+    return `<div onclick='setMonPJ(${_jsAttr(pj.penanggung_jawab)})' data-tip="Klik untuk filter"
          style="cursor:pointer;position:relative;overflow:hidden;background:${isActive ? 'linear-gradient(135deg,rgba(15,118,110,.07),rgba(255,255,255,.95))' : '#fff'};
                 border:1.5px solid ${isActive ? 'var(--hijau)' : 'var(--abu-2)'};
                 border-radius:var(--r-md);flex:1;min-width:210px;max-width:280px;
@@ -4475,6 +4537,75 @@ function _monRenderPJCards() {
     </div>`;
 }
 
+// ── Progress per User — muncul saat salah satu Bidang/Sub Bagian dipilih ──
+function _monRenderUserCards() {
+  const el = document.getElementById('monUserCards');
+  if (!el) return;
+
+  if (!_mon_pj || !_mon_data) { el.innerHTML = ''; return; }
+
+  const rows = (_mon_data.indikator || []).filter(r => r.penanggung_jawab === _mon_pj);
+  const userMap = {};
+  rows.forEach(r => {
+    const users = Array.isArray(r.pic_users) ? r.pic_users.filter(Boolean) : [];
+    if (!users.length) return;
+    users.forEach(u => {
+      if (!userMap[u]) userMap[u] = { nama: u, total: 0, terisi: 0 };
+      userMap[u].total++;
+      if (r.status === 'terisi') userMap[u].terisi++;
+    });
+  });
+  const list = Object.values(userMap).sort((a, b) => {
+    const pctA = a.total ? a.terisi / a.total : 0;
+    const pctB = b.total ? b.terisi / b.total : 0;
+    return pctA - pctB || a.nama.localeCompare(b.nama, 'id');
+  });
+
+  if (!list.length) {
+    el.innerHTML = `
+      <div style="margin-bottom:var(--sp-5)">
+        <div style="font-size:var(--fs-sm);font-weight:700;color:var(--teks);margin-bottom:var(--sp-3)">Progress per User — ${escHtml(_mon_pj)}</div>
+        <div style="font-size:var(--fs-xs);color:var(--teks-muted);font-style:italic">Belum ada user yang ditugaskan di bidang ini.</div>
+      </div>`;
+    return;
+  }
+
+  const cards = list.map(u => {
+    const pct = u.total ? Math.round(u.terisi / u.total * 100) : 0;
+    const isActive = _mon_user === u.nama;
+    const done = u.terisi === u.total;
+    const tone = done ? { c: '#16a34a', bg: '#dcfce7' } : (u.terisi > 0 ? { c: '#d97706', bg: '#fef3c7' } : { c: '#dc2626', bg: '#fee2e2' });
+    const icon = done
+      ? '<path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5"/>'
+      : '<circle cx="12" cy="12" r="9"/><path stroke-linecap="round" stroke-linejoin="round" d="M12 7.5v5l3 2"/>';
+
+    return `<div onclick='setMonUser(${_jsAttr(isActive ? '' : u.nama)})' data-tip="Klik untuk filter tabel"
+         style="cursor:pointer;display:flex;align-items:center;gap:10px;background:${isActive ? 'linear-gradient(135deg,rgba(15,118,110,.07),rgba(255,255,255,.95))' : '#fff'};
+                border:1.5px solid ${isActive ? 'var(--hijau)' : 'var(--abu-2)'};border-radius:var(--r-md);
+                padding:10px 14px;flex:1;min-width:210px;max-width:280px;box-shadow:${isActive ? '0 0 0 3px rgba(13,148,136,.12), var(--shadow-sm)' : 'var(--shadow-sm)'};
+                transition:box-shadow var(--transition), transform var(--transition), border-color var(--transition)"
+         onmouseover="this.style.boxShadow='var(--shadow-md)';this.style.transform='translateY(-2px)'"
+         onmouseout="this.style.boxShadow='${isActive ? '0 0 0 3px rgba(13,148,136,.12), var(--shadow-sm)' : 'var(--shadow-sm)'}';this.style.transform='none'">
+      <div style="width:30px;height:30px;border-radius:50%;background:${tone.bg};display:flex;align-items:center;justify-content:center;flex-shrink:0">
+        <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="${tone.c}" stroke-width="2.2">${icon}</svg>
+      </div>
+      <div style="min-width:0;flex:1">
+        <div style="font-size:.78rem;font-weight:700;color:var(--teks);white-space:normal;word-break:break-word;line-height:1.3">${escHtml(u.nama)}</div>
+        <div style="font-size:.68rem;color:${tone.c};font-weight:600;margin-top:2px">${u.terisi} dari ${u.total} terinput (${pct}%)</div>
+      </div>
+    </div>`;
+  }).join('');
+
+  el.innerHTML = `
+    <div style="margin-bottom:var(--sp-5)">
+      <div style="font-size:var(--fs-sm);font-weight:700;color:var(--teks);margin-bottom:var(--sp-3);display:flex;align-items:center;gap:var(--sp-2)">
+        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="var(--hijau)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        <span>Progress per User — ${escHtml(_mon_pj)}</span>
+        ${_mon_user ? `<button onclick="setMonUser('')" style="font-size:var(--fs-xs);background:var(--hijau-light);border:none;border-radius:999px;padding:2px 10px;cursor:pointer;color:var(--hijau);font-weight:700;display:inline-flex;align-items:center;gap:3px">✕ Reset</button>` : ''}
+      </div>
+      <div style="display:flex;flex-wrap:wrap;gap:var(--sp-3)">${cards}</div>
+    </div>`;
+}
 // ── Tabel detail ──────────────────────────────────────────────────────────
 function _monGoPage(p) {
   _mon_page = p;
@@ -4509,8 +4640,11 @@ function _monRenderTable() {
   if (_mon_status === 'terisi') rows = rows.filter(r => r.status === 'terisi');
   if (_mon_status === 'belum')  rows = rows.filter(r => r.status === 'belum');
 
-  // Filter PJ
+  // Filter PJ (Bidang / Sub Bagian)
   if (_mon_pj) rows = rows.filter(r => r.penanggung_jawab === _mon_pj);
+
+  // Filter User (PIC)
+  if (_mon_user) rows = rows.filter(r => Array.isArray(r.pic_users) && r.pic_users.includes(_mon_user));
 
   // Filter search
   if (_mon_search) {
@@ -4646,7 +4780,18 @@ function setMonFilterStatus(s) {
 function setMonPJ(pj) {
   _mon_page = 1;
   _mon_pj = _mon_pj === pj ? '' : pj;
+  _mon_user = ''; // reset filter user saat ganti bidang
   _monRenderPJCards();
+  _monPopulateUserSelect();
+  _monRenderUserCards();
+  _monRenderTable();
+}
+
+function setMonUser(u) {
+  _mon_page = 1;
+  _mon_user = u || '';
+  _monPopulateUserSelect();
+  _monRenderUserCards();
   _monRenderTable();
 }
 
@@ -4826,7 +4971,7 @@ async function loadSpmRekap() {
   const _msgEl = document.getElementById('spmNoperiodeMsg');
   if (_msgEl) _msgEl.style.display = 'none';
 
-  tbody.innerHTML = `<tr class="empty-row"><td colspan="11">Memuat data...</td></tr>`;
+  tbody.innerHTML = `<tr class="empty-row"><td colspan="11"><span class="btn-spin" style="width:11px;height:11px;vertical-align:-1px;margin-right:6px"></span>Memuat data...</td></tr>`;
   try {
     const r = await fetch(`/api/kinerja/rekap?bulan=${_spm_bulan}&tahun=${_spm_tahun}&jenis=spm`, { headers: authHeaders() });
     const d = await r.json();
@@ -4934,14 +5079,14 @@ function _renderSpmTable(tbody) {
       </td>
       <td style="text-align:center;white-space:nowrap">
         ${canEdit ? `
-          <button class="btn-edit-row" id="spm_editbtn_${row.id}" title="Edit baris ini"
+          <button class="btn-edit-row" id="spm_editbtn_${row.id}" data-tip="Edit baris ini"
             onclick="toggleSpmEditRow(${row.id})"
             style="${row.realisasi_id ? '' : 'display:none'}">
             <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
             Edit
           </button>
           <button class="save-row-btn" id="spm_savebtn_${row.id}" disabled
-            onclick="saveSpmRealisasiRow(${row.id})" title="Simpan"
+            onclick="saveSpmRealisasiRow(${row.id})" data-tip="Simpan"
             style="font-family:'Plus Jakarta Sans',sans-serif!important;${row.realisasi_id ? 'background:var(--sukses);color:#fff' : ''}">
             ${row.realisasi_id
   ? '<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/><path d="M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7"/><path d="M7 3v4a1 1 0 0 0 1 1h7"/></svg> Tersimpan'
@@ -4949,7 +5094,7 @@ function _renderSpmTable(tbody) {
           </button>
         ` : ''}
         ${_user?.is_admin && row.realisasi_id ? `
-          <button class="btn-reset-row" id="spm_resetbtn_${row.id}" title="Reset data realisasi baris ini (admin)"
+          <button class="btn-reset-row" id="spm_resetbtn_${row.id}" data-tip="Reset data realisasi baris ini (admin)"
             onclick="resetRealisasiRow(${row.id}, 'spm')">
             <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
             Reset
@@ -4972,7 +5117,7 @@ function _renderSpmTable(tbody) {
         const dukungCell = document.querySelector(`tr[data-id="${row.id}"] td[data-col="dukung"]`);
         if (dukungCell && !dukungCell.querySelector('.dukung-warning')) {
           dukungCell.insertAdjacentHTML('beforeend', `
-            <div class="dukung-warning" title="Data dukung belum diupload untuk indikator ini">
+            <div class="dukung-warning" data-tip="Data dukung belum diupload untuk indikator ini">
               <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v4m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/></svg>
               Belum diupload
             </div>`);
@@ -5012,14 +5157,14 @@ function toggleSpmEditRow(indikatorId) {
       el.style.background = 'var(--putih)';
       el.style.cursor = '';
       el.style.resize = '';
-      el.title = '';
+      el.dataset.tip = '';
     } else {
       el.setAttribute('readonly', '');
       if (el.tagName === 'SELECT') el.disabled = true; // predikat: kunci balik pakai disabled
       el.style.background = '';
       el.style.cursor = 'not-allowed';
       if (el.tagName === 'TEXTAREA') el.style.resize = 'none';
-      el.title = 'Klik tombol Edit untuk mengisi';
+      el.dataset.tip = 'Klik tombol Edit untuk mengisi';
     }
   });
 
@@ -5062,7 +5207,7 @@ function toggleSpmEditRow(indikatorId) {
       dukungBtn.disabled = false;
       dukungBtn.style.cursor = 'pointer';
       dukungBtn.style.opacity = '1';
-      dukungBtn.title = 'Kelola / ganti file data dukung';
+      dukungBtn.dataset.tip = 'Kelola / ganti file data dukung';
       const twV = dukungBtn.dataset.tw;
       const tahunV = dukungBtn.dataset.tahun;
       dukungBtn.onclick = () => openSpmDukungModal(indikatorId, parseInt(twV), parseInt(tahunV));
@@ -5070,7 +5215,7 @@ function toggleSpmEditRow(indikatorId) {
       dukungBtn.disabled = true;
       dukungBtn.style.cursor = 'not-allowed';
       dukungBtn.style.opacity = '.85';
-      dukungBtn.title = 'Klik Edit terlebih dahulu untuk mengganti file';
+      dukungBtn.dataset.tip = 'Klik Edit terlebih dahulu untuk mengganti file';
       dukungBtn.onclick = null;
     }
   }
@@ -5080,7 +5225,7 @@ function toggleSpmEditRow(indikatorId) {
       deleteBtn.disabled = false;
       deleteBtn.style.cursor = 'pointer';
       deleteBtn.style.opacity = '1';
-      deleteBtn.title = 'Hapus semua file data dukung';
+      deleteBtn.dataset.tip = 'Hapus semua file data dukung';
       const twV    = deleteBtn.dataset.tw;
       const tahunV = deleteBtn.dataset.tahun;
       const srcV   = deleteBtn.dataset.source;
@@ -5089,7 +5234,7 @@ function toggleSpmEditRow(indikatorId) {
       deleteBtn.disabled = true;
       deleteBtn.style.cursor = 'not-allowed';
       deleteBtn.style.opacity = '.5';
-      deleteBtn.title = 'Klik Edit terlebih dahulu untuk menghapus file';
+      deleteBtn.dataset.tip = 'Klik Edit terlebih dahulu untuk menghapus file';
       deleteBtn.onclick = null;
     }
   }
@@ -5100,7 +5245,7 @@ function toggleSpmEditRow(indikatorId) {
       uploadOnlyBtn.style.cursor = 'pointer';
       uploadOnlyBtn.style.opacity = '1';
       uploadOnlyBtn.style.borderStyle = 'solid';
-      uploadOnlyBtn.title = 'Upload file data dukung';
+      uploadOnlyBtn.dataset.tip = 'Upload file data dukung';
       const twV    = uploadOnlyBtn.dataset.tw;
       const tahunV = uploadOnlyBtn.dataset.tahun;
       const src    = uploadOnlyBtn.dataset.source;
@@ -5110,7 +5255,7 @@ function toggleSpmEditRow(indikatorId) {
       uploadOnlyBtn.style.cursor = 'not-allowed';
       uploadOnlyBtn.style.opacity = '.65';
       uploadOnlyBtn.style.borderStyle = 'dashed';
-      uploadOnlyBtn.title = 'Klik Edit terlebih dahulu untuk mengupload file';
+      uploadOnlyBtn.dataset.tip = 'Klik Edit terlebih dahulu untuk mengupload file';
       uploadOnlyBtn.onclick = null;
     }
   }
@@ -5120,7 +5265,7 @@ function toggleSpmEditRow(indikatorId) {
     if (editBtn) {
       editBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg> Sedang Diedit`;
       editBtn.classList.add('btn-edit-row--active');
-      editBtn.title = 'Klik untuk batalkan edit';
+      editBtn.dataset.tip = 'Klik untuk batalkan edit';
     }
     if (saveBtn) {
       saveBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/><path d="M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7"/><path d="M7 3v4a1 1 0 0 0 1 1h7"/></svg> Simpan`;
@@ -5136,7 +5281,7 @@ function toggleSpmEditRow(indikatorId) {
     if (editBtn) {
       editBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg> Edit`;
       editBtn.classList.remove('btn-edit-row--active');
-      editBtn.title = 'Edit baris ini';
+      editBtn.dataset.tip = 'Edit baris ini';
     }
     if (saveBtn) {
       saveBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/><path d="M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7"/><path d="M7 3v4a1 1 0 0 0 1 1h7"/></svg> Simpan`;
@@ -5185,7 +5330,7 @@ function _updateSpmSaveBtnState(indikatorId) {
       _uploadBtn_spm.style.borderColor = '#6ee7b7';
       _uploadBtn_spm.style.background = '#ecfdf5';
       _uploadBtn_spm.style.color = '#065f46';
-      _uploadBtn_spm.title = 'Upload data dukung';
+      _uploadBtn_spm.dataset.tip = 'Upload data dukung';
       _uploadBtn_spm.onclick = () => _openDukungFromBtn(_uploadBtn_spm);
     } else {
       _uploadBtn_spm.disabled = true;
@@ -5195,7 +5340,7 @@ function _updateSpmSaveBtnState(indikatorId) {
       _uploadBtn_spm.style.borderColor = '#fca5a5';
       _uploadBtn_spm.style.background = '#fee2e2';
       _uploadBtn_spm.style.color = '#991b1b';
-      _uploadBtn_spm.title = 'Isi realisasi dan field wajib terlebih dahulu';
+      _uploadBtn_spm.dataset.tip = 'Isi realisasi dan field wajib terlebih dahulu';
       _uploadBtn_spm.onclick = null;
     }
   }
@@ -5253,7 +5398,7 @@ async function saveSpmRealisasiRow(indikatorId) {
     }
   }
 
-  if (btn) { btn.disabled = true; btn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" style="animation:spin .8s linear infinite"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg> ...`; }
+  if (btn) { btn.disabled = true; btn.innerHTML = `<span class="btn-spin" style="width:11px;height:11px"></span> Menyimpan...`; }
   try {
     const r = await fetch('/api/kinerja/realisasi', {
       method: 'POST', headers: authHeaders(),
@@ -5280,7 +5425,7 @@ async function saveSpmRealisasiRow(indikatorId) {
           el.style.background = '';
           el.style.cursor = 'not-allowed';
           if (el.tagName === 'TEXTAREA') { el.style.resize = 'none'; el.style.display = 'none'; }
-          el.title = 'Klik tombol Edit untuk mengisi';
+          el.dataset.tip = 'Klik tombol Edit untuk mengisi';
         }
       });
       // Kunci kembali tombol data dukung (Upload kembali ke warna default)
@@ -5293,7 +5438,7 @@ async function saveSpmRealisasiRow(indikatorId) {
       if (editBtn) {
         editBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg> Edit`;
         editBtn.classList.remove('btn-edit-row--active');
-        editBtn.title = 'Edit baris ini';
+        editBtn.dataset.tip = 'Edit baris ini';
       }
       if (btn) {
         btn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/><path d="M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7"/><path d="M7 3v4a1 1 0 0 0 1 1h7"/></svg> Tersimpan`;
@@ -5354,7 +5499,7 @@ async function saveSpmRealisasiRow(indikatorId) {
         const dukungCell = document.querySelector(`tr[data-id="${indikatorId}"] td[data-col="dukung"]`);
         if (dukungCell && !dukungCell.querySelector('.dukung-warning')) {
           dukungCell.insertAdjacentHTML('beforeend', `
-            <div class="dukung-warning" title="Data dukung belum diupload untuk indikator ini">
+            <div class="dukung-warning" data-tip="Data dukung belum diupload untuk indikator ini">
               <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v4m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/></svg>
               Belum diupload
             </div>`);
@@ -5368,6 +5513,8 @@ async function saveSpmRealisasiRow(indikatorId) {
 }
 
 // ── Reset realisasi row (admin only) ────────────────────────────────────────
+const _RESET_BTN_IDLE_HTML = `<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>\n      Reset`;
+
 async function resetRealisasiRow(indikatorId, jenis) {
   if (!_user?.is_admin) return;
   const ok = await showConfirm({ title: 'Reset Realisasi', msg: 'Data realisasi baris ini akan dihapus dan baris kembali kosong.', okText: 'Ya, Reset', icon: 'trash' }); if (!ok) return;
@@ -5378,7 +5525,10 @@ async function resetRealisasiRow(indikatorId, jenis) {
 
   const prefix = jenis === 'ikk' ? 'ikk_' : jenis === 'spm' ? 'spm_' : '';
   const resetBtn = document.getElementById(`${prefix}resetbtn_${indikatorId}`);
-  if (resetBtn) { resetBtn.disabled = true; resetBtn.style.opacity = '0.5'; }
+  if (resetBtn) {
+    resetBtn.disabled = true;
+    resetBtn.innerHTML = `<span class="btn-spin" style="width:11px;height:11px"></span> Mereset...`;
+  }
 
   try {
     const r = await fetch(`/api/kinerja/realisasi/${row.realisasi_id}`, {
@@ -5388,7 +5538,7 @@ async function resetRealisasiRow(indikatorId, jenis) {
     if (!r.ok) {
       const d = await r.json().catch(() => ({}));
       toast(d.error || 'Gagal mereset data', 'error');
-      if (resetBtn) { resetBtn.disabled = false; resetBtn.style.opacity = ''; }
+      if (resetBtn) { resetBtn.disabled = false; resetBtn.innerHTML = _RESET_BTN_IDLE_HTML; }
       return;
     }
     toast('Data realisasi berhasil direset');
@@ -5402,7 +5552,7 @@ async function resetRealisasiRow(indikatorId, jenis) {
     }
   } catch (err) {
     toast('Error: ' + err.message, 'error');
-    if (resetBtn) { resetBtn.disabled = false; resetBtn.style.opacity = ''; }
+    if (resetBtn) { resetBtn.disabled = false; resetBtn.innerHTML = _RESET_BTN_IDLE_HTML; }
   }
 }
 

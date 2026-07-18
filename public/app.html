@@ -5,11 +5,11 @@
   <script>history.replaceState(null, '', location.origin);</script>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>SAPA Perencanaan</title>
-  <meta name="app-version" content="1.0.1" />
+  <meta name="app-version" content="1.0.3" />
   <link rel="icon" type="image/png" href="/favicon.png" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="css/styles.css?v=1.0.1" />
+  <link rel="stylesheet" href="css/styles.css?v=1.0.3" />
   <style>
     /* ── LOGIN OVERLAY ── */
     #loginOverlay {
@@ -910,7 +910,7 @@
               </select>
             </div>
             <button class="btn btn-primary btn-sm" onclick="openIndikatorModal()"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>Tambah Indikator</button>
-            <button class="btn btn-primary btn-sm" onclick="downloadIndikatorPDF(this)" title="Download data indikator (sesuai filter) sebagai PDF">
+            <button class="btn btn-primary btn-sm" onclick="downloadIndikatorPDF(this)" data-tip="Download data indikator (sesuai filter) sebagai PDF">
               <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline stroke-linecap="round" stroke-linejoin="round" points="7 10 12 15 17 10"/><line stroke-linecap="round" stroke-linejoin="round" x1="12" y1="15" x2="12" y2="3"/></svg>
               Download Indikator
             </button>
@@ -926,7 +926,7 @@
                   <th>Bidang / Sub Bagian</th>
                   <th style="min-width:150px">Penanggung Jawab (User)</th>
                   <th style="min-width:130px">Jenis Kinerja</th>
-                  <th class="neg-col" title="Bermakna Negatif / Positif" style="min-width:120px">Makna Indikator</th>
+                  <th class="neg-col" data-tip="Bermakna Negatif / Positif" style="min-width:120px">Makna Indikator</th>
                   <th>Aksi</th>
                 </tr>
               </thead>
@@ -1089,6 +1089,12 @@
               <option value="spm">SPM</option>
             </select>
           </div>
+          <!-- Filter User (PIC) -->
+          <div class="select-wrap" style="flex:1">
+            <select id="monUserSelect" data-searchable="1" onchange="setMonUser(this.value)">
+              <option value="">Semua User</option>
+            </select>
+          </div>
           <!-- Search -->
           <div class="search-wrap" style="flex:1">
             <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-4.35-4.35"/></svg>
@@ -1100,6 +1106,8 @@
         <div id="monSummaryCards"></div>
         <!-- Progress per PJ -->
         <div id="monPJCards"></div>
+        <!-- Progress per User (muncul saat Bidang dipilih) -->
+        <div id="monUserCards"></div>
 
         <!-- Tabel detail -->
         <div class="kinerja-table-wrap card" style="padding:0">
@@ -2081,7 +2089,7 @@
         </div>
         <div class="field" style="flex:0 0 200px">
           <label>Tipe Perhitungan <span style="color:var(--merah)">*</span></label>
-          <div class="select-wrap"><select id="indikatorTipePerhitungan" title="Menentukan cara realisasi dihitung setiap bulan, ditampilkan ke user saat mengisi realisasi">
+          <div class="select-wrap"><select id="indikatorTipePerhitungan" data-tip="Menentukan cara realisasi dihitung setiap bulan, ditampilkan ke user saat mengisi realisasi">
             <option value="non_kumulatif">Non-Kumulatif</option>
             <option value="kumulatif">Kumulatif</option>
             <option value="rata_rata">Rata-rata</option>
@@ -2089,7 +2097,7 @@
         </div>
         <div class="field" style="flex:0 0 200px">
           <label>Tipe Nilai <span style="color:var(--merah)">*</span></label>
-          <div class="select-wrap"><select id="indikatorTipeNilai" title="Predikat: realisasi/target diisi lewat dropdown huruf (AA/A/BB/dst), bukan angka bebas">
+          <div class="select-wrap"><select id="indikatorTipeNilai" data-tip="Predikat: realisasi/target diisi lewat dropdown huruf (AA/A/BB/dst), bukan angka bebas">
             <option value="angka">Angka</option>
             <option value="predikat">Predikat (AA/A/BB/dst)</option>
           </select></div>
@@ -2557,35 +2565,35 @@
     <!-- Kanan: toolbar tombol -->
     <div style="display:flex;align-items:center;gap:5px;flex-shrink:0;pointer-events:auto">
       <!-- Zoom out -->
-      <button class="dp-topbtn" id="dpZoomOut" onclick="dpZoom(-0.25)" title="Perkecil (-)">
+      <button class="dp-topbtn" id="dpZoomOut" onclick="dpZoom(-0.25)" data-tip="Perkecil (-)">
         <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-4.35-4.35M8 11h6"/></svg>
       </button>
       <!-- Zoom label -->
       <span id="docPreviewZoomLabel">100%</span>
       <!-- Zoom in -->
-      <button class="dp-topbtn" id="dpZoomIn" onclick="dpZoom(0.25)" title="Perbesar (+)">
+      <button class="dp-topbtn" id="dpZoomIn" onclick="dpZoom(0.25)" data-tip="Perbesar (+)">
         <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-4.35-4.35M11 8v6M8 11h6"/></svg>
       </button>
       <!-- Reset zoom -->
-      <button class="dp-topbtn" id="dpZoomReset" onclick="dpZoom(0)" title="Reset zoom" style="display:none">
+      <button class="dp-topbtn" id="dpZoomReset" onclick="dpZoom(0)" data-tip="Reset zoom" style="display:none">
         <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
       </button>
       <!-- Separator -->
       <div style="width:1px;height:20px;background:rgba(255,255,255,.12);margin:0 2px"></div>
       <!-- Google Docs btn (muncul jika PDF gagal) -->
-      <button id="docPreviewGdocsBtn" class="dp-topbtn" onclick="docPreviewUseGdocs()" title="Coba Google Viewer" style="display:none">
+      <button id="docPreviewGdocsBtn" class="dp-topbtn" onclick="docPreviewUseGdocs()" data-tip="Coba Google Viewer" style="display:none">
         <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
       </button>
       <!-- Download -->
-      <a id="docPreviewOpenLink" href="#" download target="_blank" rel="noopener" class="dp-topbtn" title="Download">
+      <a id="docPreviewOpenLink" href="#" download target="_blank" rel="noopener" class="dp-topbtn" data-tip="Download">
         <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
       </a>
       <!-- Delete (hanya tampil jika ada handler delete) -->
-      <button id="docPreviewDeleteBtn" class="dp-topbtn danger" onclick="dpDeleteCurrent()" title="Hapus file ini" style="display:none">
+      <button id="docPreviewDeleteBtn" class="dp-topbtn danger" onclick="dpDeleteCurrent()" data-tip="Hapus file ini" style="display:none">
         <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><polyline points="3 6 5 6 21 6"/><path stroke-linecap="round" stroke-linejoin="round" d="M19 6l-1 14H6L5 6"/><path stroke-linecap="round" stroke-linejoin="round" d="M10 11v6m4-6v6"/><path stroke-linecap="round" stroke-linejoin="round" d="M9 6V4h6v2"/></svg>
       </button>
       <!-- Tutup -->
-      <button class="dp-topbtn danger" onclick="closeDocPreview()" title="Tutup (Esc)">
+      <button class="dp-topbtn danger" onclick="closeDocPreview()" data-tip="Tutup (Esc)">
         <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
       </button>
     </div>
@@ -2594,11 +2602,11 @@
   <!-- ── Area konten + side nav overlay ── -->
   <div style="position:relative;flex:1;overflow:hidden;display:flex;flex-direction:column">
     <!-- Prev -->
-    <button id="dpNavPrev" class="dp-sidenav left" onclick="navDocPreview(-1)" title="Sebelumnya (←)" style="display:none">
+    <button id="dpNavPrev" class="dp-sidenav left" onclick="navDocPreview(-1)" data-tip="Sebelumnya (←)" style="display:none">
       <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/></svg>
     </button>
     <!-- Next -->
-    <button id="dpNavNext" class="dp-sidenav right" onclick="navDocPreview(1)" title="Berikutnya (→)" style="display:none">
+    <button id="dpNavNext" class="dp-sidenav right" onclick="navDocPreview(1)" data-tip="Berikutnya (→)" style="display:none">
       <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
     </button>
 
@@ -2713,9 +2721,87 @@ function loginTogglePw() {
 }
 
 // Ambil lokasi presisi dari browser (GPS/WiFi via Geolocation API), lalu reverse-geocode
-// jadi nama kota pakai BigDataCloud (gratis, tanpa API key, CORS-enabled utk browser).
+// jadi alamat detail (jalan, kelurahan, kecamatan, kota, provinsi) pakai Nominatim/OpenStreetMap
+// (gratis, tanpa API key, CORS-enabled utk browser).
 // Kalau user menolak izin lokasi / browser tidak mendukung / timeout → return null,
-// backend akan fallback otomatis ke IP-based lookup.
+// backend akan fallback otomatis ke IP-based lookup (cuma level kota).
+// Tambahkan label (mis. "Kec.") di depan nama wilayah, kecuali nama itu
+// sendiri sudah mengandung kata itu (mis. Nominatim kadang sudah kasih
+// "Kecamatan Luwuk" langsung dari sumbernya).
+function _labelWilayah(raw, label, fullWord) {
+  if (!raw) return null;
+  const lower = raw.toLowerCase();
+  if (lower.startsWith(fullWord.toLowerCase()) || lower.startsWith(label.toLowerCase().replace('.', ''))) {
+    return raw;
+  }
+  return `${label} ${raw}`;
+}
+
+// Susun 3 level administratif: Kec → Kab/Kota → Provinsi.
+// Level Desa/Kelurahan sengaja tidak dipakai — di daerah yang datanya minim
+// di OSM (mis. luar Jawa), Nominatim sering nempelin nama dusun/kampung
+// terdekat yang belum tentu akurat, jadi berpotensi menyesatkan.
+// Level yang tidak ada di data OSM otomatis dilewati, bukan dipaksa kosong.
+function _formatAlamatNominatim(addr) {
+  if (!addr) return null;
+  const parts = [];
+
+  // Kecamatan
+  const kecamatan = addr.city_district || addr.subdistrict || addr.district || addr.borough || addr.town || addr.municipality;
+  if (kecamatan) {
+    parts.push(_labelWilayah(kecamatan, 'Kecamatan', 'kecamatan'));
+  }
+
+  // Kabupaten / Kota (hindari duplikat kalau sama dgn kecamatan)
+  const kabKota = addr.county || addr.regency || addr.city || addr.state_district;
+  if (kabKota && kabKota !== kecamatan) {
+    parts.push(/kota/i.test(kabKota) ? kabKota : _labelWilayah(kabKota, 'Kabupaten', 'kabupaten'));
+  }
+
+  // Provinsi
+  if (addr.state) {
+    parts.push(_labelWilayah(addr.state, 'Provinsi', 'provinsi'));
+  }
+
+  return parts.length ? parts.join(', ') : null;
+}
+
+// Coba TomTom dulu (via backend, API key disimpan aman di env var) — datanya
+// proprietary (bukan OSM), jadi coverage kecamatan di daerah terpencil bisa
+// lebih lengkap drpd Nominatim. Kalau gagal/kosong, fallback ke Nominatim.
+async function _getLokasiTomTom(latitude, longitude) {
+  try {
+    const r = await fetch('/api/reverse-geocode', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ lat: latitude, lon: longitude }),
+      signal: AbortSignal.timeout(4000),
+    });
+    if (!r.ok) return null;
+    const d = await r.json();
+    return d.lokasi || null;
+  } catch {
+    return null;
+  }
+}
+
+async function _getLokasiNominatim(latitude, longitude) {
+  try {
+    const r = await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${latitude}&lon=${longitude}&addressdetails=1&accept-language=id`, {
+      signal: AbortSignal.timeout(3500),
+      headers: { 'Accept': 'application/json' },
+    });
+    if (!r.ok) return null;
+    const d = await r.json();
+    // Utamakan alamat detail hasil susunan sendiri; kalau field structured-nya kosong
+    // (mis. area terpencil yg datanya minim di OSM), fallback ke display_name mentah
+    // dari Nominatim, baru kalau itu juga kosong return null (backend akan fallback IP).
+    return _formatAlamatNominatim(d.address) || d.display_name || null;
+  } catch {
+    return null;
+  }
+}
+
 async function _getBrowserLokasi() {
   try {
     if (!navigator.geolocation) return null;
@@ -2723,12 +2809,9 @@ async function _getBrowserLokasi() {
       navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 3000, maximumAge: 600000 });
     });
     const { latitude, longitude } = pos.coords;
-    const r = await fetch(`https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${latitude}&longitude=${longitude}&localityLanguage=id`, {
-      signal: AbortSignal.timeout(2500),
-    });
-    if (!r.ok) return null;
-    const d = await r.json();
-    return [d.locality, d.principalSubdivision, d.countryName].filter(Boolean).join(', ') || null;
+    const tomtom = await _getLokasiTomTom(latitude, longitude);
+    if (tomtom) return tomtom;
+    return await _getLokasiNominatim(latitude, longitude);
   } catch {
     return null;
   }
@@ -2895,7 +2978,7 @@ function _loginShowErr(msg, type = 'warn') {
 </script>
 
 <!-- ════════════════ SCRIPTS ════════════════ -->
-<script src="js/periode_frontend.js?v=1.0.1"></script>
+<script src="js/periode_frontend.js?v=1.0.3"></script>
 <script>
 /* ── CDTP Teleport: pindahkan panel kalender ke <body> saat dibuka ──────────
    Ini satu-satunya cara yang benar-benar reliable agar panel tidak terpotong
@@ -3042,18 +3125,18 @@ function _loginShowErr(msg, type = 'warn') {
 })();
 </script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/quill/1.3.7/quill.min.js"></script>
-  <script src="js/app.js?v=1.0.1"></script>
-<script src="js/dashboard.js?v=1.0.1"></script>
-<script src="js/superlink.js?v=1.0.1"></script>
-<script src="js/pengumuman_frontend.js?v=1.0.1"></script>
-<script src="js/surat.js?v=1.0.1"></script>
-<script src="js/users_frontend.js?v=1.0.1"></script>
-<script src="js/kinerja.js?v=1.0.1"></script>
-<script src="js/laporan.js?v=1.0.1"></script>
-<script src="js/struktur_frontend.js?v=1.0.1"></script>
-<script src="js/audit_frontend.js?v=1.0.1"></script>
-<script src="js/dokumen_publik_frontend.js?v=1.0.1"></script>
-<script src="js/profil_frontend.js?v=1.0.1"></script>
+  <script src="js/app.js?v=1.0.3"></script>
+<script src="js/dashboard.js?v=1.0.3"></script>
+<script src="js/superlink.js?v=1.0.3"></script>
+<script src="js/pengumuman_frontend.js?v=1.0.3"></script>
+<script src="js/surat.js?v=1.0.3"></script>
+<script src="js/users_frontend.js?v=1.0.3"></script>
+<script src="js/kinerja.js?v=1.0.3"></script>
+<script src="js/laporan.js?v=1.0.3"></script>
+<script src="js/struktur_frontend.js?v=1.0.3"></script>
+<script src="js/audit_frontend.js?v=1.0.3"></script>
+<script src="js/dokumen_publik_frontend.js?v=1.0.3"></script>
+<script src="js/profil_frontend.js?v=1.0.3"></script>
 
 <script>
 /* ═══════════════════════════════════════════════════════════════════════════
@@ -3072,6 +3155,8 @@ function _loginShowErr(msg, type = 'warn') {
     const sel = wrap.querySelector('select');
     if (!sel || wrap.querySelector('.csel-trigger')) return; // already built
 
+    const searchable = sel.dataset.searchable === '1';
+
     // ── Trigger ────────────────────────────────────────────────────────────
     const trigger = document.createElement('button');
     trigger.type = 'button';
@@ -3083,14 +3168,37 @@ function _loginShowErr(msg, type = 'warn') {
     // di dalam wrap, biar gak ke-clip overflow:hidden container manapun (mis.
     // .kinerja-table-wrap.card). Posisi dihitung di positionPanel() saat dibuka. ──
     const panel = document.createElement('div');
-    panel.className = 'csel-panel csel-panel-fixed';
+    panel.className = 'csel-panel csel-panel-fixed' + (searchable ? ' csel-panel-searchable' : '');
     panel.style.display = 'none';
     document.body.appendChild(panel);
     wrap._cselPanel   = panel;   // referensi buat syncCustomSelect() & cleanup
     panel._cselTrigger = trigger; // referensi balik buat closePanel lintas-closure
 
+    // Klik di dalam panel (termasuk search box) jangan dianggap "klik di luar"
+    // yang nutup panel — closePanel tetap dipicu eksplisit lewat listener opsi.
+    panel.addEventListener('click', e => e.stopPropagation());
+
+    // ── Search box (opsional, dipakai select dgn banyak opsi seperti Filter User) ──
+    let searchInput = null;
+    let optsContainer = panel;
+    if (searchable) {
+      const searchWrap = document.createElement('div');
+      searchWrap.className = 'csel-search-wrap';
+      searchWrap.innerHTML = `
+        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-4.35-4.35"/></svg>
+        <input type="text" class="csel-search-input" placeholder="Cari nama…" autocomplete="off" />`;
+      panel.appendChild(searchWrap);
+      searchInput = searchWrap.querySelector('.csel-search-input');
+
+      optsContainer = document.createElement('div');
+      optsContainer.className = 'csel-options-list';
+      panel.appendChild(optsContainer);
+
+      searchInput.addEventListener('input', () => _filterOptions(optsContainer, searchInput.value));
+    }
+
     function renderOptions() {
-      panel.innerHTML = '';
+      optsContainer.innerHTML = '';
       Array.from(sel.options).forEach((opt, i) => {
         // Kalau data-placeholder masih aktif (user belum PERNAH interaksi sama
         // dropdown ini), jangan tandai opsi manapun sebagai "selected" — termasuk
@@ -3117,7 +3225,7 @@ function _loginShowErr(msg, type = 'warn') {
           updateTrigger();
           closePanel();
         });
-        panel.appendChild(div);
+        optsContainer.appendChild(div);
       });
     }
 
@@ -3161,6 +3269,7 @@ function _loginShowErr(msg, type = 'warn') {
 
     function openPanel() {
       if (_openPanel && _openPanel !== panel) closePanel(_openPanel);
+      if (searchInput) searchInput.value = '';
       renderOptions();
       // Panel dirender di document.body (di luar .select-wrap), jadi selector
       // scoped semacam .bulan-select-wrap .csel-trigger { font-size:.72rem }
@@ -3177,6 +3286,7 @@ function _loginShowErr(msg, type = 'warn') {
       // scroll selected option into view
       const selected = panel.querySelector('.csel-option.selected');
       if (selected) setTimeout(() => selected.scrollIntoView({ block: 'nearest' }), 30);
+      if (searchInput) setTimeout(() => searchInput.focus(), 30);
     }
 
     function closePanel(p) {
@@ -3217,6 +3327,29 @@ function _loginShowErr(msg, type = 'warn') {
     const opt = sel.options[sel.selectedIndex];
     if (opt && opt.value === '' && sel.dataset.placeholder) return sel.dataset.placeholder;
     return (opt && opt.value === '') ? opt.text : (opt ? opt.text : '— Pilih —');
+  }
+
+  // ── Filter opsi berdasarkan teks pencarian — dipakai select searchable ──
+  // Opsi placeholder (mis. "Semua User") selalu ditampilkan biar gampang di-reset.
+  function _filterOptions(optsContainer, query) {
+    const q = (query || '').trim().toLowerCase();
+    let anyMatch = false;
+    Array.from(optsContainer.children).forEach(el => {
+      if (!el.classList.contains('csel-option')) return; // skip pesan "tidak ditemukan"
+      const isPlaceholder = el.classList.contains('placeholder-opt');
+      const match = isPlaceholder || !q || el.textContent.toLowerCase().includes(q);
+      el.style.display = match ? '' : 'none';
+      if (match && !isPlaceholder) anyMatch = true;
+    });
+    let emptyMsg = optsContainer.querySelector('.csel-empty');
+    if (!q || anyMatch) {
+      if (emptyMsg) emptyMsg.remove();
+    } else if (!emptyMsg) {
+      emptyMsg = document.createElement('div');
+      emptyMsg.className = 'csel-empty';
+      emptyMsg.textContent = 'Tidak ditemukan';
+      optsContainer.appendChild(emptyMsg);
+    }
   }
 
   // ── Close panel yang lagi terbuka (dipakai outside-click, scroll, resize) ──
@@ -3385,7 +3518,7 @@ function _loginShowErr(msg, type = 'warn') {
               Upload Foto
             </button>
             <span style="font-size:.75rem;color:var(--teks-muted)">JPG / PNG / WebP · maks. 2 MB</span>
-            <button type="button" class="btn btn-ghost btn-sm" onclick="clearPegawaiFoto()" title="Hapus foto" style="padding:5px;margin-left:auto">
+            <button type="button" class="btn btn-ghost btn-sm" onclick="clearPegawaiFoto()" data-tip="Hapus foto" style="padding:5px;margin-left:auto">
               <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/></svg>
             </button>
           </div>

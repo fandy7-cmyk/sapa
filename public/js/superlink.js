@@ -201,6 +201,8 @@ async function deleteLink(id) {
 let _slFiltered = [], _slPage = 1, _slPageSize = 15;
 
 async function loadShortlinks() {
+  const tb0 = document.getElementById('slTableBody');
+  if (tb0) tb0.innerHTML = `<tr class="empty-row"><td colspan="6"><span class="btn-spin" style="width:11px;height:11px;vertical-align:-1px;margin-right:6px"></span>Memuat data...</td></tr>`;
   await loadLinks();
   filterShortlinks();
 }
@@ -237,8 +239,8 @@ function renderShortlinks() {
       <td><span class="badge badge-blue">${l.total_klik ?? 0}</span></td>
       <td><span class="badge ${l.aktif?'badge-green':'badge-red'}">${l.aktif?'Aktif':'Nonaktif'}</span></td>
       <td class="col-admin-only" style="color:var(--teks-muted);font-size:.78rem">${l.created_by_nama ? esc(l.created_by_nama) : '—'}</td>
-      <td style="white-space:nowrap"><button class="btn btn-ghost btn-sm" title="Edit" onclick="editLink(${l.id})"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg></button>
-          <button class="btn btn-danger btn-sm" title="Hapus" onclick="deleteLink(${l.id})"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path stroke-linecap="round" stroke-linejoin="round" d="M19 6l-1 14H6L5 6"/><path stroke-linecap="round" stroke-linejoin="round" d="M10 11v6m4-6v6"/><path stroke-linecap="round" stroke-linejoin="round" d="M9 6V4h6v2"/></svg></button></td>
+      <td style="white-space:nowrap"><button class="btn btn-ghost btn-sm" data-tip="Edit" onclick="editLink(${l.id})"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg></button>
+          <button class="btn btn-danger btn-sm" data-tip="Hapus" onclick="deleteLink(${l.id})"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path stroke-linecap="round" stroke-linejoin="round" d="M19 6l-1 14H6L5 6"/><path stroke-linecap="round" stroke-linejoin="round" d="M10 11v6m4-6v6"/><path stroke-linecap="round" stroke-linejoin="round" d="M9 6V4h6v2"/></svg></button></td>
     </tr>`).join('')
     : '<tr class="empty-row"><td colspan="6">Tidak ada link</td></tr>';
   renderPagination('slPagination', _slFiltered.length, _slPage, _slPageSize, 'goSlPage');
@@ -257,6 +259,8 @@ let _currentBundleId = null;
 let _currentBundleItems = [];
 
 async function loadBundles() {
+  const tb0 = document.getElementById('bundleTableBody');
+  if (tb0) tb0.innerHTML = `<tr class="empty-row"><td colspan="6"><span class="btn-spin" style="width:11px;height:11px;vertical-align:-1px;margin-right:6px"></span>Memuat data...</td></tr>`;
   try {
     const r = await fetch('/api/bundles', { headers: authHeaders() });
     const d = await r.json();
@@ -295,8 +299,8 @@ function renderBundles() {
       <td><span class="badge ${b.aktif?'badge-green':'badge-red'}">${b.aktif?'Aktif':'Nonaktif'}</span></td>
       <td class="col-admin-only" style="color:var(--teks-muted);font-size:.78rem">${b.created_by_nama ? esc(b.created_by_nama) : '—'}</td>
       <td style="white-space:nowrap">
-        <button class="btn btn-ghost btn-sm" title="Edit" onclick="editBundle(${b.id})"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg></button>
-        <button class="btn btn-danger btn-sm" title="Hapus" onclick="deleteBundle(${b.id})"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path stroke-linecap="round" stroke-linejoin="round" d="M19 6l-1 14H6L5 6"/><path stroke-linecap="round" stroke-linejoin="round" d="M10 11v6m4-6v6"/><path stroke-linecap="round" stroke-linejoin="round" d="M9 6V4h6v2"/></svg></button>
+        <button class="btn btn-ghost btn-sm" data-tip="Edit" onclick="editBundle(${b.id})"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg></button>
+        <button class="btn btn-danger btn-sm" data-tip="Hapus" onclick="deleteBundle(${b.id})"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path stroke-linecap="round" stroke-linejoin="round" d="M19 6l-1 14H6L5 6"/><path stroke-linecap="round" stroke-linejoin="round" d="M10 11v6m4-6v6"/><path stroke-linecap="round" stroke-linejoin="round" d="M9 6V4h6v2"/></svg></button>
       </td>
     </tr>`).join('')
     : '<tr class="empty-row"><td colspan="6">Tidak ada bundle</td></tr>';
@@ -413,7 +417,7 @@ function renderBundleItems() {
         <div style="font-size:.72rem;color:var(--teks-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(item.url)}</div>
         ${item.deskripsi ? `<div style="font-size:.72rem;color:var(--teks-muted)">${esc(item.deskripsi)}</div>` : ''}
       </div>
-      <button class="btn btn-ghost btn-sm" title="Edit" onclick="editBundleItem(${item.id})"><svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg></button>
+      <button class="btn btn-ghost btn-sm" data-tip="Edit" onclick="editBundleItem(${item.id})"><svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg></button>
       <button class="btn btn-danger btn-sm" onclick="deleteBundleItem(${item.id})"><svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg></button>
     </div>`).join('')
     : '<div style="text-align:center;color:var(--teks-muted);padding:16px;font-size:.82rem">Belum ada item</div>';

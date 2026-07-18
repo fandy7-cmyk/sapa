@@ -32,7 +32,7 @@ function renderDocsBadge(fileUrlRaw, label) {
   if (!files.length) return '<span style="color:var(--teks-muted)">—</span>';
   if (files.length === 1) {
     return `<span style="display:inline-flex;align-items:center;gap:3px">
-      <button class="btn btn-ghost btn-sm" title="Lihat Dokumen" onclick="viewDocMulti([{url:decodeURIComponent('${encodeURIComponent(files[0].url)}'),name:decodeURIComponent('${encodeURIComponent(files[0].name||'')}')}],0,decodeURIComponent('${encodeURIComponent(label||'')}'))">
+      <button class="btn btn-ghost btn-sm" data-tip="Lihat Dokumen" onclick="viewDocMulti([{url:decodeURIComponent('${encodeURIComponent(files[0].url)}'),name:decodeURIComponent('${encodeURIComponent(files[0].name||'')}')}],0,decodeURIComponent('${encodeURIComponent(label||'')}'))">
         <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
       </button>
     </span>`;
@@ -41,7 +41,7 @@ function renderDocsBadge(fileUrlRaw, label) {
   const filesJson = encodeURIComponent(JSON.stringify(files));
   const labelJson = encodeURIComponent(label || '');
   return `<span style="display:inline-flex;align-items:center;gap:3px">
-      <button class="btn btn-ghost btn-sm" title="Preview ${files.length} Dokumen" onclick="viewDocMulti(JSON.parse(decodeURIComponent('${filesJson}')), 0, decodeURIComponent('${labelJson}'))">
+      <button class="btn btn-ghost btn-sm" data-tip="Preview ${files.length} Dokumen" onclick="viewDocMulti(JSON.parse(decodeURIComponent('${filesJson}')), 0, decodeURIComponent('${labelJson}'))">
         <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
       </button>
     </span>`;
@@ -249,6 +249,8 @@ async function loadSuratMasuk(page = 1) {
   if (tahun)     params.set('tahun', tahun);
   if (bulan)     params.set('bulan', bulan);
   if (pegawai)   params.set('pegawai', pegawai);
+  const tb0 = document.getElementById('smTableBody');
+  if (tb0) tb0.innerHTML = `<tr class="empty-row"><td colspan="11"><span class="btn-spin" style="width:11px;height:11px;vertical-align:-1px;margin-right:6px"></span>Memuat data...</td></tr>`;
   try {
     const r = await fetch(`/api/surat-masuk?${params}`, { headers: authHeaders() });
     const d = await r.json();
@@ -269,9 +271,9 @@ async function loadSuratMasuk(page = 1) {
           <span class="badge ${s.selesai?'badge-green':'badge-yellow'}">${s.selesai?'Selesai':'Proses'}</span>
         </td>
         <td style="white-space:nowrap">
-          ${(isFull || s.created_by === (_user && _user.id)) ? `<button class="btn btn-ghost btn-sm" title="Edit" onclick="editSM(${s.id})"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg></button>` : ''}
-          <button class="btn btn-ghost btn-sm" title="${s.selesai?'Buka Kembali':'Tandai Selesai'}" onclick="toggleSMSelesai(${s.id},${s.selesai})">${s.selesai?'<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>':'<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>'}</button>
-          ${(isFull || s.created_by === (_user && _user.id)) ? `<button class="btn btn-danger btn-sm" title="Hapus" onclick="deleteSM(${s.id})"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path stroke-linecap="round" stroke-linejoin="round" d="M19 6l-1 14H6L5 6"/><path stroke-linecap="round" stroke-linejoin="round" d="M10 11v6m4-6v6"/><path stroke-linecap="round" stroke-linejoin="round" d="M9 6V4h6v2"/></svg></button>` : ''}
+          ${(isFull || s.created_by === (_user && _user.id)) ? `<button class="btn btn-ghost btn-sm" data-tip="Edit" onclick="editSM(${s.id})"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg></button>` : ''}
+          <button class="btn btn-ghost btn-sm" data-tip="${s.selesai?'Buka Kembali':'Tandai Selesai'}" onclick="toggleSMSelesai(${s.id},${s.selesai})">${s.selesai?'<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>':'<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>'}</button>
+          ${(isFull || s.created_by === (_user && _user.id)) ? `<button class="btn btn-danger btn-sm" data-tip="Hapus" onclick="deleteSM(${s.id})"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path stroke-linecap="round" stroke-linejoin="round" d="M19 6l-1 14H6L5 6"/><path stroke-linecap="round" stroke-linejoin="round" d="M10 11v6m4-6v6"/><path stroke-linecap="round" stroke-linejoin="round" d="M9 6V4h6v2"/></svg></button>` : ''}
         </td>
       </tr>`).join('')
       : '<tr class="empty-row"><td colspan="11">Tidak ada data</td></tr>';
@@ -419,6 +421,8 @@ async function loadSuratKeluar(page = 1) {
   if (tahun)   params.set('tahun', tahun);
   if (bulan)   params.set('bulan', bulan);
   if (pegawai) params.set('pegawai', pegawai);
+  const tb0 = document.getElementById('skTableBody');
+  if (tb0) tb0.innerHTML = `<tr class="empty-row"><td colspan="8"><span class="btn-spin" style="width:11px;height:11px;vertical-align:-1px;margin-right:6px"></span>Memuat data...</td></tr>`;
   try {
     const r = await fetch(`/api/surat-keluar?${params}`, { headers: authHeaders() });
     const d = await r.json();
@@ -434,8 +438,8 @@ async function loadSuratKeluar(page = 1) {
         <td>${s.pegawai ? esc(s.pegawai) : '—'}</td>
         <td style="text-align:center">${renderDocsBadge(s.file_url, 'Surat Keluar — ' + (s.perihal||''))}</td>
         <td style="white-space:nowrap">
-          ${(isFull || s.created_by === (_user && _user.id)) ? `<button class="btn btn-ghost btn-sm" title="Edit" onclick="editSK(${s.id})"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg></button>
-          <button class="btn btn-danger btn-sm" title="Hapus" onclick="deleteSK(${s.id})"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path stroke-linecap="round" stroke-linejoin="round" d="M19 6l-1 14H6L5 6"/><path stroke-linecap="round" stroke-linejoin="round" d="M10 11v6m4-6v6"/><path stroke-linecap="round" stroke-linejoin="round" d="M9 6V4h6v2"/></svg></button>` : '<span style="color:var(--teks-muted)">—</span>'}
+          ${(isFull || s.created_by === (_user && _user.id)) ? `<button class="btn btn-ghost btn-sm" data-tip="Edit" onclick="editSK(${s.id})"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg></button>
+          <button class="btn btn-danger btn-sm" data-tip="Hapus" onclick="deleteSK(${s.id})"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path stroke-linecap="round" stroke-linejoin="round" d="M19 6l-1 14H6L5 6"/><path stroke-linecap="round" stroke-linejoin="round" d="M10 11v6m4-6v6"/><path stroke-linecap="round" stroke-linejoin="round" d="M9 6V4h6v2"/></svg></button>` : '<span style="color:var(--teks-muted)">—</span>'}
         </td>
       </tr>`).join('')
       : '<tr class="empty-row"><td colspan="8">Tidak ada data</td></tr>';
@@ -606,19 +610,19 @@ function _buildFileCard(prefix, f, idx) {
       ${isImg && f.url
         ? `<div class="mfc-thumb" style="background-image:url('${f.url}')"></div>`
         : `<div class="mfc-icon" style="background:${iconColor}">${isLoading
-            ? `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="#fff" stroke-width="2" style="animation:spin 1s linear infinite"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>`
+            ? `<span class="btn-spin" style="width:12px;height:12px;color:#fff"></span>`
             : `<span>${ext.toUpperCase()}</span>`
           }</div>`
       }
       <div class="mfc-info">
-        <div class="mfc-name" title="${escSurat(f.name)}">${escSurat(f.name)}</div>
+        <div class="mfc-name" data-tip="${escSurat(f.name)}">${escSurat(f.name)}</div>
         ${isLoading ? `<div style="font-size:.7rem;color:#94a3b8">Mengupload…</div>` : ''}
       </div>
       <div class="mfc-actions">
-        ${f.url && !isLoading ? `<button type="button" class="btn btn-ghost btn-sm" title="Preview" onclick="viewDoc(decodeURIComponent('${encodeURIComponent(f.url)}'), decodeURIComponent('${encodeURIComponent(f.name || "")}'))">
+        ${f.url && !isLoading ? `<button type="button" class="btn btn-ghost btn-sm" data-tip="Preview" onclick="viewDoc(decodeURIComponent('${encodeURIComponent(f.url)}'), decodeURIComponent('${encodeURIComponent(f.name || "")}'))">
           <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
         </button>` : ''}
-        ${!isLoading ? `<button type="button" class="btn btn-danger btn-sm" title="Hapus file (termasuk dari Cloudinary)" onclick="removeUploadedFile('${prefix}',${idx})">
+        ${!isLoading ? `<button type="button" class="btn btn-danger btn-sm" data-tip="Hapus file (termasuk dari Cloudinary)" onclick="removeUploadedFile('${prefix}',${idx})">
           ${trashSvg}
         </button>` : ''}
       </div>

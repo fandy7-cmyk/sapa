@@ -1280,7 +1280,7 @@ async function downloadLaporanByUrusan(btnEl) {
   const data = window._laporanKinerjaData;
   if (!data || !data.rows) { toast('Muat data laporan terlebih dahulu', 'error'); return; }
 
-  if (btnEl) { btnEl.disabled = true; btnEl.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="animation:spin 1s linear infinite"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg> Memuat...`; }
+  if (btnEl) { btnEl.disabled = true; btnEl.innerHTML = `<span class="btn-spin" style="width:12px;height:12px"></span> Memuat...`; }
   try {
     // Non-admin: langsung tampilkan indikator tanggung jawabnya sendiri (flat),
     // gak perlu template Urusan yang notabene struktur punya admin/instansi.
@@ -1410,7 +1410,7 @@ async function downloadLaporanByTSP(btnEl) {
   const data = window._laporanKinerjaData;
   if (!data || !data.rows) { toast('Muat data laporan terlebih dahulu', 'error'); return; }
 
-  if (btnEl) { btnEl.disabled = true; btnEl.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="animation:spin 1s linear infinite"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg> Memuat...`; }
+  if (btnEl) { btnEl.disabled = true; btnEl.innerHTML = `<span class="btn-spin" style="width:12px;height:12px"></span> Memuat...`; }
   try {
     // Non-admin: langsung tampilkan indikator tanggung jawabnya sendiri (flat),
     // gak perlu template TSP (Tujuan/Sasaran/Program/Kegiatan) yang notabene struktur instansi.

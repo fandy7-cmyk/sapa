@@ -233,22 +233,22 @@ function renderUsersTable() {
         <td><span class="badge badge-blue">User</span></td>
         <td>${u.last_login ? fmtDate(u.last_login) : '—'}</td>
         <td style="white-space:nowrap">
-          <button class="btn btn-ghost btn-sm" title="Edit" onclick="editUser(${u.id})">
+          <button class="btn btn-ghost btn-sm" data-tip="Edit" onclick="editUser(${u.id})">
             <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
           </button>
-          <button class="btn btn-ghost btn-sm" title="Hak Akses" onclick="openPermsModal(${u.id})">
+          <button class="btn btn-ghost btn-sm" data-tip="Hak Akses" onclick="openPermsModal(${u.id})">
             <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"/></svg>
           </button>
-          <button class="btn btn-ghost btn-sm" title="Assign Indikator" onclick="openAssignIndikatorModal(${u.id})">
+          <button class="btn btn-ghost btn-sm" data-tip="Assign Indikator" onclick="openAssignIndikatorModal(${u.id})">
             <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg>
           </button>
-          <button class="btn btn-ghost btn-sm" title="Reset Password" onclick="resetUserPassword(${u.id}, '${esc(u.nama)}')">
+          <button class="btn btn-ghost btn-sm" data-tip="Reset Password" onclick="resetUserPassword(${u.id}, '${esc(u.nama)}')">
             <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 7a2 2 0 012 2m0 0a2 2 0 01-2 2m2-2h3M9 7H6a2 2 0 00-2 2v9a2 2 0 002 2h9a2 2 0 002-2v-3"/></svg>
           </button>
-          <button class="btn btn-ghost btn-sm" title="Paksa Logout" onclick="forceLogoutUser(${u.id}, '${esc(u.nama)}')">
+          <button class="btn btn-ghost btn-sm" data-tip="Paksa Logout" onclick="forceLogoutUser(${u.id}, '${esc(u.nama)}')">
             <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
           </button>
-          <button class="btn btn-danger btn-sm" title="Hapus" onclick="deleteUser(${u.id})">
+          <button class="btn btn-danger btn-sm" data-tip="Hapus" onclick="deleteUser(${u.id})">
             <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path stroke-linecap="round" stroke-linejoin="round" d="M19 6l-1 14H6L5 6"/><path stroke-linecap="round" stroke-linejoin="round" d="M10 11v6m4-6v6"/><path stroke-linecap="round" stroke-linejoin="round" d="M9 6V4h6v2"/></svg>
           </button>
         </td>
@@ -261,6 +261,8 @@ function renderUsersTable() {
 window.goUserPage = (p) => { _userPage = p; renderUsersTable(); };
 
 async function loadUsers() {
+  const tb0 = document.getElementById('userTableBody');
+  if (tb0) tb0.innerHTML = `<tr class="empty-row"><td colspan="6"><span class="btn-spin" style="width:11px;height:11px;vertical-align:-1px;margin-right:6px"></span>Memuat data...</td></tr>`;
   await loadBidangList();
   try {
     const r = await fetch('/api/users', { headers: authHeaders() });
@@ -495,10 +497,10 @@ function renderBidangTable() {
       <tr>
         <td>${esc(b.nama)}</td>
         <td style="white-space:nowrap">
-          <button class="btn btn-ghost btn-sm" title="Edit" onclick="editBidang(${b.id})">
+          <button class="btn btn-ghost btn-sm" data-tip="Edit" onclick="editBidang(${b.id})">
             <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
           </button>
-          <button class="btn btn-danger btn-sm" title="Hapus" onclick="deleteBidang(${b.id})">
+          <button class="btn btn-danger btn-sm" data-tip="Hapus" onclick="deleteBidang(${b.id})">
             <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path stroke-linecap="round" stroke-linejoin="round" d="M19 6l-1 14H6L5 6"/><path stroke-linecap="round" stroke-linejoin="round" d="M10 11v6m4-6v6"/><path stroke-linecap="round" stroke-linejoin="round" d="M9 6V4h6v2"/></svg>
           </button>
         </td>
@@ -511,6 +513,8 @@ function renderBidangTable() {
 window.goBidangPage = (p) => { _bidangPage = p; renderBidangTable(); };
 
 async function loadBidangPage() {
+  const tb0 = document.getElementById('bidangTableBody');
+  if (tb0) tb0.innerHTML = `<tr class="empty-row"><td colspan="2"><span class="btn-spin" style="width:11px;height:11px;vertical-align:-1px;margin-right:6px"></span>Memuat data...</td></tr>`;
   try {
     const r = await fetch('/api/bidang', { headers: authHeaders() });
     const d = await r.json();

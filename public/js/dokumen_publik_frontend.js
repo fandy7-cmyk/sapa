@@ -10,6 +10,8 @@ const _dokumenPerPage = 15;
 
 /* ── Load & render ────────────────────────────────────────────── */
 async function loadDokumenPublik() {
+  const tb0 = document.getElementById('dokumenTableBody');
+  if (tb0) tb0.innerHTML = `<tr class="empty-row"><td colspan="5"><span class="btn-spin" style="width:11px;height:11px;vertical-align:-1px;margin-right:6px"></span>Memuat data...</td></tr>`;
   try {
     const r = await fetch('/api/dokumen-publik', { headers: authHeaders() });
     if (!r.ok) throw new Error(await r.text());
@@ -89,16 +91,16 @@ function renderDokumenTable() {
         <td style="font-size:.8rem;color:var(--teks-muted)">${formatTanggalDok(d.created_at)}</td>
         <td>
           <div style="display:flex;gap:6px">
-            ${d.file_url ? `<a class="btn btn-ghost btn-sm" href="${esc(d.file_url)}" target="_blank" rel="noopener" title="Buka file">
+            ${d.file_url ? `<a class="btn btn-ghost btn-sm" href="${esc(d.file_url)}" target="_blank" rel="noopener" data-tip="Buka file">
               <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></svg>
             </a>` : ''}
-            <button class="btn btn-ghost btn-sm" onclick="openDokumenModal(${d.id})" title="Edit">
+            <button class="btn btn-ghost btn-sm" onclick="openDokumenModal(${d.id})" data-tip="Edit">
               <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5H6a2 2 0 0 0-2 2v11a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2v-5"/><path d="M18.586 2.586a2 2 0 1 1 2.828 2.828L11.828 15 9 16l1-2.828 8.586-8.586z"/></svg>
             </button>
-            <button class="btn btn-ghost btn-sm" onclick="toggleDokumen(${d.id}, ${d.aktif})" title="${d.aktif ? 'Nonaktifkan' : 'Aktifkan'}">
+            <button class="btn btn-ghost btn-sm" onclick="toggleDokumen(${d.id}, ${d.aktif})" data-tip="${d.aktif ? 'Nonaktifkan' : 'Aktifkan'}">
               <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${d.aktif ? '<path d="M18.36 6.64A9 9 0 0 1 20.77 15"/><path d="M6.16 6.16a9 9 0 1 0 12.68 12.68"/><path d="M12 2v4"/><path d="M2 12h4"/>' : '<path d="M9 12l2 2 4-4"/><circle cx="12" cy="12" r="10"/>'}</svg>
             </button>
-            <button class="btn btn-danger btn-sm" onclick="deleteDokumen(${d.id})" title="Hapus">
+            <button class="btn btn-danger btn-sm" onclick="deleteDokumen(${d.id})" data-tip="Hapus">
               <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6m4-6v6"/><path d="M9 6V4h6v2"/></svg>
             </button>
           </div>

@@ -230,7 +230,7 @@ function _klikTrendPanel(data) {
   const bars = days.map(d => {
     const h = Math.max(3, Math.round((d.jumlah / max) * 74));
     return `
-      <div class="dash-trend-bar-wrap" title="${d.jumlah} klik">
+      <div class="dash-trend-bar-wrap" data-tip="${d.jumlah} klik">
         <div class="dash-trend-val">${d.jumlah || ''}</div>
         <div class="dash-trend-bar" style="height:${h}px"></div>
         <div class="dash-trend-lbl">${d.hari}</div>
@@ -763,8 +763,8 @@ function _renderIkuGrid(bulan, tahun, pa) {
 
         // Polarity badge
         const polarBadge = row.bermakna_negatif
-          ? `<span title="Bermakna Negatif" style="display:inline-flex;align-items:center;justify-content:center;width:14px;height:14px;background:#fee2e2;border-radius:50%;flex-shrink:0"><svg xmlns="http://www.w3.org/2000/svg" width="8" height="8" fill="none" viewBox="0 0 24 24" stroke="#991b1b" stroke-width="2.8"><path stroke-linecap="round" stroke-linejoin="round" d="M19 14l-7 7m0 0l-7-7m7 7V3"/></svg></span>`
-          : `<span title="Bermakna Positif" style="display:inline-flex;align-items:center;justify-content:center;width:14px;height:14px;background:#d1fae5;border-radius:50%;flex-shrink:0"><svg xmlns="http://www.w3.org/2000/svg" width="8" height="8" fill="none" viewBox="0 0 24 24" stroke="#065f46" stroke-width="2.8"><path stroke-linecap="round" stroke-linejoin="round" d="M5 10l7-7m0 0l7 7m-7-7v18"/></svg></span>`;
+          ? `<span data-tip="Bermakna Negatif" style="display:inline-flex;align-items:center;justify-content:center;width:14px;height:14px;background:#fee2e2;border-radius:50%;flex-shrink:0"><svg xmlns="http://www.w3.org/2000/svg" width="8" height="8" fill="none" viewBox="0 0 24 24" stroke="#991b1b" stroke-width="2.8"><path stroke-linecap="round" stroke-linejoin="round" d="M19 14l-7 7m0 0l-7-7m7 7V3"/></svg></span>`
+          : `<span data-tip="Bermakna Positif" style="display:inline-flex;align-items:center;justify-content:center;width:14px;height:14px;background:#d1fae5;border-radius:50%;flex-shrink:0"><svg xmlns="http://www.w3.org/2000/svg" width="8" height="8" fill="none" viewBox="0 0 24 24" stroke="#065f46" stroke-width="2.8"><path stroke-linecap="round" stroke-linejoin="round" d="M5 10l7-7m0 0l7 7m-7-7v18"/></svg></span>`;
 
         const realDisp = hasData
           ? (Number.isInteger(Number(real)) ? Number(real) : Number(real).toFixed(2))
@@ -936,7 +936,7 @@ function _ikuRenderChartSection() {
     };
     _fetchAll();
     sec.innerHTML = `<div class="iku-chart-section" style="padding:20px;text-align:center;color:#94a3b8;font-size:.84rem">
-      <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="#0d9488" stroke-width="2" style="animation:spin .8s linear infinite;display:inline-block;vertical-align:-3px;margin-right:6px"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></svg>
+      <span class="btn-spin" style="width:14px;height:14px;color:#0d9488;vertical-align:-2px;margin-right:6px"></span>
       Memuat data bulanan...
     </div>`;
     return;
@@ -2145,7 +2145,7 @@ async function _kwSetTahun(val) {
       if (existing) {
         const ov = document.createElement('div');
         ov.style.cssText = 'position:absolute;inset:0;background:rgba(255,255,255,.75);border-radius:14px;display:flex;align-items:center;justify-content:center;z-index:5;backdrop-filter:blur(2px)';
-        ov.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" fill="none" viewBox="0 0 24 24" stroke="#0d9488" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="animation:spin .8s linear infinite"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></svg>`;
+        ov.innerHTML = `<span class="btn-spin" style="width:22px;height:22px;--spin-thick:3px;color:#0d9488"></span>`;
         if (existing.style.position !== 'relative') existing.style.position = 'relative';
         existing.appendChild(ov);
       }
@@ -2174,9 +2174,9 @@ function _kwClear() {
 // bermaknaNeg: true → icon panah bawah merah (negatif), false/undefined → panah atas hijau (positif)
 function _polarIcon(bermaknaNeg, size = 14) {
   if (bermaknaNeg) {
-    return `<span title="Bermakna Negatif" style="display:inline-flex;align-items:center;justify-content:center;width:${size}px;height:${size}px;background:#fee2e2;border-radius:50%;flex-shrink:0;vertical-align:middle;margin-left:4px"><svg xmlns="http://www.w3.org/2000/svg" width="${Math.round(size*0.57)}" height="${Math.round(size*0.57)}" fill="none" viewBox="0 0 24 24" stroke="#991b1b" stroke-width="2.8"><path stroke-linecap="round" stroke-linejoin="round" d="M19 14l-7 7m0 0l-7-7m7 7V3"/></svg></span>`;
+    return `<span data-tip="Bermakna Negatif" style="display:inline-flex;align-items:center;justify-content:center;width:${size}px;height:${size}px;background:#fee2e2;border-radius:50%;flex-shrink:0;vertical-align:middle;margin-left:4px"><svg xmlns="http://www.w3.org/2000/svg" width="${Math.round(size*0.57)}" height="${Math.round(size*0.57)}" fill="none" viewBox="0 0 24 24" stroke="#991b1b" stroke-width="2.8"><path stroke-linecap="round" stroke-linejoin="round" d="M19 14l-7 7m0 0l-7-7m7 7V3"/></svg></span>`;
   }
-  return `<span title="Bermakna Positif" style="display:inline-flex;align-items:center;justify-content:center;width:${size}px;height:${size}px;background:#d1fae5;border-radius:50%;flex-shrink:0;vertical-align:middle;margin-left:4px"><svg xmlns="http://www.w3.org/2000/svg" width="${Math.round(size*0.57)}" height="${Math.round(size*0.57)}" fill="none" viewBox="0 0 24 24" stroke="#065f46" stroke-width="2.8"><path stroke-linecap="round" stroke-linejoin="round" d="M5 10l7-7m0 0l7 7m-7-7v18"/></svg></span>`;
+  return `<span data-tip="Bermakna Positif" style="display:inline-flex;align-items:center;justify-content:center;width:${size}px;height:${size}px;background:#d1fae5;border-radius:50%;flex-shrink:0;vertical-align:middle;margin-left:4px"><svg xmlns="http://www.w3.org/2000/svg" width="${Math.round(size*0.57)}" height="${Math.round(size*0.57)}" fill="none" viewBox="0 0 24 24" stroke="#065f46" stroke-width="2.8"><path stroke-linecap="round" stroke-linejoin="round" d="M5 10l7-7m0 0l7 7m-7-7v18"/></svg></span>`;
 }
 
 function _kwBuildDdItems(list) {
@@ -2585,7 +2585,7 @@ function _renderKinerjaWatch() {
         <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3 4 7l4 4"/><path d="M4 7h16"/><path d="m16 21 4-4-4-4"/><path d="M20 17H4"/></svg>
         Ganti
       </button>
-      <button class="kw-ind-selector-reset" onclick="_kwReset()" type="button" title="Reset / hapus pilihan">
+      <button class="kw-ind-selector-reset" onclick="_kwReset()" type="button" data-tip="Reset / hapus pilihan">
         <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
       </button>
     </div>` : `
@@ -3129,8 +3129,8 @@ function _renderKinerjaWatch() {
               <button type="button" class="kw-ps-acc-header" onclick="_kwToggleAcc(this)" aria-expanded="${openByDefault}" aria-controls="${itemId}">
                 <span class="kw-ps-acc-month">${esc(item.label)}</span>
                 <span class="kw-ps-acc-dots">
-                  ${item.primary   ? `<span class="kw-ps-dot kw-ps-dot--${item.primaryCls}" title="${esc(item.primaryLabel)}"></span>` : ''}
-                  ${item.secondary ? `<span class="kw-ps-dot kw-ps-dot--${item.secondaryCls}" title="${esc(item.secondaryLabel)}"></span>` : ''}
+                  ${item.primary   ? `<span class="kw-ps-dot kw-ps-dot--${item.primaryCls}" data-tip="${esc(item.primaryLabel)}"></span>` : ''}
+                  ${item.secondary ? `<span class="kw-ps-dot kw-ps-dot--${item.secondaryCls}" data-tip="${esc(item.secondaryLabel)}"></span>` : ''}
                 </span>
                 <svg class="kw-ps-acc-chevron" xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
               </button>

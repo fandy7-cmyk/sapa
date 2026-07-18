@@ -78,6 +78,8 @@ function _fmtDT(iso) {
 // HALAMAN KELOLA PERIODE (admin only)
 // ═══════════════════════════════════════════════════════════════════════════
 async function loadPeriodePage() {
+  const wrap0 = document.getElementById('periodeCardsWrap');
+  if (wrap0) wrap0.innerHTML = `<div style="text-align:center;padding:32px;color:var(--teks-muted)"><span class="btn-spin" style="width:11px;height:11px;vertical-align:-1px;margin-right:6px"></span>Memuat data...</div>`;
   await loadPeriodeAktif();
   try {
     const r = await fetch('/api/periode', { headers: authHeaders() });
@@ -270,12 +272,12 @@ function renderPeriodeCards() {
               <span class="periode-window-item close">${_iconLock}${_fmtDT(p.close_at)}</span>
             </div>
             <div class="periode-jenis-actions">
-              <button class="btn btn-ghost btn-sm" title="Edit" onclick="openPeriodeModal(${p.id})">
+              <button class="btn btn-ghost btn-sm" data-tip="Edit" onclick="openPeriodeModal(${p.id})">
                 <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                   <path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
                 </svg>
               </button>
-              <button class="btn btn-danger btn-sm" title="Hapus" onclick="deletePeriode(${p.id})">
+              <button class="btn btn-danger btn-sm" data-tip="Hapus" onclick="deletePeriode(${p.id})">
                 <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                   <polyline points="3 6 5 6 21 6"/>
                   <path stroke-linecap="round" stroke-linejoin="round" d="M19 6l-1 14H6L5 6"/>

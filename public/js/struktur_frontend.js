@@ -8,8 +8,20 @@ let _pegawaiAll  = [];
 let _pegawaiPage = 1;
 const _pegawaiPerPage = 15;
 
+// Suntik transformasi Cloudinary (resize + auto quality/format) biar foto
+// pegawai yang cuma ditampilin kecil (thumbnail/preview) gak download full-res.
+function _cldThumb(url, w, h) {
+  if (!url || !url.includes('/upload/')) return url;
+  if (url.includes('cloudinary.com') && !/\/upload\/[a-z]_/i.test(url.split('/upload/')[1] || '')) {
+    return url.replace('/upload/', `/upload/w_${w},h_${h},c_fill,g_face,q_auto,f_auto/`);
+  }
+  return url;
+}
+
 /* ── Load & render ────────────────────────────────────────────── */
 async function loadPegawai() {
+  const tb0 = document.getElementById('pegawaiTableBody');
+  if (tb0) tb0.innerHTML = `<tr class="empty-row"><td colspan="6"><span class="btn-spin" style="width:11px;height:11px;vertical-align:-1px;margin-right:6px"></span>Memuat data...</td></tr>`;
   try {
     const r = await fetch('/api/pegawai', { headers: authHeaders() });
     if (!r.ok) throw new Error(await r.text());
@@ -59,7 +71,7 @@ function renderPegawaiTable() {
   } else {
     tb.innerHTML = pageData.map(p => {
       const fotoHtml = p.foto_url
-        ? `<img src="${esc(p.foto_url)}" alt="${esc(p.nama)}" style="width:34px;height:34px;border-radius:50%;object-fit:cover;border:1.5px solid var(--abu-2);flex-shrink:0">`
+        ? `<img src="${esc(_cldThumb(p.foto_url, 68, 68))}" alt="${esc(p.nama)}" loading="lazy" decoding="async" style="width:34px;height:34px;border-radius:50%;object-fit:cover;border:1.5px solid var(--abu-2);flex-shrink:0">`
         : `<div style="width:34px;height:34px;border-radius:50%;background:var(--teal-50,#f0fdfa);border:1.5px solid var(--abu-2);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-weight:700;font-size:.85rem;color:var(--hijau)">${esc((p.nama||'?')[0].toUpperCase())}</div>`;
       return `
       <tr>
@@ -79,13 +91,13 @@ function renderPegawaiTable() {
         <td><span class="badge ${p.aktif ? 'badge-hijau' : 'badge-abu'}">${p.aktif ? 'Aktif' : 'Nonaktif'}</span></td>
         <td>
           <div style="display:flex;gap:6px">
-            <button class="btn btn-ghost btn-sm" onclick="openPegawaiModal(${p.id})" title="Edit">
+            <button class="btn btn-ghost btn-sm" onclick="openPegawaiModal(${p.id})" data-tip="Edit">
               <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5H6a2 2 0 0 0-2 2v11a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2v-5"/><path d="M18.586 2.586a2 2 0 1 1 2.828 2.828L11.828 15 9 16l1-2.828 8.586-8.586z"/></svg>
             </button>
-            <button class="btn btn-ghost btn-sm" onclick="togglePegawai(${p.id}, ${p.aktif})" title="${p.aktif ? 'Nonaktifkan' : 'Aktifkan'}">
+            <button class="btn btn-ghost btn-sm" onclick="togglePegawai(${p.id}, ${p.aktif})" data-tip="${p.aktif ? 'Nonaktifkan' : 'Aktifkan'}">
               <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${p.aktif ? '<path d="M18.36 6.64A9 9 0 0 1 20.77 15"/><path d="M6.16 6.16a9 9 0 1 0 12.68 12.68"/><path d="M12 2v4"/><path d="M2 12h4"/>' : '<path d="M9 12l2 2 4-4"/><circle cx="12" cy="12" r="10"/>'}</svg>
             </button>
-            <button class="btn btn-danger btn-sm" onclick="deletePegawai(${p.id})" title="Hapus">
+            <button class="btn btn-danger btn-sm" onclick="deletePegawai(${p.id})" data-tip="Hapus">
               <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6m4-6v6"/><path d="M9 6V4h6v2"/></svg>
             </button>
           </div>
@@ -132,7 +144,7 @@ function openPegawaiModal(id = null) {
       document.getElementById('pegawaiAtasan').value   = p.parent_id ?? '';
       if (p.foto_url) {
         const prev = document.getElementById('pegawaiFotoPreview');
-        prev.src = p.foto_url;
+        prev.src = _cldThumb(p.foto_url, 240, 240);
         prev.style.display = 'block';
       }
     }

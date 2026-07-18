@@ -87,7 +87,7 @@ async function loadAuditTrail(page = _auditPage) {
   });
 
   const tb = document.getElementById('auditTableBody');
-  if (tb) tb.innerHTML = `<tr class="empty-row"><td colspan="6">Memuat data...</td></tr>`;
+  if (tb) tb.innerHTML = `<tr class="empty-row"><td colspan="6"><span class="btn-spin" style="width:11px;height:11px;vertical-align:-1px;margin-right:6px"></span>Memuat data...</td></tr>`;
 
   try {
     const r = await fetch(`/api/audit-trail?${params}`, { headers: authHeaders() });

@@ -494,8 +494,8 @@ body::before {
 .qtip-box {
   position: fixed;
   max-width: 230px;
-  background: #ccfbf1; color: var(--hijau);
-  font-size: .60rem; font-weight: 600; line-height: 1.35;
+  background: var(--hijau); color: #fff;
+  font-size: .60rem; font-weight: 400; line-height: 1.35;
   padding: 3px 8px; border-radius: var(--r-sm);
   text-align: center;
   box-shadow: 0 2px 8px rgba(13,148,136,.3);
@@ -511,8 +511,8 @@ body::before {
   transform: translateX(-50%);
   border: 5px solid transparent;
 }
-.qtip-box.qtip-top::after    { top: 100%;    border-top-color: #ccfbf1; }
-.qtip-box.qtip-bottom::after { bottom: 100%; border-bottom-color: #ccfbf1; }
+.qtip-box.qtip-top::after    { top: 100%;    border-top-color: var(--hijau); }
+.qtip-box.qtip-bottom::after { bottom: 100%; border-bottom-color: var(--hijau); }
 
 /* Varian warna qtip — dipakai via data-tip-variant="danger|success" pada elemen sumbernya */
 .qtip-box.qtip-danger { background: #fee2e2; color: #991b1b; }
@@ -999,6 +999,43 @@ tr:hover td:not(.td-sticky-no):not(.td-sticky-name) { background: var(--abu-1); 
   opacity: 0;
 }
 .csel-option.selected .csel-option-check { opacity: 1; }
+
+/* Search box di dalam panel — dipakai select dgn banyak opsi (mis. Filter User).
+   Panel jadi flex-column: search box fixed di atas, cuma list opsi yg discroll. */
+.csel-panel.csel-panel-searchable {
+  max-height: none;
+  overflow: visible;
+  display: flex;
+  flex-direction: column;
+}
+.csel-search-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px var(--sp-4);
+  border-bottom: 1px solid var(--abu-2);
+  flex-shrink: 0;
+}
+.csel-search-wrap svg { flex-shrink: 0; color: var(--teks-muted); }
+.csel-search-input {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  outline: none;
+  background: transparent;
+  font-family: inherit;
+  font-size: var(--fs-sm);
+  color: var(--teks);
+}
+.csel-search-input::placeholder { color: var(--teks-muted); }
+.csel-options-list { max-height: 220px; overflow-y: auto; }
+.csel-empty {
+  padding: 14px var(--sp-4);
+  font-size: var(--fs-sm);
+  color: var(--teks-muted);
+  text-align: center;
+  font-style: italic;
+}
 
 /* Varian floating position:fixed — dipakai custom-select generik (buildCustomSelect
    di app.html) biar panel dropdown gak ke-clip overflow:hidden di container manapun
@@ -1848,8 +1885,31 @@ body.login-page::before {
 .btn-login:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 var(--sp-5) var(--sp-6) rgba(13,148,136,.42); }
 .btn-login:active:not(:disabled) { transform: translateY(0); }
 .btn-login:disabled { opacity: .55; cursor: not-allowed; }
-.spinner { width: 17px; height: 17px; border: 2.5px solid rgba(255,255,255,.3); border-top-color: #fff; border-radius: 50%; animation: spin .7s linear infinite; display: none; flex-shrink: 0; }
+.spinner {
+  width: 17px; height: 17px;
+  border-radius: 50%;
+  background: repeating-conic-gradient(#fff 0deg 24deg, transparent 24deg 45deg);
+  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 2.5px), #000 calc(100% - 2.5px));
+          mask: radial-gradient(farthest-side, transparent calc(100% - 2.5px), #000 calc(100% - 2.5px));
+  animation: spin 1.4s linear infinite; display: none; flex-shrink: 0;
+}
 .btn-login.loading .spinner { display: block; }
+
+/* ── Spinner dashed generik — pengganti ikon SVG refresh berputar ──
+   Dipakai inline di tombol (Simpan, Reset, dll) via `<span class="btn-spin"></span>`.
+   Warnanya ngikut warna teks tombol (currentColor) biar otomatis kontras. */
+.btn-spin {
+  --spin-thick: 2px;
+  display: inline-block;
+  width: 12px; height: 12px;
+  border-radius: 50%;
+  background: repeating-conic-gradient(currentColor 0deg 24deg, transparent 24deg 45deg);
+  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - var(--spin-thick)), #000 calc(100% - var(--spin-thick)));
+          mask: radial-gradient(farthest-side, transparent calc(100% - var(--spin-thick)), #000 calc(100% - var(--spin-thick)));
+  animation: spin 1.3s linear infinite;
+  vertical-align: -2px;
+  flex-shrink: 0;
+}
 
 /* right footer badge */
 .right-footer { margin-top: var(--sp-6); display: flex; align-items: center; justify-content: center; }
@@ -8021,10 +8081,11 @@ tr:hover td:not(.td-sticky-no):not(.td-sticky-name) { background: var(--abu-1); 
 }
 .lap-spinner {
   width: 36px; height: 36px;
-  border: 3.5px solid #e2e8f0;
-  border-top-color: #0d9488;
   border-radius: 50%;
-  animation: spin .7s linear infinite;
+  background: repeating-conic-gradient(#0d9488 0deg 24deg, transparent 24deg 45deg);
+  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 3.5px), #000 calc(100% - 3.5px));
+          mask: radial-gradient(farthest-side, transparent calc(100% - 3.5px), #000 calc(100% - 3.5px));
+  animation: spin 1.4s linear infinite;
   margin: 0 auto;
 }
 /* ── Kelola Laporan — jenis segmented control ─────────────────────────── */

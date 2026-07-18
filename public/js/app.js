@@ -1118,7 +1118,7 @@ class DatePicker {
         </span>
       </div>
       ${this.value
-        ? `<span class="dp-clear" id="${this.containerId}-clear" title="Hapus"><svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg></span>`
+        ? `<span class="dp-clear" id="${this.containerId}-clear" data-tip="Hapus"><svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg></span>`
         : `<span class="dp-icon"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><path stroke-linecap="round" d="M16 2v4M8 2v4M3 10h18"/></svg></span>`
       }
       ${this._open ? this._renderPopup() : ''}
@@ -1463,11 +1463,11 @@ function _setSidebarDisabled(disabled) {
       el.style.pointerEvents = 'none';
       el.style.filter        = 'blur(2px)';
       el.style.transition    = 'filter .2s ease';
-      el.title = 'Tutup preview terlebih dahulu';
+      el.dataset.tip = 'Tutup preview terlebih dahulu';
     } else {
       el.style.pointerEvents = '';
       el.style.filter        = '';
-      el.title               = '';
+      el.dataset.tip               = '';
     }
   });
 }
@@ -1606,7 +1606,7 @@ function _dpRender() {
     if (_dpFiles.length > 1) {
       dotsEl.style.display = 'flex';
       dotsEl.innerHTML = _dpFiles.map((_, i) =>
-        `<button class="dp-dot ${i === _dpIdx ? 'active' : ''}" onclick="navDocPreviewTo(${i})" title="File ${i+1}"></button>`
+        `<button class="dp-dot ${i === _dpIdx ? 'active' : ''}" onclick="navDocPreviewTo(${i})" data-tip="File ${i+1}"></button>`
       ).join('');
     } else {
       dotsEl.style.display = 'none';
@@ -1935,9 +1935,7 @@ function _dpRenderGdocsViewer(cloudinaryUrl, name) {
 function _dpLoadingHtml(msg = 'Memuat dokumen...') {
   return `
     <div style="display:flex;flex-direction:column;align-items:center;gap:14px;color:#475569">
-      <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" fill="none" viewBox="0 0 24 24" stroke="#475569" stroke-width="2" style="animation:spin .9s linear infinite">
-        <path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
-      </svg>
+      <span class="btn-spin" style="width:28px;height:28px;--spin-thick:3px;color:#475569"></span>
       <span style="font-size:.82rem">${msg}</span>
     </div>`;
 }
@@ -1994,7 +1992,7 @@ async function loadLapTemplateAdmin() {
   // Mode urusan — tabel sederhana
   const tbody = document.getElementById('lapTemplateBody');
   if (!tbody) return;
-  tbody.innerHTML = `<tr class="empty-row"><td colspan="5">Memuat...</td></tr>`;
+  tbody.innerHTML = `<tr class="empty-row"><td colspan="5"><span class="btn-spin" style="width:11px;height:11px;vertical-align:-1px;margin-right:6px"></span>Memuat...</td></tr>`;
   try {
     const res  = await fetch('/api/kinerja/laporan-template?jenis=urusan', { headers: authHeaders() });
     const data = await res.json();
@@ -2022,17 +2020,17 @@ function _renderUrusanTable() {
       <td style="text-align:center;color:#64748b">${t.urutan}</td>
       <td style="text-align:center">
         <div style="display:flex;gap:6px;justify-content:center">
-          <button class="btn btn-sm" title="Kelola Indikator"
+          <button class="btn btn-sm" data-tip="Kelola Indikator"
             onclick="openLapTemplateIndikatorModal(${t.id}, '${escHtml(t.nama).replace(/'/g,"\\'")}', 'urusan')"
             style="background:#e0f2fe;color:#0369a1;border:none">
             <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
             Indikator
           </button>
-          <button class="btn btn-ghost btn-sm" title="Edit"
+          <button class="btn btn-ghost btn-sm" data-tip="Edit"
             onclick="openLapTemplateModal(${t.id}, 'urusan')">
             <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
           </button>
-          <button class="btn btn-danger btn-sm" title="Hapus"
+          <button class="btn btn-danger btn-sm" data-tip="Hapus"
             onclick="deleteLapTemplate(${t.id}, '${escHtml(t.nama).replace(/'/g,"\\'")}', 'urusan')">
             <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path stroke-linecap="round" stroke-linejoin="round" d="M19 6l-1 14H6L5 6"/><path stroke-linecap="round" stroke-linejoin="round" d="M10 11v6m4-6v6"/><path stroke-linecap="round" stroke-linejoin="round" d="M9 6V4h6v2"/></svg>
           </button>
@@ -2059,7 +2057,7 @@ async function _loadCascadeLevel(level, parentId) {
   const col = document.getElementById(`lapCol_${level}`);
   if (!col) return;
   const list = col.querySelector('.lap-col-list');
-  list.innerHTML = `<div class="lap-col-loading">Memuat...</div>`;
+  list.innerHTML = `<div class="lap-col-loading"><span class="btn-spin" style="width:11px;height:11px;vertical-align:-1px;margin-right:6px"></span>Memuat...</div>`;
   try {
     const qs  = parentId ? `jenis=${jenis}&parent_id=${parentId}` : `jenis=${jenis}`;
     const res  = await fetch(`/api/kinerja/laporan-template?${qs}`, { headers: authHeaders() });
@@ -2081,12 +2079,12 @@ function _renderCascade() {
       <div class="lap-cascade-col" id="lapCol_${level}">
         <div class="lap-col-header" style="background:${c.hdr}">
           <span>${LAP_JENIS_LABEL[jenis]}</span>
-          <button class="lap-col-add-btn" onclick="_openCascadeAdd(${level})" title="Tambah ${LAP_JENIS_LABEL[jenis]}">
+          <button class="lap-col-add-btn" onclick="_openCascadeAdd(${level})" data-tip="Tambah ${LAP_JENIS_LABEL[jenis]}">
             <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>
           </button>
         </div>
         <div class="lap-col-list" id="lapColList_${level}">
-          ${level > 0 ? '<div class="lap-col-hint">← Pilih item di kiri</div>' : '<div class="lap-col-loading">Memuat...</div>'}
+          ${level > 0 ? '<div class="lap-col-hint">← Pilih item di kiri</div>' : '<div class="lap-col-loading"><span class="btn-spin" style="width:11px;height:11px;vertical-align:-1px;margin-right:6px"></span>Memuat...</div>'}
         </div>
       </div>
       ${level < 3 ? '<div class="lap-cascade-arrow">›</div>' : ''}
@@ -2117,13 +2115,13 @@ function _renderCascadeLevel(level, items) {
       <div class="lap-col-item-meta">
         <span class="lap-ind-badge">${t.jumlah_indikator} indikator</span>
         <div class="lap-col-item-actions">
-          <button onclick="event.stopPropagation();openLapTemplateIndikatorModal(${t.id},'${escHtml(t.nama).replace(/'/g,"\\'")}','${jenis}')" title="Kelola Indikator" class="lap-item-btn lap-item-btn-ind">
+          <button onclick="event.stopPropagation();openLapTemplateIndikatorModal(${t.id},'${escHtml(t.nama).replace(/'/g,"\\'")}','${jenis}')" data-tip="Kelola Indikator" class="lap-item-btn lap-item-btn-ind">
             <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
           </button>
-          <button onclick="event.stopPropagation();_openCascadeEdit(${level},${t.id})" title="Edit" class="lap-item-btn lap-item-btn-edit">
+          <button onclick="event.stopPropagation();_openCascadeEdit(${level},${t.id})" data-tip="Edit" class="lap-item-btn lap-item-btn-edit">
             <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
           </button>
-          <button onclick="event.stopPropagation();deleteLapTemplate(${t.id},'${escHtml(t.nama).replace(/'/g,"\\'")}','cascade',${level})" title="Hapus" class="lap-item-btn lap-item-btn-del">
+          <button onclick="event.stopPropagation();deleteLapTemplate(${t.id},'${escHtml(t.nama).replace(/'/g,"\\'")}','cascade',${level})" data-tip="Hapus" class="lap-item-btn lap-item-btn-del">
             <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path stroke-linecap="round" stroke-linejoin="round" d="M19 6l-1 14H6L5 6m5 0V4h4v2"/></svg>
           </button>
         </div>
@@ -2474,7 +2472,7 @@ async function openLapTemplateIndikatorModal(templateId, templateNama, templateJ
   document.getElementById('modalLapTemplateIndSub').textContent = templateJenis === 'urusan' ? 'Template Urusan' : 'Template Tujuan/Sasaran/Program';
   document.getElementById('lapTplIndSearch').value = '';
   document.getElementById('lapTplIndFilterJenis').value = '';
-  document.getElementById('lapTplIndList').innerHTML = '<div style="text-align:center;padding:20px;color:#94a3b8">Memuat...</div>';
+  document.getElementById('lapTplIndList').innerHTML = '<div style="text-align:center;padding:20px;color:#94a3b8"><span class="btn-spin" style="width:11px;height:11px;vertical-align:-1px;margin-right:6px"></span>Memuat...</div>';
   openModal('modalLapTemplateIndikator');
 
   // Fetch semua indikator + yang sudah terpilih secara paralel
