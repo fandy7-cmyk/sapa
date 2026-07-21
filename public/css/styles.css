@@ -689,6 +689,9 @@ tr:hover td:not(.td-sticky-no):not(.td-sticky-name) { background: var(--abu-1); 
 .card table th:first-child { border-radius: var(--r-sm) 0 0 0; }
 .card table th:last-child  { border-radius: 0 var(--r-sm) 0 0; }
 
+/* ── Freeze header: Surat Masuk, Surat Keluar, Laporan Surat ── */
+.surat-table thead th { position: sticky; top: 0; z-index: 2; }
+
 /* ── Periode table — colored header ── */
 .periode-table th {
   background: var(--hijau);

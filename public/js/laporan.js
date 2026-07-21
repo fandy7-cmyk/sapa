@@ -53,6 +53,8 @@
 const BULAN_NAMA = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
 
 let _laporanSuratFilterReady = false;
+let _lapSuratPage = 1;
+const _LAP_SURAT_PER_PAGE = 10;
 
 async function _initLaporanSuratFilter(smRows, skRows) {
   const sel = document.getElementById('laporanSuratTahun');
@@ -189,45 +191,9 @@ async function loadLaporanSurat() {
   else if (status === 'selesai')   filteredRows = allRows.filter(r => r.selesai);
   else if (status === 'terlambat') filteredRows = allRows.filter(r => r.terlambat);
 
-  // ── Tabel detail ──
-  const tbody = document.getElementById('laporanSuratTableBody');
-  if (tbody) {
-    if (!filteredRows.length) {
-      tbody.innerHTML = `<tr class="empty-row"><td colspan="8">Tidak ada data untuk filter yang dipilih</td></tr>`;
-    } else {
-      tbody.innerHTML = filteredRows.map((r, i) => {
-        const tgl = r.tanggal
-          ? new Date(r.tanggal).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' })
-          : '—';
-        const batas = r.batas_waktu
-          ? new Date(r.batas_waktu).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' })
-          : '—';
-        const jenisBadge = r._jenis === 'masuk'
-          ? `<span style="background:#d1fae5;color:#065f46;padding:2px 8px;border-radius:99px;font-size:.7rem">Masuk</span>`
-          : `<span style="background:#ede9fe;color:#4c1d95;padding:2px 8px;border-radius:99px;font-size:.7rem">Keluar</span>`;
-        let statusBadge;
-        if (r._jenis === 'keluar') {
-          statusBadge = `<span style="background:#dbeafe;color:#1e40af;padding:2px 8px;border-radius:99px;font-size:.7rem">Terkirim</span>`;
-        } else if (r.terlambat) {
-          statusBadge = `<span style="background:#fee2e2;color:#991b1b;padding:2px 8px;border-radius:99px;font-size:.7rem">Terlambat</span>`;
-        } else if (r.selesai) {
-          statusBadge = `<span style="background:#d1fae5;color:#065f46;padding:2px 8px;border-radius:99px;font-size:.7rem">Selesai</span>`;
-        } else {
-          statusBadge = `<span style="background:#fef3c7;color:#92400e;padding:2px 8px;border-radius:99px;font-size:.7rem">Belum Selesai</span>`;
-        }
-        return `<tr>
-          <td style="text-align:center">${i + 1}</td>
-          <td>${r.no_surat}</td>
-          <td>${r.perihal}</td>
-          <td style="text-align:center">${jenisBadge}</td>
-          <td style="text-align:center">${tgl}</td>
-          <td>${r.pengirim_tujuan}</td>
-          <td style="text-align:center;white-space:nowrap;color:${r.terlambat ? '#ef4444' : 'inherit'}">${batas}</td>
-          <td style="text-align:center;white-space:nowrap">${statusBadge}</td>
-        </tr>`;
-      }).join('');
-    }
-  }
+  // ── Tabel detail (dengan pagination) ──
+  _lapSuratPage = 1;
+  _lapRenderSuratTbody(filteredRows);
 
   // Simpan data (rekap bulanan tetap untuk PDF)
   const rekap = Array.from({ length: 12 }, (_, idx) => ({
@@ -245,6 +211,67 @@ async function loadLaporanSurat() {
   window._laporanSuratData = { rekap, allRows, filteredRows, tahun, jenis, status };
 }
 
+
+// Render tbody Laporan Surat dengan pagination (10 baris/halaman)
+function _lapRenderSuratTbody(rows) {
+  const tbody = document.getElementById('laporanSuratTableBody');
+  if (!tbody) return;
+
+  const total = rows.length;
+  if (!total) {
+    tbody.innerHTML = `<tr class="empty-row"><td colspan="8">Tidak ada data untuk filter yang dipilih</td></tr>`;
+    if (typeof renderPagination === 'function') renderPagination('laporanSuratPagination', 0, 1, _LAP_SURAT_PER_PAGE, '_lapSuratGoPage');
+    return;
+  }
+
+  const pages = Math.ceil(total / _LAP_SURAT_PER_PAGE);
+  if (_lapSuratPage > pages) _lapSuratPage = pages;
+  if (_lapSuratPage < 1)     _lapSuratPage = 1;
+  const start = (_lapSuratPage - 1) * _LAP_SURAT_PER_PAGE;
+  const pageRows = rows.slice(start, start + _LAP_SURAT_PER_PAGE);
+
+  tbody.innerHTML = pageRows.map((r, i) => {
+    const tgl = r.tanggal
+      ? new Date(r.tanggal).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' })
+      : '—';
+    const batas = r.batas_waktu
+      ? new Date(r.batas_waktu).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' })
+      : '—';
+    const jenisBadge = r._jenis === 'masuk'
+      ? `<span style="background:#d1fae5;color:#065f46;padding:2px 8px;border-radius:99px;font-size:.7rem">Masuk</span>`
+      : `<span style="background:#ede9fe;color:#4c1d95;padding:2px 8px;border-radius:99px;font-size:.7rem">Keluar</span>`;
+    let statusBadge;
+    if (r._jenis === 'keluar') {
+      statusBadge = `<span style="background:#dbeafe;color:#1e40af;padding:2px 8px;border-radius:99px;font-size:.7rem">Terkirim</span>`;
+    } else if (r.terlambat) {
+      statusBadge = `<span style="background:#fee2e2;color:#991b1b;padding:2px 8px;border-radius:99px;font-size:.7rem">Terlambat</span>`;
+    } else if (r.selesai) {
+      statusBadge = `<span style="background:#d1fae5;color:#065f46;padding:2px 8px;border-radius:99px;font-size:.7rem">Selesai</span>`;
+    } else {
+      statusBadge = `<span style="background:#fef3c7;color:#92400e;padding:2px 8px;border-radius:99px;font-size:.7rem">Belum Selesai</span>`;
+    }
+    return `<tr>
+      <td style="text-align:center">${start + i + 1}</td>
+      <td>${r.no_surat}</td>
+      <td>${r.perihal}</td>
+      <td style="text-align:center">${jenisBadge}</td>
+      <td style="text-align:center">${tgl}</td>
+      <td>${r.pengirim_tujuan}</td>
+      <td style="text-align:center;white-space:nowrap;color:${r.terlambat ? '#ef4444' : 'inherit'}">${batas}</td>
+      <td style="text-align:center;white-space:nowrap">${statusBadge}</td>
+    </tr>`;
+  }).join('');
+
+  if (typeof renderPagination === 'function') renderPagination('laporanSuratPagination', total, _lapSuratPage, _LAP_SURAT_PER_PAGE, '_lapSuratGoPage');
+}
+
+// Pindah halaman tabel Laporan Surat (tanpa fetch ulang)
+function _lapSuratGoPage(p) {
+  _lapSuratPage = p;
+  const data = window._laporanSuratData;
+  if (!data) return;
+  _lapRenderSuratTbody(data.filteredRows);
+}
 
 function _renderSuratChart(rekap, jenis) {
   const el = document.getElementById('laporanSuratChart');
