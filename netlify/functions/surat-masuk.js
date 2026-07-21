@@ -49,12 +49,13 @@ export const handler = async (event) => {
   }
 
   if (event.httpMethod === 'GET' && !numId && !isStats) {
-    const { page = 1, limit = 20, q = '', selesai: sf = '', pegawai: pf = '', tahun: tf = '', bulan: bf = '', sort = '' } = event.queryStringParameters || {};
+    const { page = 1, limit = 20, q = '', selesai: sf = '', terlambat: tlf = '', pegawai: pf = '', tahun: tf = '', bulan: bf = '', sort = '' } = event.queryStringParameters || {};
     const offset = (parseInt(page) - 1) * parseInt(limit);
     const search  = `%${q}%`;
     const pgSearch = pf ? pf : null;
     const tahunVal = tf ? tf : null;
     const bulanVal = bf ? parseInt(bf) : null;
+    const onlyTerlambat = tlf === '1' || tlf === 'true';
     // sort=terbaru → dipakai panel "Surat Masuk Terbaru" di dashboard, urut
     // berdasarkan input terbaru (created_at/id DESC). Default tetap ASC
     // berdasarkan tanggal_terima, mengikuti urutan buku agenda (lama → baru).
@@ -72,6 +73,7 @@ export const handler = async (event) => {
         WHERE (perihal ILIKE ${search} OR asal_surat ILIKE ${search} OR no_agenda ILIKE ${search}
           OR no_surat ILIKE ${search} OR COALESCE(pegawai,'') ILIKE ${search})
           AND (${selesaiBool}::boolean IS NULL OR selesai = ${selesaiBool}::boolean)
+          AND (${onlyTerlambat} = FALSE OR (selesai = FALSE AND batas_waktu < (NOW() AT TIME ZONE 'Asia/Makassar')::date))
           AND (${pgSearch}::text IS NULL OR pegawai = ${pgSearch}::text)
           AND (${tahunVal}::text IS NULL OR EXTRACT(YEAR FROM tanggal_terima)::text = ${tahunVal}::text)
           AND (${bulanVal}::int IS NULL OR EXTRACT(MONTH FROM tanggal_terima)::int = ${bulanVal}::int)
@@ -82,6 +84,7 @@ export const handler = async (event) => {
         WHERE (perihal ILIKE ${search} OR asal_surat ILIKE ${search} OR no_agenda ILIKE ${search}
           OR no_surat ILIKE ${search} OR COALESCE(pegawai,'') ILIKE ${search})
           AND (${selesaiBool}::boolean IS NULL OR selesai = ${selesaiBool}::boolean)
+          AND (${onlyTerlambat} = FALSE OR (selesai = FALSE AND batas_waktu < (NOW() AT TIME ZONE 'Asia/Makassar')::date))
           AND (${pgSearch}::text IS NULL OR pegawai = ${pgSearch}::text)
           AND (${tahunVal}::text IS NULL OR EXTRACT(YEAR FROM tanggal_terima)::text = ${tahunVal}::text)
           AND (${bulanVal}::int IS NULL OR EXTRACT(MONTH FROM tanggal_terima)::int = ${bulanVal}::int)
@@ -93,6 +96,7 @@ export const handler = async (event) => {
         WHERE (perihal ILIKE ${search} OR asal_surat ILIKE ${search} OR no_agenda ILIKE ${search}
           OR no_surat ILIKE ${search} OR COALESCE(pegawai,'') ILIKE ${search})
           AND (${selesaiBool}::boolean IS NULL OR selesai = ${selesaiBool}::boolean)
+          AND (${onlyTerlambat} = FALSE OR (selesai = FALSE AND batas_waktu < (NOW() AT TIME ZONE 'Asia/Makassar')::date))
           AND (${pgSearch}::text IS NULL OR pegawai = ${pgSearch}::text)
           AND (${tahunVal}::text IS NULL OR EXTRACT(YEAR FROM tanggal_terima)::text = ${tahunVal}::text)
           AND (${bulanVal}::int IS NULL OR EXTRACT(MONTH FROM tanggal_terima)::int = ${bulanVal}::int)

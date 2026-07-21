@@ -284,7 +284,63 @@ function getStatusHtml({ icon, title, message }) {
     .logo-row img { height: 36px; object-fit: contain; }
     .logo-divider { width: 1px; height: 28px; background: #e2e8f0; }
     .brand-footer { margin-top: 40px; display: flex; flex-direction: column; align-items: center; gap: 3px; font-size: .72rem; color: #94a3b8; text-align: center; }
-    .brand-footer img { width: 32px; margin-bottom: 6px; opacity: .7; }
+    /* Logo brand-footer: animasi sama persis kayak di halaman bundle aktif
+       (ring spin conic-gradient + partikel orbit berkedip + loop
+       fade-in/scale/glow tiap 6 detik), biar konsisten di semua halaman
+       publik -- sebelumnya cuma statis di sini. */
+    .bf-icon-wrap {
+      position: relative;
+      display: inline-flex; align-items: center; justify-content: center;
+      width: 32px; height: 32px;
+      margin-bottom: 10px;
+      animation: bfIconLoop 6s cubic-bezier(0.34,1.56,0.64,1) infinite;
+    }
+    .bf-icon-wrap img {
+      width: 32px; height: 32px; object-fit: contain;
+      position: relative; z-index: 2;
+      margin-bottom: 0; opacity: 1;
+    }
+    .bf-ring-spin {
+      position: absolute; inset: -6px;
+      border-radius: 50%;
+      background: conic-gradient(from 0deg, transparent 0%, rgba(20,184,166,.7) 14%, rgba(45,212,191,.9) 22%, transparent 34%, transparent 55%, rgba(13,148,136,.6) 68%, rgba(45,212,191,.8) 76%, transparent 88%);
+      -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 2px), #000 calc(100% - 2px));
+              mask: radial-gradient(farthest-side, transparent calc(100% - 2px), #000 calc(100% - 2px));
+      animation: bfRingSpin 2.6s linear infinite;
+      pointer-events: none;
+      z-index: 0;
+    }
+    .bf-particles-mini { position: absolute; inset: -14px; pointer-events: none; z-index: 1; }
+    .bfp {
+      position: absolute; top: 50%; left: 50%;
+      border-radius: 50%;
+      transform-origin: 0 0;
+      animation: bfOrbit linear infinite, bfTwinkle ease-in-out infinite;
+    }
+    .bfp-1 { --r: 17px; width: 1.5px; height: 1.5px; background: #2dd4bf; box-shadow: 0 0 3px 1px rgba(45,212,191,.8); animation-duration: 4.6s, 1.9s; animation-delay: -1.6s, -.4s; }
+    .bfp-2 { --r: 22px; width: 2px;   height: 2px;   background: #0d9488; box-shadow: 0 0 3px 1px rgba(13,148,136,.7); animation-duration: 5.5s, 2.3s; animation-delay: -2.3s, -.6s; }
+    .bfp-3 { --r: 14px; width: 1.5px; height: 1.5px; background: #fff; box-shadow: 0 0 3px 1px rgba(255,255,255,.85); animation-duration: 3.9s, 1.6s; animation-delay: -1.1s, -.3s; }
+    .bfp-4 { --r: 25px; width: 1.5px; height: 1.5px; background: #5eead4; box-shadow: 0 0 3px 1px rgba(94,234,212,.7); animation-duration: 6.2s, 2.6s; animation-delay: -2.8s, -.7s; }
+    .bfp-5 { --r: 19px; width: 2px;   height: 2px;   background: #14b8a6; box-shadow: 0 0 3px 1px rgba(20,184,166,.75); animation-duration: 4.9s, 2.1s; animation-delay: -1.9s, -.5s; }
+
+    @keyframes bfRingSpin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+    @keyframes bfOrbit {
+      from { transform: rotate(0deg)   translateX(var(--r, 20px)) rotate(0deg); }
+      to   { transform: rotate(360deg) translateX(var(--r, 20px)) rotate(-360deg); }
+    }
+    @keyframes bfTwinkle {
+      0%, 100% { opacity: .25; }
+      50%      { opacity: 1; }
+    }
+    @keyframes bfIconLoop {
+      0%   { opacity: 0; transform: scale(0.6); filter: drop-shadow(0 0 0px rgba(13,148,136,0)); }
+      12%  { opacity: 1; transform: scale(1.12); filter: drop-shadow(0 4px 10px rgba(0,0,0,.15)) drop-shadow(0 0 12px rgba(13,148,136,.5)); }
+      18%  { transform: scale(1); }
+      50%  { filter: drop-shadow(0 2px 8px rgba(0,0,0,.12)) drop-shadow(0 0 8px rgba(13,148,136,.35)); }
+      82%  { opacity: 1; transform: scale(1); }
+      92%  { opacity: 0; transform: scale(0.75); }
+      100% { opacity: 0; transform: scale(0.6); }
+    }
   </style>
 </head>
 <body>
@@ -306,7 +362,17 @@ function getStatusHtml({ icon, title, message }) {
     <p>${message}</p>
   </div>
   <div class="brand-footer">
-    <img src="/favicon.png" alt="SAPA" />
+    <span class="bf-icon-wrap">
+      <span class="bf-ring-spin"></span>
+      <span class="bf-particles-mini">
+        <span class="bfp bfp-1"></span>
+        <span class="bfp bfp-2"></span>
+        <span class="bfp bfp-3"></span>
+        <span class="bfp bfp-4"></span>
+        <span class="bfp bfp-5"></span>
+      </span>
+      <img src="/favicon.png" alt="SAPA" />
+    </span>
     <span>Sub Bagian Perencanaan</span>
     <span>Dinas Kesehatan, Pengendalian Penduduk dan Keluarga Berencana</span>
     <span>Kabupaten Banggai Laut</span>
