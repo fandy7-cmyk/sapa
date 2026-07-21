@@ -307,6 +307,47 @@ let _lapKinerjaColspan = 12;
 const _LAP_ROMAWI = ['I', 'II', 'III', 'IV'];
 
 // Render satu baris tabel Laporan Kinerja
+// Escape karakter HTML biar isian user (mis. ada "<" atau "&") gak bikin tabel laporan rusak.
+function _lapEscHtml(s) {
+  return String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+// Render teks markdown-lite dari kolom Faktor Penghambat/Solusi/Faktor Pendukung/
+// Rencana Tindak Lanjut jadi HTML buat laporan (preview & PDF). Sebelumnya kolom-kolom
+// ini nampilin teks mentah apa adanya (termasuk newline-nya) di dalam <td> dengan
+// white-space:normal, jadi baris "1. ...\n2. ..." ke-collapse jadi satu baris nyambung
+// tanpa nomor kebaca sama sekali. Sekarang baris "1. " / "- " yang berurutan
+// dikelompokkan jadi <ol>/<ul><li> beneran (sama kayak _mdToHtmlDisplay di kinerja.js)
+// supaya rapi & hanging-indent pas wrap.
+function _lapMdToHtml(md) {
+  if (!md) return '';
+  const inlineFmt = (line) => {
+    let h = _lapEscHtml(line);
+    h = h.replace(/\*\*([^\n]+?)\*\*/g, '<strong>$1</strong>');
+    h = h.replace(/(^|[^_])_([^_\n]+?)_(?!_)/g, '$1<em>$2</em>');
+    return h;
+  };
+  let html = '';
+  let listType = null; // 'ol' | 'ul' | null
+  const closeList = () => { if (listType) { html += `</${listType}>`; listType = null; } };
+  String(md).split('\n').forEach(line => {
+    const numM = line.match(/^(\d+)\.\s+(.*)$/);
+    const bulM = line.match(/^-\s+(.*)$/);
+    if (numM) {
+      if (listType !== 'ol') { closeList(); html += '<ol class="lap-md-list">'; listType = 'ol'; }
+      html += `<li>${inlineFmt(numM[2])}</li>`;
+    } else if (bulM) {
+      if (listType !== 'ul') { closeList(); html += '<ul class="lap-md-list">'; listType = 'ul'; }
+      html += `<li>${inlineFmt(bulM[1])}</li>`;
+    } else {
+      closeList();
+      html += `<div class="lap-md-line">${inlineFmt(line) || '&nbsp;'}</div>`;
+    }
+  });
+  closeList();
+  return html;
+}
+
 function _lapKinerjaRowHtml(r, no, bulanTampil) {
   const bulanCells = bulanTampil.map(b => {
     const v = r.realisasiPerBulan[b];
@@ -340,10 +381,10 @@ function _lapKinerjaRowHtml(r, no, bulanTampil) {
     ${bulanCells}
     <td style="text-align:center;font-weight:600;color:${sdPelaporan==='—'?'#000000':'#1e293b'}">${sdPelaporan}</td>
     <td style="text-align:center;font-weight:700;color:${capColor}">${capaian}</td>
-    <td style="font-size:.75rem;color:${r._fpenghambat?'#1e293b':'#000000'};max-width:180px;white-space:normal;word-break:break-word;overflow-wrap:anywhere">${r._fpenghambat || '—'}</td>
-    <td style="font-size:.75rem;color:${r._solusi?'#1e293b':'#000000'};max-width:180px;white-space:normal;word-break:break-word;overflow-wrap:anywhere">${r._solusi || '—'}</td>
-    <td style="font-size:.75rem;color:${r._fpendukung?'#1e293b':'#000000'};max-width:180px;white-space:normal;word-break:break-word;overflow-wrap:anywhere">${r._fpendukung || '—'}</td>
-    <td style="font-size:.75rem;color:${r._rencana_tl?'#1e293b':'#000000'};max-width:180px;white-space:normal;word-break:break-word;overflow-wrap:anywhere">${r._rencana_tl || '—'}</td>
+    <td style="font-size:.75rem;text-align:${r._fpenghambat?'left':'center'};color:${r._fpenghambat?'#1e293b':'#000000'};max-width:180px;word-break:break-word;overflow-wrap:anywhere">${r._fpenghambat ? _lapMdToHtml(r._fpenghambat) : '—'}</td>
+    <td style="font-size:.75rem;text-align:${r._solusi?'left':'center'};color:${r._solusi?'#1e293b':'#000000'};max-width:180px;word-break:break-word;overflow-wrap:anywhere">${r._solusi ? _lapMdToHtml(r._solusi) : '—'}</td>
+    <td style="font-size:.75rem;text-align:${r._fpendukung?'left':'center'};color:${r._fpendukung?'#1e293b':'#000000'};max-width:180px;word-break:break-word;overflow-wrap:anywhere">${r._fpendukung ? _lapMdToHtml(r._fpendukung) : '—'}</td>
+    <td style="font-size:.75rem;text-align:${r._rencana_tl?'left':'center'};color:${r._rencana_tl?'#1e293b':'#000000'};max-width:180px;word-break:break-word;overflow-wrap:anywhere">${r._rencana_tl ? _lapMdToHtml(r._rencana_tl) : '—'}</td>
   </tr>`;
 }
 
@@ -994,6 +1035,27 @@ function _bukaPreviewPDF(htmlBody, judulDokumen, orientation) {
   table { border-collapse:collapse; width:100%; }
   th, td { font-size:10px; }
   td { word-break:break-word; overflow-wrap:break-word; }
+  .lap-md-line { white-space:pre-wrap; }
+  .lap-md-list { margin:1px 0 3px; padding-left:1.2em; text-align:left; }
+  .lap-md-list li { margin-bottom:2px; padding-left:2px; }
+  /* Daftar bernomor: rata kanan dalam kotak lebar tetap biar titik di
+     belakang nomor 1 & 2 digit sejajar (konsisten sama editor & preview
+     layar). Cuma <ol> yang disentuh, <ul> (bullet simbol) tetap seperti
+     semula. Hex langsung (bukan var(--hijau)) karena dokumen PDF ini
+     berdiri sendiri, gak ikut :root variabel tema app utama. */
+  ol.lap-md-list { list-style:none; counter-reset:lapmdnum; padding-left:1.4em; }
+  ol.lap-md-list > li { counter-increment:lapmdnum; position:relative; }
+  ol.lap-md-list > li::before {
+    content:counter(lapmdnum) ".";
+    position:absolute;
+    left:-1.4em;
+    width:1.3em;
+    text-align:right;
+    white-space:nowrap;
+    color:#0f172a;
+    font-weight:400;
+  }
+  .lap-md-list li:last-child { margin-bottom:0; }
 </style>
 </head>
 <body>
@@ -1240,6 +1302,29 @@ function _applyLaporanKinerjaFilters(rows) {
 //  Struktur: header urusan + baris indikator (sama seperti laporan utama)
 // ══════════════════════════════════════════════════════
 
+// Badge inline "Makna Indikator" (circle panah) & "Tipe Perhitungan" + "Jenis" (pill) —
+// ditempel langsung di sel INDIKATOR KINERJA, gaya sama persis dengan tampilan di app
+// (bukan kolom terpisah), biar layout tabel PDF gak melebar.
+function _lapMaknaBadgeHtml(bermaknaNegatif) {
+  return bermaknaNegatif
+    ? `<span style="display:inline-flex;align-items:center;justify-content:center;width:15px;height:15px;background:#fee2e2;border-radius:50%;flex-shrink:0"><svg xmlns="http://www.w3.org/2000/svg" width="8" height="8" fill="none" viewBox="0 0 24 24" stroke="#991b1b" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M19 14l-7 7m0 0l-7-7m7 7V3"/></svg></span>`
+    : `<span style="display:inline-flex;align-items:center;justify-content:center;width:15px;height:15px;background:#d1fae5;border-radius:50%;flex-shrink:0"><svg xmlns="http://www.w3.org/2000/svg" width="8" height="8" fill="none" viewBox="0 0 24 24" stroke="#065f46" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M5 10l7-7m0 0l7 7m-7-7v18"/></svg></span>`;
+}
+const _LAP_TIPE_PERHITUNGAN_INFO = {
+  kumulatif:     { label: 'Kumulatif',     bg: '#eff6ff', teks: '#1d4ed8', border: '#bfdbfe' },
+  rata_rata:     { label: 'Rata-rata',     bg: '#fffbeb', teks: '#b45309', border: '#fde68a' },
+  non_kumulatif: { label: 'Non-Kumulatif', bg: '#fdf4ff', teks: '#a21caf', border: '#f5d0fe' },
+};
+function _lapPillHtml(label, info) {
+  return `<span style="display:inline-block;font-size:8px;font-weight:700;color:${info.teks};background:${info.bg};border:1px solid ${info.border};padding:2px 7px;border-radius:8px;white-space:nowrap">${label}</span>`;
+}
+// Baris badge di bawah nama indikator: pill tipe perhitungan
+function _lapIndikatorBadgeRowHtml(r) {
+  const tipeInfo = _LAP_TIPE_PERHITUNGAN_INFO[r?.tipe_perhitungan] || _LAP_TIPE_PERHITUNGAN_INFO.non_kumulatif;
+  return `<div style="display:flex;gap:4px;margin-top:4px;flex-wrap:wrap">${_lapPillHtml(tipeInfo.label, tipeInfo)}</div>`;
+}
+
+
 // Render baris <tr> untuk satu indikator pada tabel PDF Capaian/Monev Kinerja.
 // Dipakai baik di mode ter-grouping (per Urusan/TSP, untuk admin) maupun mode
 // flat langsung dari data.rows (untuk non-admin, tanpa perlu template).
@@ -1255,17 +1340,20 @@ function _lapKinerjaPdfRowHtml(r, no, displayCols, namaIndikatorOverride) {
     : parseFloat(r._capaian) >= 60  ? '#d97706' : '#dc2626';
   return `<tr>
     <td style="padding:4px 5px;border:1px solid #000;text-align:center;vertical-align:top;font-size:10px;color:#000000;min-width:36px;white-space:nowrap">${no}</td>
-    <td style="padding:4px 5px;border:1px solid #000;vertical-align:top;font-size:10px">${namaIndikatorOverride || r.nama_indikator}</td>
+    <td style="padding:4px 5px;border:1px solid #000;vertical-align:top;font-size:10px">
+      <div style="display:flex;align-items:center;gap:5px;flex-wrap:wrap"><span>${namaIndikatorOverride || r.nama_indikator}</span>${_lapMaknaBadgeHtml(r.bermakna_negatif)}</div>
+      ${_lapIndikatorBadgeRowHtml(r)}
+    </td>
     <td style="padding:4px 3px;border:1px solid #000;text-align:center;vertical-align:top;font-size:10px;color:#000000">${r.target ?? '—'}</td>
     <td style="padding:4px 3px;border:1px solid #000;text-align:center;vertical-align:top;font-size:10px;color:#000000">${r.satuan || '—'}</td>
     <td style="padding:4px 5px;border:1px solid #000;text-align:center;vertical-align:top;font-size:10px;color:#1e293b;min-width:110px">${r.penanggung_jawab || '—'}</td>
     ${bulanCells}
     <td style="padding:4px 3px;border:1px solid #000;text-align:center;vertical-align:top;font-size:10px;font-weight:700;color:#000000">${r._realisasiSd ?? '—'}</td>
     <td style="padding:4px 3px;border:1px solid #000;text-align:center;vertical-align:top;font-size:10px;font-weight:700;color:${capColor}">${r._capaian !== null ? r._capaian + '%' : '—'}</td>
-    <td style="padding:4px 5px;border:1px solid #000;text-align:center;vertical-align:top;font-size:10px;max-width:150px;word-break:break-word;overflow-wrap:anywhere">${r._fpenghambat || ''}</td>
-    <td style="padding:4px 5px;border:1px solid #000;text-align:center;vertical-align:top;font-size:10px;max-width:150px;word-break:break-word;overflow-wrap:anywhere">${r._solusi || ''}</td>
-    <td style="padding:4px 5px;border:1px solid #000;text-align:center;vertical-align:top;font-size:10px;max-width:150px;word-break:break-word;overflow-wrap:anywhere">${r._fpendukung || ''}</td>
-    <td style="padding:4px 5px;border:1px solid #000;text-align:center;vertical-align:top;font-size:10px;max-width:150px;word-break:break-word;overflow-wrap:anywhere">${r._rencana_tl || ''}</td>
+    <td style="padding:4px 5px;border:1px solid #000;text-align:${r._fpenghambat?'left':'center'};vertical-align:top;font-size:10px;max-width:150px;word-break:break-word;overflow-wrap:anywhere">${r._fpenghambat ? _lapMdToHtml(r._fpenghambat) : '—'}</td>
+    <td style="padding:4px 5px;border:1px solid #000;text-align:${r._solusi?'left':'center'};vertical-align:top;font-size:10px;max-width:150px;word-break:break-word;overflow-wrap:anywhere">${r._solusi ? _lapMdToHtml(r._solusi) : '—'}</td>
+    <td style="padding:4px 5px;border:1px solid #000;text-align:${r._fpendukung?'left':'center'};vertical-align:top;font-size:10px;max-width:150px;word-break:break-word;overflow-wrap:anywhere">${r._fpendukung ? _lapMdToHtml(r._fpendukung) : '—'}</td>
+    <td style="padding:4px 5px;border:1px solid #000;text-align:${r._rencana_tl?'left':'center'};vertical-align:top;font-size:10px;max-width:150px;word-break:break-word;overflow-wrap:anywhere">${r._rencana_tl ? _lapMdToHtml(r._rencana_tl) : '—'}</td>
   </tr>`;
 }
 
@@ -1544,10 +1632,10 @@ async function downloadLaporanByTSP(btnEl) {
           : parseFloat(r._capaian) >= 100 ? '#059669'
           : parseFloat(r._capaian) >= 80  ? '#2563eb'
           : parseFloat(r._capaian) >= 60  ? '#d97706' : '#dc2626';
-        const permasalahan = r?._fpenghambat || '';
-        const solusi       = r?._solusi || '';
-        const fpendukung   = r?._fpendukung || '';
-        const rencanaTl    = r?._rencana_tl || '';
+        const permasalahan = r?._fpenghambat ? _lapMdToHtml(r._fpenghambat) : '—';
+        const solusi       = r?._solusi ? _lapMdToHtml(r._solusi) : '—';
+        const fpendukung   = r?._fpendukung ? _lapMdToHtml(r._fpendukung) : '—';
+        const rencanaTl    = r?._rencana_tl ? _lapMdToHtml(r._rencana_tl) : '—';
         const bulanCells = displayCols.map(c => {
           const v = c.type === 'tw' ? r?.realisasiPerBulan?.[c.lastBulan] : r?.realisasiPerBulan?.[c.bulan];
           const empty = v === null || v === undefined || v === '';
@@ -1573,17 +1661,20 @@ async function downloadLaporanByTSP(btnEl) {
         return `${idx === 0 ? kegiatanHeaderRow : ''}<tr>
           ${idx === 0 && tpl.jenis !== 'kegiatan' ? '' : `<td style="padding:6px 8px;border:1px solid #000;text-align:center;font-size:10px;font-weight:700;color:#000000;vertical-align:top;line-height:1.4">${tpl.jenis === 'kegiatan' && idx === 0 ? kegiatanInGroup : ''}</td>`}
           ${groupCell}
-          <td style="padding:5px 8px;border:1px solid #000;font-size:10px;vertical-align:top;line-height:1.4">${namaInd}</td>
+          <td style="padding:5px 8px;border:1px solid #000;font-size:10px;vertical-align:top;line-height:1.4">
+            <div style="display:flex;align-items:center;gap:5px;flex-wrap:wrap"><span>${namaInd}</span>${_lapMaknaBadgeHtml(r?.bermakna_negatif)}</div>
+            ${_lapIndikatorBadgeRowHtml(r)}
+          </td>
           <td style="padding:5px 6px;border:1px solid #000;text-align:center;font-size:10px;vertical-align:top">${satuan}</td>
           <td style="padding:5px 6px;border:1px solid #000;text-align:center;font-size:10px;font-weight:700;vertical-align:top">${target}</td>
           <td style="padding:5px 6px;border:1px solid #000;text-align:center;font-size:10px;color:#1e293b;vertical-align:top;min-width:110px">${r?.penanggung_jawab || '—'}</td>
           ${bulanCells}
           <td style="padding:5px 6px;border:1px solid #000;text-align:center;font-size:10px;font-weight:700;vertical-align:top">${realisasi}</td>
           <td style="padding:5px 6px;border:1px solid #000;text-align:center;font-size:10px;font-weight:700;color:${capColor};vertical-align:top">${capaian}</td>
-          <td style="padding:5px 7px;border:1px solid #000;font-size:10px;vertical-align:top;line-height:1.4">${permasalahan}</td>
-          <td style="padding:5px 7px;border:1px solid #000;font-size:10px;vertical-align:top;line-height:1.4">${solusi}</td>
-          <td style="padding:5px 7px;border:1px solid #000;font-size:10px;vertical-align:top;line-height:1.4">${fpendukung}</td>
-          <td style="padding:5px 7px;border:1px solid #000;font-size:10px;vertical-align:top;line-height:1.4">${rencanaTl}</td>
+          <td style="padding:5px 7px;border:1px solid #000;text-align:${r?._fpenghambat?'left':'center'};vertical-align:top;font-size:10px;line-height:1.4">${permasalahan}</td>
+          <td style="padding:5px 7px;border:1px solid #000;text-align:${r?._solusi?'left':'center'};vertical-align:top;font-size:10px;line-height:1.4">${solusi}</td>
+          <td style="padding:5px 7px;border:1px solid #000;text-align:${r?._fpendukung?'left':'center'};vertical-align:top;font-size:10px;line-height:1.4">${fpendukung}</td>
+          <td style="padding:5px 7px;border:1px solid #000;text-align:${r?._rencana_tl?'left':'center'};vertical-align:top;font-size:10px;line-height:1.4">${rencanaTl}</td>
         </tr>`;
       }).join('');
     }).join('');

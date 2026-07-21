@@ -198,11 +198,14 @@ function _populateSuratStatus(suratList, selectId) {
   const sel = document.getElementById(selectId);
   if (!sel) return;
   const current = sel.value;
-  const hasProses  = suratList.some(s => s.selesai === false);
-  const hasSelesai = suratList.some(s => s.selesai === true);
+  const now = new Date();
+  const hasProses    = suratList.some(s => s.selesai === false);
+  const hasSelesai   = suratList.some(s => s.selesai === true);
+  const hasTerlambat = suratList.some(s => !s.selesai && s.batas_waktu && new Date(s.batas_waktu) < now);
   let opts = '<option value="">Semua Status</option>';
-  if (hasProses)  opts += '<option value="false">Belum Selesai</option>';
-  if (hasSelesai) opts += '<option value="true">Selesai</option>';
+  if (hasProses)    opts += '<option value="false">Belum Selesai</option>';
+  if (hasTerlambat) opts += '<option value="terlambat">Terlambat</option>';
+  if (hasSelesai)   opts += '<option value="true">Selesai</option>';
   sel.innerHTML = opts;
   // Pertahankan nilai yang sedang dipilih jika masih relevan
   if ([...sel.options].some(o => o.value === current)) sel.value = current;
@@ -244,8 +247,13 @@ async function loadSuratMasuk(page = 1) {
   const tahun  = document.getElementById('smFilterTahun')?.value || '';
   const bulan  = document.getElementById('smFilterBulan')?.value || '';
   const pegawai = isFull ? (document.getElementById('smFilterPegawai')?.value || '') : '';
-  const params = new URLSearchParams({ page, limit: 20, q });
-  if (_smFilter) params.set('selesai', _smFilter);
+  const params = new URLSearchParams({ page, limit: 10, q });
+  if (_smFilter === 'terlambat') {
+    params.set('selesai', 'false');
+    params.set('terlambat', '1');
+  } else if (_smFilter) {
+    params.set('selesai', _smFilter);
+  }
   if (tahun)     params.set('tahun', tahun);
   if (bulan)     params.set('bulan', bulan);
   if (pegawai)   params.set('pegawai', pegawai);
@@ -264,11 +272,16 @@ async function loadSuratMasuk(page = 1) {
         <td>${s.tanggal_surat ? fmtDateOnly(s.tanggal_surat) : '—'}</td>
         <td>${esc(s.perihal)}</td>
         <td>${fmtDateOnly(s.tanggal_terima)}</td>
-        <td>${s.batas_waktu ? `<span style="white-space:nowrap">${fmtDateOnly(s.batas_waktu)}${!s.selesai && new Date(s.batas_waktu) < new Date() ? ' <span class=\"badge badge-red\">!</span>' : ''}</span>` : '—'}</td>
+        <td>${s.batas_waktu ? `<span style="white-space:nowrap">${fmtDateOnly(s.batas_waktu)}</span>` : '—'}</td>
         <td>${s.pegawai ? esc(s.pegawai) : '—'}</td>
         <td style="text-align:center">${renderDocsBadge(s.file_url, 'Surat Masuk — ' + (s.perihal||''))}</td>
         <td>
-          <span class="badge ${s.selesai?'badge-green':'badge-yellow'}">${s.selesai?'Selesai':'Proses'}</span>
+          ${(() => {
+            const isTerlambat = !s.selesai && s.batas_waktu && new Date(s.batas_waktu) < new Date();
+            const cls = s.selesai ? 'badge-green' : (isTerlambat ? 'badge-red' : 'badge-yellow');
+            const label = s.selesai ? 'Selesai' : (isTerlambat ? 'Terlambat' : 'Proses');
+            return `<span class="badge ${cls}">${label}</span>`;
+          })()}
         </td>
         <td style="white-space:nowrap">
           ${(isFull || s.created_by === (_user && _user.id)) ? `<button class="btn btn-ghost btn-sm" data-tip="Edit" onclick="editSM(${s.id})"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg></button>` : ''}
@@ -277,7 +290,7 @@ async function loadSuratMasuk(page = 1) {
         </td>
       </tr>`).join('')
       : '<tr class="empty-row"><td colspan="11">Tidak ada data</td></tr>';
-    renderPagination('smPagination', d.total||0, page, 20, 'loadSuratMasuk');
+    renderPagination('smPagination', d.total||0, page, 10, 'loadSuratMasuk');
 
     // Populate dropdown tahun hanya saat page=1 tanpa filter tahun (supaya tetap lengkap)
     if (page === 1 && !tahun && !bulan) {
@@ -417,7 +430,7 @@ async function loadSuratKeluar(page = 1) {
   const tahun   = document.getElementById('skFilterTahun')?.value || '';
   const bulan   = document.getElementById('skFilterBulan')?.value || '';
   const pegawai = isFull ? (document.getElementById('skFilterPegawai')?.value || '') : '';
-  const params = new URLSearchParams({ page, limit: 20, q });
+  const params = new URLSearchParams({ page, limit: 10, q });
   if (tahun)   params.set('tahun', tahun);
   if (bulan)   params.set('bulan', bulan);
   if (pegawai) params.set('pegawai', pegawai);
@@ -443,7 +456,7 @@ async function loadSuratKeluar(page = 1) {
         </td>
       </tr>`).join('')
       : '<tr class="empty-row"><td colspan="8">Tidak ada data</td></tr>';
-    renderPagination('skPagination', d.total||0, page, 20, 'loadSuratKeluar');
+    renderPagination('skPagination', d.total||0, page, 10, 'loadSuratKeluar');
 
     // Populate dropdown tahun surat keluar
     if (page === 1 && !tahun && !bulan) {

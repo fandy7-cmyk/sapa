@@ -273,7 +273,7 @@ async function loadDashboardSurat() {
 
   html += `<div class="dash-kpi-row">
     ${_kpiCard({ icon: iconMasuk, label: 'Surat Masuk', value: ss?.total_masuk ?? '—', sub: `${pctSelesai}% selesai`, color: 'tealMuda' })}
-    ${_kpiCard({ icon: iconClock, label: 'Belum Diproses', value: ss?.belum_proses ?? '—', color: 'amber' })}
+    ${_kpiCard({ icon: iconClock, label: 'Proses', value: ss?.belum_proses ?? '—', color: 'amber' })}
     ${_kpiCard({ icon: iconWarn, label: 'Terlambat', value: terlambat, color: 'red' })}
     ${_kpiCard({ icon: iconKeluar, label: 'Surat Keluar', value: ss?.total_keluar ?? '—', color: 'biruMuda' })}
     ${_kpiCard({ icon: iconCal, label: 'Bulan Ini', value: masukBulan + keluarBulan, sub: `${masukBulan} masuk · ${keluarBulan} keluar`, color: 'teal' })}
@@ -861,7 +861,6 @@ function _renderIkuGrid(bulan, tahun, pa) {
         ` : `
           <span style="font-size:0.72rem;font-weight:600;color:#94a3b8;white-space:nowrap">Dari</span>
           ${_kwMonthPicker('ikuMpFrom', _ikuTahunUnik, _ikuFromKey, '_ikuSetRangeFrom', _ikuAvailKeys)}
-          <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="#cbd5e1" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M13 7l5 5m0 0l-5 5m5-5H6"/></svg>
           <span style="font-size:0.72rem;font-weight:600;color:#94a3b8;white-space:nowrap">Sampai</span>
           ${_kwMonthPicker('ikuMpTo', _ikuTahunUnik, _ikuToKey, '_ikuSetRangeTo', _ikuToKeys)}
         `}
@@ -2562,7 +2561,6 @@ function _renderKinerjaWatch() {
           ${/* Mode Bulan: Dari → Sampai */''}
           <span style="font-size:0.72rem;font-weight:600;color:#94a3b8;white-space:nowrap">Dari</span>
           ${_kwMonthPicker('kwMpFrom', _kwTahunList.length ? _kwTahunList : [_kwTahunPilih], _kwRangeFrom?.key || periodeOptions[0]?.val, '_kwSetRangeFrom', availFromKeys)}
-          <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="#cbd5e1" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M13 7l5 5m0 0l-5 5m5-5H6"/></svg>
           <span style="font-size:0.72rem;font-weight:600;color:#94a3b8;white-space:nowrap">Sampai</span>
           ${_kwMonthPicker('kwMpTo', _kwTahunList.length ? _kwTahunList : [_kwTahunPilih], _kwRangeTo?.key || periodeOptions[periodeOptions.length-1]?.val, '_kwSetRangeTo', availToKeys)}
         `}

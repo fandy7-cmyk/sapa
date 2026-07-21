@@ -761,6 +761,12 @@ function _bindNavTooltips() {
     if (target.contains(e.relatedTarget)) return;
     if (_navTooltipEl) _navTooltipEl.classList.remove('show');
   });
+  // Sama seperti qtip: klik item nav collapsed (navigateTo/toggleGroup) memicu
+  // buildSidebar() yang mengosongkan nav.innerHTML sebelum mouseout sempat
+  // terjadi, jadi tooltip nyangkut. Tutup di klik sebagai jaring pengaman.
+  nav.addEventListener('click', () => {
+    if (_navTooltipEl) _navTooltipEl.classList.remove('show');
+  });
 }
 
 // ── Tooltip custom generik (pengganti native `title`) ───────────────────────
@@ -816,6 +822,12 @@ function _bindQtips() {
     if (_qtipEl) _qtipEl.classList.remove('show');
   });
   document.body.addEventListener('scroll', () => {
+    if (_qtipEl) _qtipEl.classList.remove('show');
+  }, true);
+  // Klik pada elemen ber-data-tip sering memicu re-render (elemen lama dihapus
+  // dari DOM) sebelum mouseout sempat terjadi, jadi tooltip nyangkut nempel.
+  // Tutup tooltip di setiap klik apapun sebagai jaring pengaman.
+  document.body.addEventListener('click', () => {
     if (_qtipEl) _qtipEl.classList.remove('show');
   }, true);
 }

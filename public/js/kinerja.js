@@ -842,16 +842,16 @@ function renderKinerjaTable(tbody) {
       <td style="text-align:center">
         <span class="capaian-badge ${badgeClass}" id="badge_${row.id}">${badgeText}</span>
       </td>
-      <td class="textarea-cell">
+      <td class="textarea-cell" style="text-align:left;vertical-align:top">
         ${_renderPSCell('fpenghambat', row.id, row.f_penghambat, capaian, canEdit, 'faktor penghambat', 'markDirty', !!row.realisasi_id, false, row.tipe_nilai === 'predikat', row.realisasi == null && !row.realisasi_id)}
       </td>
-      <td class="textarea-cell">
+      <td class="textarea-cell" style="text-align:left;vertical-align:top">
         ${_renderPSCell('solusi', row.id, row.solusi, capaian, canEdit, 'solusi', 'markDirty', !!row.realisasi_id, false, row.tipe_nilai === 'predikat', row.realisasi == null && !row.realisasi_id)}
       </td>
-      <td class="textarea-cell">
+      <td class="textarea-cell" style="text-align:left;vertical-align:top">
         ${_renderPSCell('fpendukung', row.id, row.f_pendukung, capaian, canEdit, 'faktor pendukung', 'markDirty', !!row.realisasi_id, true, row.tipe_nilai === 'predikat', row.realisasi == null && !row.realisasi_id)}
       </td>
-      <td class="textarea-cell">
+      <td class="textarea-cell" style="text-align:left;vertical-align:top">
         ${_renderPSCell('rencana', row.id, row.rencana_tl, capaian, canEdit, 'rencana tindak lanjut', 'markDirty', !!row.realisasi_id, true, row.tipe_nilai === 'predikat', row.realisasi == null && !row.realisasi_id)}
       </td>
       <td style="text-align:center" data-col="dukung">
@@ -935,6 +935,7 @@ function toggleEditRow(indikatorId) {
     if (isReadonly) {
       el.removeAttribute('readonly');
       if (el.tagName === 'SELECT') el.disabled = false; // predikat: <select> pakai disabled, bukan readonly
+      if (el.classList.contains('ps-rte')) el.contentEditable = 'true';
       el.style.background = 'var(--putih)';
       el.style.cursor = '';
       el.style.resize = '';
@@ -942,6 +943,7 @@ function toggleEditRow(indikatorId) {
     } else {
       el.setAttribute('readonly', '');
       if (el.tagName === 'SELECT') el.disabled = true; // predikat: kunci balik pakai disabled
+      if (el.classList.contains('ps-rte')) el.contentEditable = 'false';
       el.style.background = '';
       el.style.cursor = 'not-allowed';
       if (el.tagName === 'TEXTAREA') el.style.resize = 'none';
@@ -954,14 +956,14 @@ function toggleEditRow(indikatorId) {
   const psCells = document.querySelectorAll(`tr[data-id="${indikatorId}"] .ps-cell-wrap`);
   psCells.forEach(wrap => {
     const readEl = wrap.querySelector('.ps-read');
-    const taEl   = wrap.querySelector('textarea');
+    const taEl   = wrap.querySelector('.ps-rte');
     if (!taEl) return;
     if (isReadonly) {
-      // Masuk edit mode: sembunyikan view, tampilkan textarea — skip wrap yg hidden
+      // Masuk edit mode: sembunyikan view, tampilkan editor — skip wrap yg hidden
       if (wrap.style.display === 'none') return;
       if (readEl) readEl.style.display = 'none';
       taEl.style.display = '';
-      requestAnimationFrame(() => _autoResizeTA(taEl));
+      taEl.contentEditable = 'true';
     } else {
       // Keluar edit mode: update view text lalu tampilkan kembali
       const val = taEl.value || '';
@@ -969,12 +971,13 @@ function toggleEditRow(indikatorId) {
       const shortEl = wrap.querySelector('[id$="short_' + indikatorId + '"]');
       const fullEl  = wrap.querySelector('[id$="full_' + indikatorId + '"]');
       const moreBtn = wrap.querySelector('.ps-more-btn');
-      if (shortEl) { shortEl.innerHTML = escHtml(val.slice(0, LIMIT)) + (val.length > LIMIT ? '<span class="ps-ellipsis">…</span>' : ''); shortEl.style.display = ''; }
-      if (fullEl)  { fullEl.textContent = val; fullEl.style.display = 'none'; }
-      if (moreBtn) { moreBtn.textContent = 'Selengkapnya'; moreBtn.style.display = val.length > LIMIT ? '' : 'none'; }
+      if (shortEl) { shortEl.innerHTML = _mdToHtmlDisplay(val.slice(0, LIMIT)); shortEl.style.display = ''; }
+      if (fullEl)  { fullEl.innerHTML = _mdToHtmlDisplay(val); fullEl.style.display = 'none'; }
+      if (moreBtn) { moreBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>'; moreBtn.setAttribute('data-tip','Selengkapnya'); moreBtn.style.display = val.length > LIMIT ? '' : 'none'; }
       if (readEl)  { readEl.style.display = val.trim() ? '' : 'none'; }
       taEl.style.display = 'none';
       taEl.setAttribute('readonly', '');
+      taEl.contentEditable = 'false';
       taEl.style.cursor = 'not-allowed';
     }
   });
@@ -1115,6 +1118,7 @@ function toggleIkkEditRow(indikatorId) {
     if (isReadonly) {
       el.removeAttribute('readonly');
       if (el.tagName === 'SELECT') el.disabled = false; // predikat: <select> pakai disabled, bukan readonly
+      if (el.classList.contains('ps-rte')) el.contentEditable = 'true';
       el.style.background = 'var(--putih)';
       el.style.cursor = '';
       el.style.resize = '';
@@ -1122,6 +1126,7 @@ function toggleIkkEditRow(indikatorId) {
     } else {
       el.setAttribute('readonly', '');
       if (el.tagName === 'SELECT') el.disabled = true; // predikat: kunci balik pakai disabled
+      if (el.classList.contains('ps-rte')) el.contentEditable = 'false';
       el.style.background = '';
       el.style.cursor = 'not-allowed';
       if (el.tagName === 'TEXTAREA') el.style.resize = 'none';
@@ -1134,14 +1139,14 @@ function toggleIkkEditRow(indikatorId) {
   const psCells = document.querySelectorAll(`tr[data-id="${indikatorId}"] .ps-cell-wrap`);
   psCells.forEach(wrap => {
     const readEl = wrap.querySelector('.ps-read');
-    const taEl   = wrap.querySelector('textarea');
+    const taEl   = wrap.querySelector('.ps-rte');
     if (!taEl) return;
     if (isReadonly) {
-      // Masuk edit mode: sembunyikan view, tampilkan textarea — skip wrap yg hidden
+      // Masuk edit mode: sembunyikan view, tampilkan editor — skip wrap yg hidden
       if (wrap.style.display === 'none') return;
       if (readEl) readEl.style.display = 'none';
       taEl.style.display = '';
-      requestAnimationFrame(() => _autoResizeTA(taEl));
+      taEl.contentEditable = 'true';
     } else {
       // Keluar edit mode: update view text lalu tampilkan kembali
       const val = taEl.value || '';
@@ -1149,12 +1154,13 @@ function toggleIkkEditRow(indikatorId) {
       const shortEl = wrap.querySelector('[id$="short_' + indikatorId + '"]');
       const fullEl  = wrap.querySelector('[id$="full_' + indikatorId + '"]');
       const moreBtn = wrap.querySelector('.ps-more-btn');
-      if (shortEl) { shortEl.innerHTML = escHtml(val.slice(0, LIMIT)) + (val.length > LIMIT ? '<span class="ps-ellipsis">…</span>' : ''); shortEl.style.display = ''; }
-      if (fullEl)  { fullEl.textContent = val; fullEl.style.display = 'none'; }
-      if (moreBtn) { moreBtn.textContent = 'Selengkapnya'; moreBtn.style.display = val.length > LIMIT ? '' : 'none'; }
+      if (shortEl) { shortEl.innerHTML = _mdToHtmlDisplay(val.slice(0, LIMIT)); shortEl.style.display = ''; }
+      if (fullEl)  { fullEl.innerHTML = _mdToHtmlDisplay(val); fullEl.style.display = 'none'; }
+      if (moreBtn) { moreBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>'; moreBtn.setAttribute('data-tip','Selengkapnya'); moreBtn.style.display = val.length > LIMIT ? '' : 'none'; }
       if (readEl)  { readEl.style.display = val.trim() ? '' : 'none'; }
       taEl.style.display = 'none';
       taEl.setAttribute('readonly', '');
+      taEl.contentEditable = 'false';
       taEl.style.cursor = 'not-allowed';
     }
   });
@@ -1522,7 +1528,7 @@ async function saveRealisasiRow(indikatorId) {
           if (el.tagName === 'SELECT') el.disabled = true; // predikat: <select> pakai disabled, bukan readonly
           el.style.background = '';
           el.style.cursor = 'not-allowed';
-          if (el.tagName === 'TEXTAREA') { el.style.resize = 'none'; el.style.display = 'none'; }
+          if (el.classList.contains('ps-rte')) { el.style.resize = 'none'; el.style.display = 'none'; el.contentEditable = 'false'; }
           el.dataset.tip = 'Klik tombol Edit untuk mengisi';
         }
       });
@@ -1591,16 +1597,10 @@ async function saveRealisasiRow(indikatorId) {
           ? ((_targetVal2 - (_realVal2 - _targetVal2)) / _targetVal2) * 100
           : (_realVal2 / _targetVal2) * 100;
         _togglePermasalahanSolusi('', indikatorId, _capaianFinal);
-        // Update ps-read content & visibility
+        // Update ps-read content & visibility (dengan truncation + tombol Selengkapnya)
         [['fpenghambat', _savedRow?.f_penghambat], ['solusi', _savedRow?.solusi],
          ['fpendukung', _savedRow?.f_pendukung], ['rencana', _savedRow?.rencana_tl]].forEach(([base, val]) => {
-          const readEl  = document.getElementById(`${base}read_${indikatorId}`);
-          const shortEl = document.getElementById(`${base}short_${indikatorId}`);
-          if (readEl && shortEl) {
-            const hasVal = (val || '').trim().length > 0;
-            shortEl.textContent = val || '';
-            readEl.style.display = hasVal ? '' : 'none';
-          }
+          _updatePSReadAfterSave(base, indikatorId, val);
         });
       }
       // Tampilkan warning di kolom Data Dukung jika belum ada file
@@ -3829,16 +3829,16 @@ function _renderIkkTable(tbody) {
       <td style="text-align:center">
         <span class="capaian-badge ${badgeClass}" id="ikk_badge_${row.id}">${badgeText}</span>
       </td>
-      <td class="textarea-cell">
+      <td class="textarea-cell" style="text-align:left;vertical-align:top">
         ${_renderPSCell('ikk_fpenghambat', row.id, row.f_penghambat, capaian, canEdit, 'faktor penghambat', 'markIkkDirty', !!row.realisasi_id, false, row.tipe_nilai === 'predikat', row.realisasi == null && !row.realisasi_id)}
       </td>
-      <td class="textarea-cell">
+      <td class="textarea-cell" style="text-align:left;vertical-align:top">
         ${_renderPSCell('ikk_solusi', row.id, row.solusi, capaian, canEdit, 'solusi', 'markIkkDirty', !!row.realisasi_id, false, row.tipe_nilai === 'predikat', row.realisasi == null && !row.realisasi_id)}
       </td>
-      <td class="textarea-cell">
+      <td class="textarea-cell" style="text-align:left;vertical-align:top">
         ${_renderPSCell('ikk_fpendukung', row.id, row.f_pendukung, capaian, canEdit, 'faktor pendukung', 'markIkkDirty', !!row.realisasi_id, true, row.tipe_nilai === 'predikat', row.realisasi == null && !row.realisasi_id)}
       </td>
-      <td class="textarea-cell">
+      <td class="textarea-cell" style="text-align:left;vertical-align:top">
         ${_renderPSCell('ikk_rencana', row.id, row.rencana_tl, capaian, canEdit, 'rencana tindak lanjut', 'markIkkDirty', !!row.realisasi_id, true, row.tipe_nilai === 'predikat', row.realisasi == null && !row.realisasi_id)}
       </td>
       <td style="text-align:center" data-col="dukung">${_renderDukungBtn(row, _ikk_bulan, _ikk_tahun, 'ikk', !row.realisasi_id)}</td>
@@ -4014,7 +4014,7 @@ async function saveIkkRealisasiRow(indikatorId) {
           if (el.tagName === 'SELECT') el.disabled = true; // predikat: <select> pakai disabled, bukan readonly
           el.style.background = '';
           el.style.cursor = 'not-allowed';
-          if (el.tagName === 'TEXTAREA') { el.style.resize = 'none'; el.style.display = 'none'; }
+          if (el.classList.contains('ps-rte')) { el.style.resize = 'none'; el.style.display = 'none'; el.contentEditable = 'false'; }
           el.dataset.tip = 'Klik tombol Edit untuk mengisi';
         }
       });
@@ -4081,12 +4081,7 @@ async function saveIkkRealisasiRow(indikatorId) {
         _togglePermasalahanSolusi('ikk', indikatorId, _cIkk);
         [['ikk_fpenghambat', _savedIkk?.f_penghambat], ['ikk_solusi', _savedIkk?.solusi],
          ['ikk_fpendukung', _savedIkk?.f_pendukung], ['ikk_rencana', _savedIkk?.rencana_tl]].forEach(([base, val]) => {
-          const readEl  = document.getElementById(`${base}read_${indikatorId}`);
-          const shortEl = document.getElementById(`${base}short_${indikatorId}`);
-          if (readEl && shortEl) {
-            shortEl.textContent = val || '';
-            readEl.style.display = (val || '').trim().length > 0 ? '' : 'none';
-          }
+          _updatePSReadAfterSave(base, indikatorId, val);
         });
       }
     }
@@ -4132,9 +4127,10 @@ function _jsAttr(val) {
 }
 
 // ── Permasalahan & Solusi: hanya tampil jika capaian < 100% ───────────────
-// Jika capaian >= 100% (target tercapai), textarea disembunyikan & diganti
-// catatan "Target tercapai". Jika capaian null/NaN (belum diisi), textarea tetap tampil.
-// Auto-resize textarea mengikuti konten (tanpa scroll)
+// Jika capaian >= 100% (target tercapai), editor disembunyikan & diganti
+// catatan "Target tercapai". Jika capaian null/NaN (belum diisi), editor tetap tampil.
+// Auto-resize textarea mengikuti konten (tanpa scroll) — dipertahankan untuk
+// kompatibilitas, tapi .ps-rte (div contenteditable) sudah tumbuh natural jadi no-op.
 function _autoResizeTA(el) {
   if (!el || el.tagName !== 'TEXTAREA') return;
   el.style.height = 'auto';
@@ -4143,6 +4139,638 @@ function _autoResizeTA(el) {
 function _autoResizeAllTA(tr) {
   if (!tr) return;
   tr.querySelectorAll('.textarea-cell textarea').forEach(_autoResizeTA);
+}
+
+// ══════════════════════════════════════════════════════════════════════════
+// Rich text (markdown-lite) untuk Faktor Penghambat / Solusi / Faktor
+// Pendukung / Rencana Tindak Lanjut — dipakai di modul IKU, IKK, dan SPM.
+// Disimpan di DB sbg teks markdown-lite biasa (kompatibel dgn data lama):
+//   **tebal**   _miring_   "- item" (daftar simbol)   "1. item" (bernomor)
+// Toolbar melayang muncul saat teks di-select (mirip Notion), tombol:
+// Bold, Italic, Daftar simbol, Daftar bernomor.
+// ══════════════════════════════════════════════════════════════════════════
+
+function _escMd2Html(str) {
+  return String(str || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+// markdown-lite -> HTML aman (dipakai utk isi awal .ps-rte & tampilan ps-read)
+function _mdToHtml(md) {
+  if (!md) return '';
+  return String(md).split('\n').map(line => {
+    let h = _escMd2Html(line);
+    h = h.replace(/\*\*([^\n]+?)\*\*/g, '<strong>$1</strong>');
+    h = h.replace(/(^|[^_])_([^_\n]+?)_(?!_)/g, '$1<em>$2</em>');
+    return h;
+  }).join('<br>');
+}
+
+// Sama seperti _mdToHtml, tapi khusus buat tampilan baca (ps-read-full / "Selengkapnya").
+// Baris "1. " / "- " yang berurutan dikelompokkan jadi <ol>/<ul> beneran (bukan cuma
+// teks angka + <br>) supaya saat teks panjang wrap ke baris berikutnya, lekukannya rapi
+// (hanging indent) — bukan nempel ke margin kiri kayak _mdToHtml biasa.
+function _mdToHtmlDisplay(md) {
+  if (!md) return '';
+  const inlineFmt = (line) => {
+    let h = _escMd2Html(line);
+    h = h.replace(/\*\*([^\n]+?)\*\*/g, '<strong>$1</strong>');
+    h = h.replace(/(^|[^_])_([^_\n]+?)_(?!_)/g, '$1<em>$2</em>');
+    return h;
+  };
+  let html = '';
+  let listType = null; // 'ol' | 'ul' | null
+  const closeList = () => { if (listType) { html += `</${listType}>`; listType = null; } };
+  String(md).split('\n').forEach(line => {
+    const numM = line.match(/^(\d+)\.\s+(.*)$/);
+    const bulM = line.match(/^-\s+(.*)$/);
+    if (numM) {
+      if (listType !== 'ol') { closeList(); html += '<ol class="md-list">'; listType = 'ol'; }
+      html += `<li>${inlineFmt(numM[2])}</li>`;
+    } else if (bulM) {
+      if (listType !== 'ul') { closeList(); html += '<ul class="md-list">'; listType = 'ul'; }
+      html += `<li>${inlineFmt(bulM[1])}</li>`;
+    } else {
+      closeList();
+      const h = inlineFmt(line);
+      html += `<div class="md-line">${h || '<br>'}</div>`;
+    }
+  });
+  closeList();
+  return html;
+}
+
+// Markdown-lite -> HTML khusus buat isi .ps-rte (editor contenteditable).
+// Setiap baris dibungkus <div class="rte-line"> sendiri-sendiri (bukan cuma
+// dipisah <br> kayak _mdToHtml) supaya baris "1. " / "- " bisa dikasih CSS
+// hanging-indent (.rte-line--list) — pas teksnya panjang dan wrap ke baris
+// berikutnya, lekukannya nyambung rapi di bawah kata pertama, bukan nempel
+// ke margin kiri.
+function _mdToRteHtml(md) {
+  if (!md) return '';
+  const inlineFmt = (line) => {
+    let h = _escMd2Html(line);
+    h = h.replace(/\*\*([^\n]+?)\*\*/g, '<strong>$1</strong>');
+    h = h.replace(/(^|[^_])_([^_\n]+?)_(?!_)/g, '$1<em>$2</em>');
+    return h;
+  };
+  // Marker ("1."/"-") dibungkus <span class="rte-marker"> terpisah dari sisa
+  // teks (bukan cuma nempel jadi bagian dari teks baris kayak sebelumnya)
+  // supaya bisa di-render rata kanan dalam kotak lebar tetap lewat CSS --
+  // titik di belakang nomor 1 digit ("1.") & 2 digit ("10.") jadi sejajar,
+  // gak geser kayak dulu (marker cuma teks polos, lebarnya ikut jumlah digit).
+  return String(md).split('\n').map(line => {
+    const m = line.match(/^(\d+\.|-)[ \u00A0](.*)$/);
+    if (m) {
+      const marker = _escMd2Html(m[1]);
+      const rest = inlineFmt(m[2]);
+      const ulCls = m[1] === '-' ? ' rte-marker--ul' : '';
+      return `<div class="rte-line rte-line--list"><span class="rte-marker${ulCls}">${marker}</span>\u00A0${rest || '<br>'}</div>`;
+    }
+    const h = inlineFmt(line);
+    return `<div class="rte-line">${h || '<br>'}</div>`;
+  }).join('');
+}
+
+// HTML (isi .ps-rte) -> markdown-lite (dipakai saat kode lain baca `.value`)
+function _htmlToMd(el) {
+  function walk(node) {
+    let out = '';
+    node.childNodes.forEach(n => {
+      if (n.nodeType === 3) { out += n.nodeValue; return; }
+      if (n.nodeType !== 1) return;
+      const tag = n.tagName;
+      if (tag === 'BR') { out += '\n'; return; }
+      if (tag === 'STRONG' || tag === 'B') { out += '**' + walk(n) + '**'; return; }
+      if (tag === 'EM' || tag === 'I')     { out += '_' + walk(n) + '_'; return; }
+      if (tag === 'DIV' || tag === 'P') {
+        // Baris kosong dirender sebagai <div><br></div> (placeholder biar
+        // tingginya tetap kelihatan) — jangan sampai <br> placeholder ini
+        // ikut ditambahin sebagai baris kosong ekstra ("\n" dobel).
+        const isEmptyLine = n.childNodes.length === 1 && n.firstChild.nodeType === 1 && n.firstChild.tagName === 'BR';
+        out += (out ? '\n' : '') + (isEmptyLine ? '' : walk(n));
+        return;
+      }
+      out += walk(n);
+    });
+    return out;
+  }
+  return walk(el);
+}
+
+// Textarea lama & elemen lain di seluruh app baca/tulis `.value` (mis.
+// document.getElementById('solusi_1').value). Daripada ubah ratusan
+// pemanggilan itu satu-satu, kita definisikan getter/setter `value` di atas
+// div contenteditable supaya perilakunya transparan sama seperti textarea.
+function _installRteValueShim(el) {
+  if (!el || el._rteShimmed) return;
+  el._rteShimmed = true;
+  Object.defineProperty(el, 'value', {
+    get() { return _htmlToMd(el); },
+    set(md) { el.innerHTML = _mdToRteHtml(md || ''); },
+    configurable: true,
+  });
+}
+// Pasang shim otomatis begitu ada .ps-rte baru masuk ke DOM (row di-render ulang, dst).
+(function _watchRteElements() {
+  if (typeof document === 'undefined' || !document.body) return;
+  document.querySelectorAll('.ps-rte').forEach(_installRteValueShim);
+  new MutationObserver(muts => {
+    muts.forEach(m => m.addedNodes.forEach(node => {
+      if (node.nodeType !== 1) return;
+      if (node.classList?.contains('ps-rte')) _installRteValueShim(node);
+      node.querySelectorAll?.('.ps-rte').forEach(_installRteValueShim);
+    }));
+  }).observe(document.body, { childList: true, subtree: true });
+})();
+
+// Enter di dalam .ps-rte selalu jadi <br> (bukan <div> baru bawaan browser)
+// supaya struktur DOM tetap flat & gampang dikonversi ke markdown-lite.
+// Kalau baris saat ini list ("- " / "1. "), Enter otomatis lanjut ke marker
+// berikutnya (mirip Notion/editor lain) — Enter di baris list yang kosong
+// (cuma marker doang, belum diisi apa2) keluar dari mode list.
+document.addEventListener('keydown', function(e) {
+  const el = e.target;
+  if (e.key !== 'Enter' || !el?.classList?.contains?.('ps-rte')) return;
+  e.preventDefault();
+  const sel = window.getSelection();
+  if (!sel.rangeCount) return;
+  const range = sel.getRangeAt(0);
+
+  // .ps-rte yang baru mulai diketik dari kosong (belum pernah lewat
+  // _mdToRteHtml) belum punya wrapper <div class="rte-line"> sama sekali --
+  // bungkus dulu isinya jadi satu baris, sama kayak _rteToggleListPrefix,
+  // supaya closest('.rte-line') di bawah gak gagal & Enter gak ke-block.
+  if (!el.querySelector(':scope > .rte-line')) {
+    const wrap = document.createElement('div');
+    wrap.className = 'rte-line';
+    while (el.firstChild) wrap.appendChild(el.firstChild);
+    el.appendChild(wrap);
+    range.selectNodeContents(wrap);
+    range.collapse(false);
+  }
+
+  let lineDiv = range.startContainer.nodeType === 1 ? range.startContainer : range.startContainer.parentElement;
+  lineDiv = lineDiv ? lineDiv.closest('.rte-line') : null;
+  if (!lineDiv || !el.contains(lineDiv)) return;
+
+  const lineText  = lineDiv.textContent || '';
+  const bulletM   = lineText.match(/^-\s/);
+  const numM      = lineText.match(/^(\d+)\.\s/);
+  const markerLen = bulletM ? bulletM[0].length : (numM ? numM[0].length : 0);
+  const lineEmpty = markerLen > 0 && lineText.slice(markerLen).trim().length === 0;
+
+  if (markerLen > 0 && lineEmpty) {
+    // Baris list kosong -> keluar dari list, hapus marker & class-nya, jangan lanjut
+    lineDiv.textContent = '';
+    lineDiv.appendChild(document.createElement('br'));
+    lineDiv.classList.remove('rte-line--list');
+    const r = document.createRange();
+    r.setStart(lineDiv, 0);
+    r.collapse(true);
+    sel.removeAllRanges();
+    sel.addRange(r);
+    el.dispatchEvent(new Event('input', { bubbles: true }));
+    return;
+  }
+
+  // Pisah baris di posisi caret: sisa sebelum caret tetap di lineDiv,
+  // sisa sesudah caret pindah ke <div class="rte-line"> baru.
+  const afterRange = range.cloneRange();
+  afterRange.setEndAfter(lineDiv.lastChild || lineDiv);
+  const afterFrag = afterRange.extractContents();
+
+  if (!lineDiv.childNodes.length) lineDiv.appendChild(document.createElement('br'));
+
+  const newLine = document.createElement('div');
+  newLine.className = 'rte-line';
+  newLine.appendChild(afterFrag);
+  lineDiv.after(newLine);
+
+  const newRange = document.createRange();
+  if (markerLen > 0) {
+    // Marker dibungkus <span class="rte-marker"> (rata kanan lewat CSS) biar
+    // titik di belakang nomor sejajar walau digitnya beda jumlah (1 vs 2).
+    const nextMarkerText = bulletM ? '-' : `${parseInt(numM[1], 10) + 1}.`;
+    const sep = _rteInsertMarker(newLine, nextMarkerText);
+    newRange.setStart(sep, sep.length);
+  } else {
+    newLine.classList.remove('rte-line--list');
+    // Baris baru non-list yang masih kosong butuh <br> placeholder biar
+    // div-nya gak collapse (tingginya ilang) selama belum ada teks diketik.
+    // Kalau markerLen>0, marker text node sendiri udah jadi konten -> gak
+    // perlu <br>, soalnya <br> nyempil abis marker bisa ke-translate jadi
+    // baris baru kosong beneran pas HTML<->markdown round-trip (bug lama).
+    if (!newLine.childNodes.length) newLine.appendChild(document.createElement('br'));
+    newRange.setStart(newLine, 0);
+  }
+  newRange.collapse(true);
+  sel.removeAllRanges();
+  sel.addRange(newRange);
+  el.dispatchEvent(new Event('input', { bubbles: true }));
+});
+
+// Ketik "1. "/"- " langsung di awal baris (bukan lewat Enter/toolbar) --
+// sebelumnya cuma teks polos nempel, gak ke-convert jadi <span
+// class="rte-marker"> sama sekali, jadi "1."-nya gak sejajar (gak rata
+// kanan) sama nomor baris berikutnya yang dibuat via Enter. Begitu user
+// baru aja ngetik spasi setelah marker ("1."/"-"), convert baris itu di
+// tempat, sama persis strukturnya kayak yang dibuat _rteInsertMarker
+// (span marker + NBSP pemisah + sisa teks).
+document.addEventListener('input', function(e) {
+  const el = e.target;
+  if (!el?.classList?.contains?.('ps-rte')) return;
+  const sel = window.getSelection();
+  if (!sel || !sel.rangeCount || !sel.isCollapsed) return;
+  const range = sel.getRangeAt(0);
+  const node = range.startContainer;
+
+  // .ps-rte yang baru mulai diketik dari kosong (baris pertama) belum
+  // punya wrapper <div class="rte-line"> sama sekali -- bungkus dulu sama
+  // kayak fix yang sama di handler Enter/paste, biar closest('.rte-line')
+  // di bawah ketemu. Tanpa ini baris pertama gak pernah ke-convert (cuma
+  // baris ke-2 dst hasil Enter yang kepasang benar).
+  if (!el.querySelector(':scope > .rte-line')) {
+    const wrap = document.createElement('div');
+    wrap.className = 'rte-line';
+    while (el.firstChild) wrap.appendChild(el.firstChild);
+    el.appendChild(wrap);
+  }
+
+  const lineDiv = (node.nodeType === 1 ? node : node.parentElement)?.closest('.rte-line');
+  if (!lineDiv || !el.contains(lineDiv) || _rteMarkerSpan(lineDiv)) return;
+  const first = lineDiv.firstChild;
+  if (!first || first.nodeType !== 3) return;
+  const m = first.nodeValue.match(/^(\d+\.|-)[ \u00A0]/);
+  // Convert cuma pas caret persis di akhir marker+spasi yang baru diketik
+  // (bukan pas masih ngetik digit nomornya, mis. "1" sebelum titik/spasi).
+  if (!m || range.startContainer !== first || range.startOffset !== m[0].length) return;
+
+  const span = document.createElement('span');
+  span.className = 'rte-marker' + (m[1] === '-' ? ' rte-marker--ul' : '');
+  span.textContent = m[1];
+  first.nodeValue = first.nodeValue.slice(m[0].length);
+  lineDiv.insertBefore(span, first);
+  lineDiv.insertBefore(document.createTextNode('\u00A0'), first);
+  lineDiv.classList.add('rte-line--list');
+
+  const newRange = document.createRange();
+  newRange.setStart(first, 0);
+  newRange.collapse(true);
+  sel.removeAllRanges();
+  sel.addRange(newRange);
+});
+
+// Paste di dalam .ps-rte dipaksa jadi plain text (baris dipertahankan via <br>).
+// Tanpa ini, paste dari Word/Google Docs bawa HTML asli (list, underline, dst)
+// yang gak dikenal skema markdown-lite kita -> struktur rusak begitu disimpan.
+document.addEventListener('paste', function(e) {
+  const el = e.target;
+  if (!el?.classList?.contains?.('ps-rte')) return;
+  e.preventDefault();
+  const text = (e.clipboardData || window.clipboardData)?.getData('text/plain') || '';
+  const sel = window.getSelection();
+  if (!sel.rangeCount) return;
+  const range = sel.getRangeAt(0);
+  const lines = text.split(/\r\n|\r|\n/);
+
+  // Sama kayak fix di handler Enter: kalau .ps-rte masih polos (belum
+  // pernah lewat _mdToRteHtml, belum ada wrapper .rte-line sama sekali)
+  // tapi udah ada teks di dalamnya, bungkus dulu isinya jadi satu baris --
+  // jangan bikin div baru kosong yang malah misahin teks lama dari baris.
+  if (!el.querySelector(':scope > .rte-line')) {
+    const wrap = document.createElement('div');
+    wrap.className = 'rte-line';
+    const hadContent = !!el.firstChild;
+    while (el.firstChild) wrap.appendChild(el.firstChild);
+    el.appendChild(wrap);
+    if (hadContent) { range.selectNodeContents(wrap); range.collapse(false); }
+  }
+
+  let lineDiv = range.startContainer.nodeType === 1 ? range.startContainer : range.startContainer.parentElement;
+  lineDiv = lineDiv ? lineDiv.closest('.rte-line') : null;
+  if (!lineDiv || !el.contains(lineDiv)) {
+    // Gak ketemu baris (elemen kosong) -> buat baris pertama dulu.
+    lineDiv = document.createElement('div');
+    lineDiv.className = 'rte-line';
+    el.appendChild(lineDiv);
+    range.selectNodeContents(lineDiv);
+    range.collapse(true);
+  }
+
+  if (lines.length === 1) {
+    // Paste satu baris: cukup sisipkan teks di posisi caret, gak perlu baris baru.
+    range.deleteContents();
+    const tn = document.createTextNode(lines[0]);
+    range.insertNode(tn);
+    range.setStartAfter(tn);
+    range.collapse(true);
+    sel.removeAllRanges();
+    sel.addRange(range);
+    el.dispatchEvent(new Event('input', { bubbles: true }));
+    return;
+  }
+
+  // Paste banyak baris: sisa teks setelah caret di baris ini dipindah ke
+  // baris terakhir hasil paste, baris tengah jadi <div class="rte-line"> baru.
+  const afterRange = range.cloneRange();
+  afterRange.setEndAfter(lineDiv.lastChild || lineDiv);
+  const afterFrag = afterRange.extractContents();
+  if (!lineDiv.childNodes.length) lineDiv.appendChild(document.createElement('br'));
+
+  range.deleteContents();
+  const firstTn = document.createTextNode(lines[0]);
+  range.insertNode(firstTn);
+  // Baris pertama (lineDiv) isinya gabungan teks lama + lines[0] yang baru
+  // dipaste -> cek ulang seluruh teksnya buat nentuin format list, bukan
+  // cuma lines[0] doang (yang bisa aja cuma potongan tengah kalimat).
+  lineDiv.classList.toggle('rte-line--list', /^(\d+\.\s|-\s)/.test(lineDiv.textContent || ''));
+  // Bungkus markernya jadi <span class="rte-marker"> (rata kanan lewat CSS)
+  // biar list yang di-paste align-nya sama kayak list yang diketik langsung.
+  _rteWrapMarker(lineDiv);
+
+  let anchor = lineDiv;
+  let lastNewLine = null;
+  for (let i = 1; i < lines.length; i++) {
+    const div = document.createElement('div');
+    div.className = 'rte-line';
+    // Deteksi format list ("1. "/"- ") per baris hasil paste, biar
+    // hanging-indent (.rte-line--list) tetap kepasang -- tanpa ini, list
+    // panjang yang di-paste bakal keliatan patah/gak rata pas teksnya wrap.
+    if (/^(\d+\.\s|-\s)/.test(lines[i])) div.classList.add('rte-line--list');
+    div.appendChild(document.createTextNode(lines[i]));
+    if (i === lines.length - 1) div.appendChild(afterFrag);
+    if (!div.childNodes.length) div.appendChild(document.createElement('br'));
+    _rteWrapMarker(div);
+    anchor.after(div);
+    anchor = div;
+    lastNewLine = div;
+  }
+
+  const newRange = document.createRange();
+  newRange.setStart(lastNewLine, Math.min(1, lastNewLine.childNodes.length));
+  newRange.collapse(true);
+  sel.removeAllRanges();
+  sel.addRange(newRange);
+  el.dispatchEvent(new Event('input', { bubbles: true }));
+});
+
+// ── Floating toolbar ────────────────────────────────────────────────────
+let _rteToolbarEl = null, _rteActiveEl = null;
+function _ensureRteToolbar() {
+  if (_rteToolbarEl) return _rteToolbarEl;
+  const tb = document.createElement('div');
+  tb.className = 'rte-toolbar';
+  tb.innerHTML = `
+    <button type="button" data-cmd="bold" data-tip="Tebal"><svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="M14 12a4 4 0 0 0 0-8H6v8"/><path d="M15 20a4 4 0 0 0 0-8H6v8Z"/></svg></button>
+    <button type="button" data-cmd="italic" data-tip="Miring"><svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><line x1="19" x2="10" y1="4" y2="4"/><line x1="14" x2="5" y1="20" y2="20"/><line x1="15" x2="9" y1="4" y2="20"/></svg></button>
+    <span class="rte-sep"></span>
+    <button type="button" data-cmd="ul" data-tip="Daftar simbol"><svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h.01"/><path d="M3 18h.01"/><path d="M3 6h.01"/><path d="M8 12h13"/><path d="M8 18h13"/><path d="M8 6h13"/></svg></button>
+    <button type="button" data-cmd="ol" data-tip="Daftar bernomor"><svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="M10 12h11"/><path d="M10 18h11"/><path d="M10 6h11"/><path d="M4 10h2"/><path d="M4 6h1v4"/><path d="M6 18H4c0-1 2-2 2-3s-1-1.5-2-1"/></svg></button>
+  `;
+  tb.addEventListener('mousedown', e => e.preventDefault()); // jangan hilangkan selection user
+  tb.addEventListener('click', e => {
+    const btn = e.target.closest('button[data-cmd]');
+    if (!btn) return;
+    _rteApplyCmd(btn.dataset.cmd);
+  });
+  document.body.appendChild(tb);
+  _rteToolbarEl = tb;
+  return tb;
+}
+function _hideRteToolbar() { if (_rteToolbarEl) _rteToolbarEl.style.display = 'none'; }
+
+document.addEventListener('selectionchange', () => {
+  const sel = window.getSelection();
+  if (!sel || sel.rangeCount === 0 || sel.isCollapsed) { _hideRteToolbar(); return; }
+  const anchor = sel.anchorNode;
+  const node = anchor && (anchor.nodeType === 1 ? anchor : anchor.parentElement);
+  const el = node ? node.closest('.ps-rte[contenteditable="true"]') : null;
+  if (!el) { _hideRteToolbar(); return; }
+  _rteActiveEl = el;
+  const range = sel.getRangeAt(0);
+  const rect = range.getBoundingClientRect();
+  if (!rect || (rect.width === 0 && rect.height === 0)) { _hideRteToolbar(); return; }
+  const tb = _ensureRteToolbar();
+  tb.style.display = 'flex';
+  const top  = rect.top + window.scrollY - tb.offsetHeight - 8;
+  let left   = rect.left + window.scrollX + rect.width / 2 - tb.offsetWidth / 2;
+  left = Math.max(8, Math.min(left, window.innerWidth - tb.offsetWidth - 8));
+  tb.style.top  = `${Math.max(8, top)}px`;
+  tb.style.left = `${left}px`;
+  _rteUpdateToolbarState(tb);
+});
+
+// Tandai tombol Tebal/Miring/Daftar simbol/Daftar bernomor aktif (state
+// "pressed") kalau teks/baris yang lagi di-select emang udah dalam format
+// itu -- sebelumnya cuma Tebal/Miring yang kelihatan aktif, Daftar simbol &
+// Daftar bernomor gak pernah nyala walau cursor lagi di baris list, jadi
+// toolbar-nya gak mencerminkan format yang lagi aktif secara konsisten.
+// Tebal/Miring pakai queryCommandState (native, baca computed style
+// font-weight/font-style di selection) -- tetap akurat walau STRONG/EM-nya
+// dipasang manual (bukan execCommand), karena tag itu sendiri emang bikin
+// computed style-nya bold/italic. Daftar simbol/bernomor dicek dari marker
+// baris tempat cursor/selection berada (sama kayak _rteToggleListPrefix).
+function _rteUpdateToolbarState(tb) {
+  let boldOn = false, italicOn = false;
+  try { boldOn = document.queryCommandState('bold'); } catch { /* no-op */ }
+  try { italicOn = document.queryCommandState('italic'); } catch { /* no-op */ }
+  tb.querySelector('button[data-cmd="bold"]')?.classList.toggle('active', boldOn);
+  tb.querySelector('button[data-cmd="italic"]')?.classList.toggle('active', italicOn);
+
+  let ulOn = false, olOn = false;
+  const sel = window.getSelection();
+  if (sel && sel.rangeCount) {
+    const range = sel.getRangeAt(0);
+    const node = range.startContainer.nodeType === 1 ? range.startContainer : range.startContainer.parentElement;
+    const lineDiv = node ? node.closest('.rte-line') : null;
+    const marker = lineDiv ? _rteMarkerSpan(lineDiv) : null;
+    const markerTxt = marker ? marker.textContent : '';
+    ulOn = markerTxt === '-';
+    olOn = /^\d+\.$/.test(markerTxt);
+  }
+  tb.querySelector('button[data-cmd="ul"]')?.classList.toggle('active', ulOn);
+  tb.querySelector('button[data-cmd="ol"]')?.classList.toggle('active', olOn);
+}
+
+function _rteApplyCmd(cmd) {
+  const el = _rteActiveEl;
+  if (!el) return;
+  const sel = window.getSelection();
+  if (!sel || sel.rangeCount === 0) return;
+  const range = sel.getRangeAt(0);
+  if (cmd === 'bold')       _rteToggleInline(range, 'STRONG');
+  else if (cmd === 'italic') _rteToggleInline(range, 'EM');
+  else if (cmd === 'ul' || cmd === 'ol') _rteToggleListPrefix(el, range, cmd);
+  el.dispatchEvent(new Event('input', { bubbles: true }));
+  if (_rteToolbarEl) _rteUpdateToolbarState(_rteToolbarEl);
+}
+
+// Bold/italic: bungkus (atau lepas bungkus, kalau selection udah persis di
+// dalam tag yang sama) selection dengan STRONG/EM.
+function _rteToggleInline(range, tagName) {
+  const findTag = (node) => {
+    const n = node.nodeType === 1 ? node : node.parentElement;
+    return n ? n.closest(tagName.toLowerCase()) : null;
+  };
+  const startTag = findTag(range.startContainer);
+  const endTag   = findTag(range.endContainer);
+  if (startTag && startTag === endTag) {
+    const parent = startTag.parentNode;
+    while (startTag.firstChild) parent.insertBefore(startTag.firstChild, startTag);
+    parent.removeChild(startTag);
+    return;
+  }
+  if (range.collapsed) return;
+  const frag = range.extractContents();
+  const wrapper = document.createElement(tagName);
+  wrapper.appendChild(frag);
+  range.insertNode(wrapper);
+  const sel = window.getSelection();
+  sel.removeAllRanges();
+  const newRange = document.createRange();
+  newRange.selectNodeContents(wrapper);
+  sel.addRange(newRange);
+}
+
+// Cari batas "baris" saat ini di dalam .ps-rte (dipisah oleh <br>, struktur flat).
+// Sebelumnya ini coba nebak "node anak-langsung el tempat caret berada" dari
+// range.startContainer secara manual (jalan-jalan lewat parentElement) — rapuh
+// banget, karena bentuk container beda-beda tergantung browser habis kita
+// insertNode/setStartAfter (kadang text node baris, kadang node hasil merge,
+// kadang element itu sendiri), dan salah tebak bikin baris salah kedeteksi
+// (nomor macet di angka tertentu / marker gak ke-generate sama sekali).
+// Sekarang pakai Range.compareBoundaryPoints: bandingin POSISI caret langsung
+// terhadap posisi tiap <br>, gak peduli node macam apa containernya.
+function _rteLineBounds(el, range) {
+  const kids = Array.from(el.childNodes);
+  const point = document.createRange();
+  try { point.setStart(range.startContainer, range.startOffset); }
+  catch { point.selectNodeContents(el); }
+  point.collapse(true);
+
+  let end = kids.length;
+  for (let i = 0; i < kids.length; i++) {
+    if (kids[i].nodeName !== 'BR') continue;
+    const brPoint = document.createRange();
+    brPoint.setStartBefore(kids[i]);
+    brPoint.collapse(true);
+    // Caret ada di titik ini atau sebelum <br> ini -> <br> ini batas akhir baris caret.
+    if (point.compareBoundaryPoints(Range.START_TO_START, brPoint) <= 0) { end = i; break; }
+  }
+  let start = 0;
+  for (let i = end - 1; i >= 0; i--) { if (kids[i].nodeName === 'BR') { start = i + 1; break; } }
+  return { start, end, kids };
+}
+
+// ── Marker list ("1."/"-") sebagai <span class="rte-marker"> ──────────────
+// Dipisah dari teks baris (bukan nempel jadi teks polos) supaya bisa
+// di-render rata kanan dalam kotak lebar tetap lewat CSS: titik di belakang
+// nomor 1 digit & 2 digit jadi sejajar. Helper2 ini dipakai di 3 tempat
+// yang bikin/lepas marker secara langsung di DOM: Enter, paste, & toolbar.
+function _rteMarkerSpan(lineDiv) {
+  const first = lineDiv && lineDiv.firstChild;
+  return (first && first.nodeType === 1 && first.classList && first.classList.contains('rte-marker')) ? first : null;
+}
+function _rteRemoveMarker(lineDiv) {
+  const span = _rteMarkerSpan(lineDiv);
+  if (span) {
+    // NBSP pemisah tepat setelah span (kalau ada) ikut dibuang juga.
+    const next = span.nextSibling;
+    if (next && next.nodeType === 3 && next.nodeValue.charAt(0) === '\u00A0') {
+      next.nodeValue = next.nodeValue.slice(1);
+    }
+    span.remove();
+  }
+  lineDiv.classList.remove('rte-line--list');
+}
+function _rteInsertMarker(lineDiv, text) {
+  const span = document.createElement('span');
+  span.className = 'rte-marker' + (text === '-' ? ' rte-marker--ul' : '');
+  span.textContent = text;
+  const sep = document.createTextNode('\u00A0');
+  lineDiv.insertBefore(sep, lineDiv.firstChild);
+  lineDiv.insertBefore(span, sep);
+  lineDiv.classList.add('rte-line--list');
+  return sep;
+}
+// Bungkus marker teks polos ("1. "/"- ") yang belum dibungkus <span> (mis.
+// baris hasil paste dari luar) jadi rte-marker, supaya alignment-nya
+// konsisten sama baris yang dibuat lewat Enter/toolbar. No-op kalau bukan
+// baris list, atau markernya udah dibungkus, atau gak ketemu pola marker.
+function _rteWrapMarker(lineDiv) {
+  if (!lineDiv || !lineDiv.classList.contains('rte-line--list')) return;
+  if (_rteMarkerSpan(lineDiv)) return;
+  const first = lineDiv.firstChild;
+  if (!first || first.nodeType !== 3) return;
+  const m = first.nodeValue.match(/^(\d+\.|-)[ \u00A0]/);
+  if (!m) return;
+  const span = document.createElement('span');
+  span.className = 'rte-marker' + (m[1] === '-' ? ' rte-marker--ul' : '');
+  span.textContent = m[1];
+  first.nodeValue = first.nodeValue.slice(m[1].length);
+  lineDiv.insertBefore(span, first);
+}
+
+// Toggle "- " (bullet) atau "1. " (nomor) di depan baris tempat cursor/selection berada.
+function _rteToggleListPrefix(el, range, mode) {
+  // .ps-rte yang baru mulai diketik (belum pernah lewat _mdToRteHtml) belum
+  // punya wrapper <div class="rte-line"> sama sekali — bungkus dulu isinya
+  // jadi satu baris supaya closest('.rte-line') di bawah bisa nemuin induknya.
+  if (!el.querySelector(':scope > .rte-line')) {
+    const wrap = document.createElement('div');
+    wrap.className = 'rte-line';
+    while (el.firstChild) wrap.appendChild(el.firstChild);
+    el.appendChild(wrap);
+  }
+
+  // Cari SEMUA baris yang kena selection (bukan cuma baris tempat selection
+  // mulai) -- sebelumnya di sini cuma baris pertama yang diproses, makanya
+  // toggle bullet/nomor di teks yang di-select beberapa baris cuma nempel
+  // ke baris pertama doang, sisanya dianggurin.
+  const findLine = (node) => {
+    const n = node && (node.nodeType === 1 ? node : node.parentElement);
+    return n ? n.closest('.rte-line') : null;
+  };
+  const startLine = findLine(range.startContainer);
+  const endLine   = findLine(range.endContainer) || startLine;
+  if (!startLine || !el.contains(startLine)) return;
+
+  const allLines = Array.from(el.querySelectorAll(':scope > .rte-line'));
+  const startIdx = allLines.indexOf(startLine);
+  let   endIdx   = allLines.indexOf(endLine);
+  if (endIdx === -1) endIdx = startIdx;
+  const lo = Math.min(startIdx, endIdx);
+  const hi = Math.max(startIdx, endIdx);
+  const lines = allLines.slice(lo, hi + 1);
+  if (!lines.length) return;
+
+  // Marker sekarang disimpan sebagai <span class="rte-marker"> (bukan teks
+  // polos nempel di depan baris) supaya rata-kanan lewat CSS jalan -- deteksi
+  // & lepas/pasangnya juga lewat span itu, bukan regex di text node depan.
+  const isOlMarker = (txt) => /^\d+\.$/.test(txt);
+  const isUlMarker = (txt) => txt === '-';
+  const markerTextOf = (lineDiv) => { const s = _rteMarkerSpan(lineDiv); return s ? s.textContent : ''; };
+
+  // Toggle ditentukan dari baris PERTAMA yang di-select: kalau udah punya
+  // prefix sesuai mode ini, semua baris terpilih dilepas; kalau belum,
+  // semua baris terpilih dikasih prefix (nomor urut buat mode 'ol').
+  const firstMarkerText = markerTextOf(lines[0]);
+  const isRemoving = mode === 'ul' ? isUlMarker(firstMarkerText) : isOlMarker(firstMarkerText);
+
+  let n = 1;
+  lines.forEach(lineDiv => {
+    if (isRemoving) {
+      _rteRemoveMarker(lineDiv);
+    } else {
+      // Kalau baris ini kebetulan udah pakai format list satunya (mis.
+      // lagi "- " terus yang diminta "ol"), lepas dulu biar gak dobel prefix.
+      const existing = markerTextOf(lineDiv);
+      const hasOther = mode === 'ul' ? isOlMarker(existing) : isUlMarker(existing);
+      if (hasOther) _rteRemoveMarker(lineDiv);
+      _rteInsertMarker(lineDiv, mode === 'ul' ? '-' : `${n}.`);
+      n++;
+    }
+  });
 }
 
 function _renderPSCell(idBase, indikatorId, value, capaian, canEdit, label, onchangeFn, locked = true, tercapaiCol = false, isPredikat = false, belumPernahDiisi = false) {
@@ -4163,30 +4791,63 @@ function _renderPSCell(idBase, indikatorId, value, capaian, canEdit, label, onch
     : (tercapai || (belumIsi && (!isPredikat || predikatBelumDisentuh)));
   const showNote  = !tercapaiCol && tercapai;
   const hasValue  = (value || '').trim().length > 0;
-  const LIMIT     = 80; // karakter sebelum dipotong
+  const LIMIT     = 80; // karakter (markdown-lite) sebelum dipotong
   const needsTrunc = locked && hasValue && !hideTA && (value || '').length > LIMIT;
   const startCollapsed = needsTrunc; // collapsed hanya kalau teks panjang
   const previewText = needsTrunc
-    ? escHtml((value || '').slice(0, LIMIT))
-    : escHtml(value || '');
+    ? _mdToHtmlDisplay((value || '').slice(0, LIMIT))
+    : _mdToHtmlDisplay(value || '');
   return `<div class="ps-cell-wrap${startCollapsed ? ' ps-collapsed' : ''}" id="${idBase}wrap_${indikatorId}" style="${hideTA ? 'display:none' : ''}">
-            <!-- View mode: teks + Selengkapnya -->
+            <!-- View mode: teks (markdown-lite dirender) + Selengkapnya -->
             <div class="ps-read" id="${idBase}read_${indikatorId}" style="${!locked || !hasValue || hideTA ? 'display:none' : ''}">
-              <span class="ps-read-text" id="${idBase}short_${indikatorId}">${previewText}${needsTrunc ? '<span class="ps-ellipsis">…</span>' : ''}</span>
-              <span class="ps-read-full" id="${idBase}full_${indikatorId}" style="display:none">${escHtml(value || '')}</span>
-              ${needsTrunc ? `<button type="button" class="ps-more-btn" id="${idBase}morebtn_${indikatorId}"
-                onclick="_togglePSExpand('${idBase}', ${indikatorId}, event)">Selengkapnya</button>` : ''}
+              <div class="ps-read-text" id="${idBase}short_${indikatorId}">${previewText}</div>
+              <div class="ps-read-full" id="${idBase}full_${indikatorId}" style="display:none">${_mdToHtmlDisplay(value || '')}</div>
+              ${needsTrunc ? `<button type="button" class="ps-more-btn" id="${idBase}morebtn_${indikatorId}" data-tip="Selengkapnya"
+                onclick="_togglePSExpand('${idBase}', ${indikatorId}, event)"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></button>` : ''}
             </div>
-            <!-- Edit mode: textarea -->
-            <textarea id="${idBase}_${indikatorId}" placeholder="${canEdit ? 'Ketik di sini...' : '—'}"
+            <!-- Edit mode: rich text editor (markdown-lite: **tebal**, _miring_, "- "/"1. " daftar) -->
+            <div class="ps-rte" id="${idBase}_${indikatorId}" contenteditable="${locked ? 'false' : 'true'}"
+              data-placeholder="${canEdit ? 'Ketik di sini...' : '—'}"
               ${locked ? 'readonly' : ''}
               data-tip="${locked ? `Klik tombol Edit untuk mengisi ${label}` : ''}"
-              style="${locked ? 'cursor:not-allowed;display:none;' : ''}resize:none"
-              oninput="_autoResizeTA(this); _checkSymbolOnlyInput(this, '${label}'); ${onchangeFn}(${indikatorId})">${escHtml(value || '')}</textarea>
+              style="${locked ? 'cursor:not-allowed;display:none;' : ''}"
+              oninput="_checkSymbolOnlyInput(this, '${label}'); ${onchangeFn}(${indikatorId})">${_mdToRteHtml(value || '')}</div>
           </div>
           <div id="${idBase}note_${indikatorId}" class="ps-tercapai-note" style="${showNote && hasValue ? '' : 'display:none'}">
             —
           </div>`;
+}
+
+// Update konten + truncation ps-read setelah save (dipakai IKU/IKK/SPM) — samain
+// logic-nya dengan _renderPSCell supaya "Selengkapnya" langsung muncul tanpa reload.
+function _updatePSReadAfterSave(base, indikatorId, val) {
+  const LIMIT   = 80;
+  const wrapEl  = document.getElementById(`${base}wrap_${indikatorId}`);
+  const readEl  = document.getElementById(`${base}read_${indikatorId}`);
+  const shortEl = document.getElementById(`${base}short_${indikatorId}`);
+  const fullEl  = document.getElementById(`${base}full_${indikatorId}`);
+  let   moreBtn = document.getElementById(`${base}morebtn_${indikatorId}`);
+  if (!readEl || !shortEl) return;
+  const v = val || '';
+  const hasVal = v.trim().length > 0;
+  const needsTrunc = hasVal && v.length > LIMIT;
+
+  shortEl.innerHTML = _mdToHtmlDisplay(v.slice(0, LIMIT));
+  shortEl.style.display = '';
+  if (fullEl) { fullEl.innerHTML = _mdToHtmlDisplay(v); fullEl.style.display = 'none'; }
+  if (wrapEl) wrapEl.classList.toggle('ps-collapsed', needsTrunc);
+
+  if (needsTrunc && !moreBtn) {
+    moreBtn = document.createElement('button');
+    moreBtn.type = 'button';
+    moreBtn.className = 'ps-more-btn';
+    moreBtn.id = `${base}morebtn_${indikatorId}`;
+    moreBtn.setAttribute('onclick', `_togglePSExpand('${base}', ${indikatorId}, event)`);
+    readEl.appendChild(moreBtn);
+  }
+  if (moreBtn) { moreBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>'; moreBtn.setAttribute('data-tip','Selengkapnya'); moreBtn.style.display = needsTrunc ? '' : 'none'; }
+
+  readEl.style.display = hasVal ? '' : 'none';
 }
 
 // Simpan referensi ps-read yang sedang expanded (untuk auto-collapse saat klik luar)
@@ -4199,7 +4860,7 @@ function _collapsePSExpand(readEl) {
   const btn     = readEl.querySelector('.ps-more-btn');
   if (fullEl)  fullEl.style.display = 'none';
   if (shortEl) shortEl.style.display = '';
-  if (btn)     btn.textContent = 'Selengkapnya';
+  if (btn)     { btn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>'; btn.setAttribute('data-tip','Selengkapnya'); }
   _psExpandedEl = null;
 }
 
@@ -4216,7 +4877,7 @@ function _togglePSExpand(idBase, indikatorId, event) {
     if (_psExpandedEl && _psExpandedEl !== readEl) _collapsePSExpand(_psExpandedEl);
     fullEl.style.display = '';
     if (shortEl) shortEl.style.display = 'none';
-    if (btn) btn.textContent = 'Sembunyikan';
+    if (btn) { btn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 15l-6-6-6 6"/></svg>'; btn.setAttribute('data-tip','Sembunyikan'); }
     _psExpandedEl = readEl;
   } else {
     _collapsePSExpand(readEl);
@@ -4259,13 +4920,13 @@ function _togglePermasalahanSolusi(prefix, indikatorId, capaian) {
   const syncWrapEditMode = (wrap) => {
     if (!isEditingRow || !wrap || wrap.style.display === 'none') return;
     const readEl = wrap.querySelector('.ps-read');
-    const taEl   = wrap.querySelector('textarea');
+    const taEl   = wrap.querySelector('.ps-rte');
     if (!taEl || taEl.style.display !== 'none') return;
     if (readEl) readEl.style.display = 'none';
     taEl.removeAttribute('readonly');
+    taEl.contentEditable = 'true';
     taEl.style.cursor = '';
     taEl.style.display = '';
-    requestAnimationFrame(() => _autoResizeTA(taEl));
   };
 
   ['fpenghambat', 'solusi'].forEach(base => {
@@ -4487,9 +5148,11 @@ function _monRenderPJCards() {
 
   const cards = list.map(pj => {
     const pct = pj.total ? Math.round(pj.terisi / pj.total * 100) : 0;
-    const tone = pct >= 80 ? { c: '#16a34a', c2: '#22c55e' }
-               : pct >= 50 ? { c: '#d97706', c2: '#f59e0b' }
-               :             { c: '#dc2626', c2: '#ef4444' };
+    const tone = pct >= 91 ? { c: '#16a34a', c2: '#4ade80' }  // Sangat Tinggi 91-100
+               : pct >= 76 ? { c: '#65a30d', c2: '#a3e635' }  // Tinggi        76-90
+               : pct >= 66 ? { c: '#ca8a04', c2: '#eab308' }  // Sedang        66-75
+               : pct >= 51 ? { c: '#ea580c', c2: '#f97316' }  // Rendah        51-65
+               :             { c: '#dc2626', c2: '#ef4444' }; // Sangat Rendah <=50
     const isActive = _mon_pj === pj.penanggung_jawab;
     const dashOffset = C - (pct / 100) * C;
 
@@ -4499,7 +5162,7 @@ function _monRenderPJCards() {
         <circle cx="26" cy="26" r="${R}" fill="none" stroke="${tone.c}" stroke-width="5" stroke-linecap="round"
           stroke-dasharray="${C.toFixed(2)}" stroke-dashoffset="${dashOffset.toFixed(2)}"
           transform="rotate(-90 26 26)" style="transition:stroke-dashoffset .6s cubic-bezier(.4,0,.2,1)"/>
-        <text x="26" y="30.5" text-anchor="middle" font-size="12.5" font-weight="800" fill="${tone.c}" font-family="inherit">${pct}%</text>
+        <text x="26" y="30.5" text-anchor="middle" font-size="10.5" font-weight="800" fill="${tone.c}" font-family="inherit">${pct}%</text>
       </svg>`;
 
     return `<div onclick='setMonPJ(${_jsAttr(pj.penanggung_jawab)})' data-tip="Klik untuk filter"
@@ -5062,16 +5725,16 @@ function _renderSpmTable(tbody) {
       <td style="text-align:center">
         <span class="capaian-badge ${badgeClass}" id="spm_badge_${row.id}">${badgeText}</span>
       </td>
-      <td class="textarea-cell">
+      <td class="textarea-cell" style="text-align:left;vertical-align:top">
         ${_renderPSCell('spm_fpenghambat', row.id, row.f_penghambat, capaian, canEdit, 'faktor penghambat', 'markSpmDirty', !!row.realisasi_id, false, row.tipe_nilai === 'predikat', row.realisasi == null && !row.realisasi_id)}
       </td>
-      <td class="textarea-cell">
+      <td class="textarea-cell" style="text-align:left;vertical-align:top">
         ${_renderPSCell('spm_solusi', row.id, row.solusi, capaian, canEdit, 'solusi', 'markSpmDirty', !!row.realisasi_id, false, row.tipe_nilai === 'predikat', row.realisasi == null && !row.realisasi_id)}
       </td>
-      <td class="textarea-cell">
+      <td class="textarea-cell" style="text-align:left;vertical-align:top">
         ${_renderPSCell('spm_fpendukung', row.id, row.f_pendukung, capaian, canEdit, 'faktor pendukung', 'markSpmDirty', !!row.realisasi_id, true, row.tipe_nilai === 'predikat', row.realisasi == null && !row.realisasi_id)}
       </td>
-      <td class="textarea-cell">
+      <td class="textarea-cell" style="text-align:left;vertical-align:top">
         ${_renderPSCell('spm_rencana', row.id, row.rencana_tl, capaian, canEdit, 'rencana tindak lanjut', 'markSpmDirty', !!row.realisasi_id, true, row.tipe_nilai === 'predikat', row.realisasi == null && !row.realisasi_id)}
       </td>
       <td style="text-align:center" data-col="dukung">
@@ -5154,6 +5817,7 @@ function toggleSpmEditRow(indikatorId) {
     if (isReadonly) {
       el.removeAttribute('readonly');
       if (el.tagName === 'SELECT') el.disabled = false; // predikat: <select> pakai disabled, bukan readonly
+      if (el.classList.contains('ps-rte')) el.contentEditable = 'true';
       el.style.background = 'var(--putih)';
       el.style.cursor = '';
       el.style.resize = '';
@@ -5161,6 +5825,7 @@ function toggleSpmEditRow(indikatorId) {
     } else {
       el.setAttribute('readonly', '');
       if (el.tagName === 'SELECT') el.disabled = true; // predikat: kunci balik pakai disabled
+      if (el.classList.contains('ps-rte')) el.contentEditable = 'false';
       el.style.background = '';
       el.style.cursor = 'not-allowed';
       if (el.tagName === 'TEXTAREA') el.style.resize = 'none';
@@ -5173,14 +5838,14 @@ function toggleSpmEditRow(indikatorId) {
   const psCells = document.querySelectorAll(`tr[data-id="${indikatorId}"] .ps-cell-wrap`);
   psCells.forEach(wrap => {
     const readEl = wrap.querySelector('.ps-read');
-    const taEl   = wrap.querySelector('textarea');
+    const taEl   = wrap.querySelector('.ps-rte');
     if (!taEl) return;
     if (isReadonly) {
-      // Masuk edit mode: sembunyikan view, tampilkan textarea — skip wrap yg hidden
+      // Masuk edit mode: sembunyikan view, tampilkan editor — skip wrap yg hidden
       if (wrap.style.display === 'none') return;
       if (readEl) readEl.style.display = 'none';
       taEl.style.display = '';
-      requestAnimationFrame(() => _autoResizeTA(taEl));
+      taEl.contentEditable = 'true';
     } else {
       // Keluar edit mode: update view text lalu tampilkan kembali
       const val = taEl.value || '';
@@ -5188,12 +5853,13 @@ function toggleSpmEditRow(indikatorId) {
       const shortEl = wrap.querySelector('[id$="short_' + indikatorId + '"]');
       const fullEl  = wrap.querySelector('[id$="full_' + indikatorId + '"]');
       const moreBtn = wrap.querySelector('.ps-more-btn');
-      if (shortEl) { shortEl.innerHTML = escHtml(val.slice(0, LIMIT)) + (val.length > LIMIT ? '<span class="ps-ellipsis">…</span>' : ''); shortEl.style.display = ''; }
-      if (fullEl)  { fullEl.textContent = val; fullEl.style.display = 'none'; }
-      if (moreBtn) { moreBtn.textContent = 'Selengkapnya'; moreBtn.style.display = val.length > LIMIT ? '' : 'none'; }
+      if (shortEl) { shortEl.innerHTML = _mdToHtmlDisplay(val.slice(0, LIMIT)); shortEl.style.display = ''; }
+      if (fullEl)  { fullEl.innerHTML = _mdToHtmlDisplay(val); fullEl.style.display = 'none'; }
+      if (moreBtn) { moreBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>'; moreBtn.setAttribute('data-tip','Selengkapnya'); moreBtn.style.display = val.length > LIMIT ? '' : 'none'; }
       if (readEl)  { readEl.style.display = val.trim() ? '' : 'none'; }
       taEl.style.display = 'none';
       taEl.setAttribute('readonly', '');
+      taEl.contentEditable = 'false';
       taEl.style.cursor = 'not-allowed';
     }
   });
@@ -5424,7 +6090,7 @@ async function saveSpmRealisasiRow(indikatorId) {
           if (el.tagName === 'SELECT') el.disabled = true; // predikat: <select> pakai disabled, bukan readonly
           el.style.background = '';
           el.style.cursor = 'not-allowed';
-          if (el.tagName === 'TEXTAREA') { el.style.resize = 'none'; el.style.display = 'none'; }
+          if (el.classList.contains('ps-rte')) { el.style.resize = 'none'; el.style.display = 'none'; el.contentEditable = 'false'; }
           el.dataset.tip = 'Klik tombol Edit untuk mengisi';
         }
       });
@@ -5439,6 +6105,7 @@ async function saveSpmRealisasiRow(indikatorId) {
         editBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg> Edit`;
         editBtn.classList.remove('btn-edit-row--active');
         editBtn.dataset.tip = 'Edit baris ini';
+        editBtn.style.display = ''; // tampilkan tombol Edit setelah data tersimpan
       }
       if (btn) {
         btn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/><path d="M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7"/><path d="M7 3v4a1 1 0 0 0 1 1h7"/></svg> Tersimpan`;
@@ -5486,12 +6153,7 @@ async function saveSpmRealisasiRow(indikatorId) {
         _togglePermasalahanSolusi('spm', indikatorId, _cSpm);
         [['spm_fpenghambat', _savedSpm?.f_penghambat], ['spm_solusi', _savedSpm?.solusi],
          ['spm_fpendukung', _savedSpm?.f_pendukung], ['spm_rencana', _savedSpm?.rencana_tl]].forEach(([base, val]) => {
-          const readEl  = document.getElementById(`${base}read_${indikatorId}`);
-          const shortEl = document.getElementById(`${base}short_${indikatorId}`);
-          if (readEl && shortEl) {
-            shortEl.textContent = val || '';
-            readEl.style.display = (val || '').trim().length > 0 ? '' : 'none';
-          }
+          _updatePSReadAfterSave(base, indikatorId, val);
         });
       }
       // Warning data dukung belum diupload

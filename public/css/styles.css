@@ -1364,6 +1364,28 @@ input[type="checkbox"].toggle:checked::after { left: 19px; }
 .kinerja-table th[style*="left:0"]    { z-index:5 !important; background:var(--hijau); }
 .kinerja-table th[style*="left:34px"] { z-index:5 !important; border-right:1px solid rgba(0,0,0,.12); left:44px !important; background:var(--hijau); }
 .kinerja-table td { padding:var(--sp-3) var(--sp-3); border-bottom:1px solid var(--abu-1); vertical-align:middle; user-select:text; overflow:hidden; background:#fff; }
+/* Laporan Kinerja: Faktor Penghambat/Solusi/Faktor Pendukung/RTL — baris "1. "/"- "
+   dirender jadi <ol>/<ul> beneran (lihat _lapMdToHtml di laporan.js) supaya wrap-nya
+   hanging-indent rapi, bukan nempel ke margin kiri kayak sebelumnya. */
+.lap-md-line { white-space:pre-wrap; }
+.lap-md-list { margin:1px 0 3px; padding-left:1.2em; text-align:left; }
+.lap-md-list li { margin-bottom:2px; padding-left:2px; }
+/* Daftar bernomor: rata kanan dalam kotak lebar tetap biar titik di belakang
+   nomor 1 & 2 digit sejajar (konsisten sama editor & tampilan ps-read).
+   Cuma <ol> yang disentuh, <ul> (bullet simbol) tetap seperti semula. */
+ol.lap-md-list { list-style:none; counter-reset:lapmdnum; padding-left:1.5em; }
+ol.lap-md-list > li { counter-increment:lapmdnum; position:relative; }
+ol.lap-md-list > li::before {
+  content:counter(lapmdnum) ".";
+  position:absolute;
+  left:-1.5em;
+  width:1.3em;
+  text-align:right;
+  white-space:nowrap;
+  color:var(--teks);
+  font-weight:400;
+}
+.lap-md-list li:last-child { margin-bottom:0; }
 .kinerja-table tbody tr { background:#fff; }
 .kinerja-table td.td-sticky-no, .kinerja-table td.td-sticky-name { background:#fff !important; z-index:3 !important; transition:background-color .25s ease; }
 .kinerja-table td.td-sticky-no  { box-shadow:none; width:44px; min-width:44px; max-width:44px; overflow:hidden; }
@@ -1448,15 +1470,70 @@ input[type="checkbox"].toggle:checked::after { left: 19px; }
 #page-laporan-kinerja .kinerja-table td { text-align:center; vertical-align:top; }
 #page-laporan-kinerja .kinerja-table td.td-sticky-name { text-align:left; }
 
-.textarea-cell textarea {
+.textarea-cell .ps-rte {
   width:100%; padding:6px 9px; border:1.5px solid var(--abu-2);
   border-radius:7px; font-size:.75rem; font-family:inherit; color:var(--teks);
   background:transparent; resize:none; overflow:hidden; min-height:36px; transition:border-color var(--transition), background-color .25s ease;
 }
-.textarea-cell textarea:focus { outline:none; border-color:var(--hijau); }
+.textarea-cell .ps-rte:focus { outline:none; border-color:var(--hijau); }
+.textarea-cell .ps-rte .rte-line { min-height:1.4em; }
+/* Marker ("1."/"-") dirender di <span class="rte-marker"> tersendiri, rata
+   kanan dalam kotak lebar tetap -- titik di belakang nomor 1 digit ("1.")
+   & 2 digit ("10.") jadi sejajar (sebelumnya cuma teks polos nempel di
+   depan baris, lebarnya ikut jumlah digit, jadi titiknya gak sejajar). */
+.textarea-cell .ps-rte .rte-line--list { padding-left:1.9em; }
+.textarea-cell .ps-rte .rte-marker {
+  display:inline-block;
+  box-sizing:border-box;
+  width:1.9em;
+  margin-left:-1.9em;
+  padding-right:.3em;
+  text-align:right;
+  white-space:nowrap;
+  color:var(--teks);
+  font-weight:400;
+}
+.textarea-cell .ps-rte:empty:before { content:attr(data-placeholder); color:var(--teks-muted); }
+.textarea-cell .ps-rte[contenteditable="false"] { cursor:not-allowed; }
+/* Marker bullet ("- ") divisualkan sebagai titik bulat (●) biar tampilannya
+   sama kayak hasil render setelah disimpan (browser default bullet <ul>),
+   bukan tanda pisah "-" polos. Karakter aslinya ("-") tetap disimpan di
+   textContent span (gak diubah) supaya parsing markdown-lite gak kesenggol
+   -- cuma teksnya disembunyiin (color:transparent) & digantiin visual pakai
+   ::after posisi sama persis. */
+.textarea-cell .ps-rte .rte-marker--ul { color:transparent; position:relative; }
+.textarea-cell .ps-rte .rte-marker--ul::after {
+  content:"\2022";
+  position:absolute;
+  inset:0;
+  text-align:right;
+  color:var(--teks);
+  font-weight:700;
+}
 /* Textarea ikut warna row saat saved/editing */
-.kinerja-table tr.row-state-saved .textarea-cell textarea { background:#ecfdf5; border-color:#a7f3d0; }
-.kinerja-table tr.row-state-editing .textarea-cell textarea { background:#fff7ed; border-color:#fed7aa; }
+.kinerja-table tr.row-state-saved .textarea-cell .ps-rte { background:#ecfdf5; border-color:#a7f3d0; }
+.kinerja-table tr.row-state-editing .textarea-cell .ps-rte { background:#fff7ed; border-color:#fed7aa; }
+
+/* Toolbar melayang (Bold/Italic/Daftar) saat teks di-select di dalam .ps-rte
+   -- warnanya disamain ke tema teal/hijau aplikasi (var(--hijau)/(--hijau-mid))
+   biar konsisten, sebelumnya abu-abu gelap generik gak nyambung sama tema. */
+.rte-toolbar {
+  position:fixed; z-index:9999; display:none; align-items:center;
+  background:linear-gradient(135deg, var(--hijau), var(--hijau-mid));
+  border-radius:7px; padding:3px; gap:1px;
+  box-shadow:0 4px 14px rgba(15,118,110,.35);
+}
+.rte-toolbar button {
+  all:unset; cursor:pointer; color:#fff; width:22px; height:22px;
+  display:flex; align-items:center; justify-content:center;
+  border-radius:5px; box-sizing:border-box;
+}
+.rte-toolbar button svg { width:12px; height:12px; }
+.rte-toolbar button:hover { background:rgba(255,255,255,.15); }
+/* State aktif (tombol Tebal/Miring) -- nyala kalau teks yang lagi di-select
+   emang udah diformat gitu, biar toolbar-nya mencerminkan format aktif. */
+.rte-toolbar button.active { background:rgba(255,255,255,.3); box-shadow:inset 0 0 0 1px rgba(255,255,255,.5); }
+.rte-sep { width:1px; align-self:stretch; background:rgba(255,255,255,.25); margin:2px 1px; }
 
 /* PS Cell read/expand */
 .ps-cell-wrap { position:relative; }
@@ -1464,17 +1541,51 @@ input[type="checkbox"].toggle:checked::after { left: 19px; }
   font-size:.75rem; color:var(--teks); line-height:1.5;
   word-break:break-word;
 }
-.ps-read-text { display:inline; white-space:pre-wrap; }
-.ps-read-full { white-space:pre-wrap; }
-.ps-ellipsis { color:var(--teks-muted); }
-.ps-more-btn {
-  display:inline;
-  background:none; border:none; padding:0 0 0 2px;
-  font-size:.72rem; font-weight:600; color:var(--hijau);
-  cursor:pointer; font-family:inherit;
-  text-decoration:underline; text-underline-offset:2px;
+.ps-read-text { display:block; white-space:pre-wrap; }
+.ps-read-full { display:block; white-space:pre-wrap; }
+.ps-read-text .md-line,
+.ps-read-full .md-line { white-space:pre-wrap; }
+.ps-read-text .md-line:empty,
+.ps-read-full .md-line:empty { min-height:1em; }
+.ps-read-text .md-list,
+.ps-read-full .md-list {
+  margin:0;
+  padding-left:1.3em;
 }
-.ps-more-btn:hover { color:var(--hijau-dark, #0f766e); }
+.ps-read-text .md-list li,
+.ps-read-full .md-list li {
+  margin-bottom:3px;
+  padding-left:2px;
+  white-space:normal;
+}
+/* Daftar bernomor: ganti marker bawaan browser (rata beda2 tiap browser)
+   pakai counter + kotak lebar tetap rata kanan, biar titik di belakang
+   nomor 1 & 2 digit sejajar -- konsisten sama tampilan di editor-nya.
+   Cuma <ol> yang disentuh, <ul> (bullet simbol) tetap seperti semula. */
+.ps-read-text ol.md-list,
+.ps-read-full ol.md-list { list-style:none; counter-reset:mdnum; padding-left:1.6em; }
+.ps-read-text ol.md-list > li,
+.ps-read-full ol.md-list > li { counter-increment:mdnum; position:relative; }
+.ps-read-text ol.md-list > li::before,
+.ps-read-full ol.md-list > li::before {
+  content:counter(mdnum) ".";
+  position:absolute;
+  left:-1.6em;
+  width:1.4em;
+  text-align:right;
+  white-space:nowrap;
+  color:var(--teks);
+  font-weight:400;
+}
+.ps-read-text .md-list li:last-child,
+.ps-read-full .md-list li:last-child { margin-bottom:0; }
+.ps-more-btn {
+  display:inline-flex; align-items:center; justify-content:center;
+  background:none; border:none; padding:0; margin-left:4px;
+  width:18px; height:18px; vertical-align:-4px;
+  color:var(--hijau); cursor:pointer; font-family:inherit; border-radius:4px;
+}
+.ps-more-btn:hover { color:var(--hijau-dark, #0f766e); background:var(--hijau-light); }
 .ps-tercapai-note {
   display:flex; align-items:center; justify-content:flex-start;
   min-height:36px; padding:6px 4px;
@@ -2032,7 +2143,7 @@ body.login-page::before {
 
   .kinerja-table th,
   .kinerja-table td { padding: 7px 7px; }
-  .textarea-cell textarea { min-height: 46px; }
+  .textarea-cell .ps-rte { min-height: 46px; }
 
   .dash-module-grid { grid-template-columns: repeat(4, 1fr); }
 }
@@ -2099,7 +2210,7 @@ body.login-page::before {
   .kinerja-table { min-width: 820px; font-size: .73rem; }
   .kinerja-table th,
   .kinerja-table td { padding: 6px 7px; }
-  .textarea-cell textarea { min-height: 42px; width: 130px; }
+  .textarea-cell .ps-rte { min-height: 42px; width: 130px; }
   .realisasi-input-cell { min-width: 130px; }
   .kinerja-toolbar { flex-wrap: wrap; gap: 8px; padding: 8px 10px; }
   .kinerja-toolbar-sep { display: none; }
@@ -2159,7 +2270,7 @@ body.login-page::before {
 
   /* ── Kinerja ── */
   .kinerja-table { min-width: 700px; font-size: .7rem; }
-  .textarea-cell textarea { width: 110px; font-size: .7rem; }
+  .textarea-cell .ps-rte { width: 110px; font-size: .7rem; }
 
   /* ── Toolbar ── */
   .toolbar { flex-direction: row; flex-wrap: wrap; }
@@ -2231,7 +2342,7 @@ body.login-page::before {
   .kinerja-table { min-width: 640px; font-size: .68rem; }
   .kinerja-table th,
   .kinerja-table td { padding: 5px 5px; }
-  .textarea-cell textarea { width: 95px; font-size: .68rem; min-height: 38px; }
+  .textarea-cell .ps-rte { width: 95px; font-size: .68rem; min-height: 38px; }
   .realisasi-input-cell { min-width: 120px; }
   .save-row-btn { padding: 4px 8px; font-size: .73rem; }
   .capaian-badge { padding: 2px 6px; font-size: .68rem; }
@@ -2302,7 +2413,7 @@ body.login-page::before {
 
   /* ── Kinerja ── */
   .kinerja-table { font-size: .65rem; min-width: 580px; }
-  .textarea-cell textarea { width: 80px; }
+  .textarea-cell .ps-rte { width: 80px; }
 
   /* ── Dashboard: 1 kolom penuh di layar sangat kecil ── */
   .dash-module-grid { grid-template-columns: 1fr; }
@@ -3428,7 +3539,7 @@ body { overflow-x: hidden; }
 
   .kinerja-table th,
   .kinerja-table td { padding: 7px 8px; }
-  .textarea-cell textarea { min-height: 46px; }
+  .textarea-cell .ps-rte { min-height: 46px; }
 }
 
 /* ══════════════════════════════════════════════════════
@@ -3523,7 +3634,7 @@ body { overflow-x: hidden; }
   .kinerja-table { min-width: 820px; font-size: .73rem; }
   .kinerja-table th,
   .kinerja-table td { padding: 6px 7px; }
-  .textarea-cell textarea { min-height: 42px; width: 130px; }
+  .textarea-cell .ps-rte { min-height: 42px; width: 130px; }
   .realisasi-input-cell { min-width: 130px; }
   .kinerja-toolbar { flex-wrap: wrap; gap: 8px; padding: 8px 10px; }
   .kinerja-toolbar-sep { display: none; }
@@ -3603,7 +3714,7 @@ body { overflow-x: hidden; }
 
   /* Kinerja */
   .kinerja-table { min-width: 720px; font-size: .7rem; }
-  .textarea-cell textarea { width: 110px; font-size: .7rem; }
+  .textarea-cell .ps-rte { width: 110px; font-size: .7rem; }
 
   /* Toolbar */
   .toolbar { flex-direction: row; flex-wrap: wrap; }
@@ -3688,7 +3799,7 @@ body { overflow-x: hidden; }
   .kinerja-table { min-width: 640px; font-size: .68rem; }
   .kinerja-table th,
   .kinerja-table td { padding: 5px 5px; }
-  .textarea-cell textarea { width: 95px; font-size: .68rem; min-height: 38px; }
+  .textarea-cell .ps-rte { width: 95px; font-size: .68rem; min-height: 38px; }
   .realisasi-input-cell { min-width: 120px; }
   .save-row-btn { padding: 4px 8px; font-size: .73rem; }
   .capaian-badge { padding: 2px 6px; font-size: .68rem; }
@@ -3787,7 +3898,7 @@ body { overflow-x: hidden; }
 
   /* Kinerja */
   .kinerja-table { font-size: .65rem; min-width: 560px; }
-  .textarea-cell textarea { width: 80px; font-size: .65rem; }
+  .textarea-cell .ps-rte { width: 80px; font-size: .65rem; }
 
   /* Card table */
   .card table { min-width: 360px; }
