@@ -692,6 +692,9 @@ tr:hover td:not(.td-sticky-no):not(.td-sticky-name) { background: var(--abu-1); 
 /* ── Freeze header: Surat Masuk, Surat Keluar, Laporan Surat ── */
 .surat-table thead th { position: sticky; top: 0; z-index: 2; }
 
+/* ── Freeze header: dipakai tabel lain yg butuh header nempel (Shortlink, Bundle) ── */
+.freeze-table thead th { position: sticky; top: 0; z-index: 2; }
+
 /* ── Periode table — colored header ── */
 .periode-table th {
   background: var(--hijau);
@@ -1065,6 +1068,82 @@ tr:hover td:not(.td-sticky-no):not(.td-sticky-name) { background: var(--abu-1); 
 .slug-status.taken { color: var(--merah); }
 @keyframes slugSpin { to { transform: rotate(360deg); } }
 
+/* ── Share modal (QR code) ── */
+.share-qr-box {
+  display: flex; align-items: center; justify-content: center;
+  margin: 14px auto 16px; padding: 16px; width: 292px; height: 292px;
+  background: #fff; border: 1.5px solid var(--abu-2); border-radius: var(--r-lg);
+}
+.share-qr-box img, .share-qr-box canvas { display: block; }
+.share-url-row {
+  display: flex; align-items: center; gap: 6px;
+  background: var(--abu-1); border: 1.5px solid var(--abu-2); border-radius: var(--r-sm);
+  padding: 6px 6px 6px 12px; margin-bottom: 12px;
+}
+.share-url-row input {
+  flex: 1; min-width: 0; border: none; background: transparent; outline: none;
+  font-size: var(--fs-sm); color: var(--teks); font-family: 'Plus Jakarta Sans', sans-serif;
+}
+.share-actions-row { display: flex; gap: 8px; justify-content: center; }
+.share-actions-row .btn { flex: 1; justify-content: center; }
+#shareWaBtn:hover { background: #dcfce7; color: #15803d; border-color: #86efac; }
+
+/* ── Share dropdown menu (mirip s.id) — tombol "Bagikan" di row Link/Bundle ── */
+.share-menu {
+  display: none; position: fixed; z-index: 9999; width: 210px;
+  background: #fff; border-radius: var(--r-lg);
+  box-shadow: 0 8px 32px rgba(0,0,0,.15); border: 1px solid rgba(0,0,0,.07);
+  padding: var(--sp-3); animation: fadeUp .15s ease both;
+}
+.share-menu.open { display: flex; flex-direction: column; gap: var(--sp-1); }
+.share-menu-item {
+  display: flex; align-items: center; gap: var(--sp-3); width: 100%; flex-shrink: 0;
+  padding: var(--sp-3) var(--sp-4); border-radius: var(--r-sm);
+  font-size: .82rem; font-weight: 600; color: var(--teks);
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  background: none; border: none; cursor: pointer; text-align: left;
+  transition: background var(--transition), color var(--transition);
+}
+.share-menu-item svg { flex-shrink: 0; opacity: .65; transition: opacity var(--transition); }
+.share-menu-item:hover { background: var(--hijau-light); color: var(--hijau); }
+.share-menu-item:hover svg { opacity: 1; color: var(--hijau); }
+.share-menu-divider { height: 1px; background: var(--abu-1); margin: 0 var(--sp-2); flex-shrink: 0; }
+
+/* ── Icon status di tabel Superlink (jam=berjangka, lock=proteksi) ── */
+.icon-status { color: var(--teks-muted); opacity: .55; }
+.icon-status.active { color: var(--hijau, #0f766e); opacity: 1; }
+.icon-status:hover { opacity: 1; }
+
+/* Samakan tinggi & alignment tombol aksi tabel Shortlink — tombol "Detail" (ada
+   teks) bikin baseline baris bergeser & tombol sesudahnya (Edit, Hapus) jadi
+   turun kalau align-nya masih default (baseline). */
+#slTableBody .btn-sm, #bundleTableBody .btn-sm { line-height: 1; vertical-align: middle; }
+
+/* ── Link Detail modal ── */
+.ld-head { display: flex; gap: 14px; align-items: flex-start; margin-bottom: 14px; }
+.ld-qr-box { width: 72px; height: 72px; flex-shrink: 0; border: 1px solid var(--abu-2); border-radius: var(--r-sm); overflow: hidden; }
+.ld-head-info { min-width: 0; flex: 1; padding-top: 2px; }
+.ld-title { font-size: .92rem; font-weight: 700; color: var(--teks); word-break: break-word; }
+.ld-url { font-size: .76rem; color: var(--teks-muted); margin-top: 3px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ld-date { display: flex; align-items: center; gap: 5px; font-size: .74rem; color: var(--teks-muted); margin-top: 6px; }
+.ld-actions-row { display: flex; gap: 8px; padding-bottom: 14px; border-bottom: 1px solid var(--abu-2); margin-bottom: 16px; }
+.ld-actions-row .btn { flex: 1; justify-content: center; }
+.ld-section { margin-bottom: 18px; }
+.ld-section-title { display: flex; align-items: center; gap: 7px; font-size: .82rem; font-weight: 700; color: var(--teks); margin-bottom: 8px; }
+.ld-status-card { display: flex; align-items: center; gap: 12px; justify-content: space-between; background: #f8fafc; border: 1px solid var(--abu-2); border-radius: var(--r-md); padding: 12px 14px; }
+.ld-status-title { font-size: .82rem; font-weight: 600; color: var(--teks); }
+.ld-status-desc { font-size: .74rem; color: var(--teks-muted); margin-top: 2px; line-height: 1.4; }
+.ld-status-card .btn { flex-shrink: 0; white-space: nowrap; }
+.ld-analytics-range { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
+.ld-analytics-range .cdtp-mount { flex: 1; }
+.ld-range-sep { color: var(--teks-muted); font-size: .8rem; }
+.ld-stats-row { display: flex; gap: 10px; margin-bottom: 12px; }
+.ld-stat { flex: 1; text-align: center; background: #f8fafc; border: 1px solid var(--abu-2); border-radius: var(--r-md); padding: 10px 6px; }
+.ld-stat-val { font-size: 1.1rem; font-weight: 800; color: var(--hijau, #0f766e); }
+.ld-stat-label { font-size: .68rem; color: var(--teks-muted); margin-top: 2px; }
+.ld-chart-box { min-height: 120px; display: flex; align-items: center; justify-content: center; }
+.ld-chart-empty { display: flex; flex-direction: column; align-items: center; gap: 6px; color: var(--teks-muted); font-size: .78rem; }
+
 .btn-primary:disabled, .btn-primary[disabled] {
   opacity: .5; cursor: not-allowed; filter: grayscale(.3);
 }
@@ -1248,55 +1327,64 @@ input[type="checkbox"].toggle:checked::after { left: 19px; }
 .dp-popup {
   position: absolute; top: calc(100% + 6px); left: 0;
   background: #fff; border-radius: 14px; z-index: 600;
-  box-shadow: 0 8px 32px rgba(0,0,0,.18), 0 2px 8px rgba(0,0,0,.08);
+  box-shadow: 0 8px 32px rgba(15,118,110,.18), 0 2px 8px rgba(0,0,0,.08);
   border: 1.5px solid var(--abu-2);
-  width: 280px; padding: 14px;
+  width: 230px; padding: 0;
   animation: dpFadeIn .18s ease both; user-select: none;
+  overflow: hidden;
 }
 .dp-popup.dp-right { left: auto; right: 0; }
-.dp-nav { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+/* Header teal edge-to-edge, disamain sama tema .cdtp-header */
+.dp-nav {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 0; padding: 7px 8px 6px; background: var(--hijau); color: #fff;
+}
 .dp-nav-btn {
-  width: 28px; height: 28px; border-radius: 8px; border: none;
-  background: var(--abu-1); color: var(--teks); cursor: pointer;
+  width: 22px; height: 22px; border-radius: 5px; border: none;
+  background: none; color: #fff; cursor: pointer;
   display: flex; align-items: center; justify-content: center;
-  font-size: 13px; transition: all var(--transition);
+  font-size: 13px; font-family: inherit; transition: background .15s;
 }
-.dp-nav-btn:hover { background: var(--hijau); color: #fff; }
+.dp-nav-btn:hover { background: rgba(255,255,255,.2); color: #fff; }
 .dp-month-year {
-  font-size: .85rem; font-weight: 800; color: var(--teks);
-  cursor: pointer; padding: 4px 10px; border-radius: 8px;
-  transition: background var(--transition);
+  display: flex; align-items: center; gap: 4px;
+  font-size: .78rem; font-weight: 700; color: #fff;
 }
-.dp-month-year:hover { background: var(--abu-1); }
-.dp-weekdays { display: grid; grid-template-columns: repeat(7, 1fr); margin-bottom: 4px; }
-.dp-weekday { text-align: center; font-size: .65rem; font-weight: 700; color: var(--teks-muted); text-transform: uppercase; padding: 4px 0; }
-.dp-days { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; }
+.dp-my-part {
+  cursor: pointer; padding: 2px 5px; border-radius: 5px;
+  transition: background .15s;
+}
+.dp-my-part:hover { background: rgba(255,255,255,.18); }
+.dp-weekdays { display: grid; grid-template-columns: repeat(7, 1fr); margin-bottom: 2px; padding: 6px 8px 0; }
+.dp-weekday { text-align: center; font-size: .58rem; font-weight: 700; color: var(--teks-muted); text-transform: uppercase; letter-spacing: .3px; padding: 2px 0; }
+.dp-days { display: grid; grid-template-columns: repeat(7, 1fr); gap: 1px; padding: 0 8px; }
 .dp-day {
-  aspect-ratio: 1; display: flex; align-items: center; justify-content: center;
-  font-size: .78rem; font-weight: 600; border-radius: 8px;
-  cursor: pointer; transition: all var(--transition); color: var(--teks);
+  height: 26px; display: flex; align-items: center; justify-content: center;
+  font-size: .75rem; font-weight: 600; font-family: inherit; border-radius: 5px;
+  cursor: pointer; transition: background .12s, color .12s; color: var(--teks);
   border: none; background: none;
 }
 .dp-day:hover { background: var(--hijau-light); color: var(--hijau); }
 .dp-day.today { color: var(--hijau); font-weight: 800; background: var(--hijau-light); }
 .dp-day.selected { background: var(--hijau); color: #fff; font-weight: 800; }
-.dp-day.selected:hover { background: #005f94; }
+.dp-day.selected:hover { background: var(--hijau); }
 .dp-day.other-month { color: var(--teks-muted); opacity: .45; }
 .dp-day.other-month:hover { background: var(--abu-1); color: var(--teks-muted); }
 .dp-footer {
   display: flex; align-items: center; justify-content: space-between;
-  margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--abu-1);
+  margin-top: 6px; padding: 8px 8px 8px; border-top: 1px solid var(--abu-1);
 }
-.dp-today-btn { font-size: .75rem; font-weight: 700; color: var(--hijau); background: none; border: none; cursor: pointer; padding: 3px 8px; border-radius: 6px; transition: background var(--transition); }
+.dp-today-btn { font-size: .75rem; font-weight: 700; color: var(--hijau); font-family: inherit; background: none; border: none; cursor: pointer; padding: 3px 8px; border-radius: 6px; transition: background var(--transition); }
 .dp-today-btn:hover { background: var(--hijau-light); }
-.dp-clear-btn { font-size: .75rem; font-weight: 700; color: var(--teks-muted); background: none; border: none; cursor: pointer; padding: 3px 8px; border-radius: 6px; transition: all var(--transition); }
+.dp-clear-btn { font-size: .75rem; font-weight: 700; color: var(--teks-muted); font-family: inherit; background: none; border: none; cursor: pointer; padding: 3px 8px; border-radius: 6px; transition: all var(--transition); }
 .dp-clear-btn:hover { color: var(--merah); background: #fee2e2; }
-.dp-my-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; animation: dpFadeIn .15s ease both; }
-.dp-my-item { padding: 7px 4px; text-align: center; border-radius: 8px; font-size: .75rem; font-weight: 700; cursor: pointer; color: var(--teks); border: none; background: none; transition: all var(--transition); }
+.dp-my-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; animation: dpFadeIn .15s ease both; padding: 8px; }
+.dp-my-item { padding: 7px 4px; text-align: center; border-radius: 8px; font-size: .75rem; font-weight: 700; font-family: inherit; cursor: pointer; color: var(--teks); border: none; background: none; transition: all var(--transition); }
 .dp-my-item:hover { background: var(--hijau-light); color: var(--hijau); }
 .dp-my-item.active { background: var(--hijau); color: #fff; }
+
 .dp-year-nav { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
-.dp-year-label { font-size: .85rem; font-weight: 800; color: var(--teks); }
+.dp-year-label { font-size: .85rem; font-weight: 800; color: #fff; }
 
 
 /* ═══════════════════════════════════════════════════════════════════════════
@@ -7419,37 +7507,6 @@ tr:hover td:not(.td-sticky-no):not(.td-sticky-name) { background: var(--abu-1); 
 .csel-option.selected { background: var(--hijau-light); color: var(--hijau); font-weight: 700; }
 
 
-/* ═══════════════════════════════════════════════════════════════════════════
-   26. DATEPICKER — φ-proportioned calendar grid
-   ═══════════════════════════════════════════════════════════════════════════ */
-
-/* Day cell: square with Fibonacci aspect */
-.dp-day {
-  aspect-ratio: 1;       /* Perfect square */
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: var(--fs-sm);
-  font-weight: 600;
-  border-radius: var(--r-sm);
-  cursor: pointer;
-  transition: all var(--transition);
-  color: var(--teks);
-  border: none;
-  background: none;
-  min-height: var(--sp-5);   /* min 21px */
-}
-
-.dp-popup {
-  background: #fff;
-  border-radius: var(--r-md);
-  z-index: 600;
-  box-shadow: 0 var(--sp-3) var(--sp-7) rgba(0,0,0,.18);
-  border: 1.5px solid var(--abu-2);
-  width: 280px;      /* 8 × 34 + 8 = comfortable */
-  padding: var(--sp-4);
-  animation: dpFadeIn var(--dur-xs) var(--ease) both;
-}
 
 
 /* ═══════════════════════════════════════════════════════════════════════════

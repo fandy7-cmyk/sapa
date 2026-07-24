@@ -30,7 +30,7 @@ function renderBidangOptions(selectedId) {
     .filter(b => b.aktif)
     .map(b => `<option value="${b.id}" ${b.id === selectedId ? 'selected' : ''}>${esc(b.nama)}</option>`)
     .join('');
-  return `<option value="">— Pilih Bidang / Sub Bagian —</option>` + opts;
+  return `<option value="">— Pilih Penanggung Jawab —</option>` + opts;
 }
 
 // ── Searchable Bidang Dropdown ────────────────────────────────────────────
@@ -53,7 +53,7 @@ function initBidangSearchable() {
   const trigger = document.createElement('button');
   trigger.type = 'button';
   trigger.className = 'bsel-trigger csel-trigger';
-  trigger.innerHTML = `<span class="bsel-trigger-text csel-trigger-text${selectedText ? '' : ' placeholder'}">${selectedText || '— Pilih Bidang / Sub Bagian —'}</span>
+  trigger.innerHTML = `<span class="bsel-trigger-text csel-trigger-text${selectedText ? '' : ' placeholder'}">${selectedText || '— Pilih Penanggung Jawab —'}</span>
     <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" class="csel-chev"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>`;
   wrap.appendChild(trigger);
 

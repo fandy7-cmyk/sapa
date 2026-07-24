@@ -1177,7 +1177,10 @@ class DatePicker {
       <div class="dp-popup${this.alignRight ? ' dp-right' : ''}" id="${this.containerId}-popup">
         <div class="dp-nav">
           <button class="dp-nav-btn" id="${this.containerId}-prev"><svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/></svg></button>
-          <span class="dp-month-year" id="${this.containerId}-my">${BULAN_ID[vm]} ${vy}</span>
+          <span class="dp-month-year">
+            <span class="dp-my-part" data-switch="months">${BULAN_ID[vm]}</span>
+            <span class="dp-my-part" data-switch="years">${vy}</span>
+          </span>
           <button class="dp-nav-btn" id="${this.containerId}-next"><svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg></button>
         </div>
         <div class="dp-weekdays">${HARI_ID.map(h=>`<div class="dp-weekday">${h}</div>`).join('')}</div>
@@ -1197,7 +1200,7 @@ class DatePicker {
       <div class="dp-popup${this.alignRight ? ' dp-right' : ''}" id="${this.containerId}-popup">
         <div class="dp-nav">
           <button class="dp-nav-btn" id="${this.containerId}-prev"><svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/></svg></button>
-          <span class="dp-month-year" id="${this.containerId}-my">${vy}</span>
+          <span class="dp-month-year"><span class="dp-my-part" data-switch="years">${vy}</span></span>
           <button class="dp-nav-btn" id="${this.containerId}-next"><svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg></button>
         </div>
         <div class="dp-my-grid">${items}</div>
@@ -1242,11 +1245,12 @@ class DatePicker {
       this._render();
     });
 
-    // Month/Year label click → switch mode
-    const myLabel = wrap.querySelector(`#${this.containerId}-my`);
-    if (myLabel) myLabel.addEventListener('click', () => {
-      this.mode = this.mode === 'days' ? 'months' : this.mode === 'months' ? 'years' : 'days';
-      this._render();
+    // Klik "Bulan" → langsung ke mode pilih bulan; klik "Tahun" → langsung ke mode pilih tahun
+    wrap.querySelectorAll('[data-switch]').forEach(el => {
+      el.addEventListener('click', () => {
+        this.mode = el.dataset.switch;
+        this._render();
+      });
     });
 
     // Day pick

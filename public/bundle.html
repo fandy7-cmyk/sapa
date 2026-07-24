@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>SAPA Perencanaan</title>
-  <meta name="app-version" content="1.0.5" />
+  <meta name="app-version" content="1.0.6" />
 
   <!-- Open Graph / WhatsApp Preview -->
   <meta property="og:type"         content="website" />
@@ -23,7 +23,7 @@
   <link rel="apple-touch-icon" href="/favicon.png" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="css/styles.css?v=1.0.5" />
+  <link rel="stylesheet" href="css/styles.css?v=1.0.6" />
   <style>
     /* additional inline for lucide icons consistency if needed */
     .item-icon svg, .state-icon svg, .item-arrow svg {
@@ -223,6 +223,9 @@ const _params = new URLSearchParams(location.search);
 const _pathSlug = location.pathname.split('/').filter(Boolean)[0] || '';
 const slug = _params.get('slug') || _pathSlug;
 
+const _viaQr = _params.get('src') === 'qr';
+const IconLock = `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>`;
+
 if (!slug) {
   document.getElementById('headerContent').innerHTML = `
     <div class="state-box">
@@ -235,18 +238,52 @@ if (!slug) {
   loadBundle(slug);
 }
 
-async function loadBundle(slug) {
+function renderBundlePasswordPrompt(slug, wrong) {
+  document.getElementById('headerContent').innerHTML = `
+    <div class="state-box">
+      <div class="state-icon">${IconLock}</div>
+      <h2>Bundle Diproteksi</h2>
+      <p>Masukkan password untuk membuka bundle ini.</p>
+    </div>`;
+  document.getElementById('itemsContainer').innerHTML = `
+    <form id="bundlePwForm" style="max-width:320px;margin:0 auto;display:flex;flex-direction:column;gap:10px">
+      ${wrong ? '<div style="color:#ef4444;font-size:.78rem">Password salah, coba lagi.</div>' : ''}
+      <input type="password" id="bundlePwInput" placeholder="Password" required autofocus
+        style="border:1.5px solid ${wrong ? '#fca5a5' : '#e2e8f0'};border-radius:10px;padding:11px 14px;font-size:.88rem;font-family:inherit;outline:none" />
+      <button type="submit" style="background:#0f766e;color:#fff;border:none;border-radius:10px;padding:12px;font-size:.88rem;font-weight:600;font-family:inherit;cursor:pointer">Buka Bundle</button>
+    </form>`;
+  document.getElementById('bundlePwForm').addEventListener('submit', function (e) {
+    e.preventDefault();
+    loadBundle(slug, document.getElementById('bundlePwInput').value);
+  });
+}
+
+async function loadBundle(slug, pw) {
   try {
-    const r = await fetch(`/api/bundles/${slug}`);
+    const qs = new URLSearchParams();
+    if (pw) qs.set('pw', pw);
+    if (_viaQr) qs.set('src', 'qr');
+    const qsStr = qs.toString();
+    const r = await fetch(`/api/bundles/${slug}${qsStr ? '?' + qsStr : ''}`);
+    if (r.status === 401) {
+      const dj = await r.json().catch(() => ({}));
+      renderBundlePasswordPrompt(slug, !!dj.wrong);
+      return;
+    }
     if (!r.ok) {
-      const isInactive = r.status === 403;
+      const dj = await r.json().catch(() => ({}));
+      const reason = dj.reason || (r.status === 403 ? 'inactive' : 'not_found');
+      const isInactive = reason === 'inactive';
+      const isExpired = reason === 'expired';
       document.getElementById('headerContent').innerHTML = `
         <div class="state-box">
           <div class="state-icon">
-            ${isInactive ? Icons.triangleAlert : Icons.fileX}
+            ${(isInactive || isExpired) ? Icons.triangleAlert : Icons.fileX}
           </div>
-          <h2>${isInactive ? 'Bundle Tidak Tersedia' : 'Bundle Tidak Ditemukan'}</h2>
-          <p>${isInactive
+          <h2>${isExpired ? 'Bundle Kedaluwarsa' : isInactive ? 'Bundle Tidak Tersedia' : 'Bundle Tidak Ditemukan'}</h2>
+          <p>${isExpired
+            ? 'Bundle ini sudah melewati masa berlakunya dan tidak dapat diakses lagi.'
+            : isInactive
             ? 'Bundle link ini sedang dinonaktifkan dan tidak dapat diakses saat ini.'
             : 'Link bundle mungkin sudah tidak aktif atau alamatnya salah.'
           }</p>

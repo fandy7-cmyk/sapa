@@ -865,7 +865,7 @@ async function loadLaporanKinerja() {
         <th rowspan="2" style="min-width:220px;position:sticky;left:34px;z-index:3">Indikator Kinerja</th>
         <th rowspan="2" style="width:65px;text-align:center">Target Tahunan</th>
         <th rowspan="2" style="width:55px;text-align:center">Satuan</th>
-        <th rowspan="2" style="min-width:130px">Bidang / Sub Bagian</th>
+        <th rowspan="2" style="min-width:130px">Penanggung Jawab</th>
         ${twHeaders}
         <th rowspan="2" style="width:75px;text-align:center">Realisasi s.d ${BULAN_PANJANG[bulanSampai-1]}</th>
         <th rowspan="2" style="width:65px;text-align:center">Capaian</th>
@@ -1492,7 +1492,7 @@ async function downloadLaporanByUrusan(btnEl) {
             <th rowspan="3" style="color:white;padding:5px 4px;border:1px solid #000;text-align:center;font-size:10px;min-width:150px">INDIKATOR KINERJA</th>
             <th rowspan="3" style="color:white;padding:5px 3px;border:1px solid #000;text-align:center;font-size:10px;width:40px">TARGET ${tahun}</th>
             <th rowspan="3" style="color:white;padding:5px 3px;border:1px solid #000;text-align:center;font-size:10px;width:38px">SATUAN</th>
-            <th rowspan="3" style="color:white;padding:5px 3px;border:1px solid #000;text-align:center;font-size:10px;min-width:110px">BIDANG / SUB BAGIAN</th>
+            <th rowspan="3" style="color:white;padding:5px 3px;border:1px solid #000;text-align:center;font-size:10px;min-width:110px">PENANGGUNG JAWAB</th>
             ${twJudulHeader}
             <th rowspan="3" style="color:white;padding:5px 3px;border:1px solid #000;text-align:center;font-size:10px;width:50px">REALISASI S.D ${BULAN_FULL[bulanSampai].toUpperCase()}</th>
             <th rowspan="3" style="color:white;padding:5px 3px;border:1px solid #000;text-align:center;font-size:10px;width:45px">CAPAIAN</th>
@@ -1716,7 +1716,7 @@ async function downloadLaporanByTSP(btnEl) {
             <th rowspan="3" style="color:white;padding:6px 8px;border:1px solid #000;text-align:center;font-size:10px">INDIKATOR KINERJA</th>
             <th rowspan="3" style="color:white;padding:6px 5px;border:1px solid #000;text-align:center;font-size:10px;width:50px">SATUAN</th>
             <th rowspan="3" style="color:white;padding:6px 5px;border:1px solid #000;text-align:center;font-size:10px;width:55px">TARGET ${tahun}</th>
-            <th rowspan="3" style="color:white;padding:6px 5px;border:1px solid #000;text-align:center;font-size:10px;min-width:110px">BIDANG / SUB BAGIAN</th>
+            <th rowspan="3" style="color:white;padding:6px 5px;border:1px solid #000;text-align:center;font-size:10px;min-width:110px">PENANGGUNG JAWAB</th>
             ${twJudulHeader}
             <th rowspan="3" style="color:white;padding:6px 5px;border:1px solid #000;text-align:center;font-size:10px;width:55px">REALISASI S.D ${BULAN_FULL[bulanSampai].toUpperCase()}</th>
             <th rowspan="3" style="color:white;padding:6px 5px;border:1px solid #000;text-align:center;font-size:10px;width:50px">CAPAIAN</th>
@@ -1732,7 +1732,7 @@ async function downloadLaporanByTSP(btnEl) {
             <th rowspan="3" style="color:white;padding:5px 4px;border:1px solid #000;text-align:center;font-size:10px;min-width:150px">INDIKATOR KINERJA</th>
             <th rowspan="3" style="color:white;padding:5px 3px;border:1px solid #000;text-align:center;font-size:10px;width:40px">TARGET ${tahun}</th>
             <th rowspan="3" style="color:white;padding:5px 3px;border:1px solid #000;text-align:center;font-size:10px;width:38px">SATUAN</th>
-            <th rowspan="3" style="color:white;padding:5px 3px;border:1px solid #000;text-align:center;font-size:10px;min-width:110px">BIDANG / SUB BAGIAN</th>
+            <th rowspan="3" style="color:white;padding:5px 3px;border:1px solid #000;text-align:center;font-size:10px;min-width:110px">PENANGGUNG JAWAB</th>
             ${twJudulHeader}
             <th rowspan="3" style="color:white;padding:5px 3px;border:1px solid #000;text-align:center;font-size:10px;width:50px">REALISASI S.D ${BULAN_FULL[bulanSampai].toUpperCase()}</th>
             <th rowspan="3" style="color:white;padding:5px 3px;border:1px solid #000;text-align:center;font-size:10px;width:45px">CAPAIAN</th>

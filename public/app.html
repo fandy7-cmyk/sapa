@@ -5,11 +5,11 @@
   <script>history.replaceState(null, '', location.origin);</script>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>SAPA Perencanaan</title>
-  <meta name="app-version" content="1.0.5" />
+  <meta name="app-version" content="1.0.6" />
   <link rel="icon" type="image/png" href="/favicon.png" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="css/styles.css?v=1.0.5" />
+  <link rel="stylesheet" href="css/styles.css?v=1.0.6" />
   <style>
     /* ── LOGIN OVERLAY ── */
     #loginOverlay {
@@ -474,10 +474,10 @@
           </div>
           <button class="btn btn-primary btn-sm" onclick="openLinkModal()"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>Tambah Link</button>
         </div>
-        <div class="card" style="padding:0;overflow:auto;-webkit-overflow-scrolling:touch">
-          <table>
-            <thead><tr><th>URL</th><th>Slug</th><th>Klik</th><th>Status</th><th class="col-admin-only">Dibuat Oleh</th><th>Aksi</th></tr></thead>
-            <tbody id="slTableBody"><tr class="empty-row"><td colspan="6">Memuat data...</td></tr></tbody>
+        <div class="card" style="padding:0;overflow:auto;-webkit-overflow-scrolling:touch;max-height:70vh">
+          <table class="freeze-table">
+            <thead><tr><th>Tautan</th><th>Status</th><th class="col-admin-only">Dibuat Oleh</th><th>Aksi</th></tr></thead>
+            <tbody id="slTableBody"><tr class="empty-row"><td colspan="4">Memuat data...</td></tr></tbody>
           </table>
         </div>
         <div id="slPagination"></div>
@@ -500,10 +500,10 @@
           </div>
           <button class="btn btn-primary btn-sm" onclick="openBundleModal()"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>Buat Bundle</button>
         </div>
-        <div class="card" style="padding:0;overflow:auto;-webkit-overflow-scrolling:touch">
-          <table>
-            <thead><tr><th>Judul</th><th>Slug</th><th>Item</th><th>Status</th><th class="col-admin-only">Dibuat Oleh</th><th>Aksi</th></tr></thead>
-            <tbody id="bundleTableBody"><tr class="empty-row"><td colspan="6">Memuat data...</td></tr></tbody>
+        <div class="card" style="padding:0;overflow:auto;-webkit-overflow-scrolling:touch;max-height:70vh">
+          <table class="freeze-table">
+            <thead><tr><th>Tautan</th><th>Status</th><th class="col-admin-only">Dibuat Oleh</th><th>Aksi</th></tr></thead>
+            <tbody id="bundleTableBody"><tr class="empty-row"><td colspan="4">Memuat data...</td></tr></tbody>
           </table>
         </div>
         <div id="bundlePagination"></div>
@@ -704,7 +704,7 @@
                 <th style="min-width:200px;position:sticky;left:34px;z-index:3">Indikator Kinerja</th>
                 <th style="width:70px">Satuan</th>
                 <th style="width:90px">Target</th>
-                <th class="col-bidang-iku" style="min-width:160px">Bidang / Sub Bagian</th>
+                <th class="col-bidang-iku" style="min-width:160px">Penanggung Jawab</th>
                 <th style="width:150px;text-align:center">Realisasi</th>
                 <th style="width:80px;text-align:center">Capaian</th>
                 <th style="min-width:150px">Faktor Penghambat</th>
@@ -773,7 +773,7 @@
                 <th style="min-width:200px;position:sticky;left:34px;z-index:3">Indikator Kinerja Kunci</th>
                 <th style="width:70px">Satuan</th>
                 <th style="width:90px">Target</th>
-                <th class="col-bidang-ikk" style="min-width:160px">Bidang / Sub Bagian</th>
+                <th class="col-bidang-ikk" style="min-width:160px">Penanggung Jawab</th>
                 <th style="width:150px;text-align:center">Realisasi</th>
                 <th style="width:80px;text-align:center">Capaian</th>
                 <th style="min-width:150px">Faktor Penghambat</th>
@@ -842,7 +842,7 @@
                 <th style="min-width:200px;position:sticky;left:34px;z-index:3">Indikator SPM</th>
                 <th style="width:70px">Satuan</th>
                 <th style="width:90px">Target</th>
-                <th class="col-bidang-spm" style="min-width:160px">Bidang / Sub Bagian</th>
+                <th class="col-bidang-spm" style="min-width:160px">Penanggung Jawab</th>
                 <th style="width:150px;text-align:center">Realisasi</th>
                 <th style="width:80px;text-align:center">Capaian</th>
                 <th style="min-width:150px">Faktor Penghambat</th>
@@ -923,7 +923,7 @@
                   <th style="min-width:200px;position:sticky;left:34px;z-index:3">Indikator Kinerja</th>
                   <th>Satuan</th>
                   <th id="thTarget">Target</th>
-                  <th>Bidang / Sub Bagian</th>
+                  <th>Penanggung Jawab</th>
                   <th style="min-width:150px">Penanggung Jawab (User)</th>
                   <th style="min-width:130px">Jenis Kinerja</th>
                   <th class="neg-col" data-tip="Bermakna Negatif / Positif" style="min-width:120px">Makna Indikator</th>
@@ -1116,7 +1116,7 @@
               <tr id="monTableHeadRow">
                 <th style="width:34px;text-align:center;position:sticky;left:0;z-index:3">No</th>
                 <th style="min-width:220px">Indikator Kinerja</th>
-                <th style="min-width:180px;white-space:normal">Bidang / Sub Bagian</th>
+                <th style="min-width:180px;white-space:normal">Penanggung Jawab</th>
                 <th style="width:110px">Target</th>
                 <th style="width:130px;text-align:center">Status</th>
                 <th style="min-width:180px">Penanggung Jawab (User)</th>
@@ -1150,7 +1150,7 @@
         </div>
         <div class="card" style="padding:0;overflow:auto;-webkit-overflow-scrolling:touch">
           <table>
-            <thead><tr><th>Nama</th><th>Email</th><th>Bidang / Sub Bagian</th><th>Role</th><th>Login Terakhir</th><th>Aksi</th></tr></thead>
+            <thead><tr><th>Nama</th><th>Email</th><th>Penanggung Jawab</th><th>Role</th><th>Login Terakhir</th><th>Aksi</th></tr></thead>
             <tbody id="userTableBody"><tr class="empty-row"><td colspan="6">Memuat data...</td></tr></tbody>
           </table>
         </div>
@@ -1159,7 +1159,7 @@
 
       <!-- ══ MASTER DATA › BIDANG ══ -->
       <div class="page" id="page-bidang">
-        <div class="page-title" style="display:flex;align-items:center;gap:10px"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;opacity:.85"><path d="M6 22V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v18Z"/><path d="M6 12H4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h2"/><path d="M18 9h2a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2h-2"/><path d="M10 6h4"/><path d="M10 10h4"/><path d="M10 14h4"/><path d="M10 18h4"/></svg>Bidang / Sub Bagian</div>
+        <div class="page-title" style="display:flex;align-items:center;gap:10px"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;opacity:.85"><path d="M6 22V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v18Z"/><path d="M6 12H4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h2"/><path d="M18 9h2a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2h-2"/><path d="M10 6h4"/><path d="M10 10h4"/><path d="M10 14h4"/><path d="M10 18h4"/></svg>Penanggung Jawab</div>
         <div class="page-subtitle">Kelola unit kerja untuk pengelompokan pengguna</div>
         <div class="toolbar">
           <div class="search-wrap">
@@ -1170,7 +1170,7 @@
         </div>
         <div class="card" style="padding:0;overflow:auto;-webkit-overflow-scrolling:touch">
           <table>
-            <thead><tr><th>Nama Bidang / Sub Bagian</th><th>Aksi</th></tr></thead>
+            <thead><tr><th>Nama Penanggung Jawab</th><th>Aksi</th></tr></thead>
             <tbody id="bidangTableBody"><tr class="empty-row"><td colspan="2">Memuat data...</td></tr></tbody>
           </table>
         </div>
@@ -1768,6 +1768,19 @@
         <input type="checkbox" class="toggle" id="linkAktif" checked />
         <label class="toggle-label" for="linkAktif">Aktif</label>
       </div>
+      <div class="field"><label>Masa Berlaku (opsional)</label>
+        <input type="hidden" id="linkExpiredAt">
+        <div id="cdtp_linkExpired" data-cdtp="linkExpiredAt" data-placeholder="Pilih tanggal &amp; waktu..."></div>
+        <div class="field-hint">Tautan otomatis tidak bisa diakses setelah tanggal ini. Kosongkan jika tidak berjangka.</div>
+      </div>
+      <div class="toggle-wrap">
+        <input type="checkbox" class="toggle" id="linkProtected" onchange="_toggleLinkPasswordField()" />
+        <label class="toggle-label" for="linkProtected">Proteksi Password</label>
+      </div>
+      <div class="field" id="linkPasswordField" style="display:none">
+        <label>Password</label><input type="text" id="linkPassword" placeholder="Masukkan password baru" />
+        <div class="field-hint" id="linkPasswordHint">Pengunjung wajib memasukkan password ini sebelum diarahkan ke tautan tujuan.</div>
+      </div>
     </div>
     <div class="modal-footer">
       <button class="btn btn-ghost" onclick="closeModal('modalLink')"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>Batal</button>
@@ -1797,6 +1810,19 @@
         <div class="toggle-wrap">
           <input type="checkbox" class="toggle" id="bundleAktif" checked />
           <label class="toggle-label" for="bundleAktif">Aktif</label>
+        </div>
+        <div class="field"><label>Masa Berlaku (opsional)</label>
+          <input type="hidden" id="bundleExpiredAt">
+          <div id="cdtp_bundleExpired" data-cdtp="bundleExpiredAt" data-placeholder="Pilih tanggal &amp; waktu..."></div>
+          <div class="field-hint">Bundle otomatis tidak bisa diakses setelah tanggal ini. Kosongkan jika tidak berjangka.</div>
+        </div>
+        <div class="toggle-wrap">
+          <input type="checkbox" class="toggle" id="bundleProtected" onchange="_toggleBundlePasswordField()" />
+          <label class="toggle-label" for="bundleProtected">Proteksi Password</label>
+        </div>
+        <div class="field" id="bundlePasswordField" style="display:none">
+          <label>Password</label><input type="text" id="bundlePassword" placeholder="Masukkan password baru" />
+          <div class="field-hint" id="bundlePasswordHint">Pengunjung wajib memasukkan password ini sebelum bundle bisa dibuka.</div>
         </div>
         <div id="bundleSaveHint" style="display:none;margin-top:10px;padding:8px 12px;background:#fef3c7;border-radius:8px;font-size:.78rem;color:#92400e;display:flex;align-items:center;gap:7px">
           <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
@@ -1832,6 +1858,97 @@
   </div>
 </div>
 
+<!-- Modal: Share (Link & Bundle) — mirip s.id: QR code + copy + WA share -->
+<div class="modal-overlay" id="modalShare">
+  <div class="modal" style="max-width:400px">
+    <div class="modal-header">
+      <div class="modal-title">Bagikan</div>
+      <button class="btn-close" onclick="closeModal('modalShare')"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg></button>
+    </div>
+    <div class="modal-body" style="text-align:center">
+      <div id="shareTitle" style="font-size:.85rem;font-weight:700;color:var(--teks);margin-bottom:2px;word-break:break-word"></div>
+      <div id="shareQrBox" class="share-qr-box"></div>
+      <div class="share-url-row">
+        <input type="text" id="shareUrlInput" readonly />
+        <button class="btn btn-ghost btn-sm" data-tip="Salin" onclick="copyShareUrl()"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="12" height="12" rx="2.5"/><path d="M15 5H6a2 2 0 0 0-2 2v9"/></svg></button>
+      </div>
+      <div class="share-actions-row">
+        <button class="btn btn-ghost btn-sm" onclick="downloadShareQr()"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M12 3v12m0 0 4-4m-4 4-4-4M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg>Unduh QR</button>
+        <a class="btn btn-ghost btn-sm" id="shareWaBtn" target="_blank" rel="noopener"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M3 21l1.65-3.8a9 9 0 1 1 3.4 3.4L3 21"/><path stroke-linecap="round" stroke-linejoin="round" d="M9 10a.5.5 0 0 0 1 0V9a.5.5 0 0 0-1 0v1zm0 0c0 2 2 4 4 4h1a.5.5 0 0 0 0-1h-1a.5.5 0 0 1 0-1"/></svg>WhatsApp</a>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Link Detail -->
+<div class="modal-overlay" id="modalLinkDetail">
+  <div class="modal" style="max-width:480px">
+    <div class="modal-header">
+      <div class="modal-title">Link Detail</div>
+      <button class="btn-close" onclick="closeModal('modalLinkDetail')"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg></button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="ldLinkId" />
+      <div class="ld-head">
+        <div id="ldQrBox" class="ld-qr-box"></div>
+        <div class="ld-head-info">
+          <div id="ldTitle" class="ld-title"></div>
+          <div id="ldUrl" class="ld-url"></div>
+          <div class="ld-date">
+            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+            <span id="ldDate"></span>
+          </div>
+        </div>
+      </div>
+
+      <div class="ld-actions-row">
+        <button class="btn btn-ghost btn-sm" onclick="_ldCopy()"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="margin-right:5px;vertical-align:-2px"><rect x="9" y="9" width="12" height="12" rx="2.5"/><path d="M15 5H6a2 2 0 0 0-2 2v9"/></svg>Copy</button>
+        <button class="btn btn-ghost btn-sm" onclick="_ldEdit()"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>Edit</button>
+        <button class="btn btn-ghost btn-sm" onclick="_ldQrStyle()"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8" style="margin-right:5px;vertical-align:-2px"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><path d="M14 14h3v3h-3zM19 14h2v2h-2zM14 19h2v2h-2zM19 19h2v2h-2z"/></svg>QR Code Style</button>
+      </div>
+
+      <div class="ld-section">
+        <div class="ld-section-title"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><rect x="4" y="10" width="16" height="10" rx="2"/><path d="M7 10V7a5 5 0 0110 0v3"/></svg>Protected Link</div>
+        <div class="ld-status-card">
+          <div>
+            <div class="ld-status-title" id="ldProtectedTitle">This link is not protected</div>
+            <div class="ld-status-desc">A protected link can be given a secret key/passphrase for access before being redirected to the original link</div>
+          </div>
+          <button class="btn btn-ghost btn-sm" id="ldProtectedBtn" onclick="_ldEdit()">Set Password</button>
+        </div>
+      </div>
+
+      <div class="ld-section">
+        <div class="ld-section-title"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>Time-based Link</div>
+        <div class="ld-status-card">
+          <div>
+            <div class="ld-status-title" id="ldExpiryTitle">No expiration set</div>
+            <div class="ld-status-desc">A time-based link only lasts for a certain period of time. When it expires, it will no longer be accessible.</div>
+          </div>
+          <button class="btn btn-ghost btn-sm" id="ldExpiryBtn" onclick="_ldEdit()">Set Time</button>
+        </div>
+      </div>
+
+      <div class="ld-section">
+        <div class="ld-section-title"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="20" x2="12" y2="10"/><line x1="18" y1="20" x2="18" y2="4"/><line x1="6" y1="20" x2="6" y2="16"/></svg>Analytics</div>
+        <div class="ld-analytics-range">
+          <input type="hidden" id="ldRangeDari">
+          <div id="cdtp_ldDari" data-cdtp="ldRangeDari" data-placeholder="Dari tanggal"></div>
+          <span class="ld-range-sep">—</span>
+          <input type="hidden" id="ldRangeSampai">
+          <div id="cdtp_ldSampai" data-cdtp="ldRangeSampai" data-placeholder="Sampai tanggal"></div>
+        </div>
+        <div class="ld-stats-row">
+          <div class="ld-stat"><div class="ld-stat-val" id="ldStatTotal">0</div><div class="ld-stat-label">Total Visitors</div></div>
+          <div class="ld-stat"><div class="ld-stat-val" id="ldStatUnique">0</div><div class="ld-stat-label">Unique Visitor</div></div>
+          <div class="ld-stat"><div class="ld-stat-val" id="ldStatQr">0</div><div class="ld-stat-label">QR Code Visitor</div></div>
+        </div>
+        <div id="ldChartBox" class="ld-chart-box"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- Modal: Surat Masuk -->
 <div class="modal-overlay" id="modalSM">
   <div class="modal modal-lg">
@@ -1861,7 +1978,7 @@
             <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>
           </div>
           <div class="upload-area-text"><strong>Klik atau drag &amp; drop</strong> file di sini</div>
-          <div class="upload-area-hint">PDF, Word, Excel, JPG, PNG — maks. 10 MB</div>
+          <div class="upload-area-hint">PDF, Word, Excel, JPG, PNG — maks. 2 MB</div>
         </div>
         <div id="smFilePreview" style="display:none"></div>
         <div class="upload-progress-wrap" id="smProgressWrap" style="display:none">
@@ -1905,7 +2022,7 @@
             <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>
           </div>
           <div class="upload-area-text"><strong>Klik atau drag &amp; drop</strong> file di sini</div>
-          <div class="upload-area-hint">PDF, Word, Excel, JPG, PNG — maks. 10 MB</div>
+          <div class="upload-area-hint">PDF, Word, Excel, JPG, PNG — maks. 2 MB</div>
         </div>
         <div id="skFilePreview" style="display:none"></div>
         <div class="upload-progress-wrap" id="skProgressWrap" style="display:none">
@@ -1934,7 +2051,7 @@
       <div class="field"><label>Nama *</label><input type="text" id="userNama" /></div>
       <div class="field"><label>Email *</label><input type="email" id="userEmail" /></div>
 
-      <div class="field"><label>Bidang / Sub Bagian</label><div class="select-wrap"><select id="userBidang"><option value="">— Pilih Bidang / Sub Bagian —</option></select></div></div>
+      <div class="field"><label>Penanggung Jawab</label><div class="select-wrap"><select id="userBidang"><option value="">— Pilih Penanggung Jawab —</option></select></div></div>
     </div>
     <div class="modal-footer">
       <button class="btn btn-ghost" onclick="closeModal('modalUser')"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>Batal</button>
@@ -2047,7 +2164,7 @@
     </div>
     <div class="modal-body">
       <input type="hidden" id="bidangId" />
-      <div class="field"><label>Nama Bidang / Sub Bagian *</label><input type="text" id="bidangNama" placeholder="cth. Bidang Perencanaan" /></div>
+      <div class="field"><label>Nama Penanggung Jawab *</label><input type="text" id="bidangNama" placeholder="cth. Bidang Perencanaan" /></div>
     </div>
     <div class="modal-footer">
       <button class="btn btn-ghost" onclick="closeModal('modalBidang')"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>Batal</button>
@@ -2141,9 +2258,9 @@
       </div>
 
       <div class="field">
-        <label>Bidang / Sub Bagian</label>
+        <label>Penanggung Jawab</label>
         <div class="select-wrap"><select id="indikatorPJ">
-          <option value="">— Pilih Bidang / Sub Bagian —</option>
+          <option value="">— Pilih Penanggung Jawab —</option>
         </select></div>
       </div>
     </div>
@@ -2445,7 +2562,7 @@
           <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>
         </div>
         <div class="upload-area-text"><strong>Klik atau drag &amp; drop</strong> file di sini</div>
-        <div class="upload-area-hint">PDF, Word, Excel, JPG, PNG — maks. 10 MB/file, boleh lebih dari 1</div>
+        <div class="upload-area-hint">PDF, Word, Excel, JPG, PNG — maks. 2 MB/file, boleh lebih dari 1</div>
       </div>
       <div class="upload-progress-wrap" id="dukungProgressWrap" style="display:none">
         <div class="upload-progress-bar" id="dukungProgressBar"></div>
@@ -2980,7 +3097,7 @@ function _loginShowErr(msg, type = 'warn') {
 </script>
 
 <!-- ════════════════ SCRIPTS ════════════════ -->
-<script src="js/periode_frontend.js?v=1.0.5"></script>
+<script src="js/periode_frontend.js?v=1.0.6"></script>
 <script>
 /* ── CDTP Teleport: pindahkan panel kalender ke <body> saat dibuka ──────────
    Ini satu-satunya cara yang benar-benar reliable agar panel tidak terpotong
@@ -3127,18 +3244,19 @@ function _loginShowErr(msg, type = 'warn') {
 })();
 </script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/quill/1.3.7/quill.min.js"></script>
-  <script src="js/app.js?v=1.0.5"></script>
-<script src="js/dashboard.js?v=1.0.5"></script>
-<script src="js/superlink.js?v=1.0.5"></script>
-<script src="js/pengumuman_frontend.js?v=1.0.5"></script>
-<script src="js/surat.js?v=1.0.5"></script>
-<script src="js/users_frontend.js?v=1.0.5"></script>
-<script src="js/kinerja.js?v=1.0.5"></script>
-<script src="js/laporan.js?v=1.0.5"></script>
-<script src="js/struktur_frontend.js?v=1.0.5"></script>
-<script src="js/audit_frontend.js?v=1.0.5"></script>
-<script src="js/dokumen_publik_frontend.js?v=1.0.5"></script>
-<script src="js/profil_frontend.js?v=1.0.5"></script>
+  <script src="js/app.js?v=1.0.6"></script>
+<script src="js/dashboard.js?v=1.0.6"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script src="js/superlink.js?v=1.0.6"></script>
+<script src="js/pengumuman_frontend.js?v=1.0.6"></script>
+<script src="js/surat.js?v=1.0.6"></script>
+<script src="js/users_frontend.js?v=1.0.6"></script>
+<script src="js/kinerja.js?v=1.0.6"></script>
+<script src="js/laporan.js?v=1.0.6"></script>
+<script src="js/struktur_frontend.js?v=1.0.6"></script>
+<script src="js/audit_frontend.js?v=1.0.6"></script>
+<script src="js/dokumen_publik_frontend.js?v=1.0.6"></script>
+<script src="js/profil_frontend.js?v=1.0.6"></script>
 
 <script>
 /* ═══════════════════════════════════════════════════════════════════════════

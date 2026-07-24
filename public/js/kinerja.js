@@ -885,7 +885,7 @@ function renderKinerjaTable(tbody) {
   });
   tbody.innerHTML = html;
   if (typeof window.initCustomSelects === 'function') window.initCustomSelects();
-  // Toggle header kolom Bidang / Sub Bagian (hanya tampil untuk admin)
+  // Toggle header kolom Penanggung Jawab (hanya tampil untuk admin)
   document.querySelectorAll('.col-bidang-iku').forEach(el => { el.style.display = _user?.is_admin ? '' : 'none'; });
   renderPagination('ikuPagination', _filtered.length, _ikuPage, _ikuPageSize, '_goIkuPage');
   // Tampilkan warning di kolom Data Dukung untuk baris yang sudah tersimpan
@@ -2248,7 +2248,7 @@ async function downloadIndikatorPDF(btnEl) {
 window.downloadIndikatorPDF = downloadIndikatorPDF;
 
 function _buildBidangOptions(selectedNama) {
-  const none = `<option value="">— Pilih Bidang / Sub Bagian —</option>`;
+  const none = `<option value="">— Pilih Penanggung Jawab —</option>`;
   const opts = _bidangListKinerja
     .filter(b => b.aktif)
     .map(b => {
@@ -2285,7 +2285,7 @@ function initIndikatorPJSearchable() {
   const trigger = document.createElement('button');
   trigger.type = 'button';
   trigger.className = 'bsel-trigger csel-trigger';
-  trigger.innerHTML = `<span class="bsel-trigger-text csel-trigger-text${selectedText ? '' : ' placeholder'}">${selectedText || '— Pilih Bidang / Sub Bagian —'}</span>
+  trigger.innerHTML = `<span class="bsel-trigger-text csel-trigger-text${selectedText ? '' : ' placeholder'}">${selectedText || '— Pilih Penanggung Jawab —'}</span>
     <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" class="csel-chev"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>`;
   wrap.appendChild(trigger);
 
@@ -3870,7 +3870,7 @@ function _renderIkkTable(tbody) {
   });
   tbody.innerHTML = html;
   if (typeof window.initCustomSelects === 'function') window.initCustomSelects();
-  // Toggle header kolom Bidang / Sub Bagian (hanya tampil untuk admin)
+  // Toggle header kolom Penanggung Jawab (hanya tampil untuk admin)
   document.querySelectorAll('.col-bidang-ikk').forEach(el => { el.style.display = _user?.is_admin ? '' : 'none'; });
   renderPagination('ikkPagination', _filtered.length, _ikkPage, _ikkPageSize, '_goIkkPage');
   // Sinkronkan status tombol Upload/Simpan begitu tabel selesai di-render, supaya
@@ -5137,7 +5137,7 @@ function _monPopulateUserSelect() {
   if (typeof syncCustomSelect === 'function') syncCustomSelect('monUserSelect');
 }
 
-// ── Progress per Bidang / Sub Bagian ─────────────────────────────────────────
+// ── Progress per Penanggung Jawab ─────────────────────────────────────────
 function _monRenderPJCards() {
   const el = document.getElementById('monPJCards');
   if (!el) return;
@@ -5193,14 +5193,14 @@ function _monRenderPJCards() {
     <div style="margin-bottom:var(--sp-5)">
       <div style="font-size:var(--fs-sm);font-weight:700;color:var(--teks);margin-bottom:var(--sp-3);display:flex;align-items:center;gap:var(--sp-2)">
         <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="var(--hijau)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>
-        <span>Progress per Bidang / Sub Bagian</span>
+        <span>Progress per Penanggung Jawab</span>
         ${_mon_pj ? `<button onclick="setMonPJ('')" style="font-size:var(--fs-xs);background:var(--hijau-light);border:none;border-radius:999px;padding:2px 10px;cursor:pointer;color:var(--hijau);font-weight:700;display:inline-flex;align-items:center;gap:3px">✕ Reset</button>` : ''}
       </div>
       <div style="display:flex;flex-wrap:wrap;gap:var(--sp-3)">${cards}</div>
     </div>`;
 }
 
-// ── Progress per User — muncul saat salah satu Bidang/Sub Bagian dipilih ──
+// ── Progress per User — muncul saat salah satu Penanggung Jawab dipilih ──
 function _monRenderUserCards() {
   const el = document.getElementById('monUserCards');
   if (!el) return;
@@ -5303,7 +5303,7 @@ function _monRenderTable() {
   if (_mon_status === 'terisi') rows = rows.filter(r => r.status === 'terisi');
   if (_mon_status === 'belum')  rows = rows.filter(r => r.status === 'belum');
 
-  // Filter PJ (Bidang / Sub Bagian)
+  // Filter PJ (Penanggung Jawab)
   if (_mon_pj) rows = rows.filter(r => r.penanggung_jawab === _mon_pj);
 
   // Filter User (PIC)
@@ -5768,7 +5768,7 @@ function _renderSpmTable(tbody) {
   });
   tbody.innerHTML = html;
   if (typeof window.initCustomSelects === 'function') window.initCustomSelects();
-  // Toggle header kolom Bidang / Sub Bagian (hanya tampil untuk admin)
+  // Toggle header kolom Penanggung Jawab (hanya tampil untuk admin)
   document.querySelectorAll('.col-bidang-spm').forEach(el => {
     el.style.display = _user?.is_admin ? '' : 'none';
   });

@@ -6,6 +6,16 @@ function _updateToggleLabel(id) {
   if (lbl) lbl.textContent = el.checked ? 'Aktif' : 'Nonaktif';
 }
 
+// ── Cek link kedaluwarsa (expired_at lewat), lepas dari flag aktif mentah ──
+function _linkIsExpired(l) {
+  return !!l.expired_at && new Date(l.expired_at) < new Date();
+}
+
+// ── Cek bundle kedaluwarsa (sama logikanya kayak link) ──
+function _bundleIsExpired(b) {
+  return !!b.expired_at && new Date(b.expired_at) < new Date();
+}
+
 // ── Status dropdown: hanya tampilkan opsi yang ada datanya ──
 function _buildStatusOptions(data, getAktif = d => d.aktif) {
   const aktifCount    = data.filter(d => getAktif(d)).length;
@@ -23,6 +33,21 @@ function _debounce(fn, delay = 400) {
     clearTimeout(timer);
     timer = setTimeout(() => fn.apply(this, args), delay);
   };
+}
+
+// ── Format tanggal+jam WITA (dipakai list Link, mirip s.id) ──
+function _fmtWita(iso) {
+  if (!iso) return '—';
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return '—';
+  try {
+    const parts = new Intl.DateTimeFormat('en-GB', {
+      timeZone: 'Asia/Makassar', day: '2-digit', month: 'short', year: 'numeric',
+      hour: '2-digit', minute: '2-digit', hour12: false,
+    }).formatToParts(d);
+    const get = t => parts.find(p => p.type === t)?.value || '';
+    return `${get('day')} ${get('month')} ${get('year')} ${get('hour')}:${get('minute')} WITA`;
+  } catch { return '—'; }
 }
 
 // ── Slug availability checker (dipakai Link & Bundle) ────
@@ -122,8 +147,36 @@ function openLinkModal(id) {
   document.getElementById('linkSlugStatus').innerHTML = '';
   _linkSlugAvailable = true;
   document.getElementById('btnSaveLink').disabled = false;
+  document.getElementById('linkExpiredAt').value = '';
+  document.getElementById('linkProtected').checked = false;
+  document.getElementById('linkPassword').value = '';
+  document.getElementById('linkPasswordHint').textContent = 'Pengunjung wajib memasukkan password ini sebelum diarahkan ke tautan tujuan.';
+  _linkWasProtected = false;
+  _toggleLinkPasswordField();
   document.getElementById('modalLinkTitle').textContent = 'Tambah Link';
   openModal('modalLink');
+  setTimeout(() => {
+    if (typeof initCdtp === 'function') initCdtp();
+    const m = document.getElementById('cdtp_linkExpired');
+    if (m?._cdtp) m._cdtp.clear();
+  }, 30);
+}
+
+let _linkWasProtected = false;
+
+function _toggleLinkPasswordField() {
+  const on = document.getElementById('linkProtected').checked;
+  document.getElementById('linkPasswordField').style.display = on ? '' : 'none';
+  document.getElementById('linkPassword').placeholder = (on && _linkWasProtected)
+    ? 'Kosongkan jika tidak ingin mengganti password' : 'Masukkan password baru';
+}
+
+// datetime-local butuh format lokal 'YYYY-MM-DDTHH:mm' tanpa timezone
+function _isoToLocalInput(iso) {
+  if (!iso) return '';
+  const d = new Date(iso);
+  const pad = n => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
 function editLink(id) {
@@ -138,8 +191,21 @@ function editLink(id) {
   document.getElementById('linkSlugStatus').innerHTML = '';
   _linkSlugAvailable = true;
   document.getElementById('btnSaveLink').disabled = false;
+  document.getElementById('linkExpiredAt').value = _isoToLocalInput(l.expired_at);
+  _linkWasProtected = !!l.is_protected;
+  document.getElementById('linkProtected').checked = _linkWasProtected;
+  document.getElementById('linkPassword').value = '';
+  document.getElementById('linkPasswordHint').textContent = _linkWasProtected
+    ? 'Sudah diproteksi. Isi untuk ganti password, atau matikan toggle utk menghapus proteksi.'
+    : 'Pengunjung wajib memasukkan password ini sebelum diarahkan ke tautan tujuan.';
+  _toggleLinkPasswordField();
   document.getElementById('modalLinkTitle').textContent = 'Edit Link';
   openModal('modalLink');
+  setTimeout(() => {
+    if (typeof initCdtp === 'function') initCdtp();
+    const m = document.getElementById('cdtp_linkExpired');
+    if (m?._cdtp) m._cdtp.set(l.expired_at || null);
+  }, 30);
 }
 
 document.getElementById('linkAktif').addEventListener('change', function() {
@@ -160,16 +226,30 @@ function _autoJudulLink(url, slug) {
 }
 
 async function saveLink() {
+  // Auto-commit picker yang masih terbuka (user belum klik "Pilih")
+  const mExp = document.getElementById('cdtp_linkExpired');
+  if (mExp?._cdtp?.commit) mExp._cdtp.commit();
+
   const id  = document.getElementById('linkId').value;
   const url  = document.getElementById('linkUrl').value.trim();
   const slug = document.getElementById('linkSlug').value.trim() || null;
+  const expiredLocal = document.getElementById('linkExpiredAt').value;
+  const protectedNow  = document.getElementById('linkProtected').checked;
+  const pwInput = document.getElementById('linkPassword').value;
   const body = {
     judul:      _autoJudulLink(url, slug),
     url,
     aktif:      document.getElementById('linkAktif').checked,
     slug_pendek:slug,
+    expired_at: expiredLocal ? new Date(expiredLocal).toISOString() : null,
   };
+  if (!protectedNow) {
+    body.clear_password = true;
+  } else if (pwInput) {
+    body.password = pwInput;
+  } // kalau protectedNow true & pwInput kosong (edit, sudah ada password) -> jangan diubah
   if (!body.url) { toast('URL wajib diisi', 'error'); return; }
+  if (protectedNow && !pwInput && !_linkWasProtected) { toast('Isi password utk proteksi tautan', 'error'); return; }
   if (!_linkSlugAvailable) { toast('Slug pendek sudah digunakan, ganti dulu', 'error'); return; }
   try {
     const r = await fetch(id ? `/api/links/${id}` : '/api/links', {
@@ -198,11 +278,11 @@ async function deleteLink(id) {
 // ═══════════════════════════════════════════
 // SHORTLINK — halaman unified: semua link + shortlink
 // ═══════════════════════════════════════════
-let _slFiltered = [], _slPage = 1, _slPageSize = 15;
+let _slFiltered = [], _slPage = 1, _slPageSize = 10;
 
 async function loadShortlinks() {
   const tb0 = document.getElementById('slTableBody');
-  if (tb0) tb0.innerHTML = `<tr class="empty-row"><td colspan="6"><span class="btn-spin" style="width:11px;height:11px;vertical-align:-1px;margin-right:6px"></span>Memuat data...</td></tr>`;
+  if (tb0) tb0.innerHTML = `<tr class="empty-row"><td colspan="4"><span class="btn-spin" style="width:11px;height:11px;vertical-align:-1px;margin-right:6px"></span>Memuat data...</td></tr>`;
   await loadLinks();
   filterShortlinks();
 }
@@ -215,7 +295,8 @@ function filterShortlinks() {
     const matchQ = l.judul.toLowerCase().includes(q) ||
                    l.url.toLowerCase().includes(q) ||
                    (l.slug_pendek||'').toLowerCase().includes(q);
-    const matchS = !status || (status === 'aktif' ? l.aktif : !l.aktif);
+    const lAktifEfektif = l.aktif && !_linkIsExpired(l);
+    const matchS = !status || (status === 'aktif' ? lAktifEfektif : !lAktifEfektif);
     const matchJ = !jenis || (jenis === 'shortlink' ? !!l.slug_pendek : !l.slug_pendek);
     return matchQ && matchS && matchJ;
   });
@@ -231,18 +312,32 @@ function renderShortlinks() {
   const slice = _slFiltered.slice(start, start + _slPageSize);
   tb.innerHTML = slice.length ? slice.map(l => `
     <tr>
-      <td><a href="${esc(l.url)}" target="_blank" style="color:var(--hijau);font-size:.75rem">${esc(l.url.length>35?l.url.slice(0,35)+'…':l.url)}</a></td>
-      <td>${l.slug_pendek ? `
-        <code style="font-size:.75rem;font-weight:600;background:var(--abu-1);padding:2px 7px;border-radius:5px;font-family:'Plus Jakarta Sans',sans-serif">/${esc(l.slug_pendek)}</code>
-        <button class="btn btn-ghost btn-sm" style="margin-left:4px" data-tip="Salin URL" onclick="copySlug('${esc(l.slug_pendek)}')"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="12" height="12" rx="2.5"/><path d="M15 5H6a2 2 0 0 0-2 2v9"/></svg></button>
-      ` : '<span style="color:var(--teks-muted)">—</span>'}</td>
-      <td><span class="badge badge-blue">${l.total_klik ?? 0}</span></td>
-      <td><span class="badge ${l.aktif?'badge-green':'badge-red'}">${l.aktif?'Aktif':'Nonaktif'}</span></td>
+      <td>
+        <div style="display:flex;align-items:center;gap:4px;flex-wrap:wrap">
+          ${l.slug_pendek
+            ? `<code style="font-size:.8rem;font-weight:700;color:var(--hijau);background:var(--hijau-light);padding:2px 8px;border-radius:5px;font-family:'Plus Jakarta Sans',sans-serif">/${esc(l.slug_pendek)}</code>`
+            : `<span style="color:var(--teks-muted);font-size:.78rem">Tanpa shortlink</span>`}
+        </div>
+        <a href="${esc(l.url)}" target="_blank" style="display:block;color:var(--teks-muted);font-size:.74rem;margin-top:3px;max-width:380px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(l.url)}</a>
+        <div style="display:flex;align-items:center;gap:4px;color:var(--teks-muted);font-size:.7rem;margin-top:3px">
+          <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>
+          ${esc(_fmtWita(l.created_at))}
+        </div>
+      </td>
+      <td>${_linkIsExpired(l)
+          ? `<span class="badge badge-red" data-tip="Berlaku s.d ${esc(fmtDate(l.expired_at))}">Kedaluwarsa</span>`
+          : `<span class="badge ${l.aktif?'badge-green':'badge-red'}">${l.aktif?'Aktif':'Nonaktif'}</span>`}</td>
       <td class="col-admin-only" style="color:var(--teks-muted);font-size:.78rem">${l.created_by_nama ? esc(l.created_by_nama) : '—'}</td>
-      <td style="white-space:nowrap"><button class="btn btn-ghost btn-sm" data-tip="Edit" onclick="editLink(${l.id})"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg></button>
+      <td style="white-space:nowrap">${l.slug_pendek ? `
+          <button class="btn btn-ghost btn-sm icon-status${l.expired_at ? ' active' : ''}" data-tip="${l.expired_at ? 'Berlaku s.d ' + esc(fmtDate(l.expired_at)) : 'Tautan berjangka'}" onclick="editLink(${l.id})"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg></button>
+          <button class="btn btn-ghost btn-sm icon-status${l.is_protected ? ' active' : ''}" data-tip="${l.is_protected ? 'Tautan diproteksi' : 'Tautan tanpa proteksi'}" onclick="editLink(${l.id})"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="10" width="16" height="10" rx="2"/><path d="M7 10V7a5 5 0 0110 0v3"/></svg></button>
+          <button class="btn btn-ghost btn-sm" data-tip="Bagikan" data-share-trigger onclick="toggleShareMenu(event,'link', ${l.id})"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a3 3 0 1 0-2.83-4H15a3 3 0 0 0 .05.54L8.09 8.49a3 3 0 1 0 0 7.02l6.96 3.95A3 3 0 1 0 15.83 18l-6.96-3.95a3 3 0 0 0 0-2.1L15.83 8A3 3 0 0 0 18 8z"/></svg></button>
+          <button class="btn btn-ghost btn-sm" data-tip="QR Code" onclick="openShareModal('link', ${l.id})"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><path d="M14 14h3v3h-3zM19 14h2v2h-2zM14 19h2v2h-2zM19 19h2v2h-2z"/></svg></button>
+          <button class="btn btn-ghost btn-sm" data-tip="Detail" onclick="openLinkDetail(${l.id})" style="gap:3px">Detail<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg></button>` : ''}
+          <button class="btn btn-ghost btn-sm" data-tip="Edit" onclick="editLink(${l.id})"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg></button>
           <button class="btn btn-danger btn-sm" data-tip="Hapus" onclick="deleteLink(${l.id})"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path stroke-linecap="round" stroke-linejoin="round" d="M19 6l-1 14H6L5 6"/><path stroke-linecap="round" stroke-linejoin="round" d="M10 11v6m4-6v6"/><path stroke-linecap="round" stroke-linejoin="round" d="M9 6V4h6v2"/></svg></button></td>
     </tr>`).join('')
-    : '<tr class="empty-row"><td colspan="6">Tidak ada link</td></tr>';
+    : '<tr class="empty-row"><td colspan="4">Tidak ada link</td></tr>';
   renderPagination('slPagination', _slFiltered.length, _slPage, _slPageSize, 'goSlPage');
 }
 
@@ -254,13 +349,13 @@ function copySlug(slug) {
 // ═══════════════════════════════════════════
 // BUNDLES
 // ═══════════════════════════════════════════
-let _bundles = [], _bundlesFiltered = [], _bundlePage = 1, _bundlePageSize = 15;
+let _bundles = [], _bundlesFiltered = [], _bundlePage = 1, _bundlePageSize = 10;
 let _currentBundleId = null;
 let _currentBundleItems = [];
 
 async function loadBundles() {
   const tb0 = document.getElementById('bundleTableBody');
-  if (tb0) tb0.innerHTML = `<tr class="empty-row"><td colspan="6"><span class="btn-spin" style="width:11px;height:11px;vertical-align:-1px;margin-right:6px"></span>Memuat data...</td></tr>`;
+  if (tb0) tb0.innerHTML = `<tr class="empty-row"><td colspan="4"><span class="btn-spin" style="width:11px;height:11px;vertical-align:-1px;margin-right:6px"></span>Memuat data...</td></tr>`;
   try {
     const r = await fetch('/api/bundles', { headers: authHeaders() });
     const d = await r.json();
@@ -277,9 +372,13 @@ function filterBundles() {
   const q      = (document.getElementById('bundleSearch')?.value || '').toLowerCase();
   const status = document.getElementById('bundleFilterStatus')?.value || '';
   _bundlesFiltered = _bundles.filter(b => {
+    const bAktifEfektif = b.aktif && !_bundleIsExpired(b);
+    if (status) {
+      const matchS = status === 'aktif' ? bAktifEfektif : !bAktifEfektif;
+      if (!matchS) return false;
+    }
     const matchQ = b.judul.toLowerCase().includes(q) || b.slug.toLowerCase().includes(q);
-    const matchS = !status || (status === 'aktif' ? b.aktif : !b.aktif);
-    return matchQ && matchS;
+    return matchQ;
   });
   _bundlePage = 1; renderBundles();
 }
@@ -290,20 +389,32 @@ function renderBundles() {
   const tb = document.getElementById('bundleTableBody');
   tb.innerHTML = slice.length ? slice.map(b => `
     <tr>
-      <td><strong>${esc(b.judul)}</strong></td>
       <td>
-        <code style="font-size:.75rem;font-weight:600;background:var(--abu-1);padding:2px 6px;border-radius:5px;font-family:'Plus Jakarta Sans',sans-serif">/${esc(b.slug)}</code>
-        <button class="btn btn-ghost btn-sm" style="margin-left:4px" data-tip="Salin URL" onclick="copyBundleUrl('${esc(b.slug)}')"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="12" height="12" rx="2.5"/><path d="M15 5H6a2 2 0 0 0-2 2v9"/></svg></button>
+        <div style="font-weight:700;color:var(--teks);font-size:.85rem">${esc(b.judul)}</div>
+        <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:3px">
+          <code style="font-size:.75rem;font-weight:600;color:var(--hijau);background:var(--hijau-light);padding:2px 8px;border-radius:5px;font-family:'Plus Jakarta Sans',sans-serif">/${esc(b.slug)}</code>
+          <span style="color:var(--teks-muted);font-size:.72rem">${b.jumlah_item ?? 0} item</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:4px;color:var(--teks-muted);font-size:.7rem;margin-top:3px">
+          <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>
+          ${esc(_fmtWita(b.created_at))}
+        </div>
       </td>
-      <td>${b.jumlah_item ?? 0} item</td>
-      <td><span class="badge ${b.aktif?'badge-green':'badge-red'}">${b.aktif?'Aktif':'Nonaktif'}</span></td>
+      <td>${_bundleIsExpired(b)
+          ? `<span class="badge badge-red" data-tip="Berlaku s.d ${esc(fmtDate(b.expired_at))}">Kedaluwarsa</span>`
+          : `<span class="badge ${b.aktif?'badge-green':'badge-red'}">${b.aktif?'Aktif':'Nonaktif'}</span>`}</td>
       <td class="col-admin-only" style="color:var(--teks-muted);font-size:.78rem">${b.created_by_nama ? esc(b.created_by_nama) : '—'}</td>
       <td style="white-space:nowrap">
+        <button class="btn btn-ghost btn-sm icon-status${b.expired_at ? ' active' : ''}" data-tip="${b.expired_at ? 'Berlaku s.d ' + esc(fmtDate(b.expired_at)) : 'Bundle berjangka'}" onclick="editBundle(${b.id})"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg></button>
+        <button class="btn btn-ghost btn-sm icon-status${b.is_protected ? ' active' : ''}" data-tip="${b.is_protected ? 'Bundle diproteksi' : 'Bundle tanpa proteksi'}" onclick="editBundle(${b.id})"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="10" width="16" height="10" rx="2"/><path d="M7 10V7a5 5 0 0110 0v3"/></svg></button>
+        <button class="btn btn-ghost btn-sm" data-tip="Bagikan" data-share-trigger onclick="toggleShareMenu(event,'bundle', ${b.id})"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a3 3 0 1 0-2.83-4H15a3 3 0 0 0 .05.54L8.09 8.49a3 3 0 1 0 0 7.02l6.96 3.95A3 3 0 1 0 15.83 18l-6.96-3.95a3 3 0 0 0 0-2.1L15.83 8A3 3 0 0 0 18 8z"/></svg></button>
+        <button class="btn btn-ghost btn-sm" data-tip="QR Code" onclick="openShareModal('bundle', ${b.id})"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><path d="M14 14h3v3h-3zM19 14h2v2h-2zM14 19h2v2h-2zM19 19h2v2h-2z"/></svg></button>
+        <button class="btn btn-ghost btn-sm" data-tip="Detail" onclick="openBundleDetail(${b.id})" style="gap:3px">Detail<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg></button>
         <button class="btn btn-ghost btn-sm" data-tip="Edit" onclick="editBundle(${b.id})"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg></button>
         <button class="btn btn-danger btn-sm" data-tip="Hapus" onclick="deleteBundle(${b.id})"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path stroke-linecap="round" stroke-linejoin="round" d="M19 6l-1 14H6L5 6"/><path stroke-linecap="round" stroke-linejoin="round" d="M10 11v6m4-6v6"/><path stroke-linecap="round" stroke-linejoin="round" d="M9 6V4h6v2"/></svg></button>
       </td>
     </tr>`).join('')
-    : '<tr class="empty-row"><td colspan="6">Tidak ada bundle</td></tr>';
+    : '<tr class="empty-row"><td colspan="4">Tidak ada bundle</td></tr>';
   renderPagination('bundlePagination', _bundlesFiltered.length, _bundlePage, _bundlePageSize, 'goBundlePage');
 }
 
@@ -352,6 +463,12 @@ function openBundleModal() {
   document.getElementById('bundleSlugStatus').innerHTML = '';
   _bundleSlugAvailable = true;
   document.getElementById('btnSaveBundle').disabled = false;
+  document.getElementById('bundleExpiredAt').value = '';
+  document.getElementById('bundleProtected').checked = false;
+  document.getElementById('bundlePassword').value = '';
+  document.getElementById('bundlePasswordHint').textContent = 'Pengunjung wajib memasukkan password ini sebelum bundle bisa dibuka.';
+  _bundleWasProtected = false;
+  _toggleBundlePasswordField();
   document.getElementById('bundleItemsList').innerHTML =
     '<div style="text-align:center;color:var(--teks-muted);padding:16px;font-size:.82rem">Simpan info bundle dulu untuk mulai menambah item.</div>';
   document.getElementById('bundleInlineItemForm').style.display = 'none';
@@ -360,6 +477,20 @@ function openBundleModal() {
   document.getElementById('bundleItemCount').textContent = '';
   _setBundleItemsLocked(true);
   openModal('modalBundle');
+  setTimeout(() => {
+    if (typeof initCdtp === 'function') initCdtp();
+    const m = document.getElementById('cdtp_bundleExpired');
+    if (m?._cdtp) m._cdtp.clear();
+  }, 30);
+}
+
+let _bundleWasProtected = false;
+
+function _toggleBundlePasswordField() {
+  const on = document.getElementById('bundleProtected').checked;
+  document.getElementById('bundlePasswordField').style.display = on ? '' : 'none';
+  document.getElementById('bundlePassword').placeholder = (on && _bundleWasProtected)
+    ? 'Kosongkan jika tidak ingin mengganti password' : 'Masukkan password baru';
 }
 
 document.getElementById('bundleJudul').addEventListener('input', function() {
@@ -395,6 +526,14 @@ async function editBundle(id) {
   document.getElementById('modalBundleTitle').textContent = 'Edit Bundle';
   document.getElementById('btnSaveBundle').innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>Simpan Info';
   document.getElementById('bundleInlineItemForm').style.display = 'none';
+  document.getElementById('bundleExpiredAt').value = _isoToLocalInput(b.expired_at);
+  _bundleWasProtected = !!b.is_protected;
+  document.getElementById('bundleProtected').checked = _bundleWasProtected;
+  document.getElementById('bundlePassword').value = '';
+  document.getElementById('bundlePasswordHint').textContent = _bundleWasProtected
+    ? 'Sudah diproteksi. Isi untuk ganti password, atau matikan toggle utk menghapus proteksi.'
+    : 'Pengunjung wajib memasukkan password ini sebelum bundle bisa dibuka.';
+  _toggleBundlePasswordField();
   _setBundleItemsLocked(false);
   try {
     const r = await fetch(`/api/bundles/${id}`, { headers: authHeaders() });
@@ -403,6 +542,11 @@ async function editBundle(id) {
     renderBundleItems();
   } catch {}
   openModal('modalBundle');
+  setTimeout(() => {
+    if (typeof initCdtp === 'function') initCdtp();
+    const m = document.getElementById('cdtp_bundleExpired');
+    if (m?._cdtp) m._cdtp.set(b.expired_at || null);
+  }, 30);
 }
 
 function renderBundleItems() {
@@ -424,17 +568,34 @@ function renderBundleItems() {
 }
 
 async function saveBundle() {
+  // Auto-commit picker yang masih terbuka (user belum klik "Pilih")
+  const mExp = document.getElementById('cdtp_bundleExpired');
+  if (mExp?._cdtp?.commit) mExp._cdtp.commit();
+
   const id = document.getElementById('bundleId').value;
   const judul = document.getElementById('bundleJudul').value.trim();
   const slug = document.getElementById('bundleSlug').value.trim();
   const aktif = document.getElementById('bundleAktif').checked;
   const deskripsi = document.getElementById('bundleDeskripsi').value.trim() || null;
+  const expiredLocal = document.getElementById('bundleExpiredAt').value;
+  const protectedNow = document.getElementById('bundleProtected').checked;
+  const pwInput = document.getElementById('bundlePassword').value;
   if (!judul) { toast('Judul wajib diisi', 'error'); return; }
   if (!_bundleSlugAvailable) { toast('Slug sudah digunakan, ganti dulu', 'error'); return; }
+  if (protectedNow && !pwInput && !_bundleWasProtected) { toast('Isi password utk proteksi bundle', 'error'); return; }
+  const body = {
+    judul, deskripsi, slug: slug || undefined, aktif,
+    expired_at: expiredLocal ? new Date(expiredLocal).toISOString() : null,
+  };
+  if (!protectedNow) {
+    body.clear_password = true;
+  } else if (pwInput) {
+    body.password = pwInput;
+  } // kalau protectedNow true & pwInput kosong (edit, sudah ada password) -> jangan diubah
   try {
     const r = await fetch(id ? `/api/bundles/${id}` : '/api/bundles', {
       method: id ? 'PUT' : 'POST', headers: authHeaders(),
-      body: JSON.stringify({ judul, deskripsi, slug: slug || undefined, aktif }),
+      body: JSON.stringify(body),
     });
     const d = await r.json();
     if (!r.ok) { toast(d.error || 'Gagal', 'error'); return; }
@@ -522,4 +683,403 @@ async function deleteBundleItem(itemId) {
   _currentBundleItems = dd.items || [];
   renderBundleItems();
   loadBundles();
+}
+
+// ═══════════════════════════════════════════
+// SHARE MODAL — QR code + copy + WhatsApp (mirip s.id)
+// dipakai bareng oleh Shortlink & Bundle
+// ═══════════════════════════════════════════
+let _shareUrl = '';
+
+// Helper reusable: render QR (dgn logo di tengah) ke dalam sebuah box.
+// url yg di-encode ke QR beda dari _shareUrl (ditambah ?src=qr) biar kunjungan lewat
+// scan QR bisa dibedakan dari klik link biasa di statistik "QR Code Visitor".
+function _renderQrCode(box, url, opts = {}) {
+  const { size = 260, logoSize = 48, logoPad = 12, radius = 10 } = opts;
+  box.innerHTML = '';
+  box.style.position = 'relative';
+  if (typeof QRCode === 'undefined') {
+    box.innerHTML = '<div style="padding:24px;color:var(--teks-muted);font-size:.8rem">QR code gagal dimuat, cek koneksi internet</div>';
+    return;
+  }
+  new QRCode(box, {
+    text: url, width: size, height: size,
+    colorDark: '#000000', colorLight: '#ffffff',
+    correctLevel: QRCode.CorrectLevel.H, // H = koreksi tinggi, wajib krn ketiban logo
+  });
+  // Icon aplikasi di tengah QR (mirip s.id)
+  const logo = document.createElement('img');
+  logo.src = '/favicon.png';
+  logo.alt = 'SAPA';
+  logo.className = 'share-qr-logo';
+  logo.style.cssText = `position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);` +
+    `width:${logoSize}px;height:${logoSize}px;object-fit:contain;background:#fff;padding:${logoPad}px;` +
+    `border-radius:${radius}px;box-shadow:0 2px 8px rgba(0,0,0,.25);`;
+  box.appendChild(logo);
+}
+
+function _qrTrackUrl(url) {
+  return url + (url.includes('?') ? '&' : '?') + 'src=qr';
+}
+
+// Ambil {judul, url} target share dari Link/Bundle — dipakai openShareModal & menu dropdown Bagikan
+function _resolveShareTarget(type, id) {
+  if (type === 'link') {
+    const l = _links.find(x => x.id === id);
+    if (!l || !l.slug_pendek) return null;
+    return { judul: l.judul, url: location.origin + '/' + l.slug_pendek };
+  }
+  const b = _bundles.find(x => x.id === id);
+  if (!b) return null;
+  return { judul: b.judul, url: location.origin + '/' + b.slug };
+}
+
+function openShareModal(type, id) {
+  const target = _resolveShareTarget(type, id);
+  if (!target) return;
+  const { judul, url } = target;
+  _shareUrl = url;
+
+  document.getElementById('shareTitle').textContent = judul || '';
+  document.getElementById('shareUrlInput').value = _shareUrl;
+  document.getElementById('shareWaBtn').href =
+    'https://wa.me/?text=' + encodeURIComponent(`${judul || ''}\n${_shareUrl}`.trim());
+
+  _renderQrCode(document.getElementById('shareQrBox'), _qrTrackUrl(_shareUrl), { size: 260, logoSize: 48, logoPad: 12, radius: 10 });
+  openModal('modalShare');
+}
+
+function copyShareUrl() {
+  if (!_shareUrl) return;
+  navigator.clipboard.writeText(_shareUrl).then(() => toast('URL disalin: ' + _shareUrl));
+}
+
+// ═══════════════════════════════════════════
+// SHARE DROPDOWN MENU (mirip s.id): tombol "Bagikan" di row Link/Bundle
+// buka menu quick-share (Share ke lainnya, Facebook, X, WhatsApp, Salin,
+// Kode QR) alih-alih langsung buka modal QR.
+// ═══════════════════════════════════════════
+let _shareMenuEl = null;
+let _shareMenuCtx = null; // { type, id }
+
+const _shareMenuIcons = {
+  native:   `<svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a3 3 0 1 0-2.83-4H15a3 3 0 0 0 .05.54L8.09 8.49a3 3 0 1 0 0 7.02l6.96 3.95A3 3 0 1 0 15.83 18l-6.96-3.95a3 3 0 0 0 0-2.1L15.83 8A3 3 0 0 0 18 8z"/></svg>`,
+  facebook: `<svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M22 12.06C22 6.5 17.52 2 12 2S2 6.5 2 12.06c0 5 3.66 9.15 8.44 9.94v-7.03H7.9v-2.91h2.54V9.85c0-2.5 1.49-3.89 3.77-3.89 1.09 0 2.24.2 2.24.2v2.46h-1.26c-1.24 0-1.63.77-1.63 1.56v1.88h2.78l-.44 2.91h-2.34V22c4.78-.79 8.44-4.94 8.44-9.94z"/></svg>`,
+  twitter:  `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M18.9 2H22l-7.6 8.7L23.3 22h-7.1l-5.5-7.2L4.4 22H1.3l8.1-9.3L1 2h7.3l5 6.6L18.9 2zm-1.2 18h1.7L7.4 4h-1.8l12.1 16z"/></svg>`,
+  whatsapp: `<svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21l1.65-3.8a9 9 0 1 1 3.4 3.4L3 21"/><path d="M9 10a.5.5 0 0 0 1 0V9a.5.5 0 0 0-1 0v1zm0 0c0 2 2 4 4 4h1a.5.5 0 0 0 0-1h-1a.5.5 0 0 1 0-1"/></svg>`,
+  copy:     `<svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="12" height="12" rx="2.5"/><path d="M15 5H6a2 2 0 0 0-2 2v9"/></svg>`,
+  qr:       `<svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><path d="M14 14h3v3h-3zM19 14h2v2h-2zM14 19h2v2h-2zM19 19h2v2h-2z"/></svg>`,
+};
+
+function _ensureShareMenu() {
+  if (_shareMenuEl) return _shareMenuEl;
+  const el = document.createElement('div');
+  el.className = 'share-menu';
+  el.innerHTML = `
+    <button type="button" class="share-menu-item" data-act="native">${_shareMenuIcons.native}Share ke lainnya</button>
+    <button type="button" class="share-menu-item" data-act="facebook">${_shareMenuIcons.facebook}Facebook</button>
+    <button type="button" class="share-menu-item" data-act="twitter">${_shareMenuIcons.twitter}Twitter X</button>
+    <button type="button" class="share-menu-item" data-act="whatsapp">${_shareMenuIcons.whatsapp}WhatsApp</button>
+    <div class="share-menu-divider"></div>
+    <button type="button" class="share-menu-item" data-act="copy">${_shareMenuIcons.copy}Salin URL</button>
+    <button type="button" class="share-menu-item" data-act="qr">${_shareMenuIcons.qr}Kode QR</button>
+  `;
+  el.addEventListener('click', (e) => {
+    const btn = e.target.closest('.share-menu-item');
+    if (!btn || !_shareMenuCtx) return;
+    _runShareAction(btn.dataset.act, _shareMenuCtx.type, _shareMenuCtx.id);
+    closeShareMenu();
+  });
+  document.body.appendChild(el);
+  _shareMenuEl = el;
+  return el;
+}
+
+function _positionShareMenu(btn) {
+  const r = btn.getBoundingClientRect();
+  const menuW = 210;
+  let left = r.right - menuW;
+  if (left < 8) left = 8;
+  if (left + menuW > window.innerWidth - 8) left = window.innerWidth - menuW - 8;
+  _shareMenuEl.style.left = left + 'px';
+  _shareMenuEl.style.top = (r.bottom + 6) + 'px';
+  requestAnimationFrame(() => {
+    const menuH = _shareMenuEl.offsetHeight;
+    if (r.bottom + 6 + menuH > window.innerHeight - 8) {
+      _shareMenuEl.style.top = Math.max(8, r.top - menuH - 6) + 'px';
+    }
+  });
+}
+
+function toggleShareMenu(ev, type, id) {
+  ev.stopPropagation();
+  const btn = ev.currentTarget;
+  const menu = _ensureShareMenu();
+  const alreadyOpenSame = menu.classList.contains('open') && _shareMenuCtx?.type === type && _shareMenuCtx?.id === id;
+  if (alreadyOpenSame) { closeShareMenu(); return; }
+  _shareMenuCtx = { type, id };
+  _positionShareMenu(btn);
+  menu.classList.add('open');
+}
+
+function closeShareMenu() {
+  if (_shareMenuEl) _shareMenuEl.classList.remove('open');
+}
+
+document.addEventListener('click', (e) => {
+  if (_shareMenuEl && _shareMenuEl.classList.contains('open') &&
+      !e.target.closest('.share-menu') && !e.target.closest('[data-share-trigger]')) {
+    closeShareMenu();
+  }
+});
+window.addEventListener('scroll', closeShareMenu, true);
+window.addEventListener('resize', closeShareMenu);
+
+function _runShareAction(act, type, id) {
+  const target = _resolveShareTarget(type, id);
+  if (!target) return;
+  const { judul, url } = target;
+  switch (act) {
+    case 'native':
+      if (navigator.share) {
+        navigator.share({ title: judul || 'SAPA', url }).catch(() => {});
+      } else {
+        navigator.clipboard.writeText(url).then(() => toast('URL disalin: ' + url));
+      }
+      break;
+    case 'facebook':
+      window.open('https://www.facebook.com/sharer/sharer.php?u=' + encodeURIComponent(url), '_blank', 'noopener,width=600,height=520');
+      break;
+    case 'twitter':
+      window.open('https://twitter.com/intent/tweet?text=' + encodeURIComponent(judul || '') + '&url=' + encodeURIComponent(url), '_blank', 'noopener,width=600,height=520');
+      break;
+    case 'whatsapp':
+      window.open('https://wa.me/?text=' + encodeURIComponent(`${judul || ''}\n${url}`.trim()), '_blank', 'noopener');
+      break;
+    case 'copy':
+      navigator.clipboard.writeText(url).then(() => toast('URL disalin: ' + url));
+      break;
+    case 'qr':
+      openShareModal(type, id);
+      break;
+  }
+}
+
+// ═══════════════════════════════════════════
+// LINK DETAIL (mirip s.id: QR, status proteksi/berjangka, Analytics)
+// ═══════════════════════════════════════════
+let _ldCurrentId = null;
+let _ldCurrentType = 'link'; // 'link' | 'bundle'
+
+function openLinkDetail(id) {
+  const l = _links.find(x => x.id === id); if (!l || !l.slug_pendek) return;
+  _openItemDetail('link', id, {
+    slug: l.slug_pendek,
+    url: l.url,
+    created_at: l.created_at,
+    is_protected: l.is_protected,
+    expired_at: l.expired_at,
+  });
+}
+
+function openBundleDetail(id) {
+  const b = _bundles.find(x => x.id === id); if (!b) return;
+  _openItemDetail('bundle', id, {
+    slug: b.slug,
+    url: b.judul, // dipakai sebagai baris kedua (deskripsi singkat), bukan tautan tujuan
+    created_at: b.created_at,
+    is_protected: b.is_protected,
+    expired_at: b.expired_at,
+  });
+}
+
+function _openItemDetail(type, id, info) {
+  _ldCurrentType = type;
+  _ldCurrentId = id;
+  document.getElementById('ldLinkId').value = id;
+  const url = location.origin + '/' + info.slug;
+
+  document.getElementById('ldTitle').innerHTML =
+    `<span style="color:var(--merah,#dc2626)">${esc(location.host)}</span>/${esc(info.slug)}`;
+  document.getElementById('ldUrl').textContent = info.url;
+  document.getElementById('ldUrl').title = info.url;
+  document.getElementById('ldDate').textContent = fmtDate(info.created_at);
+
+  _renderQrCode(document.getElementById('ldQrBox'), _qrTrackUrl(url), { size: 88, logoSize: 22, logoPad: 5, radius: 6 });
+
+  const ldModalTitleEl = document.querySelector('#modalLinkDetail .modal-title');
+  if (ldModalTitleEl) ldModalTitleEl.textContent = type === 'bundle' ? 'Bundle Detail' : 'Link Detail';
+
+  const label = type === 'bundle' ? 'bundle' : 'link';
+  const pTitle = document.getElementById('ldProtectedTitle');
+  const pBtn   = document.getElementById('ldProtectedBtn');
+  if (info.is_protected) { pTitle.textContent = `This ${label} is protected`; pBtn.textContent = 'Ganti Password'; }
+  else { pTitle.textContent = `This ${label} is not protected`; pBtn.textContent = 'Set Password'; }
+
+  const eTitle = document.getElementById('ldExpiryTitle');
+  const eBtn   = document.getElementById('ldExpiryBtn');
+  if (info.expired_at) {
+    const expired = new Date(info.expired_at) < new Date();
+    eTitle.textContent = (expired ? 'Expired on ' : 'Active until ') + fmtDate(info.expired_at);
+    eBtn.textContent = 'Ubah Waktu';
+  } else { eTitle.textContent = 'No expiration set'; eBtn.textContent = 'Set Time'; }
+
+  openModal('modalLinkDetail');
+
+  // Default rentang Analytics: 7 hari terakhir
+  const today = new Date();
+  const weekAgo = new Date(today.getTime() - 6 * 86400000);
+  const todayIso = today.toISOString();
+  const weekAgoIso = weekAgo.toISOString();
+  setTimeout(() => {
+    if (typeof initCdtp === 'function') initCdtp();
+    const mDari = document.getElementById('cdtp_ldDari');
+    const mSampai = document.getElementById('cdtp_ldSampai');
+    if (mDari?._cdtp) mDari._cdtp.set(weekAgoIso);
+    if (mSampai?._cdtp) mSampai._cdtp.set(todayIso);
+    const dariEl = document.getElementById('ldRangeDari');
+    const sampaiEl = document.getElementById('ldRangeSampai');
+    if (dariEl && !dariEl._ldBound) {
+      dariEl.addEventListener('change', () => _ldReloadAnalytics());
+      sampaiEl.addEventListener('change', () => _ldReloadAnalytics());
+      dariEl._ldBound = true;
+    }
+    // Load pertama: kirim tanggal yang kita hitung sendiri (todayIso/weekAgoIso),
+    // JANGAN baca dari hidden input ldRangeDari/ldRangeSampai — widget CDTP
+    // nulis ke situ secara async, jadi 30ms setelah .set() belum tentu sempat
+    // ke-commit. Kalau masih kebaca kosong, _ldReloadAnalytics langsung
+    // return duluan tanpa pernah fetch (makanya total visitor diem di 0
+    // walau data klik-nya ada). Baca-dari-DOM tetap dipakai buat perubahan
+    // manual lewat date picker (event 'change' di atas).
+    _ldReloadAnalytics(_ldDateOnly(weekAgoIso), _ldDateOnly(todayIso));
+  }, 30);
+}
+
+function _ldCopy() {
+  if (_ldCurrentType === 'bundle') {
+    const b = _bundles.find(x => x.id === _ldCurrentId); if (b) copyBundleUrl(b.slug);
+  } else {
+    const l = _links.find(x => x.id === _ldCurrentId); if (l) copySlug(l.slug_pendek);
+  }
+}
+function _ldEdit() {
+  if (!_ldCurrentId) return;
+  closeModal('modalLinkDetail');
+  if (_ldCurrentType === 'bundle') editBundle(_ldCurrentId); else editLink(_ldCurrentId);
+}
+function _ldQrStyle() {
+  if (!_ldCurrentId) return;
+  closeModal('modalLinkDetail');
+  openShareModal(_ldCurrentType, _ldCurrentId);
+}
+
+function _ldDateOnly(v) {
+  if (!v) return '';
+  // v adalah ISO timestamp UTC (dari toISOString()/CDTP). Geser +8 jam ke WITA
+  // dulu sebelum ambil tanggalnya — kalau langsung split('T')[0] dari ISO UTC,
+  // klik yang terjadi dini hari WITA (00:00-08:00, masih "kemarin" di UTC)
+  // bisa kepotong dari rentang query analytics dan kebaca 0.
+  const d = new Date(v);
+  if (isNaN(d.getTime())) return v.split('T')[0];
+  return new Date(d.getTime() + 8 * 3600000).toISOString().slice(0, 10);
+}
+
+async function _ldReloadAnalytics(dariOverride, sampaiOverride) {
+  if (!_ldCurrentId) return;
+  const dari   = dariOverride   || _ldDateOnly(document.getElementById('ldRangeDari').value);
+  const sampai = sampaiOverride || _ldDateOnly(document.getElementById('ldRangeSampai').value);
+  if (!dari || !sampai) return;
+  const params = new URLSearchParams({ dari, sampai });
+  const base = _ldCurrentType === 'bundle' ? '/api/bundles' : '/api/links';
+  try {
+    const r = await fetch(`${base}/${_ldCurrentId}/analytics?${params}`, { headers: authHeaders() });
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.error || 'Gagal memuat');
+    document.getElementById('ldStatTotal').textContent  = d.total_visitor ?? 0;
+    document.getElementById('ldStatUnique').textContent = d.unique_visitor ?? 0;
+    document.getElementById('ldStatQr').textContent     = d.qr_visitor ?? 0;
+    _renderLdChart(d.daily || [], dari, sampai);
+  } catch (err) {
+    document.getElementById('ldChartBox').innerHTML = '<div class="ld-chart-empty">Gagal memuat data</div>';
+  }
+}
+
+function _renderLdChart(daily, dari, sampai) {
+  const box = document.getElementById('ldChartBox');
+  const days = [];
+  const cur = new Date(dari + 'T00:00:00');
+  const end = new Date(sampai + 'T00:00:00');
+  while (cur <= end && days.length < 120) {
+    // Pakai komponen tanggal lokal langsung, JANGAN toISOString() — itu geser
+    // ke UTC dulu, jadi "hari ini" WITA bisa kebaca mundur satu hari dan
+    // nggak pernah match sama key tanggal WITA yang dikirim backend (bikin
+    // grafik keliatan "Empty Data" walau total visitor-nya udah kehitung).
+    const key = `${cur.getFullYear()}-${String(cur.getMonth() + 1).padStart(2, '0')}-${String(cur.getDate()).padStart(2, '0')}`;
+    const found = daily.find(d => d.tanggal === key);
+    days.push({ tanggal: key, klik: found ? found.klik : 0 });
+    cur.setDate(cur.getDate() + 1);
+  }
+  if (!days.length || days.every(d => d.klik === 0)) {
+    box.innerHTML = `<div class="ld-chart-empty">
+      <svg xmlns="http://www.w3.org/2000/svg" width="26" height="26" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><line x1="12" y1="20" x2="12" y2="10"/><line x1="18" y1="20" x2="18" y2="4"/><line x1="6" y1="20" x2="6" y2="16"/></svg>
+      <span>Empty Data</span>
+    </div>`;
+    return;
+  }
+  const w = 100, h = 34, barGap = 0.6;
+  const barW = (w / days.length) - barGap;
+  const max = Math.max(...days.map(d => d.klik), 1);
+  const bars = days.map((d, i) => {
+    const barH = Math.max(0.6, (d.klik / max) * (h - 4));
+    const x = i * (barW + barGap);
+    const y = h - barH;
+    const label = new Date(d.tanggal).toLocaleDateString('id-ID', { day: '2-digit', month: 'short' });
+    return `<rect x="${x}" y="${y}" width="${barW}" height="${barH}" rx="0.6" fill="var(--hijau,#0f766e)"><title>${label}: ${d.klik}</title></rect>`;
+  }).join('');
+  box.innerHTML = `<svg viewBox="0 0 ${w} ${h}" width="100%" height="120" preserveAspectRatio="none">${bars}</svg>`;
+}
+
+function downloadShareQr() {
+  const box = document.getElementById('shareQrBox');
+  const canvas = box.querySelector('canvas');
+  const logo = box.querySelector('img.share-qr-logo');
+  const fallbackImg = box.querySelector('img:not(.share-qr-logo)');
+
+  const finishDownload = (src) => {
+    if (!src) { toast('QR belum siap, coba lagi', 'error'); return; }
+    const a = document.createElement('a');
+    a.href = src;
+    a.download = `qr-${(_shareUrl.split('/').pop() || 'link')}.png`;
+    document.body.appendChild(a); a.click(); a.remove();
+  };
+
+  if (!canvas) { finishDownload(fallbackImg ? fallbackImg.src : null); return; }
+
+  // Upscale 4x biar hasil unduhan tajam & gede (~1040px), setara s.id, bukan cuma 260px display size
+  const scale = 4;
+  const qrPixel = canvas.width * scale;
+  const margin = qrPixel * 0.08; // quiet zone putih di pinggir, biar ga mepet kayak s.id
+  const out = document.createElement('canvas');
+  out.width = qrPixel + margin * 2; out.height = qrPixel + margin * 2;
+  const ctx = out.getContext('2d');
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(0, 0, out.width, out.height);
+  ctx.imageSmoothingEnabled = false; // jaga modul QR tetap tajam (kotak2), gak blur
+  ctx.drawImage(canvas, margin, margin, qrPixel, qrPixel);
+
+  if (logo && logo.complete && logo.naturalWidth > 0) {
+    const size = qrPixel * 0.17;
+    const pad = size * 0.32;
+    const x = (out.width - size) / 2, y = (out.height - size) / 2;
+    ctx.fillStyle = '#fff';
+    if (ctx.roundRect) {
+      ctx.beginPath();
+      ctx.roundRect(x - pad, y - pad, size + pad * 2, size + pad * 2, 6 * scale);
+      ctx.fill();
+    } else {
+      ctx.fillRect(x - pad, y - pad, size + pad * 2, size + pad * 2);
+    }
+    ctx.drawImage(logo, x, y, size, size);
+  }
+  finishDownload(out.toDataURL('image/png'));
 }
