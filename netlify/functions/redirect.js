@@ -5,6 +5,7 @@
 //   3. Tidak ketemu sama sekali → serve not-found page
 
 import { getDb, jsonResponse, errorResponse } from './_db.js';
+import crypto from 'node:crypto';
 
 // ── Escape HTML untuk cegah XSS dari input yang direfleksikan ke halaman ──
 function escHtml(str) {
@@ -178,6 +179,8 @@ const _params = new URLSearchParams(location.search);
 const _pathSlug = location.pathname.split('/').filter(Boolean)[0] || '';
 const slug = _params.get('slug') || _pathSlug;
 
+const _viaQr = _params.get('src') === 'qr';
+
 if (!slug) {
   document.getElementById('headerContent').innerHTML = \`
     <div class="state-box">
@@ -190,21 +193,57 @@ if (!slug) {
   loadBundle(slug);
 }
 
-async function loadBundle(slug) {
+function renderBundlePasswordPrompt(slug, wrong) {
+  document.getElementById('headerContent').innerHTML = \`
+    <div class="state-box">
+      <div class="state-icon"><svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" fill="none" viewBox="0 0 24 24" stroke="#0284c7" stroke-width="1.5"><rect x="5" y="11" width="14" height="9" rx="2"/><path stroke-linecap="round" stroke-linejoin="round" d="M8 11V7a4 4 0 018 0v4"/></svg></div>
+      <h2>Bundle Diproteksi</h2>
+      <p>Masukkan password untuk membuka bundle ini.</p>
+    </div>\`;
+  document.getElementById('itemsContainer').innerHTML = \`
+    <form id="bundlePwForm" style="max-width:320px;margin:0 auto;display:flex;flex-direction:column;gap:10px">
+      \${wrong ? '<div style="color:#ef4444;font-size:.78rem">Password salah, coba lagi.</div>' : ''}
+      <input type="password" id="bundlePwInput" placeholder="Password" required autofocus
+        style="border:1.5px solid \${wrong ? '#fca5a5' : '#e2e8f0'};border-radius:10px;padding:11px 14px;font-size:.88rem;font-family:inherit;outline:none" />
+      <button type="submit" style="background:#0f766e;color:#fff;border:none;border-radius:10px;padding:12px;font-size:.88rem;font-weight:600;font-family:inherit;cursor:pointer">Buka Bundle</button>
+    </form>\`;
+  const form = document.getElementById('bundlePwForm');
+  form.addEventListener('submit', function (e) {
+    e.preventDefault();
+    const pw = document.getElementById('bundlePwInput').value;
+    loadBundle(slug, pw);
+  });
+}
+
+async function loadBundle(slug, pw) {
   try {
-    const r = await fetch(\`/api/bundles/\${slug}\`);
+    const qs = new URLSearchParams();
+    if (pw) qs.set('pw', pw);
+    if (_viaQr) qs.set('src', 'qr');
+    const qsStr = qs.toString();
+    const r = await fetch(\`/api/bundles/\${slug}\${qsStr ? '?' + qsStr : ''}\`);
+    if (r.status === 401) {
+      const dj = await r.json().catch(() => ({}));
+      renderBundlePasswordPrompt(slug, !!dj.wrong);
+      return;
+    }
     if (!r.ok) {
-      const isInactive = r.status === 403;
+      const dj = await r.json().catch(() => ({}));
+      const reason = dj.reason || (r.status === 403 ? 'inactive' : 'not_found');
+      const isInactive = reason === 'inactive';
+      const isExpired = reason === 'expired';
       document.getElementById('headerContent').innerHTML = \`
         <div class="state-box">
           <div class="state-icon">
-            \${isInactive
+            \${(isInactive || isExpired)
               ? \`<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" fill="none" viewBox="0 0 24 24" stroke="#f59e0b" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>\`
               : \`<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" fill="none" viewBox="0 0 24 24" stroke="var(--teks-muted)" stroke-width="1.5"><circle cx="11" cy="11" r="8"/><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-4.35-4.35M11 8v3m0 3h.01"/></svg>\`
             }
           </div>
-          <h2>\${isInactive ? 'Bundle Tidak Tersedia' : 'Bundle Tidak Ditemukan'}</h2>
-          <p>\${isInactive
+          <h2>\${isExpired ? 'Bundle Kedaluwarsa' : isInactive ? 'Bundle Tidak Tersedia' : 'Bundle Tidak Ditemukan'}</h2>
+          <p>\${isExpired
+            ? 'Bundle ini sudah melewati masa berlakunya dan tidak dapat diakses lagi.'
+            : isInactive
             ? 'Bundle link ini sedang dinonaktifkan dan tidak dapat diakses saat ini.'
             : 'Link bundle mungkin sudah tidak aktif atau alamatnya salah.'
           }</p>
@@ -382,6 +421,67 @@ function getStatusHtml({ icon, title, message }) {
 </html>`;
 }
 
+// ── Halaman prompt password untuk tautan yang diproteksi ─────
+function getPasswordPromptHtml({ slug, error, viaQr }) {
+  return `<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SAPA Perencanaan</title>
+  <link rel="icon" type="image/png" href="/favicon.png" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/css/styles.css" />
+  <style>
+    body { min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; background: linear-gradient(135deg,#f0fdfc 0%,#ccfbf1 50%,#99f6e4 100%); font-family: 'Plus Jakarta Sans', sans-serif; padding: 24px; }
+    .card { background: #fff; border-radius: 20px; box-shadow: 0 8px 40px rgba(0,0,0,.10); padding: 48px 40px; max-width: 380px; width: 100%; text-align: center; }
+    .icon-wrap { width: 72px; height: 72px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 20px; background: #e0f2fe; }
+    h2 { font-size: 1.15rem; font-weight: 700; color: #0f172a; margin: 0 0 8px; }
+    p  { font-size: .84rem; color: #64748b; margin: 0 0 24px; line-height: 1.6; }
+    .logo-row { display: flex; align-items: center; justify-content: center; gap: 12px; margin-bottom: 20px; }
+    .logo-row img { height: 36px; object-fit: contain; }
+    .logo-divider { width: 1px; height: 28px; background: #e2e8f0; }
+    form { display: flex; flex-direction: column; gap: 10px; }
+    input[type=password] { border: 1.5px solid ${error ? '#fca5a5' : '#e2e8f0'}; border-radius: 10px; padding: 11px 14px; font-size: .88rem; font-family: inherit; outline: none; }
+    input[type=password]:focus { border-color: #14b8a6; }
+    .err-msg { color: #ef4444; font-size: .76rem; margin: -2px 0 2px; text-align: left; }
+    button { background: #0f766e; color: #fff; border: none; border-radius: 10px; padding: 12px; font-size: .88rem; font-weight: 600; font-family: inherit; cursor: pointer; }
+    button:hover { background: #0d5f58; }
+    .brand-footer { margin-top: 32px; display: flex; flex-direction: column; align-items: center; gap: 3px; font-size: .72rem; color: #94a3b8; text-align: center; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="logo-row">
+      <img src="/logokemenkes.png" alt="Kemenkes" />
+      <div class="logo-divider"></div>
+      <img src="/logobkkbn.png" alt="BKKBN" />
+      <div class="logo-divider"></div>
+      <img src="/logobalut.png" alt="Banggai Laut" />
+    </div>
+    <div class="icon-wrap">
+      <svg xmlns="http://www.w3.org/2000/svg" width="30" height="30" fill="none" viewBox="0 0 24 24" stroke="#0284c7" stroke-width="1.7"><rect x="5" y="11" width="14" height="9" rx="2"/><path stroke-linecap="round" stroke-linejoin="round" d="M8 11V7a4 4 0 018 0v4"/></svg>
+    </div>
+    <h2>Tautan Diproteksi</h2>
+    <p>Masukkan password untuk membuka tautan ini.</p>
+    <form method="GET" action="/${escHtml(slug)}">
+      ${error ? '<div class="err-msg">Password salah, coba lagi.</div>' : ''}
+      ${viaQr ? '<input type="hidden" name="src" value="qr" />' : ''}
+      <input type="password" name="pw" placeholder="Password" required autofocus />
+      <button type="submit">Buka Tautan</button>
+    </form>
+  </div>
+  <div class="brand-footer">
+    <span>Sub Bagian Perencanaan</span>
+    <span>Dinas Kesehatan, Pengendalian Penduduk dan Keluarga Berencana</span>
+    <span>Kabupaten Banggai Laut</span>
+    <span>© 2026 All rights reserved</span>
+  </div>
+</body>
+</html>`;
+}
+
 const HTML_HEADERS = { 'Content-Type': 'text/html; charset=utf-8' };
 
 export const handler = async (event) => {
@@ -404,7 +504,7 @@ export const handler = async (event) => {
   try {
     // ── 1. Cek bundle (aktif maupun nonaktif) ─────────────
     const bundles = await sql`
-      SELECT id, aktif FROM bundles WHERE slug = ${slug} LIMIT 1
+      SELECT id, aktif, expired_at FROM bundles WHERE slug = ${slug} LIMIT 1
     `;
 
     if (bundles.length) {
@@ -419,6 +519,23 @@ export const handler = async (event) => {
           }),
         };
       }
+
+      // ── Cek masa berlaku bundle (bundle berjangka) ──
+      if (bundles[0].expired_at && new Date(bundles[0].expired_at) < new Date()) {
+        return {
+          statusCode: 200,
+          headers: HTML_HEADERS,
+          body: getStatusHtml({
+            icon: 'inactive',
+            title: 'Bundle Kedaluwarsa',
+            message: 'Bundle ini sudah melewati masa berlakunya dan tidak dapat diakses lagi. Hubungi pengelola jika Anda membutuhkan akses.',
+          }),
+        };
+      }
+
+      // Proteksi password (kalau ada) ditangani di sisi klien oleh
+      // bundle.html: halaman ini tetap di-serve, lalu fetch API bundle
+      // akan menolak dgn 401 kalau password belum/kurang tepat.
       return {
         statusCode: 200,
         headers: HTML_HEADERS,
@@ -428,11 +545,12 @@ export const handler = async (event) => {
 
     // ── 2. Cek link pendek (aktif maupun nonaktif) ────────
     const links = await sql`
-      SELECT id, url, aktif FROM links WHERE slug_pendek = ${slug} LIMIT 1
+      SELECT id, url, aktif, expired_at, password_hash FROM links WHERE slug_pendek = ${slug} LIMIT 1
     `;
 
     if (links.length) {
-      if (!links[0].aktif) {
+      const link = links[0];
+      if (!link.aktif) {
         return {
           statusCode: 200,
           headers: HTML_HEADERS,
@@ -444,16 +562,44 @@ export const handler = async (event) => {
         };
       }
 
+      // ── Cek masa berlaku (tautan berjangka) ──
+      if (link.expired_at && new Date(link.expired_at) < new Date()) {
+        return {
+          statusCode: 200,
+          headers: HTML_HEADERS,
+          body: getStatusHtml({
+            icon: 'inactive',
+            title: 'Tautan Kedaluwarsa',
+            message: 'Tautan ini sudah melewati masa berlakunya dan tidak dapat diakses lagi. Hubungi pengelola jika Anda membutuhkan akses.',
+          }),
+        };
+      }
+
+      // ── Cek proteksi password ──
+      const qsAll = event.queryStringParameters || {};
+      const viaQr = qsAll.src === 'qr';
+      if (link.password_hash) {
+        const pw = (qsAll.pw || '').trim();
+        const pwHash = pw ? crypto.createHash('sha256').update(pw).digest('hex') : null;
+        if (!pw || pwHash !== link.password_hash) {
+          return {
+            statusCode: 200,
+            headers: HTML_HEADERS,
+            body: getPasswordPromptHtml({ slug, error: !!pw, viaQr }),
+          };
+        }
+      }
+
       const ip  = event.headers['x-forwarded-for']?.split(',')[0]?.trim() || '';
       const ua  = event.headers['user-agent'] || '';
       const ref = event.headers['referer'] || '';
       await sql`
-        INSERT INTO klik_log (link_id, ip_address, user_agent, referer)
-        VALUES (${links[0].id}, ${ip}, ${ua}, ${ref})
+        INSERT INTO klik_log (link_id, ip_address, user_agent, referer, via_qr)
+        VALUES (${link.id}, ${ip}, ${ua}, ${ref}, ${viaQr})
       `;
       return {
         statusCode: 302,
-        headers: { Location: links[0].url },
+        headers: { Location: link.url },
         body: '',
       };
     }
