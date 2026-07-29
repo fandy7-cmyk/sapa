@@ -140,14 +140,14 @@ function openLinkModal(id) {
   document.getElementById('linkId').value = '';
   document.getElementById('linkUrl').value = '';
   document.getElementById('linkSlug').value = '';
-  document.getElementById('linkAktif').checked = true;
-  _updateToggleLabel('linkAktif');
   document.getElementById('slugPreview').textContent = '—';
   document.getElementById('linkSlugStatus').className = 'slug-status';
   document.getElementById('linkSlugStatus').innerHTML = '';
   _linkSlugAvailable = true;
   document.getElementById('btnSaveLink').disabled = false;
   document.getElementById('linkExpiredAt').value = '';
+  document.getElementById('linkExpiredToggle').checked = false;
+  document.getElementById('linkExpiredField').style.display = 'none';
   document.getElementById('linkProtected').checked = false;
   document.getElementById('linkPassword').value = '';
   document.getElementById('linkPasswordHint').textContent = 'Pengunjung wajib memasukkan password ini sebelum diarahkan ke tautan tujuan.';
@@ -160,6 +160,16 @@ function openLinkModal(id) {
     const m = document.getElementById('cdtp_linkExpired');
     if (m?._cdtp) m._cdtp.clear();
   }, 30);
+}
+
+function _toggleLinkExpiredField() {
+  const on = document.getElementById('linkExpiredToggle').checked;
+  document.getElementById('linkExpiredField').style.display = on ? '' : 'none';
+  if (!on) {
+    document.getElementById('linkExpiredAt').value = '';
+    const m = document.getElementById('cdtp_linkExpired');
+    if (m?._cdtp) m._cdtp.clear();
+  }
 }
 
 let _linkWasProtected = false;
@@ -184,14 +194,14 @@ function editLink(id) {
   document.getElementById('linkId').value = l.id;
   document.getElementById('linkUrl').value = l.url;
   document.getElementById('linkSlug').value = l.slug_pendek || '';
-  document.getElementById('linkAktif').checked = l.aktif === true || l.aktif === 'true';
-  _updateToggleLabel('linkAktif');
   document.getElementById('slugPreview').textContent = l.slug_pendek || '—';
   document.getElementById('linkSlugStatus').className = 'slug-status';
   document.getElementById('linkSlugStatus').innerHTML = '';
   _linkSlugAvailable = true;
   document.getElementById('btnSaveLink').disabled = false;
   document.getElementById('linkExpiredAt').value = _isoToLocalInput(l.expired_at);
+  document.getElementById('linkExpiredToggle').checked = !!l.expired_at;
+  document.getElementById('linkExpiredField').style.display = l.expired_at ? '' : 'none';
   _linkWasProtected = !!l.is_protected;
   document.getElementById('linkProtected').checked = _linkWasProtected;
   document.getElementById('linkPassword').value = '';
@@ -207,10 +217,6 @@ function editLink(id) {
     if (m?._cdtp) m._cdtp.set(l.expired_at || null);
   }, 30);
 }
-
-document.getElementById('linkAktif').addEventListener('change', function() {
-  _updateToggleLabel('linkAktif');
-});
 
 document.getElementById('linkSlug').addEventListener('input', function() {
   document.getElementById('slugPreview').textContent = this.value || '—';
@@ -233,15 +239,16 @@ async function saveLink() {
   const id  = document.getElementById('linkId').value;
   const url  = document.getElementById('linkUrl').value.trim();
   const slug = document.getElementById('linkSlug').value.trim() || null;
+  const expiredOn    = document.getElementById('linkExpiredToggle').checked;
   const expiredLocal = document.getElementById('linkExpiredAt').value;
   const protectedNow  = document.getElementById('linkProtected').checked;
   const pwInput = document.getElementById('linkPassword').value;
   const body = {
     judul:      _autoJudulLink(url, slug),
     url,
-    aktif:      document.getElementById('linkAktif').checked,
+    aktif:      true,
     slug_pendek:slug,
-    expired_at: expiredLocal ? new Date(expiredLocal).toISOString() : null,
+    expired_at: (expiredOn && expiredLocal) ? new Date(expiredLocal).toISOString() : null,
   };
   if (!protectedNow) {
     body.clear_password = true;
@@ -456,14 +463,14 @@ function openBundleModal() {
   document.getElementById('bundleJudul').value = '';
   document.getElementById('bundleSlug').value = '';
   document.getElementById('bundleDeskripsi').value = '';
-  document.getElementById('bundleAktif').checked = true;
-  _updateToggleLabel('bundleAktif');
   document.getElementById('bundleSlugPreview').textContent = '—';
   document.getElementById('bundleSlugStatus').className = 'slug-status';
   document.getElementById('bundleSlugStatus').innerHTML = '';
   _bundleSlugAvailable = true;
   document.getElementById('btnSaveBundle').disabled = false;
   document.getElementById('bundleExpiredAt').value = '';
+  document.getElementById('bundleExpiredToggle').checked = false;
+  document.getElementById('bundleExpiredField').style.display = 'none';
   document.getElementById('bundleProtected').checked = false;
   document.getElementById('bundlePassword').value = '';
   document.getElementById('bundlePasswordHint').textContent = 'Pengunjung wajib memasukkan password ini sebelum bundle bisa dibuka.';
@@ -484,6 +491,16 @@ function openBundleModal() {
   }, 30);
 }
 
+function _toggleBundleExpiredField() {
+  const on = document.getElementById('bundleExpiredToggle').checked;
+  document.getElementById('bundleExpiredField').style.display = on ? '' : 'none';
+  if (!on) {
+    document.getElementById('bundleExpiredAt').value = '';
+    const m = document.getElementById('cdtp_bundleExpired');
+    if (m?._cdtp) m._cdtp.clear();
+  }
+}
+
 let _bundleWasProtected = false;
 
 function _toggleBundlePasswordField() {
@@ -500,9 +517,6 @@ document.getElementById('bundleJudul').addEventListener('input', function() {
     _checkBundleSlugDebounced();
   }
 });
-document.getElementById('bundleAktif').addEventListener('change', function() {
-  _updateToggleLabel('bundleAktif');
-});
 
 document.getElementById('bundleSlug').addEventListener('input', function() {
   document.getElementById('bundleSlugPreview').textContent = this.value || '—';
@@ -516,8 +530,6 @@ async function editBundle(id) {
   document.getElementById('bundleJudul').value = b.judul;
   document.getElementById('bundleSlug').value = b.slug;
   document.getElementById('bundleDeskripsi').value = b.deskripsi || '';
-  document.getElementById('bundleAktif').checked = b.aktif === true || b.aktif === 'true';
-  _updateToggleLabel('bundleAktif');
   document.getElementById('bundleSlugPreview').textContent = b.slug;
   document.getElementById('bundleSlugStatus').className = 'slug-status';
   document.getElementById('bundleSlugStatus').innerHTML = '';
@@ -527,6 +539,8 @@ async function editBundle(id) {
   document.getElementById('btnSaveBundle').innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>Simpan Info';
   document.getElementById('bundleInlineItemForm').style.display = 'none';
   document.getElementById('bundleExpiredAt').value = _isoToLocalInput(b.expired_at);
+  document.getElementById('bundleExpiredToggle').checked = !!b.expired_at;
+  document.getElementById('bundleExpiredField').style.display = b.expired_at ? '' : 'none';
   _bundleWasProtected = !!b.is_protected;
   document.getElementById('bundleProtected').checked = _bundleWasProtected;
   document.getElementById('bundlePassword').value = '';
@@ -575,8 +589,9 @@ async function saveBundle() {
   const id = document.getElementById('bundleId').value;
   const judul = document.getElementById('bundleJudul').value.trim();
   const slug = document.getElementById('bundleSlug').value.trim();
-  const aktif = document.getElementById('bundleAktif').checked;
+  const aktif = true;
   const deskripsi = document.getElementById('bundleDeskripsi').value.trim() || null;
+  const expiredOn    = document.getElementById('bundleExpiredToggle').checked;
   const expiredLocal = document.getElementById('bundleExpiredAt').value;
   const protectedNow = document.getElementById('bundleProtected').checked;
   const pwInput = document.getElementById('bundlePassword').value;
@@ -585,7 +600,7 @@ async function saveBundle() {
   if (protectedNow && !pwInput && !_bundleWasProtected) { toast('Isi password utk proteksi bundle', 'error'); return; }
   const body = {
     judul, deskripsi, slug: slug || undefined, aktif,
-    expired_at: expiredLocal ? new Date(expiredLocal).toISOString() : null,
+    expired_at: (expiredOn && expiredLocal) ? new Date(expiredLocal).toISOString() : null,
   };
   if (!protectedNow) {
     body.clear_password = true;

@@ -263,7 +263,7 @@ async function loadSuratMasuk(page = 1) {
     const r = await fetch(`/api/surat-masuk?${params}`, { headers: authHeaders() });
     const d = await r.json();
     const tb = document.getElementById('smTableBody');
-    const smOffset = (page - 1) * 20;
+    const smOffset = (page - 1) * 10;
     tb.innerHTML = (d.surat||[]).length ? d.surat.map((s, idx) => `
       <tr>
         <td>${smOffset + idx + 1}</td>
@@ -440,7 +440,7 @@ async function loadSuratKeluar(page = 1) {
     const r = await fetch(`/api/surat-keluar?${params}`, { headers: authHeaders() });
     const d = await r.json();
     const tb = document.getElementById('skTableBody');
-    const skOffset = (page - 1) * 20;
+    const skOffset = (page - 1) * 10;
     tb.innerHTML = (d.surat||[]).length ? d.surat.map((s, idx) => `
       <tr>
         <td>${skOffset + idx + 1}</td>
