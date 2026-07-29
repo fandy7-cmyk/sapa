@@ -766,9 +766,7 @@ function _renderIkuGrid(bulan, tahun, pa) {
           ? `<span data-tip="Bermakna Negatif" style="display:inline-flex;align-items:center;justify-content:center;width:14px;height:14px;background:#fee2e2;border-radius:50%;flex-shrink:0"><svg xmlns="http://www.w3.org/2000/svg" width="8" height="8" fill="none" viewBox="0 0 24 24" stroke="#991b1b" stroke-width="2.8"><path stroke-linecap="round" stroke-linejoin="round" d="M19 14l-7 7m0 0l-7-7m7 7V3"/></svg></span>`
           : `<span data-tip="Bermakna Positif" style="display:inline-flex;align-items:center;justify-content:center;width:14px;height:14px;background:#d1fae5;border-radius:50%;flex-shrink:0"><svg xmlns="http://www.w3.org/2000/svg" width="8" height="8" fill="none" viewBox="0 0 24 24" stroke="#065f46" stroke-width="2.8"><path stroke-linecap="round" stroke-linejoin="round" d="M5 10l7-7m0 0l7 7m-7-7v18"/></svg></span>`;
 
-        const realDisp = hasData
-          ? (Number.isInteger(Number(real)) ? Number(real) : Number(real).toFixed(2))
-          : '—';
+        const realDisp = hasData ? _kwFmtReal(real, row.realisasi_display, false) : '—';
 
         return `
           <div class="iku-card" style="--iku-col:${col};--iku-col-bg:${colBg}">
@@ -985,7 +983,7 @@ function _ikuRenderChartSection() {
       const fromKey = _ikuRangeFrom ? _ikuRangeFrom.tahun * 100 + _ikuRangeFrom.bulan : 0;
       const toKey   = _ikuRangeTo   ? _ikuRangeTo.tahun   * 100 + _ikuRangeTo.bulan   : 999999;
       const inFilter = (tahun * 100 + b) >= fromKey && (tahun * 100 + b) <= toKey;
-      return { bulan: b, tahun, label: BULAN_SHORT[b], realisasi: real, capaian: cap, isInRange: inFilter };
+      return { bulan: b, tahun, label: BULAN_SHORT[b], realisasi: real, realisasi_display: rec?.realisasi_display ?? null, capaian: cap, isInRange: inFilter };
     });
   }
 
@@ -1007,7 +1005,7 @@ function _ikuRenderChartSection() {
       const cap  = (real !== null && tgtF !== null && tgtF !== 0)
         ? (bermaknaNeg ? ((tgtF - (real - tgtF)) / tgtF * 100) : (real / tgtF * 100))
         : null;
-      return { bulan: thn, tahun: thn, label: String(thn), realisasi: real, capaian: cap, isInRange: true };
+      return { bulan: thn, tahun: thn, label: String(thn), realisasi: real, realisasi_display: latestRec?.realisasi_display ?? null, capaian: cap, isInRange: true };
     });
   }
 
@@ -1094,7 +1092,7 @@ function _ikuRenderChartSection() {
         <div style="display:flex;gap:6px;margin-bottom:8px">
           <div style="flex:1;padding:4px 8px;background:${col}0f;border-radius:6px;border-left:2px solid ${col}">
             <div style="font-size:.58rem;color:#94a3b8;font-weight:700;text-transform:uppercase">Realisasi</div>
-            <div style="font-size:.88rem;font-weight:800;color:#0f172a">${realLast !== null ? +parseFloat(realLast).toFixed(2) : '—'}</div>
+            <div style="font-size:.88rem;font-weight:800;color:#0f172a">${_kwFmtReal(realLast, latest?.realisasi_display, isPredikatMini)}</div>
           </div>
           <div style="flex:1;padding:4px 8px;background:#f0f9ff;border-radius:6px;border-left:2px solid #3b82f6">
             <div style="font-size:.58rem;color:#94a3b8;font-weight:700;text-transform:uppercase">Target</div>
@@ -1534,6 +1532,19 @@ function _kwPredikatLabelForTier(tier) {
   const found = _KW_PREDIKAT_LEVELS.find(p => p.tier === t);
   return found ? found.label : null;
 }
+// Format nilai realisasi untuk ditampilkan — SELALU utamakan realisasi_display
+// (string persis seperti yang diketik user di IKU/IKK/SPM: "8.3" tetap "8.3",
+// "95.50" tetap "95.50"), bukan angka numerik yang diformat ulang (yang bisa
+// menghilangkan atau menambah angka nol di belakang koma). Fallback ke angka
+// mentah (tanpa paksa 2 desimal) hanya untuk data lama yang belum punya
+// realisasi_display tersimpan.
+function _kwFmtReal(v, disp, isPredikat) {
+  if (v === null || v === undefined || v === '') return '—';
+  if (isPredikat) return _kwPredikatLabelForTier(v) ?? '—';
+  if (disp !== null && disp !== undefined && String(disp).trim() !== '') return String(disp).trim();
+  const n = parseFloat(v);
+  return isNaN(n) ? '—' : String(n);
+}
 // Target numerik efektif untuk indikator — sama seperti _targetNumForRow di
 // kinerja.js: kalau target_tahun (kolom numerik) kosong/NaN dan indikatornya
 // predikat, coba rekonstruksi tier dari label huruf (target_display).
@@ -1655,7 +1666,7 @@ function _kwAggregateRange(indId, pairs) {
   const capaian  = _kwHitungCapaian(realisasi, _kwTargetNumForInd(_effInd), ind?.bermakna_negatif);
 
   return {
-    realisasi, capaian,
+    realisasi, realisasi_display: latest?.realisasi_display ?? null, capaian,
     permasalahan: latest?.permasalahan || null,
     solusi:       latest?.solusi       || null,
     bulanAda:     withReal.map(r => r.bulan || 0),
@@ -1988,7 +1999,7 @@ function _kwYearlyChartData(indId) {
     const _effIndThn  = _tgtInfoThn ? { ...ind, ...(_tgtInfoThn) } : ind;
     const _tgtNum = _kwTargetNumForInd(_effIndThn);
     const capaian = _kwHitungCapaian(real, _tgtNum, ind?.bermakna_negatif);
-    hasil.push({ tahun: thn, realisasi: real, capaian, target: !isNaN(_tgtNum) ? _tgtNum : null });
+    hasil.push({ tahun: thn, realisasi: real, realisasi_display: latestRec?.realisasi_display ?? null, capaian, target: !isNaN(_tgtNum) ? _tgtNum : null });
   }
   return hasil;
 }
@@ -2040,7 +2051,7 @@ function _kwYearlyChart(yearlyData, targetDisplay, satuan) {
 
     if (d.realisasi !== null && bH > 22)
       bars += `<text x="${x.toFixed(1)}" y="${(PAD.t + cH - 6).toFixed(1)}" text-anchor="middle"
-        font-size="${8*_activeChartFs}" fill="rgba(255,255,255,.85)">${parseFloat(d.realisasi).toLocaleString('id-ID')}</text>`;
+        font-size="${8*_activeChartFs}" fill="rgba(255,255,255,.85)">${_kwFmtReal(d.realisasi, d.realisasi_display, false)}</text>`;
 
     xLabels += `<text x="${x.toFixed(1)}" y="${(H - PAD.b + 16).toFixed(1)}"
       text-anchor="middle" font-size="${10*_activeChartFs}" fill="#475569" font-weight="700">${d.tahun}</text>`;
@@ -2648,6 +2659,7 @@ function _renderKinerjaWatch() {
   // Agregasi data sesuai range (cross-tahun)
   const aggr    = _kwAggregateRange(ind.id, rangePairs);
   const real    = aggr.realisasi;
+  const realDisp= aggr.realisasi_display;
   const cap     = aggr.capaian;
   const isPredikatInd = ind.tipe_nilai === 'predikat';
   // Target harus year-aware — ambil dari rekap tahun yang sedang ditampilkan,
@@ -2662,11 +2674,7 @@ function _renderKinerjaWatch() {
 
   // Untuk indikator predikat, realisasi tersimpan sbg tier angka (1-7) — tampilkan
   // sebagai huruf predikat (mis. "BB"), bukan angka mentah, di semua kartu/tabel.
-  const fmtReal = v => {
-    if (v === null) return '—';
-    if (isPredikatInd) return _kwPredikatLabelForTier(v) ?? '—';
-    return +parseFloat(v).toFixed(2);
-  };
+  const fmtReal = (v, disp) => _kwFmtReal(v, disp, isPredikatInd);
 
   // Warna identik dengan logika chart bar/combo/line/area:
   // capaian% (pctRaw) dibandingkan dengan target absolut (target)
@@ -2685,7 +2693,7 @@ function _renderKinerjaWatch() {
   const gapStr = gap !== null
     ? (isPredikatInd
         ? (gap > 0 ? `Kurang ${Math.round(gap)} tingkat menuju ${esc(targetDisplay ?? '')}` : 'Target terpenuhi')
-        : (gap > 0 ? `Kurang ${(+gap.toFixed(2))} ${esc(ind.satuan||'')}` : 'Target terpenuhi'))
+        : (gap > 0 ? `Kurang ${gap.toFixed(2)} ${esc(ind.satuan||'')}` : 'Target terpenuhi'))
     : '—';
 
   // ── Data per bulan untuk chart & tabel (cross-tahun) ─────────────────────
@@ -2713,6 +2721,7 @@ function _renderKinerjaWatch() {
           tahun:     thn,
           label:     String(thn),
           realisasi: (_rvVal !== null && !isNaN(_rvVal)) ? _rvVal : null,
+          realisasi_display: latestRec?.realisasi_display ?? null,
           capaian:   (_cvCalc !== null && !isNaN(_cvCalc)) ? _cvCalc : null,
           isInRange: true,
         };
@@ -2733,6 +2742,7 @@ function _renderKinerjaWatch() {
         tahun:       p.tahun,
         label:       multiTahun ? `${_KW_BULAN_LABEL[p.bulan]} '${String(p.tahun).slice(-2)}` : _KW_BULAN_LABEL[p.bulan],
         realisasi:   _rvVal,
+        realisasi_display: rec?.realisasi_display ?? null,
         capaian:     (_cvCalc !== null && !isNaN(_cvCalc)) ? _cvCalc : null,
         isInRange:   true,
       };
@@ -2758,7 +2768,7 @@ function _renderKinerjaWatch() {
   const dataCount = bulanChartData.filter(d => d.realisasi !== null).length;
 
   // ── Gauge ──────────────────────────────────────────────────────────────────
-  const gauge = _kwGauge(pct, col, colBg);
+  const gauge = _kwGauge(cap, col, colBg);
 
   // ── Bar chart per bulan (pakai data range yg mungkin lintas tahun) ────────
   const barChart = _kwBarChart(bulanChartData, bulanList, target);
@@ -2780,7 +2790,7 @@ function _renderKinerjaWatch() {
       return `
         <div class="${rowClass}">
           <span class="kw-tw-label">${rowLabel}</span>
-          <span class="kw-tw-real">${d.realisasi !== null ? fmtReal(d.realisasi) + ' ' + esc(ind.satuan||'') : isFuture ? '<span class="kw-future-tag">–</span>' : '—'}</span>
+          <span class="kw-tw-real">${d.realisasi !== null ? fmtReal(d.realisasi, d.realisasi_display) + ' ' + esc(ind.satuan||'') : isFuture ? '<span class="kw-future-tag">–</span>' : '—'}</span>
           <span class="kw-tw-cap-wrap">
             <span class="kw-tw-cap" style="color:${tc}">${c !== null ? c+'%' : '—'}</span>
             ${c !== null ? `<span class="kw-tw-minibar-wrap"><span class="kw-tw-minibar" style="width:${barW}%;background:${tc}"></span></span>` : ''}
@@ -2794,7 +2804,7 @@ function _renderKinerjaWatch() {
     if (_kwRangeFrom.key === _kwRangeTo.key) return `${_KW_BULAN_LABEL[_kwRangeFrom.bulan]} ${_kwRangeFrom.tahun}`;
     return `${_KW_BULAN_LABEL[_kwRangeFrom.bulan]}'${String(_kwRangeFrom.tahun).slice(-2)}–${_KW_BULAN_LABEL[_kwRangeTo.bulan]}'${String(_kwRangeTo.tahun).slice(-2)}`;
   })();
-  const gapDisplay = gap !== null ? (gap > 0 ? `+${(+gap.toFixed(2))} ${esc(ind.satuan||'')}` : `Terpenuhi <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1px"><path d="M20 6 9 17l-5-5"/></svg>`) : '—';
+  const gapDisplay = gap !== null ? (gap > 0 ? `+${gap.toFixed(2)} ${esc(ind.satuan||'')}` : `Terpenuhi <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1px"><path d="M20 6 9 17l-5-5"/></svg>`) : '—';
   const gapColor   = gap === null ? '#94a3b8' : gap > 0 ? '#ef4444' : '#10b981';
   const dataStatus = dataCount === rangePairs.length ? 'Lengkap' : dataCount === 0 ? 'Perlu input' : `${dataCount}/${rangePairs.length}`;
   const dataStatusColor = dataCount === 0 ? '#ef4444' : dataCount < rangePairs.length ? '#f59e0b' : '#10b981';
@@ -2848,7 +2858,7 @@ function _renderKinerjaWatch() {
       <div class="kw-kpi-card" style="--kc:#3b82f6">
         <div style="margin-top:0">
           <div style="font-size:0.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#94a3b8;margin-bottom:4px">Realisasi</div>
-          <div style="font-size:1.8rem;font-weight:800;color:#0f172a;line-height:1;letter-spacing:-.02em">${fmtReal(real)}</div>
+          <div style="font-size:1.8rem;font-weight:800;color:#0f172a;line-height:1;letter-spacing:-.02em">${fmtReal(real, realDisp)}</div>
           <div style="font-size:0.75rem;color:#64748b;margin-top:4px">Satuan: <b>${esc(ind.satuan||'–')}</b></div>
         </div>
         <div style="margin-top:10px;padding-top:8px;border-top:1px solid #f1f5f9;display:flex;justify-content:space-between;align-items:center">
@@ -2860,7 +2870,7 @@ function _renderKinerjaWatch() {
       <div class="kw-kpi-card" style="--kc:${gapColor}">
         <div style="margin-top:0">
           <div style="font-size:0.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#94a3b8;margin-bottom:4px">Gap ke Target</div>
-          <div style="font-size:1.8rem;font-weight:800;color:${gapColor};line-height:1;letter-spacing:-.02em">${gap !== null ? (gap > 0 ? '+'+(isPredikatInd ? Math.round(gap) : +parseFloat(gap).toFixed(2)) : '✓') : '—'}</div>
+          <div style="font-size:1.8rem;font-weight:800;color:${gapColor};line-height:1;letter-spacing:-.02em">${gap !== null ? (gap > 0 ? '+'+(isPredikatInd ? Math.round(gap) : parseFloat(gap).toFixed(2)) : '✓') : '—'}</div>
           <div style="font-size:0.75rem;color:${gapColor};margin-top:4px;font-weight:600">${gap === null ? 'Data kosong' : gap > 0 ? 'Perlu ditingkatkan' : 'Target tercapai'}</div>
         </div>
         <div style="margin-top:10px;padding-top:8px;border-top:1px solid #f1f5f9;display:flex;justify-content:space-between;align-items:center">
@@ -2902,7 +2912,7 @@ function _renderKinerjaWatch() {
             <div style="flex-shrink:0;align-self:center;display:flex;align-items:center;justify-content:center">${gauge}</div>
             <div style="flex:1;min-width:120px">
               <div style="font-size:0.63rem;text-transform:uppercase;letter-spacing:.07em;color:#94a3b8;font-weight:700;margin-bottom:2px">Realisasi</div>
-              <div style="font-size:1.7rem;font-weight:900;color:#0f172a;letter-spacing:-.02em">${fmtReal(real)} <span style="font-size:0.75rem;color:#94a3b8;font-weight:400">${esc(ind.satuan||'')}</span></div>
+              <div style="font-size:1.7rem;font-weight:900;color:#0f172a;letter-spacing:-.02em">${fmtReal(real, realDisp)} <span style="font-size:0.75rem;color:#94a3b8;font-weight:400">${esc(ind.satuan||'')}</span></div>
               <div style="margin:8px 0 2px;font-size:0.63rem;text-transform:uppercase;letter-spacing:.07em;color:#94a3b8;font-weight:700">Target</div>
               <div style="font-size:1.7rem;font-weight:900;color:#3b82f6;letter-spacing:-.02em">${targetDisplay !== null ? targetDisplay : '—'} <span style="font-size:0.75rem;color:#94a3b8;font-weight:400">${esc(ind.satuan||'')}</span></div>
               <div style="margin-top:10px">
@@ -2966,7 +2976,7 @@ function _renderKinerjaWatch() {
                     <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${isActive ? '#0d9488' : '#e2e8f0'};flex-shrink:0"></span>
                     <span style="font-weight:${isActive?'700':'400'}">${cellLabel}</span>
                   </div></td>
-                  <td style="font-weight:${isActive?'700':'400'};color:${isActive?'#0f172a':'#94a3b8'}">${d.realisasi !== null ? fmtReal(d.realisasi) : '<span style="color:#cbd5e1">–</span>'}</td>
+                  <td style="font-weight:${isActive?'700':'400'};color:${isActive?'#0f172a':'#94a3b8'}">${d.realisasi !== null ? fmtReal(d.realisasi, d.realisasi_display) : '<span style="color:#cbd5e1">–</span>'}</td>
                   <td style="color:#3b82f6;font-weight:600">${targetDisplay !== null ? targetDisplay : '<span style="color:#cbd5e1">–</span>'}</td>
                   <td>
                     ${c !== null ? `
@@ -3277,7 +3287,7 @@ function _kwBarChart(data, activeRange, target) {
       const bH  = (PT + iH) - y;
       bars += `<rect x="${(x - barW/2).toFixed(1)}" y="${y.toFixed(1)}" width="${barW.toFixed(1)}" height="${bH.toFixed(1)}" rx="3" fill="${cc}"/>`;
       if (isRange) {
-        const valStr = String(+rv.toFixed(2));
+        const valStr = rv.toFixed(2);
         const bwv = valStr.length * 6.5 + 10;
         bars += `<rect x="${(x-bwv/2).toFixed(1)}" y="${(y-20).toFixed(1)}" width="${bwv}" height="14" rx="7" fill="${col}" opacity=".13"/>`;
         bars += `<text x="${x.toFixed(1)}" y="${(y-11).toFixed(1)}" text-anchor="middle" font-size="${11*_activeChartFs}" fill="${col}" font-weight="700">${valStr}</text>`;
@@ -3404,7 +3414,7 @@ function _kwChartBullet(data, activeRange, target, targetDisplay, satuan, isPred
     // Label kanan: capaian% + realisasi
     const capStr = d.capaian !== null ? parseFloat(d.capaian).toFixed(1) + '%' : '—';
     const realStr = d.realisasi !== null
-      ? (isPredikat ? (_kwPredikatLabelForTier(d.realisasi) ?? '—') : (+parseFloat(d.realisasi).toFixed(2)) + (satuan ? ' ' + satuan : ''))
+      ? (isPredikat ? (_kwPredikatLabelForTier(d.realisasi) ?? '—') : _kwFmtReal(d.realisasi, d.realisasi_display, false) + (satuan ? ' ' + satuan : ''))
       : '—';
     rowsEl += `<text x="${(W - PR + 8).toFixed(1)}" y="${(cy - 4).toFixed(1)}" font-size="${11*_activeChartFs}" font-weight="800" fill="${col}" dominant-baseline="middle">${capStr}</text>`;
     rowsEl += `<text x="${(W - PR + 8).toFixed(1)}" y="${(cy + 7).toFixed(1)}" font-size="${9*_activeChartFs}" fill="#94a3b8" dominant-baseline="middle">${realStr}</text>`;
@@ -3477,7 +3487,7 @@ function _kwChartBar(data, activeRange, target, targetDisplay, satuan, isPredika
       bars += `<rect x="${(x-barW/2).toFixed(1)}" y="${y.toFixed(1)}" width="${barW.toFixed(1)}" height="${bH.toFixed(1)}" rx="5" fill="${fillCol}"/>`;
       if (isRange) {
         bars += `<rect x="${(x-barW/2).toFixed(1)}" y="${y.toFixed(1)}" width="${barW.toFixed(1)}" height="${(bH*0.3).toFixed(1)}" rx="5" fill="white" opacity=".15"/>`;
-        const vStr = isPredikat ? (_kwPredikatLabelForTier(rv) ?? '—') : +rv.toFixed(2);
+        const vStr = isPredikat ? (_kwPredikatLabelForTier(rv) ?? '—') : _kwFmtReal(rv, d.realisasi_display, false);
         bars += `<text x="${x.toFixed(1)}" y="${(y-10).toFixed(1)}" text-anchor="middle" font-size="${11*_activeChartFs}" fill="${col}" font-weight="800">${vStr}</text>`;
         linePointsB.push({ x, y, col });
       }
@@ -3522,7 +3532,7 @@ function _kwChartLine(data, activeRange, target, targetDisplay, satuan, isPredik
     grid += `<line x1="${PL}" y1="${yTgt}" x2="${W-PR}" y2="${yTgt}" stroke="#6366f1" stroke-width="1.4" stroke-dasharray="5,3" opacity=".75"/>`;
   }
 
-  const pts = data.map((d, i) => ({ x: xOf(i), y: d.realisasi !== null ? yOf(Math.min(Number(d.realisasi), maxV)) : null, v: d.realisasi, real: d.realisasi, cap: d.capaian ?? null, isRange: d.isInRange, label: d.label }));
+  const pts = data.map((d, i) => ({ x: xOf(i), y: d.realisasi !== null ? yOf(Math.min(Number(d.realisasi), maxV)) : null, v: d.realisasi, disp: d.realisasi_display, real: d.realisasi, cap: d.capaian ?? null, isRange: d.isInRange, label: d.label }));
   const validPts = pts.filter(p => p.y !== null);
 
   let lineEl = '', xlbls = '';
@@ -3538,7 +3548,7 @@ function _kwChartLine(data, activeRange, target, targetDisplay, satuan, isPredik
       const col = p.cap !== null ? _kwCapaianColor(p.cap) : '#0d9488';
       lineEl += `<circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="${p.isRange?7:4}" fill="${p.isRange?col:'#cbd5e1'}" stroke="white" stroke-width="2"/>`;
       if (p.isRange) {
-        const vStr = rv !== null ? (isPredikat ? (_kwPredikatLabelForTier(rv) ?? '—') : +rv.toFixed(2)) : '—';
+        const vStr = rv !== null ? (isPredikat ? (_kwPredikatLabelForTier(rv) ?? '—') : _kwFmtReal(rv, p.disp, false)) : '—';
         lineEl += `<text x="${p.x.toFixed(1)}" y="${(p.y-12).toFixed(1)}" text-anchor="middle" font-size="${11*_activeChartFs}" fill="${col}" font-weight="800">${vStr}</text>`;
       }
     }
@@ -3577,7 +3587,7 @@ function _kwChartArea(data, activeRange, target, targetDisplay, satuan, isPredik
   const gradId = 'kw_area_grad_' + Date.now();
   const defs = `<defs><linearGradient id="${gradId}" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#0d9488" stop-opacity=".35"/><stop offset="100%" stop-color="#0d9488" stop-opacity=".03"/></linearGradient></defs>`;
 
-  const pts = data.map((d, i) => ({ x: xOf(i), y: d.realisasi !== null ? yOf(Math.min(Number(d.realisasi), maxV)) : null, v: d.realisasi, real: d.realisasi, cap: d.capaian ?? null, isRange: d.isInRange, label: d.label }));
+  const pts = data.map((d, i) => ({ x: xOf(i), y: d.realisasi !== null ? yOf(Math.min(Number(d.realisasi), maxV)) : null, v: d.realisasi, disp: d.realisasi_display, real: d.realisasi, cap: d.capaian ?? null, isRange: d.isInRange, label: d.label }));
   const validPts = pts.filter(p => p.y !== null);
 
   let areaEl = '', xlbls = '';
@@ -3594,7 +3604,7 @@ function _kwChartArea(data, activeRange, target, targetDisplay, satuan, isPredik
       const col = p.cap !== null ? _kwCapaianColor(p.cap) : '#0d9488';
       areaEl += `<circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="${p.isRange?7:4}" fill="${p.isRange?col:'#cbd5e1'}" stroke="white" stroke-width="2"/>`;
       if (p.isRange) {
-        const vStr = rv !== null ? (isPredikat ? (_kwPredikatLabelForTier(rv) ?? '—') : +rv.toFixed(2)) : '—';
+        const vStr = rv !== null ? (isPredikat ? (_kwPredikatLabelForTier(rv) ?? '—') : _kwFmtReal(rv, p.disp, false)) : '—';
         areaEl += `<text x="${p.x.toFixed(1)}" y="${(p.y-12).toFixed(1)}" text-anchor="middle" font-size="${11*_activeChartFs}" fill="${col}" font-weight="800">${vStr}</text>`;
       }
     }
