@@ -3290,7 +3290,7 @@ async function openDukungModal(indikatorId, tw, tahun) {
 
 // Preview-only — selalu buka docPreviewPanel dengan navigasi multi-file
 function openDukungPreview(indikatorId, tw, tahun, source) {
-  const data = source === 'ikk' ? _ikkData : _kinerjaData;
+  const data = source === 'ikk' ? _ikkData : source === 'spm' ? _spmData : _kinerjaData;
   const row  = data.find(r => r.id === indikatorId);
   if (!row) return;
 
@@ -3386,7 +3386,7 @@ async function _processDukungFile(file) {
 
   // Jika mode autoSave (dipanggil dari tombol tabel langsung), tunjukkan status di tombol tabel
   if (isAutoSave) {
-    const dataArr = _source === 'ikk' ? _ikkData : _kinerjaData;
+    const dataArr = _source === 'ikk' ? _ikkData : _source === 'spm' ? _spmData : _kinerjaData;
     const rowIdx  = dataArr.findIndex(r => r.id === indikatorId);
     // Cari td kolom data dukung — tombol ada di sana
     const tr = document.querySelector(`[data-id="${indikatorId}"]`);
@@ -3442,7 +3442,7 @@ async function _processDukungFile(file) {
     if (!isAutoSave) _renderDukungList();
     else {
       // Kembalikan tombol Upload jika gagal
-      const dataArr = _source === 'ikk' ? _ikkData : _kinerjaData;
+      const dataArr = _source === 'ikk' ? _ikkData : _source === 'spm' ? _spmData : _kinerjaData;
       const source  = _source;
       const { tw, tahun } = _dukungState;
       const rowObj  = dataArr.find(r => r.id === indikatorId);
@@ -3560,10 +3560,12 @@ async function saveDukung() {
     if (!r.ok) { toast(d.error || 'Gagal menyimpan', 'error'); return; }
     toast('Data dukung tersimpan');
     // Update cache sesuai sumber
-    const dataArr = _source === 'ikk' ? _ikkData : _kinerjaData;
+    const dataArr = _source === 'ikk' ? _ikkData : _source === 'spm' ? _spmData : _kinerjaData;
     const renderFn = _source === 'ikk'
       ? () => _renderIkkTable(document.getElementById('ikkTableBody'))
-      : () => renderKinerjaTable(document.getElementById('kinerjaTableBody'));
+      : _source === 'spm'
+        ? () => _renderSpmTable(document.getElementById('spmTableBody'))
+        : () => renderKinerjaTable(document.getElementById('kinerjaTableBody'));
     const idx = dataArr.findIndex(x => x.id === indikatorId);
     if (idx >= 0) {
       dataArr[idx].data_dukung_url  = urlJson;
