@@ -65,7 +65,32 @@ function _initAuditFilters() {
   const sampai = document.getElementById('auditFilterSampai');
   dari?.addEventListener('change', filterAuditTrail);
   sampai?.addEventListener('change', filterAuditTrail);
+  buildAuditAksiFilter();
   _auditFiltersBound = true;
+}
+
+// Rebuild dropdown "Semua Aksi" — hanya tampilkan aksi yang benar-benar ada di data.
+// "Semua Aksi" sendiri cuma ditampilkan kalau aksinya lebih dari 1 macam.
+async function buildAuditAksiFilter() {
+  const sel = document.getElementById('auditFilterAksi');
+  if (!sel) return;
+  const current = sel.value;
+  try {
+    const r = await fetch('/api/audit-trail/aksi-list', { headers: authHeaders() });
+    if (!r.ok) return;
+    const { aksi } = await r.json();
+    const list = aksi || [];
+    let opts = list.length > 1 ? `<option value="">Semua Aksi</option>` : '';
+    opts += list.map(a => `<option value="${esc(a)}" ${current === a ? 'selected' : ''}>${esc(AKSI_LABEL[a] || a)}</option>`).join('');
+    sel.innerHTML = opts || `<option value="">Semua Aksi</option>`;
+    const options = [...sel.options];
+    if (!options.some(o => o.value === current)) sel.value = options[0]?.value ?? '';
+    if (typeof syncCustomSelect === 'function') syncCustomSelect('auditFilterAksi');
+    // Kalau nilai auto berubah (bukan pilihan user), reload data biar sinkron dgn filter
+    if (sel.value !== current) filterAuditTrail();
+  } catch (err) {
+    console.error('[buildAuditAksiFilter]', err);
+  }
 }
 
 // Ambil bagian tanggal saja (YYYY-MM-DD) dari nilai hidden CDTP (YYYY-MM-DDTHH:mm)
@@ -130,6 +155,23 @@ function _auditDetailText(aksi, detail) {
   }
 }
 
+// Ikon penanda sumber/akurasi lokasi, dideteksi dari FORMAT TEKSNYA sendiri
+// (tanpa kolom DB tambahan): lokasi dari GPS browser (reverse-geocode.js)
+// selalu diawali level Kecamatan; fallback IP (_audit.js → ip-api.com) cuma
+// sampai level Kabupaten/Kota, gak pernah ada kata "Kecamatan".
+// true (ada "Kecamatan") → check-circle hijau, "Lokasi akurat (GPS perangkat)"
+// false (gak ada)        → alert-triangle kuning, "Lokasi perkiraan dari IP, bisa kurang akurat"
+function _lokasiIsAkurat(lokasi) {
+  return /\bkecamatan\b/i.test(lokasi || '');
+}
+
+function _lokasiAkuratIcon(akurat) {
+  if (akurat) {
+    return `<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="#16a34a" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0" data-tip="Lokasi akurat (GPS perangkat)"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>`;
+  }
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="#d97706" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0" data-tip="Lokasi perkiraan dari IP, bisa kurang akurat"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>`;
+}
+
 function renderAuditTrailTable(logs) {
   const tb = document.getElementById('auditTableBody');
   if (!tb) return;
@@ -147,6 +189,7 @@ function renderAuditTrailTable(logs) {
     const detail = l.detail ? (typeof l.detail === 'string' ? JSON.parse(l.detail) : l.detail) : null;
     const detailText = _auditDetailText(l.aksi, detail);
     const lokasiText = l.lokasi || '—';
+    const lokasiIcon = l.lokasi ? _lokasiAkuratIcon(_lokasiIsAkurat(l.lokasi)) : '';
     return `
       <tr>
         <td style="font-size:.8rem;color:var(--teks-muted);white-space:nowrap">${waktu}</td>
@@ -157,7 +200,7 @@ function renderAuditTrailTable(logs) {
         <td>${_auditAksiBadge(l.aksi)}</td>
         <td style="font-size:.8rem;color:var(--teks-muted)">${esc(detailText)}</td>
         <td style="font-size:.8rem;color:var(--teks-muted)">${esc(l.ip_address || '—')}</td>
-        <td style="font-size:.8rem;color:var(--teks-muted)">${esc(lokasiText)}</td>
+        <td style="font-size:.8rem;color:var(--teks-muted)"><span style="display:inline-flex;align-items:center;gap:5px">${lokasiIcon}${esc(lokasiText)}</span></td>
       </tr>`;
   }).join('');
 }

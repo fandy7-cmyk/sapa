@@ -287,8 +287,8 @@ async function loadDashboardSurat() {
       icon: iconMasuk, title: 'Status Surat Masuk',
       segments: [
         { label: 'Selesai',   value: selesai,      color: '#10b981' },
-        { label: 'Proses',    value: prosesOnTime, color: '#f59e0b' },
-        { label: 'Terlambat', value: terlambat,    color: '#ef4444' },
+        { label: 'Proses',    value: prosesOnTime, color: _KPI_COLORS.amber.text },
+        { label: 'Terlambat', value: terlambat,    color: _KPI_COLORS.red.text },
       ],
       centerVal: `${pctSelesai}%`, centerLbl: 'Selesai',
     }));
@@ -430,7 +430,7 @@ async function loadDashboardKinerja() {
       rows: [
         { label: 'Tercapai (≥100%)',     value: tercapai,      color: '#10b981' },
         { label: 'Mendekati (75–99%)',   value: mendekati,     color: '#f59e0b' },
-        { label: 'Perlu Tindakan (<75%)',value: perluTindakan, color: '#ef4444' },
+        { label: 'Perlu Tindakan (<75%)',value: perluTindakan, color: _KPI_COLORS.amber.text },
       ],
     }));
   }

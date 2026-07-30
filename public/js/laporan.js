@@ -81,18 +81,45 @@ async function _initLaporanSuratFilter(smRows, skRows) {
   tahunList.forEach(y => {
     const opt = document.createElement('option');
     opt.value = y;
-    opt.textContent = 'Tahun ' + y;
+    opt.textContent = y;
     sel.appendChild(opt);
   });
 
   // Pertahankan pilihan user jika masih valid, selainnya default ke "Semua Tahun"
+  // (kecuali cuma ada 1 tahun tersedia → langsung auto-select tahun itu)
   if (currentVal && tahunList.includes(parseInt(currentVal))) {
     sel.value = currentVal;
+  } else if (tahunList.length === 1) {
+    sel.value = String(tahunList[0]);
   } else {
     sel.value = '';
   }
 
   _laporanSuratFilterReady = true;
+}
+
+// Rebuild dropdown Jenis (Semua/Masuk/Keluar) — opsi yang datanya kosong
+// (untuk tahun yang sedang dipilih) tidak ditampilkan.
+function _initLaporanSuratJenisFilter(smRows, skRows) {
+  const sel = document.getElementById('laporanSuratJenis');
+  if (!sel) return;
+
+  const current = sel.value;
+  const hasMasuk  = smRows.length > 0;
+  const hasKeluar = skRows.length > 0;
+
+  let opts = '';
+  if (hasMasuk && hasKeluar) opts += '<option value="">Semua Jenis</option>';
+  if (hasMasuk)  opts += '<option value="masuk">Surat Masuk</option>';
+  if (hasKeluar) opts += '<option value="keluar">Surat Keluar</option>';
+  sel.innerHTML = opts || '<option value="">Semua Jenis</option>';
+
+  // Pertahankan pilihan user jika masih valid, selainnya jatuh ke opsi pertama yang tersedia
+  if ([...sel.options].some(o => o.value === current)) {
+    sel.value = current;
+  } else {
+    sel.value = sel.options[0]?.value ?? '';
+  }
 }
 
 // ── Spinner helper untuk Laporan Surat ────────────────────────────────────
@@ -131,7 +158,6 @@ async function loadLaporanSurat() {
 
   const tahunRaw = document.getElementById('laporanSuratTahun')?.value || '';
   const tahun  = tahunRaw ? parseInt(tahunRaw) : null;
-  const jenis  = document.getElementById('laporanSuratJenis')?.value  || '';
   const status = document.getElementById('laporanSuratStatus')?.value || '';
 
   // Filter tahun (null = Semua Tahun, tidak difilter)
@@ -140,6 +166,10 @@ async function loadLaporanSurat() {
     smFiltered = smRows.filter(r => r.tanggal_terima && new Date(r.tanggal_terima).getFullYear() === tahun);
     skFiltered = skRows.filter(r => r.tanggal_surat  && new Date(r.tanggal_surat ).getFullYear() === tahun);
   }
+
+  // ── Bangun dropdown jenis dari data yang benar-benar ada (setelah filter tahun) ──
+  _initLaporanSuratJenisFilter(smFiltered, skFiltered);
+  const jenis = document.getElementById('laporanSuratJenis')?.value || '';
 
   // ── Summary cards (dari data lengkap sebelum filter status) ──
   const totalSM   = smFiltered.length;
@@ -1206,15 +1236,19 @@ function _rebuildSuratStatusOptions(allRows, currentVal) {
   const adaBelum     = allRows.some(r => r._jenis === 'masuk' && !r.selesai && !r.terlambat);
   const adaSelesai   = allRows.some(r => r.selesai);
   const adaTerlambat = allRows.some(r => r.terlambat);
+  const jumlahStatus = [adaBelum, adaSelesai, adaTerlambat].filter(Boolean).length;
 
-  const opts = [{ val: '', label: 'Semua Status' }];
+  // "Semua Status" cuma ditampilkan kalau statusnya lebih dari 1 macam
+  const opts = [];
+  if (jumlahStatus > 1) opts.push({ val: '', label: 'Semua Status' });
   if (adaBelum)     opts.push({ val: 'belum',     label: 'Belum Selesai' });
   if (adaSelesai)   opts.push({ val: 'selesai',   label: 'Selesai' });
   if (adaTerlambat) opts.push({ val: 'terlambat', label: 'Terlambat' });
+  if (!opts.length) opts.push({ val: '', label: 'Semua Status' });
 
-  // Jika nilai terpilih sudah tidak relevan, reset ke semua
+  // Jika nilai terpilih sudah tidak relevan, jatuh ke opsi pertama yang tersedia
   const validVals = opts.map(o => o.val);
-  const safeVal = validVals.includes(currentVal) ? currentVal : '';
+  const safeVal = validVals.includes(currentVal) ? currentVal : opts[0].val;
 
   sel.innerHTML = opts.map(o =>
     `<option value="${o.val}"${o.val === safeVal ? ' selected' : ''}>${o.label}</option>`
@@ -1395,7 +1429,7 @@ async function downloadLaporanByUrusan(btnEl) {
   const data = window._laporanKinerjaData;
   if (!data || !data.rows) { toast('Muat data laporan terlebih dahulu', 'error'); return; }
 
-  if (btnEl) { btnEl.disabled = true; btnEl.innerHTML = `<span class="btn-spin" style="width:12px;height:12px"></span> Memuat...`; }
+  if (btnEl) { btnEl.disabled = true; btnEl.innerHTML = `<span class="btn-spin" style="width:12px;height:12px"></span> Memuat data...`; }
   try {
     // Non-admin: langsung tampilkan indikator tanggung jawabnya sendiri (flat),
     // gak perlu template Urusan yang notabene struktur punya admin/instansi.
@@ -1525,7 +1559,7 @@ async function downloadLaporanByTSP(btnEl) {
   const data = window._laporanKinerjaData;
   if (!data || !data.rows) { toast('Muat data laporan terlebih dahulu', 'error'); return; }
 
-  if (btnEl) { btnEl.disabled = true; btnEl.innerHTML = `<span class="btn-spin" style="width:12px;height:12px"></span> Memuat...`; }
+  if (btnEl) { btnEl.disabled = true; btnEl.innerHTML = `<span class="btn-spin" style="width:12px;height:12px"></span> Memuat data...`; }
   try {
     // Non-admin: langsung tampilkan indikator tanggung jawabnya sendiri (flat),
     // gak perlu template TSP (Tujuan/Sasaran/Program/Kegiatan) yang notabene struktur instansi.

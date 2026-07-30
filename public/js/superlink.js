@@ -17,13 +17,17 @@ function _bundleIsExpired(b) {
 }
 
 // ── Status dropdown: hanya tampilkan opsi yang ada datanya ──
-function _buildStatusOptions(data, getAktif = d => d.aktif) {
-  const aktifCount    = data.filter(d => getAktif(d)).length;
-  const nonaktifCount = data.filter(d => !getAktif(d)).length;
-  let opts = `<option value="">Semua Status</option>`;
-  if (aktifCount)    opts += `<option value="aktif">Aktif</option>`;
-  if (nonaktifCount) opts += `<option value="nonaktif">Nonaktif</option>`;
-  return opts;
+// "Semua Status" cuma ditampilkan kalau statusnya lebih dari 1 macam
+// ── Status dropdown: hanya Aktif & Kedaluwarsa (samain dgn badge di tabel) ──
+// "Semua Status" cuma ditampilkan kalau statusnya lebih dari 1 macam
+function _buildStatusOptions(data, getAktif = d => d.aktif, getExpired = () => false) {
+  const kedaluwarsaCount = data.filter(d => getExpired(d)).length;
+  const aktifCount       = data.filter(d => !getExpired(d) && getAktif(d)).length;
+  const jumlahStatus = (aktifCount ? 1 : 0) + (kedaluwarsaCount ? 1 : 0);
+  let opts = jumlahStatus > 1 ? `<option value="">Semua Status</option>` : '';
+  if (aktifCount)       opts += `<option value="aktif">Aktif</option>`;
+  if (kedaluwarsaCount) opts += `<option value="kedaluwarsa">Kedaluwarsa</option>`;
+  return opts || `<option value="">Semua Status</option>`;
 }
 
 // ── Debounce helper ──────────────────────────────────────
@@ -132,7 +136,7 @@ async function loadLinks() {
     _links = ld.links || [];
     // Rebuild filter status dropdown — hanya tampilkan opsi yg ada datanya
     const slfs = document.getElementById('slFilterStatus');
-    if (slfs) slfs.innerHTML = _buildStatusOptions(_links);
+    if (slfs) slfs.innerHTML = _buildStatusOptions(_links, l => l.aktif, l => _linkIsExpired(l));
   } catch (e) { console.error(e); }
 }
 
@@ -297,15 +301,13 @@ async function loadShortlinks() {
 function filterShortlinks() {
   const q      = document.getElementById('slSearch').value.toLowerCase();
   const status = document.getElementById('slFilterStatus')?.value || '';
-  const jenis  = document.getElementById('slFilterJenis')?.value || '';
   _slFiltered = _links.filter(l => {
     const matchQ = l.judul.toLowerCase().includes(q) ||
                    l.url.toLowerCase().includes(q) ||
                    (l.slug_pendek||'').toLowerCase().includes(q);
-    const lAktifEfektif = l.aktif && !_linkIsExpired(l);
-    const matchS = !status || (status === 'aktif' ? lAktifEfektif : !lAktifEfektif);
-    const matchJ = !jenis || (jenis === 'shortlink' ? !!l.slug_pendek : !l.slug_pendek);
-    return matchQ && matchS && matchJ;
+    const matchS = !status ||
+      (status === 'aktif' ? (l.aktif && !_linkIsExpired(l)) : _linkIsExpired(l));
+    return matchQ && matchS;
   });
   _slPage = 1;
   renderShortlinks();
@@ -371,7 +373,7 @@ async function loadBundles() {
     renderBundles();
     // Rebuild filter dropdowns — hanya tampilkan opsi yg ada datanya
     const bfs = document.getElementById('bundleFilterStatus');
-    if (bfs) bfs.innerHTML = _buildStatusOptions(_bundles);
+    if (bfs) bfs.innerHTML = _buildStatusOptions(_bundles, b => b.aktif, b => _bundleIsExpired(b));
   } catch {}
 }
 
@@ -379,9 +381,8 @@ function filterBundles() {
   const q      = (document.getElementById('bundleSearch')?.value || '').toLowerCase();
   const status = document.getElementById('bundleFilterStatus')?.value || '';
   _bundlesFiltered = _bundles.filter(b => {
-    const bAktifEfektif = b.aktif && !_bundleIsExpired(b);
     if (status) {
-      const matchS = status === 'aktif' ? bAktifEfektif : !bAktifEfektif;
+      const matchS = status === 'aktif' ? (b.aktif && !_bundleIsExpired(b)) : _bundleIsExpired(b);
       if (!matchS) return false;
     }
     const matchQ = b.judul.toLowerCase().includes(q) || b.slug.toLowerCase().includes(q);

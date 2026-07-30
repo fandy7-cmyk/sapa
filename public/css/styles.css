@@ -594,7 +594,16 @@ body::before {
   background: rgba(255,255,255,.15); border: 1px solid rgba(255,255,255,.25); cursor: pointer;
   display: none; align-items: center; justify-content: center; color: #fff;
 }
-.topbar-title { font-size: var(--fs-lg); font-weight: 700; color: #ffffff; flex: 1; }
+.topbar-title { font-size: var(--fs-lg); font-weight: 700; color: #ffffff; flex: 0 1 auto; }
+
+/* Constellation drift — partikel teal melayang & berkedip di antara logo & profil */
+.topbar-constellation {
+  flex: 1 1 auto; min-width: 60px; align-self: stretch;
+  position: relative; overflow: hidden; pointer-events: none;
+}
+.topbar-constellation canvas { position: absolute; inset: 0; display: block; }
+@media (max-width: 900px) { .topbar-constellation { display: none; } }
+@media (prefers-reduced-motion: reduce) { .topbar-constellation { opacity: .6; } }
 
 /* Topbar profile */
 .topbar-profile { position: relative; margin-left: auto; display: flex; align-items: center; gap: var(--sp-3); }
@@ -7035,12 +7044,44 @@ tr:hover td:not(.td-sticky-no):not(.td-sticky-name) { background: var(--abu-1); 
    18. PAGINATION — Fibonacci button sizes
    ═══════════════════════════════════════════════════════════════════════════ */
 
+.pagination-wrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-3);
+  margin-top: 0;
+  padding: var(--sp-3) var(--sp-4);
+  background: rgba(255,255,255,.88);
+  backdrop-filter: blur(14px);
+  border-radius: 0 0 var(--r-md) var(--r-md);
+  border-top: 1px solid rgba(0,0,0,.07);
+  box-shadow: none;
+  flex-wrap: wrap;
+}
+/* Card tabel yang langsung diikuti pagination: ratain sudut bawahnya &
+   ilangin margin-bottom-nya, biar nyambung rapi tanpa celah/lengkung ganda.
+   !important dipasang biar berlaku konsisten di SELURUH sistem, termasuk
+   card yang punya style inline border-radius sendiri (mis. Laporan Kinerja). */
+.card:has(+ [id$="Pagination"]) {
+  margin-bottom: 0 !important;
+  border-bottom-left-radius: 0 !important;
+  border-bottom-right-radius: 0 !important;
+}
+
+.pagination-info {
+  font-size: var(--fs-sm);
+  color: var(--teks-muted);
+  white-space: nowrap;
+  padding-right: var(--sp-3);
+  border-right: 1px solid var(--abu-2);
+}
+
 .pagination {
   display: flex;
   align-items: center;
   gap: var(--sp-2);   /* 5px */
   justify-content: center;
-  margin-top: var(--sp-5);   /* 21px */
+  margin: 0;
   flex-wrap: wrap;
 }
 

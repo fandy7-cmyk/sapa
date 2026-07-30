@@ -28,6 +28,8 @@ async function loadPegawai() {
     const { pegawai } = await r.json();
     _pegawaiAll  = pegawai || [];
     _pegawaiPage = 1;
+    buildPegawaiJabatanFilter();
+    buildPegawaiStatusFilter();
     renderPegawaiTable();
   } catch (err) {
     console.error('[loadPegawai]', err);
@@ -317,5 +319,24 @@ function buildPegawaiJabatanFilter() {
   const current = sel.value;
   sel.innerHTML = `<option value="">Semua Jabatan</option>` +
     jabatanSet.map(j => `<option value="${esc(j)}" ${current === j ? 'selected' : ''}>${esc(j)}</option>`).join('');
+  if (typeof initCustomSelects === 'function') initCustomSelects();
+}
+
+/* ── Helper: build status filter options dari data ─────────────
+   "Semua Status" cuma ditampilkan kalau statusnya lebih dari 1 macam ── */
+function buildPegawaiStatusFilter() {
+  const sel = document.getElementById('pegawaiFilterStatus');
+  if (!sel) return;
+  const current = sel.value;
+  const aktifCount    = _pegawaiAll.filter(p => p.aktif).length;
+  const nonaktifCount = _pegawaiAll.filter(p => !p.aktif).length;
+  const jumlahStatus  = (aktifCount ? 1 : 0) + (nonaktifCount ? 1 : 0);
+  let opts = jumlahStatus > 1 ? `<option value="">Semua Status</option>` : '';
+  if (aktifCount)    opts += `<option value="aktif">Aktif</option>`;
+  if (nonaktifCount) opts += `<option value="nonaktif">Nonaktif</option>`;
+  sel.innerHTML = opts || `<option value="">Semua Status</option>`;
+  const options = [...sel.options];
+  if (options.some(o => o.value === current)) sel.value = current;
+  else sel.value = options[0]?.value ?? '';
   if (typeof initCustomSelects === 'function') initCustomSelects();
 }

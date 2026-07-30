@@ -531,9 +531,9 @@ const MENUS = [
       { id: 'kelola-laporan', key: null, adminOnly: true, label: 'Kelola Laporan', page: 'page-kelola-laporan', loader: () => loadLapTemplateAdmin(), icon: `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>` },
       { id: 'periode', key: null, label: 'Periode', page: 'page-periode', loader: () => loadPeriodePage(), icon: `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2v4"/><path d="M16 2v4"/><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/><path d="M8 14h.01"/><path d="M12 14h.01"/><path d="M16 14h.01"/><path d="M8 18h.01"/><path d="M12 18h.01"/><path d="M16 18h.01"/></svg>` },
       { id: 'pengguna', key: null, label: 'Pengguna', page: 'page-pengguna', loader: () => loadUsers(), icon: `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>` },
-      { id: 'bidang', key: null, label: 'Bidang', page: 'page-bidang', loader: () => loadBidangPage(), icon: `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 22V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v18Z"/><path d="M6 12H4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h2"/><path d="M18 9h2a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2h-2"/><path d="M10 6h4"/><path d="M10 10h4"/><path d="M10 14h4"/><path d="M10 18h4"/></svg>` },
-      { id: 'pegawai', key: null, label: 'Struktur', page: 'page-pegawai', loader: () => { loadPegawai(); buildPegawaiJabatanFilter(); }, icon: `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2" width="6" height="6" rx="1"/><rect x="2" y="16" width="6" height="6" rx="1"/><rect x="16" y="16" width="6" height="6" rx="1"/><path d="M12 8v4M12 12H5v4M12 12h7v4"/></svg>` },
-      { id: 'dokumen-publik', key: null, label: 'Dokumen Publik', page: 'page-dokumen-publik', loader: () => { loadDokumenPublik(); buildDokumenKategoriFilter(); }, icon: `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/></svg>` },
+      { id: 'bidang', key: null, label: 'Penanggung Jawab', page: 'page-bidang', loader: () => loadBidangPage(), icon: `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 22V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v18Z"/><path d="M6 12H4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h2"/><path d="M18 9h2a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2h-2"/><path d="M10 6h4"/><path d="M10 10h4"/><path d="M10 14h4"/><path d="M10 18h4"/></svg>` },
+      { id: 'pegawai', key: null, label: 'Struktur', page: 'page-pegawai', loader: () => { loadPegawai(); }, icon: `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2" width="6" height="6" rx="1"/><rect x="2" y="16" width="6" height="6" rx="1"/><rect x="16" y="16" width="6" height="6" rx="1"/><path d="M12 8v4M12 12H5v4M12 12h7v4"/></svg>` },
+      { id: 'dokumen-publik', key: null, label: 'Dokumen Publik', page: 'page-dokumen-publik', loader: () => { loadDokumenPublik(); }, icon: `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/></svg>` },
       { id: 'pengumuman', key: null, adminOnly: true, label: 'Pengumuman', page: 'page-pengumuman', loader: () => { loadPengumuman(); loadTicker(); }, icon: `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" x2="4" y1="22" y2="15"/></svg>` },
       { id: 'profil', key: null, label: 'Profil Instansi', page: 'page-profil', loader: () => loadProfil(), icon: `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>` },
       { id: 'audit-trail', key: null, adminOnly: true, label: 'Audit Trail', page: 'page-audit-trail', loader: () => loadAuditTrail(1), icon: `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/><path d="m9 12 2 2 4-4"/></svg>` },
@@ -574,6 +574,7 @@ function buildSidebar() {
     const groupHasActive = visibleChildren.some(c => c.id === _activeSubId);
     const groupItem = document.createElement('div');
     groupItem.className = 'nav-item' + (groupHasActive ? ' has-active' : '');
+    groupItem.dataset.group = group.id;
     groupItem.innerHTML = `<span style="display:flex;align-items:center;flex-shrink:0">${group.icon}</span><span class="nav-item-label">${group.label}</span><svg class="nav-chevron${_openGroups[group.id] ? ' open' : ''}" id="chev-${group.id}" xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>`;
     groupItem.onclick = () => {
       if (collapsed) {
@@ -629,13 +630,45 @@ function buildSidebar() {
   }
 }
 
+// Update highlight aktif & buka/tutup nav-sub TANPA rebuild DOM,
+// supaya transisi CSS (.nav-sub max-height, dsb) tetap kepakai halus —
+// sebelumnya buildSidebar() dipanggil di sini yang bikin elemen baru
+// dengan class 'open' sudah nempel dari awal, jadi transisinya "kasar"/instan.
+function setSidebarActiveState() {
+  const nav = document.getElementById('sidebarNav');
+  if (!nav) return;
+
+  // Dashboard & item submenu: toggle .active sesuai _activeSubId
+  nav.querySelectorAll('.nav-item[data-sub], .nav-sub-item[data-sub]').forEach(el => {
+    el.classList.toggle('active', el.dataset.sub === _activeSubId);
+  });
+
+  // Group: toggle .has-active sesuai apakah ada child yang aktif
+  nav.querySelectorAll('.nav-item[data-group]').forEach(groupEl => {
+    const gid = groupEl.dataset.group;
+    const sub = document.getElementById('sub-' + gid);
+    const hasActive = !!(sub && sub.querySelector('.nav-sub-item.active'));
+    groupEl.classList.toggle('has-active', hasActive);
+  });
+
+  // Buka/tutup nav-sub sesuai _openGroups — DOM lama dipertahankan,
+  // jadi transisi max-height jalan mulus.
+  nav.querySelectorAll('.nav-sub').forEach(subEl => {
+    const gid = subEl.id.replace('sub-', '');
+    const shouldOpen = !!_openGroups[gid];
+    subEl.classList.toggle('open', shouldOpen);
+    const chev = document.getElementById('chev-' + gid);
+    if (chev) chev.classList.toggle('open', shouldOpen);
+  });
+}
+
 function toggleGroup(id) {
   const isOpen = _openGroups[id];
   // tutup semua group dulu
   _openGroups = {};
   // kalau sebelumnya tutup, buka yang diklik; kalau sudah buka, toggle tutup
   if (!isOpen) _openGroups[id] = true;
-  buildSidebar();
+  setSidebarActiveState();
 }
 
 let _currentLoader = null;
@@ -658,7 +691,7 @@ function navigateTo(subId, label, loader, groupId, pageId) {
   if (el) el.classList.add('active');
 
   // Topbar tidak lagi menampilkan judul teks (sudah ada di page-title masing-masing halaman)
-  buildSidebar();
+  setSidebarActiveState();
   closeSidebar();
 
   if (loader) { _currentLoader = loader; loader(); }
@@ -903,6 +936,13 @@ function fmtDate(s) { if (!s) return '—'; const d = new Date(s); const tgl = d
 function renderPagination(containerId, total, page, limit, onPageChange) {
   const pages = Math.ceil(total / limit);
   const c = document.getElementById(containerId);
+  if (!c) return;
+  if (total <= 0) { c.innerHTML = ''; return; }
+
+  const from = (page - 1) * limit + 1;
+  const to   = Math.min(page * limit, total);
+  const info = `<div class="pagination-info">Menampilkan ${from}-${to} dari ${total} data</div>`;
+
   if (pages <= 1) { c.innerHTML = ''; return; }
   const cb = typeof onPageChange === 'function' ? onPageChange : (p => { window[onPageChange] && window[onPageChange](p); });
   if (typeof onPageChange === 'function') _pgRegister(containerId, cb);
@@ -926,7 +966,7 @@ function renderPagination(containerId, total, page, limit, onPageChange) {
   html += btn(page === pages, call(page + 1), svgNext);
   html += btn(page === pages, call(pages),    svgLast);
   html += '</div>';
-  c.innerHTML = html;
+  c.innerHTML = `<div class="pagination-wrap">${info}${html}</div>`;
 }
 // helper for function-callback pagination (stores cb by containerId)
 const _pgCallbacks = {};
@@ -2008,7 +2048,7 @@ async function loadLapTemplateAdmin() {
   // Mode urusan — tabel sederhana
   const tbody = document.getElementById('lapTemplateBody');
   if (!tbody) return;
-  tbody.innerHTML = `<tr class="empty-row"><td colspan="5"><span class="btn-spin" style="width:11px;height:11px;vertical-align:-1px;margin-right:6px"></span>Memuat...</td></tr>`;
+  tbody.innerHTML = `<tr class="empty-row"><td colspan="5"><span class="btn-spin" style="width:11px;height:11px;vertical-align:-1px;margin-right:6px"></span>Memuat data...</td></tr>`;
   try {
     const res  = await fetch('/api/kinerja/laporan-template?jenis=urusan', { headers: authHeaders() });
     const data = await res.json();
@@ -2073,7 +2113,7 @@ async function _loadCascadeLevel(level, parentId) {
   const col = document.getElementById(`lapCol_${level}`);
   if (!col) return;
   const list = col.querySelector('.lap-col-list');
-  list.innerHTML = `<div class="lap-col-loading"><span class="btn-spin" style="width:11px;height:11px;vertical-align:-1px;margin-right:6px"></span>Memuat...</div>`;
+  list.innerHTML = `<div class="lap-col-loading"><span class="btn-spin" style="width:11px;height:11px;vertical-align:-1px;margin-right:6px"></span>Memuat data...</div>`;
   try {
     const qs  = parentId ? `jenis=${jenis}&parent_id=${parentId}` : `jenis=${jenis}`;
     const res  = await fetch(`/api/kinerja/laporan-template?${qs}`, { headers: authHeaders() });
@@ -2100,7 +2140,7 @@ function _renderCascade() {
           </button>
         </div>
         <div class="lap-col-list" id="lapColList_${level}">
-          ${level > 0 ? '<div class="lap-col-hint">← Pilih item di kiri</div>' : '<div class="lap-col-loading"><span class="btn-spin" style="width:11px;height:11px;vertical-align:-1px;margin-right:6px"></span>Memuat...</div>'}
+          ${level > 0 ? '<div class="lap-col-hint">← Pilih item di kiri</div>' : '<div class="lap-col-loading"><span class="btn-spin" style="width:11px;height:11px;vertical-align:-1px;margin-right:6px"></span>Memuat data...</div>'}
         </div>
       </div>
       ${level < 3 ? '<div class="lap-cascade-arrow">›</div>' : ''}
@@ -2488,7 +2528,7 @@ async function openLapTemplateIndikatorModal(templateId, templateNama, templateJ
   document.getElementById('modalLapTemplateIndSub').textContent = templateJenis === 'urusan' ? 'Template Urusan' : 'Template Tujuan/Sasaran/Program';
   document.getElementById('lapTplIndSearch').value = '';
   document.getElementById('lapTplIndFilterJenis').value = '';
-  document.getElementById('lapTplIndList').innerHTML = '<div style="text-align:center;padding:20px;color:#94a3b8"><span class="btn-spin" style="width:11px;height:11px;vertical-align:-1px;margin-right:6px"></span>Memuat...</div>';
+  document.getElementById('lapTplIndList').innerHTML = '<div style="text-align:center;padding:20px;color:#94a3b8"><span class="btn-spin" style="width:11px;height:11px;vertical-align:-1px;margin-right:6px"></span>Memuat data...</div>';
   openModal('modalLapTemplateIndikator');
 
   // Fetch semua indikator + yang sudah terpilih secara paralel

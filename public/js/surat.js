@@ -171,9 +171,15 @@ function _populateSuratTahun(suratList, selectId) {
     .filter(Boolean)
     .map(d => d.slice(0, 4))
   )].sort((a, b) => b - a);
+  // Kalau cuma ada 1 tahun, langsung auto-select tahun itu (bukan "Semua Tahun").
+  // Kalau lebih dari 1, default tetap "Semua Tahun".
+  const autoSelect = !current && years.length === 1;
+  const selected = autoSelect ? years[0] : current;
   sel.innerHTML = '<option value="">Semua Tahun</option>' +
-    years.map(y => `<option value="${y}" ${y === current ? 'selected' : ''}>${y}</option>`).join('');
+    years.map(y => `<option value="${y}" ${y === selected ? 'selected' : ''}>${y}</option>`).join('');
+  sel.value = selected;
   if (typeof window.syncCustomSelect === 'function') syncCustomSelect(selectId);
+  if (autoSelect) sel.dispatchEvent(new Event('change'));
 }
 
 const _NAMA_BULAN = ['','Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
@@ -202,13 +208,18 @@ function _populateSuratStatus(suratList, selectId) {
   const hasProses    = suratList.some(s => s.selesai === false);
   const hasSelesai   = suratList.some(s => s.selesai === true);
   const hasTerlambat = suratList.some(s => !s.selesai && s.batas_waktu && new Date(s.batas_waktu) < now);
-  let opts = '<option value="">Semua Status</option>';
+  const jumlahStatus = [hasProses, hasTerlambat, hasSelesai].filter(Boolean).length;
+  // "Semua Status" cuma ditampilkan kalau statusnya lebih dari 1 macam
+  let opts = jumlahStatus > 1 ? '<option value="">Semua Status</option>' : '';
   if (hasProses)    opts += '<option value="false">Belum Selesai</option>';
   if (hasTerlambat) opts += '<option value="terlambat">Terlambat</option>';
   if (hasSelesai)   opts += '<option value="true">Selesai</option>';
+  if (!opts) opts = '<option value="">Semua Status</option>';
   sel.innerHTML = opts;
-  // Pertahankan nilai yang sedang dipilih jika masih relevan
-  if ([...sel.options].some(o => o.value === current)) sel.value = current;
+  // Pertahankan nilai yang sedang dipilih jika masih relevan, selainnya jatuh ke opsi pertama
+  const options = [...sel.options];
+  if (options.some(o => o.value === current)) sel.value = current;
+  else sel.value = options[0]?.value ?? '';
   if (typeof window.syncCustomSelect === 'function') syncCustomSelect(selectId);
 }
 

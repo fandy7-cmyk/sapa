@@ -595,6 +595,7 @@ async function loadKinerjaRekap() {
   if (_msgEl) _msgEl.style.display = 'none';
 
   tbody.innerHTML = `<tr class="empty-row"><td colspan="11"><span class="btn-spin" style="width:11px;height:11px;vertical-align:-1px;margin-right:6px"></span>Memuat data...</td></tr>`;
+  { const _pg = document.getElementById('ikuPagination'); if (_pg) _pg.innerHTML = ''; }
   try {
     const r = await fetch(`/api/kinerja/rekap?bulan=${_kinerja_bulan}&tahun=${_kinerja_tahun}`, { headers: authHeaders() });
     const d = await r.json();
@@ -789,10 +790,10 @@ function renderKinerjaTable(tbody) {
   const canEdit = _isMonevInputOpen();
   let html = '';
   let lastGroupId = null;
-  let no = 0;
 
   const _ikuStart = (_ikuPage - 1) * _ikuPageSize;
   const _ikuRows  = _filtered.slice(_ikuStart, _ikuStart + _ikuPageSize);
+  let no = _ikuStart;
 
   _ikuRows.forEach(row => {
     // Baris group header jika group berubah
@@ -1627,7 +1628,8 @@ async function saveRealisasiRow(indikatorId) {
 async function loadGroupAdmin() {
   const tbody = document.getElementById('groupAdminBody');
   if (!tbody) return;
-  tbody.innerHTML = `<tr class="empty-row"><td colspan="5"><span class="btn-spin" style="width:11px;height:11px;vertical-align:-1px;margin-right:6px"></span>Memuat...</td></tr>`;
+  tbody.innerHTML = `<tr class="empty-row"><td colspan="5"><span class="btn-spin" style="width:11px;height:11px;vertical-align:-1px;margin-right:6px"></span>Memuat data...</td></tr>`;
+  { const _pg = document.getElementById('groupPagination'); if (_pg) _pg.innerHTML = ''; }
   try {
     const r = await fetch('/api/kinerja/group', { headers: authHeaders() });
     const d = await r.json();
@@ -1738,7 +1740,9 @@ async function deleteGroup(id) {
 async function loadIndikatorAdmin({ keepFilter = false } = {}) {
   const tbody = document.getElementById('indikatorAdminBody');
   if (!tbody) return;
-  tbody.innerHTML = `<tr class="empty-row"><td colspan="9"><span class="btn-spin" style="width:11px;height:11px;vertical-align:-1px;margin-right:6px"></span>Memuat...</td></tr>`;
+  tbody.innerHTML = `<tr class="empty-row"><td colspan="9"><span class="btn-spin" style="width:11px;height:11px;vertical-align:-1px;margin-right:6px"></span>Memuat data...</td></tr>`;
+  const pgEl = document.getElementById('indikatorPagination');
+  if (pgEl) pgEl.innerHTML = '';
   try {
     const [ri, rg, rb, rt, rj] = await Promise.all([
       fetch('/api/kinerja/indikator',        { headers: authHeaders() }),
@@ -2168,7 +2172,7 @@ async function downloadIndikatorPDF(btnEl) {
   if (!_indikatorList.length) { toast('Belum ada data indikator untuk didownload.', 'error'); return; }
 
   const originalHtml = btnEl ? btnEl.innerHTML : null;
-  if (btnEl) { btnEl.disabled = true; btnEl.innerHTML = `<span class="btn-spin" style="width:12px;height:12px"></span> Memuat...`; }
+  if (btnEl) { btnEl.disabled = true; btnEl.innerHTML = `<span class="btn-spin" style="width:12px;height:12px"></span> Memuat data...`; }
 
   try {
     const filtered = _getFilteredIndikatorRows();
@@ -2804,7 +2808,21 @@ const _ktPageSize = 15;
 async function loadKelolaTarget() {
   const container = document.getElementById('ktCardContainer');
   if (!container) return;
-  container.innerHTML = '<div style="text-align:center;padding:32px;color:var(--teks-muted)"><span class="btn-spin" style="width:12px;height:12px;vertical-align:-1px;margin-right:6px"></span>Memuat…</div>';
+  container.innerHTML = `
+    <table class="kinerja-table">
+      <thead>
+        <tr>
+          <th style="width:34px;text-align:center;position:sticky;left:0;z-index:3">No</th>
+          <th style="min-width:220px;position:sticky;left:34px;z-index:3">Indikator Kinerja</th>
+          <th style="width:80px;text-align:center">Aksi</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr><td colspan="3" style="text-align:center;padding:32px;color:var(--teks-muted)"><span class="btn-spin" style="width:12px;height:12px;vertical-align:-1px;margin-right:6px"></span>Memuat data…</td></tr>
+      </tbody>
+    </table>`;
+  const pgEl = document.getElementById('ktPagination');
+  if (pgEl) pgEl.innerHTML = '';
   try {
     const [ri, rt] = await Promise.all([
       fetch('/api/kinerja/indikator',    { headers: authHeaders() }),
@@ -2906,7 +2924,22 @@ function renderKelolaTarget() {
   });
 
   if (!filtered.length) {
-    container.innerHTML = `<div style="text-align:center;padding:40px;color:var(--teks-muted)">Tidak ada indikator.</div>`;
+    const _colCount = 2 + visibleTahun.length + 1;
+    const _tahunHeaders = visibleTahun.map(y =>
+      `<th style="min-width:110px;width:110px;text-align:center;border-left:1px solid rgba(255,255,255,.15)">${y}</th>`
+    ).join('');
+    container.innerHTML = `
+      <table class="kinerja-table">
+        <thead>
+          <tr>
+            <th style="width:34px;text-align:center;position:sticky;left:0;z-index:3">No</th>
+            <th style="min-width:220px;position:sticky;left:34px;z-index:3">Indikator Kinerja</th>
+            ${_tahunHeaders}
+            <th style="width:80px;text-align:center;border-left:1px solid rgba(255,255,255,.15)">Aksi</th>
+          </tr>
+        </thead>
+        <tbody><tr><td colspan="${_colCount}" style="text-align:center;padding:40px;color:var(--teks-muted)">Tidak ada indikator.</td></tr></tbody>
+      </table>`;
     renderPagination('ktPagination', 0, 1, _ktPageSize, 'goKtPage');
     return;
   }
@@ -2998,19 +3031,17 @@ function renderKelolaTarget() {
   }).join('');
 
   container.innerHTML = `
-    <div class="kinerja-table-wrap card" style="padding:0">
-      <table class="kinerja-table">
-        <thead>
-          <tr>
-            <th style="width:34px;text-align:center;position:sticky;left:0;z-index:3">No</th>
-            <th style="min-width:220px;position:sticky;left:34px;z-index:3">Indikator Kinerja</th>
-            ${tahunHeaders}
-            ${addColHeader}
-          </tr>
-        </thead>
-        <tbody>${rows || '<tr><td colspan="99" style="text-align:center;padding:24px;color:var(--teks-muted)">Tidak ada data.</td></tr>'}</tbody>
-      </table>
-    </div>`;
+    <table class="kinerja-table">
+      <thead>
+        <tr>
+          <th style="width:34px;text-align:center;position:sticky;left:0;z-index:3">No</th>
+          <th style="min-width:220px;position:sticky;left:34px;z-index:3">Indikator Kinerja</th>
+          ${tahunHeaders}
+          ${addColHeader}
+        </tr>
+      </thead>
+      <tbody>${rows || '<tr><td colspan="99" style="text-align:center;padding:24px;color:var(--teks-muted)">Tidak ada data.</td></tr>'}</tbody>
+    </table>`;
 
   renderPagination('ktPagination', filtered.length, _ktPage, _ktPageSize, 'goKtPage');
   if (typeof window.initCustomSelects === 'function') window.initCustomSelects();
@@ -3720,6 +3751,7 @@ async function loadIkkRekap() {
   if (_msgEl) _msgEl.style.display = 'none';
 
   tbody.innerHTML = `<tr class="empty-row"><td colspan="11"><span class="btn-spin" style="width:11px;height:11px;vertical-align:-1px;margin-right:6px"></span>Memuat data...</td></tr>`;
+  { const _pg = document.getElementById('ikkPagination'); if (_pg) _pg.innerHTML = ''; }
   try {
     const r = await fetch(`/api/kinerja/rekap?bulan=${_ikk_bulan}&tahun=${_ikk_tahun}&jenis=ikk`, { headers: authHeaders() });
     const d = await r.json();
@@ -3780,10 +3812,10 @@ function _renderIkkTable(tbody) {
   const canEdit = _isIkkInputOpen();
   let html = '';
   let lastGroupId = null;
-  let no = 0;
 
   const _ikkStart = (_ikkPage - 1) * _ikkPageSize;
   const _ikkRows  = _filtered.slice(_ikkStart, _ikkStart + _ikkPageSize);
+  let no = _ikkStart;
 
   _ikkRows.forEach(row => {
     if (row.group_id !== lastGroupId) {
@@ -4975,7 +5007,7 @@ let _mon_pj     = '';
 let _mon_user   = '';   // filter by individual user (PIC)
 let _mon_search = '';
 let _mon_page   = 1;
-const _MON_PER_PAGE = 15;
+const _MON_PER_PAGE = 10;
 let _mon_data   = null;
 
 const _MON_BULAN_NAMA = ['','Januari','Februari','Maret','April','Mei','Juni',
@@ -5049,6 +5081,7 @@ async function loadMonitoringKinerja() {
   body.innerHTML = `<tr><td colspan="7" style="text-align:center;padding:28px;color:#94a3b8">
     <span class="btn-spin" style="width:14px;height:14px;vertical-align:-2px;margin-right:6px"></span>
     Memuat data monitoring…</td></tr>`;
+  { const _pg = document.getElementById('monPagination'); if (_pg) _pg.innerHTML = ''; }
 
   try {
     const _monBuildUrl = () => {
@@ -5339,7 +5372,7 @@ function _monRenderTable() {
     : '—';
 
   let html = '';
-  let no = 0;
+  let no = start;
   let lastGroup = null;
 
   for (const r of rows) {
@@ -5637,6 +5670,7 @@ async function loadSpmRekap() {
   if (_msgEl) _msgEl.style.display = 'none';
 
   tbody.innerHTML = `<tr class="empty-row"><td colspan="11"><span class="btn-spin" style="width:11px;height:11px;vertical-align:-1px;margin-right:6px"></span>Memuat data...</td></tr>`;
+  { const _pg = document.getElementById('spmPagination'); if (_pg) _pg.innerHTML = ''; }
   try {
     const r = await fetch(`/api/kinerja/rekap?bulan=${_spm_bulan}&tahun=${_spm_tahun}&jenis=spm`, { headers: authHeaders() });
     const d = await r.json();

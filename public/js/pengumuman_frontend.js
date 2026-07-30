@@ -19,6 +19,8 @@ async function loadPengumuman() {
     const { pengumuman } = await r.json();
     _pengumumanAll = pengumuman || [];
     _pengumumanPage = 1;
+    buildPengumumanTipeFilter();
+    buildPengumumanStatusFilter();
     renderPengumumanTable();
   } catch (err) {
     console.error('[loadPengumuman]', err);
@@ -88,6 +90,39 @@ function renderPengumumanTable() {
 
   // Pagination
   renderPagination('pengumumanPagination', total, _pengumumanPage, _pengumumanPerPage, 'goPengumumanPage');
+}
+
+/* ── Helper: build filter Tipe & Status dari data ───────────────
+   "Semua X" cuma ditampilkan kalau opsinya lebih dari 1 macam ── */
+function buildPengumumanTipeFilter() {
+  const sel = document.getElementById('pengumumanFilterTipe');
+  if (!sel) return;
+  const current = sel.value;
+  const label = { penting: 'Penting', info: 'Info', biasa: 'Biasa' };
+  const tipeSet = [...new Set(_pengumumanAll.map(p => p.tipe).filter(Boolean))];
+  let opts = tipeSet.length > 1 ? `<option value="">Semua Tipe</option>` : '';
+  opts += tipeSet.map(t => `<option value="${esc(t)}" ${current === t ? 'selected' : ''}>${esc(label[t] || t)}</option>`).join('');
+  sel.innerHTML = opts || `<option value="">Semua Tipe</option>`;
+  const options = [...sel.options];
+  if (!options.some(o => o.value === current)) sel.value = options[0]?.value ?? '';
+  if (typeof syncCustomSelect === 'function') syncCustomSelect('pengumumanFilterTipe');
+}
+
+function buildPengumumanStatusFilter() {
+  const sel = document.getElementById('pengumumanFilterStatus');
+  if (!sel) return;
+  const current = sel.value;
+  const aktifCount    = _pengumumanAll.filter(p => p.aktif).length;
+  const nonaktifCount = _pengumumanAll.filter(p => !p.aktif).length;
+  const jumlahStatus  = (aktifCount ? 1 : 0) + (nonaktifCount ? 1 : 0);
+  let opts = jumlahStatus > 1 ? `<option value="">Semua Status</option>` : '';
+  if (aktifCount)    opts += `<option value="aktif">Aktif</option>`;
+  if (nonaktifCount) opts += `<option value="nonaktif">Nonaktif</option>`;
+  sel.innerHTML = opts || `<option value="">Semua Status</option>`;
+  const options = [...sel.options];
+  if (options.some(o => o.value === current)) sel.value = current;
+  else sel.value = options[0]?.value ?? '';
+  if (typeof syncCustomSelect === 'function') syncCustomSelect('pengumumanFilterStatus');
 }
 
 /* ── Aksi Builder ─────────────────────────────────────────────── */

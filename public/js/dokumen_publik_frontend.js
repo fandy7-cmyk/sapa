@@ -18,6 +18,8 @@ async function loadDokumenPublik() {
     const { dokumen } = await r.json();
     _dokumenAll  = dokumen || [];
     _dokumenPage = 1;
+    buildDokumenKategoriFilter();
+    buildDokumenStatusFilter();
     renderDokumenTable();
   } catch (err) {
     console.error('[loadDokumenPublik]', err);
@@ -261,7 +263,30 @@ function buildDokumenKategoriFilter() {
   if (!sel) return;
   const katSet = [...new Set(_dokumenAll.map(d => d.kategori).filter(Boolean))].sort();
   const current = sel.value;
-  sel.innerHTML = `<option value="">Semua Kategori</option>` +
-    katSet.map(k => `<option value="${esc(k)}" ${current === k ? 'selected' : ''}>${esc(k)}</option>`).join('');
+  // "Semua Kategori" cuma ditampilkan kalau kategorinya lebih dari 1 macam
+  let opts = katSet.length > 1 ? `<option value="">Semua Kategori</option>` : '';
+  opts += katSet.map(k => `<option value="${esc(k)}" ${current === k ? 'selected' : ''}>${esc(k)}</option>`).join('');
+  sel.innerHTML = opts || `<option value="">Semua Kategori</option>`;
+  const options = [...sel.options];
+  if (!options.some(o => o.value === current)) sel.value = options[0]?.value ?? '';
   if (typeof syncCustomSelect === 'function') syncCustomSelect('dokumenFilterKategori');
+}
+
+/* ── Helper: build status filter options dari data ─────────────
+   "Semua Status" cuma ditampilkan kalau statusnya lebih dari 1 macam ── */
+function buildDokumenStatusFilter() {
+  const sel = document.getElementById('dokumenFilterStatus');
+  if (!sel) return;
+  const current = sel.value;
+  const aktifCount    = _dokumenAll.filter(d => d.aktif).length;
+  const nonaktifCount = _dokumenAll.filter(d => !d.aktif).length;
+  const jumlahStatus  = (aktifCount ? 1 : 0) + (nonaktifCount ? 1 : 0);
+  let opts = jumlahStatus > 1 ? `<option value="">Semua Status</option>` : '';
+  if (aktifCount)    opts += `<option value="aktif">Aktif</option>`;
+  if (nonaktifCount) opts += `<option value="nonaktif">Nonaktif</option>`;
+  sel.innerHTML = opts || `<option value="">Semua Status</option>`;
+  const options = [...sel.options];
+  if (options.some(o => o.value === current)) sel.value = current;
+  else sel.value = options[0]?.value ?? '';
+  if (typeof syncCustomSelect === 'function') syncCustomSelect('dokumenFilterStatus');
 }
