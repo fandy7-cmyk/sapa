@@ -11,6 +11,20 @@ export const handler = async (event) => {
   if (!admin) return errorResponse('Unauthorized', 401);
 
   const sql = getDb();
+
+  // ── GET /api/audit-trail/aksi-list → daftar aksi yang benar-benar ada di data,
+  //    dipakai frontend buat filter dropdown "Semua Aksi" (sembunyikan yg gak ada datanya) ──
+  const rawPath = event.path.replace(/.*\/audit-trail/, '') || '/';
+  const segments = rawPath.split('/').filter(Boolean);
+  if (event.httpMethod === 'GET' && segments[0] === 'aksi-list') {
+    try {
+      const rows = await sql`SELECT DISTINCT aksi FROM audit_log ORDER BY aksi`;
+      return jsonResponse({ aksi: rows.map(r => r.aksi) });
+    } catch (err) {
+      return errorResponse('Gagal mengambil daftar aksi: ' + err.message);
+    }
+  }
+
   const {
     page = 1, limit = 20, q = '',
     aksi: af = '', tanggal_dari: df = '', tanggal_sampai: ds = '',
