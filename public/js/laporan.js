@@ -47,6 +47,601 @@
 // laporan.js — Fungsi Laporan Surat & Laporan Kinerja
 
 // ══════════════════════════════════════════════════════
+//  LAPORAN ABSENSI
+// ══════════════════════════════════════════════════════
+
+let _lapAbsPage = 1;
+let _lapAbsFilterBidang = '';
+let _lapAbsAllPegawai = [];   // cache semua pegawai (non-admin) beserta bidang_id, buat narrow-in filter Unit Kerja
+
+async function _populateLapAbsFilters() {
+  const bulanSel = document.getElementById('lapAbsBulan');
+  const tahunSel = document.getElementById('lapAbsTahun');
+  const bidangWrap = document.getElementById('lapAbsBidangWrap');
+  const pegawaiWrap = document.getElementById('lapAbsPegawaiWrap');
+  const thNama = document.getElementById('lapAbsThNama');
+  const now = new Date();
+  const full = typeof isAbsensiFull === 'function' && isAbsensiFull();
+
+  if (tahunSel && !tahunSel.dataset.rebuilt) {
+    tahunSel.dataset.rebuilt = '1';
+    await _rebuildLapAbsFilterTahun();
+  }
+
+  if (bidangWrap) bidangWrap.style.display = full ? '' : 'none';
+  if (pegawaiWrap) pegawaiWrap.style.display = full ? '' : 'none';
+  if (thNama) thNama.style.display = full ? '' : 'none';
+
+  if (full) {
+    if (!document.getElementById('lapAbsBidang')?.dataset.rebuilt) {
+      if (document.getElementById('lapAbsBidang')) document.getElementById('lapAbsBidang').dataset.rebuilt = '1';
+      await _rebuildLapAbsFilterBidang();
+    }
+    await _populateLapAbsPegawai();
+  }
+
+  // Dropdown bulan cuma di-rebuild sekali per kunjungan halaman — perubahan
+  // filter Unit Kerja/Pegawai/Tahun setelahnya masing-masing manggil ulang
+  // _rebuildLapAbsFilterBulan() lewat handler-nya sendiri.
+  if (bulanSel && !bulanSel.dataset.rebuilt) {
+    bulanSel.dataset.rebuilt = '1';
+    await _rebuildLapAbsFilterBulan();
+  }
+}
+
+// Dropdown Tahun menyesuaikan data yg ADA (& pegawai yg sedang difilter) —
+// bukan 4 tahun statis. Sama seperti di halaman Absensi.
+async function _rebuildLapAbsFilterTahun() {
+  const sel = document.getElementById('lapAbsTahun');
+  if (!sel) return;
+  const full = typeof isAbsensiFull === 'function' && isAbsensiFull();
+  const pegawaiId = full ? (document.getElementById('lapAbsPegawai')?.value || '') : '';
+
+  let tahunPresent = [];
+  try {
+    const params = new URLSearchParams();
+    if (pegawaiId) params.set('user_id', pegawaiId);
+    const r = await fetch(`/api/absensi/tahun-tersedia?${params}`, { headers: authHeaders() });
+    const d = await r.json();
+    tahunPresent = d.tahun || [];
+  } catch { tahunPresent = []; }
+
+  const cur = sel.value ? parseInt(sel.value) : new Date().getFullYear();
+  let opts;
+  if (tahunPresent.length <= 1) {
+    opts = [tahunPresent[0] || new Date().getFullYear()];
+  } else {
+    opts = tahunPresent;
+  }
+  sel.innerHTML = opts.map(y => `<option value="${y}">${y}</option>`).join('');
+  sel.value = tahunPresent.length <= 1
+    ? (tahunPresent[0] || new Date().getFullYear())
+    : (tahunPresent.includes(cur) ? cur : tahunPresent[0]);
+  syncCustomSelect?.('lapAbsTahun');
+}
+
+// Dropdown Unit Kerja menyesuaikan data yg ADA utk tahun (& pegawai yg sedang
+// difilter) terpilih — sama kayak dropdown bulan, bukan daftar statis semua
+// unit kerja di master data.
+async function _rebuildLapAbsFilterBidang() {
+  const sel = document.getElementById('lapAbsBidang');
+  if (!sel) return;
+  const tahun = document.getElementById('lapAbsTahun')?.value || new Date().getFullYear();
+  const pegawaiId = document.getElementById('lapAbsPegawai')?.value || '';
+
+  let bidangList = [];
+  try {
+    const params = new URLSearchParams({ tahun });
+    if (pegawaiId) params.set('user_id', pegawaiId);
+    const r = await fetch(`/api/absensi/bidang-tersedia?${params}`, { headers: authHeaders() });
+    const d = await r.json();
+    bidangList = d.bidang || [];
+  } catch { bidangList = []; }
+
+  const cur = sel.value;
+  if (bidangList.length === 1) {
+    sel.innerHTML = `<option value="${bidangList[0].id}">${esc(bidangList[0].nama)}</option>`;
+    sel.value = String(bidangList[0].id);
+    _lapAbsFilterBidang = String(bidangList[0].id);
+  } else {
+    sel.innerHTML = '<option value="">Semua Unit Kerja</option>' +
+      bidangList.map(b => `<option value="${b.id}">${esc(b.nama)}</option>`).join('');
+    const keepCur = bidangList.some(b => String(b.id) === String(cur));
+    sel.value = keepCur ? cur : '';
+    _lapAbsFilterBidang = keepCur ? cur : '';
+  }
+  syncCustomSelect?.('lapAbsBidang');
+}
+
+async function _populateLapAbsPegawai() {
+  const sel = document.getElementById('lapAbsPegawai');
+  if (!sel) return;
+  if (!sel.dataset.fetched) {
+    try {
+      const r = await fetch('/api/users', { headers: authHeaders() });
+      const d = await r.json();
+      _lapAbsAllPegawai = (d.users || []).filter(u => !u.is_admin);
+      sel.dataset.fetched = '1';
+    } catch { _lapAbsAllPegawai = []; }
+  }
+  _renderLapAbsPegawaiOptions();
+}
+
+function _renderLapAbsPegawaiOptions() {
+  const sel = document.getElementById('lapAbsPegawai');
+  if (!sel) return;
+  const list = _lapAbsFilterBidang
+    ? _lapAbsAllPegawai.filter(u => String(u.bidang_id) === String(_lapAbsFilterBidang))
+    : _lapAbsAllPegawai;
+  const cur = sel.value;
+  const keepVal = list.some(u => String(u.id) === String(cur)) ? cur : '';
+  sel.innerHTML = '<option value="">Semua Pegawai</option>' +
+    list.map(u => `<option value="${u.id}">${esc(u.nama)}</option>`).join('');
+  sel.value = keepVal;
+  syncCustomSelect?.('lapAbsPegawai');
+}
+
+// Dropdown bulan menyesuaikan data yg ADA utk tahun (& pegawai/unit kerja yg
+// sedang difilter) — bukan 12 bulan statis. Sama seperti di halaman Absensi.
+async function _rebuildLapAbsFilterBulan() {
+  const bulanSel = document.getElementById('lapAbsBulan');
+  if (!bulanSel) return;
+  const full = typeof isAbsensiFull === 'function' && isAbsensiFull();
+  const tahun = document.getElementById('lapAbsTahun')?.value || new Date().getFullYear();
+  const pegawaiId = full ? (document.getElementById('lapAbsPegawai')?.value || '') : (_user?.id || '');
+
+  let bulanPresent = [];
+  try {
+    const params = new URLSearchParams({ tahun });
+    if (pegawaiId) params.set('user_id', pegawaiId);
+    if (full && _lapAbsFilterBidang) params.set('bidang_id', _lapAbsFilterBidang);
+    const r = await fetch(`/api/absensi/bulan-tersedia?${params}`, { headers: authHeaders() });
+    const d = await r.json();
+    bulanPresent = d.bulan || [];
+  } catch { bulanPresent = []; }
+
+  const curVal = bulanSel.value ? parseInt(bulanSel.value) : (new Date().getMonth() + 1);
+  let opts;
+  if (bulanPresent.length <= 1) {
+    const m = bulanPresent[0] || (new Date().getMonth() + 1);
+    opts = [{ value: m, label: ABS_BULAN_NAMA[m] }];
+  } else {
+    opts = [{ value: '', label: 'Semua Bulan' }, ...bulanPresent.map(m => ({ value: m, label: ABS_BULAN_NAMA[m] }))];
+  }
+  bulanSel.innerHTML = opts.map(o => `<option value="${o.value}">${o.label}</option>`).join('');
+  bulanSel.value = bulanPresent.length <= 1
+    ? (bulanPresent[0] || (new Date().getMonth() + 1))
+    : (bulanPresent.includes(curVal) ? curVal : '');
+  syncCustomSelect?.('lapAbsBulan');
+}
+
+// Ganti bulan langsung (opsi yg ditampilkan sudah pasti ada datanya) — gak perlu rebuild dropdown
+function setLapAbsFilterBulan() {
+  loadLaporanAbsensi(1);
+}
+
+// Ganti tahun → daftar bulan & unit kerja yg ada datanya bisa berubah, rebuild dropdown dulu
+async function setLapAbsFilterTahun() {
+  await _rebuildLapAbsFilterBidang();
+  await _rebuildLapAbsFilterBulan();
+  loadLaporanAbsensi(1);
+}
+
+// Ganti Pegawai → daftar tahun & bulan yg ada datanya bisa berubah juga
+async function setLapAbsFilterPegawai() {
+  await _rebuildLapAbsFilterTahun();
+  await _rebuildLapAbsFilterBulan();
+  loadLaporanAbsensi(1);
+}
+
+// Ganti Unit Kerja → narrow-in dropdown Pegawai ke bidang terpilih, lalu rebuild dropdown bulan
+async function setLapAbsFilterBidang() {
+  _lapAbsFilterBidang = document.getElementById('lapAbsBidang')?.value || '';
+  _renderLapAbsPegawaiOptions();
+  await _rebuildLapAbsFilterBulan();
+  loadLaporanAbsensi(1);
+}
+
+// ══════════════════════════════════════════════════════
+//  DOWNLOAD / PREVIEW LAPORAN ABSENSI — PDF
+// ══════════════════════════════════════════════════════
+
+// ── Filter rentang tanggal (dari-sampai) — alternatif Bulan/Tahun ──
+function _rentangTanggalYMDLap(mulaiStr, selesaiStr) {
+  const parse = (s) => { const [y, m, d] = s.split('-').map(Number); return Date.UTC(y, m - 1, d); };
+  const fmt = (t) => {
+    const dt = new Date(t);
+    const y = dt.getUTCFullYear();
+    const m = String(dt.getUTCMonth() + 1).padStart(2, '0');
+    const d = String(dt.getUTCDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+  };
+  const list = [];
+  for (let t = parse(mulaiStr); t <= parse(selesaiStr); t += 86400000) list.push(fmt(t));
+  return list;
+}
+
+function _lapAbsRangeToggleClearBtn() {
+  const dari = document.getElementById('lapAbsDari')?.value || '';
+  const sampai = document.getElementById('lapAbsSampai')?.value || '';
+  const btn = document.getElementById('lapAbsRangeClearBtn');
+  if (btn) btn.style.display = (dari || sampai) ? '' : 'none';
+}
+
+function _lapAbsRangeClear() {
+  document.getElementById('lapAbsDari').value = '';
+  document.getElementById('lapAbsSampai').value = '';
+  document.getElementById('cdtp_lapAbsDari')?._cdtp?.set(null);
+  document.getElementById('cdtp_lapAbsSampai')?._cdtp?.set(null);
+  _lapAbsRangeToggleClearBtn();
+}
+
+async function downloadLaporanAbsensiPDF(btnEl) {
+  const full = typeof isAbsensiFull === 'function' && isAbsensiFull();
+  document.getElementById('cdtp_lapAbsDari')?._cdtp?.commit();
+  document.getElementById('cdtp_lapAbsSampai')?._cdtp?.commit();
+  const dari = document.getElementById('lapAbsDari')?.value || '';
+  const sampai = document.getElementById('lapAbsSampai')?.value || '';
+  const rangeMode = !!(dari && sampai);
+  const bulan = document.getElementById('lapAbsBulan')?.value || '';
+  const tahun = parseInt(document.getElementById('lapAbsTahun')?.value || new Date().getFullYear());
+  const pegawaiId = full ? (document.getElementById('lapAbsPegawai')?.value || '') : String(_user.id);
+  const bidangId = full ? (document.getElementById('lapAbsBidang')?.value || '') : '';
+
+  if (rangeMode && sampai < dari) {
+    toast('Sampai Tanggal tidak boleh sebelum Dari Tanggal', 'error');
+    return;
+  }
+  if (!rangeMode && !bulan) {
+    toast('Pilih bulan tertentu dulu (bukan "Semua Bulan"), atau isi rentang tanggal, untuk cetak laporan ini', 'error');
+    return;
+  }
+  const bulanInt = parseInt(bulan);
+
+  const originalHtml = btnEl ? btnEl.innerHTML : '';
+  if (btnEl) { btnEl.disabled = true; btnEl.innerHTML = `<span class="btn-spin" style="width:12px;height:12px"></span> Memuat data...`; }
+
+  try {
+    // ── Daftar pegawai yg ditampilkan (baris) — semua pegawai dlm scope filter,
+    // bukan cuma yg kebetulan punya baris absensi bulan ini ──
+    let pegawaiList;
+    if (full) {
+      pegawaiList = pegawaiId
+        ? _lapAbsAllPegawai.filter(u => String(u.id) === String(pegawaiId))
+        : (bidangId ? _lapAbsAllPegawai.filter(u => String(u.bidang_id) === String(bidangId)) : _lapAbsAllPegawai);
+    } else {
+      pegawaiList = [{ id: _user.id, nama: _user.nama }];
+    }
+    pegawaiList = [...pegawaiList].sort((a, b) => (a.nama || '').localeCompare(b.nama || ''));
+
+    if (!pegawaiList.length) {
+      toast('Tidak ada pegawai pada Unit Kerja yang dipilih', 'error');
+      return;
+    }
+
+    // ── Ambil semua baris absensi periode ini (server dipaginasi 15/hal) — loop semua halaman ──
+    let allRows = [];
+    let page = 1, totalPages = 1;
+    do {
+      const qs = rangeMode
+        ? new URLSearchParams({ dari, sampai, page })
+        : new URLSearchParams({ bulan, tahun, page });
+      if (bidangId) qs.set('bidang_id', bidangId);
+      if (pegawaiId) qs.set('user_id', pegawaiId);
+      const r = await fetch(`/api/absensi?${qs}`, { headers: authHeaders() });
+      const d = await r.json();
+      allRows = allRows.concat(d.absensi || []);
+      totalPages = Math.max(1, Math.ceil((d.total || 0) / 15));
+      page++;
+    } while (page <= totalPages);
+
+    // ── Hari libur periode ini (tetap ditampilkan, tapi dikasih warna khusus) ──
+    let liburMap = new Map();
+    try {
+      if (rangeMode) {
+        const tahunAwal = parseInt(dari.slice(0, 4));
+        const tahunAkhir = parseInt(sampai.slice(0, 4));
+        for (let ty = tahunAwal; ty <= tahunAkhir; ty++) {
+          const lr = await fetch(`/api/absensi/libur?tahun=${ty}`, { headers: authHeaders() });
+          const ld = await lr.json();
+          (ld.libur || []).forEach(l => {
+            const ymd = _absLiburLocalYMD(l.tanggal);
+            if (ymd >= dari && ymd <= sampai) liburMap.set(ymd, l.keterangan || 'Libur');
+          });
+        }
+      } else {
+        const lr = await fetch(`/api/absensi/libur?tahun=${tahun}&bulan=${bulanInt}`, { headers: authHeaders() });
+        const ld = await lr.json();
+        (ld.libur || []).forEach(l => liburMap.set(_absLiburLocalYMD(l.tanggal), l.keterangan || 'Libur'));
+      }
+    } catch { liburMap = new Map(); }
+
+    // ── Kolom tanggal: SEMUA tanggal dalam periode ini (termasuk weekend & libur) ──
+    const DOW_NAMA = ['Min', 'Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab'];
+    const kolomTanggal = [];
+    if (rangeMode) {
+      for (const ymd of _rentangTanggalYMDLap(dari, sampai)) {
+        const [ty, tm, td] = ymd.split('-').map(Number);
+        const dow = new Date(ty, tm - 1, td).getDay();
+        const isWeekend = dow === 0 || dow === 6;
+        const isLibur = liburMap.has(ymd);
+        kolomTanggal.push({ hari: td, ymd, dowLabel: DOW_NAMA[dow], isWeekend, isLibur, liburKet: liburMap.get(ymd) || '' });
+      }
+    } else {
+      const jumlahHari = new Date(tahun, bulanInt, 0).getDate();
+      for (let d = 1; d <= jumlahHari; d++) {
+        const dow = new Date(tahun, bulanInt - 1, d).getDay();
+        const ymd = `${tahun}-${String(bulanInt).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+        const isWeekend = dow === 0 || dow === 6;
+        const isLibur = liburMap.has(ymd);
+        kolomTanggal.push({ hari: d, ymd, dowLabel: DOW_NAMA[dow], isWeekend, isLibur, liburKet: liburMap.get(ymd) || '' });
+      }
+    }
+
+    // ── Peta absensi: "user_id|YYYY-MM-DD" → baris ──
+    const absMap = new Map();
+    allRows.forEach(a => {
+      const ymd = _absLiburLocalYMD(a.tanggal);
+      absMap.set(`${a.user_id}|${ymd}`, a);
+    });
+
+    // Warna per status: fill (background) + teks. Warna netral abu-abu utk
+    // hari yg emang bukan hari kerja (weekend/libur) & belum ada catatan.
+    const KODE = {
+      hadir_ontime: { txt: '✓', bg: '#d1fae5', color: '#059669' },
+      terlambat:    { txt: 'T',  bg: '#fef3c7', color: '#b45309' },
+      tidak_lengkap:{ txt: '!',  bg: '#ede9fe', color: '#6d28d9' },
+      tugas_luar:   { txt: 'TL', bg: '#dbeafe', color: '#1d4ed8' },
+      cuti:         { txt: 'C',  bg: '#ccfbf1', color: '#0f766e' },
+      alpa:         { txt: 'A',  bg: '#fee2e2', color: '#b91c1c' },
+    };
+    const svgHadirIcon     = `<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="${KODE.hadir_ontime.color}" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M9 12l2 2 4-4"/><circle cx="12" cy="12" r="10"/></svg>`;
+    const svgTerlambatIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="${KODE.terlambat.color}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 16 14"/></svg>`;
+    const svgTidakLengkapIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="${KODE.tidak_lengkap.color}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect width="8" height="4" x="8" y="2" rx="1" ry="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="m15 11-6 6"/><path d="m9 11 6 6"/></svg>`;
+    const svgTugasIcon     = `<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="${KODE.tugas_luar.color}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="14" x="2" y="7" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>`;
+    const svgCutiIcon      = `<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="${KODE.cuti.color}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/><path d="M8 2v4"/><path d="M16 2v4"/></svg>`;
+    const svgAlpaIcon      = `<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="${KODE.alpa.color}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><line x1="12" x2="12" y1="9" y2="13"/><line x1="12" x2="12.01" y1="17" y2="17"/></svg>`;
+    KODE.hadir_ontime.icon = svgHadirIcon;
+    KODE.terlambat.icon    = svgTerlambatIcon;
+    KODE.tidak_lengkap.icon= svgTidakLengkapIcon;
+    KODE.tugas_luar.icon   = svgTugasIcon;
+    KODE.cuti.icon         = svgCutiIcon;
+    KODE.alpa.icon         = svgAlpaIcon;
+    const WARNA_LIBUR   = { bg: '#fee2e2', color: '#b91c1c' };
+    const WARNA_WEEKEND = { bg: '#fef2f2', color: '#ef4444' };
+    const svgWeekendCell = `<svg xmlns="http://www.w3.org/2000/svg" width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="${WARNA_WEEKEND.color}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>`;
+    const svgLiburCell   = `<svg xmlns="http://www.w3.org/2000/svg" width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="${WARNA_LIBUR.color}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" x2="4" y1="22" y2="15"/></svg>`;
+
+    const bulanLabel = ABS_BULAN_NAMA[bulanInt];
+    const _fmtLapTgl = (ymd) => { const [y, m, d] = ymd.split('-').map(Number); return `${String(d).padStart(2, '0')} ${ABS_BULAN_NAMA[m]} ${y}`; };
+    const periodeLabel = rangeMode
+      ? (dari === sampai ? _fmtLapTgl(dari) : `${_fmtLapTgl(dari)} – ${_fmtLapTgl(sampai)}`)
+      : `${bulanLabel} ${tahun}`;
+    const unitLabel = full ? (document.getElementById('lapAbsBidang')?.selectedOptions?.[0]?.textContent || 'Semua Unit Kerja') : '';
+    const kepalaDinas = await _fetchKepalaDinas();
+    const nowStrTtd = new Date().toLocaleDateString('id-ID', { day:'2-digit', month:'long', year:'numeric' });
+
+    const svgHadirHdr     = `<svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M9 12l2 2 4-4"/><circle cx="12" cy="12" r="10"/></svg>`;
+    const svgTerlambatHdr = `<svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 16 14"/></svg>`;
+    const svgTidakLengkapHdr = `<svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect width="8" height="4" x="8" y="2" rx="1" ry="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="m15 11-6 6"/><path d="m9 11 6 6"/></svg>`;
+    const svgTugasHdr     = `<svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="14" x="2" y="7" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>`;
+    const svgCutiHdr      = `<svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/><path d="M8 2v4"/><path d="M16 2v4"/></svg>`;
+    const svgAlpaHdr      = `<svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><line x1="12" x2="12" y1="9" y2="13"/><line x1="12" x2="12.01" y1="17" y2="17"/></svg>`;
+    const svgTotalHdr     = `<svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/></svg>`;
+    const svgTotalLegend  = `<svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#0f766e" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/></svg>`;
+
+    // ── Baris per pegawai ──
+    const bodyRows = pegawaiList.map((peg, i) => {
+      let cHadir = 0, cTerlambat = 0, cTidakLengkap = 0, cTugas = 0, cCuti = 0, cAlpa = 0;
+      const cells = kolomTanggal.map(k => {
+        const a = absMap.get(`${peg.id}|${k.ymd}`);
+        if (a) {
+          const isTidakLengkap = a.status === 'hadir' && (!a.jam_masuk || !a.jam_keluar) && k.ymd !== todayISO();
+          const isTerlambat = a.status === 'hadir' && a.terlambat;
+          if (isTidakLengkap) cTidakLengkap++;
+          else if (isTerlambat) cTerlambat++;
+          else if (a.status === 'hadir') cHadir++;
+          else if (a.status === 'tugas_luar') cTugas++;
+          else if (a.status === 'cuti') cCuti++;
+          else if (a.status === 'alpa') cAlpa++;
+          const kode = isTidakLengkap ? KODE.tidak_lengkap : isTerlambat ? KODE.terlambat : (a.status === 'tugas_luar' ? KODE.tugas_luar : a.status === 'cuti' ? KODE.cuti : a.status === 'alpa' ? KODE.alpa : KODE.hadir_ontime);
+          const adaJam = a.status === 'hadir'; // cuma status hadir yg punya jam_masuk/jam_keluar
+          const isiSel = kode.icon;
+          return `<td style="border:1px solid #0f766e;text-align:center;background:${kode.bg};padding:1px 0;overflow:hidden;height:22px">${isiSel}</td>`;
+        }
+        if (k.isLibur) return `<td title="${esc(k.liburKet)}" style="border:1px solid #0f766e;background:${WARNA_LIBUR.bg};text-align:center;height:22px">${svgLiburCell}</td>`;
+        if (k.isWeekend) return `<td style="border:1px solid #0f766e;background:${WARNA_WEEKEND.bg};text-align:center;height:22px">${svgWeekendCell}</td>`;
+        return `<td style="border:1px solid #0f766e;text-align:center;font-size:8px;height:22px">&nbsp;</td>`;
+      }).join('');
+      const jumlahKehadiran = cHadir + cTerlambat + cTidakLengkap;
+      const rekapCell = (val, highlight) => `<td style="border:1px solid #0f766e;text-align:center;font-size:9px;font-weight:${highlight ? 700 : 400};color:#0f766e;background:${highlight ? '#f0fdfa' : '#fff'};padding:3px 4px;vertical-align:middle">${val}</td>`;
+      return `<tr>
+        <td style="border:1px solid #0f766e;text-align:center;font-size:8px;padding:3px 4px;vertical-align:middle;height:22px">${i + 1}</td>
+        <td style="border:1px solid #0f766e;font-size:8px;padding:3px 6px;white-space:nowrap;vertical-align:middle;height:22px">
+          <div>${esc(peg.nama || '')}</div>
+          ${peg.nip ? `<div style="font-size:7px;color:#64748b;font-weight:400">NIP. ${esc(peg.nip)}</div>` : ''}
+        </td>
+        ${cells}
+        ${rekapCell(cHadir)}${rekapCell(cTerlambat)}${rekapCell(cTidakLengkap)}${rekapCell(cTugas)}${rekapCell(cCuti)}${rekapCell(cAlpa)}${rekapCell(jumlahKehadiran, true)}
+      </tr>`;
+    }).join('');
+
+    // ── Header 3 baris: judul bulan / "Tanggal" / no urut tanggal / hari ──
+    // Header dibuat seragam (gak dibedain warnanya per weekend/libur) — pembeda
+    // weekend/libur cukup di sel body pakai ikon + warna, biar header tetap bersih.
+    const REKAP_KOLOM = [
+      { icon: svgHadirHdr,     title: 'Tepat Waktu' },
+      { icon: svgTerlambatHdr, title: 'Terlambat' },
+      { icon: svgTidakLengkapHdr, title: 'Tidak Lengkap' },
+      { icon: svgTugasHdr,     title: 'Tugas Luar' },
+      { icon: svgCutiHdr,      title: 'Cuti' },
+      { icon: svgAlpaHdr,      title: 'Alpa' },
+      { icon: svgTotalHdr,     title: 'Jumlah Kehadiran' },
+    ];
+    const headerHtml = `
+      <thead>
+        <tr>
+          <th rowspan="3" style="border:1px solid #0f766e;background:#0d9488;color:#fff;font-size:8px;padding:3px 4px">NO</th>
+          <th rowspan="3" style="border:1px solid #0f766e;background:#0d9488;color:#fff;font-size:8px;padding:3px 6px">NAMA</th>
+          <th colspan="${kolomTanggal.length}" style="border:1px solid #0f766e;background:#0d9488;color:#fff;font-size:8px;padding:4px">TANGGAL</th>
+          <th colspan="${REKAP_KOLOM.length}" style="border:1px solid #0f766e;background:#0d9488;color:#fff;font-size:8px;padding:4px">REKAP</th>
+        </tr>
+        <tr>
+          ${kolomTanggal.map(k => `<th style="border:1px solid #0f766e;background:#0d9488;color:#fff;font-size:8px;padding:2px">${k.hari}</th>`).join('')}
+          ${REKAP_KOLOM.map(r => `<th rowspan="2" title="${r.title}" style="border:1px solid #0f766e;background:#0d9488;color:#fff;font-size:8px;padding:2px;min-width:22px">${r.icon}</th>`).join('')}
+        </tr>
+        <tr>
+          ${kolomTanggal.map(k => `<th style="border:1px solid #0f766e;background:#0d9488;color:#fff;font-size:8px;padding:2px">${k.dowLabel}</th>`).join('')}
+        </tr>
+      </thead>`;
+
+    // ── Keterangan pakai ikon SVG kecil, bukan huruf ──
+    const svgHadir = `<svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="${KODE.hadir_ontime.color}" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M9 12l2 2 4-4"/><circle cx="12" cy="12" r="10"/></svg>`;
+    const svgTerlambat = `<svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="${KODE.terlambat.color}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 16 14"/></svg>`;
+    const svgTidakLengkap = `<svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="${KODE.tidak_lengkap.color}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect width="8" height="4" x="8" y="2" rx="1" ry="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="m15 11-6 6"/><path d="m9 11 6 6"/></svg>`;
+    const svgTugas = `<svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="${KODE.tugas_luar.color}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="14" x="2" y="7" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>`;
+    const svgCuti = `<svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="${KODE.cuti.color}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/><path d="M8 2v4"/><path d="M16 2v4"/></svg>`;
+    const svgAlpa = `<svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="${KODE.alpa.color}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><line x1="12" x2="12" y1="9" y2="13"/><line x1="12" x2="12.01" y1="17" y2="17"/></svg>`;
+
+    const bodyHtml = `
+      ${_kopSuratHtml()}
+      <div style="text-align:center;margin:14px 0 12px">
+        <div style="font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.5px">Laporan Absensi</div>
+        <div style="font-size:11px;color:#64748b;margin-top:4px">Periode : ${periodeLabel}${full ? `&nbsp;&nbsp;&nbsp;&nbsp;Unit Kerja : ${unitLabel}` : ''}</div>
+      </div>
+      <table style="border-collapse:collapse">
+        ${headerHtml}
+        <tbody>${bodyRows}</tbody>
+      </table>
+      <div style="margin-top:8px;font-size:8px;color:#475569;display:flex;gap:14px;flex-wrap:wrap;align-items:center">
+        <span>Keterangan:</span>
+        <span style="display:inline-flex;align-items:center;gap:4px">${svgHadir} Tepat Waktu</span>
+        <span style="display:inline-flex;align-items:center;gap:4px">${svgTerlambat} Terlambat</span>
+        <span style="display:inline-flex;align-items:center;gap:4px">${svgTidakLengkap} Tidak Lengkap</span>
+        <span style="display:inline-flex;align-items:center;gap:4px">${svgTugas} Tugas Luar</span>
+        <span style="display:inline-flex;align-items:center;gap:4px">${svgCuti} Cuti</span>
+        <span style="display:inline-flex;align-items:center;gap:4px">${svgAlpa} Alpa</span>
+        <span style="display:inline-flex;align-items:center;gap:4px">${svgWeekendCell} Akhir Pekan</span>
+        <span style="display:inline-flex;align-items:center;gap:4px">${svgLiburCell} Hari Libur</span>
+        <span style="display:inline-flex;align-items:center;gap:4px">${svgTotalLegend} Jumlah Kehadiran</span>
+      </div>
+      ${_ttdHtml(kepalaDinas, nowStrTtd)}`;
+
+    _bukaPreviewPDF(bodyHtml, `Laporan Absensi ${periodeLabel}`, 'landscape');
+  } catch (err) {
+    console.error('[downloadLaporanAbsensiPDF]', err);
+    toast('Gagal menyiapkan laporan absensi', 'error');
+  } finally {
+    if (btnEl) { btnEl.disabled = false; btnEl.innerHTML = originalHtml; }
+  }
+}
+
+async function loadLaporanAbsensi(page = 1) {
+  _lapAbsPage = page;
+  const tbody = document.getElementById('lapAbsTableBody');
+  const rekapBox = document.getElementById('lapAbsRekapBox');
+  if (!tbody) return;
+  if (typeof initCdtp === 'function') initCdtp();
+  if (!document.getElementById('lapAbsDari')?.dataset.rangeBound) {
+    ['lapAbsDari', 'lapAbsSampai'].forEach(id => {
+      document.getElementById(id)?.addEventListener('change', _lapAbsRangeToggleClearBtn);
+    });
+    if (document.getElementById('lapAbsDari')) document.getElementById('lapAbsDari').dataset.rangeBound = '1';
+  }
+  _lapAbsRangeToggleClearBtn();
+
+  await _populateLapAbsFilters();
+  const full = typeof isAbsensiFull === 'function' && isAbsensiFull();
+
+  tbody.innerHTML = `<tr><td colspan="6"><div class="lap-loading-wrap"><div class="lap-spinner"></div></div></td></tr>`;
+
+  const bulan = document.getElementById('lapAbsBulan').value;
+  const tahun = document.getElementById('lapAbsTahun').value;
+  const pegawaiId = full ? (document.getElementById('lapAbsPegawai')?.value || '') : _user.id;
+  const bidangId = full ? (document.getElementById('lapAbsBidang')?.value || '') : '';
+
+  // Rekap kartu
+  try {
+    const rp = new URLSearchParams({ user_id: pegawaiId, bulan, tahun });
+    if (bidangId) rp.set('bidang_id', bidangId);
+    const rr = await fetch(`/api/absensi/rekap?${rp}`, { headers: authHeaders() });
+    const rd = await rr.json();
+    const rk = rd.rekap || {};
+    const iconHadir = `<svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 12l2 2 4-4"/><circle cx="12" cy="12" r="10"/></svg>`;
+    const iconClock = `<svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>`;
+    const iconTidakLengkap = `<svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="8" height="4" x="8" y="2" rx="1" ry="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="m15 11-6 6"/><path d="m9 11 6 6"/></svg>`;
+    const iconTugas = `<svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="14" x="2" y="7" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>`;
+    const iconCuti = `<svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/><path d="M8 2v4"/><path d="M16 2v4"/></svg>`;
+    const iconWarn = `<svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><line x1="12" x2="12" y1="9" y2="13"/><line x1="12" x2="12.01" y1="17" y2="17"/></svg>`;
+    if (rekapBox) rekapBox.innerHTML =
+      _kpiCard({ icon: iconHadir, label: 'Tepat Waktu', value: rk.hadir || 0, color: 'green' }) +
+      _kpiCard({ icon: iconClock, label: 'Terlambat', value: rk.terlambat || 0, color: 'amber' }) +
+      _kpiCard({ icon: iconTidakLengkap, label: 'Tidak Lengkap', value: rk.tidak_lengkap || 0, color: 'purple' }) +
+      _kpiCard({ icon: iconTugas, label: 'Tugas Luar', value: rk.tugas_luar || 0, color: 'biruMuda' }) +
+      _kpiCard({ icon: iconCuti, label: 'Cuti', value: rk.cuti || 0, color: 'teal' }) +
+      _kpiCard({ icon: iconWarn, label: 'Alpa', value: rk.alpa || 0, color: 'red' });
+  } catch { if (rekapBox) rekapBox.innerHTML = ''; }
+
+  // Tabel detail
+  try {
+    const qs = new URLSearchParams({ bulan, tahun, page });
+    if (pegawaiId) qs.set('user_id', pegawaiId);
+    if (bidangId) qs.set('bidang_id', bidangId);
+    const r = await fetch(`/api/absensi?${qs}`, { headers: authHeaders() });
+    const d = await r.json();
+    const rows = d.absensi || [];
+    if (!rows.length) {
+      tbody.innerHTML = `<tr class="empty-row"><td colspan="6">Belum ada data absensi</td></tr>`;
+    } else {
+      tbody.innerHTML = rows.map((a, i) => {
+        const tglRow = new Date(a.tanggal);
+        const tglRowISO = `${tglRow.getFullYear()}-${String(tglRow.getMonth() + 1).padStart(2, '0')}-${String(tglRow.getDate()).padStart(2, '0')}`;
+        const isToday = tglRowISO === todayISO();
+        const isPending = isToday && a.status === 'hadir' && a.jam_masuk && !a.jam_keluar;
+        const isTidakLengkap = a.status === 'hadir' && (!a.jam_masuk || !a.jam_keluar) && !isToday;
+        const isTerlambat = a.status === 'hadir' && a.terlambat;
+        const statusKey = isPending ? 'pending' : isTidakLengkap ? 'tidak_lengkap' : isTerlambat ? 'terlambat' : a.status;
+        const statusLabel = isPending ? 'Menunggu Absen Keluar' : isTidakLengkap ? 'Tidak Lengkap' : isTerlambat ? 'Terlambat' : STATUS_LABEL[a.status];
+        const statusBadge = isPending ? 'badge-warning' : isTidakLengkap ? 'badge-ungu' : isTerlambat ? 'badge-warning' : STATUS_BADGE[a.status];
+        const statusIcon = STATUS_ICON[statusKey] || '';
+        const jamKeluarCell = a.jam_keluar
+          ? `${a.jam_keluar.slice(0,5)} WITA`
+          : (isToday && a.status === 'hadir'
+              ? `<span data-tip="Belum absen pulang" style="display:inline-flex;color:var(--kuning);cursor:default"><svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 22h14"/><path d="M5 2h14"/><path d="M17 22v-4.172a2 2 0 0 0-.586-1.414L12 12l-4.414 4.414A2 2 0 0 0 7 17.828V22"/><path d="M7 2v4.172a2 2 0 0 0 .586 1.414L12 12l4.414-4.414A2 2 0 0 0 17 6.172V2"/></svg></span>`
+              : '—');
+        const tipParts = [];
+        if (isTerlambat) tipParts.push(`Telat ${a.menit_terlambat} menit`);
+        if (isTidakLengkap) tipParts.push(!a.jam_masuk ? 'Absen masuk belum tercatat' : 'Absen pulang belum tercatat');
+        if (isPending) tipParts.push('Absen pulang baru bisa dicatat mulai jam pulang');
+        const statusTip = tipParts.length ? ` data-tip="${tipParts.join(' • ')}"` : '';
+        return `
+        <tr>
+          <td style="text-align:center">${(page - 1) * 15 + i + 1}</td>
+          <td style="display:${full ? '' : 'none'}">${esc(a.user_nama || '')}</td>
+          <td style="text-align:center">${new Date(a.tanggal).toLocaleDateString('id-ID', { day: '2-digit', month: 'long', year: 'numeric' })}</td>
+          <td style="text-align:center">${a.jam_masuk ? a.jam_masuk.slice(0,5) + ' WITA' : '—'}</td>
+          <td style="text-align:center">${jamKeluarCell}</td>
+          <td style="text-align:left"><span class="badge ${statusBadge}"${statusTip}>${statusIcon}${statusLabel}</span></td>
+        </tr>`;
+      }).join('');
+    }
+    const pag = document.getElementById('lapAbsPagination');
+    if (pag) {
+      const totalPages = Math.max(1, Math.ceil((d.total || 0) / 15));
+      pag.innerHTML = totalPages > 1 ? `
+        <div class="pagination">
+          <button class="btn btn-sm" ${page<=1?'disabled':''} onclick="loadLaporanAbsensi(${page-1})">‹</button>
+          <span>Hal ${page} / ${totalPages}</span>
+          <button class="btn btn-sm" ${page>=totalPages?'disabled':''} onclick="loadLaporanAbsensi(${page+1})">›</button>
+        </div>` : '';
+    }
+  } catch (err) {
+    console.error('[loadLaporanAbsensi]', err);
+    tbody.innerHTML = `<tr class="empty-row"><td colspan="6">Gagal memuat data</td></tr>`;
+  }
+}
+
+// ══════════════════════════════════════════════════════
 //  LAPORAN SURAT
 // ══════════════════════════════════════════════════════
 
@@ -434,7 +1029,7 @@ function _lapKinerjaRowHtml(r, no, bulanTampil) {
     </td>
     <td style="text-align:center;color:#000000">${r.target ?? '—'}</td>
     <td style="text-align:center;color:#000000">${r.satuan || '—'}</td>
-    <td style="font-size:.75rem;color:${r.penanggung_jawab?'#1e293b':'#94a3b8'}">${r.penanggung_jawab || '—'}</td>
+    <td class="td-bidang" style="font-size:.75rem;color:${r.penanggung_jawab?'#1e293b':'#94a3b8'}">${r.penanggung_jawab || '—'}</td>
     ${bulanCells}
     <td style="text-align:center;font-weight:600;color:${sdPelaporan==='—'?'#000000':'#1e293b'}">${sdPelaporan}</td>
     <td style="text-align:center;font-weight:700;color:${capColor}">${capaian}</td>
@@ -895,7 +1490,7 @@ async function loadLaporanKinerja() {
         <th rowspan="2" style="min-width:220px;position:sticky;left:34px;z-index:3">Indikator Kinerja</th>
         <th rowspan="2" style="width:65px;text-align:center">Target Tahunan</th>
         <th rowspan="2" style="width:55px;text-align:center">Satuan</th>
-        <th rowspan="2" style="min-width:130px">Penanggung Jawab</th>
+        <th rowspan="2" style="min-width:130px">Unit Kerja</th>
         ${twHeaders}
         <th rowspan="2" style="width:75px;text-align:center">Realisasi s.d ${BULAN_PANJANG[bulanSampai-1]}</th>
         <th rowspan="2" style="width:65px;text-align:center">Capaian</th>
@@ -972,7 +1567,7 @@ async function loadLaporanKinerja() {
   if (bidangSel) {
     const currentBidang = bidangSel.value;
     const bidangList = [...new Set(rows.map(r => r.penanggung_jawab).filter(Boolean))].sort();
-    const optsHtml = `<option value="">Semua Bidang</option>` +
+    const optsHtml = `<option value="">Semua Unit Kerja</option>` +
       bidangList.map(b => `<option value="${b}"${b === currentBidang ? ' selected' : ''}>${b}</option>`).join('');
     if (bidangSel.innerHTML !== optsHtml) {
       bidangSel.innerHTML = optsHtml;
@@ -1393,7 +1988,7 @@ function _lapKinerjaPdfRowHtml(r, no, displayCols, namaIndikatorOverride) {
   const bulanCells = displayCols.map(c => {
     const v = c.type === 'tw' ? r.realisasiPerBulan?.[c.lastBulan] : r.realisasiPerBulan?.[c.bulan];
     const empty = v === null || v === undefined || v === '';
-    return `<td style="padding:3px 2px;border:1px solid #000;text-align:center;vertical-align:top;font-size:10px;color:${empty ? '#000000' : '#1e293b'}">${empty ? '—' : v}</td>`;
+    return `<td style="padding:3px 2px;border:1px solid #000;text-align:center;vertical-align:top;font-size:10px;color:${empty ? '#000000' : '#1e293b'};min-width:34px;white-space:nowrap">${empty ? '—' : v}</td>`;
   }).join('');
   const capColor = r._capaian === null ? '#000000'
     : parseFloat(r._capaian) >= 100 ? '#059669'
@@ -1411,10 +2006,10 @@ function _lapKinerjaPdfRowHtml(r, no, displayCols, namaIndikatorOverride) {
     ${bulanCells}
     <td style="padding:4px 3px;border:1px solid #000;text-align:center;vertical-align:top;font-size:10px;font-weight:700;color:#000000">${r._realisasiSd ?? '—'}</td>
     <td style="padding:4px 3px;border:1px solid #000;text-align:center;vertical-align:top;font-size:10px;font-weight:700;color:${capColor}">${r._capaian !== null ? r._capaian + '%' : '—'}</td>
-    <td style="padding:4px 5px;border:1px solid #000;text-align:${r._fpenghambat?'left':'center'};vertical-align:top;font-size:10px;max-width:150px;word-break:break-word;overflow-wrap:anywhere">${r._fpenghambat ? _lapMdToHtml(r._fpenghambat) : '—'}</td>
-    <td style="padding:4px 5px;border:1px solid #000;text-align:${r._solusi?'left':'center'};vertical-align:top;font-size:10px;max-width:150px;word-break:break-word;overflow-wrap:anywhere">${r._solusi ? _lapMdToHtml(r._solusi) : '—'}</td>
-    <td style="padding:4px 5px;border:1px solid #000;text-align:${r._fpendukung?'left':'center'};vertical-align:top;font-size:10px;max-width:150px;word-break:break-word;overflow-wrap:anywhere">${r._fpendukung ? _lapMdToHtml(r._fpendukung) : '—'}</td>
-    <td style="padding:4px 5px;border:1px solid #000;text-align:${r._rencana_tl?'left':'center'};vertical-align:top;font-size:10px;max-width:150px;word-break:break-word;overflow-wrap:anywhere">${r._rencana_tl ? _lapMdToHtml(r._rencana_tl) : '—'}</td>
+    <td style="padding:4px 5px;border:1px solid #000;text-align:${r._fpenghambat?'left':'center'};vertical-align:top;font-size:10px;max-width:220px;word-break:break-word;overflow-wrap:anywhere">${r._fpenghambat ? _lapMdToHtml(r._fpenghambat) : '—'}</td>
+    <td style="padding:4px 5px;border:1px solid #000;text-align:${r._solusi?'left':'center'};vertical-align:top;font-size:10px;max-width:220px;word-break:break-word;overflow-wrap:anywhere">${r._solusi ? _lapMdToHtml(r._solusi) : '—'}</td>
+    <td style="padding:4px 5px;border:1px solid #000;text-align:${r._fpendukung?'left':'center'};vertical-align:top;font-size:10px;max-width:220px;word-break:break-word;overflow-wrap:anywhere">${r._fpendukung ? _lapMdToHtml(r._fpendukung) : '—'}</td>
+    <td style="padding:4px 5px;border:1px solid #000;text-align:${r._rencana_tl?'left':'center'};vertical-align:top;font-size:10px;max-width:220px;word-break:break-word;overflow-wrap:anywhere">${r._rencana_tl ? _lapMdToHtml(r._rencana_tl) : '—'}</td>
   </tr>`;
 }
 
@@ -1472,14 +2067,14 @@ async function downloadLaporanByUrusan(btnEl) {
       return bulanList.filter(b => b >= tw.s && b <= tw.e).map(b => ({ type: 'bulan', bulan: b }));
     });
     const bulanHeaderCells = displayCols.filter(c => c.type === 'bulan').map(c =>
-      `<th style="color:white;padding:4px 2px;border:1px solid #000;text-align:center;font-size:10px">${BULAN_PENDEK[c.bulan-1]}</th>`
+      `<th style="color:white;padding:4px 2px;border:1px solid #000;text-align:center;font-size:10px;min-width:34px;white-space:nowrap">${BULAN_PENDEK[c.bulan-1]}</th>`
     ).join('');
     const twJudulColspan = displayCols.length;
     const twJudulHeader = `<th colspan="${twJudulColspan}" style="color:white;padding:4px 3px;border:1px solid #000;text-align:center;font-size:10px;font-weight:700">KINERJA / REALISASI TRIWULAN</th>`;
     const twHeaders = _twPdfAktif.map(tw => {
         const cols = displayCols.filter(c => (c.type === 'tw' && c.tw === tw.tw) || (c.type === 'bulan' && c.bulan >= tw.s && c.bulan <= tw.e)).length;
         const isLengkapTw = _twLengkap(tw);
-        return `<th colspan="${cols}" ${isLengkapTw ? 'rowspan="2"' : ''} style="color:white;padding:4px 3px;border:1px solid #000;text-align:center;font-size:10px">${tw.tw}</th>`;
+        return `<th colspan="${cols}" ${isLengkapTw ? 'rowspan="2"' : ''} style="color:white;padding:4px 3px;border:1px solid #000;text-align:center;font-size:10px;min-width:${cols*34}px;white-space:nowrap">${tw.tw}</th>`;
       }).join('');
 
     let rowsHtml;
@@ -1526,14 +2121,14 @@ async function downloadLaporanByUrusan(btnEl) {
             <th rowspan="3" style="color:white;padding:5px 4px;border:1px solid #000;text-align:center;font-size:10px;min-width:150px">INDIKATOR KINERJA</th>
             <th rowspan="3" style="color:white;padding:5px 3px;border:1px solid #000;text-align:center;font-size:10px;width:40px">TARGET ${tahun}</th>
             <th rowspan="3" style="color:white;padding:5px 3px;border:1px solid #000;text-align:center;font-size:10px;width:38px">SATUAN</th>
-            <th rowspan="3" style="color:white;padding:5px 3px;border:1px solid #000;text-align:center;font-size:10px;min-width:110px">PENANGGUNG JAWAB</th>
+            <th rowspan="3" style="color:white;padding:5px 3px;border:1px solid #000;text-align:center;font-size:10px;min-width:110px">UNIT KERJA</th>
             ${twJudulHeader}
             <th rowspan="3" style="color:white;padding:5px 3px;border:1px solid #000;text-align:center;font-size:10px;width:50px">REALISASI S.D ${BULAN_FULL[bulanSampai].toUpperCase()}</th>
             <th rowspan="3" style="color:white;padding:5px 3px;border:1px solid #000;text-align:center;font-size:10px;width:45px">CAPAIAN</th>
-            <th rowspan="3" style="color:white;padding:5px 4px;border:1px solid #000;text-align:center;font-size:10px;min-width:70px">FAKTOR PENGHAMBAT</th>
-            <th rowspan="3" style="color:white;padding:5px 4px;border:1px solid #000;text-align:center;font-size:10px;min-width:70px">SOLUSI</th>
-            <th rowspan="3" style="color:white;padding:5px 4px;border:1px solid #000;text-align:center;font-size:10px;min-width:70px">FAKTOR PENDUKUNG</th>
-            <th rowspan="3" style="color:white;padding:5px 4px;border:1px solid #000;text-align:center;font-size:10px;min-width:70px">RENCANA TINDAK LANJUT</th>
+            <th rowspan="3" style="color:white;padding:5px 4px;border:1px solid #000;text-align:center;font-size:10px;min-width:130px">FAKTOR PENGHAMBAT</th>
+            <th rowspan="3" style="color:white;padding:5px 4px;border:1px solid #000;text-align:center;font-size:10px;min-width:130px">SOLUSI</th>
+            <th rowspan="3" style="color:white;padding:5px 4px;border:1px solid #000;text-align:center;font-size:10px;min-width:130px">FAKTOR PENDUKUNG</th>
+            <th rowspan="3" style="color:white;padding:5px 4px;border:1px solid #000;text-align:center;font-size:10px;min-width:130px">RENCANA TINDAK LANJUT</th>
           </tr>
           <tr style="background:#0d9488">${twHeaders}</tr>
           <tr style="background:#0d9488">${bulanHeaderCells}</tr>
@@ -1620,14 +2215,14 @@ async function downloadLaporanByTSP(btnEl) {
       return bulanList.filter(b => b >= tw.s && b <= tw.e).map(b => ({ type: 'bulan', bulan: b }));
     });
     const bulanHeaderCells = displayCols.filter(c => c.type === 'bulan').map(c =>
-      `<th style="color:white;padding:4px 2px;border:1px solid #000;text-align:center;font-size:10px">${BULAN_PENDEK[c.bulan-1]}</th>`
+      `<th style="color:white;padding:4px 2px;border:1px solid #000;text-align:center;font-size:10px;min-width:34px;white-space:nowrap">${BULAN_PENDEK[c.bulan-1]}</th>`
     ).join('');
     const twJudulColspan = displayCols.length;
     const twJudulHeader = `<th colspan="${twJudulColspan}" style="color:white;padding:4px 3px;border:1px solid #000;text-align:center;font-size:10px;font-weight:700">KINERJA / REALISASI TRIWULAN</th>`;
     const twHeaders = _twPdfAktif2.map(tw => {
         const cols = displayCols.filter(c => (c.type === 'tw' && c.tw === tw.tw) || (c.type === 'bulan' && c.bulan >= tw.s && c.bulan <= tw.e)).length;
         const isLengkapTw = _twLengkap2(tw);
-        return `<th colspan="${cols}" ${isLengkapTw ? 'rowspan="2"' : ''} style="color:white;padding:4px 3px;border:1px solid #000;text-align:center;font-size:10px">${tw.tw}</th>`;
+        return `<th colspan="${cols}" ${isLengkapTw ? 'rowspan="2"' : ''} style="color:white;padding:4px 3px;border:1px solid #000;text-align:center;font-size:10px;min-width:${cols*34}px;white-space:nowrap">${tw.tw}</th>`;
       }).join('');
 
     const _witaOffset = new Date(new Date().getTime() + new Date().getTimezoneOffset() * 60000 + 8 * 3600000);
@@ -1700,7 +2295,7 @@ async function downloadLaporanByTSP(btnEl) {
         const bulanCells = displayCols.map(c => {
           const v = c.type === 'tw' ? r?.realisasiPerBulan?.[c.lastBulan] : r?.realisasiPerBulan?.[c.bulan];
           const empty = v === null || v === undefined || v === '';
-          return `<td style="padding:5px 2px;border:1px solid #000;text-align:center;font-size:10px;color:${empty ? '#000000' : '#1e293b'};vertical-align:top">${empty ? '—' : v}</td>`;
+          return `<td style="padding:5px 2px;border:1px solid #000;text-align:center;font-size:10px;color:${empty ? '#000000' : '#1e293b'};vertical-align:top;min-width:34px;white-space:nowrap">${empty ? '—' : v}</td>`;
         }).join('');
 
         let groupCell;
@@ -1732,10 +2327,10 @@ async function downloadLaporanByTSP(btnEl) {
           ${bulanCells}
           <td style="padding:5px 6px;border:1px solid #000;text-align:center;font-size:10px;font-weight:700;vertical-align:top">${realisasi}</td>
           <td style="padding:5px 6px;border:1px solid #000;text-align:center;font-size:10px;font-weight:700;color:${capColor};vertical-align:top">${capaian}</td>
-          <td style="padding:5px 7px;border:1px solid #000;text-align:${r?._fpenghambat?'left':'center'};vertical-align:top;font-size:10px;line-height:1.4">${permasalahan}</td>
-          <td style="padding:5px 7px;border:1px solid #000;text-align:${r?._solusi?'left':'center'};vertical-align:top;font-size:10px;line-height:1.4">${solusi}</td>
-          <td style="padding:5px 7px;border:1px solid #000;text-align:${r?._fpendukung?'left':'center'};vertical-align:top;font-size:10px;line-height:1.4">${fpendukung}</td>
-          <td style="padding:5px 7px;border:1px solid #000;text-align:${r?._rencana_tl?'left':'center'};vertical-align:top;font-size:10px;line-height:1.4">${rencanaTl}</td>
+          <td style="padding:5px 7px;border:1px solid #000;text-align:${r?._fpenghambat?'left':'center'};vertical-align:top;font-size:10px;line-height:1.4;max-width:220px;word-break:break-word;overflow-wrap:anywhere">${permasalahan}</td>
+          <td style="padding:5px 7px;border:1px solid #000;text-align:${r?._solusi?'left':'center'};vertical-align:top;font-size:10px;line-height:1.4;max-width:220px;word-break:break-word;overflow-wrap:anywhere">${solusi}</td>
+          <td style="padding:5px 7px;border:1px solid #000;text-align:${r?._fpendukung?'left':'center'};vertical-align:top;font-size:10px;line-height:1.4;max-width:220px;word-break:break-word;overflow-wrap:anywhere">${fpendukung}</td>
+          <td style="padding:5px 7px;border:1px solid #000;text-align:${r?._rencana_tl?'left':'center'};vertical-align:top;font-size:10px;line-height:1.4;max-width:220px;word-break:break-word;overflow-wrap:anywhere">${rencanaTl}</td>
         </tr>`;
       }).join('');
     }).join('');
@@ -1750,14 +2345,14 @@ async function downloadLaporanByTSP(btnEl) {
             <th rowspan="3" style="color:white;padding:6px 8px;border:1px solid #000;text-align:center;font-size:10px">INDIKATOR KINERJA</th>
             <th rowspan="3" style="color:white;padding:6px 5px;border:1px solid #000;text-align:center;font-size:10px;width:50px">SATUAN</th>
             <th rowspan="3" style="color:white;padding:6px 5px;border:1px solid #000;text-align:center;font-size:10px;width:55px">TARGET ${tahun}</th>
-            <th rowspan="3" style="color:white;padding:6px 5px;border:1px solid #000;text-align:center;font-size:10px;min-width:110px">PENANGGUNG JAWAB</th>
+            <th rowspan="3" style="color:white;padding:6px 5px;border:1px solid #000;text-align:center;font-size:10px;min-width:110px">UNIT KERJA</th>
             ${twJudulHeader}
             <th rowspan="3" style="color:white;padding:6px 5px;border:1px solid #000;text-align:center;font-size:10px;width:55px">REALISASI S.D ${BULAN_FULL[bulanSampai].toUpperCase()}</th>
             <th rowspan="3" style="color:white;padding:6px 5px;border:1px solid #000;text-align:center;font-size:10px;width:50px">CAPAIAN</th>
-            <th rowspan="3" style="color:white;padding:6px 6px;border:1px solid #000;text-align:center;font-size:10px;min-width:80px">FAKTOR PENGHAMBAT</th>
-            <th rowspan="3" style="color:white;padding:6px 6px;border:1px solid #000;text-align:center;font-size:10px;min-width:80px">SOLUSI</th>
-            <th rowspan="3" style="color:white;padding:6px 6px;border:1px solid #000;text-align:center;font-size:10px;min-width:80px">FAKTOR PENDUKUNG</th>
-            <th rowspan="3" style="color:white;padding:6px 6px;border:1px solid #000;text-align:center;font-size:10px;min-width:80px">RENCANA TINDAK LANJUT</th>
+            <th rowspan="3" style="color:white;padding:6px 6px;border:1px solid #000;text-align:center;font-size:10px;min-width:140px">FAKTOR PENGHAMBAT</th>
+            <th rowspan="3" style="color:white;padding:6px 6px;border:1px solid #000;text-align:center;font-size:10px;min-width:140px">SOLUSI</th>
+            <th rowspan="3" style="color:white;padding:6px 6px;border:1px solid #000;text-align:center;font-size:10px;min-width:140px">FAKTOR PENDUKUNG</th>
+            <th rowspan="3" style="color:white;padding:6px 6px;border:1px solid #000;text-align:center;font-size:10px;min-width:140px">RENCANA TINDAK LANJUT</th>
           </tr>
           <tr style="background:#0d9488">${twHeaders}</tr>
           <tr style="background:#0d9488">${bulanHeaderCells}</tr>` : `
@@ -1766,14 +2361,14 @@ async function downloadLaporanByTSP(btnEl) {
             <th rowspan="3" style="color:white;padding:5px 4px;border:1px solid #000;text-align:center;font-size:10px;min-width:150px">INDIKATOR KINERJA</th>
             <th rowspan="3" style="color:white;padding:5px 3px;border:1px solid #000;text-align:center;font-size:10px;width:40px">TARGET ${tahun}</th>
             <th rowspan="3" style="color:white;padding:5px 3px;border:1px solid #000;text-align:center;font-size:10px;width:38px">SATUAN</th>
-            <th rowspan="3" style="color:white;padding:5px 3px;border:1px solid #000;text-align:center;font-size:10px;min-width:110px">PENANGGUNG JAWAB</th>
+            <th rowspan="3" style="color:white;padding:5px 3px;border:1px solid #000;text-align:center;font-size:10px;min-width:110px">UNIT KERJA</th>
             ${twJudulHeader}
             <th rowspan="3" style="color:white;padding:5px 3px;border:1px solid #000;text-align:center;font-size:10px;width:50px">REALISASI S.D ${BULAN_FULL[bulanSampai].toUpperCase()}</th>
             <th rowspan="3" style="color:white;padding:5px 3px;border:1px solid #000;text-align:center;font-size:10px;width:45px">CAPAIAN</th>
-            <th rowspan="3" style="color:white;padding:5px 4px;border:1px solid #000;text-align:center;font-size:10px;min-width:70px">FAKTOR PENGHAMBAT</th>
-            <th rowspan="3" style="color:white;padding:5px 4px;border:1px solid #000;text-align:center;font-size:10px;min-width:70px">SOLUSI</th>
-            <th rowspan="3" style="color:white;padding:5px 4px;border:1px solid #000;text-align:center;font-size:10px;min-width:70px">FAKTOR PENDUKUNG</th>
-            <th rowspan="3" style="color:white;padding:5px 4px;border:1px solid #000;text-align:center;font-size:10px;min-width:70px">RENCANA TINDAK LANJUT</th>
+            <th rowspan="3" style="color:white;padding:5px 4px;border:1px solid #000;text-align:center;font-size:10px;min-width:130px">FAKTOR PENGHAMBAT</th>
+            <th rowspan="3" style="color:white;padding:5px 4px;border:1px solid #000;text-align:center;font-size:10px;min-width:130px">SOLUSI</th>
+            <th rowspan="3" style="color:white;padding:5px 4px;border:1px solid #000;text-align:center;font-size:10px;min-width:130px">FAKTOR PENDUKUNG</th>
+            <th rowspan="3" style="color:white;padding:5px 4px;border:1px solid #000;text-align:center;font-size:10px;min-width:130px">RENCANA TINDAK LANJUT</th>
           </tr>
           <tr style="background:#0d9488">${twHeaders}</tr>
           <tr style="background:#0d9488">${bulanHeaderCells}</tr>`;

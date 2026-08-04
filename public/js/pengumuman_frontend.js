@@ -80,7 +80,7 @@ function renderPengumumanTable() {
             <button class="btn btn-ghost btn-sm" onclick="togglePengumuman(${p.id}, ${p.aktif})" data-tip="${p.aktif ? 'Nonaktifkan' : 'Aktifkan'}">
               <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${p.aktif ? '<path d="M18.36 6.64A9 9 0 0 1 20.77 15"/><path d="M6.16 6.16a9 9 0 1 0 12.68 12.68"/><path d="M12 2v4"/><path d="M2 12h4"/>' : '<path d="M9 12l2 2 4-4"/><circle cx="12" cy="12" r="10"/>'}</svg>
             </button>
-            <button class="btn btn-danger btn-sm" onclick="deletePengumuman(${p.id})" data-tip="Hapus">
+            <button class="btn-hapus" onclick="deletePengumuman(${p.id})" data-tip="Hapus">
               <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6m4-6v6"/><path d="M9 6V4h6v2"/></svg>
             </button>
           </div>
@@ -352,7 +352,7 @@ function renderTickerTable() {
           <button class="btn btn-ghost btn-sm" onclick="toggleTicker(${t.id}, ${t.aktif})" data-tip="${t.aktif ? 'Nonaktifkan' : 'Aktifkan'}">
             <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${t.aktif ? '<path d="M18.36 6.64A9 9 0 0 1 20.77 15"/><path d="M6.16 6.16a9 9 0 1 0 12.68 12.68"/><path d="M12 2v4"/><path d="M2 12h4"/>' : '<path d="M9 12l2 2 4-4"/><circle cx="12" cy="12" r="10"/>'}</svg>
           </button>
-          <button class="btn btn-danger btn-sm" onclick="deleteTicker(${t.id})" data-tip="Hapus">
+          <button class="btn-hapus" onclick="deleteTicker(${t.id})" data-tip="Hapus">
             <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6m4-6v6"/><path d="M9 6V4h6v2"/></svg>
           </button>
         </div>

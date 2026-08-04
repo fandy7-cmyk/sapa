@@ -216,6 +216,7 @@ function renderUsersTable() {
       if (!_userSearch) return true;
       return (
         u.nama.toLowerCase().includes(_userSearch) ||
+        (u.nip || '').toLowerCase().includes(_userSearch) ||
         u.email.toLowerCase().includes(_userSearch) ||
         getBidangNama(u.bidang_id).toLowerCase().includes(_userSearch)
       );
@@ -228,8 +229,9 @@ function renderUsersTable() {
     ? slice.map(u => `
       <tr>
         <td><strong>${esc(u.nama)}</strong></td>
+        <td>${esc(u.nip || '—')}</td>
         <td>${esc(u.email)}</td>
-        <td>${getBidangNama(u.bidang_id)}</td>
+        <td style="max-width:220px;white-space:normal;word-break:break-word;line-height:1.35">${getBidangNama(u.bidang_id)}</td>
         <td><span class="badge badge-blue">User</span></td>
         <td>${u.last_login ? fmtDate(u.last_login) : '—'}</td>
         <td style="white-space:nowrap">
@@ -248,12 +250,12 @@ function renderUsersTable() {
           <button class="btn btn-ghost btn-sm" data-tip="Paksa Logout" onclick="forceLogoutUser(${u.id}, '${esc(u.nama)}')">
             <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
           </button>
-          <button class="btn btn-danger btn-sm" data-tip="Hapus" onclick="deleteUser(${u.id})">
+          <button class="btn-hapus" data-tip="Hapus" onclick="deleteUser(${u.id})">
             <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path stroke-linecap="round" stroke-linejoin="round" d="M19 6l-1 14H6L5 6"/><path stroke-linecap="round" stroke-linejoin="round" d="M10 11v6m4-6v6"/><path stroke-linecap="round" stroke-linejoin="round" d="M9 6V4h6v2"/></svg>
           </button>
         </td>
       </tr>`).join('')
-    : '<tr class="empty-row"><td colspan="6">Tidak ada user</td></tr>';
+    : '<tr class="empty-row"><td colspan="7">Tidak ada user</td></tr>';
 
   renderPagination('userPagination', visibleUsers.length, _userPage, _userPageSize, 'goUserPage');
 }
@@ -291,13 +293,14 @@ function _populateUserBidangFilter() {
     })
     .filter(Boolean)
     .join('');
-  el.innerHTML = `<option value="">Semua Bidang</option>` + opts;
+  el.innerHTML = `<option value="">Semua Unit Kerja</option>` + opts;
 }
 
 async function openUserModal() {
   await loadBidangList();
   document.getElementById('userId').value = '';
   document.getElementById('userNama').value = '';
+  document.getElementById('userNip').value = '';
   document.getElementById('userEmail').value = '';
   document.getElementById('modalUserTitle').textContent = 'Tambah Pengguna';
   document.getElementById('userBidang').innerHTML = renderBidangOptions(null);
@@ -310,6 +313,7 @@ async function editUser(id) {
   await loadBidangList();
   document.getElementById('userId').value = u.id;
   document.getElementById('userNama').value = u.nama;
+  document.getElementById('userNip').value = u.nip || '';
   document.getElementById('userEmail').value = u.email;
   document.getElementById('modalUserTitle').textContent = 'Edit Pengguna';
   document.getElementById('userBidang').innerHTML = renderBidangOptions(u.bidang_id);
@@ -322,10 +326,11 @@ async function saveUser() {
   const bidangVal = document.getElementById('userBidang').value;
   const body = {
     nama:     document.getElementById('userNama').value.trim(),
+    nip:      document.getElementById('userNip').value.trim(),
     email:    document.getElementById('userEmail').value.trim(),
     bidang_id: bidangVal ? parseInt(bidangVal) : null,
   };
-  if (!body.nama || !body.email) { toast('Nama dan email wajib diisi', 'error'); return; }
+  if (!body.nama || !body.nip || !body.email) { toast('Nama, NIP, dan email wajib diisi', 'error'); return; }
   try {
     const r = await fetch(id ? `/api/users/${id}` : '/api/users', {
       method: id ? 'PUT' : 'POST', headers: authHeaders(), body: JSON.stringify(body),
@@ -397,6 +402,8 @@ const PERM_DEFS = [
   { key: 'kinerja.monev',       name: 'IKU (Indikator Kinerja Utama)', desc: 'Input realisasi IKU' },
   { key: 'kinerja.ikk',         name: 'IKK (Indikator Kinerja Kunci)',    desc: 'Input realisasi IKK' },
   { key: 'kinerja.spm',         name: 'SPM (Standar Pelayanan Minimal)', desc: 'Input realisasi SPM' },
+  { key: 'absensi',             name: 'Absensi',                  desc: 'Input & lihat absensi harian sendiri' },
+  { key: 'absensi.full',        name: 'Absensi › Admin Penuh',    desc: 'Kelola absensi semua pegawai, atur jam kerja & hari libur (setara admin)' },
 ];
 
 let _editingPermsUserId = null;
@@ -500,7 +507,7 @@ function renderBidangTable() {
           <button class="btn btn-ghost btn-sm" data-tip="Edit" onclick="editBidang(${b.id})">
             <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
           </button>
-          <button class="btn btn-danger btn-sm" data-tip="Hapus" onclick="deleteBidang(${b.id})">
+          <button class="btn-hapus" data-tip="Hapus" onclick="deleteBidang(${b.id})">
             <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path stroke-linecap="round" stroke-linejoin="round" d="M19 6l-1 14H6L5 6"/><path stroke-linecap="round" stroke-linejoin="round" d="M10 11v6m4-6v6"/><path stroke-linecap="round" stroke-linejoin="round" d="M9 6V4h6v2"/></svg>
           </button>
         </td>

@@ -322,6 +322,100 @@ async function _cekKinerjaIndikator() {
   }
 }
 
+// ── GANTI FOTO PROFIL (user sendiri) ─────────────────────────────────────
+function openAvatarUpload() {
+  const current = _user.foto_url || null;
+  document.getElementById('avatarUploadUrl').value = current || '';
+  const prev  = document.getElementById('avatarUploadPreview');
+  const empty = document.getElementById('avatarUploadInitial');
+  if (current) {
+    prev.src = current; prev.style.display = 'block'; empty.style.display = 'none';
+  } else {
+    prev.style.display = 'none'; empty.style.display = 'flex';
+    empty.textContent = (_user.nama || 'U')[0].toUpperCase();
+  }
+  document.getElementById('avatarUploadProgress').style.display = 'none';
+  document.getElementById('topbarDropdown')?.classList.remove('open');
+  openModal('modalAvatarUpload');
+}
+
+async function onAvatarFileChange(input) {
+  const file = input.files?.[0];
+  if (!file) return;
+
+  const MAX_MB = 2;
+  if (file.size > MAX_MB * 1024 * 1024) {
+    toast(`Foto terlalu besar (maks. ${MAX_MB} MB)`, 'error');
+    input.value = '';
+    return;
+  }
+
+  const prog  = document.getElementById('avatarUploadProgress');
+  const bar   = document.getElementById('avatarUploadProgressBar');
+  const prev  = document.getElementById('avatarUploadPreview');
+  const empty = document.getElementById('avatarUploadInitial');
+  if (prog) prog.style.display = '';
+  if (bar)  bar.style.width = '30%';
+
+  try {
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('kategori', 'foto_profil');
+    const r = await fetch('/api/upload', {
+      method: 'POST',
+      headers: { 'Authorization': authHeaders()['Authorization'] },
+      body: formData,
+    });
+    if (bar) bar.style.width = '90%';
+    if (!r.ok) {
+      const d = await r.json().catch(() => ({}));
+      throw new Error(d.error || 'Gagal upload');
+    }
+    const d = await r.json();
+    if (bar) { bar.style.width = '100%'; setTimeout(() => { if (prog) prog.style.display = 'none'; }, 600); }
+    document.getElementById('avatarUploadUrl').value = d.url;
+    prev.src = d.url; prev.style.display = 'block';
+    empty.style.display = 'none';
+    toast('Foto berhasil diupload', 'success');
+  } catch (err) {
+    if (prog) prog.style.display = 'none';
+    toast('Gagal upload foto: ' + err.message, 'error');
+  } finally {
+    input.value = '';
+  }
+}
+
+function clearAvatarUpload() {
+  document.getElementById('avatarUploadUrl').value = '';
+  const prev  = document.getElementById('avatarUploadPreview');
+  const empty = document.getElementById('avatarUploadInitial');
+  prev.src = ''; prev.style.display = 'none';
+  empty.style.display = 'flex';
+  empty.textContent = (_user.nama || 'U')[0].toUpperCase();
+  const fi = document.getElementById('avatarUploadFile');
+  if (fi) fi.value = '';
+}
+
+async function saveAvatarUpload() {
+  const avatarUrl = document.getElementById('avatarUploadUrl').value.trim();
+  try {
+    const r = await fetch(`/api/users/${_user.id}/avatar`, {
+      method: 'PUT',
+      headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+      body: JSON.stringify({ avatar_url: avatarUrl }),
+    });
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok) { toast(d.error || 'Gagal menyimpan foto profil', 'error'); return; }
+    _user.foto_url = avatarUrl || null;
+    sessionStorage.setItem(`sapa_user_foto_${_user.id}`, _user.foto_url || '');
+    if (typeof _applyTopbarAvatar === 'function') _applyTopbarAvatar(_user.foto_url);
+    toast('Foto profil berhasil disimpan', 'success');
+    closeModal('modalAvatarUpload');
+  } catch (err) {
+    toast('Gagal: ' + err.message, 'error');
+  }
+}
+
 // ── GANTI PASSWORD (user sendiri) ────────────────────────────────────────
 function openChangePassword() {
   document.getElementById('cpOld').value = '';
@@ -511,6 +605,15 @@ const MENUS = [
     ],
   },
   {
+    id: 'absensi', label: 'Absenku', icon: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/><path d="m9 16 2 2 4-4"/></svg>`,
+    children: [
+      { id: 'dashboard-absensi', key: null, showIf: () => _user.is_admin || hasAccess('absensi') || hasAccess('absensi.full'), label: 'Dashboard', page: 'page-dashboard-absensi', loader: () => loadDashboardAbsensi(), icon: `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/><path d="m9 16 2 2 4-4"/></svg>` },
+      { id: 'absensi-harian', key: null, showIf: () => _user.is_admin || hasAccess('absensi') || hasAccess('absensi.full'), label: 'Absensi', page: 'page-absensi', loader: () => loadAbsensi(), icon: `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="m17 11 2 2 4-4"/></svg>` },
+      { id: 'absensi-pengaturan', key: null, showIf: () => _user.is_admin || hasAccess('absensi.full'), label: 'Pengaturan', page: 'page-absensi-pengaturan', loader: () => loadAbsPengaturan(), icon: `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>` },
+      { id: 'laporan-absensi', key: null, showIf: () => _user.is_admin || hasAccess('absensi') || hasAccess('absensi.full'), label: 'Laporan', page: 'page-laporan-absensi', loader: () => loadLaporanAbsensi(), icon: `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M8 18v-2"/><path d="M12 18v-4"/><path d="M16 18v-6"/></svg>` },
+    ],
+  },
+  {
     id: 'kinerja', label: 'Kinerja', icon: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg>`,
     children: [
       { id: 'dashboard-kinerja', key: null, showIf: () => _user.is_admin || _hasMonevIndikator || _hasIkkIndikator || _hasSpmIndikator, label: 'Dashboard', page: 'page-dashboard-kinerja', loader: () => loadDashboardKinerja(), icon: `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg>` },
@@ -531,7 +634,7 @@ const MENUS = [
       { id: 'kelola-laporan', key: null, adminOnly: true, label: 'Kelola Laporan', page: 'page-kelola-laporan', loader: () => loadLapTemplateAdmin(), icon: `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>` },
       { id: 'periode', key: null, label: 'Periode', page: 'page-periode', loader: () => loadPeriodePage(), icon: `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2v4"/><path d="M16 2v4"/><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/><path d="M8 14h.01"/><path d="M12 14h.01"/><path d="M16 14h.01"/><path d="M8 18h.01"/><path d="M12 18h.01"/><path d="M16 18h.01"/></svg>` },
       { id: 'pengguna', key: null, label: 'Pengguna', page: 'page-pengguna', loader: () => loadUsers(), icon: `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>` },
-      { id: 'bidang', key: null, label: 'Penanggung Jawab', page: 'page-bidang', loader: () => loadBidangPage(), icon: `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 22V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v18Z"/><path d="M6 12H4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h2"/><path d="M18 9h2a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2h-2"/><path d="M10 6h4"/><path d="M10 10h4"/><path d="M10 14h4"/><path d="M10 18h4"/></svg>` },
+      { id: 'bidang', key: null, label: 'Unit Kerja', page: 'page-bidang', loader: () => loadBidangPage(), icon: `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 22V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v18Z"/><path d="M6 12H4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h2"/><path d="M18 9h2a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2h-2"/><path d="M10 6h4"/><path d="M10 10h4"/><path d="M10 14h4"/><path d="M10 18h4"/></svg>` },
       { id: 'pegawai', key: null, label: 'Struktur', page: 'page-pegawai', loader: () => { loadPegawai(); }, icon: `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2" width="6" height="6" rx="1"/><rect x="2" y="16" width="6" height="6" rx="1"/><rect x="16" y="16" width="6" height="6" rx="1"/><path d="M12 8v4M12 12H5v4M12 12h7v4"/></svg>` },
       { id: 'dokumen-publik', key: null, label: 'Dokumen Publik', page: 'page-dokumen-publik', loader: () => { loadDokumenPublik(); }, icon: `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/></svg>` },
       { id: 'pengumuman', key: null, adminOnly: true, label: 'Pengumuman', page: 'page-pengumuman', loader: () => { loadPengumuman(); loadTicker(); }, icon: `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" x2="4" y1="22" y2="15"/></svg>` },
@@ -605,7 +708,10 @@ function buildSidebar() {
       if (_sidebarCollapsed) return;
       // Hanya block autohide kalau group ini memang di-klik/pin terbuka
       // DAN ada child yang sedang aktif. Kalau hanya hover-open, tetap hide.
-      if (_openGroups[group.id] && groupHasActive) return;
+      // Cek real-time dari DOM (bukan closure groupHasActive yg beku pas buildSidebar) —
+      // supaya kalau user navigasi ke child setelah sidebar dibangun, status ini ikut update
+      const stillHasActive = sub.querySelector('.nav-sub-item.active');
+      if (_openGroups[group.id] && stillHasActive) return;
       _hoverTimer = setTimeout(() => {
         sub.classList.remove('open');
         const chev = document.getElementById('chev-' + group.id);
@@ -975,12 +1081,53 @@ function _pgCall(containerId, page) { _pgCallbacks[containerId] && _pgCallbacks[
 
 
 // ── INIT ─────────────────────────────────────────────────────────────────
+// Avatar: pakai foto profil (upload sendiri atau data Pegawai) kalau ada,
+// fallback ke inisial huruf. Dipasang di 2 tempat: tombol avatar topbar &
+// header dropdown. Scope global (dipakai juga oleh saveAvatarUpload()).
+function _renderAvatarInto(el, fotoUrl) {
+  if (!el) return;
+  const initial = (_user?.nama || 'U')[0].toUpperCase();
+  if (fotoUrl) {
+    const img = document.createElement('img');
+    img.src = fotoUrl;
+    img.alt = '';
+    img.onerror = () => { el.textContent = initial; };
+    el.replaceChildren(img);
+  } else {
+    el.textContent = initial;
+  }
+}
+function _applyTopbarAvatar(fotoUrl) {
+  _renderAvatarInto(document.getElementById('topbarAvatarInner'), fotoUrl);
+  _renderAvatarInto(document.getElementById('ddAvatar'), fotoUrl);
+}
+
+// Ambil foto profil (join users.nip → pegawai.foto_url) dari server, cache
+// ringan di sessionStorage biar avatar nggak "kedip" balik ke inisial tiap
+// pindah halaman dalam sesi yang sama. Scope global (sama kayak
+// _applyTopbarAvatar) supaya bisa dipanggil juga dari doLogin() di app.html —
+// karena login itu SPA, gak reload halaman, jadi kode boot di dalam IIFE
+// app.js gak pernah kepanggil ulang.
+async function _bootRefreshFoto() {
+  try {
+    const cacheKey = `sapa_user_foto_${_user.id}`;
+    const cached = sessionStorage.getItem(cacheKey);
+    if (cached !== null) _applyTopbarAvatar(cached || null);
+    const r = await fetch(`/api/users/${_user.id}/foto`, { headers: authHeaders() });
+    if (r.ok) {
+      const d = await r.json();
+      _user.foto_url = d.foto_url || null;
+      sessionStorage.setItem(cacheKey, _user.foto_url || '');
+      _applyTopbarAvatar(_user.foto_url);
+    }
+  } catch {}
+}
+
 (function _domReady(fn) { if (document.readyState === 'loading') { window.addEventListener('DOMContentLoaded', fn); } else { fn(); } })(function() {
   if (!initAuth()) return;
 
   // Set info user di topbar
-  const initial = (_user.nama || 'U')[0].toUpperCase();
-  document.getElementById('topbarAvatar').textContent = initial;
+  _applyTopbarAvatar(_user.foto_url || null);
   document.getElementById('topbarName').textContent = _user.nama;
   document.getElementById('topbarRole').textContent = _user.is_admin ? 'Super Admin' : (_user.bidang_nama || '');
   document.getElementById('ddName').textContent = _user.nama;
@@ -1025,12 +1172,18 @@ function _pgCall(containerId, page) { _pgCallbacks[containerId] && _pgCallbacks[
   };
 
   loadPeriodeAktif()
-    .then(() => _bootRefreshUser())
+    .then(() => Promise.all([_bootRefreshUser(), _bootRefreshFoto()]))
     .then(() => _cekKinerjaIndikator())
     .finally(() => {
       buildSidebar();
       _applySidebarCollapse();
       _startPeriodeTimer();
+      // Reminder absen masuk/keluar — muncul otomatis kalau udah waktunya
+      // dan belum diisi, tanpa user perlu buka menu Absensi.
+      if (typeof _cekAbsensiReminder === 'function') _cekAbsensiReminder();
+      // Notif pengajuan tugas luar/cuti pending — muncul otomatis buat
+      // admin/full begitu login, tanpa perlu buka menu Absensi dulu.
+      if (typeof _cekPengajuanPendingReminder === 'function') _cekPengajuanPendingReminder();
 
       // ── Restore halaman terakhir sebelum refresh ───────────────────────
       // sessionStorage hilang saat tab ditutup (bukan saat refresh),
@@ -1134,7 +1287,7 @@ function toggleProfileDD() {
 document.addEventListener('click', e => {
   const dd = document.getElementById('topbarDropdown');
   const btn = document.getElementById('topbarAvatar');
-  if (dd && !dd.contains(e.target) && e.target !== btn) {
+  if (dd && !dd.contains(e.target) && !(btn && btn.contains(e.target))) {
     dd.classList.remove('open');
   }
 });
@@ -1225,10 +1378,6 @@ class DatePicker {
         </div>
         <div class="dp-weekdays">${HARI_ID.map(h=>`<div class="dp-weekday">${h}</div>`).join('')}</div>
         <div class="dp-days" id="${this.containerId}-days">${cells}</div>
-        <div class="dp-footer">
-          <button class="dp-clear-btn" id="${this.containerId}-clearbtn">Hapus</button>
-          <button class="dp-today-btn" id="${this.containerId}-todaybtn">Hari Ini</button>
-        </div>
       </div>`;
   }
 
@@ -1298,14 +1447,6 @@ class DatePicker {
       wrap.querySelectorAll(`[data-pick]`).forEach(btn => {
         btn.addEventListener('click', () => { this.setValue(btn.dataset.pick); this._close(); });
       });
-      const todayBtn = wrap.querySelector(`#${this.containerId}-todaybtn`);
-      if (todayBtn) todayBtn.addEventListener('click', () => {
-        const t = new Date(); 
-        this.setValue(`${t.getFullYear()}-${String(t.getMonth()+1).padStart(2,'0')}-${String(t.getDate()).padStart(2,'0')}`);
-        this._close();
-      });
-      const clearBtn = wrap.querySelector(`#${this.containerId}-clearbtn`);
-      if (clearBtn) clearBtn.addEventListener('click', () => { this.setValue(null); this._close(); });
     }
 
     // Month pick
@@ -2086,7 +2227,7 @@ function _renderUrusanTable() {
             onclick="openLapTemplateModal(${t.id}, 'urusan')">
             <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
           </button>
-          <button class="btn btn-danger btn-sm" data-tip="Hapus"
+          <button class="btn-hapus" data-tip="Hapus"
             onclick="deleteLapTemplate(${t.id}, '${escHtml(t.nama).replace(/'/g,"\\'")}', 'urusan')">
             <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path stroke-linecap="round" stroke-linejoin="round" d="M19 6l-1 14H6L5 6"/><path stroke-linecap="round" stroke-linejoin="round" d="M10 11v6m4-6v6"/><path stroke-linecap="round" stroke-linejoin="round" d="M9 6V4h6v2"/></svg>
           </button>

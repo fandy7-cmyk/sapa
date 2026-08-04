@@ -277,7 +277,7 @@ function renderPeriodeCards() {
                   <path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
                 </svg>
               </button>
-              <button class="btn btn-danger btn-sm" data-tip="Hapus" onclick="deletePeriode(${p.id})">
+              <button class="btn-hapus" data-tip="Hapus" onclick="deletePeriode(${p.id})">
                 <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                   <polyline points="3 6 5 6 21 6"/>
                   <path stroke-linecap="round" stroke-linejoin="round" d="M19 6l-1 14H6L5 6"/>
@@ -348,19 +348,25 @@ function _isoToLocal(iso) {
     return { y, mo: mo - 1, d, h, mi }; // mo 0-indexed
   }
 
-  // Tulis ke hidden input → format YYYY-MM-DDTHH:mm
-  function _writeHidden(hiddenEl, s) {
+  // Tulis ke hidden input → format YYYY-MM-DDTHH:mm (atau YYYY-MM-DD kalau dateOnly)
+  function _writeHidden(hiddenEl, s, dateOnly) {
     if (!s) { hiddenEl.value = ''; return; }
-    hiddenEl.value = `${s.y}-${PAD(s.mo+1)}-${PAD(s.d)}T${PAD(s.h)}:${PAD(s.mi)}`;
+    hiddenEl.value = dateOnly
+      ? `${s.y}-${PAD(s.mo+1)}-${PAD(s.d)}`
+      : `${s.y}-${PAD(s.mo+1)}-${PAD(s.d)}T${PAD(s.h)}:${PAD(s.mi)}`;
   }
 
   // Format tampilan di trigger button
-  function _fmtDisplay(s) {
+  function _fmtDisplay(s, dateOnly) {
     if (!s) return null;
-    return `${PAD(s.d)} ${BULAN[s.mo]} ${s.y},  ${PAD(s.h)}:${PAD(s.mi)}`;
+    return dateOnly
+      ? `${PAD(s.d)} ${BULAN[s.mo]} ${s.y}`
+      : `${PAD(s.d)} ${BULAN[s.mo]} ${s.y},  ${PAD(s.h)}:${PAD(s.mi)}`;
   }
 
   function buildPicker(mountEl, hiddenEl, label) {
+    // data-cdtp-date="1" pada mount = mode tanggal saja (tanpa jam/menit)
+    const dateOnly = mountEl.dataset.cdtpDate === '1';
     // State
     let sel   = _parseHidden(hiddenEl); // currently selected dt {y,mo,d,h,mi}
     let view  = sel ? { y: sel.y, mo: sel.mo } : { y: new Date().getFullYear(), mo: new Date().getMonth() };
@@ -377,22 +383,39 @@ function _isoToLocal(iso) {
         </svg>
         <span class="cdtp-trigger-text placeholder" id="${hiddenEl.id}_txt">${label}</span>
       </button>
+      <span class="cdtp-clear" id="${hiddenEl.id}_clear" data-tip="Hapus" style="display:none">
+        <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+      </span>
       <div class="cdtp-panel" id="${hiddenEl.id}_panel" style="display:none"></div>
     `;
 
     const trigger  = mountEl.querySelector('.cdtp-trigger');
     const panel    = mountEl.querySelector('.cdtp-panel');
     const trigTxt  = mountEl.querySelector('.cdtp-trigger-text');
+    const clearBtn = mountEl.querySelector('.cdtp-clear');
 
     function updateTrigger() {
       if (sel) {
-        trigTxt.textContent = _fmtDisplay(sel);
+        trigTxt.textContent = _fmtDisplay(sel, dateOnly);
         trigTxt.classList.remove('placeholder');
+        trigger.classList.add('has-clear');
+        clearBtn.style.display = 'flex';
       } else {
         trigTxt.textContent = label;
         trigTxt.classList.add('placeholder');
+        trigger.classList.remove('has-clear');
+        clearBtn.style.display = 'none';
       }
     }
+
+    clearBtn.addEventListener('click', e => {
+      e.stopPropagation();
+      sel = null;
+      _writeHidden(hiddenEl, null, dateOnly);
+      updateTrigger();
+      closePanel();
+      hiddenEl.dispatchEvent(new Event('change', { bubbles: true }));
+    });
 
     // ── Render panel ──────────────────────────────────────────────────────
     function render() {
@@ -447,16 +470,17 @@ function _isoToLocal(iso) {
           <div class="cdtp-dow">${DOW.map(d => `<div class="cdtp-dow-cell">${d}</div>`).join('')}</div>
           <div class="cdtp-days">${cells}</div>
         </div>
+        ${dateOnly ? '' : `
         <div class="cdtp-divider"></div>
         <div class="cdtp-time">
           <svg class="cdtp-trigger-icon" xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" style="color:var(--teks-muted);flex-shrink:0"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
           <div class="cdtp-time-col">
             <div class="cdtp-time-spin">
-              <button type="button" class="cdtp-spin-btn" data-spin="h" data-dir="+1">
+              <input type="number" class="cdtp-time-val" data-time="h" value="${PAD(h)}" min="0" max="23">
+              <button type="button" class="cdtp-spin-btn" data-spin="h" data-dir="+1" aria-label="Tambah jam">
                 <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M5 15l7-7 7 7"/></svg>
               </button>
-              <input type="number" class="cdtp-time-val" data-time="h" value="${PAD(h)}" min="0" max="23">
-              <button type="button" class="cdtp-spin-btn" data-spin="h" data-dir="-1">
+              <button type="button" class="cdtp-spin-btn" data-spin="h" data-dir="-1" aria-label="Kurangi jam">
                 <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
               </button>
             </div>
@@ -464,21 +488,16 @@ function _isoToLocal(iso) {
           <span class="cdtp-time-sep">:</span>
           <div class="cdtp-time-col">
             <div class="cdtp-time-spin">
-              <button type="button" class="cdtp-spin-btn" data-spin="mi" data-dir="+1">
+              <input type="number" class="cdtp-time-val" data-time="mi" value="${PAD(mi)}" min="0" max="59">
+              <button type="button" class="cdtp-spin-btn" data-spin="mi" data-dir="+1" aria-label="Tambah menit">
                 <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M5 15l7-7 7 7"/></svg>
               </button>
-              <input type="number" class="cdtp-time-val" data-time="mi" value="${PAD(mi)}" min="0" max="59">
-              <button type="button" class="cdtp-spin-btn" data-spin="mi" data-dir="-1">
+              <button type="button" class="cdtp-spin-btn" data-spin="mi" data-dir="-1" aria-label="Kurangi menit">
                 <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
               </button>
             </div>
           </div>
-        </div>
-        <div class="cdtp-footer">
-          <button type="button" class="cdtp-btn-clear">Hapus</button>
-          <button type="button" class="cdtp-btn-now">Sekarang</button>
-          <button type="button" class="cdtp-btn-ok">Pilih</button>
-        </div>
+        </div>`}
       `;
       bindCalEvents();
     }
@@ -546,20 +565,27 @@ function _isoToLocal(iso) {
       panel.querySelectorAll('[data-mode]').forEach(el => {
         el.addEventListener('click', e => { e.stopPropagation(); mode = el.dataset.mode; render(); });
       });
-      // pilih hari
+      // pilih hari — langsung terpilih & tersimpan
       panel.querySelectorAll('[data-d]').forEach(btn => {
         btn.addEventListener('click', e => {
           e.stopPropagation();
           const d = parseInt(btn.dataset.d);
-          const hEl  = panel.querySelector('[data-time="h"]');
-          const miEl = panel.querySelector('[data-time="mi"]');
-          const h  = hEl  ? (parseInt(hEl.value)  || 0) : (sel?.h  ?? 0);
-          const mi = miEl ? (parseInt(miEl.value) || 0) : (sel?.mi ?? 0);
+          let h = 0, mi = 0;
+          if (!dateOnly) {
+            const hEl  = panel.querySelector('[data-time="h"]');
+            const miEl = panel.querySelector('[data-time="mi"]');
+            h  = hEl  ? (parseInt(hEl.value)  || 0) : (sel?.h  ?? 0);
+            mi = miEl ? (parseInt(miEl.value) || 0) : (sel?.mi ?? 0);
+          }
           sel = { y: view.y, mo: view.mo, d, h, mi };
-          render(); // re-render dengan hari terpilih
+          _writeHidden(hiddenEl, sel, dateOnly);
+          updateTrigger();
+          hiddenEl.dispatchEvent(new Event('change', { bubbles: true }));
+          if (dateOnly) { closePanel(); }
+          else { render(); } // tetap terbuka biar bisa atur jam
         });
       });
-      // spin jam/menit
+      // spin jam/menit — langsung tersimpan
       panel.querySelectorAll('[data-spin]').forEach(btn => {
         btn.addEventListener('click', e => {
           e.stopPropagation();
@@ -571,10 +597,15 @@ function _isoToLocal(iso) {
           if (field === 'h')  v = ((v % 24) + 24) % 24;
           if (field === 'mi') v = ((v % 60) + 60) % 60;
           inp.value = PAD(v);
-          if (sel) sel[field] = v;
+          if (sel) {
+            sel[field] = v;
+            _writeHidden(hiddenEl, sel, dateOnly);
+            updateTrigger();
+            hiddenEl.dispatchEvent(new Event('change', { bubbles: true }));
+          }
         });
       });
-      // ketik langsung jam/menit
+      // ketik langsung jam/menit — langsung tersimpan
       panel.querySelectorAll('[data-time]').forEach(inp => {
         inp.addEventListener('input', e => {
           e.stopPropagation();
@@ -583,45 +614,24 @@ function _isoToLocal(iso) {
           if (field === 'h')  v = Math.min(23, Math.max(0, v));
           if (field === 'mi') v = Math.min(59, Math.max(0, v));
           inp.value = PAD(v);
-          if (sel) sel[field] = v;
+          if (sel) {
+            sel[field] = v;
+            _writeHidden(hiddenEl, sel, dateOnly);
+            updateTrigger();
+            hiddenEl.dispatchEvent(new Event('change', { bubbles: true }));
+          }
         });
         inp.addEventListener('blur', () => {
           const v = parseInt(inp.value) || 0;
           inp.value = PAD(v);
-          if (sel) sel[inp.dataset.time] = v;
+          if (sel) {
+            sel[inp.dataset.time] = v;
+            _writeHidden(hiddenEl, sel, dateOnly);
+            updateTrigger();
+            hiddenEl.dispatchEvent(new Event('change', { bubbles: true }));
+          }
         });
         inp.addEventListener('click', e => e.stopPropagation());
-      });
-      // Hapus
-      panel.querySelector('.cdtp-btn-clear')?.addEventListener('click', e => {
-        e.stopPropagation();
-        sel = null;
-        _writeHidden(hiddenEl, null);
-        updateTrigger();
-        closePanel();
-        hiddenEl.dispatchEvent(new Event('change', { bubbles: true }));
-      });
-      // Sekarang
-      panel.querySelector('.cdtp-btn-now')?.addEventListener('click', e => {
-        e.stopPropagation();
-        const now = new Date();
-        sel = { y: now.getFullYear(), mo: now.getMonth(), d: now.getDate(), h: now.getHours(), mi: now.getMinutes() };
-        view = { y: sel.y, mo: sel.mo };
-        render();
-      });
-      // Pilih / OK
-      panel.querySelector('.cdtp-btn-ok')?.addEventListener('click', e => {
-        e.stopPropagation();
-        if (!sel) { closePanel(); return; }
-        // ambil nilai jam/menit terkini dari input (mungkin diketik manual)
-        const hEl  = panel.querySelector('[data-time="h"]');
-        const miEl = panel.querySelector('[data-time="mi"]');
-        if (hEl)  sel.h  = Math.min(23, Math.max(0, parseInt(hEl.value)  || 0));
-        if (miEl) sel.mi = Math.min(59, Math.max(0, parseInt(miEl.value) || 0));
-        _writeHidden(hiddenEl, sel);
-        updateTrigger();
-        closePanel();
-        hiddenEl.dispatchEvent(new Event('change', { bubbles: true }));
       });
     }
 
@@ -688,22 +698,42 @@ function _isoToLocal(iso) {
 
     // Expose: reset picker dari luar (dipanggil saat modal dibuka)
     mountEl._cdtp = {
-      set(isoStr) {
-        sel  = isoStr ? (() => { const d = new Date(isoStr); return { y: d.getFullYear(), mo: d.getMonth(), d: d.getDate(), h: d.getHours(), mi: d.getMinutes() }; })() : null;
-        if (sel) view = { y: sel.y, mo: sel.mo };
+      set(v) {
+        if (!v) { sel = null; updateTrigger(); return; }
+        // string "YYYY-MM-DD" diparse manual biar gak kena geser timezone
+        if (dateOnly && typeof v === 'string' && /^\d{4}-\d{2}-\d{2}/.test(v)) {
+          const [y, mo, d] = v.slice(0, 10).split('-').map(Number);
+          sel = { y, mo: mo - 1, d, h: 0, mi: 0 };
+        } else {
+          const dt = new Date(v);
+          sel = { y: dt.getFullYear(), mo: dt.getMonth(), d: dt.getDate(), h: dt.getHours(), mi: dt.getMinutes() };
+        }
+        view = { y: sel.y, mo: sel.mo };
         updateTrigger();
       },
-      clear() { sel = null; updateTrigger(); },
+      clear() { sel = null; _writeHidden(hiddenEl, null, dateOnly); updateTrigger(); },
       // Commit nilai sel saat ini ke hidden input (tanpa perlu klik "Pilih")
       commit() {
         if (!sel) return;
-        const hEl  = panel.querySelector('[data-time="h"]');
-        const miEl = panel.querySelector('[data-time="mi"]');
-        if (hEl)  sel.h  = Math.min(23, Math.max(0, parseInt(hEl.value)  || 0));
-        if (miEl) sel.mi = Math.min(59, Math.max(0, parseInt(miEl.value) || 0));
-        _writeHidden(hiddenEl, sel);
+        if (!dateOnly) {
+          const hEl  = panel.querySelector('[data-time="h"]');
+          const miEl = panel.querySelector('[data-time="mi"]');
+          if (hEl)  sel.h  = Math.min(23, Math.max(0, parseInt(hEl.value)  || 0));
+          if (miEl) sel.mi = Math.min(59, Math.max(0, parseInt(miEl.value) || 0));
+        }
+        _writeHidden(hiddenEl, sel, dateOnly);
         updateTrigger();
         closePanel();
+      },
+      disable() {
+        hiddenEl.disabled = true;
+        trigger.disabled = true;
+        trigger.classList.add('cdtp-disabled');
+      },
+      enable() {
+        hiddenEl.disabled = false;
+        trigger.disabled = false;
+        trigger.classList.remove('cdtp-disabled');
       }
     };
 
@@ -833,3 +863,191 @@ async function deletePeriode(id) {
   toast('Periode berhasil dihapus');
   loadPeriodePage();
 }
+// ═══════════════════════════════════════════════════════════════════════════
+// CUSTOM TIME PICKER (CTP) — inline, no dependency
+// Ganti input[type="time"] bawaan browser. Mount: <div data-ctp="hiddenId">
+// Hidden input asli tetap diupdate, format "HH:mm", agar kode lain tidak perlu diubah.
+// ═══════════════════════════════════════════════════════════════════════════
+(function () {
+  const PAD = n => String(n).padStart(2, '0');
+
+  function _parseHiddenTime(hiddenEl) {
+    const v = hiddenEl?.value; // HH:mm
+    if (!v) return null;
+    const [h, mi] = v.split(':').map(Number);
+    if (isNaN(h) || isNaN(mi)) return null;
+    return { h, mi };
+  }
+  function _writeHiddenTime(hiddenEl, s) {
+    if (!s) { hiddenEl.value = ''; return; }
+    hiddenEl.value = `${PAD(s.h)}:${PAD(s.mi)}`;
+  }
+  function _fmtTime(s) {
+    if (!s) return null;
+    return `${PAD(s.h)}:${PAD(s.mi)}`;
+  }
+
+  function buildTimePicker(mountEl, hiddenEl, label) {
+    let sel  = _parseHiddenTime(hiddenEl);
+    let open = false;
+
+    mountEl.innerHTML = `
+      <button type="button" class="cdtp-trigger">
+        <svg class="cdtp-trigger-icon" xmlns="http://www.w3.org/2000/svg" width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+        <span class="cdtp-trigger-text placeholder">${label}</span>
+      </button>
+      <span class="cdtp-clear" data-tip="Hapus" style="display:none">
+        <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+      </span>
+      <div class="cdtp-panel ctp-panel" style="display:none"></div>
+    `;
+    const trigger  = mountEl.querySelector('.cdtp-trigger');
+    const panel    = mountEl.querySelector('.cdtp-panel');
+    const trigTxt  = mountEl.querySelector('.cdtp-trigger-text');
+    const clearBtn = mountEl.querySelector('.cdtp-clear');
+
+    function updateTrigger() {
+      if (sel) {
+        trigTxt.textContent = _fmtTime(sel); trigTxt.classList.remove('placeholder');
+        trigger.classList.add('has-clear'); clearBtn.style.display = 'flex';
+      } else {
+        trigTxt.textContent = label; trigTxt.classList.add('placeholder');
+        trigger.classList.remove('has-clear'); clearBtn.style.display = 'none';
+      }
+    }
+
+    clearBtn.addEventListener('click', e => {
+      e.stopPropagation();
+      sel = null;
+      _writeHiddenTime(hiddenEl, null);
+      updateTrigger();
+      closePanel();
+      hiddenEl.dispatchEvent(new Event('change', { bubbles: true }));
+    });
+
+    function render() {
+      const h  = sel ? sel.h  : 0;
+      const mi = sel ? sel.mi : 0;
+      panel.innerHTML = `
+        <div class="cdtp-time">
+          <div class="cdtp-time-col">
+            <div class="cdtp-time-spin">
+              <button type="button" class="cdtp-spin-btn" data-spin="h" data-dir="+1"><svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M5 15l7-7 7 7"/></svg></button>
+              <input type="number" class="cdtp-time-val" data-time="h" value="${PAD(h)}" min="0" max="23">
+              <button type="button" class="cdtp-spin-btn" data-spin="h" data-dir="-1"><svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg></button>
+            </div>
+          </div>
+          <span class="cdtp-time-sep">:</span>
+          <div class="cdtp-time-col">
+            <div class="cdtp-time-spin">
+              <button type="button" class="cdtp-spin-btn" data-spin="mi" data-dir="+1"><svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M5 15l7-7 7 7"/></svg></button>
+              <input type="number" class="cdtp-time-val" data-time="mi" value="${PAD(mi)}" min="0" max="59">
+              <button type="button" class="cdtp-spin-btn" data-spin="mi" data-dir="-1"><svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg></button>
+            </div>
+          </div>
+        </div>
+      `;
+      bindEvents();
+    }
+
+    function bindEvents() {
+      panel.querySelectorAll('[data-spin]').forEach(btn => {
+        btn.addEventListener('click', e => {
+          e.stopPropagation();
+          const field = btn.dataset.spin;
+          const dir   = parseInt(btn.dataset.dir);
+          const inp   = panel.querySelector(`[data-time="${field}"]`);
+          if (!inp) return;
+          let v = (parseInt(inp.value) || 0) + dir;
+          if (field === 'h')  v = ((v % 24) + 24) % 24;
+          if (field === 'mi') v = ((v % 60) + 60) % 60;
+          inp.value = PAD(v);
+          if (!sel) sel = { h: 0, mi: 0 };
+          sel[field] = v;
+          _writeHiddenTime(hiddenEl, sel);
+          updateTrigger();
+          hiddenEl.dispatchEvent(new Event('change', { bubbles: true }));
+        });
+      });
+      panel.querySelectorAll('[data-time]').forEach(inp => {
+        inp.addEventListener('input', () => {
+          const field = inp.dataset.time;
+          let v = parseInt(inp.value) || 0;
+          if (field === 'h')  v = Math.min(23, Math.max(0, v));
+          if (field === 'mi') v = Math.min(59, Math.max(0, v));
+          inp.value = PAD(v);
+          if (!sel) sel = { h: 0, mi: 0 };
+          sel[field] = v;
+          _writeHiddenTime(hiddenEl, sel);
+          updateTrigger();
+          hiddenEl.dispatchEvent(new Event('change', { bubbles: true }));
+        });
+        inp.addEventListener('blur', () => {
+          const v = parseInt(inp.value) || 0;
+          inp.value = PAD(v);
+          if (!sel) sel = { h: 0, mi: 0 };
+          sel[inp.dataset.time] = v;
+          _writeHiddenTime(hiddenEl, sel);
+          updateTrigger();
+          hiddenEl.dispatchEvent(new Event('change', { bubbles: true }));
+        });
+        inp.addEventListener('click', e => e.stopPropagation());
+      });
+    }
+
+    function openPanel() {
+      document.querySelectorAll('.cdtp-panel').forEach(p => { if (p !== panel) p.style.display = 'none'; });
+      document.querySelectorAll('.cdtp-trigger').forEach(t => { if (t !== trigger) t.classList.remove('open'); });
+      sel = _parseHiddenTime(hiddenEl);
+      render();
+      panel.style.display = 'block';
+      trigger.classList.add('open');
+      open = true;
+    }
+    function closePanel() { panel.style.display = 'none'; trigger.classList.remove('open'); open = false; }
+
+    trigger.addEventListener('click', e => { e.stopPropagation(); open ? closePanel() : openPanel(); });
+    panel.addEventListener('click', e => e.stopPropagation());
+
+    // Expose API — konsisten dengan _cdtp (set/clear/commit/disable/enable)
+    mountEl._ctp = {
+      set(v) {
+        if (!v) { sel = null; updateTrigger(); return; }
+        if (typeof v === 'string' && /^\d{1,2}:\d{2}/.test(v)) {
+          const [h, mi] = v.split(':').map(Number);
+          sel = { h, mi };
+        } else {
+          const dt = new Date(v);
+          sel = { h: dt.getHours(), mi: dt.getMinutes() };
+        }
+        updateTrigger();
+      },
+      clear() { sel = null; _writeHiddenTime(hiddenEl, null); updateTrigger(); },
+      commit() {
+        if (!sel) return;
+        const hEl  = panel.querySelector('[data-time="h"]');
+        const miEl = panel.querySelector('[data-time="mi"]');
+        if (hEl)  sel.h  = Math.min(23, Math.max(0, parseInt(hEl.value)  || 0));
+        if (miEl) sel.mi = Math.min(59, Math.max(0, parseInt(miEl.value) || 0));
+        _writeHiddenTime(hiddenEl, sel);
+        updateTrigger();
+        closePanel();
+      },
+      disable() { hiddenEl.disabled = true;  trigger.disabled = true;  trigger.classList.add('cdtp-disabled'); },
+      enable()  { hiddenEl.disabled = false; trigger.disabled = false; trigger.classList.remove('cdtp-disabled'); }
+    };
+    updateTrigger();
+  }
+
+  // ── Init semua mount point [data-ctp] yang sudah ada di DOM ────────────
+  window.initCtp = function () {
+    document.querySelectorAll('[data-ctp]').forEach(mount => {
+      if (mount._ctp) return; // sudah di-init
+      const targetId = mount.dataset.ctp;
+      const hidden   = document.getElementById(targetId);
+      const label    = mount.dataset.placeholder || 'Pilih jam';
+      if (!hidden) return;
+      buildTimePicker(mount, hidden, label);
+    });
+  };
+})();

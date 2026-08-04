@@ -48,16 +48,82 @@ async function loadDashboard() {
   const _wBln  = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'][_wNow.getMonth()];
   const _wTgl  = `${_wHari}, ${_wNow.getDate()} ${_wBln} ${_wNow.getFullYear()}`;
 
+  // Ikon sapaan ngikutin jam — sunrise (pagi) → sun (siang) → sunset (sore) →
+  // moon (malam), tiap-tiap warna beda biar kerasa "nyambung" sama waktunya.
+  const _greetIcon = (() => {
+    if (jam < 11) return { color: '#0d9488', svg: '<path d="M12 2v8"/><path d="m4.93 10.93 1.41 1.41"/><path d="M2 18h2"/><path d="M20 18h2"/><path d="m19.07 10.93-1.41 1.41"/><path d="M22 22H2"/><path d="m8 6 4-4 4 4"/><path d="M16 18a4 4 0 0 0-8 0"/>' };
+    if (jam < 15) return { color: '#eab308', svg: '<circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/>' };
+    if (jam < 18) return { color: '#f97316', svg: '<path d="M12 10V2"/><path d="m4.93 10.93 1.41 1.41"/><path d="M2 18h2"/><path d="M20 18h2"/><path d="m19.07 10.93-1.41 1.41"/><path d="M22 22H2"/><path d="m16 6-4 4-4-4"/><path d="M16 18a4 4 0 0 0-8 0"/>' };
+    return { color: '#6366f1', svg: '<path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/>' };
+  })();
+  const greetIconSvg = `<span class="dash-greet-icon" style="color:${_greetIcon.color}"><svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;margin-left:2px">${_greetIcon.svg}</svg></span>`;
+
+  // Kutipan harian — ganti tiap hari (bukan tiap reload), dipilih berdasarkan
+  // hari-ke-berapa dalam setahun biar konsisten seharian penuh.
+  const _DASH_QUOTES = [
+    'Pelayanan yang baik dimulai dari hal-hal kecil yang dikerjakan konsisten.',
+    'Data yang rapi hari ini adalah keputusan yang tepat esok hari.',
+    'Kerja yang terukur lebih bermakna daripada kerja yang sekadar sibuk.',
+    'Setiap laporan yang diisi tepat waktu, memudahkan langkah berikutnya.',
+    'Perbaikan kecil yang konsisten mengalahkan perubahan besar yang sesekali.',
+    'Transparansi dimulai dari data yang selalu diperbarui.',
+    'Hari ini adalah kesempatan baru untuk menyelesaikan yang tertunda.',
+    'Kerja rapi bukan soal cepat, tapi soal bisa dipercaya.',
+    'Satu langkah kecil hari ini, satu masalah lebih sedikit besok.',
+    'Ketepatan waktu adalah bentuk sederhana dari tanggung jawab.',
+    'Pekerjaan yang terdokumentasi dengan baik adalah warisan untuk tim.',
+    'Fokus pada progres, bukan kesempurnaan sesaat.',
+    'Yang dikerjakan hari ini, menentukan kelancaran hari esok.',
+    'Kualitas layanan publik dimulai dari kualitas kerja di balik layar.',
+    'Konsistensi kecil setiap hari membangun hasil besar dalam setahun.',
+    'Masyarakat menilai dari layanan, bukan dari alasan.',
+    'Sistem yang baik memudahkan orang jujur dan mempersulit yang curang.',
+    'Kerja tim yang solid dimulai dari komunikasi yang jelas.',
+    'Data yang akurat adalah bentuk penghormatan pada mereka yang membutuhkannya.',
+    'Jangan tunda yang bisa diselesaikan hari ini juga.',
+    'Detail kecil sering menentukan hasil yang besar.',
+    'Semangat pagi menentukan produktivitas sepanjang hari.',
+    'Kepercayaan publik dibangun dari kerja yang konsisten, bukan janji.',
+    'Rencana yang baik separuh dari pekerjaan yang selesai.',
+    'Evaluasi bukan untuk mencari salah, tapi untuk memperbaiki arah.',
+    'Kolaborasi yang baik membuat pekerjaan berat terasa ringan.',
+    'Disiplin kecil hari ini, hasil besar di kemudian hari.',
+    'Setiap indikator yang terisi adalah langkah menuju keputusan yang lebih baik.',
+    'Kerja cerdas dimulai dari memahami prioritas.',
+    'Integritas adalah melakukan yang benar walau tidak ada yang mengawasi.',
+    'Perubahan besar selalu dimulai dari kebiasaan kecil yang dijaga.',
+    'Waktu yang digunakan dengan baik hari ini, menghemat waktu di hari nanti.',
+    'Belajar dari kesalahan lebih berharga daripada menghindarinya.',
+    'Pelayanan terbaik lahir dari niat yang tulus untuk membantu.',
+    'Progres yang lambat tetap lebih baik daripada berhenti.',
+    'Kejelasan tujuan membuat langkah kerja jadi lebih ringan.',
+    'Tanggung jawab kecil yang dijalankan konsisten membangun reputasi besar.',
+    'Sabar dalam proses, konsisten dalam usaha.',
+    'Kerja yang jujur selalu meninggalkan jejak yang baik.',
+    'Hari yang produktif dimulai dari niat yang jernih di pagi hari.',
+  ];
+  const _dayOfYear = Math.floor((Date.UTC(_wNow.getFullYear(), _wNow.getMonth(), _wNow.getDate()) - Date.UTC(_wNow.getFullYear(), 0, 0)) / 86400000);
+  const _quoteStartIdx = _dayOfYear % _DASH_QUOTES.length;
+  const _todayQuote = _DASH_QUOTES[_quoteStartIdx];
+  const quoteHtml = `
+    <div class="dash-welcome-mid">
+      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="dash-welcome-quote-icon"><path d="M3 21c3 0 7-1 7-8V5c0-1.25-.756-2.017-2-2H4c-1.25 0-2 .75-2 1.972V11c0 1.25.75 2 2 2 1 0 1 0 1 1v1c0 1-1 2-2 2s-1 .008-1 1.031V20c0 1 0 1 1 1z"/><path d="M15 21c3 0 7-1 7-8V5c0-1.25-.757-2.017-2-2h-4c-1.25 0-2 .75-2 1.972V11c0 1.25.75 2 2 2h.75c0 2.25.25 4-2.75 4v3c0 1 0 1 1 1z"/></svg>
+      <span class="dash-welcome-quote-text" id="dash-welcome-quote-text">${esc(_todayQuote)}</span>
+    </div>`;
+
   let html = `
     <div class="dash-welcome">
-      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;flex-wrap:nowrap">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:nowrap">
         <div style="flex:1;min-width:0">
-          <div class="dash-welcome-title">${salam}, <strong>${esc(_user?.nama || 'Pengguna')}</strong> <svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" fill="none" viewBox="0 0 24 24" stroke="#0d9488" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;margin-left:2px"><path d="M18 11V6a2 2 0 0 0-2-2a2 2 0 0 0-2 2"/><path d="M14 10V4a2 2 0 0 0-2-2a2 2 0 0 0-2 2v2"/><path d="M10 10.5V6a2 2 0 0 0-2-2a2 2 0 0 0-2 2v8"/><path d="M18 8a2 2 0 1 1 4 0v6a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.86-5.99-2.34l-3.6-3.6a2 2 0 0 1 2.83-2.82L7 15"/></svg></div>
-          <div class="dash-welcome-sub">Ringkasan aktivitas hari ini</div>
+          <div class="dash-welcome-title">${salam}, <strong>${esc(_user?.nama || 'Pengguna')}</strong> ${greetIconSvg}</div>
         </div>
+        ${quoteHtml}
         <div style="text-align:right;flex-shrink:0;white-space:nowrap">
           <div style="font-size:.8rem;font-weight:600;color:#0f172a">${_wTgl}</div>
-          <div id="dash-live-clock" style="font-size:.72rem;color:#94a3b8;margin-top:1px">${_witaJam(_wNow)}</div>
+          <div class="dash-live-clock-wrap">
+            <span class="dash-live-dot"></span>
+            <span id="dash-live-clock" class="dash-live-clock">${_witaJam(_wNow)}</span>
+          </div>
         </div>
       </div>
     </div>`;
@@ -69,6 +135,24 @@ async function loadDashboard() {
     if (el) el.textContent = _witaJam(_witaNow());
     else clearInterval(window._dashClockInterval);
   }, 1000);
+
+  // Kutipan harian — rotasi tiap 10 detik selama halaman kebuka, fade out →
+  // ganti teks → fade in. Mulai dari kutipan "hari ini" (ngikutin tanggal),
+  // abis itu geser ke kutipan berikutnya di daftar tiap putaran.
+  if (window._dashQuoteInterval) clearInterval(window._dashQuoteInterval);
+  let _quoteIdx = _quoteStartIdx;
+  window._dashQuoteInterval = setInterval(() => {
+    const el = document.getElementById('dash-welcome-quote-text');
+    if (!el) { clearInterval(window._dashQuoteInterval); return; }
+    el.style.opacity = '0';
+    setTimeout(() => {
+      const el2 = document.getElementById('dash-welcome-quote-text');
+      if (!el2) return;
+      _quoteIdx = (_quoteIdx + 1) % _DASH_QUOTES.length;
+      el2.textContent = _DASH_QUOTES[_quoteIdx];
+      el2.style.opacity = '1';
+    }, 350);
+  }, 10000);
 
 
 
@@ -325,7 +409,346 @@ function _overdueSuratPanel(list) {
   </div>`;
 }
 
-// ── Kinerja ──────────────────────────────────────────────────────────────────
+// ── Absensi ──────────────────────────────────────────────────────────────────
+
+// Ambil ringkasan absensi sebulan lewat endpoint agregat (1 request, dihitung
+// di sisi DB via GROUP BY) — dipakai buat tren harian, ranking keterlambatan,
+// status "sudah absen hari ini", dan kalender heatmap. Gantiin skema lama yg
+// nembus paginasi backend sampe 20x tiap load dashboard (rentan kena rate limit
+// & bikin request lain ikut ke-block). userId kosong = semua pegawai (admin/full),
+// diisi = punya sendiri (non-admin).
+async function _fetchRingkasanBulan(bulan, tahun, userId) {
+  const kosong = { harian: [], ranking_terlambat: [], sudah_absen_user_ids: [] };
+  try {
+    const params = new URLSearchParams({ bulan, tahun });
+    if (userId) params.set('user_id', userId);
+    const r = await fetch(`/api/absensi/ringkasan-bulan?${params}`, { headers: authHeaders() });
+    if (!r.ok) { console.error('[_fetchRingkasanBulan] HTTP', r.status); return kosong; }
+    const d = await r.json();
+    return { harian: d.harian || [], ranking_terlambat: d.ranking_terlambat || [], sudah_absen_user_ids: d.sudah_absen_user_ids || [] };
+  } catch (err) { console.error('[_fetchRingkasanBulan]', err); return kosong; }
+}
+
+// Pengajuan Tugas Luar/Cuti yang masih menunggu persetujuan — admin/full lihat
+// punya semua pegawai, non-admin cuma lihat punya sendiri.
+async function _fetchPengajuanPendingDash(full, userId) {
+  try {
+    const params = new URLSearchParams({ status_persetujuan: 'pending' });
+    if (!full) params.set('user_id', userId);
+    const r = await fetch(`/api/absensi/pengajuan?${params}`, { headers: authHeaders() });
+    if (!r.ok) return [];
+    const d = await r.json();
+    return d.pengajuan || [];
+  } catch { return []; }
+}
+
+async function loadDashboardAbsensi() {
+  const wrap = document.getElementById('dashAbsensiStats');
+  if (!wrap) return;
+  wrap.innerHTML = `
+    <div class="skeleton" style="height:160px;border-radius:16px"></div>`;
+
+  const full = typeof isAbsensiFull === 'function' && isAbsensiFull();
+  const now = new Date();
+  const bulan = now.getMonth() + 1, tahun = now.getFullYear();
+  const prevRef = new Date(tahun, bulan - 2, 1);
+  const prevBulan = prevRef.getMonth() + 1, prevTahun = prevRef.getFullYear();
+  const userId = full ? '' : _user.id;
+  let d = {}, dPrev = {}, pegawaiList = [];
+  let ringkasan = { harian: [], ranking_terlambat: [], sudah_absen_user_ids: [] };
+  let ringkasanPrev = { harian: [], ranking_terlambat: [], sudah_absen_user_ids: [] };
+  let pengajuanPending = [];
+  try {
+    const [r1, r2, ring, ringPrev, pengPending] = await Promise.all([
+      fetch(`/api/absensi/rekap?user_id=${userId}&bulan=${bulan}&tahun=${tahun}`, { headers: authHeaders() }),
+      fetch(`/api/absensi/rekap?user_id=${userId}&bulan=${prevBulan}&tahun=${prevTahun}`, { headers: authHeaders() }),
+      _fetchRingkasanBulan(bulan, tahun, userId),
+      _fetchRingkasanBulan(prevBulan, prevTahun, userId),
+      _fetchPengajuanPendingDash(full, _user.id),
+    ]);
+    if (r1.ok) d = await r1.json();
+    if (r2.ok) dPrev = await r2.json();
+    ringkasan = ring;
+    ringkasanPrev = ringPrev;
+    pengajuanPending = pengPending;
+  } catch (err) { console.error('[loadDashboardAbsensi]', err); }
+
+  if (full) {
+    try {
+      const ru = await fetch('/api/users', { headers: authHeaders() });
+      const du = await ru.json();
+      pegawaiList = (du.users || []).filter(u => !u.is_admin);
+    } catch { /* noop */ }
+  }
+
+  const rk     = d.rekap     || { hadir: 0, tugas_luar: 0, cuti: 0, alpa: 0, terlambat: 0, tidak_lengkap: 0 };
+  const rkPrev = dPrev.rekap || { hadir: 0, tugas_luar: 0, cuti: 0, alpa: 0, terlambat: 0, tidak_lengkap: 0 };
+
+  const icon = `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;opacity:.85"><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/><path d="m9 16 2 2 4-4"/></svg>`;
+  let html = _dashModuleHeader(icon, 'Dashboard', full ? 'Ringkasan kehadiran seluruh pegawai bulan ini' : 'Ringkasan kehadiran Anda bulan ini');
+
+  const iconHadir = `<svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 12l2 2 4-4"/><circle cx="12" cy="12" r="10"/></svg>`;
+  const iconClock = `<svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>`;
+  const iconWarn = `<svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><line x1="12" x2="12" y1="9" y2="13"/><line x1="12" x2="12.01" y1="17" y2="17"/></svg>`;
+  const iconCal = `<svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/><path d="M8 2v4"/><path d="M16 2v4"/></svg>`;
+  const iconRank = `<svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 20V10M12 20V4M6 20v-6"/></svg>`;
+  const iconTidakLengkap = `<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect width="8" height="4" x="8" y="2" rx="1" ry="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="m15 11-6 6"/><path d="m9 11 6 6"/></svg>`;
+  const iconHadirRow = `<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 12l2 2 4-4"/><circle cx="12" cy="12" r="10"/></svg>`;
+  const iconClockRow = `<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>`;
+
+  const panels = [];
+  let belumPanelHtml = null; // dipasangkan 1 baris dengan Tren Kehadiran Harian (lihat bawah)
+
+  // 0. Pengajuan Tugas Luar/Cuti yang menunggu persetujuan — actionable, taruh paling atas
+  if (pengajuanPending.length) {
+    panels.push(_absensiPengajuanPanel(pengajuanPending, full));
+  }
+
+  // 1. Belum absen hari ini — daftar nama actionable (admin/full only; butuh daftar pegawai)
+  if (full && d.hari_ini) {
+    const sudahIds = new Set(ringkasan.sudah_absen_user_ids);
+    const belumList = pegawaiList.filter(u => !sudahIds.has(u.id));
+    belumPanelHtml = _absensiBelumPanel(belumList, d.hari_ini.total_pegawai, d.hari_ini.sudah_absen);
+  } else if (d.hari_ini) {
+    const { total_pegawai, sudah_absen } = d.hari_ini;
+    panels.push(_barListPanel({
+      icon: iconHadir, title: 'Status Hari Ini',
+      rows: [
+        { label: 'Sudah Absen', value: sudah_absen, suffix: ` / ${total_pegawai}`, color: _KPI_COLORS.green.text },
+        { label: 'Belum Absen', value: Math.max(0, total_pegawai - sudah_absen), suffix: ` / ${total_pegawai}`, color: _KPI_COLORS.red.text },
+      ],
+    }));
+  }
+
+  // 2. Ranking keterlambatan (admin/full only — perbandingan antar pegawai)
+  if (full) {
+    const rankRows = (ringkasan.ranking_terlambat || [])
+      .map(r => ({ label: r.user_nama, value: r.jumlah, suffix: ' kali', color: _KPI_COLORS.amber.text }));
+    if (rankRows.length) {
+      panels.push(_barListPanel({ icon: iconRank, title: 'Ranking Keterlambatan Bulan Ini', rows: rankRows, emptyText: 'Belum ada yang terlambat' }));
+    }
+  }
+
+  // 3. Perbandingan bulan ini vs bulan lalu — dipasangkan 1 baris dengan Kalender Kehadiran (lihat bawah)
+  const labelBulanIni  = ABS_BULAN_NAMA[bulan];
+  const labelBulanLalu = ABS_BULAN_NAMA[prevBulan];
+  const pctChange = rkPrev.hadir > 0 ? Math.round(((rk.hadir - rkPrev.hadir) / rkPrev.hadir) * 100) : null;
+  const pctChangeTL = rkPrev.tidak_lengkap > 0 ? Math.round((((rk.tidak_lengkap || 0) - rkPrev.tidak_lengkap) / rkPrev.tidak_lengkap) * 100) : null;
+  const pctChangeTerlambat = rkPrev.terlambat > 0 ? Math.round(((rk.terlambat - rkPrev.terlambat) / rkPrev.terlambat) * 100) : null;
+  const perbandinganPanel = _barListPanel({
+    icon: iconCal, title: 'Perbandingan Kehadiran Bulanan',
+    rows: [
+      { label: `Tepat Waktu — ${labelBulanIni}`, value: rk.hadir, sublabel: pctChange !== null ? `${pctChange >= 0 ? '↑' : '↓'} ${Math.abs(pctChange)}% dari bulan lalu` : null, color: _KPI_COLORS.green.text, icon: iconHadirRow },
+      { label: `Tepat Waktu — ${labelBulanLalu}`, value: rkPrev.hadir, color: '#94a3b8', icon: iconHadirRow },
+      { label: `Terlambat — ${labelBulanIni}`, value: rk.terlambat, sublabel: pctChangeTerlambat !== null ? `${pctChangeTerlambat >= 0 ? '↑' : '↓'} ${Math.abs(pctChangeTerlambat)}% dari bulan lalu` : null, color: _KPI_COLORS.amber.text, icon: iconClockRow },
+      { label: `Terlambat — ${labelBulanLalu}`, value: rkPrev.terlambat, color: '#94a3b8', icon: iconClockRow },
+      { label: `Tidak Lengkap — ${labelBulanIni}`, value: rk.tidak_lengkap || 0, sublabel: pctChangeTL !== null ? `${pctChangeTL >= 0 ? '↑' : '↓'} ${Math.abs(pctChangeTL)}% dari bulan lalu` : null, color: _KPI_COLORS.purple.text, icon: iconTidakLengkap },
+      { label: `Tidak Lengkap — ${labelBulanLalu}`, value: rkPrev.tidak_lengkap || 0, color: '#94a3b8', icon: iconTidakLengkap },
+    ],
+  });
+
+  if (panels.length) html += `<div class="dash-panels">${panels.join('')}</div>`;
+
+  // 4. Belum Absen Hari Ini + Tren kehadiran harian (bulan berjalan) — satu baris berdampingan
+  const trendPanelHtml = _absensiTrendPanel(ringkasan.harian, bulan, tahun, full, /* spanFull */ !belumPanelHtml);
+  html += belumPanelHtml
+    ? `<div class="dash-panels dash-panels--belum-tren-row">${belumPanelHtml}${trendPanelHtml}</div>`
+    : `<div class="dash-panels">${trendPanelHtml}</div>`;
+
+  // 5. Perbandingan Kehadiran Bulanan + Kalender Kehadiran — satu baris berdampingan
+  html += `<div class="dash-panels dash-panels--kalender-row">${perbandinganPanel}${_absensiHeatmapPanel(ringkasanPrev.harian, prevBulan, prevTahun, full, false)}${_absensiHeatmapPanel(ringkasan.harian, bulan, tahun, full, false)}</div>`;
+
+  wrap.innerHTML = html;
+}
+
+// Panel "Belum Absen Hari Ini" — daftar nama, bukan cuma angka, biar langsung actionable
+function _absensiBelumPanel(list, totalPegawai, sudahAbsen) {
+  const iconWarn = `<svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><line x1="12" x2="12" y1="9" y2="13"/><line x1="12" x2="12.01" y1="17" y2="17"/></svg>`;
+  if (!list.length) {
+    return `<div class="dash-panel">
+      <div class="dash-panel-header"><span style="flex:1">Belum Absen Hari Ini</span><span class="badge badge-hijau">Semua sudah absen</span></div>
+      <div class="dash-panel-empty">Semua pegawai (${sudahAbsen}/${totalPegawai}) sudah absen hari ini 🎉</div>
+    </div>`;
+  }
+  const shown = list.slice(0, 8);
+  const rest  = list.length - shown.length;
+  const rows = shown.map(u => `
+    <div style="display:flex;align-items:center;gap:9px;padding:8px 0;border-bottom:1px solid #f1f5f9">
+      <span style="width:26px;height:26px;border-radius:50%;background:#fee2e2;color:#b91c1c;display:flex;align-items:center;justify-content:center;font-size:.68rem;font-weight:700;flex-shrink:0">${esc((u.nama || '?').slice(0, 1).toUpperCase())}</span>
+      <span style="font-size:.8rem;font-weight:600;color:#0f172a;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(u.nama || '—')}</span>
+    </div>`).join('');
+  return `<div class="dash-panel">
+    <div class="dash-panel-header">${iconWarn}<span style="flex:1">Belum Absen Hari Ini</span><span class="badge badge-warning">${list.length}</span></div>
+    <div style="padding:2px 18px 10px">${rows}${rest > 0 ? `<div style="padding-top:8px;font-size:.72rem;color:var(--teks-muted)">+${rest} pegawai lainnya</div>` : ''}</div>
+  </div>`;
+}
+
+// Panel "Menunggu Persetujuan" — pengajuan Tugas Luar/Cuti self-service yang
+// masih pending. Admin/full lihat semua pegawai + tombol langsung ke halaman
+// persetujuan; non-admin cuma lihat status pengajuan miliknya sendiri.
+function _absensiPengajuanPanel(list, full) {
+  const iconClockCal = `<svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/><path d="M8 2v4"/><path d="M16 2v4"/><path d="M12 14v4"/><path d="M10 16h4"/></svg>`;
+  const shown = list.slice(0, 6);
+  const rest = list.length - shown.length;
+  const jenisLabel = { tugas_luar: 'Tugas Luar', cuti: 'Cuti' };
+  const rows = shown.map(p => {
+    const nama = full ? (p.nama_pegawai || '—') : (jenisLabel[p.status] || p.status);
+    return `
+    <div style="display:flex;align-items:center;gap:9px;padding:8px 0;border-bottom:1px solid #f1f5f9">
+      <span style="width:26px;height:26px;border-radius:50%;background:#fef3c7;color:#92400e;display:flex;align-items:center;justify-content:center;font-size:.68rem;font-weight:700;flex-shrink:0">${esc(nama.slice(0, 1).toUpperCase())}</span>
+      <div style="min-width:0;flex:1">
+        <div style="font-size:.8rem;font-weight:600;color:#0f172a;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(nama)}${full ? ` — ${esc(jenisLabel[p.status] || p.status)}` : ''}</div>
+        <div style="font-size:.7rem;color:var(--teks-muted)">${_dashFmtTgl(p.tanggal)} s/d ${_dashFmtTgl(p.tanggal_selesai)}</div>
+      </div>
+    </div>`;
+  }).join('');
+  return `<div class="dash-panel">
+    <div class="dash-panel-header">${iconClockCal}<span style="flex:1">${full ? 'Menunggu Persetujuan' : 'Pengajuan Saya — Menunggu Persetujuan'}</span><span class="badge badge-warning">${list.length}</span></div>
+    <div style="padding:2px 18px 10px">${rows}${rest > 0 ? `<div style="padding-top:8px;font-size:.72rem;color:var(--teks-muted)">+${rest} pengajuan lainnya</div>` : ''}
+      ${full ? `<button class="btn btn-secondary btn-sm" style="margin-top:8px;width:100%" onclick="_dashBukaPersetujuanAbsensi()"><svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>Tinjau Sekarang</button>` : ''}
+    </div>
+  </div>`;
+}
+
+function _dashFmtTgl(s) {
+  if (!s) return '—';
+  return new Date(s).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric', timeZone: 'UTC' });
+}
+
+// Pindah ke halaman Absensi lalu langsung buka modal Persetujuan Pengajuan
+function _dashBukaPersetujuanAbsensi() {
+  navigateTo('absensi-harian', 'Absensi', () => {
+    loadAbsensi().then(() => { if (typeof openPersetujuanModal === 'function') openPersetujuanModal(); });
+  }, 'absensi', 'page-absensi');
+}
+
+// Panel tren kehadiran harian — stacked bar per hari (hadir tepat / terlambat / tugas luar / cuti),
+// alpa ditandai badge merah kecil di atas bar biar kelihatan tanpa bikin skala bar kacau.
+function _absensiTrendPanel(harian, bulan, tahun, full, spanFull = true) {
+  const daysInMonth = new Date(tahun, bulan, 0).getDate();
+  const today = new Date();
+  const isCurrentMonth = today.getFullYear() === tahun && today.getMonth() + 1 === bulan;
+  const lastDay = isCurrentMonth ? today.getDate() : daysInMonth;
+  const pad2 = n => String(n).padStart(2, '0');
+
+  // harian sudah teragregasi dari backend (GROUP BY per tanggal) — tinggal dipetakan
+  const byDay = new Map();
+  (harian || []).forEach(h => {
+    byDay.set(h.tanggal, { hadirTepat: h.hadir, terlambat: h.terlambat, tidakLengkap: h.tidak_lengkap || 0, tugas_luar: h.tugas_luar, cuti: h.cuti, alpa: h.alpa });
+  });
+
+  const days = [];
+  for (let i = 1; i <= lastDay; i++) {
+    const key = `${tahun}-${pad2(bulan)}-${pad2(i)}`;
+    const c = byDay.get(key) || { hadirTepat: 0, terlambat: 0, tidakLengkap: 0, tugas_luar: 0, cuti: 0, alpa: 0 };
+    days.push({ tgl: i, dow: new Date(tahun, bulan - 1, i).getDay(), ...c });
+  }
+
+  const maxTotal = Math.max(1, ...days.map(d => d.hadirTepat + d.terlambat + d.tidakLengkap + d.tugas_luar + d.cuti));
+  const SEG_COLORS = { hadirTepat: '#10b981', terlambat: '#f59e0b', tidakLengkap: '#8b5cf6', tugas_luar: '#38bdf8', cuti: '#2dd4bf' };
+
+  const bars = days.map(d => {
+    const total = d.hadirTepat + d.terlambat + d.tidakLengkap + d.tugas_luar + d.cuti;
+    const barH = Math.max(3, Math.round((total / maxTotal) * 74));
+    const segs = ['hadirTepat', 'terlambat', 'tidakLengkap', 'tugas_luar', 'cuti']
+      .filter(k => d[k] > 0)
+      .map(k => `<div class="dash-trend-bar-seg" style="height:${Math.max(2, Math.round((d[k] / (total || 1)) * barH))}px;background:${SEG_COLORS[k]}"></div>`)
+      .join('');
+    const tip = total
+      ? `${d.hadirTepat} tepat waktu, ${d.terlambat} telat, ${d.tidakLengkap} tidak lengkap, ${d.tugas_luar} tugas luar, ${d.cuti} cuti${d.alpa ? `, ${d.alpa} alpa` : ''}`
+      : (d.alpa ? `${d.alpa} alpa` : 'Tidak ada data');
+    return `
+      <div class="dash-trend-bar-wrap dash-trend-bar-wrap--narrow" data-tip="Tgl ${d.tgl}: ${tip}" style="min-width:24px">
+        ${d.alpa ? `<div style="font-size:.6rem;font-weight:800;color:#dc2626">${d.alpa}</div>` : '<div style="font-size:.6rem">&nbsp;</div>'}
+        <div class="dash-trend-bar-stack" style="height:${barH}px">${segs || `<div class="dash-trend-bar-seg" style="height:3px;background:#f1f5f9"></div>`}</div>
+        <div class="dash-trend-lbl">${d.tgl}</div>
+      </div>`;
+  }).join('');
+
+  const icon = `<svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-3 3"/></svg>`;
+  return `<div class="dash-panel"${spanFull ? ' style="grid-column:1/-1"' : ''}>
+    <div class="dash-panel-header">${icon} Tren Kehadiran Harian — ${ABS_BULAN_NAMA[bulan]} ${tahun}</div>
+    <div class="dash-trend dash-trend-scroll"><div class="dash-trend-bars" style="min-width:${days.length * 30}px">${bars}</div></div>
+    <div class="dash-heatmap-legend">
+      <span><i style="background:#10b981"></i>Tepat Waktu</span>
+      <span><i style="background:#f59e0b"></i>Terlambat</span>
+      <span><i style="background:#8b5cf6"></i>Tidak Lengkap</span>
+      <span><i style="background:#38bdf8"></i>Tugas luar</span>
+      <span><i style="background:#2dd4bf"></i>Cuti</span>
+      <span><i style="background:#dc2626"></i>Angka merah = alpa</span>
+    </div>
+  </div>`;
+}
+
+// Kalender heatmap kehadiran — admin/full: warna berdasar rate kehadiran tim per hari;
+// non-admin: warna berdasar status pribadi hari itu.
+function _absensiHeatmapPanel(harian, bulan, tahun, full, spanFull = true) {
+  const daysInMonth = new Date(tahun, bulan, 0).getDate();
+  const today = new Date();
+  const todayKey = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+  const pad2 = n => String(n).padStart(2, '0');
+
+  // harian sudah teragregasi dari backend (GROUP BY per tanggal) — tinggal dipetakan
+  const byDay = new Map();
+  (harian || []).forEach(h => {
+    const total = h.hadir + h.terlambat + (h.tidak_lengkap || 0) + h.tugas_luar + h.cuti + h.alpa;
+    byDay.set(h.tanggal, { hadir: h.hadir, terlambat: h.terlambat, tidak_lengkap: h.tidak_lengkap || 0, tugas_luar: h.tugas_luar, cuti: h.cuti, alpa: h.alpa, total });
+  });
+
+  const firstDow = new Date(tahun, bulan - 1, 1).getDay(); // 0=Minggu
+  const cells = [];
+  for (let i = 0; i < firstDow; i++) cells.push(`<div class="dash-heatmap-cell is-empty"></div>`);
+
+  for (let day = 1; day <= daysInMonth; day++) {
+    const key = `${tahun}-${pad2(bulan)}-${pad2(day)}`;
+    const dow = new Date(tahun, bulan - 1, day).getDay();
+    const isWeekend = dow === 0 || dow === 6;
+    const isFuture = key > todayKey;
+    const c = byDay.get(key);
+
+    let label = String(day), tip = '';
+    if (isFuture) {
+      cells.push(`<div class="dash-heatmap-cell is-future" data-tip="Tgl ${day}: belum terjadi">${label}</div>`);
+      continue;
+    }
+    if (!c || !c.total) {
+      if (isWeekend) {
+        cells.push(`<div class="dash-heatmap-cell is-libur" data-tip="Tgl ${day}: akhir pekan">${label}</div>`);
+      } else {
+        cells.push(`<div class="dash-heatmap-cell" style="background:#f8fafc;color:#cbd5e1" data-tip="Tgl ${day}: tidak ada data">${label}</div>`);
+      }
+      continue;
+    }
+
+    if (full) {
+      const hadirEfektif = c.hadir + c.terlambat + c.tidak_lengkap + c.tugas_luar + c.cuti;
+      const rate = c.total > 0 ? hadirEfektif / c.total : 0;
+      const bg = rate >= 0.9 ? '#10b981' : rate >= 0.7 ? '#34d399' : rate >= 0.5 ? '#f59e0b' : '#dc2626';
+      tip = `Tgl ${day}: ${hadirEfektif}/${c.total} hadir${c.alpa ? `, ${c.alpa} alpa` : ''}`;
+      cells.push(`<div class="dash-heatmap-cell" style="background:${bg}" data-tip="${tip}">${label}</div>`);
+    } else {
+      const bg = c.alpa ? '#dc2626' : c.tidak_lengkap ? '#8b5cf6' : c.terlambat ? '#f59e0b' : c.hadir ? '#10b981' : c.tugas_luar ? '#38bdf8' : c.cuti ? '#2dd4bf' : '#f1f5f9';
+      const statusLbl = c.alpa ? 'Alpa' : c.tidak_lengkap ? 'Tidak Lengkap' : c.terlambat ? 'Terlambat' : c.hadir ? 'Tepat Waktu' : c.tugas_luar ? 'Tugas Luar' : c.cuti ? 'Cuti' : '—';
+      cells.push(`<div class="dash-heatmap-cell" style="background:${bg}" data-tip="Tgl ${day}: ${statusLbl}">${label}</div>`);
+    }
+  }
+
+  const icon = `<svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/><path d="M8 2v4"/><path d="M16 2v4"/></svg>`;
+  const legend = full
+    ? `<span><i style="background:#10b981"></i>≥90% hadir</span><span><i style="background:#34d399"></i>70–89%</span><span><i style="background:#f59e0b"></i>50–69%</span><span><i style="background:#dc2626"></i>&lt;50%</span><span><i style="background:#fee2e2;border:1px solid #fecaca"></i>Libur / tanpa data</span>`
+    : `<span><i style="background:#10b981"></i>Tepat Waktu</span><span><i style="background:#f59e0b"></i>Terlambat</span><span><i style="background:#8b5cf6"></i>Tidak Lengkap</span><span><i style="background:#38bdf8"></i>Tugas luar</span><span><i style="background:#2dd4bf"></i>Cuti</span><span><i style="background:#dc2626"></i>Alpa</span>`;
+
+  return `<div class="dash-panel dash-panel--kalender"${spanFull ? ' style="grid-column:1/-1"' : ''}>
+    <div class="dash-panel-header">${icon} Kalender Kehadiran — ${ABS_BULAN_NAMA[bulan]} ${tahun}</div>
+    <div class="dash-heatmap">
+      <div class="dash-heatmap-dow"><span>Min</span><span>Sen</span><span>Sel</span><span>Rab</span><span>Kam</span><span>Jum</span><span>Sab</span></div>
+      <div class="dash-heatmap-grid">${cells.join('')}</div>
+    </div>
+    <div class="dash-heatmap-legend">${legend}</div>
+  </div>`;
+}
+
+
 // Catatan: endpoint /api/kinerja/rekap men-default ke jenis=monev kalau param
 // `jenis` tidak dikirim (lihat kinerja_function.js). Supaya dapat gambaran
 // lengkap IKU+IKK+SPM, kita panggil 3x lalu digabung (dedup per id).
@@ -1381,7 +1804,7 @@ function _barListPanel({ icon, title, rows, emptyText = 'Belum ada data' }) {
     return `
       <div class="dash-barlist-row">
         <div class="dash-barlist-top">
-          <span style="font-size:.82rem;font-weight:600;color:#0f172a;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:68%">${esc(r.label)}</span>
+          <span style="font-size:.82rem;font-weight:600;color:#0f172a;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:68%;display:inline-flex;align-items:center;gap:6px">${r.icon ? `<span style="display:inline-flex;flex-shrink:0;color:${col}">${r.icon}</span>` : ''}${esc(r.label)}</span>
           <span style="font-size:.8rem;font-weight:700;color:${col};white-space:nowrap">${esc(String(r.value))}${r.suffix || ''}</span>
         </div>
         ${r.sublabel ? `<div style="font-size:.7rem;color:var(--teks-muted);margin-bottom:2px">${esc(r.sublabel)}</div>` : ''}
@@ -1946,32 +2369,47 @@ async function _initKinerjaWatch() {
 // jenis_monev=TRUE. Widget "Pantau Indikator" bisa milih indikator jenis
 // apapun (monev/ikk/spm), jadi di sini kita fetch ketiga jenisnya lalu
 // digabung per bulan (dedupe by id) supaya realisasi IKK/SPM ikut ke-cache.
+//
+// Query /api/kinerja/rekap sendiri lumayan berat (banyak correlated subquery
+// buat hitung capaian_persen kumulatif/rata-rata). Sebelumnya semua 12 bulan
+// x 3 jenis (36 request) ditembak BARENGAN lewat Promise.all bersarang —
+// bikin burst besar ke DB sekaligus & rawan micu rate limit (apalagi kalau
+// bareng widget dashboard lain yang lagi load juga). Sekarang dibatasi
+// konkurensi (maks 4 request jalan bersamaan, worker pool sederhana) biar DB
+// gak digebuk sekaligus, tapi tetap jauh lebih cepat drpd sekuensial murni.
 const _KW_JENIS_LIST = ['monev', 'ikk', 'spm'];
+const _KW_MAX_CONCURRENT = 4;
 
 async function _kwFetchTahun(tahun) {
   if (_kwAllRekap[tahun]) return; // already fetched
   _kwAllRekap[tahun] = {};
 
-  const bulanResps = await Promise.all(
-    Array.from({length: 12}, (_, i) => i + 1).map(b =>
-      Promise.all(
-        _KW_JENIS_LIST.map(jenis =>
-          fetch(`/api/kinerja/rekap?bulan=${b}&tahun=${tahun}&jenis=${jenis}`, { headers: authHeaders() })
-            .then(r => r.ok ? r.json() : { rekap: [] })
-            .catch(() => ({ rekap: [] }))
-        )
-      )
-    )
-  );
+  const tasks = [];
+  for (let b = 1; b <= 12; b++) {
+    for (const jenis of _KW_JENIS_LIST) tasks.push({ b, jenis });
+  }
+  const hasilPerBulan = new Map();
+  for (let b = 1; b <= 12; b++) hasilPerBulan.set(b, []);
 
-  bulanResps.forEach((jenisResults, i) => {
-    const bulan = i + 1;
+  let idx = 0;
+  async function worker() {
+    while (idx < tasks.length) {
+      const { b, jenis } = tasks[idx++];
+      const d = await fetch(`/api/kinerja/rekap?bulan=${b}&tahun=${tahun}&jenis=${jenis}`, { headers: authHeaders() })
+        .then(r => r.ok ? r.json() : { rekap: [] })
+        .catch(() => ({ rekap: [] }));
+      hasilPerBulan.get(b).push(d);
+    }
+  }
+  await Promise.all(Array.from({ length: _KW_MAX_CONCURRENT }, () => worker()));
+
+  for (let b = 1; b <= 12; b++) {
     const merged = new Map();
-    jenisResults.forEach(d => {
-      (d.rekap || []).forEach(r => { if (!merged.has(r.id)) merged.set(r.id, { ...r, bulan }); });
+    hasilPerBulan.get(b).forEach(d => {
+      (d.rekap || []).forEach(r => { if (!merged.has(r.id)) merged.set(r.id, { ...r, bulan: b }); });
     });
-    _kwAllRekap[tahun]['b' + bulan] = Array.from(merged.values());
-  });
+    _kwAllRekap[tahun]['b' + b] = Array.from(merged.values());
+  }
 }
 
 // ── Invalidate cache rekap kinerja (dipanggil dari kinerja.js setelah simpan
@@ -3700,6 +4138,7 @@ const DASH_STYLE_CSS = `
   margin-bottom: 18px !important;
   border: 1px solid #99f6e4 !important;
   box-shadow: none !important;
+  position: relative !important;
 }
 @media (max-width: 480px) {
   .dash-welcome { padding: 14px 16px !important; border-radius: 12px !important; }
@@ -3726,6 +4165,77 @@ const DASH_STYLE_CSS = `
 .dash-welcome-sub span[style] {
   color: #0f766e !important;
   text-decoration: none !important;
+}
+/* Ikon sapaan (sunrise/sun/sunset/moon) — animasi lambai halus, pause dulu
+   pas awal biar gak "gerak sendiri" pas mata baru fokus ke card. */
+.dash-greet-icon {
+  display: inline-block;
+  transform-origin: 70% 70%;
+  animation: dashGreetWave 3.2s ease-in-out infinite;
+  animation-delay: .4s;
+}
+@keyframes dashGreetWave {
+  0%   { transform: rotate(0deg); }
+  6%   { transform: rotate(14deg); }
+  12%  { transform: rotate(-8deg); }
+  18%  { transform: rotate(14deg); }
+  24%  { transform: rotate(-4deg); }
+  30%  { transform: rotate(10deg); }
+  36%  { transform: rotate(0deg); }
+  100% { transform: rotate(0deg); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .dash-greet-icon { animation: none; }
+}
+/* Kutipan harian di tengah card — di-absolute-in biar bener-bener center
+   dari CARD (bukan cuma center di ruang sisa antara kiri/kanan, yang suka
+   geser kalau lebar teks kiri-kanan beda). */
+.dash-welcome-mid {
+  position: absolute; left: 50%; top: 50%;
+  transform: translate(-50%, -50%);
+  display: flex; align-items: center; gap: 8px; justify-content: center;
+  max-width: 38%; pointer-events: none;
+}
+.dash-welcome-quote-icon { flex-shrink: 0; color: #99f6e4; }
+.dash-welcome-quote-text {
+  font-size: .82rem; font-style: italic; color: #64748b;
+  line-height: 1.4; text-align: center;
+  overflow: hidden; text-overflow: ellipsis;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+  transition: opacity .35s ease;
+}
+@media (prefers-reduced-motion: reduce) {
+  .dash-welcome-quote-text { transition: none; }
+}
+.dash-welcome-chip {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: .78rem; font-weight: 600;
+  padding: 6px 12px; border-radius: 999px;
+  white-space: nowrap;
+}
+.dash-welcome-chip--ok { color: #0f766e !important; background: #f0fdfa !important; }
+@media (max-width: 860px) {
+  .dash-welcome-mid { display: none !important; }
+}
+/* Jam live — dibikin lebih menonjol + titik "live" berdenyut */
+.dash-live-clock-wrap {
+  display: inline-flex; align-items: center; gap: 6px; margin-top: 3px;
+}
+.dash-live-clock {
+  font-size: .92rem; font-weight: 700; color: #0f766e;
+  font-variant-numeric: tabular-nums; letter-spacing: .02em;
+}
+.dash-live-dot {
+  width: 6px; height: 6px; border-radius: 50%; background: #10b981;
+  animation: dashLiveDotPulse 2s infinite;
+}
+@keyframes dashLiveDotPulse {
+  0%   { box-shadow: 0 0 0 0 rgba(16,185,129,.5); }
+  70%  { box-shadow: 0 0 0 6px rgba(16,185,129,0); }
+  100% { box-shadow: 0 0 0 0 rgba(16,185,129,0); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .dash-live-dot { animation: none; }
 }
 
 /* ── Module grid & cards ── */

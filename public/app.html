@@ -5,11 +5,11 @@
   <script>history.replaceState(null, '', location.origin);</script>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>SAPA Perencanaan</title>
-  <meta name="app-version" content="1.0.9" />
+  <meta name="app-version" content="1.1.1" />
   <link rel="icon" type="image/png" href="/favicon.png" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="css/styles.css?v=1.0.9" />
+  <link rel="stylesheet" href="css/styles.css?v=1.1.1" />
   <style>
     /* ── LOGIN OVERLAY ── */
     #loginOverlay {
@@ -249,7 +249,7 @@
     </div>
     <div class="moto-watermark">
       <div class="moto-watermark-text">
-        <span class="moto-main">Satu Data<br/>Satu Akses<br/>Satu Tujuan</span>
+        <span class="moto-main" id="motoMain">Satu Data<br/>Satu Akses<br/>Satu Tujuan</span>
         <span class="moto-dot"></span>
       </div>
     </div>
@@ -269,10 +269,10 @@
     <div class="welcome-sub">Masuk menggunakan akun SAPA Anda</div>
 
     <div class="field">
-      <div class="field-lbl">Email</div>
+      <div class="field-lbl">Username</div>
       <div class="field-inner">
-        <span class="field-ico"><svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg></span>
-        <input type="email" id="loginEmail" placeholder="nama@email.com" autocomplete="username" onkeydown="if(event.key==='Enter')document.getElementById('loginPassword').focus()" />
+        <span class="field-ico"><svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M16 21v-2a4 4 0 00-4-4H6a4 4 0 00-4 4v2M9 11a4 4 0 100-8 4 4 0 000 8zM22 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg></span>
+        <input type="text" id="loginNip" placeholder="Username" autocomplete="username" maxlength="32" onkeydown="if(event.key==='Enter')document.getElementById('loginPassword').focus()" />
       </div>
     </div>
 
@@ -406,23 +406,33 @@
       <div class="topbar-constellation" id="topbarConstellation" aria-hidden="true">
         <canvas id="topbarConstellationCanvas"></canvas>
       </div>
-      <script src="js/topbar_constellation.js?v=1.0.9"></script>
+      <script src="js/topbar_constellation.js?v=1.1.1"></script>
 
       <div class="topbar-profile">
         <div class="topbar-user-info">
           <div class="topbar-user-name" id="topbarName">—</div>
           <div class="topbar-user-role" id="topbarRole">—</div>
         </div>
-        <button class="btn-topbar-avatar" id="topbarAvatar" onclick="toggleProfileDD()" aria-label="Profil">A</button>
+        <button class="btn-topbar-avatar" id="topbarAvatar" onclick="toggleProfileDD()" aria-label="Profil">
+          <span id="topbarAvatarInner">A</span>
+          <span class="avatar-status-dot" aria-hidden="true" data-tip="Online"></span>
+        </button>
         <div class="topbar-dropdown" id="topbarDropdown">
           <div class="topbar-dd-header">
-            <div class="topbar-dd-name" id="ddName">—</div>
-            <div class="topbar-dd-role" id="ddRole">—</div>
-            <div class="topbar-dd-bidang" id="ddBidang" style="display:none"></div>
+            <div class="topbar-dd-avatar" id="ddAvatar">A</div>
+            <div class="topbar-dd-info">
+              <div class="topbar-dd-name" id="ddName">—</div>
+              <div class="topbar-dd-role" id="ddRole">—</div>
+              <div class="topbar-dd-bidang" id="ddBidang" style="display:none"></div>
+            </div>
           </div>
           <div class="topbar-dd-divider"></div>
+          <button class="topbar-dd-item" onclick="openAvatarUpload()">
+            <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg>
+            Ganti Foto Profil
+          </button>
           <button class="topbar-dd-item" onclick="openChangePassword()">
-            <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="11" x="5" y="11" rx="2"/><path d="M12 16v2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/><circle cx="12" cy="16" r="1" fill="currentColor" stroke="none"/></svg>
+            <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 18v3c0 .6.4 1 1 1h4v-3h3v-3h2l1.4-1.4a6.5 6.5 0 1 0-4-4Z"/><circle cx="16.5" cy="7.5" r=".5" fill="currentColor"/></svg>
             Ganti Password
           </button>
           <button class="topbar-dd-item danger" onclick="doLogout()">
@@ -609,7 +619,7 @@
         </div>
         <div class="card" style="padding:0;overflow:auto;-webkit-overflow-scrolling:touch;max-height:70vh">
           <table class="surat-table">
-            <thead><tr><th>No.</th><th>Asal Surat</th><th>Nomor Surat</th><th>Tanggal Surat</th><th>Perihal</th><th>Tanggal Terima</th><th>Batas Waktu</th><th>Pegawai</th><th style="text-align:center;width:80px">Dokumen</th><th>Status</th><th>Aksi</th></tr></thead>
+            <thead><tr><th>No</th><th>Asal Surat</th><th>Nomor Surat</th><th>Tanggal Surat</th><th>Perihal</th><th>Tanggal Terima</th><th>Batas Waktu</th><th>Pegawai</th><th style="text-align:center;width:80px">Dokumen</th><th>Status</th><th>Aksi</th></tr></thead>
             <tbody id="smTableBody"><tr class="empty-row"><td colspan="11">Memuat data...</td></tr></tbody>
           </table>
         </div>
@@ -645,11 +655,124 @@
         </div>
         <div class="card" style="padding:0;overflow:auto;-webkit-overflow-scrolling:touch;max-height:70vh">
           <table class="surat-table">
-            <thead><tr><th>No.</th><th>Tujuan Surat</th><th>Nomor Surat</th><th>Tanggal Surat</th><th>Perihal</th><th>Pegawai</th><th style="text-align:center;width:80px">Dokumen</th><th>Aksi</th></tr></thead>
+            <thead><tr><th>No</th><th>Tujuan Surat</th><th>Nomor Surat</th><th>Tanggal Surat</th><th>Perihal</th><th>Pegawai</th><th style="text-align:center;width:80px">Dokumen</th><th>Aksi</th></tr></thead>
             <tbody id="skTableBody"><tr class="empty-row"><td colspan="8">Memuat data...</td></tr></tbody>
           </table>
         </div>
         <div id="skPagination"></div>
+      </div>
+
+      <!-- ══ ABSENSI ══ -->
+      <!-- ══ ABSENSI › DASHBOARD ══ -->
+      <div class="page" id="page-dashboard-absensi">
+        <div id="dashAbsensiStats"></div>
+      </div>
+
+      <div class="page" id="page-absensi">
+        <div class="page-title" style="display:flex;align-items:center;gap:10px"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;opacity:.85"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="m17 11 2 2 4-4"/></svg>Absensi</div>
+        <div class="page-subtitle">Rekapan kehadiran harian pegawai</div>
+
+        <!-- Kartu Hari Ini + Ringkasan -->
+        <div class="abs-hariini-flex-wrap">
+          <div class="card abs-hariini-card" id="absHariIniBox">
+            <div class="skeleton" style="width:170px;height:19px;margin-bottom:16px"></div>
+            <div style="display:flex;gap:28px;align-items:stretch">
+              <div style="flex:1;min-width:0;max-width:360px">
+                <div style="display:flex;gap:24px;margin-bottom:16px">
+                  <div>
+                    <div class="skeleton" style="width:82px;height:11px;margin-bottom:8px"></div>
+                    <div class="skeleton" style="width:100px;height:26px"></div>
+                  </div>
+                  <div>
+                    <div class="skeleton" style="width:82px;height:11px;margin-bottom:8px"></div>
+                    <div class="skeleton" style="width:100px;height:26px"></div>
+                  </div>
+                </div>
+                <div class="skeleton" style="width:175px;height:38px;border-radius:10px"></div>
+              </div>
+              <div style="width:200px;flex-shrink:0;border-left:1px solid var(--abu-2,#e2e8f0);padding-left:28px;display:flex;flex-direction:column;align-items:center;justify-content:center">
+                <div class="skeleton" style="width:130px;height:11px;margin-bottom:10px"></div>
+                <div class="skeleton" style="width:110px;height:32px;margin-bottom:18px"></div>
+                <div class="skeleton" style="width:100%;height:5px;border-radius:99px"></div>
+              </div>
+            </div>
+          </div>
+          <div class="dash-kpi-row" id="absRekapBox">
+            <div class="skeleton" style="height:98px;border-radius:14px"></div>
+            <div class="skeleton" style="height:98px;border-radius:14px"></div>
+            <div class="skeleton" style="height:98px;border-radius:14px"></div>
+            <div class="skeleton" style="height:98px;border-radius:14px"></div>
+            <div class="skeleton" style="height:98px;border-radius:14px"></div>
+            <div class="skeleton" style="height:98px;border-radius:14px"></div>
+          </div>
+        </div>
+
+        <!-- Pengajuan Tugas Luar/Cuti milik sendiri (non-admin) -->
+        <div class="card abs-pengajuan-saya-card" id="absPengajuanSayaBox" style="display:none;margin-bottom:20px">
+          <div style="font-weight:700;font-size:.85rem;margin-bottom:10px;display:flex;align-items:center;gap:7px"><svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="var(--aksen,#0d9488)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="m9 15 2 2 4-4"/></svg>Pengajuan Tugas Luar / Cuti Saya</div>
+          <div id="absPengajuanSayaList"></div>
+        </div>
+
+        <!-- Filter + Toolbar Admin sejajar -->
+        <div class="toolbar">
+          <div class="select-wrap" id="absBidangFilterWrap" style="flex:1;display:none">
+            <select id="absFilterBidang" data-searchable="1" data-search-placeholder="Cari unit kerja…" onchange="setAbsFilterBidang()"><option value="">Semua Unit Kerja</option></select>
+          </div>
+          <div class="select-wrap" id="absPegawaiFilterWrap" style="flex:1;display:none">
+            <select id="absFilterPegawai" data-searchable="1" onchange="setAbsFilterTahunAtauPegawai()"><option value="">Semua Pegawai</option></select>
+          </div>
+          <div class="select-wrap" style="flex:1"><select id="absFilterTahun" data-searchable="1" data-search-placeholder="Cari tahun…" onchange="setAbsFilterTahunAtauPegawai()"></select></div>
+          <div class="select-wrap" style="flex:1"><select id="absFilterBulan" data-searchable="1" data-search-placeholder="Cari bulan…" onchange="setAbsFilterBulan()"></select></div>
+          <button class="btn btn-primary btn-sm" id="btnAjukanPengajuan" style="flex-shrink:0" onclick="openPengajuanModal()">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:6px;vertical-align:-2px"><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/><path d="M8 2v4"/><path d="M16 2v4"/><path d="M12 14v4"/><path d="M10 16h4"/></svg>
+            Ajukan Tugas Luar / Cuti
+          </button>
+          <!-- Toolbar Admin (hanya tampil untuk admin / user setara admin) -->
+          <div id="absAdminBar" style="display:none;gap:10px;flex-shrink:0">
+            <button class="btn btn-approval btn-sm" onclick="openPersetujuanModal()" style="position:relative"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1" ry="1"/><path stroke-linecap="round" stroke-linejoin="round" d="m9 14 2 2 4-4"/></svg>Persetujuan Pengajuan<span class="badge badge-merah" id="absPengajuanPendingBadge" style="display:none;margin-left:6px"></span></button>
+            <button class="btn btn-primary btn-sm" onclick="openAbsModal()"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>Input Absensi</button>
+          </div>
+        </div>
+
+        <!-- Tabel Riwayat -->
+        <div class="card" style="padding:0;overflow:auto;-webkit-overflow-scrolling:touch;max-height:70vh">
+          <table class="surat-table">
+            <thead><tr><th>No</th><th id="absThNama" style="display:none">Nama</th><th>Tanggal</th><th>Absen Masuk</th><th>Absen Keluar</th><th>Status</th><th id="absThAksi" style="display:none">Aksi</th></tr></thead>
+            <tbody id="absTableBody"><tr class="empty-row"><td colspan="5">Memuat data...</td></tr></tbody>
+          </table>
+        </div>
+        <div id="absTablePagination"></div>
+      </div>
+
+      <!-- ══ ABSENSI — PENGATURAN ══ -->
+      <div class="page" id="page-absensi-pengaturan">
+        <div class="page-title" style="display:flex;align-items:center;gap:10px"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;opacity:.85"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>Pengaturan Absensi</div>
+        <div class="page-subtitle">Jam kerja &amp; hari libur untuk perhitungan kehadiran</div>
+
+        <div class="abs-pengaturan-grid">
+          <div class="card abs-pengaturan-card">
+            <div class="abs-pengaturan-icon">
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+            </div>
+            <div class="abs-pengaturan-body">
+              <div class="abs-pengaturan-title">Jam Kerja</div>
+              <div class="abs-pengaturan-desc">Jam masuk, jam pulang, dan toleransi keterlambatan — berlaku untuk semua pegawai.</div>
+              <div class="abs-pengaturan-ringkasan" id="absPengaturanJamKerjaRingkasan">Memuat...</div>
+            </div>
+            <button class="btn btn-secondary btn-sm" onclick="openAbsSettingsModal()"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4Z"/></svg>Atur Jam Kerja</button>
+          </div>
+
+          <div class="card abs-pengaturan-card">
+            <div class="abs-pengaturan-icon">
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+            </div>
+            <div class="abs-pengaturan-body">
+              <div class="abs-pengaturan-title">Hari Libur</div>
+              <div class="abs-pengaturan-desc">Tanggal merah / hari libur nasional yang dikecualikan dari kewajiban absen.</div>
+            </div>
+            <button class="btn btn-secondary btn-sm" onclick="openAbsLiburModal()"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" style="margin-right:5px;vertical-align:-2px"><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>Kelola Hari Libur</button>
+          </div>
+        </div>
       </div>
 
       <!-- ══ KINERJA ══ -->
@@ -702,7 +825,7 @@
                 <th style="min-width:200px;position:sticky;left:34px;z-index:3">Indikator Kinerja</th>
                 <th style="width:70px">Satuan</th>
                 <th style="width:90px">Target</th>
-                <th class="col-bidang-iku" style="min-width:160px">Penanggung Jawab</th>
+                <th class="col-bidang-iku" style="min-width:160px">Unit Kerja</th>
                 <th style="width:150px;text-align:center">Realisasi</th>
                 <th style="width:80px;text-align:center">Capaian</th>
                 <th style="min-width:150px">Faktor Penghambat</th>
@@ -771,7 +894,7 @@
                 <th style="min-width:200px;position:sticky;left:34px;z-index:3">Indikator Kinerja Kunci</th>
                 <th style="width:70px">Satuan</th>
                 <th style="width:90px">Target</th>
-                <th class="col-bidang-ikk" style="min-width:160px">Penanggung Jawab</th>
+                <th class="col-bidang-ikk" style="min-width:160px">Unit Kerja</th>
                 <th style="width:150px;text-align:center">Realisasi</th>
                 <th style="width:80px;text-align:center">Capaian</th>
                 <th style="min-width:150px">Faktor Penghambat</th>
@@ -840,7 +963,7 @@
                 <th style="min-width:200px;position:sticky;left:34px;z-index:3">Indikator SPM</th>
                 <th style="width:70px">Satuan</th>
                 <th style="width:90px">Target</th>
-                <th class="col-bidang-spm" style="min-width:160px">Penanggung Jawab</th>
+                <th class="col-bidang-spm" style="min-width:160px">Unit Kerja</th>
                 <th style="width:150px;text-align:center">Realisasi</th>
                 <th style="width:80px;text-align:center">Capaian</th>
                 <th style="min-width:150px">Faktor Penghambat</th>
@@ -904,7 +1027,7 @@
             </div>
             <div class="select-wrap" style="min-width:420px">
               <select id="indikatorFilterPJ" onchange="filterIndikator()">
-                <option value="">Semua Bidang</option>
+                <option value="">Semua Unit Kerja</option>
               </select>
             </div>
             <button class="btn btn-primary btn-sm" onclick="openIndikatorModal()"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>Tambah Indikator</button>
@@ -921,7 +1044,7 @@
                   <th style="min-width:200px;position:sticky;left:34px;z-index:3">Indikator Kinerja</th>
                   <th>Satuan</th>
                   <th id="thTarget">Target</th>
-                  <th>Penanggung Jawab</th>
+                  <th style="min-width:160px;max-width:220px">Unit Kerja</th>
                   <th style="min-width:150px">Penanggung Jawab (User)</th>
                   <th style="min-width:130px">Jenis Kinerja</th>
                   <th class="neg-col" data-tip="Bermakna Negatif / Positif" style="min-width:120px">Makna Indikator</th>
@@ -1114,7 +1237,7 @@
               <tr id="monTableHeadRow">
                 <th style="width:34px;text-align:center;position:sticky;left:0;z-index:3">No</th>
                 <th style="min-width:220px">Indikator Kinerja</th>
-                <th style="min-width:180px;white-space:normal">Penanggung Jawab</th>
+                <th style="min-width:180px;white-space:normal">Unit Kerja</th>
                 <th style="width:110px">Target</th>
                 <th style="width:130px;text-align:center">Status</th>
                 <th style="min-width:180px">Penanggung Jawab (User)</th>
@@ -1137,19 +1260,19 @@
         <div class="toolbar">
           <div class="search-wrap">
             <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-4.35-4.35"/></svg>
-            <input type="text" placeholder="Cari nama, email, bidang…" id="userSearch" oninput="filterUsers()" />
+            <input type="text" placeholder="Cari nama, email, unit kerja…" id="userSearch" oninput="filterUsers()" />
           </div>
           <div class="select-wrap" style="min-width:320px">
             <select id="userFilterBidang" onchange="filterUsers()">
-              <option value="">Semua Bidang</option>
+              <option value="">Semua Unit Kerja</option>
             </select>
           </div>
           <button class="btn btn-primary btn-sm" onclick="openUserModal()"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>Tambah Pengguna</button>
         </div>
         <div class="card" style="padding:0;overflow:auto;-webkit-overflow-scrolling:touch">
           <table>
-            <thead><tr><th>Nama</th><th>Email</th><th>Penanggung Jawab</th><th>Role</th><th>Login Terakhir</th><th>Aksi</th></tr></thead>
-            <tbody id="userTableBody"><tr class="empty-row"><td colspan="6">Memuat data...</td></tr></tbody>
+            <thead><tr><th>Nama</th><th>NIP</th><th>Email</th><th style="min-width:160px;max-width:220px">Unit Kerja</th><th>Role</th><th>Login Terakhir</th><th>Aksi</th></tr></thead>
+            <tbody id="userTableBody"><tr class="empty-row"><td colspan="7">Memuat data...</td></tr></tbody>
           </table>
         </div>
         <div id="userPagination"></div>
@@ -1157,18 +1280,18 @@
 
       <!-- ══ MASTER DATA › BIDANG ══ -->
       <div class="page" id="page-bidang">
-        <div class="page-title" style="display:flex;align-items:center;gap:10px"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;opacity:.85"><path d="M6 22V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v18Z"/><path d="M6 12H4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h2"/><path d="M18 9h2a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2h-2"/><path d="M10 6h4"/><path d="M10 10h4"/><path d="M10 14h4"/><path d="M10 18h4"/></svg>Penanggung Jawab</div>
+        <div class="page-title" style="display:flex;align-items:center;gap:10px"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;opacity:.85"><path d="M6 22V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v18Z"/><path d="M6 12H4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h2"/><path d="M18 9h2a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2h-2"/><path d="M10 6h4"/><path d="M10 10h4"/><path d="M10 14h4"/><path d="M10 18h4"/></svg>Unit Kerja</div>
         <div class="page-subtitle">Kelola unit kerja untuk pengelompokan pengguna</div>
         <div class="toolbar">
           <div class="search-wrap">
             <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-4.35-4.35"/></svg>
-            <input type="text" placeholder="Cari nama bidang…" id="bidangSearch" oninput="filterBidang()" />
+            <input type="text" placeholder="Cari nama unit kerja…" id="bidangSearch" oninput="filterBidang()" />
           </div>
-          <button class="btn btn-primary btn-sm" onclick="openBidangModal()"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>Tambah Bidang</button>
+          <button class="btn btn-primary btn-sm" onclick="openBidangModal()"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>Tambah Unit Kerja</button>
         </div>
         <div class="card" style="padding:0;overflow:auto;-webkit-overflow-scrolling:touch">
           <table>
-            <thead><tr><th>Nama Penanggung Jawab</th><th>Aksi</th></tr></thead>
+            <thead><tr><th>Nama Unit Kerja</th><th>Aksi</th></tr></thead>
             <tbody id="bidangTableBody"><tr class="empty-row"><td colspan="2">Memuat data...</td></tr></tbody>
           </table>
         </div>
@@ -1207,6 +1330,66 @@
       </div>
 
       <!-- ══ LAPORAN SURAT ══ -->
+      <!-- ══ ABSENSI › LAPORAN ══ -->
+      <div class="page" id="page-laporan-absensi">
+        <div class="page-title" style="display:flex;align-items:center;gap:10px"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;opacity:.85"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M8 18v-2"/><path d="M12 18v-4"/><path d="M16 18v-6"/></svg>Laporan Absensi</div>
+        <div class="page-subtitle">Rekap kehadiran per bulan</div>
+
+        <div id="lapAbsRekapBox" class="dash-kpi-row"></div>
+
+        <!-- Filter Bar -->
+        <div class="toolbar" style="flex-wrap:wrap;gap:8px;align-items:center">
+          <div class="select-wrap" id="lapAbsBidangWrap" style="flex:1;display:none">
+            <select id="lapAbsBidang" data-searchable="1" data-search-placeholder="Cari unit kerja…" onchange="setLapAbsFilterBidang()">
+              <option value="">Semua Unit Kerja</option>
+            </select>
+          </div>
+          <div class="select-wrap" id="lapAbsPegawaiWrap" style="flex:1;display:none">
+            <select id="lapAbsPegawai" data-searchable="1" onchange="setLapAbsFilterPegawai()">
+              <option value="">Semua Pegawai</option>
+            </select>
+          </div>
+          <div class="select-wrap" style="flex:1">
+            <select id="lapAbsBulan" data-searchable="1" data-search-placeholder="Cari bulan…" onchange="setLapAbsFilterBulan()"></select>
+          </div>
+          <div class="select-wrap" style="flex:1">
+            <select id="lapAbsTahun" data-searchable="1" data-search-placeholder="Cari tahun…" onchange="setLapAbsFilterTahun()"></select>
+          </div>
+          <span style="opacity:.35;font-weight:300;padding:0 2px">|</span>
+          <input type="hidden" id="lapAbsDari">
+          <div id="cdtp_lapAbsDari" class="cdtp-mount" data-cdtp="lapAbsDari" data-cdtp-date="1" data-placeholder="Dari tanggal" style="min-width:150px"></div>
+          <input type="hidden" id="lapAbsSampai">
+          <div id="cdtp_lapAbsSampai" class="cdtp-mount" data-cdtp="lapAbsSampai" data-cdtp-date="1" data-placeholder="Sampai tanggal" style="min-width:150px"></div>
+          <button class="btn btn-ghost btn-sm" id="lapAbsRangeClearBtn" onclick="_lapAbsRangeClear()" style="display:none" data-tip="Hapus rentang tanggal">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+          </button>
+          <button class="btn btn-sm" onclick="downloadLaporanAbsensiPDF(this)" style="background:#0d9488;color:white;border:none;display:inline-flex;align-items:center;gap:6px;font-weight:600;white-space:nowrap;flex-shrink:0">
+            <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline stroke-linecap="round" stroke-linejoin="round" points="7 10 12 15 17 10"/><line stroke-linecap="round" stroke-linejoin="round" x1="12" y1="15" x2="12" y2="3"/></svg>
+            Laporan Absensi
+          </button>
+        </div>
+
+        <!-- Tabel Detail Absensi -->
+        <div class="card" style="padding:0;overflow:auto;-webkit-overflow-scrolling:touch;max-height:70vh">
+          <table id="lapAbsTable" class="surat-table">
+            <thead>
+              <tr>
+                <th style="width:34px;text-align:center">No</th>
+                <th style="width:200px" id="lapAbsThNama">Nama</th>
+                <th style="width:100px;text-align:center">Tanggal</th>
+                <th style="width:90px;text-align:center">Absen Masuk</th>
+                <th style="width:90px;text-align:center">Absen Keluar</th>
+                <th style="width:100px;text-align:center">Status</th>
+              </tr>
+            </thead>
+            <tbody id="lapAbsTableBody">
+              <tr class="empty-row"><td colspan="6">Memuat data...</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div id="lapAbsPagination"></div>
+      </div>
+
       <div class="page" id="page-laporan-surat">
         <div class="page-title" style="display:flex;align-items:center;gap:10px"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;opacity:.85"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M8 18v-2"/><path d="M12 18v-4"/><path d="M16 18v-6"/></svg>Laporan Surat</div>
         <div class="page-subtitle">Rekap dan statistik surat masuk & keluar</div>
@@ -1288,7 +1471,7 @@
           </div>
           <div class="select-wrap lap-kinerja-bidang">
             <select id="laporanKinerjaBidang" onchange="_filterLaporanKinerjaByBidang()">
-              <option value="">Semua Bidang</option>
+              <option value="">Semua Unit Kerja</option>
             </select>
           </div>
           <button class="btn btn-sm lap-kinerja-btn" onclick="downloadLaporanByUrusan(this)" id="btnDownloadLaporanUrusan" style="background:#0d9488;color:white;border:none;display:inline-flex;align-items:center;gap:6px;font-weight:600;white-space:nowrap;flex-shrink:0">
@@ -1721,7 +1904,7 @@
           <div style="display:flex;align-items:center;gap:6px;height:38px">
             <input type="color" id="tickerWarna" value="#1e293b" oninput="document.getElementById('tickerWarnaHex').textContent=this.value" style="width:38px;height:38px;padding:3px;border:1.5px solid var(--abu-2);border-radius:var(--r-sm);cursor:pointer;background:var(--abu-1);flex-shrink:0">
             <span id="tickerWarnaHex" style="font-size:.78rem;font-family:monospace;color:var(--teks-muted);line-height:1">#1e293b</span>
-            <button type="button" onclick="document.getElementById('tickerWarna').value='#1e293b';document.getElementById('tickerWarnaHex').textContent='#1e293b'" style="font-size:.75rem;color:var(--teks-muted);background:none;border:none;cursor:pointer;padding:0;text-decoration:underline;white-space:nowrap;line-height:1">Reset</button>
+            <button type="button" onclick="document.getElementById('tickerWarna').value='#1e293b';document.getElementById('tickerWarnaHex').textContent='#1e293b'" style="font-size:.75rem;color:var(--teks-muted);background:none;border:none;cursor:pointer;padding:0;text-decoration:underline;white-space:nowrap;line-height:1;display:inline-flex;align-items:center;gap:3px"><svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M3 10h10a5 5 0 015 5v1M3 10l5-5M3 10l5 5"/></svg>Reset</button>
           </div>
         </div>
         <div class="field" style="flex:none;margin-bottom:0">
@@ -1729,7 +1912,7 @@
           <div style="display:flex;align-items:center;gap:6px;height:38px">
             <input type="color" id="tickerWarnaBg" value="#ccfbf1" oninput="this.dataset.cleared='0';document.getElementById('tickerWarnaBgHex').textContent=this.value" style="width:38px;height:38px;padding:3px;border:1.5px solid var(--abu-2);border-radius:var(--r-sm);cursor:pointer;background:var(--abu-1);flex-shrink:0">
             <span id="tickerWarnaBgHex" style="font-size:.78rem;font-family:monospace;color:var(--teks-muted);line-height:1">Default</span>
-            <button type="button" onclick="document.getElementById('tickerWarnaBg').value='#ccfbf1';document.getElementById('tickerWarnaBgHex').textContent='Default';document.getElementById('tickerWarnaBg').dataset.cleared='1'" style="font-size:.75rem;color:var(--teks-muted);background:none;border:none;cursor:pointer;padding:0;text-decoration:underline;white-space:nowrap;line-height:1">Reset</button>
+            <button type="button" onclick="document.getElementById('tickerWarnaBg').value='#ccfbf1';document.getElementById('tickerWarnaBgHex').textContent='Default';document.getElementById('tickerWarnaBg').dataset.cleared='1'" style="font-size:.75rem;color:var(--teks-muted);background:none;border:none;cursor:pointer;padding:0;text-decoration:underline;white-space:nowrap;line-height:1;display:inline-flex;align-items:center;gap:3px"><svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M3 10h10a5 5 0 015 5v1M3 10l5-5M3 10l5 5"/></svg>Reset</button>
           </div>
         </div>
         <div class="field" style="flex:none;margin-bottom:0">
@@ -1914,7 +2097,7 @@
             <div class="ld-status-title" id="ldProtectedTitle">This link is not protected</div>
             <div class="ld-status-desc">A protected link can be given a secret key/passphrase for access before being redirected to the original link</div>
           </div>
-          <button class="btn btn-ghost btn-sm" id="ldProtectedBtn" onclick="_ldEdit()">Set Password</button>
+          <button class="btn btn-ghost btn-sm" id="ldProtectedBtn" onclick="_ldEdit()"><svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="8" cy="15" r="4"/><path stroke-linecap="round" stroke-linejoin="round" d="M10.5 12.5L20 3m0 0h-4m4 0v4M15 8l2 2"/></svg>Set Password</button>
         </div>
       </div>
 
@@ -1925,7 +2108,7 @@
             <div class="ld-status-title" id="ldExpiryTitle">No expiration set</div>
             <div class="ld-status-desc">A time-based link only lasts for a certain period of time. When it expires, it will no longer be accessible.</div>
           </div>
-          <button class="btn btn-ghost btn-sm" id="ldExpiryBtn" onclick="_ldEdit()">Set Time</button>
+          <button class="btn btn-ghost btn-sm" id="ldExpiryBtn" onclick="_ldEdit()"><svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>Set Time</button>
         </div>
       </div>
 
@@ -1958,7 +2141,7 @@
     </div>
     <div class="modal-body">
       <input type="hidden" id="smId" />
-      <div class="field"><label>No. Surat</label><input type="text" id="smNoSurat" /></div>
+      <div class="field"><label>Nomor Surat</label><input type="text" id="smNoSurat" /></div>
       <div class="field-row">
         <div class="field"><label>Tanggal Surat</label><div class="dp-wrap" id="dp-smTglSurat"></div></div>
         <div class="field"><label>Tanggal Terima</label><div class="dp-wrap" id="dp-smTglTerima"></div></div>
@@ -2008,7 +2191,7 @@
     </div>
     <div class="modal-body">
       <input type="hidden" id="skId" />
-      <div class="field"><label>No. Surat</label><input type="text" id="skNoSurat" /></div>
+      <div class="field"><label>Noomor Surat</label><input type="text" id="skNoSurat" /></div>
       <div class="field"><label>Tanggal Surat</label><div class="dp-wrap" id="dp-skTglSurat"></div></div>
       <div class="field"><label>Tujuan Surat *</label><input type="text" id="skTujuan" /></div>
       <div class="field"><label>Perihal *</label><input type="text" id="skPerihal" /></div>
@@ -2039,6 +2222,253 @@
   </div>
 </div>
 
+<!-- Modal: Reminder Absen Masuk/Keluar (muncul otomatis begitu waktunya) -->
+<div class="modal-overlay" id="modalAbsReminder">
+  <div class="modal modal--danger">
+    <div class="modal-header">
+      <div class="abs-reminder-title-wrap">
+        <div class="abs-reminder-icon-badge">
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+        </div>
+        <div class="modal-title" id="absReminderTitle">Absen</div>
+      </div>
+      <button class="btn-close" onclick="closeModal('modalAbsReminder')"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg></button>
+    </div>
+    <div class="modal-body" id="absReminderBody"></div>
+  </div>
+</div>
+
+<!-- Modal: Input/Edit Absensi (admin/full) -->
+<div class="modal-overlay" id="modalAbs">
+  <div class="modal modal-lg">
+    <div class="modal-header">
+      <div class="modal-title" id="modalAbsTitle">Tambah Absensi</div>
+      <button class="btn-close" onclick="closeModal('modalAbs')"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg></button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="absId" />
+      <div class="field" id="absPegawaiWrap">
+        <label>Pegawai *</label>
+        <div class="select-wrap"><select id="absPegawai" data-searchable="1" data-search-placeholder="Cari pegawai…"><option value="">— Pilih Pegawai —</option></select></div>
+      </div>
+      <div class="field-row">
+        <div class="field"><label>Tanggal *</label><div id="cdtp_absTanggal" class="cdtp-mount" data-cdtp="absTanggal" data-cdtp-date="1" data-placeholder="Pilih tanggal"></div><input type="hidden" id="absTanggal" /></div>
+        <div class="field"><label>Status</label>
+          <div class="select-wrap">
+            <select id="absStatus" data-placeholder="Otomatis (Tepat Waktu/Terlambat)" onchange="onAbsStatusChange()">
+              <option value="">Otomatis (Tepat Waktu/Terlambat)</option>
+              <option value="tugas_luar">Tugas Luar</option>
+              <option value="cuti">Cuti</option>
+            </select>
+          </div>
+        </div>
+      </div>
+      <div class="field-row" id="absJamRow">
+        <div class="field"><label>Absen Masuk</label><div id="ctp_absJamMasuk" class="ctp-mount" data-ctp="absJamMasuk" data-placeholder="--:--"></div><input type="hidden" id="absJamMasuk" /></div>
+        <div class="field"><label>Absen Keluar</label><div id="ctp_absJamKeluar" class="ctp-mount" data-ctp="absJamKeluar" data-placeholder="--:--"></div><input type="hidden" id="absJamKeluar" /></div>
+      </div>
+      <div class="field-row" id="absDurasiRow" style="display:none">
+        <div class="field"><label>Sampai Tanggal *</label><div id="cdtp_absTanggalSelesai" class="cdtp-mount" data-cdtp="absTanggalSelesai" data-cdtp-date="1" data-placeholder="Pilih tanggal"></div><input type="hidden" id="absTanggalSelesai" /></div>
+      </div>
+      <div class="field" id="absDukungWrap" style="display:none">
+        <label id="absDukungLabel">Data Dukung *</label>
+        <div class="upload-area" id="absDukungUploadArea"
+             ondragover="handleAbsDukungDragOver(event)"
+             ondragleave="handleAbsDukungDragLeave(event)"
+             ondrop="handleAbsDukungDrop(event)">
+          <input type="file" id="absDukungFileInput"
+                 accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png"
+                 onchange="handleAbsDukungFileSelect(event)">
+          <div class="upload-area-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>
+          </div>
+          <div class="upload-area-text"><strong>Klik atau drag &amp; drop</strong> file di sini</div>
+          <div class="upload-area-hint">PDF, Word, Excel, JPG, PNG — maks. 2 MB</div>
+        </div>
+        <div class="upload-progress-wrap" id="absDukungProgressWrap" style="display:none">
+          <div class="upload-progress-bar" id="absDukungProgressBar"></div>
+        </div>
+        <div id="absDukungFilePreview"></div>
+      </div>
+      <div class="field" id="absKeteranganWrap"><label>Keterangan</label><textarea id="absKeterangan" placeholder="Opsional"></textarea></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('modalAbs')"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>Batal</button>
+      <button class="btn btn-primary" id="btnSimpanAbs" onclick="saveAbs()"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>Simpan</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Ajukan Tugas Luar/Cuti (self-service, semua pegawai) -->
+<div class="modal-overlay" id="modalPengajuanAbsen">
+  <div class="modal modal-lg">
+    <div class="modal-header">
+      <div class="modal-title">Ajukan Tugas Luar / Cuti</div>
+      <button class="btn-close" onclick="closeModal('modalPengajuanAbsen')"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg></button>
+    </div>
+    <div class="modal-body">
+      <div class="field">
+        <label>Jenis Pengajuan *</label>
+        <div class="select-wrap">
+          <select id="pengStatus">
+            <option value="tugas_luar">Tugas Luar</option>
+            <option value="cuti">Cuti</option>
+          </select>
+        </div>
+      </div>
+      <div class="field-row">
+        <div class="field"><label>Dari Tanggal *</label><div id="cdtp_pengTanggal" class="cdtp-mount" data-cdtp="pengTanggal" data-cdtp-date="1" data-placeholder="Pilih tanggal"></div><input type="hidden" id="pengTanggal" /></div>
+        <div class="field"><label>Sampai Tanggal *</label><div id="cdtp_pengTanggalSelesai" class="cdtp-mount" data-cdtp="pengTanggalSelesai" data-cdtp-date="1" data-placeholder="Pilih tanggal"></div><input type="hidden" id="pengTanggalSelesai" /></div>
+      </div>
+      <div class="field" id="pengDukungWrap">
+        <label>Data Dukung *</label>
+        <div class="upload-area" id="pengDukungUploadArea"
+             ondragover="handlePengDukungDragOver(event)"
+             ondragleave="handlePengDukungDragLeave(event)"
+             ondrop="handlePengDukungDrop(event)">
+          <input type="file" id="pengDukungFileInput"
+                 accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png"
+                 onchange="handlePengDukungFileSelect(event)">
+          <div class="upload-area-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>
+          </div>
+          <div class="upload-area-text"><strong>Klik atau drag &amp; drop</strong> file di sini</div>
+          <div class="upload-area-hint">PDF, Word, Excel, JPG, PNG — maks. 2 MB</div>
+        </div>
+        <div class="upload-progress-wrap" id="pengDukungProgressWrap" style="display:none">
+          <div class="upload-progress-bar" id="pengDukungProgressBar"></div>
+        </div>
+        <div id="pengDukungFilePreview"></div>
+      </div>
+      <div class="field"><label>Keterangan</label><textarea id="pengKeterangan" placeholder="Opsional, mis. tujuan tugas luar / alasan cuti"></textarea></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('modalPengajuanAbsen')"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>Batal</button>
+      <button class="btn btn-primary" id="btnSimpanPengajuan" onclick="savePengajuan()"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>Ajukan</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Persetujuan Pengajuan (admin/full) -->
+<div class="modal-overlay" id="modalPersetujuanAbsen">
+  <div class="modal modal-lg modal--warning">
+    <div class="modal-header">
+      <div class="abs-reminder-title-wrap">
+        <div class="abs-reminder-icon-badge abs-reminder-icon-badge--warning">
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+        </div>
+        <div class="modal-title">Persetujuan Pengajuan Tugas Luar / Cuti</div>
+      </div>
+      <button class="btn-close" onclick="closeModal('modalPersetujuanAbsen')"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg></button>
+    </div>
+    <div class="modal-body">
+      <div id="absPersetujuanList"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('modalPersetujuanAbsen')"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>Tutup</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Alasan Tolak Pengajuan (admin/full) -->
+<div class="modal-overlay" id="modalTolakPengajuan">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">Tolak Pengajuan</div>
+      <button class="btn-close" onclick="closeModal('modalTolakPengajuan')"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg></button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="tolakPengajuanId" />
+      <div class="field"><label>Alasan Penolakan</label><textarea id="tolakCatatan" placeholder="Opsional, akan dilihat pegawai yang mengajukan"></textarea></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('modalTolakPengajuan')"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>Batal</button>
+      <button class="btn btn-primary" onclick="submitTolakPengajuan()"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>Tolak Pengajuan</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Pengaturan Jam Kerja (admin/full) -->
+<div class="modal-overlay" id="modalAbsSettings">
+  <div class="modal modal-lg">
+    <div class="modal-header">
+      <div class="modal-title">Pengaturan Jam Kerja</div>
+      <button class="btn-close" onclick="closeModal('modalAbsSettings')"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg></button>
+    </div>
+    <div class="modal-body">
+      <div class="page-subtitle" style="margin:-4px 0 14px">Berlaku untuk semua pegawai — dipakai untuk deteksi keterlambatan otomatis & buka-tutup tombol Absen</div>
+
+      <div style="font-size:var(--fs-sm);font-weight:700;color:var(--teks-muted);margin-bottom:8px">Jendela Absen Masuk</div>
+      <div class="field-row">
+        <div class="field"><label>Absen Masuk Mulai (Senin–Kamis)</label><div id="ctp_absSetMasukAwalSK" class="ctp-mount" data-ctp="absSetMasukAwalSK" data-placeholder="--:--"></div><input type="hidden" id="absSetMasukAwalSK" /><div class="field-hint">Tombol Absen Masuk baru aktif mulai jam ini</div></div>
+        <div class="field"><label>Absen Masuk Mulai (Jumat)</label><div id="ctp_absSetMasukAwalJumat" class="ctp-mount" data-ctp="absSetMasukAwalJumat" data-placeholder="--:--"></div><input type="hidden" id="absSetMasukAwalJumat" /></div>
+      </div>
+      <div class="field-row">
+        <div class="field"><label>Batas Tepat Waktu (Senin–Kamis)</label><div id="ctp_absSetMasukSK" class="ctp-mount" data-ctp="absSetMasukSK" data-placeholder="--:--"></div><input type="hidden" id="absSetMasukSK" /><div class="field-hint">Absen setelah jam ini (+ toleransi) tercatat Terlambat</div></div>
+        <div class="field"><label>Batas Tepat Waktu (Jumat)</label><div id="ctp_absSetMasukJumat" class="ctp-mount" data-ctp="absSetMasukJumat" data-placeholder="--:--"></div><input type="hidden" id="absSetMasukJumat" /></div>
+      </div>
+      <div class="field-row">
+        <div class="field"><label>Absen Masuk Sampai (Senin–Kamis)</label><div id="ctp_absSetMasukAkhirSK" class="ctp-mount" data-ctp="absSetMasukAkhirSK" data-placeholder="--:--"></div><input type="hidden" id="absSetMasukAkhirSK" /><div class="field-hint">Tombol Absen Masuk nonaktif lagi setelah jam ini — kosongkan kalau gak mau ada batas</div></div>
+        <div class="field"><label>Absen Masuk Sampai (Jumat)</label><div id="ctp_absSetMasukAkhirJumat" class="ctp-mount" data-ctp="absSetMasukAkhirJumat" data-placeholder="--:--"></div><input type="hidden" id="absSetMasukAkhirJumat" /></div>
+      </div>
+
+      <div style="font-size:var(--fs-sm);font-weight:700;color:var(--teks-muted);margin:14px 0 8px">Jendela Absen Keluar</div>
+      <div class="field-row">
+        <div class="field"><label>Absen Keluar Mulai (Senin–Kamis)</label><div id="ctp_absSetPulangSK" class="ctp-mount" data-ctp="absSetPulangSK" data-placeholder="--:--"></div><input type="hidden" id="absSetPulangSK" /><div class="field-hint">Tombol Absen Keluar baru aktif mulai jam ini</div></div>
+        <div class="field"><label>Absen Keluar Mulai (Jumat)</label><div id="ctp_absSetPulangJumat" class="ctp-mount" data-ctp="absSetPulangJumat" data-placeholder="--:--"></div><input type="hidden" id="absSetPulangJumat" /></div>
+      </div>
+      <div class="field-row">
+        <div class="field"><label>Absen Keluar Sampai (Senin–Kamis)</label><div id="ctp_absSetPulangAkhirSK" class="ctp-mount" data-ctp="absSetPulangAkhirSK" data-placeholder="--:--"></div><input type="hidden" id="absSetPulangAkhirSK" /><div class="field-hint">Tombol Absen Keluar nonaktif lagi setelah jam ini — kosongkan kalau gak mau ada batas</div></div>
+        <div class="field"><label>Absen Keluar Sampai (Jumat)</label><div id="ctp_absSetPulangAkhirJumat" class="ctp-mount" data-ctp="absSetPulangAkhirJumat" data-placeholder="--:--"></div><input type="hidden" id="absSetPulangAkhirJumat" /></div>
+      </div>
+      <div class="field"><label>Toleransi Keterlambatan (menit)</label><input type="number" id="absSetToleransi" min="0" step="1" /></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('modalAbsSettings')"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>Batal</button>
+      <button class="btn btn-primary" onclick="saveAbsSettings()"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>Simpan Pengaturan</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Hari Libur (admin/full) -->
+<div class="modal-overlay" id="modalAbsLibur">
+  <div class="modal modal-lg">
+    <div class="modal-header">
+      <div class="modal-title">Hari Libur / Tanggal Merah</div>
+      <button class="btn-close" onclick="closeModal('modalAbsLibur')"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg></button>
+    </div>
+    <div class="modal-body">
+      <div class="field-row">
+        <div class="field"><label>Tanggal</label><div id="cdtp_absLiburTanggal" class="cdtp-mount" data-cdtp="absLiburTanggal" data-cdtp-date="1" data-placeholder="Pilih tanggal"></div><input type="hidden" id="absLiburTanggal" /></div>
+        <div class="field"><label>Keterangan</label><input type="text" id="absLiburKeterangan" placeholder="mis. Hari Kemerdekaan RI" /></div>
+      </div>
+      <input type="hidden" id="absLiburEditId" value="" />
+      <div style="display:flex;gap:10px;margin-bottom:20px">
+        <button class="btn btn-primary btn-sm" onclick="saveAbsLibur()"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg><span id="absLiburSaveLabel">Tambah Hari Libur</span></button>
+        <button class="btn btn-ghost btn-sm" id="btnCancelEditAbsLibur" style="display:none" onclick="cancelEditAbsLibur()"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>Batal</button>
+      </div>
+
+      <div style="border-top:1px solid var(--abu-1);padding-top:16px;margin-bottom:14px">
+        <div style="font-size:var(--fs-sm);font-weight:700;color:var(--teks-muted);margin-bottom:10px">Daftar Hari Libur</div>
+        <div style="display:flex;gap:10px;flex-wrap:wrap">
+          <div class="select-wrap" id="absLiburTahunWrap" style="width:100px"></div>
+          <div class="select-wrap" id="absLiburBulanWrap" style="width:150px"></div>
+        </div>
+      </div>
+      <div class="table-scroll-x" style="max-height:320px;overflow:auto">
+        <table class="periode-table">
+          <thead><tr><th>Tanggal</th><th>Keterangan</th><th></th></tr></thead>
+          <tbody id="absLiburList"></tbody>
+        </table>
+      </div>
+      <div id="absLiburPagination" style="margin-top:10px"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('modalAbsLibur')"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>Tutup</button>
+    </div>
+  </div>
+</div>
+
 <!-- Modal: User -->
 <div class="modal-overlay" id="modalUser">
   <div class="modal modal-lg">
@@ -2049,9 +2479,10 @@
     <div class="modal-body">
       <input type="hidden" id="userId" />
       <div class="field"><label>Nama *</label><input type="text" id="userNama" /></div>
+      <div class="field"><label>NIP *</label><input type="text" id="userNip" inputmode="numeric" /></div>
       <div class="field"><label>Email *</label><input type="email" id="userEmail" /></div>
 
-      <div class="field"><label>Penanggung Jawab</label><div class="select-wrap"><select id="userBidang"><option value="">— Pilih Penanggung Jawab —</option></select></div></div>
+      <div class="field"><label>Unit Kerja</label><div class="select-wrap"><select id="userBidang"><option value="">— Pilih Unit Kerja —</option></select></div></div>
     </div>
     <div class="modal-footer">
       <button class="btn btn-ghost" onclick="closeModal('modalUser')"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>Batal</button>
@@ -2113,6 +2544,45 @@
 
 
 <!-- Modal: Ganti Password (user sendiri) -->
+<div class="modal-overlay" id="modalAvatarUpload">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">Ganti Foto Profil</div>
+      <button class="btn-close" onclick="closeModal('modalAvatarUpload')"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg></button>
+    </div>
+    <div class="modal-body">
+      <div class="field">
+        <div style="display:flex;align-items:center;gap:14px;margin-bottom:4px">
+          <img id="avatarUploadPreview" src="" alt="Preview"
+            style="display:none;width:64px;height:64px;border-radius:50%;object-fit:cover;border:2px solid var(--hijau)" />
+          <div id="avatarUploadInitial" style="width:64px;height:64px;border-radius:50%;background:var(--hijau-light);color:var(--hijau);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:1.3rem;flex-shrink:0">A</div>
+          <div style="display:flex;flex-direction:column;gap:8px">
+            <div style="display:flex;gap:8px">
+              <input type="file" id="avatarUploadFile" accept="image/jpeg,image/png,image/webp" style="display:none" onchange="onAvatarFileChange(this)" />
+              <button type="button" class="btn btn-ghost btn-sm" onclick="document.getElementById('avatarUploadFile').click()">
+                <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                Upload Foto
+              </button>
+              <button type="button" class="btn-hapus" onclick="clearAvatarUpload()" data-tip="Hapus foto">
+                <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><polyline points="3 6 5 6 21 6"/><path stroke-linecap="round" stroke-linejoin="round" d="M19 6l-1 14H6L5 6"/><path stroke-linecap="round" stroke-linejoin="round" d="M10 11v6m4-6v6"/><path stroke-linecap="round" stroke-linejoin="round" d="M9 6V4h6v2"/></svg>
+              </button>
+            </div>
+            <span style="font-size:.75rem;color:var(--teks-muted)">JPG / PNG / WebP · maks. 2 MB</span>
+          </div>
+        </div>
+        <div id="avatarUploadProgress" style="display:none;height:4px;background:var(--abu-2);border-radius:4px;overflow:hidden;width:100%">
+          <div id="avatarUploadProgressBar" style="height:100%;width:0%;background:var(--hijau);transition:width .3s"></div>
+        </div>
+        <input type="hidden" id="avatarUploadUrl" />
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('modalAvatarUpload')"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>Batal</button>
+      <button class="btn btn-primary" onclick="saveAvatarUpload()"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>Simpan Foto</button>
+    </div>
+  </div>
+</div>
+
 <div class="modal-overlay" id="modalChangePassword">
   <div class="modal">
     <div class="modal-header">
@@ -2159,12 +2629,12 @@
 <div class="modal-overlay" id="modalBidang">
   <div class="modal">
     <div class="modal-header">
-      <div class="modal-title" id="modalBidangTitle">Tambah Bidang</div>
+      <div class="modal-title" id="modalBidangTitle">Tambah Unit Kerja</div>
       <button class="btn-close" onclick="closeModal('modalBidang')"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg></button>
     </div>
     <div class="modal-body">
       <input type="hidden" id="bidangId" />
-      <div class="field"><label>Nama Penanggung Jawab *</label><input type="text" id="bidangNama" placeholder="cth. Bidang Perencanaan" /></div>
+      <div class="field"><label>Nama Unit Kerja *</label><input type="text" id="bidangNama" placeholder="cth. Bidang Perencanaan" /></div>
     </div>
     <div class="modal-footer">
       <button class="btn btn-ghost" onclick="closeModal('modalBidang')"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>Batal</button>
@@ -2258,9 +2728,9 @@
       </div>
 
       <div class="field">
-        <label>Penanggung Jawab</label>
+        <label>Unit Kerja</label>
         <div class="select-wrap"><select id="indikatorPJ">
-          <option value="">— Pilih Penanggung Jawab —</option>
+          <option value="">— Pilih Unit Kerja —</option>
         </select></div>
       </div>
     </div>
@@ -2349,7 +2819,7 @@
 
     </div>
     <div class="modal-footer">
-      <button class="btn btn-ghost" onclick="closeModal('modalJenis')">Batal</button>
+      <button class="btn btn-ghost" onclick="closeModal('modalJenis')"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>Batal</button>
       <button class="btn btn-primary" onclick="saveJenis()">
         <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
         Simpan Jenis
@@ -2381,7 +2851,7 @@
       </div>
     </div>
     <div class="modal-footer">
-      <button class="btn btn-ghost" onclick="closeModal('modalKtAddTarget')">Batal</button>
+      <button class="btn btn-ghost" onclick="closeModal('modalKtAddTarget')"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>Batal</button>
       <button class="btn btn-primary" onclick="saveKtAddTarget()">
         <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
         Simpan
@@ -2409,7 +2879,7 @@
       <div id="ktDeleteTargetList" style="display:flex;flex-direction:column;gap:6px;max-height:280px;overflow-y:auto"></div>
     </div>
     <div class="modal-footer">
-      <button class="btn btn-ghost" onclick="closeModal('modalKtDeleteTarget')">Batal</button>
+      <button class="btn btn-ghost" onclick="closeModal('modalKtDeleteTarget')"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>Batal</button>
       <button class="btn btn-danger" onclick="saveKtDeleteTarget()">
         <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><polyline points="3 6 5 6 21 6"/><path stroke-linecap="round" stroke-linejoin="round" d="M19 6l-1 14H6L5 6"/><path stroke-linecap="round" stroke-linejoin="round" d="M10 11v6m4-6v6"/><path stroke-linecap="round" stroke-linejoin="round" d="M9 6V4h6v2"/></svg>
         Ya, Hapus
@@ -2482,7 +2952,7 @@
       </div>
     </div>
     <div class="modal-footer">
-      <button class="btn btn-ghost" onclick="closeModal('modalLapTemplate')">Batal</button>
+      <button class="btn btn-ghost" onclick="closeModal('modalLapTemplate')"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>Batal</button>
       <button class="btn btn-primary" onclick="saveLapTemplate()">
         <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>Simpan
       </button>
@@ -2515,8 +2985,8 @@
             <option value="spm">SPM</option>
           </select>
         </div>
-        <button class="btn btn-sm" onclick="_lapTplSelectAll()" style="white-space:nowrap;font-size:.78rem">Pilih Semua</button>
-        <button class="btn btn-sm" onclick="_lapTplClearAll()" style="white-space:nowrap;font-size:.78rem;color:#dc2626">Hapus Semua</button>
+        <button class="btn btn-sm" onclick="_lapTplSelectAll()" style="white-space:nowrap;font-size:.78rem"><svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><rect x="3" y="3" width="18" height="18" rx="3"/><path stroke-linecap="round" stroke-linejoin="round" d="M8 12l3 3 5-6"/></svg>Pilih Semua</button>
+        <button class="btn btn-sm" onclick="_lapTplClearAll()" style="white-space:nowrap;font-size:.78rem;color:#dc2626"><svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path stroke-linecap="round" stroke-linejoin="round" d="M19 6l-1 14H6L5 6"/><path stroke-linecap="round" stroke-linejoin="round" d="M10 11v6m4-6v6"/><path stroke-linecap="round" stroke-linejoin="round" d="M9 6V4h6v2"/></svg>Hapus Semua</button>
       </div>
       <!-- Info terpilih -->
       <div id="lapTplIndSelectedInfo" style="font-size:.78rem;color:#0d9488;font-weight:600;margin-bottom:8px"></div>
@@ -2524,7 +2994,7 @@
       <div id="lapTplIndList" style="display:flex;flex-direction:column;gap:4px;max-height:360px;overflow-y:auto;border:1px solid #e2e8f0;border-radius:8px;padding:8px"></div>
     </div>
     <div class="modal-footer" style="flex-shrink:0">
-      <button class="btn btn-ghost" onclick="closeModal('modalLapTemplateIndikator')">Batal</button>
+      <button class="btn btn-ghost" onclick="closeModal('modalLapTemplateIndikator')"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>Batal</button>
       <button class="btn btn-primary" onclick="saveLapTemplateIndikator()">
         <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>Simpan Indikator
       </button>
@@ -2591,6 +3061,7 @@
   }
   .dp-topbtn:hover { background:rgba(255,255,255,.18);color:#fff;border-color:rgba(255,255,255,.25); }
   .dp-topbtn:disabled { opacity:.3;cursor:not-allowed;pointer-events:none; }
+  .dp-topbtn.danger { background:rgba(239,68,68,.12);border-color:rgba(239,68,68,.35);color:#fca5a5; }
   .dp-topbtn.danger:hover { background:#ef4444;border-color:#ef4444;color:#fff; }
   .dp-sidenav {
     position:absolute;top:50%;transform:translateY(-50%);
@@ -2662,7 +3133,7 @@
 <div id="docPreviewPanel" style="
   display:none;position:fixed;
   top:var(--topbar-h,55px);left:var(--sidebar-w,233px);right:0;bottom:0;
-  z-index:400;background:#0d1626;flex-direction:column;
+  z-index:600;background:#0d1626;flex-direction:column;
 ">
   <!-- ── Top bar ── -->
   <div style="
@@ -2712,7 +3183,7 @@
         <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><polyline points="3 6 5 6 21 6"/><path stroke-linecap="round" stroke-linejoin="round" d="M19 6l-1 14H6L5 6"/><path stroke-linecap="round" stroke-linejoin="round" d="M10 11v6m4-6v6"/><path stroke-linecap="round" stroke-linejoin="round" d="M9 6V4h6v2"/></svg>
       </button>
       <!-- Tutup -->
-      <button class="dp-topbtn danger" onclick="closeDocPreview()" data-tip="Tutup (Esc)">
+      <button class="dp-topbtn" onclick="closeDocPreview()" data-tip="Tutup (Esc)">
         <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
       </button>
     </div>
@@ -2747,21 +3218,21 @@
 // Disimpan di sessionStorage supaya kalau user ganti ke email lain lalu balik
 // lagi ke email yang masih terkunci, tombol Login tetap disabled sampai
 // waktu unlock-nya (15 menit) benar-benar lewat.
-const LOGIN_LOCK_KEY = 'sapa_login_lock'; // { email, until }
+const LOGIN_LOCK_KEY = 'sapa_login_lock'; // { nip, until }
 
 function _getLoginLock() {
   try {
     const raw = sessionStorage.getItem(LOGIN_LOCK_KEY);
     if (!raw) return null;
     const data = JSON.parse(raw);
-    if (!data?.email || !data?.until) return null;
+    if (!data?.nip || !data?.until) return null;
     if (Date.now() >= data.until) { sessionStorage.removeItem(LOGIN_LOCK_KEY); return null; }
     return data;
   } catch { return null; }
 }
 
-function _setLoginLock(email, untilTs) {
-  try { sessionStorage.setItem(LOGIN_LOCK_KEY, JSON.stringify({ email: email.toLowerCase().trim(), until: untilTs })); } catch {}
+function _setLoginLock(nip, untilTs) {
+  try { sessionStorage.setItem(LOGIN_LOCK_KEY, JSON.stringify({ nip: nip.trim(), until: untilTs })); } catch {}
 }
 
 function _clearLoginLock() {
@@ -2769,15 +3240,15 @@ function _clearLoginLock() {
 }
 
 // Sinkronkan tombol Login + pesan error dengan lock state saat ini,
-// berdasarkan email yang sedang diketik di form.
+// berdasarkan NIP yang sedang diketik di form.
 function _syncLoginLockUI() {
-  const emailEl = document.getElementById('loginEmail');
-  const btn     = document.getElementById('loginBtn');
-  if (!emailEl || !btn) return;
-  const lock     = _getLoginLock();
-  const curEmail = emailEl.value.trim().toLowerCase();
+  const nipEl = document.getElementById('loginNip');
+  const btn   = document.getElementById('loginBtn');
+  if (!nipEl || !btn) return;
+  const lock   = _getLoginLock();
+  const curNip = nipEl.value.trim();
 
-  if (lock && lock.email === curEmail) {
+  if (lock && lock.nip === curNip) {
     btn.disabled = true;
     const menit = Math.max(1, Math.ceil((lock.until - Date.now()) / 60000));
     _loginShowErr(`Terlalu banyak percobaan login. Coba lagi dalam ${menit} menit.`, 'lock');
@@ -2790,18 +3261,43 @@ function _syncLoginLockUI() {
 // user diam di form, tombol otomatis enabled tanpa perlu ngetik apa-apa.
 // Cek ulang tiap beberapa saat juga — browser autofill kadang tidak memicu
 // event 'input' secara konsisten, jadi polling ini jadi jaring pengaman supaya
-// email hasil autofill tetap kedeteksi locked walau tanpa event apa pun.
+// NIP hasil autofill tetap kedeteksi locked walau tanpa event apa pun.
 setInterval(_syncLoginLockUI, 1000);
 
 document.addEventListener('DOMContentLoaded', () => {
-  const _emailEl = document.getElementById('loginEmail');
-  if (_emailEl) {
+  const _nipEl = document.getElementById('loginNip');
+  if (_nipEl) {
     ['input', 'change', 'blur', 'keyup', 'animationstart'].forEach(ev => {
-      _emailEl.addEventListener(ev, _syncLoginLockUI);
+      _nipEl.addEventListener(ev, _syncLoginLockUI);
     });
   }
   _syncLoginLockUI();
 });
+
+// NIP standar (BKN) selalu 18 digit — kasih indikator warna real-time biar
+// user langsung tahu kalau ketikannya masih kurang/kelebihan karakter,
+// tanpa harus nunggu submit & dapat error dari server.
+const NIP_LEN = 18;
+function _checkNipLen() {
+  const nipEl = document.getElementById('loginNip');
+  if (!nipEl) return;
+  const val = nipEl.value.trim();
+  nipEl.classList.remove('nip-warn', 'nip-ok');
+  if (!val) return;
+
+  if (val.length === NIP_LEN) {
+    nipEl.classList.add('nip-ok');
+  } else {
+    nipEl.classList.add('nip-warn');
+  }
+}
+document.addEventListener('DOMContentLoaded', () => {
+  const _nipEl2 = document.getElementById('loginNip');
+  if (_nipEl2) {
+    ['input', 'blur', 'animationstart'].forEach(ev => _nipEl2.addEventListener(ev, _checkNipLen));
+  }
+});
+
 
 function showLoginOverlay(msg) {
   const overlay = document.getElementById('loginOverlay');
@@ -2810,12 +3306,13 @@ function showLoginOverlay(msg) {
   document.body.classList.add('login-mode');             // body
   const shell = document.getElementById('appShell');
   if (shell) shell.style.visibility = 'hidden';
-  document.getElementById('loginEmail').value    = '';
+  document.getElementById('loginNip').value    = '';
   document.getElementById('loginPassword').value = '';
   document.getElementById('loginErrMsg').innerHTML = '';
+  document.getElementById('loginNip').classList.remove('nip-warn', 'nip-ok');
   document.getElementById('loginBtn').disabled = false;
   if (msg) _loginShowErr(msg);
-  setTimeout(() => document.getElementById('loginEmail').focus(), 100);
+  setTimeout(() => document.getElementById('loginNip').focus(), 100);
 }
 
 function hideLoginOverlay() {
@@ -2937,26 +3434,26 @@ async function _getBrowserLokasi() {
 }
 
 async function doLogin() {
-  const email    = document.getElementById('loginEmail').value.trim();
+  const nip      = document.getElementById('loginNip').value.trim();
   const password = document.getElementById('loginPassword').value;
   const btn      = document.getElementById('loginBtn');
   let _rateLimited = false;
 
   document.getElementById('loginErrMsg').innerHTML = '';
-  document.getElementById('loginEmail').classList.remove('error');
+  document.getElementById('loginNip').classList.remove('error');
   document.getElementById('loginPassword').classList.remove('error');
 
-  if (!email || !password) {
-    _loginShowErr('Email dan password wajib diisi');
-    if (!email)    document.getElementById('loginEmail').classList.add('error');
+  if (!nip || !password) {
+    _loginShowErr('Username dan password wajib diisi');
+    if (!nip)      document.getElementById('loginNip').classList.add('error');
     if (!password) document.getElementById('loginPassword').classList.add('error');
     return;
   }
 
-  // Kalau email ini masih dalam status lock (dari percobaan sebelumnya), jangan
+  // Kalau NIP ini masih dalam status lock (dari percobaan sebelumnya), jangan
   // tembak API lagi — cukup sinkronkan UI (tombol disabled + pesan sisa waktu).
   const _existingLock = _getLoginLock();
-  if (_existingLock && _existingLock.email === email.toLowerCase()) {
+  if (_existingLock && _existingLock.nip === nip) {
     _syncLoginLockUI();
     return;
   }
@@ -2967,18 +3464,18 @@ async function doLogin() {
     const r = await fetch('/api/auth/login', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password, lokasi: _lokasi }),
+      body: JSON.stringify({ nip, password, lokasi: _lokasi }),
     });
     const data = await r.json();
     if (!r.ok) {
       if (r.status === 429) {
         const _lockUntil = Date.now() + 15 * 60 * 1000;
-        _setLoginLock(email, _lockUntil);
+        _setLoginLock(nip, _lockUntil);
         _syncLoginLockUI();
         _rateLimited = true;
         return;
       }
-      let errMsg = data.error || 'Email atau password salah';
+      let errMsg = data.error || 'Username atau password salah';
       let errType = 'warn';
       if (typeof data.sisa_percobaan === 'number') {
         errMsg += data.sisa_percobaan > 0
@@ -3006,6 +3503,10 @@ async function doLogin() {
         const el = (id) => document.getElementById(id);
         el('topbarAvatar').textContent = initial;
         el('topbarName').textContent   = _u.nama;
+        // Refresh avatar foto profil dari server — biar gak nyangkut foto
+        // user sebelumnya (login itu SPA, gak reload, jadi boot IIFE app.js
+        // gak kepanggil ulang; _bootRefreshFoto scope global sekarang).
+        if (typeof _bootRefreshFoto === 'function') _bootRefreshFoto();
         el('topbarRole').textContent   = _u.is_admin ? 'Super Admin' : (_u.bidang_nama || '');
         el('ddName').textContent       = _u.nama;
         const _ddR = el('ddRole');
@@ -3026,6 +3527,13 @@ async function doLogin() {
             if (typeof _cekKinerjaIndikator === 'function') await _cekKinerjaIndikator();
           } catch(e) { console.warn('[doLogin boot]', e); }
           buildSidebar();
+          // Reminder absen masuk/keluar — sama kayak di app.js (_domReady),
+          // biar muncul juga pas login pertama, gak perlu nunggu reload.
+          if (typeof _cekAbsensiReminder === 'function') _cekAbsensiReminder();
+          // Reminder pengajuan tugas luar/cuti pending (admin/full) — sama
+          // kayak di app.js (_domReady), biar modal Persetujuan langsung
+          // kebuka pas login pertama juga, bukan cuma pas reload.
+          if (typeof _cekPengajuanPendingReminder === 'function') _cekPengajuanPendingReminder();
 
           // ── Samakan dengan logic landing page di app.js (_domReady) ──────────
           // Aturan: kalau user (admin atau non-admin) punya akses ke Dashboard
@@ -3086,18 +3594,51 @@ async function doLogin() {
   }
 }
 
+let _loginErrTimerId = null;   // supaya pesan lama gak nimpa pesan baru pas auto-hide
+let _loginErrToken   = 0;      // penanda "pesan keberapa" — lebih pasti drpd compare innerHTML string
+
 function _loginShowErr(msg, type = 'warn') {
   const icons = {
     warn: `<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>`,
     lock: `<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>`,
   };
   const icon = icons[type] || icons.warn;
-  document.getElementById('loginErrMsg').innerHTML = `${icon}${msg}`;
+  const el = document.getElementById('loginErrMsg');
+  el.innerHTML = `${icon}${msg}`;
+
+  clearTimeout(_loginErrTimerId);
+  const _myToken = ++_loginErrToken;
+  // Pesan lock (akun terkunci) tetap tampil — statusnya masih relevan selama masa lock.
+  // Pesan warn (NIP salah, akun tidak terdaftar, dll) hilang otomatis stlh 5 detik.
+  if (type !== 'lock') {
+    _loginErrTimerId = setTimeout(() => {
+      if (_myToken === _loginErrToken) el.innerHTML = '';
+    }, 5000);
+  }
 }
+
+// Tagline watermark di panel kiri diambil dari kolom Visi (Profil Instansi,
+// diatur admin lewat menu Profil) — supaya bisa diubah tanpa perlu edit kode.
+// Fallback ke teks default kalau visi belum diisi / endpoint gagal.
+(async function _loadMotoTagline() {
+  const el = document.getElementById('motoMain');
+  if (!el) return;
+  try {
+    const r = await fetch('/api/landing/profil');
+    if (!r.ok) return;
+    const data = await r.json();
+    if (data?.visi && data.visi.trim()) {
+      el.textContent = data.visi.trim();
+      if (data.visi.trim().length > 40) el.classList.add('moto-long');
+    }
+  } catch (err) {
+    console.warn('[_loadMotoTagline]', err);
+  }
+})();
 </script>
 
 <!-- ════════════════ SCRIPTS ════════════════ -->
-<script src="js/periode_frontend.js?v=1.0.9"></script>
+<script src="js/periode_frontend.js?v=1.1.1"></script>
 <script>
 /* ── CDTP Teleport: pindahkan panel kalender ke <body> saat dibuka ──────────
    Ini satu-satunya cara yang benar-benar reliable agar panel tidak terpotong
@@ -3175,7 +3716,7 @@ function _loginShowErr(msg, type = 'warn') {
     var trigger = e.target.closest('.cdtp-trigger');
     if (!trigger) return;
 
-    var wrap  = trigger.closest('.cdtp-wrap, [data-cdtp]');
+    var wrap  = trigger.closest('.cdtp-wrap, [data-cdtp], [data-ctp]');
     if (!wrap) return;
 
     // Cari panel — bisa di wrap asli atau sudah di body (teleport)
@@ -3244,19 +3785,20 @@ function _loginShowErr(msg, type = 'warn') {
 })();
 </script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/quill/1.3.7/quill.min.js"></script>
-  <script src="js/app.js?v=1.0.9"></script>
-<script src="js/dashboard.js?v=1.0.9"></script>
+  <script src="js/app.js?v=1.1.1"></script>
+<script src="js/dashboard.js?v=1.1.1"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
-<script src="js/superlink.js?v=1.0.9"></script>
-<script src="js/pengumuman_frontend.js?v=1.0.9"></script>
-<script src="js/surat.js?v=1.0.9"></script>
-<script src="js/users_frontend.js?v=1.0.9"></script>
-<script src="js/kinerja.js?v=1.0.9"></script>
-<script src="js/laporan.js?v=1.0.9"></script>
-<script src="js/struktur_frontend.js?v=1.0.9"></script>
-<script src="js/audit_frontend.js?v=1.0.9"></script>
-<script src="js/dokumen_publik_frontend.js?v=1.0.9"></script>
-<script src="js/profil_frontend.js?v=1.0.9"></script>
+<script src="js/superlink.js?v=1.1.1"></script>
+<script src="js/pengumuman_frontend.js?v=1.1.1"></script>
+<script src="js/surat.js?v=1.1.1"></script>
+<script src="js/absensi_frontend.js?v=1.1.1"></script>
+<script src="js/users_frontend.js?v=1.1.1"></script>
+<script src="js/kinerja.js?v=1.1.1"></script>
+<script src="js/laporan.js?v=1.1.1"></script>
+<script src="js/struktur_frontend.js?v=1.1.1"></script>
+<script src="js/audit_frontend.js?v=1.1.1"></script>
+<script src="js/dokumen_publik_frontend.js?v=1.1.1"></script>
+<script src="js/profil_frontend.js?v=1.1.1"></script>
 
 <script>
 /* ═══════════════════════════════════════════════════════════════════════════
@@ -3306,7 +3848,7 @@ function _loginShowErr(msg, type = 'warn') {
       searchWrap.className = 'csel-search-wrap';
       searchWrap.innerHTML = `
         <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-4.35-4.35"/></svg>
-        <input type="text" class="csel-search-input" placeholder="Cari nama…" autocomplete="off" />`;
+        <input type="text" class="csel-search-input" placeholder="${sel.dataset.searchPlaceholder || 'Cari nama…'}" autocomplete="off" />`;
       panel.appendChild(searchWrap);
       searchInput = searchWrap.querySelector('.csel-search-input');
 
@@ -3579,8 +4121,8 @@ function _loginShowErr(msg, type = 'warn') {
       <button onclick="_idleStayLoggedIn()" style="
         padding:.6rem 2rem;border-radius:8px;border:none;
         background:var(--hijau,#0f766e);color:#fff;font-weight:700;
-        font-size:.88rem;cursor:pointer;
-      ">Tetap Masuk</button>
+        font-size:.88rem;cursor:pointer;display:inline-flex;align-items:center;gap:6px;
+      "><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M20 6L9 17l-5-5"/></svg>Tetap Masuk</button>
     </div>
   </div>
 </div>
@@ -3735,7 +4277,8 @@ function _loginShowErr(msg, type = 'warn') {
     banner.innerHTML =
       '<span>Ada pembaruan tersedia.</span>' +
       '<button type="button" style="background:var(--teal,#14b8a6);color:#042c26;border:none;' +
-      'padding:6px 14px;border-radius:999px;font-weight:600;font-size:13px;cursor:pointer;">Muat ulang</button>';
+      'padding:6px 14px;border-radius:999px;font-weight:600;font-size:13px;cursor:pointer;display:inline-flex;align-items:center;gap:5px;">' +
+      '<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>Muat ulang</button>';
     banner.querySelector('button').addEventListener('click', function () {
       window.location.reload();
     });

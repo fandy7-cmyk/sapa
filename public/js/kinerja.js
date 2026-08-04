@@ -79,11 +79,41 @@ function _renderRealisasiInputCell(row, idPrefix, onchangeFn) {
     // browser begitu baris dibuka lewat tombol Edit.
     return `<div class="select-wrap" style="min-width:110px">${selectEl}</div>`;
   }
-  return `<input type="number" id="${id}" value="${row.realisasi_display != null ? row.realisasi_display : (row.realisasi != null ? parseFloat(row.realisasi) : '')}"
+  const spinBtns = disabled ? '' : `
+    <button type="button" class="realisasi-spin-btn" data-dir="1" tabindex="-1" aria-label="Tambah realisasi"
+      onclick="_realisasiSpin(this,1,'${onchangeFn}',${row.id})">
+      <svg xmlns="http://www.w3.org/2000/svg" width="9" height="9" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M5 15l7-7 7 7"/></svg>
+    </button>
+    <button type="button" class="realisasi-spin-btn" data-dir="-1" tabindex="-1" aria-label="Kurangi realisasi"
+      onclick="_realisasiSpin(this,-1,'${onchangeFn}',${row.id})">
+      <svg xmlns="http://www.w3.org/2000/svg" width="9" height="9" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
+    </button>`;
+  return `<div class="realisasi-spin">
+    <input type="number" id="${id}" value="${row.realisasi_display != null ? row.realisasi_display : (row.realisasi != null ? parseFloat(row.realisasi) : '')}"
              placeholder="0" step="0.01" ${disabled ? 'readonly' : ''}
              data-tip="${disabled ? 'Klik tombol Edit untuk mengisi realisasi' : ''}"
              style="${disabled ? 'cursor:not-allowed' : ''}"
-             oninput="${onchangeFn}(${row.id})">`;
+             oninput="${onchangeFn}(${row.id})">${spinBtns}
+  </div>`;
+}
+
+// Tombol spin custom buat cell realisasi (gaya sama kayak spinner jam di custom
+// datetime picker/cdtp) — gantiin spinner native browser yang gak konsisten
+// antar-browser. dir = 1 (tambah) / -1 (kurang), step diambil dari atribut
+// step input (default 0.01), lalu manual trigger onchangeFn (markDirty dkk)
+// biar state dirty & preview capaian tetap sinkron kayak input manual.
+function _realisasiSpin(btn, dir, onchangeFn, rowId) {
+  const wrap = btn.closest('.realisasi-spin');
+  const inp = wrap?.querySelector('input[type="number"]');
+  if (!inp || inp.readOnly || inp.disabled) return;
+  const stepStr = inp.step || '1';
+  const step = parseFloat(stepStr) || 1;
+  const decimals = (stepStr.split('.')[1] || '').length;
+  let v = (parseFloat(inp.value) || 0) + dir * step;
+  v = Math.round(v * Math.pow(10, decimals)) / Math.pow(10, decimals);
+  inp.value = v;
+  inp.focus();
+  if (typeof window[onchangeFn] === 'function') window[onchangeFn](rowId);
 }
 
 // Ambil label tampilan realisasi buat dikirim sebagai realisasi_display: kalau
@@ -219,7 +249,7 @@ function _renderKinerjaWindowBanner(containerId, jenis) {
   // Admin → tidak tampilkan banner
   if (_user?.is_admin) { wrap.innerHTML = ''; return; }
 
-  const fmtDT = iso => iso ? new Date(iso).toLocaleString('id-ID', { day:'2-digit', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' }) : '—';
+  const fmtDT = iso => iso ? new Date(iso).toLocaleString('id-ID', { day:'2-digit', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit', timeZone: 'Asia/Makassar' }) + ' WITA' : '—';
 
   // Cari periode untuk bulan yang sedang dipilih, filter by jenis
   const targetBulan = jenis === 'ikk' ? _ikk_bulan : jenis === 'spm' ? _spm_bulan : _kinerja_bulan;
@@ -281,8 +311,8 @@ function _renderKinerjaCountdown(containerId, jenis) {
 
   const closeMs = new Date(pa.close_at).getTime();
   const openMs  = pa.open_at ? new Date(pa.open_at).getTime() : null;
-  const openLabel  = pa.open_at  ? new Date(pa.open_at).toLocaleString('id-ID', { day:'2-digit', month:'long', year:'numeric', hour:'2-digit', minute:'2-digit' }).replace(' pukul','') : '—';
-  const closeLabel = new Date(pa.close_at).toLocaleString('id-ID', { day:'2-digit', month:'long', year:'numeric', hour:'2-digit', minute:'2-digit' }).replace(' pukul','');
+  const openLabel  = pa.open_at  ? new Date(pa.open_at).toLocaleString('id-ID', { day:'2-digit', month:'long', year:'numeric', hour:'2-digit', minute:'2-digit', timeZone: 'Asia/Makassar' }).replace(' pukul','') + ' WITA' : '—';
+  const closeLabel = new Date(pa.close_at).toLocaleString('id-ID', { day:'2-digit', month:'long', year:'numeric', hour:'2-digit', minute:'2-digit', timeZone: 'Asia/Makassar' }).replace(' pukul','') + ' WITA';
   const bulanTahunLabel = `${BULAN_FULL[pa.bulan]} ${pa.tahun}`;
   const jm = _kperiodeJenisMeta(jenis);
 
@@ -1683,7 +1713,7 @@ function renderGroupAdmin() {
         <td style="text-align:center">${g.urutan}</td>
         <td style="white-space:nowrap">
           <button class="btn btn-ghost btn-sm" data-tip="Edit" onclick="openGroupModal(${g.id})"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg></button>
-          <button class="btn btn-danger btn-sm" data-tip="Hapus" onclick="deleteGroup(${g.id})"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path stroke-linecap="round" stroke-linejoin="round" d="M19 6l-1 14H6L5 6"/><path stroke-linecap="round" stroke-linejoin="round" d="M10 11v6m4-6v6"/><path stroke-linecap="round" stroke-linejoin="round" d="M9 6V4h6v2"/></svg></button>
+          <button class="btn-hapus" data-tip="Hapus" onclick="deleteGroup(${g.id})"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path stroke-linecap="round" stroke-linejoin="round" d="M19 6l-1 14H6L5 6"/><path stroke-linecap="round" stroke-linejoin="round" d="M10 11v6m4-6v6"/><path stroke-linecap="round" stroke-linejoin="round" d="M9 6V4h6v2"/></svg></button>
         </td>
       </tr>`;
   }).join('');
@@ -2042,7 +2072,7 @@ function renderIndikatorAdmin() {
       _indikatorList.map(r => r.penanggung_jawab).filter(Boolean)
     )].sort();
     const currentPJ = pjSelect.value;
-    pjSelect.innerHTML = '<option value="">Semua Bidang</option>' +
+    pjSelect.innerHTML = '<option value="">Semua Unit Kerja</option>' +
       pjList.map(pj => `<option value="${escHtml(pj)}" ${pj === currentPJ ? 'selected' : ''}>${escHtml(pj)}</option>`).join('');
   }
 
@@ -2111,7 +2141,7 @@ function renderIndikatorAdmin() {
             : '';
           return badges + moreBadge;
         })()}</td>
-        <td>${escHtml(row.penanggung_jawab || '—')}</td>
+        <td style="max-width:220px;white-space:normal;word-break:break-word;line-height:1.35">${escHtml(row.penanggung_jawab || '—')}</td>
         <td>${(() => {
           const pics = Array.isArray(row.pic_users) ? row.pic_users.filter(Boolean) : [];
           if (!pics.length) return '<span style="color:var(--teks-muted);font-size:.75rem">—</span>';
@@ -2132,7 +2162,7 @@ function renderIndikatorAdmin() {
         </td>
         <td style="white-space:nowrap">
           <button class="btn btn-ghost btn-sm" data-tip="Edit" onclick="openIndikatorModal(${row.id})"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg></button>
-          <button class="btn btn-danger btn-sm" data-tip="Hapus" onclick="deleteIndikator(${row.id})"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path stroke-linecap="round" stroke-linejoin="round" d="M19 6l-1 14H6L5 6"/><path stroke-linecap="round" stroke-linejoin="round" d="M10 11v6m4-6v6"/><path stroke-linecap="round" stroke-linejoin="round" d="M9 6V4h6v2"/></svg></button>
+          <button class="btn-hapus" data-tip="Hapus" onclick="deleteIndikator(${row.id})"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path stroke-linecap="round" stroke-linejoin="round" d="M19 6l-1 14H6L5 6"/><path stroke-linecap="round" stroke-linejoin="round" d="M10 11v6m4-6v6"/><path stroke-linecap="round" stroke-linejoin="round" d="M9 6V4h6v2"/></svg></button>
         </td>
       </tr>`;
   });
@@ -2517,7 +2547,7 @@ function _renderTargetRows() {
         oninput="_targetRows[${i}].target_display=this.value;_targetRows[${i}].target=this.value"
         style="width:120px;padding:5px 8px;border:1.5px solid #e2e8f0;border-radius:6px;font-size:.83rem"></td>
       <td style="text-align:center">
-        <button onclick="_removeTargetRow(${i})" data-tip="Hapus" style="background:none;border:none;cursor:pointer;color:var(--merah);padding:2px 6px;font-size:1rem">&#x2715;</button>
+        <button onclick="_removeTargetRow(${i})" data-tip="Hapus" style="background:none;border:none;cursor:pointer;color:var(--merah);padding:2px 6px;display:inline-flex;align-items:center"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M18 6L6 18M6 6l12 12"/></svg></button>
       </td>
     </tr>`).join('');
 }
@@ -2652,7 +2682,7 @@ function renderKelolJenisSection(allJenis) {
           <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
         </button>
         ${j.is_builtin ? '' : `
-        <button class="btn btn-danger btn-sm" data-tip="Hapus" onclick="deleteJenis(${j.id}, '${escHtml(j.label)}')">
+        <button class="btn-hapus" data-tip="Hapus" onclick="deleteJenis(${j.id}, '${escHtml(j.label)}')">
           <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path stroke-linecap="round" stroke-linejoin="round" d="M19 6l-1 14H6L5 6"/><path stroke-linecap="round" stroke-linejoin="round" d="M10 11v6m4-6v6"/><path stroke-linecap="round" stroke-linejoin="round" d="M9 6V4h6v2"/></svg>
         </button>`}
       </td>
@@ -3011,7 +3041,7 @@ function renderKelolaTarget() {
     const addCell = `<td style="text-align:center;border-left:1px solid var(--abu-1)">
       <div style="display:inline-flex;align-items:center;gap:6px">
         <button class="btn btn-ghost btn-sm" data-tip="Tambah tahun lain" onclick="openKtAddTarget(${ind.id})"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg></button>
-        <button class="btn btn-danger btn-sm" data-tip="Hapus target" ${!hasAnyTarget ? 'disabled' : ''} onclick="openKtDeleteTarget(${ind.id})"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path stroke-linecap="round" stroke-linejoin="round" d="M19 6l-1 14H6L5 6"/><path stroke-linecap="round" stroke-linejoin="round" d="M10 11v6m4-6v6"/><path stroke-linecap="round" stroke-linejoin="round" d="M9 6V4h6v2"/></svg></button>
+        <button class="btn-hapus" data-tip="Hapus target" ${!hasAnyTarget ? 'disabled' : ''} onclick="openKtDeleteTarget(${ind.id})"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path stroke-linecap="round" stroke-linejoin="round" d="M19 6l-1 14H6L5 6"/><path stroke-linecap="round" stroke-linejoin="round" d="M10 11v6m4-6v6"/><path stroke-linecap="round" stroke-linejoin="round" d="M9 6V4h6v2"/></svg></button>
       </div>
     </td>`;
 
@@ -5228,8 +5258,8 @@ function _monRenderPJCards() {
     <div style="margin-bottom:var(--sp-5)">
       <div style="font-size:var(--fs-sm);font-weight:700;color:var(--teks);margin-bottom:var(--sp-3);display:flex;align-items:center;gap:var(--sp-2)">
         <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="var(--hijau)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>
-        <span>Progress per Penanggung Jawab</span>
-        ${_mon_pj ? `<button onclick="setMonPJ('')" style="font-size:var(--fs-xs);background:var(--hijau-light);border:none;border-radius:999px;padding:2px 10px;cursor:pointer;color:var(--hijau);font-weight:700;display:inline-flex;align-items:center;gap:3px">✕ Reset</button>` : ''}
+        <span>Progress per Unit Kerja</span>
+        ${_mon_pj ? `<button onclick="setMonPJ('')" style="font-size:var(--fs-xs);background:var(--hijau-light);border:none;border-radius:999px;padding:2px 10px;cursor:pointer;color:var(--hijau);font-weight:700;display:inline-flex;align-items:center;gap:3px"><svg xmlns="http://www.w3.org/2000/svg" width="9" height="9" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>Reset</button>` : ''}
       </div>
       <div style="display:flex;flex-wrap:wrap;gap:var(--sp-3)">${cards}</div>
     </div>`;
@@ -5299,7 +5329,7 @@ function _monRenderUserCards() {
       <div style="font-size:var(--fs-sm);font-weight:700;color:var(--teks);margin-bottom:var(--sp-3);display:flex;align-items:center;gap:var(--sp-2)">
         <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="var(--hijau)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
         <span>Progress per User — ${escHtml(_mon_pj)}</span>
-        ${_mon_user ? `<button onclick="setMonUser('')" style="font-size:var(--fs-xs);background:var(--hijau-light);border:none;border-radius:999px;padding:2px 10px;cursor:pointer;color:var(--hijau);font-weight:700;display:inline-flex;align-items:center;gap:3px">✕ Reset</button>` : ''}
+        ${_mon_user ? `<button onclick="setMonUser('')" style="font-size:var(--fs-xs);background:var(--hijau-light);border:none;border-radius:999px;padding:2px 10px;cursor:pointer;color:var(--hijau);font-weight:700;display:inline-flex;align-items:center;gap:3px"><svg xmlns="http://www.w3.org/2000/svg" width="9" height="9" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>Reset</button>` : ''}
       </div>
       <div style="display:flex;flex-wrap:wrap;gap:var(--sp-3)">${cards}</div>
     </div>`;
@@ -5368,7 +5398,7 @@ function _monRenderTable() {
   rows = rows.slice(start, start + _MON_PER_PAGE);
 
   const fmtDT = iso => iso
-    ? new Date(iso).toLocaleString('id-ID', { day:'2-digit', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' }) + ' WITA'
+    ? new Date(iso).toLocaleString('id-ID', { day:'2-digit', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit', timeZone: 'Asia/Makassar' }) + ' WITA'
     : '—';
 
   let html = '';
