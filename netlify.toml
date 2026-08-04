@@ -18,6 +18,13 @@
     Pragma = "no-cache"
     Expires = "0"
 
+[[headers]]
+  for = "/bundle.html"
+  [headers.values]
+    Cache-Control = "no-cache, no-store, must-revalidate"
+    Pragma = "no-cache"
+    Expires = "0"
+
 # index.html: selalu fresh (SPA entry point, tidak boleh di-cache)
 [[headers]]
   for = "/index.html"
@@ -285,3 +292,12 @@
 
 [functions]
   node_bundler = "esbuild"
+
+# ── Scheduled: auto-tandai Alpa pegawai yg gak absen sama sekali ────────────
+# Jalan tiap hari jam 00:15 WITA (16:15 UTC). Logikanya ada di function
+# terpisah netlify/functions/absensi-cron-alpa.js (BUKAN di absensi.js) —
+# sengaja dipisah krn Netlify gak izinin satu function jadi scheduled
+# function SEKALIGUS endpoint HTTP biasa; kalau digabung, semua request
+# normal ke /api/absensi/* ikut ke-block ("which is a scheduled function").
+[functions."absensi-cron-alpa"]
+  schedule = "15 16 * * *"
