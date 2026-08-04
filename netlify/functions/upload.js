@@ -32,8 +32,10 @@ const FOLDER_MAP = {
   kinerja_spm:  'SAPA/Kinerja/SPM',
   surat_keluar: 'SAPA/Surat/Surat Keluar',
   surat_masuk:  'SAPA/Surat/Surat Masuk',
+  absensi:      'SAPA/Absensi',
+  foto_profil:  'SAPA/Foto Profil',
 };
-const DEFAULT_FOLDER = 'surat-dinkes';
+const DEFAULT_FOLDER = 'SAPA';
 
 const MAX_SIZE_MB = 2;
 

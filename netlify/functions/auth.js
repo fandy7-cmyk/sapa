@@ -16,15 +16,16 @@ export const handler = async (event) => {
 
   // ── LOGIN ──────────────────────────────────────────────────
   if (event.httpMethod === 'POST' && path === '/login') {
-    const { email, password, lokasi } = parseBody(event);
-    if (!email || !password) return errorResponse('Email dan password wajib diisi', 400);
+    const { nip, password, lokasi } = parseBody(event);
+    if (!nip || !password) return errorResponse('Username dan password wajib diisi', 400);
 
-    const emailNorm = email.toLowerCase().trim();
+    // NIP tetap string (bukan number) — bisa punya leading zero & panjangnya tetap (18 digit)
+    const nipNorm = String(nip).trim();
     const { ip } = getReqMeta(event);
 
-    const rateCheck = await checkLoginRateLimit(sql, emailNorm, ip);
+    const rateCheck = await checkLoginRateLimit(sql, nipNorm, ip);
     if (!rateCheck.allowed) {
-      await logAudit(sql, event, { email: emailNorm, aksi: 'login_blocked', lokasi_client: lokasi });
+      await logAudit(sql, event, { aksi: 'login_blocked', detail: { nip: nipNorm }, lokasi_client: lokasi });
       return errorResponse('Terlalu banyak percobaan login. Coba lagi dalam 15 menit.', 429);
     }
 
@@ -33,27 +34,26 @@ export const handler = async (event) => {
         SELECT u.*, b.nama AS bidang_nama, b.singkatan AS bidang_singkatan
         FROM users u
         LEFT JOIN bidang b ON b.id = u.bidang_id
-        WHERE u.email = ${emailNorm} LIMIT 1
+        WHERE u.nip = ${nipNorm} LIMIT 1
       `;
       if (!rows.length) {
-        await recordLoginAttempt(sql, emailNorm, ip);
-        await logAudit(sql, event, { email: emailNorm, aksi: 'login_failed', detail: { reason: 'email_not_found' }, lokasi_client: lokasi });
-        const sisa = Math.max(0, MAX_LOGIN_ATTEMPTS - (rateCheck.count + 1));
-        return errorResponse('Email atau password salah', 401, { sisa_percobaan: sisa });
+        await recordLoginAttempt(sql, nipNorm, ip);
+        await logAudit(sql, event, { aksi: 'login_failed', detail: { nip: nipNorm, reason: 'nip_not_found' }, lokasi_client: lokasi });
+        return errorResponse('Akun tidak terdaftar, hubungi admin', 401);
       }
 
       const user = rows[0];
       const valid = await bcrypt.compare(password, user.password_hash);
       if (!valid) {
-        await recordLoginAttempt(sql, emailNorm, ip);
-        await logAudit(sql, event, { user_id: user.id, nama: user.nama, email: emailNorm, aksi: 'login_failed', detail: { reason: 'wrong_password' }, lokasi_client: lokasi });
+        await recordLoginAttempt(sql, nipNorm, ip);
+        await logAudit(sql, event, { user_id: user.id, nama: user.nama, email: user.email, aksi: 'login_failed', detail: { nip: nipNorm, reason: 'wrong_password' }, lokasi_client: lokasi });
         const sisa = Math.max(0, MAX_LOGIN_ATTEMPTS - (rateCheck.count + 1));
-        return errorResponse('Email atau password salah', 401, { sisa_percobaan: sisa });
+        return errorResponse('Username atau password salah', 401, { sisa_percobaan: sisa });
       }
 
       await sql`UPDATE users SET last_login = NOW() WHERE id = ${user.id}`;
-      await clearLoginAttempts(sql, emailNorm);
-      await logAudit(sql, event, { user_id: user.id, nama: user.nama, email: emailNorm, aksi: 'login_success', lokasi_client: lokasi });
+      await clearLoginAttempts(sql, nipNorm);
+      await logAudit(sql, event, { user_id: user.id, nama: user.nama, email: user.email, aksi: 'login_success', lokasi_client: lokasi });
 
       let permissions = [];
       if (!user.is_admin) {
@@ -75,7 +75,7 @@ export const handler = async (event) => {
         token,
         refresh_token: refreshToken,
         user: {
-          id: user.id, nama: user.nama, email: user.email, is_admin: user.is_admin,
+          id: user.id, nama: user.nama, nip: user.nip, email: user.email, is_admin: user.is_admin,
           bidang_id: user.bidang_id, bidang_nama: user.bidang_nama || null,
           bidang_singkatan: user.bidang_singkatan || null, permissions,
         },

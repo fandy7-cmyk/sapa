@@ -49,26 +49,30 @@ export async function logAudit(sql, event, { user_id = null, nama = null, email 
 export const MAX_LOGIN_ATTEMPTS   = 5;
 export const LOGIN_WINDOW_MINUTES = 15;
 
-export async function checkLoginRateLimit(sql, email, ip, windowMinutes = LOGIN_WINDOW_MINUTES, maxAttempts = MAX_LOGIN_ATTEMPTS) {
+// Catatan: kolom `email` di tabel `login_attempts` sekarang menampung NIP
+// (identifier login berubah dari email → NIP), bukan alamat email. Nama
+// kolom di DB sengaja tidak diubah supaya tidak perlu migrasi skema — cukup
+// diperlakukan sebagai "identifier" generik di sini.
+export async function checkLoginRateLimit(sql, identifier, ip, windowMinutes = LOGIN_WINDOW_MINUTES, maxAttempts = MAX_LOGIN_ATTEMPTS) {
   const rows = await sql`
     SELECT COUNT(*)::int AS cnt FROM login_attempts
-    WHERE email = ${email} AND ip_address = ${ip}
+    WHERE email = ${identifier} AND ip_address = ${ip}
     AND attempted_at >= NOW() - (${windowMinutes}::text || ' minutes')::interval
   `;
   const count = rows[0].cnt;
   return { allowed: count < maxAttempts, count, remaining: Math.max(0, maxAttempts - count) };
 }
 
-export async function recordLoginAttempt(sql, email, ip) {
+export async function recordLoginAttempt(sql, identifier, ip) {
   try {
-    await sql`INSERT INTO login_attempts (email, ip_address) VALUES (${email}, ${ip})`;
+    await sql`INSERT INTO login_attempts (email, ip_address) VALUES (${identifier}, ${ip})`;
   } catch (e) { console.error('[recordLoginAttempt]', e); }
 }
 
 // Dipanggil setelah login sukses — bersihkan riwayat percobaan gagal
 // supaya hitungan "sisa percobaan" reset fresh untuk sesi berikutnya.
-export async function clearLoginAttempts(sql, email) {
+export async function clearLoginAttempts(sql, identifier) {
   try {
-    await sql`DELETE FROM login_attempts WHERE email = ${email}`;
+    await sql`DELETE FROM login_attempts WHERE email = ${identifier}`;
   } catch (e) { console.error('[clearLoginAttempts]', e); }
 }

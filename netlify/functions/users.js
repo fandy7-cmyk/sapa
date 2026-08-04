@@ -63,6 +63,44 @@ export const handler = async (event) => {
     }
   }
 
+  // ── GET /api/users/:id/foto — user boleh fetch foto profil miliknya sendiri.
+  // Prioritas: avatar_url yang di-upload sendiri oleh user > foto_url resmi
+  // dari data Pegawai (join lewat NIP, dikelola admin di halaman Struktur).
+  if (event.httpMethod === 'GET' && userId && segments[1] === 'foto') {
+    if (auth.id !== userId && !auth.is_admin) return errorResponse('Unauthorized', 401);
+    try {
+      await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar_url TEXT`;
+      const rows = await sql`
+        SELECT u.avatar_url, p.foto_url AS pegawai_foto_url
+        FROM users u
+        LEFT JOIN pegawai p ON p.nip = u.nip AND p.aktif = TRUE
+        WHERE u.id = ${userId}
+        LIMIT 1
+      `;
+      const fotoUrl = rows[0]?.avatar_url || rows[0]?.pegawai_foto_url || null;
+      return jsonResponse({ foto_url: fotoUrl });
+    } catch (err) {
+      console.error('[GET /api/users/:id/foto]', err);
+      return jsonResponse({ foto_url: null });
+    }
+  }
+
+  // ── PUT /api/users/:id/avatar — user upload/hapus foto profil sendiri
+  // (kolom avatar_url terpisah dari pegawai.foto_url yang dikelola admin) ──
+  if (event.httpMethod === 'PUT' && userId && segments[1] === 'avatar') {
+    if (auth.id !== userId && !auth.is_admin) return errorResponse('Unauthorized', 401);
+    const { avatar_url } = parseBody(event);
+    try {
+      await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar_url TEXT`;
+      const val = (avatar_url && avatar_url.trim()) ? avatar_url.trim() : null;
+      await sql`UPDATE users SET avatar_url = ${val} WHERE id = ${userId}`;
+      return jsonResponse({ ok: true, avatar_url: val });
+    } catch (err) {
+      console.error('[PUT /api/users/:id/avatar]', err);
+      return errorResponse('Gagal menyimpan foto profil');
+    }
+  }
+
   // Semua endpoint di bawah ini wajib admin
   const admin = requireAdmin(event);
   if (!admin) return errorResponse('Unauthorized', 401);
@@ -71,7 +109,7 @@ export const handler = async (event) => {
   if (event.httpMethod === 'GET' && !userId) {
     try {
       const users = await sql`
-        SELECT u.id, u.nama, u.email, u.is_admin, u.last_login, u.created_at,
+        SELECT u.id, u.nama, u.nip, u.email, u.is_admin, u.last_login, u.created_at,
                u.bidang_id, b.nama AS bidang_nama, b.singkatan AS bidang_singkatan
         FROM users u
         LEFT JOIN bidang b ON b.id = u.bidang_id
@@ -99,25 +137,28 @@ export const handler = async (event) => {
 
   // ── POST /api/users ────────────────────────────────────────────────────
   if (event.httpMethod === 'POST' && !userId) {
-    const { nama, email, bidang_id } = parseBody(event);
-    if (!nama || !email) {
-      return errorResponse('Nama dan email wajib diisi', 400);
+    const { nama, nip, email, bidang_id } = parseBody(event);
+    if (!nama || !nip || !email) {
+      return errorResponse('Nama, NIP, dan email wajib diisi', 400);
     }
     try {
       const exist = await sql`SELECT id FROM users WHERE email = ${email.toLowerCase().trim()} LIMIT 1`;
       if (exist.length) return errorResponse('Email sudah terdaftar', 409);
 
+      const existNip = await sql`SELECT id FROM users WHERE nip = ${nip.trim()} LIMIT 1`;
+      if (existNip.length) return errorResponse('NIP sudah terdaftar', 409);
+
       const hash = await bcrypt.hash(DEFAULT_PASSWORD, 10);
       const bidangVal = bidang_id ? parseInt(bidang_id) : null;
       const rows = await sql`
-        INSERT INTO users (nama, email, password_hash, is_admin, bidang_id)
-        VALUES (${nama.trim()}, ${email.toLowerCase().trim()}, ${hash}, FALSE, ${bidangVal})
-        RETURNING id, nama, email, is_admin, last_login, created_at, bidang_id
+        INSERT INTO users (nama, nip, email, password_hash, is_admin, bidang_id)
+        VALUES (${nama.trim()}, ${nip.trim()}, ${email.toLowerCase().trim()}, ${hash}, FALSE, ${bidangVal})
+        RETURNING id, nama, nip, email, is_admin, last_login, created_at, bidang_id
       `;
       await logAudit(sql, event, {
         user_id: admin.id, nama: admin.nama, email: admin.email,
         aksi: 'create_user', entitas: 'user', entitas_id: rows[0].id,
-        detail: { nama: nama.trim(), email: email.toLowerCase().trim() }
+        detail: { nama: nama.trim(), nip: nip.trim(), email: email.toLowerCase().trim() }
       });
       return jsonResponse({ user: rows[0] }, 201);
     } catch (err) {
@@ -128,13 +169,19 @@ export const handler = async (event) => {
 
   // ── PUT /api/users/:id ─────────────────────────────────────────────────
   if (event.httpMethod === 'PUT' && userId && !isPermissions && segments[1] !== 'indikator') {
-    const { nama, email, bidang_id } = parseBody(event);
+    const { nama, nip, email, bidang_id } = parseBody(event);
     try {
       if (email) {
         const exist = await sql`
           SELECT id FROM users WHERE email = ${email.toLowerCase().trim()} AND id != ${userId} LIMIT 1
         `;
         if (exist.length) return errorResponse('Email sudah digunakan', 409);
+      }
+      if (nip) {
+        const existNip = await sql`
+          SELECT id FROM users WHERE nip = ${nip.trim()} AND id != ${userId} LIMIT 1
+        `;
+        if (existNip.length) return errorResponse('NIP sudah digunakan', 409);
       }
 
       const bidangVal = bidang_id !== undefined
@@ -144,15 +191,16 @@ export const handler = async (event) => {
       const rows = await sql`
         UPDATE users SET
           nama      = COALESCE(${nama?.trim() || null}, nama),
+          nip       = COALESCE(${nip?.trim() || null}, nip),
           email     = COALESCE(${email?.toLowerCase().trim() || null}, email),
           bidang_id = ${bidangVal !== undefined ? bidangVal : sql`bidang_id`}
         WHERE id = ${userId} AND is_admin = FALSE
-        RETURNING id, nama, email, is_admin, last_login, created_at, bidang_id
+        RETURNING id, nama, nip, email, is_admin, last_login, created_at, bidang_id
       `;
       if (!rows.length) return errorResponse('Pengguna tidak ditemukan atau tidak dapat diedit', 404);
 
       const fullRows = await sql`
-        SELECT u.id, u.nama, u.email, u.is_admin, u.last_login, u.created_at,
+        SELECT u.id, u.nama, u.nip, u.email, u.is_admin, u.last_login, u.created_at,
                u.bidang_id, b.nama AS bidang_nama, b.singkatan AS bidang_singkatan
         FROM users u
         LEFT JOIN bidang b ON b.id = u.bidang_id
@@ -161,7 +209,7 @@ export const handler = async (event) => {
       await logAudit(sql, event, {
         user_id: admin.id, nama: admin.nama, email: admin.email,
         aksi: 'update_user', entitas: 'user', entitas_id: userId,
-        detail: { nama: fullRows[0].nama, email: fullRows[0].email }
+        detail: { nama: fullRows[0].nama, nip: fullRows[0].nip, email: fullRows[0].email }
       });
       return jsonResponse({ user: fullRows[0] });
     } catch (err) {

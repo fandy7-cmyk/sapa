@@ -21,6 +21,13 @@ export function jsonResponse(data, status = 200) {
       'Access-Control-Allow-Headers': 'Content-Type, Authorization',
       'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, PATCH, OPTIONS',
       'Vary': 'Origin',
+      // WAJIB: tanpa ini, browser boleh nge-cache response API (termasuk error
+      // response yg gak sengaja ke-cache, mis. dari rate-limit sesaat). Efeknya
+      // browser bakal terus-terusan kirim conditional request dan puas dgn 304
+      // (Not Modified) → JS dapet balik body basi selamanya walau server-nya
+      // udah normal. Kejadian nyata: endpoint absensi kena ini, semua page di
+      // Absenku (dashboard/absensi/laporan) macet baca body basi via 304.
+      'Cache-Control': 'no-store',
     },
     body: JSON.stringify(data),
   };
