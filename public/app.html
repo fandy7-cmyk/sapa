@@ -3501,7 +3501,7 @@ async function doLogin() {
         const _u = JSON.parse(sessionStorage.getItem('sapa_user'));
         const initial = (_u.nama || 'U')[0].toUpperCase();
         const el = (id) => document.getElementById(id);
-        el('topbarAvatar').textContent = initial;
+        el('topbarAvatarInner').textContent = initial;
         el('topbarName').textContent   = _u.nama;
         // Refresh avatar foto profil dari server — biar gak nyangkut foto
         // user sebelumnya (login itu SPA, gak reload, jadi boot IIFE app.js
