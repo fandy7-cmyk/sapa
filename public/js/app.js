@@ -1,5 +1,14 @@
 'use strict';
 
+// ── Debounce global untuk semua kotak search di sistem ───────────────────
+// Dipakai lewat oninput="debounceInput('key', fn, delay)" di app.html.
+// 'key' harus unik per search box biar timer-nya gak saling tabrak.
+const _searchDebounceTimers = {};
+function debounceInput(key, fn, delay = 300) {
+  clearTimeout(_searchDebounceTimers[key]);
+  _searchDebounceTimers[key] = setTimeout(fn, delay);
+}
+
 // ── AUTH ────────────────────────────────────────────────────────────────
 let _token = null;
 let _refreshToken = null;

@@ -8768,6 +8768,58 @@ tr:hover td:not(.td-sticky-no):not(.td-sticky-name) { background: var(--abu-1); 
 .dash-kpi-sub.down { color: #ef4444; }
 .dash-kpi-card--alert { border-left-color: #ef4444; }
 
+/* Kartu "Total Jam Kerja" (Absensi) — progress bar capaian menyatu DI DALAM
+   kartu (bukan kotak terpisah di bawahnya). Bg/border/shadow/radius kartu
+   sekarang dipegang SATU elemen (.abs-jamkerja-wrap) biar gak ada jahitan/
+   garis di antara bagian atas (_kpiCard) & progress bar; bagian dalamnya
+   dibikin transparan nebeng bg wrapper. Warna aksen kiri, teks nilai, & ikon
+   ngikutin --jk-warna (di-set inline dari JS) sesuai Skala Nilai Peringkat
+   Kinerja (PermenPANRB): Sangat Kurang/Kurang/Cukup/Baik/Sangat Baik.
+   Lihat _kinerjaSkalaWarna di absensi_frontend.js. */
+.abs-jamkerja-wrap {
+  display: flex; flex-direction: column; min-width: 0;
+  background: rgba(255,255,255,.92); backdrop-filter: blur(12px);
+  border: 1.5px solid rgba(255,255,255,.7);
+  border-left: 3.5px solid var(--jk-warna, var(--hijau));
+  border-radius: var(--radius, 14px);
+  box-shadow: var(--shadow-sm);
+  overflow: hidden;
+  animation: absJamKerjaPulsa 2.2s ease-out infinite;
+}
+@keyframes absJamKerjaPulsa {
+  0%   { box-shadow: var(--shadow-sm), 0 0 0 0 color-mix(in srgb, var(--jk-warna, var(--hijau)) 45%, transparent); }
+  70%  { box-shadow: var(--shadow-sm), 0 0 0 9px color-mix(in srgb, var(--jk-warna, var(--hijau)) 0%, transparent); }
+  100% { box-shadow: var(--shadow-sm), 0 0 0 0 color-mix(in srgb, var(--jk-warna, var(--hijau)) 0%, transparent); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .abs-jamkerja-wrap { animation: none; }
+}
+
+/* Panel "Total Jam Kerja Bulan Ini" di Dashboard — animasi pulsa yang sama
+   dipakai ulang di sini (lihat _absensiJamKerjaPanel di dashboard.js), cuma
+   beda wrapper class karena markup-nya beda (dash-panel, bukan dash-kpi-card). */
+.dash-jamkerja-panel { animation: absJamKerjaPulsa 2.2s ease-out infinite; }
+@media (prefers-reduced-motion: reduce) {
+  .dash-jamkerja-panel { animation: none; }
+}
+.abs-jamkerja-wrap .dash-kpi-card {
+  background: transparent !important; backdrop-filter: none !important;
+  border: none !important; box-shadow: none !important; border-radius: 0 !important;
+  padding-bottom: var(--sp-2, 8px);
+}
+.abs-jamkerja-wrap .dash-kpi-val {
+  color: var(--jk-warna, var(--hijau)) !important;
+  font-size: 1.32rem !important; line-height: 1.2 !important; overflow: visible !important;
+}
+.abs-jamkerja-wrap .dash-kpi-icon { color: var(--jk-warna, var(--hijau)) !important; }
+.abs-jamkerja-progress {
+  background: transparent; border: none; box-shadow: none; border-radius: 0;
+  padding: 2px var(--sp-5, 20px) 14px calc(var(--sp-5, 20px) - 3.5px);
+}
+.abs-jamkerja-progress-track { height: 6px; border-radius: 99px; background: #f1f5f9; overflow: hidden; }
+.abs-jamkerja-progress-fill { height: 100%; border-radius: 99px; transition: width .5s ease, background .3s ease; }
+
+
 .dash-barlist { display: flex; flex-direction: column; padding: 5px 18px 15px; }
 .dash-barlist-row { padding: 9px 0; border-bottom: 1px solid #f1f5f9; }
 .dash-barlist-row:last-child { border-bottom: none; padding-bottom: 2px; }
@@ -8790,8 +8842,10 @@ tr:hover td:not(.td-sticky-no):not(.td-sticky-name) { background: var(--abu-1); 
 .dash-heatmap-cell.is-empty { visibility: hidden; }
 .dash-heatmap-cell.is-future { background: #f1f5f9; color: #cbd5e1; }
 .dash-heatmap-cell.is-libur { background: #fee2e2; color: #dc2626; }
-.dash-heatmap-legend { display: flex; flex-wrap: wrap; gap: 12px; padding: 10px 18px 14px; border-top: 1px solid #f1f5f9; margin-top: 4px; }
-.dash-heatmap-legend span { display: inline-flex; align-items: center; gap: 5px; font-size: .68rem; color: var(--teks-muted); }
+.dash-heatmap-legend { display: flex; flex-wrap: nowrap; gap: 6px; padding: 10px 12px 14px; border-top: 1px solid #f1f5f9; margin-top: 4px; overflow-x: auto; scrollbar-width: none; }
+.dash-heatmap-legend::-webkit-scrollbar { display: none; }
+.dash-heatmap-legend span { display: inline-flex; align-items: center; gap: 3px; font-size: .6rem; color: var(--teks-muted); white-space: nowrap; flex-shrink: 0; }
+.dash-heatmap-legend i { width: 7px; height: 7px; }
 .dash-heatmap-legend i { width: 9px; height: 9px; border-radius: 3px; display: inline-block; }
 
 /* Baris Perbandingan Kehadiran Bulanan + Kalender Kehadiran: kalender ramping
@@ -8802,9 +8856,14 @@ tr:hover td:not(.td-sticky-no):not(.td-sticky-name) { background: var(--abu-1); 
   .dash-panels--kalender-row { grid-template-columns: 1fr; }
 }
 
-/* Baris Belum Absen Hari Ini + Tren Kehadiran Harian: daftar nama ramping di kiri,
-   grafik tren mengambil sisa lebar dan disamakan tingginya. */
-.dash-panels--belum-tren-row { grid-template-columns: 320px 1fr; align-items: stretch; }
+/* Baris Belum Absen Hari Ini + Tren Kehadiran Harian + Total Jam Kerja Bulan Ini:
+   daftar nama ramping di kiri, grafik tren di tengah mengambil sisa lebar,
+   kartu jam kerja ramping di kanan — ketiganya disamakan tingginya. */
+.dash-panels--belum-tren-row { grid-template-columns: 320px 1fr 300px; align-items: stretch; }
+@media (max-width: 1200px) {
+  .dash-panels--belum-tren-row { grid-template-columns: 320px 1fr; }
+  .dash-panels--belum-tren-row > *:last-child:nth-child(3) { grid-column: 1 / -1; }
+}
 @media (max-width: 900px) {
   .dash-panels--belum-tren-row { grid-template-columns: 1fr; }
 }
@@ -8822,18 +8881,29 @@ tr:hover td:not(.td-sticky-no):not(.td-sticky-name) { background: var(--abu-1); 
 }
 /* Statcard rekap Absensi (admin) — selalu 1 baris, gak wrap ke baris 2
    kayak dash-kpi-row default (auto-fit minmax 160px).
-   #absRekapBox cuma dipaksa 6 kolom pas Super Admin (body.is-admin), karena
+   #absRekapBox cuma dipaksa N kolom pas Super Admin (body.is-admin), karena
    di situ dia sendirian ambil lebar penuh (kartu "Hari Ini" disembunyikan).
    Buat user biasa, #absRekapBox masih gandengan sama kartu "Hari Ini" di
    .abs-hariini-flex-wrap, jadi tetap pakai rule repeat(3,1fr) yang sudah ada
-   biar gak kepepet sempit. #lapAbsRekapBox (Laporan) selalu sendirian penuh
-   lebar, jadi gak perlu discope. */
-body.is-admin #absRekapBox, #lapAbsRekapBox { grid-template-columns: repeat(6, 1fr); }
-@media (max-width: 900px) {
-  body.is-admin #absRekapBox, #lapAbsRekapBox { grid-template-columns: repeat(3, 1fr); }
+   biar gak kepepet sempit.
+   #absRekapBox sekarang selalu 7 kartu (kartu ke-7 "Jam Kerja"/"Rata-rata Jam
+   Kerja" udah tampil juga di admin — lihat absensi_frontend.js), jadi
+   dipisah dari #lapAbsRekapBox (Laporan) yang tetap 6 kartu. */
+body.is-admin #absRekapBox { grid-template-columns: repeat(6, 0.85fr) 1.5fr; }
+@media (max-width: 1100px) {
+  body.is-admin #absRekapBox { grid-template-columns: repeat(4, 1fr); }
+  body.is-admin #absRekapBox .abs-jamkerja-wrap:nth-child(7):last-child { grid-column: 1 / -1; }
 }
 @media (max-width: 640px) {
-  body.is-admin #absRekapBox, #lapAbsRekapBox { grid-template-columns: repeat(2, 1fr); }
+  body.is-admin #absRekapBox { grid-template-columns: repeat(2, 1fr); }
+  body.is-admin #absRekapBox .abs-jamkerja-wrap:nth-child(7):last-child { grid-column: 1 / -1; }
+}
+#lapAbsRekapBox { grid-template-columns: repeat(6, 1fr); }
+@media (max-width: 900px) {
+  #lapAbsRekapBox { grid-template-columns: repeat(3, 1fr); }
+}
+@media (max-width: 640px) {
+  #lapAbsRekapBox { grid-template-columns: repeat(2, 1fr); }
 }
 /* ═══════════════════════════════════════════════════════════════════════
    KELOLA PERIODE — card style (gantiin tabel lama, ala "Periode Aktif")
@@ -9019,6 +9089,14 @@ body.is-admin #absRekapBox, #lapAbsRekapBox { grid-template-columns: repeat(6, 1
 .abs-hariini-flex-wrap .abs-hariini-card { flex-shrink: 0; margin-bottom: 0; }
 .abs-hariini-flex-wrap .dash-kpi-row { flex: 1; min-width: 0; margin-bottom: 0; grid-template-columns: repeat(3, 1fr); align-content: stretch; }
 .abs-hariini-flex-wrap .dash-kpi-card { height: 100%; }
+/* Kartu ke-7 (Jam Kerja Bulan Ini) sendirian di baris terakhir grid 3 kolom → span penuh biar gak nyisa ruang kosong */
+/* Kartu ke-7 full-width sebaris sendiri — cuma relevan buat view pegawai
+   biasa (non-admin), di mana #absRekapBox berbagi lebar sama kartu "Hari
+   Ini" jadi 6 kartu gak muat 1 baris & kartu ke-7 lebih enak melebar sendiri.
+   Buat admin, #absRekapBox sendirian ambil lebar penuh & sudah di-set
+   repeat(7,1fr) di atas, jadi kartu ke-7 harus TETAP sejajar 1 baris kayak
+   6 kartu lain, bukan melebar. */
+body:not(.is-admin) .abs-hariini-flex-wrap .dash-kpi-row .abs-jamkerja-wrap:nth-child(7):last-child { grid-column: 1 / -1; }
 @media (max-width: 900px) {
   .abs-hariini-flex-wrap { flex-direction: column; }
   .abs-hariini-flex-wrap .dash-kpi-row { grid-template-columns: repeat(3, 1fr); }
@@ -9033,11 +9111,11 @@ body.is-admin #absRekapBox, #lapAbsRekapBox { grid-template-columns: repeat(6, 1
   transition: box-shadow var(--transition, .15s), transform var(--transition, .15s);
 }
 .abs-pengajuan-saya-card:hover { box-shadow: var(--shadow-md, 0 6px 20px rgba(0,0,0,.08)); transform: translateY(-1px); }
-.abs-hariini-card--netral   { border-left: 3.5px solid #cbd5e1; }
-.abs-hariini-card--merah    { border-left: 3.5px solid #ef4444; }
-.abs-hariini-card--oranye   { border-left: 3.5px solid #f59e0b; }
-.abs-hariini-card--kuning   { border-left: 3.5px solid #eab308; }
-.abs-hariini-card--hijau    { border-left: 3.5px solid #10b981; }
+.abs-hariini-card--netral   { border-left: 3.5px solid #cbd5e1; background: rgba(248,250,252,.9); }
+.abs-hariini-card--merah    { border-left: 3.5px solid #ef4444; background: rgba(254,242,242,.92); }
+.abs-hariini-card--oranye   { border-left: 3.5px solid #f59e0b; background: rgba(255,251,235,.92); }
+.abs-hariini-card--kuning   { border-left: 3.5px solid #eab308; background: rgba(254,252,232,.92); }
+.abs-hariini-card--hijau    { border-left: 3.5px solid #10b981; background: rgba(236,253,245,.92); }
 /* "terlewat" (jendela absen udah tertutup, belum sempat absen) sengaja dibedain
    BUKAN cuma lewat warna — soalnya tetap satu keluarga merah sama state "merah"
    (urgent-masih-bisa-aksi). Bedanya lewat: merah lebih tua/gelap + pola hazard-
@@ -9072,6 +9150,15 @@ body.is-admin #absRekapBox, #lapAbsRekapBox { grid-template-columns: repeat(6, 1
   display: flex; flex-direction: column; align-items: center; justify-content: center;
   text-align: center; padding-left: 28px; border-left: 1px solid var(--border, #e2e8f0);
 }
+.abs-hariini-info {
+  width: 180px; flex-shrink: 0;
+  display: flex; flex-direction: column; justify-content: center; gap: 10px;
+  padding-left: 24px; border-left: 1px solid var(--border, #e2e8f0);
+}
+.abs-info-row { display: flex; flex-direction: column; gap: 2px; }
+.abs-info-row-label { display: flex; align-items: center; gap: 5px; font-size: .68rem; font-weight: 600; color: var(--teks-muted); text-transform: uppercase; letter-spacing: .02em; }
+.abs-info-row-label svg { flex-shrink: 0; opacity: .75; }
+.abs-info-row-value { font-size: .85rem; font-weight: 700; color: var(--teks); font-variant-numeric: tabular-nums; }
 .abs-jam-live-label { font-size: .72rem; font-weight: 600; color: var(--text-secondary, #64748b); text-transform: uppercase; letter-spacing: .02em; }
 .abs-jam-live { font-size: 2rem; font-weight: 800; color: var(--teks); font-variant-numeric: tabular-nums; line-height: 1.3; }
 .abs-jam-live--done { display: flex; align-items: center; color: var(--hijau); }
@@ -9127,7 +9214,31 @@ body.is-admin #absRekapBox, #lapAbsRekapBox { grid-template-columns: repeat(6, 1
   .abs-jam-live-done-badge::before { animation: none; display: none; }
   .abs-jam-live-done-check { stroke-dashoffset: 0; animation: none; }
 }
-.abs-jam-live-sub { font-size: .72rem; font-weight: 600; color: var(--teks-muted); margin-top: -4px; }
+/* "Sudah Bisa" (jendela absen kebuka, BUTUH AKSI) — dibedain dari "done"
+   (beneran udah selesai) biar centang hijau gak kepake dobel-makna. Warna
+   ngikutin urgensi yg sama kayak border card: merah = absen masuk, kuning =
+   absen keluar. Icon panah (bukan centang) buat nunjukin "ayo lakukan", bukan
+   "udah kelar". */
+.abs-jam-live--ready { display: flex; align-items: center; }
+.abs-jam-live--ready-masuk  { color: var(--merah); }
+.abs-jam-live--ready-keluar { color: #a16207; }
+.abs-jam-live-ready-badge {
+  position: relative;
+  display: flex; align-items: center; justify-content: center;
+  width: 46px; height: 46px; border-radius: 50%;
+  animation: absDoneBadgePop .45s cubic-bezier(.34,1.56,.64,1);
+}
+.abs-jam-live--ready-masuk  .abs-jam-live-ready-badge { background: #fee2e2; }
+.abs-jam-live--ready-keluar .abs-jam-live-ready-badge { background: #fef3c7; }
+.abs-jam-live-ready-badge::before {
+  content: ''; position: absolute; inset: 0; border-radius: 50%;
+  border: 2px solid currentColor;
+  animation: absDoneBadgePulse 1.4s cubic-bezier(.4,0,.3,1) infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .abs-jam-live-ready-badge::before { animation: none; display: none; }
+}
+.abs-jam-live-sub { font-size: .72rem; font-weight: 500; color: var(--teks-muted); margin-top: 6px; line-height: 1.4; }
 .abs-jadwal-divider { width: 100%; height: 1px; background: var(--border, #e2e8f0); margin: 14px 0; }
 .abs-progress-wrap { width: 100%; margin-bottom: 14px; }
 .abs-progress-track {
@@ -9169,6 +9280,7 @@ body.is-admin #absRekapBox, #lapAbsRekapBox { grid-template-columns: repeat(6, 1
   .abs-hariini-main { flex-direction: column; }
   .abs-hariini-left { max-width: none; }
   .abs-hariini-right { width: 100%; border-left: none; border-top: 1px solid var(--border, #e2e8f0); padding-left: 0; padding-top: 16px; }
+  .abs-hariini-info { width: 100%; border-left: none; border-top: 1px solid var(--border, #e2e8f0); padding-left: 0; padding-top: 16px; flex-direction: row; flex-wrap: wrap; gap: 16px; }
 }
 
 .abs-rekap-row { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; margin-bottom: 16px; }
@@ -9197,3 +9309,23 @@ body.is-admin #absRekapBox, #lapAbsRekapBox { grid-template-columns: repeat(6, 1
   .abs-rekap-row { grid-template-columns: repeat(2, 1fr); }
   .abs-hariini-jam { gap: 16px; }
 }
+/* ── Urutan Laporan (drag & drop reorder pegawai) ────────────────────── */
+.urutan-lap-list { display: flex; flex-direction: column; gap: 6px; max-height: 420px; overflow-y: auto; }
+.urutan-lap-item {
+  display: flex; align-items: center; gap: 10px;
+  padding: 8px 10px; border: 1px solid var(--border, #e2e8f0); border-radius: var(--r-md, 10px);
+  background: var(--kartu, #fff); cursor: grab; user-select: none;
+  transition: box-shadow .15s ease, opacity .15s ease;
+}
+.urutan-lap-item:active { cursor: grabbing; }
+.urutan-lap-item.dragging { opacity: .4; box-shadow: 0 4px 14px rgba(0,0,0,.12); }
+.urutan-lap-handle { color: #94a3b8; flex-shrink: 0; }
+.urutan-lap-num {
+  flex-shrink: 0; width: 22px; height: 22px; border-radius: 50%;
+  background: var(--hijau-light, #d1fae5); color: var(--hijau, #10b981);
+  display: flex; align-items: center; justify-content: center;
+  font-size: .72rem; font-weight: 700;
+}
+.urutan-lap-info { min-width: 0; }
+.urutan-lap-nama { font-size: .85rem; font-weight: 600; color: var(--teks); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.urutan-lap-nip { font-size: .72rem; color: var(--teks-muted); }

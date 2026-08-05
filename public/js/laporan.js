@@ -312,7 +312,15 @@ async function downloadLaporanAbsensiPDF(btnEl) {
     } else {
       pegawaiList = [{ id: _user.id, nama: _user.nama }];
     }
-    pegawaiList = [...pegawaiList].sort((a, b) => (a.nama || '').localeCompare(b.nama || ''));
+    // Urutan tampil: pegawai yang sudah diatur manual (urutan_laporan) tampil
+    // sesuai urutan itu duluan; sisanya yang belum diatur nyusul di-sort A-Z.
+    pegawaiList = [...pegawaiList].sort((a, b) => {
+      const ua = a.urutan_laporan, ub = b.urutan_laporan;
+      if (ua != null && ub != null) return ua - ub;
+      if (ua != null) return -1;
+      if (ub != null) return 1;
+      return (a.nama || '').localeCompare(b.nama || '');
+    });
 
     if (!pegawaiList.length) {
       toast('Tidak ada pegawai pada Unit Kerja yang dipilih', 'error');

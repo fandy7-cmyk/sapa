@@ -421,6 +421,25 @@ async function renderAbsHariIni() {
     </div>
   `;
 
+  const panelInfo = (isWeekend || isLibur || skipAbsenHariIni) ? '' : `
+    <div class="abs-hariini-info">
+      <div class="abs-jadwal-label">Info Jadwal Absen</div>
+      <div class="abs-info-row">
+        <span class="abs-info-row-label"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg>Absen Masuk</span>
+        <span class="abs-info-row-value">${masukAwal || '--:--'}${masukAkhir ? `–${masukAkhir}` : ''} WITA</span>
+      </div>
+      <div class="abs-info-row">
+        <span class="abs-info-row-label"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>Absen Keluar</span>
+        <span class="abs-info-row-value">${pulangAwal || '--:--'}${pulangAkhir ? `–${pulangAkhir}` : ''} WITA</span>
+      </div>
+      ${_absSettings?.toleransi_menit ? `
+      <div class="abs-info-row">
+        <span class="abs-info-row-label"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/></svg>Toleransi</span>
+        <span class="abs-info-row-value">${_absSettings.toleransi_menit} menit</span>
+      </div>` : ''}
+    </div>
+  `;
+
   const dangerBadge = cardState === 'terlewat'
     ? `<div class="abs-hariini-danger-badge" data-tip="Sudah lewat batas waktu — hubungi admin"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg></div>`
     : '';
@@ -470,6 +489,7 @@ async function renderAbsHariIni() {
           `}
       </div>
       ${panelKanan}
+      ${panelInfo}
     </div>
   `;
 
@@ -569,7 +589,7 @@ async function doAbsCheckin() {
     toast(d.absensi.terlambat ? `Absen masuk tersimpan (terlambat ${d.absensi.menit_terlambat} menit)` : 'Absen masuk tersimpan', d.absensi.terlambat ? 'warning' : 'success');
     await renderAbsHariIni();
     await loadAbsRekap();
-    await loadAbsTable(_absPage);
+      await loadAbsTable(_absPage);
   } catch { toast('Gagal menyimpan absen masuk', 'error'); }
 }
 
@@ -672,7 +692,7 @@ async function _submitAbsReminder(tipe) {
     closeModal('modalAbsReminder');
     await renderAbsHariIni();
     await loadAbsRekap();
-    await loadAbsTable(_absPage);
+      await loadAbsTable(_absPage);
   } catch { toast('Gagal menyimpan absen', 'error'); }
 }
 
@@ -698,16 +718,91 @@ async function loadAbsRekap() {
     const iconTugas = `<svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="14" x="2" y="7" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>`;
     const iconCuti = `<svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/><path d="M8 2v4"/><path d="M16 2v4"/></svg>`;
     const iconWarn = `<svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><line x1="12" x2="12" y1="9" y2="13"/><line x1="12" x2="12.01" y1="17" y2="17"/></svg>`;
-    box.innerHTML =
+    let html =
       _kpiCard({ icon: iconHadir, label: 'Tepat Waktu', value: rk.hadir, color: 'green' }) +
       _kpiCard({ icon: iconClock, label: 'Terlambat', value: rk.terlambat, color: 'amber' }) +
       _kpiCard({ icon: iconTidakLengkap, label: 'Tidak Lengkap', value: rk.tidak_lengkap || 0, color: 'purple' }) +
       _kpiCard({ icon: iconTugas, label: 'Tugas Luar', value: rk.tugas_luar, color: 'biruMuda' }) +
       _kpiCard({ icon: iconCuti, label: 'Cuti', value: rk.cuti, color: 'teal' }) +
       _kpiCard({ icon: iconWarn, label: 'Alpa', value: rk.alpa, color: 'red' });
+
+    // Kartu ke-7: Jam Kerja Bulan Ini vs Target. Kalau admin lagi liat rekap
+    // 1 pegawai spesifik (filter pegawai aktif) → tampil sama kayak view
+    // personal. Kalau admin liat rekap gabungan (semua pegawai / per unit
+    // kerja) → tampil versi rata-rata (lihat _absJamKerjaCard & backend).
+    html += await _absJamKerjaCard();
+
+    box.innerHTML = html;
   } catch (err) {
     console.error('[loadAbsRekap]', err);
     box.innerHTML = '';
+  }
+}
+
+// ── KARTU KE-7: JAM KERJA BULAN INI vs TARGET (nempel di baris KPI di atas) ──
+function _absFmtJam(menit) {
+  const jam = Math.floor(Math.abs(menit || 0) / 60);
+  const sisaMenit = Math.abs(menit || 0) % 60;
+  return `${jam}j ${sisaMenit}m`;
+}
+
+// Skala Nilai Peringkat Kinerja (PermenPANRB) — dipakai buat warnain progress
+// bar capaian jam kerja: Sangat Kurang <50, Kurang 50-70, Cukup 70-90,
+// Baik 90-120, Sangat Baik >120. Persentase yang dipakai TIDAK dibatasi ke
+// 100 biar capaian di atas target (>120%) tetap kebaca "Sangat Baik".
+function _kinerjaSkalaWarna(pctAsli) {
+  if (pctAsli < 50)  return { warna: '#ef4444', label: 'Sangat Kurang' };
+  if (pctAsli < 70)  return { warna: '#f97316', label: 'Kurang' };
+  if (pctAsli < 90)  return { warna: '#f59e0b', label: 'Cukup' };
+  if (pctAsli <= 120) return { warna: '#3b82f6', label: 'Baik' };
+  return { warna: '#10b981', label: 'Sangat Baik' };
+}
+
+async function _absJamKerjaCard() {
+  const bulan = _absFilterBulan || (new Date().getMonth() + 1);
+  const params = new URLSearchParams({ bulan, tahun: _absFilterTahun });
+  if (isAbsensiFull()) {
+    if (_absFilterPegawai) params.set('user_id', _absFilterPegawai);
+    if (_absFilterBidang) params.set('bidang_id', _absFilterBidang);
+  }
+  try {
+    const r = await fetch(`/api/absensi/jam-kerja?${params}`, { headers: authHeaders() });
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    const d = await r.json();
+    const pctAsli = Math.max(0, d.persentase || 0);
+    const pct = Math.min(100, pctAsli); // buat teks & lebar bar (bar mentok 100%)
+    const tercapai = (d.aktual_menit || 0) >= (d.target_menit || 0);
+    const iconJam = `<svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="10" x2="14" y1="2" y2="2"/><line x1="12" x2="15" y1="14" y2="11"/><circle cx="12" cy="14" r="8"/></svg>`;
+    // Teks disamain dgn _absensiJamKerjaPanel (dashboard.js) — cuma tampilan
+    // kartunya tetap gaya asli absensi (_kpiCard + progress bar dot).
+    const label = d.agregat ? `Total Jam Kerja ${ABS_BULAN_NAMA[d.bulan]}` : `Jam Kerja ${ABS_BULAN_NAMA[d.bulan]}`;
+    const sub = d.agregat
+      ? `${pct}% dari target ${_absFmtJam(d.target_menit)} · ${d.hari_kerja_total} hari kerja · total dari ${d.jumlah_pegawai} pegawai`
+      : `${pct}% dari target ${_absFmtJam(d.target_menit)} · ${d.hari_kerja_total} hari kerja bulan ini`;
+    const c = _KPI_COLORS[tercapai ? 'green' : 'amber'];
+    const kartu = `
+      <div class="dash-kpi-card" style="border-left-color:${c.text}">
+        <div class="dash-kpi-body">
+          <div class="dash-kpi-lbl">${esc(label)}</div>
+          <div class="dash-kpi-val" style="color:${c.text}">${esc(_absFmtJam(d.aktual_menit))}</div>
+          <div class="dash-kpi-sub" style="font-weight:400">${esc(sub)}</div>
+        </div>
+        <div class="dash-kpi-icon" style="color:${c.text}">${iconJam}</div>
+      </div>`;
+    // Progress bar capaian, warna ngikutin Skala Nilai Peringkat Kinerja —
+    // ditempel visual di bawah kartu (tanpa ubah struktur internal _kpiCard).
+    const { warna } = _kinerjaSkalaWarna(pctAsli);
+    return `<div class="abs-jamkerja-wrap" style="--jk-warna:${warna}">
+      ${kartu}
+      <div class="abs-jamkerja-progress">
+        <div class="abs-jamkerja-progress-track">
+          <div class="abs-jamkerja-progress-fill" style="width:${pct}%;background:${warna}"></div>
+        </div>
+      </div>
+    </div>`;
+  } catch (err) {
+    console.error('[_absJamKerjaCard]', err);
+    return '';
   }
 }
 
@@ -1827,7 +1922,7 @@ async function approvePengajuan(id) {
     await refreshPengajuanPendingBadge();
     await renderAbsHariIni();
     await loadAbsRekap();
-    await loadAbsTable(1);
+      await loadAbsTable(1);
   } catch { toast('Gagal menyetujui pengajuan', 'error'); }
 }
 

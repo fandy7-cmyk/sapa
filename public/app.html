@@ -5,11 +5,11 @@
   <script>history.replaceState(null, '', location.origin);</script>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>SAPA Perencanaan</title>
-  <meta name="app-version" content="1.1.1" />
+  <meta name="app-version" content="1.1.2" />
   <link rel="icon" type="image/png" href="/favicon.png" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="css/styles.css?v=1.1.1" />
+  <link rel="stylesheet" href="css/styles.css?v=1.1.2" />
   <style>
     /* ── LOGIN OVERLAY ── */
     #loginOverlay {
@@ -406,7 +406,7 @@
       <div class="topbar-constellation" id="topbarConstellation" aria-hidden="true">
         <canvas id="topbarConstellationCanvas"></canvas>
       </div>
-      <script src="js/topbar_constellation.js?v=1.1.1"></script>
+      <script src="js/topbar_constellation.js?v=1.1.2"></script>
 
       <div class="topbar-profile">
         <div class="topbar-user-info">
@@ -478,7 +478,7 @@
           </div>
           <div class="search-wrap" style="flex:1">
             <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-4.35-4.35"/></svg>
-            <input type="text" placeholder="Cari link..." id="slSearch" oninput="filterShortlinks()" />
+            <input type="text" placeholder="Cari link..." id="slSearch" oninput="debounceInput('slSearch', () => filterShortlinks(), 180)" />
           </div>
           <button class="btn btn-primary btn-sm" onclick="openLinkModal()"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>Tambah Link</button>
         </div>
@@ -504,7 +504,7 @@
           </div>
           <div class="search-wrap" style="flex:1">
             <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-4.35-4.35"/></svg>
-            <input type="text" placeholder="Cari bundle..." id="bundleSearch" oninput="filterBundles()" />
+            <input type="text" placeholder="Cari bundle..." id="bundleSearch" oninput="debounceInput('bundleSearch', () => filterBundles(), 180)" />
           </div>
           <button class="btn btn-primary btn-sm" onclick="openBundleModal()"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>Buat Bundle</button>
         </div>
@@ -539,7 +539,7 @@
           </div>
           <div class="search-wrap" style="flex:1">
             <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-4.35-4.35"/></svg>
-            <input type="text" placeholder="Cari pengumuman..." id="pengumumanSearch" oninput="filterPengumuman()" />
+            <input type="text" placeholder="Cari pengumuman..." id="pengumumanSearch" oninput="debounceInput('pengumumanSearch', () => filterPengumuman(), 180)" />
           </div>
           <button class="btn btn-primary btn-sm" onclick="openPengumumanModal()"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>Tambah Pengumuman</button>
         </div>
@@ -613,7 +613,7 @@
           </div>
           <div class="search-wrap" style="flex:1">
             <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-4.35-4.35"/></svg>
-            <input type="text" placeholder="Cari surat..." id="smSearch" oninput="loadSuratMasuk(1)" />
+            <input type="text" placeholder="Cari surat..." id="smSearch" oninput="debounceInput('smSearch', () => loadSuratMasuk(1), 400)" />
           </div>
           <button class="btn btn-primary btn-sm" id="btnTambahSM" onclick="openSMModal()"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>Tambah</button>
         </div>
@@ -649,7 +649,7 @@
           </div>
           <div class="search-wrap" style="flex:1">
             <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-4.35-4.35"/></svg>
-            <input type="text" placeholder="Cari surat..." id="skSearch" oninput="loadSuratKeluar(1)" />
+            <input type="text" placeholder="Cari surat..." id="skSearch" oninput="debounceInput('skSearch', () => loadSuratKeluar(1), 400)" />
           </div>
           <button class="btn btn-primary btn-sm" id="btnTambahSK" onclick="openSKModal()"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>Tambah</button>
         </div>
@@ -799,7 +799,7 @@
               <!-- Cari indikator (sejajar dengan Tahun/Bulan) -->
               <div class="search-wrap" style="min-width:220px;flex:1;max-width:320px">
                 <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-4.35-4.35"/></svg>
-                <input type="text" placeholder="Cari indikator…" id="kinerjaSearch" oninput="filterKinerjaTable()" />
+                <input type="text" placeholder="Cari indikator…" id="kinerjaSearch" oninput="debounceInput('kinerjaSearch', () => filterKinerjaTable(), 180)" />
               </div>
             </div>
           </div>
@@ -868,7 +868,7 @@
               <!-- Cari indikator IKK (sejajar dengan Tahun/Bulan) -->
               <div class="search-wrap" style="min-width:220px;flex:1;max-width:320px">
                 <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-4.35-4.35"/></svg>
-                <input type="text" placeholder="Cari indikator…" id="ikkSearch" oninput="filterIkkTable()" />
+                <input type="text" placeholder="Cari indikator…" id="ikkSearch" oninput="debounceInput('ikkSearch', () => filterIkkTable(), 180)" />
               </div>
             </div>
           </div>
@@ -937,7 +937,7 @@
               <!-- Cari indikator SPM (sejajar dengan Tahun/Bulan) -->
               <div class="search-wrap" style="min-width:220px;flex:1;max-width:320px">
                 <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-4.35-4.35"/></svg>
-                <input type="text" placeholder="Cari indikator…" id="spmSearch" oninput="filterSpmTable()" />
+                <input type="text" placeholder="Cari indikator…" id="spmSearch" oninput="debounceInput('spmSearch', () => filterSpmTable(), 180)" />
               </div>
             </div>
           </div>
@@ -990,7 +990,7 @@
         <div class="toolbar" style="margin-top:14px;flex-wrap:wrap">
             <div class="search-wrap">
               <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-4.35-4.35"/></svg>
-              <input type="text" placeholder="Cari indikator, satuan…" id="indikatorSearch" oninput="filterIndikator()" />
+              <input type="text" placeholder="Cari indikator, satuan…" id="indikatorSearch" oninput="debounceInput('indikatorSearch', () => filterIndikator(), 180)" />
             </div>
             <div class="select-wrap" style="min-width:120px">
               <select id="indikatorFilterTahun" onchange="filterIndikator()">
@@ -1150,7 +1150,7 @@
           </div>
           <div class="search-wrap" style="flex:1;min-width:200px">
             <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-4.35-4.35"/></svg>
-            <input type="text" placeholder="Cari indikator…" id="ktSearch" oninput="filterKelolaTarget()" />
+            <input type="text" placeholder="Cari indikator…" id="ktSearch" oninput="debounceInput('ktSearch', () => filterKelolaTarget(), 180)" />
           </div>
         </div>
 
@@ -1219,7 +1219,7 @@
           <!-- Search -->
           <div class="search-wrap" style="flex:1">
             <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-4.35-4.35"/></svg>
-            <input type="text" id="monSearchInput" placeholder="Cari indikator, PJ, atau user…" oninput="setMonSearch(this.value)"/>
+            <input type="text" id="monSearchInput" placeholder="Cari indikator, PJ, atau user…" oninput="debounceInput('monSearchInput', () => setMonSearch(this.value), 180)"/>
           </div>
         </div>
 
@@ -1260,13 +1260,14 @@
         <div class="toolbar">
           <div class="search-wrap">
             <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-4.35-4.35"/></svg>
-            <input type="text" placeholder="Cari nama, email, unit kerja…" id="userSearch" oninput="filterUsers()" />
+            <input type="text" placeholder="Cari nama, email, unit kerja…" id="userSearch" oninput="debounceInput('userSearch', () => filterUsers(), 180)" />
           </div>
           <div class="select-wrap" style="min-width:320px">
             <select id="userFilterBidang" onchange="filterUsers()">
               <option value="">Semua Unit Kerja</option>
             </select>
           </div>
+          <button class="btn btn-primary btn-sm" onclick="openUrutanLaporanModal()"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg>Atur Urutan Laporan</button>
           <button class="btn btn-primary btn-sm" onclick="openUserModal()"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>Tambah Pengguna</button>
         </div>
         <div class="card" style="padding:0;overflow:auto;-webkit-overflow-scrolling:touch">
@@ -1285,7 +1286,7 @@
         <div class="toolbar">
           <div class="search-wrap">
             <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-4.35-4.35"/></svg>
-            <input type="text" placeholder="Cari nama unit kerja…" id="bidangSearch" oninput="filterBidang()" />
+            <input type="text" placeholder="Cari nama unit kerja…" id="bidangSearch" oninput="debounceInput('bidangSearch', () => filterBidang(), 180)" />
           </div>
           <button class="btn btn-primary btn-sm" onclick="openBidangModal()"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>Tambah Unit Kerja</button>
         </div>
@@ -1305,7 +1306,7 @@
         <div class="toolbar" style="margin-bottom:.75rem">
           <div class="search-wrap">
             <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-4.35-4.35"/></svg>
-            <input type="text" placeholder="Cari tahun atau label…" id="periodeSearch" oninput="filterPeriode()" />
+            <input type="text" placeholder="Cari tahun atau label…" id="periodeSearch" oninput="debounceInput('periodeSearch', () => filterPeriode(), 180)" />
           </div>
           <div class="select-wrap" style="min-width:140px">
             <select id="periodeFilterTahun" onchange="filterPeriode()">
@@ -1526,7 +1527,7 @@
             </div>
             <div class="search-wrap" style="flex:1">
               <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-4.35-4.35"/></svg>
-              <input type="text" placeholder="Cari nama, NIP, jabatan..." id="pegawaiSearch" oninput="filterPegawai()" />
+              <input type="text" placeholder="Cari nama, NIP, jabatan..." id="pegawaiSearch" oninput="debounceInput('pegawaiSearch', () => filterPegawai(), 180)" />
             </div>
             <button class="btn btn-primary btn-sm" onclick="openPegawaiModal()">
               <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>
@@ -1567,7 +1568,7 @@
         <div class="toolbar" style="flex-wrap:wrap;gap:8px">
           <div class="search-wrap">
             <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-4.35-4.35"/></svg>
-            <input type="text" placeholder="Cari nama, email, atau IP…" id="auditSearch" oninput="filterAuditTrail()" />
+            <input type="text" placeholder="Cari nama, email, atau IP…" id="auditSearch" oninput="debounceInput('auditSearch', () => filterAuditTrail(), 400)" />
           </div>
           <div class="select-wrap" style="min-width:170px">
             <select id="auditFilterAksi" onchange="filterAuditTrail()">
@@ -1637,7 +1638,7 @@
           </div>
           <div class="search-wrap" style="flex:1">
             <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-4.35-4.35"/></svg>
-            <input type="text" placeholder="Cari judul, keterangan, kategori..." id="dokumenSearch" oninput="filterDokumen()" />
+            <input type="text" placeholder="Cari judul, keterangan, kategori..." id="dokumenSearch" oninput="debounceInput('dokumenSearch', () => filterDokumen(), 180)" />
           </div>
           <button class="btn btn-primary btn-sm" onclick="openDokumenModal()">
             <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>
@@ -2491,6 +2492,24 @@
   </div>
 </div>
 
+<!-- Modal: Urutan Laporan Absensi (drag & drop) -->
+<div class="modal-overlay" id="modalUrutanLaporan">
+  <div class="modal" style="max-width:460px">
+    <div class="modal-header">
+      <div class="modal-title">Atur Urutan Laporan</div>
+      <button class="btn-close" onclick="closeModal('modalUrutanLaporan')"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg></button>
+    </div>
+    <div class="modal-body">
+      <p style="font-size:.8rem;color:var(--text-secondary,#64748b);margin:0 0 12px;line-height:1.5">Seret (drag) nama pegawai buat atur urutannya. Urutan ini dipakai di Laporan Absensi (PDF), menggantikan sortir A-Z.</p>
+      <div id="urutanLaporanList" class="urutan-lap-list"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('modalUrutanLaporan')">Batal</button>
+      <button class="btn btn-primary" onclick="saveUrutanLaporan()"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>Simpan Urutan</button>
+    </div>
+  </div>
+</div>
+
 <!-- Modal: Permissions -->
 <div class="modal-overlay" id="modalPerms">
   <div class="modal">
@@ -2526,7 +2545,7 @@
       <div class="search-wrap" style="margin-bottom:6px;min-width:0">
         <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-4.35-4.35"/></svg>
         <input type="text" id="assignIndikatorSearch" placeholder="Cari indikator atau PJ..."
-          oninput="filterAssignIndikator()" style="width:100%;box-sizing:border-box">
+          oninput="debounceInput('assignIndikatorSearch', () => filterAssignIndikator(), 180)" style="width:100%;box-sizing:border-box">
       </div>
       <div style="font-size:.75rem;color:#2563eb;font-weight:600;margin-bottom:4px;text-align:right">
         <span id="assignIndikatorCounter">0 dipilih</span>
@@ -2975,7 +2994,7 @@
       <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap">
         <div class="search-wrap" style="flex:1;min-width:180px">
           <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-4.35-4.35"/></svg>
-          <input type="text" id="lapTplIndSearch" placeholder="Cari indikator..." oninput="_filterLapTplIndList()">
+          <input type="text" id="lapTplIndSearch" placeholder="Cari indikator..." oninput="debounceInput('lapTplIndSearch', () => _filterLapTplIndList(), 180)">
         </div>
         <div class="select-wrap" style="min-width:130px">
           <select id="lapTplIndFilterJenis" onchange="_filterLapTplIndList()">
@@ -3638,7 +3657,7 @@ function _loginShowErr(msg, type = 'warn') {
 </script>
 
 <!-- ════════════════ SCRIPTS ════════════════ -->
-<script src="js/periode_frontend.js?v=1.1.1"></script>
+<script src="js/periode_frontend.js?v=1.1.2"></script>
 <script>
 /* ── CDTP Teleport: pindahkan panel kalender ke <body> saat dibuka ──────────
    Ini satu-satunya cara yang benar-benar reliable agar panel tidak terpotong
@@ -3785,20 +3804,20 @@ function _loginShowErr(msg, type = 'warn') {
 })();
 </script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/quill/1.3.7/quill.min.js"></script>
-  <script src="js/app.js?v=1.1.1"></script>
-<script src="js/dashboard.js?v=1.1.1"></script>
+  <script src="js/app.js?v=1.1.2"></script>
+<script src="js/dashboard.js?v=1.1.2"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
-<script src="js/superlink.js?v=1.1.1"></script>
-<script src="js/pengumuman_frontend.js?v=1.1.1"></script>
-<script src="js/surat.js?v=1.1.1"></script>
-<script src="js/absensi_frontend.js?v=1.1.1"></script>
-<script src="js/users_frontend.js?v=1.1.1"></script>
-<script src="js/kinerja.js?v=1.1.1"></script>
-<script src="js/laporan.js?v=1.1.1"></script>
-<script src="js/struktur_frontend.js?v=1.1.1"></script>
-<script src="js/audit_frontend.js?v=1.1.1"></script>
-<script src="js/dokumen_publik_frontend.js?v=1.1.1"></script>
-<script src="js/profil_frontend.js?v=1.1.1"></script>
+<script src="js/superlink.js?v=1.1.2"></script>
+<script src="js/pengumuman_frontend.js?v=1.1.2"></script>
+<script src="js/surat.js?v=1.1.2"></script>
+<script src="js/absensi_frontend.js?v=1.1.2"></script>
+<script src="js/users_frontend.js?v=1.1.2"></script>
+<script src="js/kinerja.js?v=1.1.2"></script>
+<script src="js/laporan.js?v=1.1.2"></script>
+<script src="js/struktur_frontend.js?v=1.1.2"></script>
+<script src="js/audit_frontend.js?v=1.1.2"></script>
+<script src="js/dokumen_publik_frontend.js?v=1.1.2"></script>
+<script src="js/profil_frontend.js?v=1.1.2"></script>
 
 <script>
 /* ═══════════════════════════════════════════════════════════════════════════
@@ -4269,14 +4288,14 @@ function _loginShowErr(msg, type = 'warn') {
     banner.setAttribute('role', 'status');
     banner.style.cssText = [
       'position:fixed', 'left:50%', 'bottom:20px', 'transform:translateX(-50%)',
-      'z-index:99999', 'background:var(--teal-900,#042c26)', 'color:#fff',
+      'z-index:99999', 'background:var(--hijau,#0f766e)', 'color:#fff',
       'padding:12px 18px', 'border-radius:999px', 'box-shadow:0 8px 24px rgba(0,0,0,.25)',
       'display:flex', 'align-items:center', 'gap:12px', 'font-size:14px',
       'font-family:inherit', 'max-width:92vw'
     ].join(';');
     banner.innerHTML =
       '<span>Ada pembaruan tersedia.</span>' +
-      '<button type="button" style="background:var(--teal,#14b8a6);color:#042c26;border:none;' +
+      '<button type="button" style="background:var(--emas,#2dd4bf);color:var(--hijau,#0f766e);border:none;' +
       'padding:6px 14px;border-radius:999px;font-weight:600;font-size:13px;cursor:pointer;display:inline-flex;align-items:center;gap:5px;">' +
       '<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>Muat ulang</button>';
     banner.querySelector('button').addEventListener('click', function () {

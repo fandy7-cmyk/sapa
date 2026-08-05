@@ -115,7 +115,7 @@ async function loadDashboard() {
     <div class="dash-welcome">
       <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:nowrap">
         <div style="flex:1;min-width:0">
-          <div class="dash-welcome-title">${salam}, <strong>${esc(_user?.nama || 'Pengguna')}</strong> ${greetIconSvg}</div>
+          <div class="dash-welcome-title"><span style="font-weight:400;font-size:.8rem">${salam}</span> ${greetIconSvg}<br><strong style="font-size:.92rem">${esc(_user?.nama || 'Pengguna')}</strong></div>
         </div>
         ${quoteHtml}
         <div style="text-align:right;flex-shrink:0;white-space:nowrap">
@@ -458,19 +458,25 @@ async function loadDashboardAbsensi() {
   let ringkasan = { harian: [], ranking_terlambat: [], sudah_absen_user_ids: [] };
   let ringkasanPrev = { harian: [], ranking_terlambat: [], sudah_absen_user_ids: [] };
   let pengajuanPending = [];
+  let jamKerja = null;
   try {
-    const [r1, r2, ring, ringPrev, pengPending] = await Promise.all([
+    const [r1, r2, ring, ringPrev, pengPending, rJamKerja] = await Promise.all([
       fetch(`/api/absensi/rekap?user_id=${userId}&bulan=${bulan}&tahun=${tahun}`, { headers: authHeaders() }),
       fetch(`/api/absensi/rekap?user_id=${userId}&bulan=${prevBulan}&tahun=${prevTahun}`, { headers: authHeaders() }),
       _fetchRingkasanBulan(bulan, tahun, userId),
       _fetchRingkasanBulan(prevBulan, prevTahun, userId),
       _fetchPengajuanPendingDash(full, _user.id),
+      // Jam Kerja: buat non-full ini metrik personal (jam kerja diri sendiri),
+      // buat full/admin ini total agregat semua pegawai (lihat backend
+      // /api/absensi/jam-kerja: agregat aktif kalau gak ada user_id spesifik).
+      fetch(`/api/absensi/jam-kerja?bulan=${bulan}&tahun=${tahun}`, { headers: authHeaders() }),
     ]);
     if (r1.ok) d = await r1.json();
     if (r2.ok) dPrev = await r2.json();
     ringkasan = ring;
     ringkasanPrev = ringPrev;
     pengajuanPending = pengPending;
+    if (rJamKerja && rJamKerja.ok) jamKerja = await rJamKerja.json();
   } catch (err) { console.error('[loadDashboardAbsensi]', err); }
 
   if (full) {
@@ -549,10 +555,14 @@ async function loadDashboardAbsensi() {
 
   if (panels.length) html += `<div class="dash-panels">${panels.join('')}</div>`;
 
-  // 4. Belum Absen Hari Ini + Tren kehadiran harian (bulan berjalan) — satu baris berdampingan
-  const trendPanelHtml = _absensiTrendPanel(ringkasan.harian, bulan, tahun, full, /* spanFull */ !belumPanelHtml);
-  html += belumPanelHtml
-    ? `<div class="dash-panels dash-panels--belum-tren-row">${belumPanelHtml}${trendPanelHtml}</div>`
+  // 4. Belum Absen Hari Ini (kolom kiri) + Tren kehadiran harian (tengah, lebar)
+  //    + Jam Kerja Bulan Ini (kolom kanan) — satu baris berdampingan
+  const jamKerjaPanelHtml = jamKerja ? _absensiJamKerjaPanel(jamKerja, full) : null;
+  const kolomKiriHtml = full ? belumPanelHtml : null;
+  const kolomKananHtml = jamKerjaPanelHtml;
+  const trendPanelHtml = _absensiTrendPanel(ringkasan.harian, bulan, tahun, full, /* spanFull */ !kolomKiriHtml && !kolomKananHtml);
+  html += (kolomKiriHtml || kolomKananHtml)
+    ? `<div class="dash-panels dash-panels--belum-tren-row">${kolomKiriHtml || ''}${trendPanelHtml}${kolomKananHtml || ''}</div>`
     : `<div class="dash-panels">${trendPanelHtml}</div>`;
 
   // 5. Perbandingan Kehadiran Bulanan + Kalender Kehadiran — satu baris berdampingan
@@ -580,6 +590,54 @@ function _absensiBelumPanel(list, totalPegawai, sudahAbsen) {
   return `<div class="dash-panel">
     <div class="dash-panel-header">${iconWarn}<span style="flex:1">Belum Absen Hari Ini</span><span class="badge badge-warning">${list.length}</span></div>
     <div style="padding:2px 18px 10px">${rows}${rest > 0 ? `<div style="padding-top:8px;font-size:.72rem;color:var(--teks-muted)">+${rest} pegawai lainnya</div>` : ''}</div>
+  </div>`;
+}
+
+// Skala Nilai Peringkat Kinerja (PermenPANRB) — sama persis dengan yang
+// dipakai di kartu Absensi (lihat _kinerjaSkalaWarna di absensi_frontend.js):
+// Sangat Kurang <50, Kurang 50-70, Cukup 70-90, Baik 90-120, Sangat Baik >120.
+// Persentase yang dipakai TIDAK dibatasi ke 100 biar capaian di atas target
+// (>120%) tetap kebaca "Sangat Baik".
+function _dashSkalaWarna(pctAsli) {
+  if (pctAsli < 50)  return '#ef4444';
+  if (pctAsli < 70)  return '#f97316';
+  if (pctAsli < 90)  return '#f59e0b';
+  if (pctAsli <= 120) return '#3b82f6';
+  return '#10b981';
+}
+
+// Panel "Jam Kerja Bulan Ini" — akumulasi jam kerja vs target (dari /api/absensi/jam-kerja).
+// Non-full: metrik personal milik sendiri, dipasangkan 1 baris dengan Tren Kehadiran Harian.
+// Full/admin: total agregat semua pegawai (backend otomatis agregat kalau gak ada user_id
+// spesifik), dipasangkan 1 kolom bareng panel "Belum Absen Hari Ini" (lihat loadDashboardAbsensi).
+function _absensiJamKerjaPanel(d, full = false) {
+  const iconJam = `<svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="10" x2="14" y1="2" y2="2"/><line x1="12" x2="15" y1="14" y2="11"/><circle cx="12" cy="14" r="8"/></svg>`;
+  const fmt = (menit) => {
+    const jam = Math.floor(Math.abs(menit || 0) / 60);
+    const sisa = Math.abs(menit || 0) % 60;
+    return `${jam}j ${sisa}m`;
+  };
+  const pctAsli = Math.max(0, d.persentase || 0);
+  const pct = Math.min(100, pctAsli);
+  const warna = _dashSkalaWarna(pctAsli);
+  const judul = d.agregat ? `Total Jam Kerja ${ABS_BULAN_NAMA[d.bulan]}` : `Jam Kerja ${ABS_BULAN_NAMA[d.bulan]}`;
+  const catatanBawah = d.agregat
+    ? `${d.hari_kerja_total} hari kerja bulan ini · total dari ${d.jumlah_pegawai} pegawai`
+    : `${d.hari_kerja_total} hari kerja bulan ini · Cuti/Tugas Luar disetujui dihitung penuh sesuai jadwal`;
+  return `<div class="dash-panel dash-jamkerja-panel" style="--jk-warna:${warna}">
+    <div class="dash-panel-header">${iconJam}<span style="flex:1">${judul}</span><span class="badge" style="background:${warna}22;color:${warna}">${pct}%</span></div>
+    <div style="padding:14px 18px 18px">
+      <div style="display:flex;align-items:baseline;gap:6px;margin-bottom:10px;flex-wrap:wrap">
+        <span style="font-size:1.5rem;font-weight:800;color:${warna}">${fmt(d.aktual_menit)}</span>
+        <span style="font-size:.78rem;color:var(--teks-muted)">dari target ${fmt(d.target_menit)}</span>
+      </div>
+      <div style="width:100%;height:7px;border-radius:99px;background:#e2e8f0;overflow:hidden">
+        <div style="height:100%;border-radius:99px;width:${pct}%;background:${warna};transition:width .3s"></div>
+      </div>
+      <div style="font-size:.72rem;color:var(--teks-muted);margin-top:10px">
+        ${catatanBawah}
+      </div>
+    </div>
   </div>`;
 }
 
@@ -675,7 +733,7 @@ function _absensiTrendPanel(harian, bulan, tahun, full, spanFull = true) {
       <span><i style="background:#8b5cf6"></i>Tidak Lengkap</span>
       <span><i style="background:#38bdf8"></i>Tugas luar</span>
       <span><i style="background:#2dd4bf"></i>Cuti</span>
-      <span><i style="background:#dc2626"></i>Angka merah = alpa</span>
+      <span><i style="background:#dc2626"></i>Alpa</span>
     </div>
   </div>`;
 }

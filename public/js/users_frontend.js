@@ -262,6 +262,95 @@ function renderUsersTable() {
 
 window.goUserPage = (p) => { _userPage = p; renderUsersTable(); };
 
+// ── URUTAN LAPORAN (admin atur urutan manual pegawai buat Laporan Absensi) ──
+function openUrutanLaporanModal() {
+  const list = _users
+    .filter(u => !u.is_admin)
+    .sort((a, b) => {
+      const ua = a.urutan_laporan, ub = b.urutan_laporan;
+      if (ua != null && ub != null) return ua - ub;
+      if (ua != null) return -1;
+      if (ub != null) return 1;
+      return (a.nama || '').localeCompare(b.nama || '');
+    });
+  if (!list.length) { toast('Belum ada pengguna untuk diatur urutannya', 'error'); return; }
+  _renderUrutanLaporanList(list);
+  openModal('modalUrutanLaporan');
+}
+
+function _renderUrutanLaporanList(list) {
+  const container = document.getElementById('urutanLaporanList');
+  if (!container) return;
+  container.innerHTML = list.map((u, i) => `
+    <div class="urutan-lap-item" draggable="true" data-id="${u.id}">
+      <svg class="urutan-lap-handle" xmlns="http://www.w3.org/2000/svg" width="15" height="15" fill="currentColor" viewBox="0 0 24 24"><circle cx="8" cy="6" r="1.6"/><circle cx="16" cy="6" r="1.6"/><circle cx="8" cy="12" r="1.6"/><circle cx="16" cy="12" r="1.6"/><circle cx="8" cy="18" r="1.6"/><circle cx="16" cy="18" r="1.6"/></svg>
+      <span class="urutan-lap-num">${i + 1}</span>
+      <div class="urutan-lap-info">
+        <div class="urutan-lap-nama">${esc(u.nama)}</div>
+        <div class="urutan-lap-nip">${esc(u.nip || '—')}</div>
+      </div>
+    </div>`).join('');
+  _initUrutanLaporanDrag();
+}
+
+function _initUrutanLaporanDrag() {
+  const container = document.getElementById('urutanLaporanList');
+  if (!container) return;
+  const items = () => [...container.querySelectorAll('.urutan-lap-item')];
+
+  items().forEach(item => {
+    item.addEventListener('dragstart', () => item.classList.add('dragging'));
+    item.addEventListener('dragend', () => {
+      item.classList.remove('dragging');
+      _renumberUrutanLaporanList();
+    });
+  });
+
+  // Listener di container cukup di-attach sekali (innerHTML re-render item-nya,
+  // tapi container-nya sendiri tetap sama elemen tiap modal dibuka)
+  if (!container._dragInit) {
+    container.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      const dragging = container.querySelector('.urutan-lap-item.dragging');
+      if (!dragging) return;
+      const after = items().find(el => {
+        if (el === dragging) return false;
+        const rect = el.getBoundingClientRect();
+        return e.clientY < rect.top + rect.height / 2;
+      });
+      if (after) container.insertBefore(dragging, after);
+      else container.appendChild(dragging);
+    });
+    container.addEventListener('drop', (e) => e.preventDefault());
+    container._dragInit = true;
+  }
+}
+
+function _renumberUrutanLaporanList() {
+  const container = document.getElementById('urutanLaporanList');
+  if (!container) return;
+  container.querySelectorAll('.urutan-lap-item').forEach((el, i) => {
+    const numEl = el.querySelector('.urutan-lap-num');
+    if (numEl) numEl.textContent = i + 1;
+  });
+}
+
+async function saveUrutanLaporan() {
+  const container = document.getElementById('urutanLaporanList');
+  if (!container) return;
+  const order = [...container.querySelectorAll('.urutan-lap-item')].map(el => parseInt(el.dataset.id));
+  try {
+    const r = await fetch('/api/users/urutan-laporan', {
+      method: 'PUT', headers: authHeaders(), body: JSON.stringify({ order }),
+    });
+    const d = await r.json();
+    if (!r.ok) { toast(d.error || 'Gagal menyimpan urutan', 'error'); return; }
+    toast('Urutan laporan disimpan');
+    closeModal('modalUrutanLaporan');
+    loadUsers();
+  } catch { toast('Gagal menyimpan urutan', 'error'); }
+}
+
 async function loadUsers() {
   const tb0 = document.getElementById('userTableBody');
   if (tb0) tb0.innerHTML = `<tr class="empty-row"><td colspan="6"><span class="btn-spin" style="width:11px;height:11px;vertical-align:-1px;margin-right:6px"></span>Memuat data...</td></tr>`;

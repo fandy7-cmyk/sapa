@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>SAPA Perencanaan</title>
-  <meta name="app-version" content="1.1.1" />
+  <meta name="app-version" content="1.1.2" />
   <meta property="og:type"         content="website" />
   <meta property="og:site_name"    content="SAPA Perencanaan" />
   <meta property="og:title"        content="SAPA Perencanaan" />
@@ -842,7 +842,7 @@
       gap: var(--sp-6);
       padding: var(--sp-6) 0;
     }
-    .sections-container > * { width: 100%; box-sizing: border-box; }
+    .sections-container > * { width: 100%; min-width: 0; box-sizing: border-box; }
 
     .section-head {
       display: flex; align-items: center; gap: var(--sp-2);
@@ -1995,7 +1995,7 @@
     </div>
     <div class="search-wrap">
       <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-      <input class="search-input" id="infoSearch" type="text" placeholder="Cari pengumuman..." oninput="_pgSearch('info')">
+      <input class="search-input" id="infoSearch" type="text" placeholder="Cari pengumuman..." oninput="debounceInput('infoSearch', () => _pgSearch('info'), 180)">
     </div>
     <div id="infoList" class="info-list">
       <div class="info-card info">
@@ -2020,7 +2020,7 @@
   </div>
   <div class="search-wrap">
     <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-    <input class="search-input" id="dokumenSearch" type="text" placeholder="Cari dokumen..." oninput="_pgSearch('dok')">
+    <input class="search-input" id="dokumenSearch" type="text" placeholder="Cari dokumen..." oninput="debounceInput('dokumenSearch', () => _pgSearch('dok'), 180)">
   </div>
   <div id="dokumenList" class="dokumen-list">
     <div class="skeleton-card"><div class="skeleton" style="width:40px;height:40px;border-radius:6px;flex-shrink:0"></div><div style="flex:1"><div class="skeleton" style="height:11px;width:60%;margin-bottom:6px"></div><div class="skeleton" style="height:9px;width:35%"></div></div></div>
@@ -2037,7 +2037,7 @@
     </div>
     <span class="section-head-label">Struktur Organisasi</span>
   </div>
-  <div id="strukturPageBody" style="background:var(--white);border-radius:var(--r-xl);border:1px solid var(--slate-100);padding:clamp(16px,3vw,36px);overflow-x:auto;overflow-y:visible;min-height:200px;display:flex;align-items:flex-start;justify-content:center;width:100%">
+  <div id="strukturPageBody" style="background:var(--white);border-radius:var(--r-xl);border:1px solid var(--slate-100);padding:clamp(16px,3vw,36px);overflow-x:auto;overflow-y:visible;min-height:200px;display:flex;align-items:flex-start;justify-content:flex-start;width:100%">
     <div style="color:var(--slate-400);font-size:var(--fs-sm);padding:40px">Memuat data…</div>
   </div>
 </section>
@@ -2101,6 +2101,13 @@
 <div id="toastContainer"></div>
 
 <script>
+// ── Debounce global untuk kotak search di landing ────────────────────────
+const _searchDebounceTimers = {};
+function debounceInput(key, fn, delay = 180) {
+  clearTimeout(_searchDebounceTimers[key]);
+  _searchDebounceTimers[key] = setTimeout(fn, delay);
+}
+
 // ── Topbar scroll blur ─────────────────────────────────────
 (function() {
   const nav = document.querySelector('nav.topbar');
@@ -2837,6 +2844,24 @@ async function initVisit() {
 .lnd-org-chart { display:flex; flex-direction:column; align-items:center; font-family:inherit; padding:8px 0 24px; width:max-content; min-width:100%; }
 .lnd-org-roots { display:flex; flex-wrap:nowrap; justify-content:center; gap:36px; width:max-content; min-width:100%; }
 .lnd-org-node-wrap { display:flex; flex-direction:column; align-items:center; }
+    /* Baris/level yang beneran lebih lebar dari area scroll otomatis jatuh ke start-align
+       (biar semua kartu pasti kejangkau scroll), tapi baris/level lain yang masih muat
+       TETEP center — gak ikut kegeser. `safe` cuma "kalah" ke start kalau center bakal
+       bikin konten kepotong gak kejangkau. Berlaku per-elemen, gak nyebar ke ancestor/descendant. */
+    @supports (justify-content: safe center) {
+      .lnd-org-chart      { align-items: safe center; }
+      .lnd-org-roots      { justify-content: safe center; }
+      .lnd-org-children   { align-items: safe center; }
+      .lnd-org-children-row { justify-content: safe center; }
+      .lnd-org-node-wrap  { align-items: safe center; }
+    }
+    /* Fallback buat browser lawas tanpa `safe center` (lihat JS applyOverflowFix):
+       class ditandai per-baris, bukan di root chart, jadi cuma baris yang beneran
+       overflow yang kepaksa start-align — baris/level lain tetep center. */
+    .lnd-org-roots.lnd-org-row-overflow,
+    .lnd-org-children-row.lnd-org-row-overflow {
+      justify-content: flex-start !important;
+    }
 .lnd-org-card {
   width:260px; min-width:260px; max-width:260px;
   background:var(--white);
@@ -2977,6 +3002,34 @@ async function initVisit() {
       roots.forEach(sortNode);
       body.innerHTML = `<div class="lnd-org-chart"><div class="lnd-org-roots">${roots.map(r => renderNode(r)).join('')}</div></div>`;
       _loaded = true;
+      // Kalau chart lebih lebar dari area yang keliatan (overflow-x aktif),
+      // justify-content/align-items:center bisa bikin sisi kiri gak
+      // kejangkau scroll di sejumlah browser. Deteksi overflow-nya, lalu
+      // matiin centering biar semua kartu pasti bisa discroll penuh.
+      // Browser modern (Chrome 115+/Firefox/Safari 16+) udah ditangani murni
+      // lewat CSS `justify-content/align-items: safe center` di atas — itu
+      // otomatis jatuh ke start-align CUMA di baris yang beneran overflow,
+      // tanpa nyeret baris/level lain yang masih muat. Fallback JS di bawah
+      // cuma jalan buat browser lawas yang belum kenal keyword `safe`.
+      const supportsSafeCenter = window.CSS && CSS.supports && CSS.supports('justify-content', 'safe center');
+      if (!supportsSafeCenter) {
+        const applyOverflowFix = () => {
+          const chartEl = body.querySelector('.lnd-org-chart');
+          if (!chartEl) return;
+          // Cuma tandain baris yang SENDIRI lebih lebar dari area scroll —
+          // bukan seluruh chart — biar level yang masih muat tetep center.
+          const rows = chartEl.querySelectorAll('.lnd-org-roots, .lnd-org-children-row');
+          rows.forEach(row => {
+            const overflowing = row.scrollWidth > body.clientWidth + 1;
+            row.classList.toggle('lnd-org-row-overflow', overflowing);
+          });
+        };
+        requestAnimationFrame(() => requestAnimationFrame(applyOverflowFix));
+        if (!window._lndOrgResizeBound) {
+          window._lndOrgResizeBound = true;
+          window.addEventListener('resize', () => requestAnimationFrame(applyOverflowFix));
+        }
+      }
     } catch(e) {
       body.innerHTML = '<div style="color:#dc2626;font-size:13px;padding:40px">Gagal memuat data struktur.</div>';
     }
@@ -3070,15 +3123,16 @@ loadTicker();
     banner.setAttribute('role', 'status');
     banner.style.cssText = [
       'position:fixed', 'left:50%', 'bottom:20px', 'transform:translateX(-50%)',
-      'z-index:99999', 'background:var(--teal-900,#042c26)', 'color:#fff',
+      'z-index:99999', 'background:var(--teal-700,#0f7a63)', 'color:#fff',
       'padding:12px 18px', 'border-radius:999px', 'box-shadow:0 8px 24px rgba(0,0,0,.25)',
       'display:flex', 'align-items:center', 'gap:12px', 'font-size:14px',
       'font-family:inherit', 'max-width:92vw'
     ].join(';');
     banner.innerHTML =
       '<span>Ada pembaruan tersedia.</span>' +
-      '<button type="button" style="background:var(--teal-500,#14b8a6);color:#042c26;border:none;' +
-      'padding:6px 14px;border-radius:999px;font-weight:600;font-size:13px;cursor:pointer;">Muat ulang</button>';
+      '<button type="button" style="background:var(--teal-400,#2dd4bf);color:var(--teal-900,#042c26);border:none;' +
+      'padding:6px 14px;border-radius:999px;font-weight:600;font-size:13px;cursor:pointer;display:inline-flex;align-items:center;gap:5px;">' +
+      '<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>Muat ulang</button>';
     banner.querySelector('button').addEventListener('click', function () {
       window.location.reload();
     });
