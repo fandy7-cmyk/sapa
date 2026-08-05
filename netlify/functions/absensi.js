@@ -5,6 +5,7 @@
 // GET    /api/absensi/tahun-tersedia     → daftar tahun yg ada datanya (& pegawai/unit kerja) tertentu, query ?user_id=&bidang_id=
 // GET    /api/absensi/rekap              → ringkasan mingguan/bulanan
 // GET    /api/absensi/ringkasan-bulan    → agregat 1 bulan (harian+ranking+status hr ini) utk dashboard, gak nembus paginasi
+// GET    /api/absensi/jam-kerja          → akumulasi jam kerja bulan ini vs target (widget halaman Absensi)
 // POST   /api/absensi/checkin            → user absen masuk (hari aktif/hari ini)
 // PUT    /api/absensi/checkout           → user absen pulang (hari aktif/hari ini)
 // POST   /api/absensi                    → admin/full input manual (hari sebelumnya / status hadir-tugas_luar-cuti-alpa)
@@ -57,6 +58,13 @@ function hitungTerlambat(tanggalStr, jamMasukStr, settings) {
   return selisih > 0
     ? { terlambat: true, menit_terlambat: selisih }
     : { terlambat: false, menit_terlambat: 0 };
+}
+
+// ── helper: HH:MM(:SS) → menit sejak 00:00 ──────────────────────────────
+function _menitDariJam(jamStr) {
+  if (!jamStr) return 0;
+  const [h, m] = jamStr.split(':').map(Number);
+  return h * 60 + m;
 }
 
 // ── helper: cek apakah jam sekarang sudah masuk jendela waktu absen ────────
@@ -122,6 +130,7 @@ export const handler = async (event) => {
   const isLibur = segments[0] === 'libur';
   const isRekap = segments[0] === 'rekap';
   const isRingkasanBulan = segments[0] === 'ringkasan-bulan';
+  const isJamKerja = segments[0] === 'jam-kerja';
   const isBulanTersedia = segments[0] === 'bulan-tersedia';
   const isTahunTersedia = segments[0] === 'tahun-tersedia';
   const isBidangTersedia = segments[0] === 'bidang-tersedia';
@@ -688,6 +697,122 @@ export const handler = async (event) => {
     } catch (err) {
       console.error('[GET /api/absensi/ringkasan-bulan]', err);
       return errorResponse('Gagal mengambil ringkasan bulan');
+    }
+  }
+
+  // ══════════════════════════ JAM KERJA BULAN INI vs TARGET (widget) ══════════════════════════
+  // Target dihitung dari jam kerja standar (absensi_settings) x jumlah hari kerja
+  // (Senin-Jumat, bukan hari libur) di bulan tsb. Aktual = akumulasi jam_keluar -
+  // jam_masuk utk status hadir yg lengkap. Cuti/Tugas Luar (baris ini cuma ada
+  // kalau sudah disetujui admin — lihat approve pengajuan di atas) dihitung PENUH
+  // sesuai jam kerja standar hari itu, bukan 0, biar gak ngerugiin pegawai yg
+  // cuti/tugas luar disetujui.
+  if (isJamKerja && event.httpMethod === 'GET') {
+    const { user_id, bulan, tahun, bidang_id } = event.queryStringParameters || {};
+    const targetUserId = full && user_id ? parseInt(user_id) : (full ? null : auth.id);
+    if (!full && user_id && parseInt(user_id) !== auth.id) return errorResponse('Unauthorized', 401);
+    // Mode agregat: admin/full liat rekap TANPA filter ke 1 pegawai spesifik →
+    // rata-rata jam kerja semua pegawai (opsional difilter per unit/bidang).
+    const isAgregat = full && !targetUserId;
+    const bidangId = full && bidang_id ? parseInt(bidang_id) : null;
+
+    const y = tahun ? parseInt(tahun) : parseInt(todayStr().slice(0, 4));
+    const m = bulan ? parseInt(bulan) : parseInt(todayStr().slice(5, 7));
+
+    try {
+      const settingsRows = await sql`SELECT * FROM absensi_settings WHERE id = 1`;
+      const settings = settingsRows[0];
+      const targetMenitSeninKamis = _menitDariJam(settings.jam_pulang_senin_kamis) - _menitDariJam(settings.jam_masuk_senin_kamis);
+      const targetMenitJumat = _menitDariJam(settings.jam_pulang_jumat) - _menitDariJam(settings.jam_masuk_jumat);
+
+      const liburRows = await sql`
+        SELECT tanggal::text AS tanggal FROM hari_libur
+        WHERE EXTRACT(YEAR FROM tanggal) = ${y} AND EXTRACT(MONTH FROM tanggal) = ${m}
+      `;
+      const liburSet = new Set(liburRows.map(r => r.tanggal));
+
+      // Total hari kerja & target menit sebulan penuh (Senin-Jumat, bukan hari libur)
+      // — sama utk semua pegawai (jam kerja standar institusi), jadi berlaku juga
+      // sebagai target PER PEGAWAI di mode agregat.
+      const totalHariBulan = new Date(y, m, 0).getDate();
+      let hariKerjaTotal = 0, targetMenitPerPegawai = 0;
+      for (let d = 1; d <= totalHariBulan; d++) {
+        const tgl = `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+        const dow = new Date(Date.UTC(y, m - 1, d)).getUTCDay();
+        if (dow === 0 || dow === 6) continue;
+        if (liburSet.has(tgl)) continue;
+        hariKerjaTotal += 1;
+        targetMenitPerPegawai += (dow === 5) ? targetMenitJumat : targetMenitSeninKamis;
+      }
+
+      let jumlahPegawai = 1;
+      let userIdFilter = [targetUserId];
+      if (isAgregat) {
+        const pegawaiRows = await sql`
+          SELECT id FROM users
+          WHERE is_admin = false
+            AND (${bidangId}::int IS NULL OR bidang_id = ${bidangId}::int)
+        `;
+        userIdFilter = pegawaiRows.map(r => r.id);
+        jumlahPegawai = userIdFilter.length || 1;
+      }
+      const targetMenit = targetMenitPerPegawai * jumlahPegawai;
+
+      const rows = isAgregat
+        ? await sql`
+            SELECT tanggal::text AS tanggal, status, jam_masuk, jam_keluar
+            FROM absensi
+            WHERE user_id = ANY(${userIdFilter}::int[])
+              AND EXTRACT(YEAR FROM tanggal) = ${y} AND EXTRACT(MONTH FROM tanggal) = ${m}
+          `
+        : await sql`
+            SELECT tanggal::text AS tanggal, status, jam_masuk, jam_keluar
+            FROM absensi
+            WHERE user_id = ${targetUserId}
+              AND EXTRACT(YEAR FROM tanggal) = ${y} AND EXTRACT(MONTH FROM tanggal) = ${m}
+          `;
+      let aktualMenit = 0, hariHadirLengkap = 0, hariCutiTugasLuar = 0;
+      for (const r of rows) {
+        const dow = new Date(`${r.tanggal}T00:00:00Z`).getUTCDay();
+        const isJumatRow = dow === 5;
+        const targetHari = isJumatRow ? targetMenitJumat : targetMenitSeninKamis;
+        if (r.status === 'hadir' && r.jam_masuk && r.jam_keluar) {
+          // Clamp ke jendela jam kerja standar (jam_masuk s/d jam_pulang) —
+          // masuk lebih pagi / pulang lebih telat dari jadwal gak nambah durasi
+          // (gak dpt "bonus"), dan yang penting: telat masuk / pulang cepat
+          // TETAP ngurangin durasi apa adanya, jadi gak bisa ditutup-tutupi
+          // dengan pulang lebih telat.
+          const standarMasuk  = _menitDariJam(isJumatRow ? settings.jam_masuk_jumat  : settings.jam_masuk_senin_kamis);
+          const standarPulang = _menitDariJam(isJumatRow ? settings.jam_pulang_jumat : settings.jam_pulang_senin_kamis);
+          const masukEfektif  = Math.max(_menitDariJam(r.jam_masuk), standarMasuk);
+          const pulangEfektif = Math.min(_menitDariJam(r.jam_keluar), standarPulang);
+          const durasi = pulangEfektif - masukEfektif;
+          if (durasi > 0) { aktualMenit += durasi; hariHadirLengkap += 1; }
+        } else if (['cuti', 'tugas_luar', 'izin', 'sakit'].includes(r.status)) {
+          aktualMenit += targetHari;
+          hariCutiTugasLuar += 1;
+        }
+      }
+
+      const persentase = targetMenit > 0 ? Math.round((aktualMenit / targetMenit) * 1000) / 10 : 0;
+      // Mode agregat sekarang tampilin TOTAL gabungan (bukan dibagi rata per
+      // pegawai) — lebih gampang dibaca & tetap benar dipakai baik pas filter
+      // "semua pegawai" maupun pas difilter ke 1 unit/bidang kerja tertentu.
+
+      return jsonResponse({
+        bulan: m, tahun: y,
+        target_menit: targetMenit,
+        aktual_menit: aktualMenit,
+        persentase,
+        hari_kerja_total: hariKerjaTotal,
+        hari_hadir_lengkap: hariHadirLengkap,
+        hari_cuti_tugas_luar: hariCutiTugasLuar,
+        agregat: isAgregat,
+        jumlah_pegawai: isAgregat ? jumlahPegawai : undefined,
+      });
+    } catch (err) {
+      console.error('[GET /api/absensi/jam-kerja]', err);
+      return errorResponse('Gagal mengambil rekap jam kerja');
     }
   }
 

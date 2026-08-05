@@ -108,9 +108,11 @@ export const handler = async (event) => {
   // ── GET /api/users ─────────────────────────────────────────────────────
   if (event.httpMethod === 'GET' && !userId) {
     try {
+      await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS urutan_laporan INTEGER`;
       const users = await sql`
         SELECT u.id, u.nama, u.nip, u.email, u.is_admin, u.last_login, u.created_at,
-               u.bidang_id, b.nama AS bidang_nama, b.singkatan AS bidang_singkatan
+               u.bidang_id, b.nama AS bidang_nama, b.singkatan AS bidang_singkatan,
+               u.urutan_laporan
         FROM users u
         LEFT JOIN bidang b ON b.id = u.bidang_id
         ORDER BY u.is_admin DESC, u.nama ASC
@@ -119,6 +121,28 @@ export const handler = async (event) => {
     } catch (err) {
       console.error('[GET /api/users]', err);
       return errorResponse('Gagal mengambil data pengguna');
+    }
+  }
+
+  // ── PUT /api/users/urutan-laporan — admin atur urutan manual pegawai
+  // buat Laporan Absensi (PDF), gantiin sortir A-Z default ──
+  if (event.httpMethod === 'PUT' && !userId && segments[0] === 'urutan-laporan') {
+    const { order } = parseBody(event);
+    if (!Array.isArray(order)) return errorResponse('Format urutan tidak valid', 400);
+    try {
+      await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS urutan_laporan INTEGER`;
+      for (let i = 0; i < order.length; i++) {
+        await sql`UPDATE users SET urutan_laporan = ${i} WHERE id = ${order[i]}`;
+      }
+      await logAudit(sql, event, {
+        user_id: admin.id, nama: admin.nama, email: admin.email,
+        aksi: 'update_urutan_laporan', entitas: 'user',
+        detail: { order }
+      });
+      return jsonResponse({ ok: true });
+    } catch (err) {
+      console.error('[PUT /api/users/urutan-laporan]', err);
+      return errorResponse('Gagal menyimpan urutan laporan');
     }
   }
 
