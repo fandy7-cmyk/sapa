@@ -99,6 +99,17 @@ function nowTimeStr() {
   return new Intl.DateTimeFormat('en-GB', { timeZone: TZ, hour: '2-digit', minute: '2-digit', hour12: false }).format(new Date());
 }
 
+// ── helper: baris ini murni hasil cron-alpa (blm pernah disentuh manusia)? ──
+// Kriteria HARUS ketat & cocok persis dgn yg di-generate absensi-cron-alpa.js:
+// status alpa, input_by NULL (cron gak login sbg siapa2), keterangan persis
+// teks otomatisnya. Kalau baris udah diedit admin (input_by keisi) atau
+// statusnya beda, JANGAN dianggap aman — itu berarti udah ada campur tangan
+// manusia & harus ditolak/diminta edit manual, bukan di-overwrite diam2.
+const KETERANGAN_CRON_ALPA = 'Otomatis: tidak ada absen masuk & pulang';
+function isCronAlpaRow(row) {
+  return row.status === 'alpa' && row.input_by === null && row.keterangan === KETERANGAN_CRON_ALPA;
+}
+
 // ── helper: daftar semua tanggal (YYYY-MM-DD) dari mulai s/d selesai inklusif ──
 // Pakai Date.UTC murni (bukan new Date(`${s}T00:00:00`) yg kena TZ lokal server)
 // biar gak ada resiko geser sehari pas nambah hari via setDate().
@@ -961,29 +972,46 @@ export const handler = async (event) => {
 
       const tanggalList = _rentangTanggalYMD(tanggal, tanggal_selesai);
       try {
-        // All-or-nothing: kalau ada satu aja tanggal yg udah ke-record (mis.
-        // kena Alpa dari cron), tolak semuanya biar admin bisa cek/hapus dulu.
+        // Cek semua tanggal yg udah ke-record. Baris murni hasil cron alpa
+        // (blm disentuh manusia) AMAN di-overwrite otomatis; baris lain
+        // (checkin asli, atau udah pernah diedit admin) BLOKIR semuanya biar
+        // admin cek/hapus manual dulu — tetap all-or-nothing utk yg blocking.
         const bentrok = await sql`
-          SELECT tanggal::text AS tanggal FROM absensi WHERE user_id = ${user_id} AND tanggal = ANY(${tanggalList}::date[])
+          SELECT id, tanggal::text AS tanggal, status, input_by, keterangan
+          FROM absensi WHERE user_id = ${user_id} AND tanggal = ANY(${tanggalList}::date[])
         `;
-        if (bentrok.length) {
-          const daftar = bentrok.map(r => r.tanggal).join(', ');
+        const blocking = bentrok.filter(r => !isCronAlpaRow(r));
+        if (blocking.length) {
+          const daftar = blocking.map(r => r.tanggal).join(', ');
           return errorResponse(`Sudah ada absensi pada tanggal: ${daftar}. Edit/hapus dulu sebelum input rentang ini.`, 409);
         }
+        const overwriteMap = new Map(bentrok.map(r => [r.tanggal, r.id]));
 
         const inserted = [];
         for (const tgl of tanggalList) {
-          const rows = await sql`
-            INSERT INTO absensi (user_id, tanggal, jam_masuk, jam_keluar, status, terlambat, menit_terlambat, keterangan, data_dukung_url, data_dukung_nama, input_by)
-            VALUES (${user_id}, ${tgl}, NULL, NULL, ${status}, false, 0, ${keterangan || null}, ${data_dukung_url || null}, ${data_dukung_nama || null}, ${auth.id})
-            RETURNING *
-          `;
+          const existingId = overwriteMap.get(tgl);
+          const rows = existingId
+            ? await sql`
+                UPDATE absensi SET
+                  jam_masuk = NULL, jam_keluar = NULL, status = ${status},
+                  terlambat = false, menit_terlambat = 0,
+                  keterangan = ${keterangan || null},
+                  data_dukung_url = ${data_dukung_url || null}, data_dukung_nama = ${data_dukung_nama || null},
+                  input_by = ${auth.id}, updated_at = NOW()
+                WHERE id = ${existingId}
+                RETURNING *
+              `
+            : await sql`
+                INSERT INTO absensi (user_id, tanggal, jam_masuk, jam_keluar, status, terlambat, menit_terlambat, keterangan, data_dukung_url, data_dukung_nama, input_by)
+                VALUES (${user_id}, ${tgl}, NULL, NULL, ${status}, false, 0, ${keterangan || null}, ${data_dukung_url || null}, ${data_dukung_nama || null}, ${auth.id})
+                RETURNING *
+              `;
           inserted.push(rows[0]);
         }
         await logAudit(sql, event, {
           user_id: auth.id, nama: auth.nama, email: auth.email,
           aksi: 'create_absensi_rentang', entitas: 'absensi', entitas_id: inserted[0]?.id,
-          detail: { user_id, tanggal, tanggal_selesai, status, jumlah_hari: tanggalList.length },
+          detail: { user_id, tanggal, tanggal_selesai, status, jumlah_hari: tanggalList.length, jumlah_overwrite_alpa: overwriteMap.size },
         });
         return jsonResponse({ absensi: inserted }, 201);
       } catch (err) {
@@ -1003,8 +1031,17 @@ export const handler = async (event) => {
     }
 
     try {
-      const exist = await sql`SELECT id FROM absensi WHERE user_id = ${user_id} AND tanggal = ${tanggal} LIMIT 1`;
-      if (exist.length) return errorResponse('Absensi pegawai untuk tanggal tersebut sudah ada, silakan edit', 409);
+      const exist = await sql`
+        SELECT id, status, input_by, keterangan FROM absensi
+        WHERE user_id = ${user_id} AND tanggal = ${tanggal} LIMIT 1
+      `;
+      let overwriteId = null;
+      if (exist.length) {
+        if (!isCronAlpaRow(exist[0])) {
+          return errorResponse('Absensi pegawai untuk tanggal tersebut sudah ada, silakan edit', 409);
+        }
+        overwriteId = exist[0].id; // baris murni hasil cron alpa → aman ditimpa
+      }
 
       const settingsRows = await sql`SELECT * FROM absensi_settings WHERE id = 1`;
 
@@ -1013,17 +1050,28 @@ export const handler = async (event) => {
         ? hitungTerlambat(tanggal, jam_masuk, settingsRows[0])
         : { terlambat: false, menit_terlambat: 0 };
 
-      const rows = await sql`
-        INSERT INTO absensi (user_id, tanggal, jam_masuk, jam_keluar, status, terlambat, menit_terlambat, keterangan, data_dukung_url, data_dukung_nama, input_by)
-        VALUES (${user_id}, ${tanggal}, ${jam_masuk || null}, ${jam_keluar || null}, ${finalStatus}, ${terlambat}, ${menit_terlambat}, ${keterangan || null}, ${data_dukung_url || null}, ${data_dukung_nama || null}, ${auth.id})
-        RETURNING *
-      `;
+      const rows = overwriteId
+        ? await sql`
+            UPDATE absensi SET
+              jam_masuk = ${jam_masuk || null}, jam_keluar = ${jam_keluar || null},
+              status = ${finalStatus}, terlambat = ${terlambat}, menit_terlambat = ${menit_terlambat},
+              keterangan = ${keterangan || null},
+              data_dukung_url = ${data_dukung_url || null}, data_dukung_nama = ${data_dukung_nama || null},
+              input_by = ${auth.id}, updated_at = NOW()
+            WHERE id = ${overwriteId}
+            RETURNING *
+          `
+        : await sql`
+            INSERT INTO absensi (user_id, tanggal, jam_masuk, jam_keluar, status, terlambat, menit_terlambat, keterangan, data_dukung_url, data_dukung_nama, input_by)
+            VALUES (${user_id}, ${tanggal}, ${jam_masuk || null}, ${jam_keluar || null}, ${finalStatus}, ${terlambat}, ${menit_terlambat}, ${keterangan || null}, ${data_dukung_url || null}, ${data_dukung_nama || null}, ${auth.id})
+            RETURNING *
+          `;
       await logAudit(sql, event, {
         user_id: auth.id, nama: auth.nama, email: auth.email,
-        aksi: 'create_absensi', entitas: 'absensi', entitas_id: rows[0].id,
+        aksi: overwriteId ? 'overwrite_absensi_cron_alpa' : 'create_absensi', entitas: 'absensi', entitas_id: rows[0].id,
         detail: { user_id, tanggal, status: finalStatus },
       });
-      return jsonResponse({ absensi: rows[0] }, 201);
+      return jsonResponse({ absensi: rows[0] }, overwriteId ? 200 : 201);
     } catch (err) {
       console.error('[POST /api/absensi]', err);
       return errorResponse('Gagal menambah absensi');
