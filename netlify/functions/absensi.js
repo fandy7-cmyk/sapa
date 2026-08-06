@@ -728,7 +728,12 @@ export const handler = async (event) => {
     const bidangId = full && bidang_id ? parseInt(bidang_id) : null;
 
     const y = tahun ? parseInt(tahun) : parseInt(todayStr().slice(0, 4));
-    const m = bulan ? parseInt(bulan) : parseInt(todayStr().slice(5, 7));
+    // bulan eksplisit '' (bukan sekadar gak dikirim) → "Semua Bulan", agregat satu
+    // tahun. Bedain dari "gak dikirim sama sekali" (fallback lama) yg tetap ke bulan
+    // berjalan — sama pola kayak endpoint /rekap di atas.
+    const bulanDikirim = event.queryStringParameters && Object.prototype.hasOwnProperty.call(event.queryStringParameters, 'bulan');
+    const semuaBulan = bulanDikirim && !bulan;
+    const m = bulan ? parseInt(bulan) : (semuaBulan ? null : parseInt(todayStr().slice(5, 7)));
 
     try {
       const settingsRows = await sql`SELECT * FROM absensi_settings WHERE id = 1`;
@@ -738,22 +743,26 @@ export const handler = async (event) => {
 
       const liburRows = await sql`
         SELECT tanggal::text AS tanggal FROM hari_libur
-        WHERE EXTRACT(YEAR FROM tanggal) = ${y} AND EXTRACT(MONTH FROM tanggal) = ${m}
+        WHERE EXTRACT(YEAR FROM tanggal) = ${y}
       `;
       const liburSet = new Set(liburRows.map(r => r.tanggal));
 
-      // Total hari kerja & target menit sebulan penuh (Senin-Jumat, bukan hari libur)
-      // — sama utk semua pegawai (jam kerja standar institusi), jadi berlaku juga
+      // Total hari kerja & target menit — sebulan penuh kalau ada filter bulan,
+      // atau setahun penuh (jumlahin tiap bulan) kalau mode "Semua Bulan" (m null).
+      // Sama utk semua pegawai (jam kerja standar institusi), jadi berlaku juga
       // sebagai target PER PEGAWAI di mode agregat.
-      const totalHariBulan = new Date(y, m, 0).getDate();
+      const bulanList = m ? [m] : Array.from({ length: 12 }, (_, i) => i + 1);
       let hariKerjaTotal = 0, targetMenitPerPegawai = 0;
-      for (let d = 1; d <= totalHariBulan; d++) {
-        const tgl = `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
-        const dow = new Date(Date.UTC(y, m - 1, d)).getUTCDay();
-        if (dow === 0 || dow === 6) continue;
-        if (liburSet.has(tgl)) continue;
-        hariKerjaTotal += 1;
-        targetMenitPerPegawai += (dow === 5) ? targetMenitJumat : targetMenitSeninKamis;
+      for (const bln of bulanList) {
+        const totalHariBulan = new Date(y, bln, 0).getDate();
+        for (let d = 1; d <= totalHariBulan; d++) {
+          const tgl = `${y}-${String(bln).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+          const dow = new Date(Date.UTC(y, bln - 1, d)).getUTCDay();
+          if (dow === 0 || dow === 6) continue;
+          if (liburSet.has(tgl)) continue;
+          hariKerjaTotal += 1;
+          targetMenitPerPegawai += (dow === 5) ? targetMenitJumat : targetMenitSeninKamis;
+        }
       }
 
       let jumlahPegawai = 1;
@@ -770,18 +779,32 @@ export const handler = async (event) => {
       const targetMenit = targetMenitPerPegawai * jumlahPegawai;
 
       const rows = isAgregat
-        ? await sql`
-            SELECT tanggal::text AS tanggal, status, jam_masuk, jam_keluar
-            FROM absensi
-            WHERE user_id = ANY(${userIdFilter}::int[])
-              AND EXTRACT(YEAR FROM tanggal) = ${y} AND EXTRACT(MONTH FROM tanggal) = ${m}
-          `
-        : await sql`
-            SELECT tanggal::text AS tanggal, status, jam_masuk, jam_keluar
-            FROM absensi
-            WHERE user_id = ${targetUserId}
-              AND EXTRACT(YEAR FROM tanggal) = ${y} AND EXTRACT(MONTH FROM tanggal) = ${m}
-          `;
+        ? (m
+            ? await sql`
+                SELECT tanggal::text AS tanggal, status, jam_masuk, jam_keluar
+                FROM absensi
+                WHERE user_id = ANY(${userIdFilter}::int[])
+                  AND EXTRACT(YEAR FROM tanggal) = ${y} AND EXTRACT(MONTH FROM tanggal) = ${m}
+              `
+            : await sql`
+                SELECT tanggal::text AS tanggal, status, jam_masuk, jam_keluar
+                FROM absensi
+                WHERE user_id = ANY(${userIdFilter}::int[])
+                  AND EXTRACT(YEAR FROM tanggal) = ${y}
+              `)
+        : (m
+            ? await sql`
+                SELECT tanggal::text AS tanggal, status, jam_masuk, jam_keluar
+                FROM absensi
+                WHERE user_id = ${targetUserId}
+                  AND EXTRACT(YEAR FROM tanggal) = ${y} AND EXTRACT(MONTH FROM tanggal) = ${m}
+              `
+            : await sql`
+                SELECT tanggal::text AS tanggal, status, jam_masuk, jam_keluar
+                FROM absensi
+                WHERE user_id = ${targetUserId}
+                  AND EXTRACT(YEAR FROM tanggal) = ${y}
+              `);
       let aktualMenit = 0, hariHadirLengkap = 0, hariCutiTugasLuar = 0;
       for (const r of rows) {
         const dow = new Date(`${r.tanggal}T00:00:00Z`).getUTCDay();
@@ -905,7 +928,7 @@ export const handler = async (event) => {
     if (!full && user_id && parseInt(user_id) !== auth.id) return errorResponse('Unauthorized', 401);
     const bidangId = full && bidang_id ? parseInt(bidang_id) : null;
 
-    const limit = 15;
+    const limit = 10; // samain dgn _absPageSize di frontend (absensi_frontend.js)
     const offset = ((parseInt(page) || 1) - 1) * limit;
 
     try {
