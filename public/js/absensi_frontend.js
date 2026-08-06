@@ -51,7 +51,7 @@ let _absFilterPegawai = '';
 let _absFilterBidang = '';
 let _absAllPegawai = [];   // cache semua pegawai (non-admin) beserta bidang_id, dipakai buat narrow-in filter Unit Kerja
 let _absPage = 1;
-const _absPageSize = 15;
+const _absPageSize = 10;
 let _absEditingId = null;
 
 // ── ENTRY POINT (dipanggil dari loader menu, mis. loader: () => loadAbsensi()) ──
@@ -746,21 +746,21 @@ function _absFmtJam(menit) {
   return `${jam}j ${sisaMenit}m`;
 }
 
-// Skala Nilai Peringkat Kinerja (PermenPANRB) — dipakai buat warnain progress
-// bar capaian jam kerja: Sangat Kurang <50, Kurang 50-70, Cukup 70-90,
-// Baik 90-120, Sangat Baik >120. Persentase yang dipakai TIDAK dibatasi ke
-// 100 biar capaian di atas target (>120%) tetap kebaca "Sangat Baik".
+// Skala Nilai Peringkat Kinerja (Permendagri No. 86/2017) — sama persis dgn
+// skala di modul Kinerja (_kwCapaianColor, dashboard.js): 91-100 Sangat Tinggi,
+// 76-90 Tinggi, 66-75 Sedang, 51-65 Rendah, ≤50 Sangat Rendah. Persentase yang
+// dipakai TIDAK dibatasi ke 100 biar capaian di atas target tetap "Sangat Tinggi".
 function _kinerjaSkalaWarna(pctAsli) {
-  if (pctAsli < 50)  return { warna: '#ef4444', label: 'Sangat Kurang' };
-  if (pctAsli < 70)  return { warna: '#f97316', label: 'Kurang' };
-  if (pctAsli < 90)  return { warna: '#f59e0b', label: 'Cukup' };
-  if (pctAsli <= 120) return { warna: '#3b82f6', label: 'Baik' };
-  return { warna: '#10b981', label: 'Sangat Baik' };
+  const c = Number(pctAsli) || 0;
+  if (c >= 91) return { warna: '#16a34a', label: 'Sangat Tinggi' };
+  if (c >= 76) return { warna: '#4ade80', label: 'Tinggi' };
+  if (c >= 66) return { warna: '#eab308', label: 'Sedang' };
+  if (c >= 51) return { warna: '#f97316', label: 'Rendah' };
+  return { warna: '#ef4444', label: 'Sangat Rendah' };
 }
 
 async function _absJamKerjaCard() {
-  const bulan = _absFilterBulan || (new Date().getMonth() + 1);
-  const params = new URLSearchParams({ bulan, tahun: _absFilterTahun });
+  const params = new URLSearchParams({ bulan: _absFilterBulan, tahun: _absFilterTahun });
   if (isAbsensiFull()) {
     if (_absFilterPegawai) params.set('user_id', _absFilterPegawai);
     if (_absFilterBidang) params.set('bidang_id', _absFilterBidang);
@@ -771,27 +771,29 @@ async function _absJamKerjaCard() {
     const d = await r.json();
     const pctAsli = Math.max(0, d.persentase || 0);
     const pct = Math.min(100, pctAsli); // buat teks & lebar bar (bar mentok 100%)
-    const tercapai = (d.aktual_menit || 0) >= (d.target_menit || 0);
     const iconJam = `<svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="10" x2="14" y1="2" y2="2"/><line x1="12" x2="15" y1="14" y2="11"/><circle cx="12" cy="14" r="8"/></svg>`;
     // Teks disamain dgn _absensiJamKerjaPanel (dashboard.js) — cuma tampilan
     // kartunya tetap gaya asli absensi (_kpiCard + progress bar dot).
-    const label = d.agregat ? `Total Jam Kerja ${ABS_BULAN_NAMA[d.bulan]}` : `Jam Kerja ${ABS_BULAN_NAMA[d.bulan]}`;
+    const periodeLabel = d.bulan ? ABS_BULAN_NAMA[d.bulan] : `Tahun ${d.tahun}`;
+    const label = d.agregat ? `Total Jam Kerja ${periodeLabel}` : `Jam Kerja ${periodeLabel}`;
     const sub = d.agregat
       ? `${pct}% dari target ${_absFmtJam(d.target_menit)} · ${d.hari_kerja_total} hari kerja · total dari ${d.jumlah_pegawai} pegawai`
-      : `${pct}% dari target ${_absFmtJam(d.target_menit)} · ${d.hari_kerja_total} hari kerja bulan ini`;
-    const c = _KPI_COLORS[tercapai ? 'green' : 'amber'];
+      : `${pct}% dari target ${_absFmtJam(d.target_menit)} · ${d.hari_kerja_total} hari kerja ${d.bulan ? 'bulan ini' : 'tahun ini'}`;
+    // Satu warna aja utk seluruh kartu (border, angka, ikon, progress bar) —
+    // ngikutin Skala Nilai Peringkat Kinerja, sama kayak legend di modul Kinerja
+    // (bukan lagi biner tercapai/gak tercapai spt sebelumnya).
+    const { warna } = _kinerjaSkalaWarna(pctAsli);
     const kartu = `
-      <div class="dash-kpi-card" style="border-left-color:${c.text}">
+      <div class="dash-kpi-card" style="border-left-color:${warna}">
         <div class="dash-kpi-body">
           <div class="dash-kpi-lbl">${esc(label)}</div>
-          <div class="dash-kpi-val" style="color:${c.text}">${esc(_absFmtJam(d.aktual_menit))}</div>
+          <div class="dash-kpi-val" style="color:${warna}">${esc(_absFmtJam(d.aktual_menit))}</div>
           <div class="dash-kpi-sub" style="font-weight:400">${esc(sub)}</div>
         </div>
-        <div class="dash-kpi-icon" style="color:${c.text}">${iconJam}</div>
+        <div class="dash-kpi-icon" style="color:${warna}">${iconJam}</div>
       </div>`;
     // Progress bar capaian, warna ngikutin Skala Nilai Peringkat Kinerja —
     // ditempel visual di bawah kartu (tanpa ubah struktur internal _kpiCard).
-    const { warna } = _kinerjaSkalaWarna(pctAsli);
     return `<div class="abs-jamkerja-wrap" style="--jk-warna:${warna}">
       ${kartu}
       <div class="abs-jamkerja-progress">
@@ -812,7 +814,7 @@ async function loadAbsTable(page = 1) {
   const tbody = document.getElementById('absTableBody');
   if (!tbody) return;
   const colCount = isAbsensiFull() ? 7 : 5;
-  tbody.innerHTML = `<tr class="empty-row"><td colspan="${colCount}">Memuat data...</td></tr>`;
+  tbody.innerHTML = `<tr class="empty-row"><td colspan="${colCount}"><span class="btn-spin" style="width:11px;height:11px;vertical-align:-1px;margin-right:6px"></span>Memuat data...</td></tr>`;
 
   const params = new URLSearchParams({ bulan: _absFilterBulan, tahun: _absFilterTahun, page });
   if (isAbsensiFull()) {

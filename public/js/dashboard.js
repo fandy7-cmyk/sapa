@@ -593,18 +593,11 @@ function _absensiBelumPanel(list, totalPegawai, sudahAbsen) {
   </div>`;
 }
 
-// Skala Nilai Peringkat Kinerja (PermenPANRB) — sama persis dengan yang
-// dipakai di kartu Absensi (lihat _kinerjaSkalaWarna di absensi_frontend.js):
-// Sangat Kurang <50, Kurang 50-70, Cukup 70-90, Baik 90-120, Sangat Baik >120.
-// Persentase yang dipakai TIDAK dibatasi ke 100 biar capaian di atas target
-// (>120%) tetap kebaca "Sangat Baik".
-function _dashSkalaWarna(pctAsli) {
-  if (pctAsli < 50)  return '#ef4444';
-  if (pctAsli < 70)  return '#f97316';
-  if (pctAsli < 90)  return '#f59e0b';
-  if (pctAsli <= 120) return '#3b82f6';
-  return '#10b981';
-}
+// Skala warna kartu Jam Kerja disamain persis sama Skala Nilai Peringkat Kinerja
+// (Permendagri No. 86/2017) yang dipakai di modul Kinerja — lihat _kwCapaianColor
+// di bawah (91-100 Sangat Tinggi, 76-90 Tinggi, 66-75 Sedang, 51-65 Rendah, ≤50
+// Sangat Rendah), biar user gak bingung liat 2 skala warna beda arti di app yg sama.
+// (Dulu pakai skala PermenPANRB sendiri di sini — diganti biar konsisten.)
 
 // Panel "Jam Kerja Bulan Ini" — akumulasi jam kerja vs target (dari /api/absensi/jam-kerja).
 // Non-full: metrik personal milik sendiri, dipasangkan 1 baris dengan Tren Kehadiran Harian.
@@ -619,7 +612,7 @@ function _absensiJamKerjaPanel(d, full = false) {
   };
   const pctAsli = Math.max(0, d.persentase || 0);
   const pct = Math.min(100, pctAsli);
-  const warna = _dashSkalaWarna(pctAsli);
+  const warna = _kwCapaianColor(pctAsli);
   const judul = d.agregat ? `Total Jam Kerja ${ABS_BULAN_NAMA[d.bulan]}` : `Jam Kerja ${ABS_BULAN_NAMA[d.bulan]}`;
   const catatanBawah = d.agregat
     ? `${d.hari_kerja_total} hari kerja bulan ini · total dari ${d.jumlah_pegawai} pegawai`

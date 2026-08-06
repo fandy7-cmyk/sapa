@@ -338,6 +338,19 @@ function _isoToLocal(iso) {
   const BULAN_FULL = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
   const DOW   = ['Min','Sen','Sel','Rab','Kam','Jum','Sab'];
 
+  // Server balikin `tanggal` sbg timestamp yg sudah di-convert ke UTC (kolom DATE
+  // di-parse jadi Date object lalu di-JSON-stringify) — potong string mentah
+  // (slice) bisa salah baca tanggal krn hasil convert-nya bisa mundur 1 hari
+  // dari tanggal aslinya. Selalu re-parse via `new Date()` lalu ambil komponen
+  // LOKAL (bukan UTC), sama seperti _absLiburLocalYMD di absensi_frontend.js.
+  function _cdtpLocalYMD(tanggal) {
+    const d = new Date(tanggal);
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+  }
+
   // Baca nilai dari hidden input → object {y,mo,d,h,mi} atau null
   function _parseHidden(hiddenEl) {
     const v = hiddenEl?.value; // YYYY-MM-DDTHH:mm
@@ -367,11 +380,31 @@ function _isoToLocal(iso) {
   function buildPicker(mountEl, hiddenEl, label) {
     // data-cdtp-date="1" pada mount = mode tanggal saja (tanpa jam/menit)
     const dateOnly = mountEl.dataset.cdtpDate === '1';
+    // data-cdtp-libur="1" pada mount = tandai akhir pekan & hari libur nasional
+    // warna merah di grid kalender (dipakai khusus picker tanggal Absensi)
+    const showLibur = mountEl.dataset.cdtpLibur === '1';
     // State
     let sel   = _parseHidden(hiddenEl); // currently selected dt {y,mo,d,h,mi}
     let view  = sel ? { y: sel.y, mo: sel.mo } : { y: new Date().getFullYear(), mo: new Date().getMonth() };
     let mode  = 'cal'; // 'cal' | 'month' | 'year'
     let open  = false;
+    let liburSet = new Set(); // tanggal (YYYY-MM-DD) libur nasional utk bulan yg sedang ditampilkan
+    let liburKey = null;      // "y-mo" yang datanya sudah di-fetch, cegah fetch ulang tiap render
+
+    // Ambil daftar hari libur nasional utk bulan yg sedang di-view (hanya jika showLibur aktif).
+    // Fetch async lalu render ulang kalau hasilnya datang & user masih di bulan yg sama.
+    async function _loadLiburBulan() {
+      if (!showLibur) return;
+      const key = `${view.y}-${view.mo}`;
+      if (liburKey === key) return;
+      liburKey = key;
+      try {
+        const r = await fetch(`/api/absensi/libur?tahun=${view.y}&bulan=${view.mo + 1}`, { headers: authHeaders() });
+        const d = await r.json();
+        liburSet = new Set((d.libur || []).map(l => _cdtpLocalYMD(l.tanggal)));
+      } catch { liburSet = new Set(); }
+      if (mode === 'cal' && liburKey === key) renderCal();
+    }
 
     // ── DOM skeleton ──────────────────────────────────────────────────────
     mountEl.innerHTML = `
@@ -425,6 +458,7 @@ function _isoToLocal(iso) {
     }
 
     function renderCal() {
+      _loadLiburBulan(); // no-op kalau showLibur=false atau bulan ini sudah pernah di-fetch
       const today = new Date();
       const firstDay = new Date(view.y, view.mo, 1).getDay(); // 0=Sun
       const daysInMonth = new Date(view.y, view.mo + 1, 0).getDate();
@@ -439,10 +473,16 @@ function _isoToLocal(iso) {
       for (let d = 1; d <= daysInMonth; d++) {
         const isToday    = (d === today.getDate() && view.mo === today.getMonth() && view.y === today.getFullYear());
         const isSelected = sel && (d === sel.d && view.mo === sel.mo && view.y === sel.y);
+        const dow         = new Date(view.y, view.mo, d).getDay(); // 0=Min, 6=Sab
+        const isWeekend   = dow === 0 || dow === 6;
+        const ymd          = `${view.y}-${PAD(view.mo + 1)}-${PAD(d)}`;
+        const isLibur     = showLibur && liburSet.has(ymd);
         let cls = 'cdtp-day';
+        if (isWeekend)  cls += ' cdtp-day-weekend';
+        if (isLibur)    cls += ' cdtp-day-libur';
         if (isToday)    cls += ' cdtp-day-today';
         if (isSelected) cls += ' cdtp-day-selected';
-        cells += `<button type="button" class="${cls}" data-d="${d}">${d}</button>`;
+        cells += `<button type="button" class="${cls}" data-d="${d}"${isLibur ? ` data-tip="Hari libur"` : ''}>${d}</button>`;
       }
       // cells berikutnya
       const total = firstDay + daysInMonth;

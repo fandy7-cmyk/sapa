@@ -327,6 +327,21 @@ async function downloadLaporanAbsensiPDF(btnEl) {
       return;
     }
 
+    // ── Jam Kerja per pegawai (kolom rekap tambahan) — cuma dihitung kalau BUKAN
+    // mode rentang tanggal custom, krn endpoint /api/absensi/jam-kerja cuma
+    // terima bulan+tahun (bukan rentang tanggal bebas). Mode rentang tampil "-".
+    let jamKerjaMap = new Map();
+    if (!rangeMode) {
+      const hasilJK = await Promise.all(pegawaiList.map(async (peg) => {
+        try {
+          const jr = await fetch(`/api/absensi/jam-kerja?bulan=${bulanInt}&tahun=${tahun}&user_id=${peg.id}`, { headers: authHeaders() });
+          if (!jr.ok) throw new Error(`HTTP ${jr.status}`);
+          return [peg.id, await jr.json()];
+        } catch { return [peg.id, null]; }
+      }));
+      jamKerjaMap = new Map(hasilJK);
+    }
+
     // ── Ambil semua baris absensi periode ini (server dipaginasi 15/hal) — loop semua halaman ──
     let allRows = [];
     let page = 1, totalPages = 1;
@@ -339,7 +354,7 @@ async function downloadLaporanAbsensiPDF(btnEl) {
       const r = await fetch(`/api/absensi?${qs}`, { headers: authHeaders() });
       const d = await r.json();
       allRows = allRows.concat(d.absensi || []);
-      totalPages = Math.max(1, Math.ceil((d.total || 0) / 15));
+      totalPages = Math.max(1, Math.ceil((d.total || 0) / 10));
       page++;
     } while (page <= totalPages);
 
@@ -437,6 +452,8 @@ async function downloadLaporanAbsensiPDF(btnEl) {
     const svgAlpaHdr      = `<svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><line x1="12" x2="12" y1="9" y2="13"/><line x1="12" x2="12.01" y1="17" y2="17"/></svg>`;
     const svgTotalHdr     = `<svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/></svg>`;
     const svgTotalLegend  = `<svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#0f766e" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/></svg>`;
+    const svgJamKerjaHdr    = `<svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="10" x2="14" y1="2" y2="2"/><line x1="12" x2="15" y1="14" y2="11"/><circle cx="12" cy="14" r="8"/></svg>`;
+    const svgJamKerjaLegend = `<svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#0f766e" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="10" x2="14" y1="2" y2="2"/><line x1="12" x2="15" y1="14" y2="11"/><circle cx="12" cy="14" r="8"/></svg>`;
 
     // ── Baris per pegawai ──
     const bodyRows = pegawaiList.map((peg, i) => {
@@ -462,7 +479,13 @@ async function downloadLaporanAbsensiPDF(btnEl) {
         return `<td style="border:1px solid #0f766e;text-align:center;font-size:8px;height:22px">&nbsp;</td>`;
       }).join('');
       const jumlahKehadiran = cHadir + cTerlambat + cTidakLengkap;
-      const rekapCell = (val, highlight) => `<td style="border:1px solid #0f766e;text-align:center;font-size:9px;font-weight:${highlight ? 700 : 400};color:#0f766e;background:${highlight ? '#f0fdfa' : '#fff'};padding:3px 4px;vertical-align:middle">${val}</td>`;
+      const jk = jamKerjaMap.get(peg.id);
+      const jkPct = jk ? Math.max(0, jk.persentase || 0) : 0;
+      const jkWarna = (!rangeMode && jk && typeof _kinerjaSkalaWarna === 'function') ? _kinerjaSkalaWarna(jkPct).warna : null;
+      const jamKerjaTxt = rangeMode
+        ? '-'
+        : (jk ? `${esc(_absFmtJam(jk.aktual_menit || 0))}<div style="font-size:7px;font-weight:400;color:${jkWarna || '#64748b'}">${Math.round(jkPct)}%</div>` : '-');
+      const rekapCell = (val, highlight, color) => `<td style="border:1px solid #0f766e;text-align:center;font-size:9px;font-weight:${highlight ? 700 : 400};color:${color || '#0f766e'};background:${highlight ? '#f0fdfa' : '#fff'};padding:3px 4px;vertical-align:middle">${val}</td>`;
       return `<tr>
         <td style="border:1px solid #0f766e;text-align:center;font-size:8px;padding:3px 4px;vertical-align:middle;height:22px">${i + 1}</td>
         <td style="border:1px solid #0f766e;font-size:8px;padding:3px 6px;white-space:nowrap;vertical-align:middle;height:22px">
@@ -470,7 +493,7 @@ async function downloadLaporanAbsensiPDF(btnEl) {
           ${peg.nip ? `<div style="font-size:7px;color:#64748b;font-weight:400">NIP. ${esc(peg.nip)}</div>` : ''}
         </td>
         ${cells}
-        ${rekapCell(cHadir)}${rekapCell(cTerlambat)}${rekapCell(cTidakLengkap)}${rekapCell(cTugas)}${rekapCell(cCuti)}${rekapCell(cAlpa)}${rekapCell(jumlahKehadiran, true)}
+        ${rekapCell(cHadir)}${rekapCell(cTerlambat)}${rekapCell(cTidakLengkap)}${rekapCell(cTugas)}${rekapCell(cCuti)}${rekapCell(cAlpa)}${rekapCell(jumlahKehadiran, true)}${rekapCell(jamKerjaTxt, true, jkWarna)}
       </tr>`;
     }).join('');
 
@@ -485,6 +508,7 @@ async function downloadLaporanAbsensiPDF(btnEl) {
       { icon: svgCutiHdr,      title: 'Cuti' },
       { icon: svgAlpaHdr,      title: 'Alpa' },
       { icon: svgTotalHdr,     title: 'Jumlah Kehadiran' },
+      { icon: svgJamKerjaHdr,  title: 'Jam Kerja' },
     ];
     const headerHtml = `
       <thead>
@@ -521,19 +545,24 @@ async function downloadLaporanAbsensiPDF(btnEl) {
         ${headerHtml}
         <tbody>${bodyRows}</tbody>
       </table>
-      <div style="margin-top:8px;font-size:8px;color:#475569;display:flex;gap:14px;flex-wrap:wrap;align-items:center">
-        <span>Keterangan:</span>
-        <span style="display:inline-flex;align-items:center;gap:4px">${svgHadir} Tepat Waktu</span>
-        <span style="display:inline-flex;align-items:center;gap:4px">${svgTerlambat} Terlambat</span>
-        <span style="display:inline-flex;align-items:center;gap:4px">${svgTidakLengkap} Tidak Lengkap</span>
-        <span style="display:inline-flex;align-items:center;gap:4px">${svgTugas} Tugas Luar</span>
-        <span style="display:inline-flex;align-items:center;gap:4px">${svgCuti} Cuti</span>
-        <span style="display:inline-flex;align-items:center;gap:4px">${svgAlpa} Alpa</span>
-        <span style="display:inline-flex;align-items:center;gap:4px">${svgWeekendCell} Akhir Pekan</span>
-        <span style="display:inline-flex;align-items:center;gap:4px">${svgLiburCell} Hari Libur</span>
-        <span style="display:inline-flex;align-items:center;gap:4px">${svgTotalLegend} Jumlah Kehadiran</span>
-      </div>
-      ${_ttdHtml(kepalaDinas, nowStrTtd)}`;
+      <div style="margin-top:8px;display:flex;align-items:flex-start;justify-content:space-between">
+        <div style="font-size:8px;color:#475569">
+          <div style="font-weight:700;margin-bottom:4px">Keterangan:</div>
+          <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:4px 16px">
+            <div style="display:flex;align-items:center;gap:5px">${svgHadir} Tepat Waktu</div>
+            <div style="display:flex;align-items:center;gap:5px">${svgTerlambat} Terlambat</div>
+            <div style="display:flex;align-items:center;gap:5px">${svgTidakLengkap} Tidak Lengkap</div>
+            <div style="display:flex;align-items:center;gap:5px">${svgTugas} Tugas Luar</div>
+            <div style="display:flex;align-items:center;gap:5px">${svgCuti} Cuti</div>
+            <div style="display:flex;align-items:center;gap:5px">${svgAlpa} Alpa</div>
+            <div style="display:flex;align-items:center;gap:5px">${svgWeekendCell} Akhir Pekan</div>
+            <div style="display:flex;align-items:center;gap:5px">${svgLiburCell} Hari Libur</div>
+            <div style="display:flex;align-items:center;gap:5px">${svgTotalLegend} Jumlah Kehadiran</div>
+            <div style="display:flex;align-items:center;gap:5px">${svgJamKerjaLegend} Jam Kerja</div>
+          </div>
+        </div>
+        ${_ttdHtml(kepalaDinas, nowStrTtd, 0, 8)}
+      </div>`;
 
     _bukaPreviewPDF(bodyHtml, `Laporan Absensi ${periodeLabel}`, 'landscape');
   } catch (err) {
@@ -541,6 +570,53 @@ async function downloadLaporanAbsensiPDF(btnEl) {
     toast('Gagal menyiapkan laporan absensi', 'error');
   } finally {
     if (btnEl) { btnEl.disabled = false; btnEl.innerHTML = originalHtml; }
+  }
+}
+
+// Kartu ke-7 "Jam Kerja" di Laporan — style & skala warna sama persis kayak
+// _absJamKerjaCard() di absensi_frontend.js, tapi pakai filter lapAbsBulan/
+// lapAbsTahun/lapAbsPegawai/lapAbsBidang milik halaman Laporan sendiri (bukan
+// filter halaman Absensi) supaya konsisten sama apa yg lagi ditampilin di sini.
+async function _lapAbsJamKerjaCardHtml(bulan, tahun, pegawaiId, bidangId, full) {
+  try {
+    const params = new URLSearchParams({ bulan, tahun });
+    if (full && pegawaiId) params.set('user_id', pegawaiId);
+    if (!full) params.set('user_id', pegawaiId);
+    if (full && bidangId) params.set('bidang_id', bidangId);
+    const r = await fetch(`/api/absensi/jam-kerja?${params}`, { headers: authHeaders() });
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    const d = await r.json();
+    const pctAsli = Math.max(0, d.persentase || 0);
+    const pct = Math.min(100, pctAsli); // buat teks & lebar bar (bar mentok 100%)
+    const iconJam = `<svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="10" x2="14" y1="2" y2="2"/><line x1="12" x2="15" y1="14" y2="11"/><circle cx="12" cy="14" r="8"/></svg>`;
+    const periodeLabel = d.bulan ? ABS_BULAN_NAMA[d.bulan] : `Tahun ${d.tahun}`;
+    const label = d.agregat ? `Total Jam Kerja ${periodeLabel}` : `Jam Kerja ${periodeLabel}`;
+    const sub = d.agregat
+      ? `${pct}% dari target ${_absFmtJam(d.target_menit)} · ${d.hari_kerja_total} hari kerja · total dari ${d.jumlah_pegawai} pegawai`
+      : `${pct}% dari target ${_absFmtJam(d.target_menit)} · ${d.hari_kerja_total} hari kerja ${d.bulan ? 'bulan ini' : 'tahun ini'}`;
+    // Satu warna aja utk seluruh kartu (border, angka, ikon, progress bar) —
+    // ngikutin Skala Nilai Peringkat Kinerja (sama kayak _absJamKerjaCard()).
+    const { warna } = _kinerjaSkalaWarna(pctAsli);
+    const kartu = `
+      <div class="dash-kpi-card" style="border-left-color:${warna}">
+        <div class="dash-kpi-body">
+          <div class="dash-kpi-lbl">${esc(label)}</div>
+          <div class="dash-kpi-val" style="color:${warna}">${esc(_absFmtJam(d.aktual_menit))}</div>
+          <div class="dash-kpi-sub" style="font-weight:400">${esc(sub)}</div>
+        </div>
+        <div class="dash-kpi-icon" style="color:${warna}">${iconJam}</div>
+      </div>`;
+    return `<div class="abs-jamkerja-wrap" style="--jk-warna:${warna}">
+      ${kartu}
+      <div class="abs-jamkerja-progress">
+        <div class="abs-jamkerja-progress-track">
+          <div class="abs-jamkerja-progress-fill" style="width:${pct}%;background:${warna}"></div>
+        </div>
+      </div>
+    </div>`;
+  } catch (err) {
+    console.error('[_lapAbsJamKerjaCardHtml]', err);
+    return '';
   }
 }
 
@@ -561,18 +637,24 @@ async function loadLaporanAbsensi(page = 1) {
   await _populateLapAbsFilters();
   const full = typeof isAbsensiFull === 'function' && isAbsensiFull();
 
-  tbody.innerHTML = `<tr><td colspan="6"><div class="lap-loading-wrap"><div class="lap-spinner"></div></div></td></tr>`;
+  tbody.innerHTML = `<tr><td colspan="6"><div class="lap-loading-wrap"><div class="lap-spinner"></div><div style="margin-top:.75rem;color:#64748b;font-size:.85rem">Memuat data...</div></div></td></tr>`;
 
   const bulan = document.getElementById('lapAbsBulan').value;
   const tahun = document.getElementById('lapAbsTahun').value;
   const pegawaiId = full ? (document.getElementById('lapAbsPegawai')?.value || '') : _user.id;
   const bidangId = full ? (document.getElementById('lapAbsBidang')?.value || '') : '';
 
-  // Rekap kartu
+  // Rekap kartu — fetch rekap (6 kartu) & jam-kerja (kartu ke-7) PARALEL, baru
+  // di-render bareng sekali innerHTML. Dulu jam-kerja nyusul via fetch terpisah
+  // stlh innerHTML 6 kartu di-set duluan → kartu ke-7 sempet hilang tiap ganti
+  // filter (ke-reset barengan overwrite, baru numpul lagi pas fetch-nya kelar).
   try {
     const rp = new URLSearchParams({ user_id: pegawaiId, bulan, tahun });
     if (bidangId) rp.set('bidang_id', bidangId);
-    const rr = await fetch(`/api/absensi/rekap?${rp}`, { headers: authHeaders() });
+    const [rr, jamKerjaHtml] = await Promise.all([
+      fetch(`/api/absensi/rekap?${rp}`, { headers: authHeaders() }),
+      _lapAbsJamKerjaCardHtml(bulan, tahun, pegawaiId, bidangId, full),
+    ]);
     const rd = await rr.json();
     const rk = rd.rekap || {};
     const iconHadir = `<svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 12l2 2 4-4"/><circle cx="12" cy="12" r="10"/></svg>`;
@@ -587,7 +669,8 @@ async function loadLaporanAbsensi(page = 1) {
       _kpiCard({ icon: iconTidakLengkap, label: 'Tidak Lengkap', value: rk.tidak_lengkap || 0, color: 'purple' }) +
       _kpiCard({ icon: iconTugas, label: 'Tugas Luar', value: rk.tugas_luar || 0, color: 'biruMuda' }) +
       _kpiCard({ icon: iconCuti, label: 'Cuti', value: rk.cuti || 0, color: 'teal' }) +
-      _kpiCard({ icon: iconWarn, label: 'Alpa', value: rk.alpa || 0, color: 'red' });
+      _kpiCard({ icon: iconWarn, label: 'Alpa', value: rk.alpa || 0, color: 'red' }) +
+      jamKerjaHtml;
   } catch { if (rekapBox) rekapBox.innerHTML = ''; }
 
   // Tabel detail
@@ -624,7 +707,7 @@ async function loadLaporanAbsensi(page = 1) {
         const statusTip = tipParts.length ? ` data-tip="${tipParts.join(' • ')}"` : '';
         return `
         <tr>
-          <td style="text-align:center">${(page - 1) * 15 + i + 1}</td>
+          <td style="text-align:center">${(page - 1) * 10 + i + 1}</td>
           <td style="display:${full ? '' : 'none'}">${esc(a.user_nama || '')}</td>
           <td style="text-align:center">${new Date(a.tanggal).toLocaleDateString('id-ID', { day: '2-digit', month: 'long', year: 'numeric' })}</td>
           <td style="text-align:center">${a.jam_masuk ? a.jam_masuk.slice(0,5) + ' WITA' : '—'}</td>
@@ -633,15 +716,8 @@ async function loadLaporanAbsensi(page = 1) {
         </tr>`;
       }).join('');
     }
-    const pag = document.getElementById('lapAbsPagination');
-    if (pag) {
-      const totalPages = Math.max(1, Math.ceil((d.total || 0) / 15));
-      pag.innerHTML = totalPages > 1 ? `
-        <div class="pagination">
-          <button class="btn btn-sm" ${page<=1?'disabled':''} onclick="loadLaporanAbsensi(${page-1})">‹</button>
-          <span>Hal ${page} / ${totalPages}</span>
-          <button class="btn btn-sm" ${page>=totalPages?'disabled':''} onclick="loadLaporanAbsensi(${page+1})">›</button>
-        </div>` : '';
+    if (document.getElementById('lapAbsPagination') && typeof renderPagination === 'function') {
+      renderPagination('lapAbsPagination', d.total || 0, page, 10, 'loadLaporanAbsensi');
     }
   } catch (err) {
     console.error('[loadLaporanAbsensi]', err);
@@ -1904,20 +1980,20 @@ function _statCard(label, value, color, iconPath) {
   </div>`;
 }
 // ── Helper TTD (tanda tangan kepala dinas) ────────────────────────────────
-function _ttdHtml(pegawai, tanggalStr) {
+function _ttdHtml(pegawai, tanggalStr, marginTop = 24, fontSize = 10) {
   const nama     = pegawai?.nama     || '';
   const nip      = pegawai?.nip      || '';
   const golongan = pegawai?.golongan || '';
   const jabatan  = 'Kepala Dinas Kesehatan, Pengendalian Penduduk dan<br>Keluarga Berencana Kabupaten Banggai Laut';
   return `
-    <div style="margin-top:24px;display:flex;justify-content:flex-end;padding-right:60px">
+    <div style="margin-top:${marginTop}px;display:flex;justify-content:flex-end;padding-right:60px">
       <div style="text-align:center;min-width:220px">
-        <div style="font-size:10px">Adean, ${tanggalStr}</div>
-        <div style="font-size:10px">${jabatan}</div>
+        <div style="font-size:${fontSize}px">Adean, ${tanggalStr}</div>
+        <div style="font-size:${fontSize}px">${jabatan}</div>
         <div style="height:64px"></div>
-        <div style="font-size:10px;font-weight:700;text-decoration:underline">${nama}</div>
-        ${golongan ? `<div style="font-size:10px">${golongan}</div>` : ''}
-        ${nip ? `<div style="font-size:10px">NIP. ${nip}</div>` : ''}
+        <div style="font-size:${fontSize}px;font-weight:700;text-decoration:underline">${nama}</div>
+        ${golongan ? `<div style="font-size:${fontSize}px">${golongan}</div>` : ''}
+        ${nip ? `<div style="font-size:${fontSize}px">NIP. ${nip}</div>` : ''}
       </div>
     </div>`;
 }

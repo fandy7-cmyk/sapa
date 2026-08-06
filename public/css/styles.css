@@ -5317,6 +5317,19 @@ td.col-perihal {
 .cdtp-day-today   { background: #f0fdfa; color: var(--hijau); font-weight: 800; }
 .cdtp-day-selected { background: var(--hijau) !important; color: #fff !important; font-weight: 800; }
 
+/* Akhir pekan & hari libur nasional (khusus picker dengan data-cdtp-libur="1") */
+.cdtp-day-weekend,
+.cdtp-day-libur      { color: #dc2626; }
+.cdtp-day-libur      { font-weight: 800; }
+.cdtp-day-weekend:hover:not(.cdtp-day-other):not(.cdtp-day-selected),
+.cdtp-day-libur:hover:not(.cdtp-day-other):not(.cdtp-day-selected) { background: #fef2f2; color: #dc2626; }
+.cdtp-day-weekend.cdtp-day-today,
+.cdtp-day-libur.cdtp-day-today { background: #fef2f2; color: #dc2626; }
+.cdtp-day-weekend.cdtp-day-selected,
+.cdtp-day-libur.cdtp-day-selected { color: #fff !important; }
+.cdtp-day-other.cdtp-day-weekend,
+.cdtp-day-other.cdtp-day-libur { color: #fecaca; }
+
 .cdtp-divider { height: 1px; background: var(--abu-2); margin: 0 10px; }
 
 .cdtp-time {
@@ -8887,8 +8900,9 @@ tr:hover td:not(.td-sticky-no):not(.td-sticky-name) { background: var(--abu-1); 
    .abs-hariini-flex-wrap, jadi tetap pakai rule repeat(3,1fr) yang sudah ada
    biar gak kepepet sempit.
    #absRekapBox sekarang selalu 7 kartu (kartu ke-7 "Jam Kerja"/"Rata-rata Jam
-   Kerja" udah tampil juga di admin — lihat absensi_frontend.js), jadi
-   dipisah dari #lapAbsRekapBox (Laporan) yang tetap 6 kartu. */
+   Kerja" udah tampil juga di admin — lihat absensi_frontend.js). #lapAbsRekapBox
+   (Laporan) sekarang JUGA 7 kartu dgn pola grid yang sama — lihat rule di
+   bawah. */
 body.is-admin #absRekapBox { grid-template-columns: repeat(6, 0.85fr) 1.5fr; }
 @media (max-width: 1100px) {
   body.is-admin #absRekapBox { grid-template-columns: repeat(4, 1fr); }
@@ -8898,12 +8912,17 @@ body.is-admin #absRekapBox { grid-template-columns: repeat(6, 0.85fr) 1.5fr; }
   body.is-admin #absRekapBox { grid-template-columns: repeat(2, 1fr); }
   body.is-admin #absRekapBox .abs-jamkerja-wrap:nth-child(7):last-child { grid-column: 1 / -1; }
 }
-#lapAbsRekapBox { grid-template-columns: repeat(6, 1fr); }
-@media (max-width: 900px) {
+/* #lapAbsRekapBox (Laporan) sekarang JUGA 7 kartu (nyusul kartu ke-7 "Jam
+   Kerja" ditambahin — lihat _lapAbsJamKerjaCardHtml di laporan.js), pola sama
+   kayak #absRekapBox: 6 kartu ramping + 1 kartu Jam Kerja lebih lebar. */
+#lapAbsRekapBox { grid-template-columns: repeat(6, 0.85fr) 1.5fr; }
+@media (max-width: 1100px) {
   #lapAbsRekapBox { grid-template-columns: repeat(3, 1fr); }
+  #lapAbsRekapBox .abs-jamkerja-wrap:nth-child(7):last-child { grid-column: 1 / -1; }
 }
 @media (max-width: 640px) {
   #lapAbsRekapBox { grid-template-columns: repeat(2, 1fr); }
+  #lapAbsRekapBox .abs-jamkerja-wrap:nth-child(7):last-child { grid-column: 1 / -1; }
 }
 /* ═══════════════════════════════════════════════════════════════════════
    KELOLA PERIODE — card style (gantiin tabel lama, ala "Periode Aktif")
