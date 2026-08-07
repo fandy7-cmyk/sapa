@@ -1196,6 +1196,8 @@ async function saveAbs() {
     if (!r.ok) { toast(d.error || 'Gagal menyimpan absensi', 'error'); return; }
     toast('Absensi berhasil disimpan', 'success');
     closeModal('modalAbs');
+    await rebuildAbsFilterTahun();
+    await rebuildAbsFilterBulan();
     await loadAbsRekap();
     await loadAbsTable(_absPage);
   } catch { toast('Gagal menyimpan absensi', 'error'); }
@@ -1209,6 +1211,8 @@ async function deleteAbs(id) {
   if (!ok) return;
   await fetch(`/api/absensi/${id}`, { method: 'DELETE', headers: authHeaders() });
   toast('Absensi berhasil dihapus', 'success');
+  await rebuildAbsFilterTahun();
+  await rebuildAbsFilterBulan();
   await loadAbsRekap();
   await loadAbsTable(_absPage);
 }

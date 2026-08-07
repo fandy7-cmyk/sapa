@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>SAPA Perencanaan</title>
-  <meta name="app-version" content="1.1.3" />
+  <meta name="app-version" content="1.1.5" />
   <meta property="og:type"         content="website" />
   <meta property="og:site_name"    content="SAPA Perencanaan" />
   <meta property="og:title"        content="SAPA Perencanaan" />
@@ -31,8 +31,6 @@
     } catch(e) {}
   })();
   </script>
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" />
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400;1,700&family=Lora:ital,wght@1,600&display=swap" rel="stylesheet" />
   <style>
@@ -2101,6 +2099,28 @@
 <div id="toastContainer"></div>
 
 <script>
+// ── Lazy-load Leaflet (CSS+JS) hanya saat peta kontak mau dipakai ────────
+// Sebelumnya CSS+JS Leaflet (~150KB) dimuat sinkron di <head>, ikut
+// memblokir render awal padahal petanya baru dipakai di footer.
+let _leafletLoadPromise = null;
+function _loadLeaflet() {
+  if (window.L) return Promise.resolve();
+  if (_leafletLoadPromise) return _leafletLoadPromise;
+  _leafletLoadPromise = new Promise((resolve, reject) => {
+    const link = document.createElement('link');
+    link.rel = 'stylesheet';
+    link.href = 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css';
+    document.head.appendChild(link);
+
+    const script = document.createElement('script');
+    script.src = 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js';
+    script.onload = resolve;
+    script.onerror = reject;
+    document.head.appendChild(script);
+  });
+  return _leafletLoadPromise;
+}
+
 // ── Debounce global untuk kotak search di landing ────────────────────────
 const _searchDebounceTimers = {};
 function debounceInput(key, fn, delay = 180) {
@@ -2656,6 +2676,10 @@ async function loadProfilLanding() {
 
       kontakMap.innerHTML = '<div id="leafletMap" style="width:100%;height:100%"></div>';
 
+      // Leaflet (CSS+JS ~150KB) di-lazy-load di sini, bukan di <head> —
+      // peta cuma dipakai di section kontak footer, jauh di bawah fold,
+      // jadi gak perlu ikut blokir render awal halaman.
+      _loadLeaflet().then(() => {
       // Tunggu browser layout container (display:none → visible butuh setTimeout, bukan rAF)
       setTimeout(() => {
         const mapEl = document.getElementById('leafletMap');
@@ -2725,6 +2749,7 @@ async function loadProfilLanding() {
           setTimeout(() => ro.disconnect(), 3000);
         }
       }, 150);
+      }).catch(err => console.warn('[leaflet lazy-load]', err));
     }
   } catch(e) { console.warn('[loadProfilLanding]', e); }
 }

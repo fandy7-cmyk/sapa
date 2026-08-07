@@ -1137,38 +1137,34 @@ async function _initIkuGrid() {
   // datanya masih nunggu fetch.
   el.innerHTML = `<div class="iku-grid-wrap"><div class="skeleton" style="height:280px;border-radius:14px"></div></div>`;
 
-  try {
-    const r = await fetch(`/api/kinerja/rekap?bulan=${bulan}&tahun=${tahun}`, { headers: authHeaders() });
-    const d = r.ok ? await r.json() : { rekap: [] };
-    let rows = (d.rekap || []).filter(x => x.jenis_monev);
-    // IKU Grid di Dashboard Utama = ringkasan level organisasi, jadi tetap
-    // ditampilkan utuh utk semua user berakses dashboard — tidak di-scope ke
-    // indikator assignment personal (beda dgn halaman kerja Kelola Kinerja).
-    _ikuGridData = rows;
-  } catch { _ikuGridData = []; }
+  // 3 request ini independen satu sama lain (rekap, master periode, tahun-list)
+  // — dulu di-await berurutan (3x round-trip berturut-turut), sekarang paralel.
+  const [rekapRes, periodeRes, tahunListRes] = await Promise.allSettled([
+    fetch(`/api/kinerja/rekap?bulan=${bulan}&tahun=${tahun}`, { headers: authHeaders() }).then(r => r.ok ? r.json() : { rekap: [] }),
+    fetch('/api/periode', { headers: authHeaders() }).then(r => r.ok ? r.json() : { periode: [] }),
+    fetch('/api/kinerja/rekap/tahun-list', { headers: authHeaders() }).then(r => r.ok ? r.json() : { tahun: [] }),
+  ]);
+
+  const d = rekapRes.status === 'fulfilled' ? rekapRes.value : { rekap: [] };
+  // IKU Grid di Dashboard Utama = ringkasan level organisasi, jadi tetap
+  // ditampilkan utuh utk semua user berakses dashboard — tidak di-scope ke
+  // indikator assignment personal (beda dgn halaman kerja Kelola Kinerja).
+  _ikuGridData = (d.rekap || []).filter(x => x.jenis_monev);
 
   // Bangun tahun list dari periode (untuk dropdown filter)
-  try {
-    const rP = await fetch('/api/periode', { headers: authHeaders() });
-    if (rP.ok) {
-      const dP = await rP.json();
-      _ikuTahunList = [...new Set((dP.periode || []).map(p => p.tahun))].filter(Boolean).sort((a,b)=>a-b);
-    }
-  } catch {}
+  const dP = periodeRes.status === 'fulfilled' ? periodeRes.value : { periode: [] };
+  _ikuTahunList = [...new Set((dP.periode || []).map(p => p.tahun))].filter(Boolean).sort((a,b)=>a-b);
+
   // Tambahkan juga tahun yang ada di _kwAllRekap (data rekap mungkin ada meski belum ada di master periode)
   if (typeof _kwAllRekap !== 'undefined') {
     Object.keys(_kwAllRekap).map(Number).filter(Boolean).forEach(t => {
       if (!_ikuTahunList.includes(t)) _ikuTahunList.push(t);
     });
   }
-  // Fallback: coba fetch dari API kinerja untuk dapat semua tahun yang ada data
-  try {
-    const rK = await fetch('/api/kinerja/rekap/tahun-list', { headers: authHeaders() });
-    if (rK.ok) {
-      const dK = await rK.json();
-      (dK.tahun || []).forEach(t => { if (!_ikuTahunList.includes(t)) _ikuTahunList.push(t); });
-    }
-  } catch {}
+  // Fallback: hasil /tahun-list untuk dapat semua tahun yang ada data
+  const dK = tahunListRes.status === 'fulfilled' ? tahunListRes.value : { tahun: [] };
+  (dK.tahun || []).forEach(t => { if (!_ikuTahunList.includes(t)) _ikuTahunList.push(t); });
+
   if (!_ikuTahunList.includes(tahun)) _ikuTahunList.push(tahun);
   _ikuTahunList.sort((a,b)=>a-b);
 
