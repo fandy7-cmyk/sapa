@@ -62,6 +62,13 @@
   [headers.values]
     Cache-Control = "public, max-age=31536000, immutable"
 
+# Logo & favicon: jarang berubah, cache lama (bukan file bervarsi ?v=xxx
+# kayak js/css, jadi kalau nanti diganti perlu rename filenya)
+[[headers]]
+  for = "/*.png"
+  [headers.values]
+    Cache-Control = "public, max-age=2592000"
+
 # ── API sub-path → functions (spesifik dulu, urutan penting!) ─
 [[redirects]]
   from = "/api/surat-masuk/*"
