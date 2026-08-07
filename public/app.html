@@ -9,7 +9,7 @@
   <link rel="icon" type="image/png" href="/favicon.png" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="css/styles.css?v=1.1.3" />
+  <link rel="stylesheet" href="css/styles.css?v=1.1.4" />
   <style>
     /* ── LOGIN OVERLAY ── */
     #loginOverlay {
@@ -4057,7 +4057,18 @@ function _loginShowErr(msg, type = 'warn') {
     if (_openPanel && _openPanel.contains(e.target)) return;
     _closeOpenPanel();
   }, true);
-  window.addEventListener('resize', _closeOpenPanel);
+  // 'resize' juga kepicu pas keyboard HP muncul/ilang (viewport height berubah),
+  // BUKAN cuma pas rotate/ubah ukuran layar beneran — kalau gak dibedain, panel
+  // yang baru dibuka langsung ke-close sendiri pas search box-nya auto-focus
+  // (keyboard muncul → resize → nutup). Lebar (innerWidth) gak berubah pas
+  // keyboard muncul (cuma tinggi), jadi dipakai buat bedain: cuma tutup panel
+  // kalau lebar beneran berubah (rotate / resize window asli).
+  let _cselLastW = window.innerWidth;
+  window.addEventListener('resize', () => {
+    if (window.innerWidth === _cselLastW) return;
+    _cselLastW = window.innerWidth;
+    _closeOpenPanel();
+  });
 
   // ── Init all existing .select-wrap ────────────────────────────────────
   function initAll() {
