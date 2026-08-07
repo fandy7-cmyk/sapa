@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>SAPA Perencanaan</title>
-  <meta name="app-version" content="1.1.7" />
+  <meta name="app-version" content="1.1.9" />
   <meta property="og:type"         content="website" />
   <meta property="og:site_name"    content="SAPA Perencanaan" />
   <meta property="og:title"        content="SAPA Perencanaan" />
@@ -2794,7 +2794,10 @@ loadInfo();
   const elD = document.getElementById('statDokumen');
   const elG = document.getElementById('statPegawai');
   try {
-    const r = await fetch('/api/landing/stats?_=' + Date.now(), { cache: 'no-store' });
+    // Endpoint ini sekarang boleh di-cache singkat di edge (lihat landing.js) —
+    // makanya TIDAK pakai cache:'no-store' atau timestamp cache-busting lagi,
+    // biar visitor2 dalam window cache dapat response instan.
+    const r = await fetch('/api/landing/stats');
     if (!r.ok) throw new Error();
     const d = await r.json();
     if (elP && typeof d.pengumuman === 'number') { elP.textContent = d.pengumuman; elP.classList.remove('loading'); }
