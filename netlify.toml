@@ -3,6 +3,16 @@
   functions = "netlify/functions"
 
 # ── Cache headers ─────────────────────────────────────────────
+# root "/" — ikut ke-rewrite ke landing.html tapi netlify match header
+# berdasarkan URL yang diketik browser, bukan tujuan redirect, jadi harus
+# di-set terpisah dari rule "/landing.html" di atas atau gak kepakai sama sekali
+[[headers]]
+  for = "/"
+  [headers.values]
+    Cache-Control = "no-cache, no-store, must-revalidate"
+    Pragma = "no-cache"
+    Expires = "0"
+
 # landing.html & app.html: selalu fresh
 [[headers]]
   for = "/landing.html"
