@@ -7722,6 +7722,16 @@ tr:hover td:not(.td-sticky-no):not(.td-sticky-name) { background: var(--abu-1); 
   vertical-align: middle;
 }
 
+/* ── Laporan Absensi: cell gak boleh wrap ke banyak baris di HP — biarin
+   tabel yang scroll ke samping (parent .card udah overflow:auto), bukan
+   teksnya yang dipepetin sampe numpuk beberapa baris. ── */
+#lapAbsTable th, #lapAbsTable td { white-space: nowrap; }
+#lapAbsTable td:nth-child(2) { white-space: normal; } /* kolom Nama tetap boleh wrap 2 baris, tapi dikasih lebar cukup di bawah */
+@media (max-width: 640px) {
+  #lapAbsTable { min-width: 640px; }
+  #lapAbsTable th#lapAbsThNama, #lapAbsTable td:nth-child(2) { width: 150px; }
+}
+
 
 /* ═══════════════════════════════════════════════════════════════════════════
    30. KEYFRAMES — Fibonacci-timed animations
@@ -8923,6 +8933,17 @@ body.is-admin #absRekapBox { grid-template-columns: repeat(6, 0.85fr) 1.5fr; }
 @media (max-width: 640px) {
   #lapAbsRekapBox { grid-template-columns: repeat(2, 1fr); }
   #lapAbsRekapBox .abs-jamkerja-wrap:nth-child(7):last-child { grid-column: 1 / -1; }
+}
+
+/* ── Toolbar filter Laporan Absensi di HP: select & date-picker dipasangin
+   2 per baris yang konsisten (bukan ngandelin flex:1 auto-wrap yang bikin
+   urutan acak), separator "|" disembunyiin karena gak perlu di layout kolom. ── */
+@media (max-width: 640px) {
+  #page-laporan-absensi .toolbar { gap: 8px; }
+  #page-laporan-absensi .toolbar > .select-wrap { flex: 1 1 calc(50% - 4px); min-width: 0; }
+  #page-laporan-absensi .toolbar > span { display: none; }
+  #page-laporan-absensi .toolbar > .cdtp-mount { flex: 1 1 calc(50% - 4px); min-width: 0 !important; }
+  #page-laporan-absensi .toolbar > .btn { flex: 1 1 100%; justify-content: center; }
 }
 /* ═══════════════════════════════════════════════════════════════════════
    KELOLA PERIODE — card style (gantiin tabel lama, ala "Periode Aktif")
