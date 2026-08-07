@@ -151,7 +151,13 @@ export const handler = async (event) => {
       const dokumen = dokumenRes.value[0].c;
       const pegawai = pegawaiRes.value[0].c;
 
-      return jsonResponse({ pengumuman, dokumen, pegawai });
+      // Endpoint publik non-sensitif (cuma angka count) — boleh di-cache
+      // singkat di edge/CDN Netlify. Ini nolongin kasus cold-start Neon:
+      // visitor pertama nunggu koneksi DB "bangun", visitor2 dalam 60 detik
+      // berikutnya langsung dapat response dari cache tanpa nunggu DB sama sekali.
+      return jsonResponse({ pengumuman, dokumen, pegawai }, 200, {
+        'Cache-Control': 'public, max-age=60, stale-while-revalidate=300',
+      });
     }
 
     // ── GET /api/landing/profil ───────────────────────────────
