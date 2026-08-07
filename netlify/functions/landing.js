@@ -117,31 +117,39 @@ export const handler = async (event) => {
     // Endpoint ringan khusus buat stat-bar: cuma COUNT, gak narik full rows.
     // Satu round-trip ke Neon, bukan 3 request terpisah yang nunggu full list.
     if (sub === 'stats') {
-      let pengumuman = 0;
-      try {
-        const [{ c }] = await sql`
+      // 3 query independen — dulu di-await berurutan (3x round-trip ke Neon),
+      // sekarang paralel. pengumuman punya fallback sendiri (tabelnya opsional).
+      const [pengumumanRes, dokumenRes, pegawaiRes] = await Promise.allSettled([
+        sql`
           SELECT COUNT(*)::INT AS c
           FROM pengumuman
           WHERE aktif = true AND deleted_at IS NULL
-        `;
-        pengumuman = c;
-      } catch (e) {
-        console.warn('[landing.js] stats: tabel pengumuman belum ada, skip:', e.message);
+        `,
+        sql`
+          SELECT COUNT(*)::INT AS c
+          FROM dokumen_publik
+          WHERE aktif = true AND deleted_at IS NULL
+        `,
+        // Replikasi skipPattern frontend: /kepala dinas|sekretaris dinas|sekdis/i
+        sql`
+          SELECT COUNT(*)::INT AS c
+          FROM pegawai
+          WHERE aktif = true
+            AND jabatan !~* 'kepala dinas|sekretaris dinas|sekdis'
+        `,
+      ]);
+
+      let pengumuman = 0;
+      if (pengumumanRes.status === 'fulfilled') {
+        pengumuman = pengumumanRes.value[0].c;
+      } else {
+        console.warn('[landing.js] stats: tabel pengumuman belum ada, skip:', pengumumanRes.reason?.message);
       }
 
-      const [{ c: dokumen }] = await sql`
-        SELECT COUNT(*)::INT AS c
-        FROM dokumen_publik
-        WHERE aktif = true AND deleted_at IS NULL
-      `;
-
-      // Replikasi skipPattern frontend: /kepala dinas|sekretaris dinas|sekdis/i
-      const [{ c: pegawai }] = await sql`
-        SELECT COUNT(*)::INT AS c
-        FROM pegawai
-        WHERE aktif = true
-          AND jabatan !~* 'kepala dinas|sekretaris dinas|sekdis'
-      `;
+      if (dokumenRes.status === 'rejected') throw dokumenRes.reason;
+      if (pegawaiRes.status === 'rejected') throw pegawaiRes.reason;
+      const dokumen = dokumenRes.value[0].c;
+      const pegawai = pegawaiRes.value[0].c;
 
       return jsonResponse({ pengumuman, dokumen, pegawai });
     }
