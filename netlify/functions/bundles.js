@@ -4,7 +4,7 @@ import { requireAuth } from './_auth.js';
 import crypto from 'node:crypto';
 
 function slugify(str) {
-  return str.toLowerCase().replace(/[^a-z0-9\s-]/g,'').trim()
+  return str.replace(/[^a-zA-Z0-9\s-]/g,'').trim()
     .replace(/\s+/g,'-').replace(/-+/g,'-').substring(0,60);
 }
 function canAccess(user) {
