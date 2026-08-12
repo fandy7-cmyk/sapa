@@ -145,6 +145,7 @@ export const handler = async (event) => {
   const isBulanTersedia = segments[0] === 'bulan-tersedia';
   const isTahunTersedia = segments[0] === 'tahun-tersedia';
   const isBidangTersedia = segments[0] === 'bidang-tersedia';
+  const isStatusTersedia = segments[0] === 'status-tersedia';
   const isCheckin = segments[0] === 'checkin';
   const isCheckout = segments[0] === 'checkout';
   const isPengajuan = segments[0] === 'pengajuan';
@@ -579,6 +580,7 @@ export const handler = async (event) => {
           AND (${mParam}::int IS NULL OR EXTRACT(MONTH FROM a.tanggal) = ${mParam}::int)
           AND (${targetUserId}::int IS NULL OR a.user_id = ${targetUserId}::int)
           AND (${bidangId}::int IS NULL OR u.bidang_id = ${bidangId}::int)
+          AND (${targetUserId}::int IS NOT NULL OR EXISTS (SELECT 1 FROM user_permissions up WHERE up.user_id = u.id AND up.menu_key IN ('absensi','absensi.full')))
       `;
       const rekap = { hadir: 0, tugas_luar: 0, cuti: 0, alpa: 0, terlambat: 0, tidak_lengkap: 0, total_menit_terlambat: 0 };
       const hariIniStr = todayStr();
@@ -610,14 +612,27 @@ export const handler = async (event) => {
       let hariIni = null;
       if (full && !targetUserId) {
         const totalRows = bidangId
-          ? await sql`SELECT COUNT(*)::int AS c FROM users WHERE is_admin = false AND bidang_id = ${bidangId}`
-          : await sql`SELECT COUNT(*)::int AS c FROM users WHERE is_admin = false`;
+          ? await sql`
+              SELECT COUNT(*)::int AS c FROM users u
+              WHERE u.is_admin = false AND u.bidang_id = ${bidangId}
+                AND EXISTS (SELECT 1 FROM user_permissions up WHERE up.user_id = u.id AND up.menu_key IN ('absensi','absensi.full'))
+            `
+          : await sql`
+              SELECT COUNT(*)::int AS c FROM users u
+              WHERE u.is_admin = false
+                AND EXISTS (SELECT 1 FROM user_permissions up WHERE up.user_id = u.id AND up.menu_key IN ('absensi','absensi.full'))
+            `;
         const sudahRows = bidangId
           ? await sql`
               SELECT COUNT(*)::int AS c FROM absensi a JOIN users u ON u.id = a.user_id
               WHERE a.tanggal = ${todayStr()} AND a.status = 'hadir' AND u.bidang_id = ${bidangId}
+                AND EXISTS (SELECT 1 FROM user_permissions up WHERE up.user_id = u.id AND up.menu_key IN ('absensi','absensi.full'))
             `
-          : await sql`SELECT COUNT(*)::int AS c FROM absensi WHERE tanggal = ${todayStr()} AND status = 'hadir'`;
+          : await sql`
+              SELECT COUNT(*)::int AS c FROM absensi a JOIN users u ON u.id = a.user_id
+              WHERE a.tanggal = ${todayStr()} AND a.status = 'hadir'
+                AND EXISTS (SELECT 1 FROM user_permissions up WHERE up.user_id = u.id AND up.menu_key IN ('absensi','absensi.full'))
+            `;
         hariIni = { total_pegawai: totalRows[0].c, sudah_absen: sudahRows[0].c };
       }
 
@@ -769,9 +784,10 @@ export const handler = async (event) => {
       let userIdFilter = [targetUserId];
       if (isAgregat) {
         const pegawaiRows = await sql`
-          SELECT id FROM users
-          WHERE is_admin = false
-            AND (${bidangId}::int IS NULL OR bidang_id = ${bidangId}::int)
+          SELECT id FROM users u
+          WHERE u.is_admin = false
+            AND (${bidangId}::int IS NULL OR u.bidang_id = ${bidangId}::int)
+            AND EXISTS (SELECT 1 FROM user_permissions up WHERE up.user_id = u.id AND up.menu_key IN ('absensi','absensi.full'))
         `;
         userIdFilter = pegawaiRows.map(r => r.id);
         jumlahPegawai = userIdFilter.length || 1;
@@ -860,8 +876,9 @@ export const handler = async (event) => {
 
     try {
       const rows = await sql`
-        SELECT DISTINCT EXTRACT(YEAR FROM a.tanggal)::int AS tahun FROM absensi a
+        SELECT DISTINCT EXTRACT(YEAR FROM a.tanggal)::int AS tahun FROM absensi a JOIN users u ON u.id = a.user_id
         WHERE (${targetUserId}::int IS NULL OR a.user_id = ${targetUserId}::int)
+          AND (${targetUserId}::int IS NOT NULL OR EXISTS (SELECT 1 FROM user_permissions up WHERE up.user_id = u.id AND up.menu_key IN ('absensi','absensi.full')))
         ORDER BY tahun DESC
       `;
       return jsonResponse({ tahun: rows.map(r => r.tahun) });
@@ -886,6 +903,7 @@ export const handler = async (event) => {
         WHERE EXTRACT(YEAR FROM a.tanggal) = ${tahunVal}
           AND (${targetUserId}::int IS NULL OR a.user_id = ${targetUserId}::int)
           AND (${bidangId}::int IS NULL OR u.bidang_id = ${bidangId}::int)
+          AND (${targetUserId}::int IS NOT NULL OR EXISTS (SELECT 1 FROM user_permissions up WHERE up.user_id = u.id AND up.menu_key IN ('absensi','absensi.full')))
         ORDER BY bulan
       `;
       return jsonResponse({ bulan: rows.map(r => r.bulan) });
@@ -912,6 +930,7 @@ export const handler = async (event) => {
           JOIN bidang b ON b.id = u.bidang_id
         WHERE EXTRACT(YEAR FROM a.tanggal) = ${tahunVal}
           AND (${targetUserId}::int IS NULL OR a.user_id = ${targetUserId}::int)
+          AND (${targetUserId}::int IS NOT NULL OR EXISTS (SELECT 1 FROM user_permissions up WHERE up.user_id = u.id AND up.menu_key IN ('absensi','absensi.full')))
         ORDER BY b.nama
       `;
       return jsonResponse({ bidang: rows });
@@ -921,12 +940,57 @@ export const handler = async (event) => {
     }
   }
 
-  // ══════════════════════════ LIST / RIWAYAT ══════════════════════════
-  if (event.httpMethod === 'GET' && !recordId) {
-    const { user_id, dari, sampai, bulan, tahun, page, bidang_id } = event.queryStringParameters || {};
+  // ══════════════════════════ STATUS TERSEDIA (utk dropdown filter) ══════════════════════════
+  // Sama kayak bulan-tersedia — cuma tampilin opsi status yg beneran ada datanya
+  // di bulan/tahun (& pegawai/unit kerja) yg lagi difilter, bukan daftar statis
+  // 7 status. Status di sini adalah status TURUNAN, samain persis kondisinya
+  // dgn filter di GET /api/absensi (list utama) biar konsisten.
+  if (isStatusTersedia && event.httpMethod === 'GET') {
+    const { bulan, tahun, user_id, bidang_id } = event.queryStringParameters || {};
     const targetUserId = full ? (user_id ? parseInt(user_id) : null) : auth.id;
     if (!full && user_id && parseInt(user_id) !== auth.id) return errorResponse('Unauthorized', 401);
     const bidangId = full && bidang_id ? parseInt(bidang_id) : null;
+    const effYear = tahun ? parseInt(tahun) : null;
+    const effMonth = bulan ? parseInt(bulan) : null;
+
+    try {
+      const todayVal = todayStr();
+      const rows = await sql`
+        SELECT DISTINCT
+          CASE
+            WHEN a.status = 'hadir' AND a.terlambat = false AND a.jam_masuk IS NOT NULL AND a.jam_keluar IS NOT NULL THEN 'hadir'
+            WHEN a.status = 'hadir' AND a.terlambat = true THEN 'terlambat'
+            WHEN a.status = 'hadir' AND (a.jam_masuk IS NULL OR a.jam_keluar IS NULL) AND a.tanggal <> ${todayVal}::date THEN 'tidak_lengkap'
+            WHEN a.status = 'hadir' AND a.jam_masuk IS NOT NULL AND a.jam_keluar IS NULL AND a.tanggal = ${todayVal}::date THEN 'pending'
+            WHEN a.status IN ('tugas_luar','izin','sakit') THEN 'tugas_luar'
+            WHEN a.status = 'cuti' THEN 'cuti'
+            WHEN a.status = 'alpa' THEN 'alpa'
+          END AS status_key
+        FROM absensi a JOIN users u ON u.id = a.user_id
+        WHERE (${targetUserId}::int IS NULL OR a.user_id = ${targetUserId}::int)
+          AND (${bidangId}::int IS NULL OR u.bidang_id = ${bidangId}::int)
+          AND (${effYear}::int IS NULL OR EXTRACT(YEAR FROM a.tanggal) = ${effYear}::int)
+          AND (${effMonth}::int IS NULL OR EXTRACT(MONTH FROM a.tanggal) = ${effMonth}::int)
+          AND (${targetUserId}::int IS NOT NULL OR EXISTS (SELECT 1 FROM user_permissions up WHERE up.user_id = u.id AND up.menu_key IN ('absensi','absensi.full')))
+      `;
+      const statusAda = rows.map(r => r.status_key).filter(Boolean);
+      return jsonResponse({ status: statusAda });
+    } catch (err) {
+      console.error('[GET /api/absensi/status-tersedia]', err);
+      return errorResponse('Gagal mengambil daftar status');
+    }
+  }
+
+
+  if (event.httpMethod === 'GET' && !recordId) {
+    const { user_id, dari, sampai, bulan, tahun, page, bidang_id, status } = event.queryStringParameters || {};
+    const targetUserId = full ? (user_id ? parseInt(user_id) : null) : auth.id;
+    if (!full && user_id && parseInt(user_id) !== auth.id) return errorResponse('Unauthorized', 401);
+    const bidangId = full && bidang_id ? parseInt(bidang_id) : null;
+    // Status di tabel adalah status TURUNAN (dihitung di FE dari kombinasi
+    // status/terlambat/jam_masuk/jam_keluar/tanggal — lihat loadAbsTable),
+    // jadi difilter di sini pakai kondisi yg sama persis, bukan cuma a.status.
+    const statusFilter = status || null;
 
     const limit = 10; // samain dgn _absPageSize di frontend (absensi_frontend.js)
     const offset = ((parseInt(page) || 1) - 1) * limit;
@@ -944,6 +1008,7 @@ export const handler = async (event) => {
       } else if (tahun) {
         effYear = parseInt(tahun);
       }
+      const todayVal = todayStr();
 
       const rows = await sql`
         SELECT a.*, u.nama AS user_nama FROM absensi a JOIN users u ON u.id = a.user_id
@@ -953,6 +1018,17 @@ export const handler = async (event) => {
           AND (${effMonth}::int IS NULL OR EXTRACT(MONTH FROM a.tanggal) = ${effMonth}::int)
           AND (${effDari}::date IS NULL OR a.tanggal >= ${effDari}::date)
           AND (${effSampai}::date IS NULL OR a.tanggal <= ${effSampai}::date)
+          AND (${targetUserId}::int IS NOT NULL OR EXISTS (SELECT 1 FROM user_permissions up WHERE up.user_id = u.id AND up.menu_key IN ('absensi','absensi.full')))
+          AND (
+            ${statusFilter}::text IS NULL
+            OR (${statusFilter}::text = 'hadir' AND a.status = 'hadir' AND a.terlambat = false AND a.jam_masuk IS NOT NULL AND a.jam_keluar IS NOT NULL)
+            OR (${statusFilter}::text = 'terlambat' AND a.status = 'hadir' AND a.terlambat = true)
+            OR (${statusFilter}::text = 'tidak_lengkap' AND a.status = 'hadir' AND (a.jam_masuk IS NULL OR a.jam_keluar IS NULL) AND a.tanggal <> ${todayVal}::date)
+            OR (${statusFilter}::text = 'pending' AND a.status = 'hadir' AND a.jam_masuk IS NOT NULL AND a.jam_keluar IS NULL AND a.tanggal = ${todayVal}::date)
+            OR (${statusFilter}::text = 'tugas_luar' AND a.status IN ('tugas_luar','izin','sakit'))
+            OR (${statusFilter}::text = 'cuti' AND a.status = 'cuti')
+            OR (${statusFilter}::text = 'alpa' AND a.status = 'alpa')
+          )
         ORDER BY a.tanggal DESC, u.nama ASC LIMIT ${limit} OFFSET ${offset}
       `;
       const countRows = await sql`
@@ -963,6 +1039,17 @@ export const handler = async (event) => {
           AND (${effMonth}::int IS NULL OR EXTRACT(MONTH FROM a.tanggal) = ${effMonth}::int)
           AND (${effDari}::date IS NULL OR a.tanggal >= ${effDari}::date)
           AND (${effSampai}::date IS NULL OR a.tanggal <= ${effSampai}::date)
+          AND (${targetUserId}::int IS NOT NULL OR EXISTS (SELECT 1 FROM user_permissions up WHERE up.user_id = u.id AND up.menu_key IN ('absensi','absensi.full')))
+          AND (
+            ${statusFilter}::text IS NULL
+            OR (${statusFilter}::text = 'hadir' AND a.status = 'hadir' AND a.terlambat = false AND a.jam_masuk IS NOT NULL AND a.jam_keluar IS NOT NULL)
+            OR (${statusFilter}::text = 'terlambat' AND a.status = 'hadir' AND a.terlambat = true)
+            OR (${statusFilter}::text = 'tidak_lengkap' AND a.status = 'hadir' AND (a.jam_masuk IS NULL OR a.jam_keluar IS NULL) AND a.tanggal <> ${todayVal}::date)
+            OR (${statusFilter}::text = 'pending' AND a.status = 'hadir' AND a.jam_masuk IS NOT NULL AND a.jam_keluar IS NULL AND a.tanggal = ${todayVal}::date)
+            OR (${statusFilter}::text = 'tugas_luar' AND a.status IN ('tugas_luar','izin','sakit'))
+            OR (${statusFilter}::text = 'cuti' AND a.status = 'cuti')
+            OR (${statusFilter}::text = 'alpa' AND a.status = 'alpa')
+          )
       `;
       return jsonResponse({ absensi: rows, total: parseInt(countRows[0].count) });
     } catch (err) {

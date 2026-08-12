@@ -38,6 +38,7 @@ export const handler = async (event) => {
     const belumAbsen = await sql`
       SELECT u.id FROM users u
       WHERE u.is_admin = false
+        AND EXISTS (SELECT 1 FROM user_permissions up WHERE up.user_id = u.id AND up.menu_key IN ('absensi','absensi.full'))
         AND NOT EXISTS (SELECT 1 FROM absensi a WHERE a.user_id = u.id AND a.tanggal = ${tanggal})
     `;
     let ditandai = 0;

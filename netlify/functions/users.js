@@ -73,7 +73,7 @@ export const handler = async (event) => {
       const rows = await sql`
         SELECT u.avatar_url, p.foto_url AS pegawai_foto_url
         FROM users u
-        LEFT JOIN pegawai p ON p.nip = u.nip AND p.aktif = TRUE
+        LEFT JOIN pegawai p ON REGEXP_REPLACE(p.nip, '[^0-9]', '', 'g') = REGEXP_REPLACE(u.nip, '[^0-9]', '', 'g') AND p.aktif = TRUE
         WHERE u.id = ${userId}
         LIMIT 1
       `;
@@ -109,12 +109,19 @@ export const handler = async (event) => {
   if (event.httpMethod === 'GET' && !userId) {
     try {
       await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS urutan_laporan INTEGER`;
+      await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar_url TEXT`;
       const users = await sql`
         SELECT u.id, u.nama, u.nip, u.email, u.is_admin, u.last_login, u.created_at,
                u.bidang_id, b.nama AS bidang_nama, b.singkatan AS bidang_singkatan,
-               u.urutan_laporan
+               u.urutan_laporan,
+               COALESCE(u.avatar_url, p.foto_url) AS foto_url,
+               COALESCE(
+                 (SELECT array_agg(up.menu_key) FROM user_permissions up WHERE up.user_id = u.id),
+                 '{}'
+               ) AS permissions
         FROM users u
         LEFT JOIN bidang b ON b.id = u.bidang_id
+        LEFT JOIN pegawai p ON REGEXP_REPLACE(p.nip, '[^0-9]', '', 'g') = REGEXP_REPLACE(u.nip, '[^0-9]', '', 'g') AND p.aktif = TRUE
         ORDER BY u.is_admin DESC, u.nama ASC
       `;
       return jsonResponse({ users });
