@@ -52,6 +52,7 @@
 
 let _lapAbsPage = 1;
 let _lapAbsFilterBidang = '';
+let _lapAbsFilterStatus = '';
 let _lapAbsAllPegawai = [];   // cache semua pegawai (non-admin) beserta bidang_id, buat narrow-in filter Unit Kerja
 
 async function _populateLapAbsFilters() {
@@ -86,6 +87,12 @@ async function _populateLapAbsFilters() {
   if (bulanSel && !bulanSel.dataset.rebuilt) {
     bulanSel.dataset.rebuilt = '1';
     await _rebuildLapAbsFilterBulan();
+  }
+
+  const statusSel = document.getElementById('lapAbsStatus');
+  if (statusSel && !statusSel.dataset.rebuilt) {
+    statusSel.dataset.rebuilt = '1';
+    await _rebuildLapAbsFilterStatus();
   }
 }
 
@@ -215,8 +222,47 @@ async function _rebuildLapAbsFilterBulan() {
   syncCustomSelect?.('lapAbsBulan');
 }
 
-// Ganti bulan langsung (opsi yg ditampilkan sudah pasti ada datanya) — gak perlu rebuild dropdown
-function setLapAbsFilterBulan() {
+// Sama kayak _rebuildLapAbsFilterBulan — cuma tampilin opsi status yg beneran
+// ada datanya di bulan/tahun (& pegawai/unit kerja) yg lagi difilter
+async function _rebuildLapAbsFilterStatus() {
+  const sel = document.getElementById('lapAbsStatus');
+  if (!sel) return;
+  const full = typeof isAbsensiFull === 'function' && isAbsensiFull();
+  const tahun = document.getElementById('lapAbsTahun')?.value || new Date().getFullYear();
+  const bulan = document.getElementById('lapAbsBulan')?.value || '';
+  const pegawaiId = full ? (document.getElementById('lapAbsPegawai')?.value || '') : (_user?.id || '');
+
+  let statusPresent = [];
+  try {
+    const params = new URLSearchParams({ tahun });
+    if (bulan) params.set('bulan', bulan);
+    if (pegawaiId) params.set('user_id', pegawaiId);
+    if (full && _lapAbsFilterBidang) params.set('bidang_id', _lapAbsFilterBidang);
+    const r = await fetch(`/api/absensi/status-tersedia?${params}`, { headers: authHeaders() });
+    const d = await r.json();
+    statusPresent = d.status || [];
+  } catch { statusPresent = []; }
+
+  const present = STATUS_FILTER_ORDER.filter(k => statusPresent.includes(k));
+  const opts = [{ value: '', label: 'Semua Status' }, ...present.map(k => ({ value: k, label: STATUS_FILTER_LABEL[k] }))];
+  if (_lapAbsFilterStatus && !present.includes(_lapAbsFilterStatus)) _lapAbsFilterStatus = '';
+
+  sel.innerHTML = opts.map(o => `<option value="${o.value}">${o.label}</option>`).join('');
+  sel.value = _lapAbsFilterStatus;
+  syncCustomSelect?.('lapAbsStatus');
+}
+
+// Ganti bulan langsung (opsi yg ditampilkan sudah pasti ada datanya) — gak perlu rebuild dropdown bulan,
+// tapi opsi Status yg tersedia bisa berubah
+async function setLapAbsFilterBulan() {
+  await _rebuildLapAbsFilterStatus();
+  loadLaporanAbsensi(1);
+}
+
+// Filter Status cuma mempersempit tabel detail — kartu rekap (KPI) di atas tetap
+// nunjukin total keseluruhan bulan itu
+function setLapAbsFilterStatus() {
+  _lapAbsFilterStatus = document.getElementById('lapAbsStatus')?.value || '';
   loadLaporanAbsensi(1);
 }
 
@@ -224,6 +270,7 @@ function setLapAbsFilterBulan() {
 async function setLapAbsFilterTahun() {
   await _rebuildLapAbsFilterBidang();
   await _rebuildLapAbsFilterBulan();
+  await _rebuildLapAbsFilterStatus();
   loadLaporanAbsensi(1);
 }
 
@@ -231,6 +278,7 @@ async function setLapAbsFilterTahun() {
 async function setLapAbsFilterPegawai() {
   await _rebuildLapAbsFilterTahun();
   await _rebuildLapAbsFilterBulan();
+  await _rebuildLapAbsFilterStatus();
   loadLaporanAbsensi(1);
 }
 
@@ -239,6 +287,7 @@ async function setLapAbsFilterBidang() {
   _lapAbsFilterBidang = document.getElementById('lapAbsBidang')?.value || '';
   _renderLapAbsPegawaiOptions();
   await _rebuildLapAbsFilterBulan();
+  await _rebuildLapAbsFilterStatus();
   loadLaporanAbsensi(1);
 }
 
@@ -415,7 +464,7 @@ async function downloadLaporanAbsensiPDF(btnEl) {
       terlambat:    { txt: 'T',  bg: '#fef3c7', color: '#b45309' },
       tidak_lengkap:{ txt: '!',  bg: '#ede9fe', color: '#6d28d9' },
       tugas_luar:   { txt: 'TL', bg: '#dbeafe', color: '#1d4ed8' },
-      cuti:         { txt: 'C',  bg: '#ccfbf1', color: '#0f766e' },
+      cuti:         { txt: 'C',  bg: '#fae8ff', color: '#a21caf' },
       alpa:         { txt: 'A',  bg: '#fee2e2', color: '#b91c1c' },
     };
     const svgHadirIcon     = `<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="${KODE.hadir_ontime.color}" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M9 12l2 2 4-4"/><circle cx="12" cy="12" r="10"/></svg>`;
@@ -461,14 +510,24 @@ async function downloadLaporanAbsensiPDF(btnEl) {
       const cells = kolomTanggal.map(k => {
         const a = absMap.get(`${peg.id}|${k.ymd}`);
         if (a) {
-          const isTidakLengkap = a.status === 'hadir' && (!a.jam_masuk || !a.jam_keluar) && k.ymd !== todayISO();
+          const isToday = k.ymd === todayISO();
+          // Hari ini + udah absen masuk tapi belum absen keluar → masih "Menunggu Absen
+          // Keluar" (proses), BUKAN langsung Tepat Waktu — baru dihitung Tepat Waktu/
+          // Tidak Lengkap setelah absen keluar tercatat (lihat isPending di tabel Laporan
+          // Absensi biasa, versi cetak PDF ini sempet ketinggalan nyontek logikanya).
+          const isPending = isToday && a.status === 'hadir' && a.jam_masuk && !a.jam_keluar;
+          const isTidakLengkap = !isPending && a.status === 'hadir' && (!a.jam_masuk || !a.jam_keluar) && !isToday;
           const isTerlambat = a.status === 'hadir' && a.terlambat;
-          if (isTidakLengkap) cTidakLengkap++;
+          if (isPending) { /* belum ditotal ke rekap kolom manapun sampai absen keluar tercatat */ }
+          else if (isTidakLengkap) cTidakLengkap++;
           else if (isTerlambat) cTerlambat++;
           else if (a.status === 'hadir') cHadir++;
           else if (a.status === 'tugas_luar') cTugas++;
           else if (a.status === 'cuti') cCuti++;
           else if (a.status === 'alpa') cAlpa++;
+          // Pending → sel dikosongin aja, sama kayak hari yg belum ada catatan sama
+          // sekali; nunjukkin status "menunggu" di sini kurang informatif buat dibaca.
+          if (isPending) return `<td style="border:1px solid #0f766e;text-align:center;font-size:8px;height:22px">&nbsp;</td>`;
           const kode = isTidakLengkap ? KODE.tidak_lengkap : isTerlambat ? KODE.terlambat : (a.status === 'tugas_luar' ? KODE.tugas_luar : a.status === 'cuti' ? KODE.cuti : a.status === 'alpa' ? KODE.alpa : KODE.hadir_ontime);
           const adaJam = a.status === 'hadir'; // cuma status hadir yg punya jam_masuk/jam_keluar
           const isiSel = kode.icon;
@@ -549,16 +608,16 @@ async function downloadLaporanAbsensiPDF(btnEl) {
         <div style="font-size:8px;color:#475569">
           <div style="font-weight:700;margin-bottom:4px">Keterangan:</div>
           <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:4px 16px">
-            <div style="display:flex;align-items:center;gap:5px">${svgHadir} Tepat Waktu</div>
-            <div style="display:flex;align-items:center;gap:5px">${svgTerlambat} Terlambat</div>
-            <div style="display:flex;align-items:center;gap:5px">${svgTidakLengkap} Tidak Lengkap</div>
-            <div style="display:flex;align-items:center;gap:5px">${svgTugas} Tugas Luar</div>
-            <div style="display:flex;align-items:center;gap:5px">${svgCuti} Cuti</div>
-            <div style="display:flex;align-items:center;gap:5px">${svgAlpa} Alpa</div>
-            <div style="display:flex;align-items:center;gap:5px">${svgWeekendCell} Akhir Pekan</div>
-            <div style="display:flex;align-items:center;gap:5px">${svgLiburCell} Hari Libur</div>
-            <div style="display:flex;align-items:center;gap:5px">${svgTotalLegend} Jumlah Kehadiran</div>
-            <div style="display:flex;align-items:center;gap:5px">${svgJamKerjaLegend} Jam Kerja</div>
+            <div style="display:flex;align-items:center;gap:5px"><span style="display:inline-flex;align-items:center;justify-content:center;width:12px;flex-shrink:0">${svgHadir}</span>Tepat Waktu</div>
+            <div style="display:flex;align-items:center;gap:5px"><span style="display:inline-flex;align-items:center;justify-content:center;width:12px;flex-shrink:0">${svgTerlambat}</span>Terlambat</div>
+            <div style="display:flex;align-items:center;gap:5px"><span style="display:inline-flex;align-items:center;justify-content:center;width:12px;flex-shrink:0">${svgTidakLengkap}</span>Tidak Lengkap</div>
+            <div style="display:flex;align-items:center;gap:5px"><span style="display:inline-flex;align-items:center;justify-content:center;width:12px;flex-shrink:0">${svgTugas}</span>Tugas Luar</div>
+            <div style="display:flex;align-items:center;gap:5px"><span style="display:inline-flex;align-items:center;justify-content:center;width:12px;flex-shrink:0">${svgCuti}</span>Cuti</div>
+            <div style="display:flex;align-items:center;gap:5px"><span style="display:inline-flex;align-items:center;justify-content:center;width:12px;flex-shrink:0">${svgAlpa}</span>Alpa</div>
+            <div style="display:flex;align-items:center;gap:5px"><span style="display:inline-flex;align-items:center;justify-content:center;width:12px;flex-shrink:0">${svgWeekendCell}</span>Akhir Pekan</div>
+            <div style="display:flex;align-items:center;gap:5px"><span style="display:inline-flex;align-items:center;justify-content:center;width:12px;flex-shrink:0">${svgLiburCell}</span>Hari Libur</div>
+            <div style="display:flex;align-items:center;gap:5px"><span style="display:inline-flex;align-items:center;justify-content:center;width:12px;flex-shrink:0">${svgTotalLegend}</span>Jumlah Kehadiran</div>
+            <div style="display:flex;align-items:center;gap:5px"><span style="display:inline-flex;align-items:center;justify-content:center;width:12px;flex-shrink:0">${svgJamKerjaLegend}</span>Jam Kerja</div>
           </div>
         </div>
         ${_ttdHtml(kepalaDinas, nowStrTtd, 0, 8)}
@@ -668,7 +727,7 @@ async function loadLaporanAbsensi(page = 1) {
       _kpiCard({ icon: iconClock, label: 'Terlambat', value: rk.terlambat || 0, color: 'amber' }) +
       _kpiCard({ icon: iconTidakLengkap, label: 'Tidak Lengkap', value: rk.tidak_lengkap || 0, color: 'purple' }) +
       _kpiCard({ icon: iconTugas, label: 'Tugas Luar', value: rk.tugas_luar || 0, color: 'biruMuda' }) +
-      _kpiCard({ icon: iconCuti, label: 'Cuti', value: rk.cuti || 0, color: 'teal' }) +
+      _kpiCard({ icon: iconCuti, label: 'Cuti', value: rk.cuti || 0, color: 'fuchsia' }) +
       _kpiCard({ icon: iconWarn, label: 'Alpa', value: rk.alpa || 0, color: 'red' }) +
       jamKerjaHtml;
   } catch { if (rekapBox) rekapBox.innerHTML = ''; }
@@ -678,6 +737,7 @@ async function loadLaporanAbsensi(page = 1) {
     const qs = new URLSearchParams({ bulan, tahun, page });
     if (pegawaiId) qs.set('user_id', pegawaiId);
     if (bidangId) qs.set('bidang_id', bidangId);
+    if (_lapAbsFilterStatus) qs.set('status', _lapAbsFilterStatus);
     const r = await fetch(`/api/absensi?${qs}`, { headers: authHeaders() });
     const d = await r.json();
     const rows = d.absensi || [];

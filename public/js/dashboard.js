@@ -459,8 +459,11 @@ async function loadDashboardAbsensi() {
   let ringkasanPrev = { harian: [], ranking_terlambat: [], sudah_absen_user_ids: [] };
   let pengajuanPending = [];
   let jamKerja = null;
+  let absSettings = null;
+  let liburSet = new Set();
   try {
-    const [r1, r2, ring, ringPrev, pengPending, rJamKerja] = await Promise.all([
+    const tahunLiburSet = new Set([tahun, prevTahun]); // bisa beda kalau lintas Desember-Januari
+    const [r1, r2, ring, ringPrev, pengPending, rJamKerja, rSettings, ...rLiburList] = await Promise.all([
       fetch(`/api/absensi/rekap?user_id=${userId}&bulan=${bulan}&tahun=${tahun}`, { headers: authHeaders() }),
       fetch(`/api/absensi/rekap?user_id=${userId}&bulan=${prevBulan}&tahun=${prevTahun}`, { headers: authHeaders() }),
       _fetchRingkasanBulan(bulan, tahun, userId),
@@ -470,6 +473,8 @@ async function loadDashboardAbsensi() {
       // buat full/admin ini total agregat semua pegawai (lihat backend
       // /api/absensi/jam-kerja: agregat aktif kalau gak ada user_id spesifik).
       fetch(`/api/absensi/jam-kerja?bulan=${bulan}&tahun=${tahun}`, { headers: authHeaders() }),
+      fetch(`/api/absensi/settings`, { headers: authHeaders() }),
+      ...[...tahunLiburSet].map(ty => fetch(`/api/absensi/libur?tahun=${ty}`, { headers: authHeaders() })),
     ]);
     if (r1.ok) d = await r1.json();
     if (r2.ok) dPrev = await r2.json();
@@ -477,13 +482,24 @@ async function loadDashboardAbsensi() {
     ringkasanPrev = ringPrev;
     pengajuanPending = pengPending;
     if (rJamKerja && rJamKerja.ok) jamKerja = await rJamKerja.json();
+    if (rSettings && rSettings.ok) { const dSettings = await rSettings.json(); absSettings = dSettings.settings || null; }
+    for (const rLibur of rLiburList) {
+      if (!rLibur || !rLibur.ok) continue;
+      const dLibur = await rLibur.json();
+      (dLibur.libur || []).forEach(l => liburSet.add(_absLiburLocalYMD(l.tanggal)));
+    }
   } catch (err) { console.error('[loadDashboardAbsensi]', err); }
 
   if (full) {
     try {
       const ru = await fetch('/api/users', { headers: authHeaders() });
       const du = await ru.json();
-      pegawaiList = (du.users || []).filter(u => !u.is_admin);
+      // Cuma pegawai yg punya akses menu Absensi yg relevan buat kartu "Belum Absen" —
+      // kalau menunya aja gak bisa diakses, aneh kalau dianggap wajib absen (lihat _absensiBelumPanel).
+      pegawaiList = (du.users || []).filter(u =>
+        !u.is_admin && Array.isArray(u.permissions) &&
+        (u.permissions.includes('absensi') || u.permissions.includes('absensi.full'))
+      );
     } catch { /* noop */ }
   }
 
@@ -511,10 +527,19 @@ async function loadDashboardAbsensi() {
   }
 
   // 1. Belum absen hari ini — daftar nama actionable (admin/full only; butuh daftar pegawai)
+  // Cek dulu jendela absen masuk udah buka apa belum (pakai jam WITA, bukan jam lokal
+  // device) — kalau belum buka, semua pegawai wajar aja belum absen, jangan ditampilin
+  // sebagai warning merah (lihat _absensiBelumPanel).
+  const wNowDash = typeof _witaNow === 'function' ? _witaNow() : null;
+  const isJumatDash = wNowDash ? wNowDash.day === 5 : (new Date().getDay() === 5);
+  const masukAwalHariIni = absSettings
+    ? (isJumatDash ? absSettings.jam_masuk_awal_jumat : absSettings.jam_masuk_awal_senin_kamis)?.slice(0, 5) || null
+    : null;
+  const jendelaBelumBuka = !!(masukAwalHariIni && wNowDash && wNowDash.hhmm < masukAwalHariIni);
   if (full && d.hari_ini) {
     const sudahIds = new Set(ringkasan.sudah_absen_user_ids);
     const belumList = pegawaiList.filter(u => !sudahIds.has(u.id));
-    belumPanelHtml = _absensiBelumPanel(belumList, d.hari_ini.total_pegawai, d.hari_ini.sudah_absen);
+    belumPanelHtml = _absensiBelumPanel(belumList, d.hari_ini.total_pegawai, d.hari_ini.sudah_absen, jendelaBelumBuka, masukAwalHariIni);
   } else if (d.hari_ini) {
     const { total_pegawai, sudah_absen } = d.hari_ini;
     panels.push(_barListPanel({
@@ -566,14 +591,21 @@ async function loadDashboardAbsensi() {
     : `<div class="dash-panels">${trendPanelHtml}</div>`;
 
   // 5. Perbandingan Kehadiran Bulanan + Kalender Kehadiran — satu baris berdampingan
-  html += `<div class="dash-panels dash-panels--kalender-row">${perbandinganPanel}${_absensiHeatmapPanel(ringkasanPrev.harian, prevBulan, prevTahun, full, false)}${_absensiHeatmapPanel(ringkasan.harian, bulan, tahun, full, false)}</div>`;
+  html += `<div class="dash-panels dash-panels--kalender-row">${perbandinganPanel}${_absensiHeatmapPanel(ringkasanPrev.harian, prevBulan, prevTahun, full, false, liburSet)}${_absensiHeatmapPanel(ringkasan.harian, bulan, tahun, full, false, liburSet)}</div>`;
 
   wrap.innerHTML = html;
 }
 
 // Panel "Belum Absen Hari Ini" — daftar nama, bukan cuma angka, biar langsung actionable
-function _absensiBelumPanel(list, totalPegawai, sudahAbsen) {
+function _absensiBelumPanel(list, totalPegawai, sudahAbsen, jendelaBelumBuka = false, masukAwal = null) {
   const iconWarn = `<svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><line x1="12" x2="12" y1="9" y2="13"/><line x1="12" x2="12.01" y1="17" y2="17"/></svg>`;
+  const iconClock = `<svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>`;
+  if (jendelaBelumBuka) {
+    return `<div class="dash-panel">
+      <div class="dash-panel-header">${iconClock}<span style="flex:1">Belum Absen Hari Ini</span><span class="badge badge-abu">Belum buka</span></div>
+      <div class="dash-panel-empty">Absen masuk baru bisa dicatat mulai jam ${esc(masukAwal || '--:--')} WITA</div>
+    </div>`;
+  }
   if (!list.length) {
     return `<div class="dash-panel">
       <div class="dash-panel-header"><span style="flex:1">Belum Absen Hari Ini</span><span class="badge badge-hijau">Semua sudah absen</span></div>
@@ -584,7 +616,10 @@ function _absensiBelumPanel(list, totalPegawai, sudahAbsen) {
   const rest  = list.length - shown.length;
   const rows = shown.map(u => `
     <div style="display:flex;align-items:center;gap:9px;padding:8px 0;border-bottom:1px solid #f1f5f9">
-      <span style="width:26px;height:26px;border-radius:50%;background:#fee2e2;color:#b91c1c;display:flex;align-items:center;justify-content:center;font-size:.68rem;font-weight:700;flex-shrink:0">${esc((u.nama || '?').slice(0, 1).toUpperCase())}</span>
+      <span style="position:relative;width:26px;height:26px;flex-shrink:0">
+        <span style="position:absolute;inset:0;border-radius:50%;background:#fee2e2;color:#b91c1c;display:flex;align-items:center;justify-content:center;font-size:.68rem;font-weight:700">${esc((u.nama || '?').slice(0, 1).toUpperCase())}</span>
+        ${u.foto_url ? `<img src="${esc(u.foto_url)}" alt="" style="position:absolute;inset:0;width:26px;height:26px;border-radius:50%;object-fit:cover" onerror="this.style.display='none'">` : ''}
+      </span>
       <span style="font-size:.8rem;font-weight:600;color:#0f172a;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(u.nama || '—')}</span>
     </div>`).join('');
   return `<div class="dash-panel">
@@ -608,7 +643,7 @@ function _absensiJamKerjaPanel(d, full = false) {
   const fmt = (menit) => {
     const jam = Math.floor(Math.abs(menit || 0) / 60);
     const sisa = Math.abs(menit || 0) % 60;
-    return `${jam}j ${sisa}m`;
+    return `${jam.toLocaleString('id-ID')}j ${sisa}m`;
   };
   const pctAsli = Math.max(0, d.persentase || 0);
   const pct = Math.min(100, pctAsli);
@@ -696,7 +731,8 @@ function _absensiTrendPanel(harian, bulan, tahun, full, spanFull = true) {
   }
 
   const maxTotal = Math.max(1, ...days.map(d => d.hadirTepat + d.terlambat + d.tidakLengkap + d.tugas_luar + d.cuti));
-  const SEG_COLORS = { hadirTepat: '#10b981', terlambat: '#f59e0b', tidakLengkap: '#8b5cf6', tugas_luar: '#38bdf8', cuti: '#2dd4bf' };
+  // Disamakan dengan warna statcard (_KPI_COLORS) di Absensi & Laporan
+  const SEG_COLORS = { hadirTepat: _KPI_COLORS.green.text, terlambat: _KPI_COLORS.amber.text, tidakLengkap: _KPI_COLORS.purple.text, tugas_luar: _KPI_COLORS.biruMuda.text, cuti: _KPI_COLORS.fuchsia.text };
 
   const bars = days.map(d => {
     const total = d.hadirTepat + d.terlambat + d.tidakLengkap + d.tugas_luar + d.cuti;
@@ -710,7 +746,7 @@ function _absensiTrendPanel(harian, bulan, tahun, full, spanFull = true) {
       : (d.alpa ? `${d.alpa} alpa` : 'Tidak ada data');
     return `
       <div class="dash-trend-bar-wrap dash-trend-bar-wrap--narrow" data-tip="Tgl ${d.tgl}: ${tip}" style="min-width:24px">
-        ${d.alpa ? `<div style="font-size:.6rem;font-weight:800;color:#dc2626">${d.alpa}</div>` : '<div style="font-size:.6rem">&nbsp;</div>'}
+        ${d.alpa ? `<div style="font-size:.6rem;font-weight:800;color:${_KPI_COLORS.red.text}">${d.alpa}</div>` : '<div style="font-size:.6rem">&nbsp;</div>'}
         <div class="dash-trend-bar-stack" style="height:${barH}px">${segs || `<div class="dash-trend-bar-seg" style="height:3px;background:#f1f5f9"></div>`}</div>
         <div class="dash-trend-lbl">${d.tgl}</div>
       </div>`;
@@ -721,19 +757,19 @@ function _absensiTrendPanel(harian, bulan, tahun, full, spanFull = true) {
     <div class="dash-panel-header">${icon} Tren Kehadiran Harian — ${ABS_BULAN_NAMA[bulan]} ${tahun}</div>
     <div class="dash-trend dash-trend-scroll"><div class="dash-trend-bars" style="min-width:${days.length * 30}px">${bars}</div></div>
     <div class="dash-heatmap-legend">
-      <span><i style="background:#10b981"></i>Tepat Waktu</span>
-      <span><i style="background:#f59e0b"></i>Terlambat</span>
-      <span><i style="background:#8b5cf6"></i>Tidak Lengkap</span>
-      <span><i style="background:#38bdf8"></i>Tugas luar</span>
-      <span><i style="background:#2dd4bf"></i>Cuti</span>
-      <span><i style="background:#dc2626"></i>Alpa</span>
+      <span><i style="background:${_KPI_COLORS.green.text}"></i>Tepat Waktu</span>
+      <span><i style="background:${_KPI_COLORS.amber.text}"></i>Terlambat</span>
+      <span><i style="background:${_KPI_COLORS.purple.text}"></i>Tidak Lengkap</span>
+      <span><i style="background:${_KPI_COLORS.biruMuda.text}"></i>Tugas luar</span>
+      <span><i style="background:${_KPI_COLORS.fuchsia.text}"></i>Cuti</span>
+      <span><i style="background:${_KPI_COLORS.red.text}"></i>Alpa</span>
     </div>
   </div>`;
 }
 
 // Kalender heatmap kehadiran — admin/full: warna berdasar rate kehadiran tim per hari;
 // non-admin: warna berdasar status pribadi hari itu.
-function _absensiHeatmapPanel(harian, bulan, tahun, full, spanFull = true) {
+function _absensiHeatmapPanel(harian, bulan, tahun, full, spanFull = true, liburSet = new Set()) {
   const daysInMonth = new Date(tahun, bulan, 0).getDate();
   const today = new Date();
   const todayKey = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
@@ -754,20 +790,25 @@ function _absensiHeatmapPanel(harian, bulan, tahun, full, spanFull = true) {
     const key = `${tahun}-${pad2(bulan)}-${pad2(day)}`;
     const dow = new Date(tahun, bulan - 1, day).getDay();
     const isWeekend = dow === 0 || dow === 6;
+    const isLiburTanggal = liburSet.has(key); // hari libur nasional/lokal yg diatur admin, termasuk yg jatuh di hari kerja
     const isFuture = key > todayKey;
     const c = byDay.get(key);
 
     let label = String(day), tip = '';
+    // Weekend/hari libur ditandai duluan, gak peduli udah lewat atau belum —
+    // biar tanggal libur ke depan (mis. cuti bersama bulan depan) langsung
+    // keliatan di kalender, gak nunggu tanggalnya lewat dulu.
+    if (isWeekend || isLiburTanggal) {
+      const liburTip = isWeekend && isLiburTanggal ? 'akhir pekan & hari libur' : isLiburTanggal ? 'hari libur' : 'akhir pekan';
+      cells.push(`<div class="dash-heatmap-cell is-libur" data-tip="Tgl ${day}: ${liburTip}">${label}</div>`);
+      continue;
+    }
     if (isFuture) {
       cells.push(`<div class="dash-heatmap-cell is-future" data-tip="Tgl ${day}: belum terjadi">${label}</div>`);
       continue;
     }
     if (!c || !c.total) {
-      if (isWeekend) {
-        cells.push(`<div class="dash-heatmap-cell is-libur" data-tip="Tgl ${day}: akhir pekan">${label}</div>`);
-      } else {
-        cells.push(`<div class="dash-heatmap-cell" style="background:#f8fafc;color:#cbd5e1" data-tip="Tgl ${day}: tidak ada data">${label}</div>`);
-      }
+      cells.push(`<div class="dash-heatmap-cell" style="background:#f8fafc;color:#cbd5e1" data-tip="Tgl ${day}: tidak ada data">${label}</div>`);
       continue;
     }
 
@@ -778,7 +819,7 @@ function _absensiHeatmapPanel(harian, bulan, tahun, full, spanFull = true) {
       tip = `Tgl ${day}: ${hadirEfektif}/${c.total} hadir${c.alpa ? `, ${c.alpa} alpa` : ''}`;
       cells.push(`<div class="dash-heatmap-cell" style="background:${bg}" data-tip="${tip}">${label}</div>`);
     } else {
-      const bg = c.alpa ? '#dc2626' : c.tidak_lengkap ? '#8b5cf6' : c.terlambat ? '#f59e0b' : c.hadir ? '#10b981' : c.tugas_luar ? '#38bdf8' : c.cuti ? '#2dd4bf' : '#f1f5f9';
+      const bg = c.alpa ? _KPI_COLORS.red.text : c.tidak_lengkap ? _KPI_COLORS.purple.text : c.terlambat ? _KPI_COLORS.amber.text : c.hadir ? _KPI_COLORS.green.text : c.tugas_luar ? _KPI_COLORS.biruMuda.text : c.cuti ? _KPI_COLORS.fuchsia.text : '#f1f5f9';
       const statusLbl = c.alpa ? 'Alpa' : c.tidak_lengkap ? 'Tidak Lengkap' : c.terlambat ? 'Terlambat' : c.hadir ? 'Tepat Waktu' : c.tugas_luar ? 'Tugas Luar' : c.cuti ? 'Cuti' : '—';
       cells.push(`<div class="dash-heatmap-cell" style="background:${bg}" data-tip="Tgl ${day}: ${statusLbl}">${label}</div>`);
     }
@@ -787,7 +828,7 @@ function _absensiHeatmapPanel(harian, bulan, tahun, full, spanFull = true) {
   const icon = `<svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/><path d="M8 2v4"/><path d="M16 2v4"/></svg>`;
   const legend = full
     ? `<span><i style="background:#10b981"></i>≥90% hadir</span><span><i style="background:#34d399"></i>70–89%</span><span><i style="background:#f59e0b"></i>50–69%</span><span><i style="background:#dc2626"></i>&lt;50%</span><span><i style="background:#fee2e2;border:1px solid #fecaca"></i>Libur / tanpa data</span>`
-    : `<span><i style="background:#10b981"></i>Tepat Waktu</span><span><i style="background:#f59e0b"></i>Terlambat</span><span><i style="background:#8b5cf6"></i>Tidak Lengkap</span><span><i style="background:#38bdf8"></i>Tugas luar</span><span><i style="background:#2dd4bf"></i>Cuti</span><span><i style="background:#dc2626"></i>Alpa</span>`;
+    : `<span><i style="background:${_KPI_COLORS.green.text}"></i>Tepat Waktu</span><span><i style="background:${_KPI_COLORS.amber.text}"></i>Terlambat</span><span><i style="background:${_KPI_COLORS.purple.text}"></i>Tidak Lengkap</span><span><i style="background:${_KPI_COLORS.biruMuda.text}"></i>Tugas luar</span><span><i style="background:${_KPI_COLORS.fuchsia.text}"></i>Cuti</span><span><i style="background:${_KPI_COLORS.red.text}"></i>Alpa</span>`;
 
   return `<div class="dash-panel dash-panel--kalender"${spanFull ? ' style="grid-column:1/-1"' : ''}>
     <div class="dash-panel-header">${icon} Kalender Kehadiran — ${ABS_BULAN_NAMA[bulan]} ${tahun}</div>
@@ -1812,11 +1853,16 @@ const _KPI_COLORS = {
   purple: { bg: '#ede9fe', text: '#6d28d9' },
   amber:  { bg: '#fef3c7', text: '#d97706' },
   red:    { bg: '#fee2e2', text: '#b91c1c' },
-  green:  { bg: '#d1fae5', text: '#047857' },
+  green:  { bg: '#d1fae5', text: '#10b981' },
   // Dipakai khusus utk statcard & barlist Surat Masuk/Keluar — biar warnanya
   // gak "tua" kayak teal/blue biasa, dan konsisten di kedua tempat sekaligus.
   tealMuda: { bg: '#ccfbf1', text: '#2dd4bf' },
   biruMuda: { bg: '#e0f2fe', text: '#38bdf8' },
+  // Khusus status Cuti (absensi) — sempat dicoba slate lalu rose, tapi rose
+  // (pink kemerahan) masih ketuker sama merah Alpa kalau dilihat sekilas.
+  // Dipindah ke fuchsia (magenta) yang jauh beda hue dari 5 status lain.
+  slate: { bg: '#e2e8f0', text: '#334155' },
+  fuchsia: { bg: '#fae8ff', text: '#a21caf' },
 };
 
 // Kartu KPI tunggal — ikon + angka besar + label + sub-info opsional (mis. tren)

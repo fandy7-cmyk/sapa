@@ -9,7 +9,7 @@
   <link rel="icon" type="image/png" href="/favicon.png" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="css/styles.css?v=1.1.9" />
+  <link rel="stylesheet" href="css/styles.css?v=1.2.1" />
   <style>
     /* ── LOGIN OVERLAY ── */
     #loginOverlay {
@@ -406,7 +406,7 @@
       <div class="topbar-constellation" id="topbarConstellation" aria-hidden="true">
         <canvas id="topbarConstellationCanvas"></canvas>
       </div>
-      <script src="js/topbar_constellation.js?v=1.1.9"></script>
+      <script src="js/topbar_constellation.js?v=1.2.1"></script>
 
       <div class="topbar-profile">
         <div class="topbar-user-info">
@@ -723,6 +723,18 @@
           </div>
           <div class="select-wrap" style="flex:1"><select id="absFilterTahun" data-searchable="1" data-search-placeholder="Cari tahun…" onchange="setAbsFilterTahunAtauPegawai()"></select></div>
           <div class="select-wrap" style="flex:1"><select id="absFilterBulan" data-searchable="1" data-search-placeholder="Cari bulan…" onchange="setAbsFilterBulan()"></select></div>
+          <div class="select-wrap" style="flex:1">
+            <select id="absFilterStatus" onchange="setAbsFilterStatus()">
+              <option value="">Semua Status</option>
+              <option value="hadir">Tepat Waktu</option>
+              <option value="terlambat">Terlambat</option>
+              <option value="tidak_lengkap">Tidak Lengkap</option>
+              <option value="pending">Menunggu Absen Keluar</option>
+              <option value="tugas_luar">Tugas Luar</option>
+              <option value="cuti">Cuti</option>
+              <option value="alpa">Alpa</option>
+            </select>
+          </div>
           <button class="btn btn-primary btn-sm" id="btnAjukanPengajuan" style="flex-shrink:0" onclick="openPengajuanModal()">
             <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:6px;vertical-align:-2px"><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/><path d="M8 2v4"/><path d="M16 2v4"/><path d="M12 14v4"/><path d="M10 16h4"/></svg>
             Ajukan Tugas Luar / Cuti
@@ -1355,6 +1367,11 @@
           </div>
           <div class="select-wrap" style="flex:1">
             <select id="lapAbsBulan" data-searchable="1" data-search-placeholder="Cari bulan…" onchange="setLapAbsFilterBulan()"></select>
+          </div>
+          <div class="select-wrap" style="flex:1">
+            <select id="lapAbsStatus" onchange="setLapAbsFilterStatus()">
+              <option value="">Semua Status</option>
+            </select>
           </div>
           <span style="opacity:.35;font-weight:300;padding:0 2px">|</span>
           <input type="hidden" id="lapAbsDari">
@@ -3657,7 +3674,7 @@ function _loginShowErr(msg, type = 'warn') {
 </script>
 
 <!-- ════════════════ SCRIPTS ════════════════ -->
-<script src="js/periode_frontend.js?v=1.1.9"></script>
+<script src="js/periode_frontend.js?v=1.2.1"></script>
 <script>
 /* ── CDTP Teleport: pindahkan panel kalender ke <body> saat dibuka ──────────
    Ini satu-satunya cara yang benar-benar reliable agar panel tidak terpotong
@@ -3804,20 +3821,20 @@ function _loginShowErr(msg, type = 'warn') {
 })();
 </script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/quill/1.3.7/quill.min.js"></script>
-  <script src="js/app.js?v=1.1.9"></script>
-<script src="js/dashboard.js?v=1.1.9"></script>
+  <script src="js/app.js?v=1.2.1"></script>
+<script src="js/dashboard.js?v=1.2.1"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
-<script src="js/superlink.js?v=1.1.9"></script>
-<script src="js/pengumuman_frontend.js?v=1.1.9"></script>
-<script src="js/surat.js?v=1.1.9"></script>
-<script src="js/absensi_frontend.js?v=1.1.9"></script>
-<script src="js/users_frontend.js?v=1.1.9"></script>
-<script src="js/kinerja.js?v=1.1.9"></script>
-<script src="js/laporan.js?v=1.1.9"></script>
-<script src="js/struktur_frontend.js?v=1.1.9"></script>
-<script src="js/audit_frontend.js?v=1.1.9"></script>
-<script src="js/dokumen_publik_frontend.js?v=1.1.9"></script>
-<script src="js/profil_frontend.js?v=1.1.9"></script>
+<script src="js/superlink.js?v=1.2.1"></script>
+<script src="js/pengumuman_frontend.js?v=1.2.1"></script>
+<script src="js/surat.js?v=1.2.1"></script>
+<script src="js/absensi_frontend.js?v=1.2.1"></script>
+<script src="js/users_frontend.js?v=1.2.1"></script>
+<script src="js/kinerja.js?v=1.2.1"></script>
+<script src="js/laporan.js?v=1.2.1"></script>
+<script src="js/struktur_frontend.js?v=1.2.1"></script>
+<script src="js/audit_frontend.js?v=1.2.1"></script>
+<script src="js/dokumen_publik_frontend.js?v=1.2.1"></script>
+<script src="js/profil_frontend.js?v=1.2.1"></script>
 
 <script>
 /* ═══════════════════════════════════════════════════════════════════════════

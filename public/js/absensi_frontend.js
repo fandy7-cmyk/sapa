@@ -9,7 +9,9 @@
 const ABS_BULAN_NAMA = ['', 'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
   'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
 const STATUS_LABEL = { hadir: 'Tepat Waktu', tugas_luar: 'Tugas Luar', cuti: 'Cuti', alpa: 'Alpa', izin: 'Tugas Luar', sakit: 'Tugas Luar' }; // izin/sakit: fallback data lama (status sudah dihapus, digabung ke Tugas Luar)
-const STATUS_BADGE = { hadir: 'badge-hijau', tugas_luar: 'badge-biru', cuti: 'badge-blue', alpa: 'badge-merah', izin: 'badge-biru', sakit: 'badge-biru' };
+const STATUS_FILTER_LABEL = { hadir: 'Tepat Waktu', terlambat: 'Terlambat', tidak_lengkap: 'Tidak Lengkap', pending: 'Menunggu Absen Keluar', tugas_luar: 'Tugas Luar', cuti: 'Cuti', alpa: 'Alpa' };
+const STATUS_FILTER_ORDER = ['hadir', 'terlambat', 'tidak_lengkap', 'pending', 'tugas_luar', 'cuti', 'alpa'];
+const STATUS_BADGE = { hadir: 'badge-hijau', tugas_luar: 'badge-biru', cuti: 'badge-fuchsia', alpa: 'badge-merah', izin: 'badge-biru', sakit: 'badge-biru' };
 const STATUS_ICON = {
   hadir: `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 12l2 2 4-4"/><circle cx="12" cy="12" r="10"/></svg>`,
   terlambat: `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>`,
@@ -49,6 +51,7 @@ let _absFilterBulan = new Date().getMonth() + 1;
 let _absFilterTahun = new Date().getFullYear();
 let _absFilterPegawai = '';
 let _absFilterBidang = '';
+let _absFilterStatus = '';
 let _absAllPegawai = [];   // cache semua pegawai (non-admin) beserta bidang_id, dipakai buat narrow-in filter Unit Kerja
 let _absPage = 1;
 const _absPageSize = 10;
@@ -73,6 +76,7 @@ async function loadAbsensi() {
     await populateAbsPegawaiFilter();
   }
   await rebuildAbsFilterBulan();
+  await rebuildAbsFilterStatus();
 
   await renderAbsHariIni();
   await loadAbsRekap();
@@ -149,6 +153,33 @@ async function rebuildAbsFilterBulan() {
   syncCustomSelect?.('absFilterBulan');
 }
 
+// Sama kayak rebuildAbsFilterBulan — cuma tampilin opsi status yg beneran ada
+// datanya di bulan/tahun (& pegawai/unit kerja) yg lagi difilter
+async function rebuildAbsFilterStatus() {
+  const sel = document.getElementById('absFilterStatus');
+  if (!sel) return;
+
+  let statusPresent = [];
+  try {
+    const params = new URLSearchParams();
+    if (_absFilterBulan) params.set('bulan', _absFilterBulan);
+    if (_absFilterTahun) params.set('tahun', _absFilterTahun);
+    if (isAbsensiFull() && _absFilterPegawai) params.set('user_id', _absFilterPegawai);
+    if (isAbsensiFull() && _absFilterBidang) params.set('bidang_id', _absFilterBidang);
+    const r = await fetch(`/api/absensi/status-tersedia?${params}`, { headers: authHeaders() });
+    const d = await r.json();
+    statusPresent = d.status || [];
+  } catch { statusPresent = []; }
+
+  const present = STATUS_FILTER_ORDER.filter(k => statusPresent.includes(k));
+  const opts = [{ value: '', label: 'Semua Status' }, ...present.map(k => ({ value: k, label: STATUS_FILTER_LABEL[k] }))];
+  if (_absFilterStatus && !present.includes(_absFilterStatus)) _absFilterStatus = '';
+
+  sel.innerHTML = opts.map(o => `<option value="${o.value}">${o.label}</option>`).join('');
+  sel.value = _absFilterStatus;
+  syncCustomSelect?.('absFilterStatus');
+}
+
 // Fetch semua pegawai sekali (di-cache di _absAllPegawai), lalu render opsi
 // dropdown — di-narrow ke pegawai dalam Unit Kerja terpilih kalau ada.
 async function populateAbsPegawaiFilter() {
@@ -158,7 +189,9 @@ async function populateAbsPegawaiFilter() {
     try {
       const r = await fetch('/api/users', { headers: authHeaders() });
       const d = await r.json();
-      _absAllPegawai = (d.users || []).filter(u => !u.is_admin);
+      _absAllPegawai = (d.users || []).filter(u =>
+        !u.is_admin && Array.isArray(u.permissions) && (u.permissions.includes('absensi') || u.permissions.includes('absensi.full'))
+      );
       sel.dataset.fetched = '1';
     } catch { _absAllPegawai = []; }
   }
@@ -218,10 +251,18 @@ async function rebuildAbsFilterBidang() {
 }
 
 // Ganti bulan langsung (opsi yg ditampilkan sudah pasti ada datanya) — gak perlu rebuild dropdown
-function setAbsFilterBulan() {
+async function setAbsFilterBulan() {
   const v = document.getElementById('absFilterBulan').value;
   _absFilterBulan = v ? parseInt(v) : '';
+  await rebuildAbsFilterStatus();
   loadAbsRekap();
+  loadAbsTable(1);
+}
+
+// Filter Status cuma mempersempit tabel riwayat — kartu rekap (KPI) di atas
+// tetap nunjukin total keseluruhan bulan itu, jadi gak perlu reload rekap
+function setAbsFilterStatus() {
+  _absFilterStatus = document.getElementById('absFilterStatus')?.value || '';
   loadAbsTable(1);
 }
 
@@ -236,6 +277,7 @@ async function setAbsFilterTahunAtauPegawai() {
     renderAbsPegawaiFilterOptions();
   }
   await rebuildAbsFilterBulan();
+  await rebuildAbsFilterStatus();
   loadAbsRekap();
   loadAbsTable(1);
 }
@@ -246,6 +288,7 @@ async function setAbsFilterBidang() {
   _absFilterBidang = document.getElementById('absFilterBidang')?.value || '';
   renderAbsPegawaiFilterOptions();
   await rebuildAbsFilterBulan();
+  await rebuildAbsFilterStatus();
   loadAbsRekap();
   loadAbsTable(1);
 }
@@ -474,8 +517,8 @@ async function renderAbsHariIni() {
               <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" style="margin-right:6px;vertical-align:-2px"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg>
               Simpan Absen Masuk
             </button>` : ''}
-            ${todayRow?.jam_masuk && !todayRow?.jam_keluar ? `
-            <button class="btn btn-secondary" id="btnAbsKeluar" ${(belumWaktuPulang || lewatWaktuPulang) ? 'disabled' : ''} onclick="doAbsCheckout()">
+            ${todayRow?.jam_masuk && !todayRow?.jam_keluar && !belumWaktuPulang ? `
+            <button class="btn btn-secondary" id="btnAbsKeluar" ${lewatWaktuPulang ? 'disabled' : ''} onclick="doAbsCheckout()">
               <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" style="margin-right:6px;vertical-align:-2px"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
               Simpan Absen Keluar
             </button>` : ''}
@@ -723,7 +766,7 @@ async function loadAbsRekap() {
       _kpiCard({ icon: iconClock, label: 'Terlambat', value: rk.terlambat, color: 'amber' }) +
       _kpiCard({ icon: iconTidakLengkap, label: 'Tidak Lengkap', value: rk.tidak_lengkap || 0, color: 'purple' }) +
       _kpiCard({ icon: iconTugas, label: 'Tugas Luar', value: rk.tugas_luar, color: 'biruMuda' }) +
-      _kpiCard({ icon: iconCuti, label: 'Cuti', value: rk.cuti, color: 'teal' }) +
+      _kpiCard({ icon: iconCuti, label: 'Cuti', value: rk.cuti, color: 'fuchsia' }) +
       _kpiCard({ icon: iconWarn, label: 'Alpa', value: rk.alpa, color: 'red' });
 
     // Kartu ke-7: Jam Kerja Bulan Ini vs Target. Kalau admin lagi liat rekap
@@ -743,7 +786,7 @@ async function loadAbsRekap() {
 function _absFmtJam(menit) {
   const jam = Math.floor(Math.abs(menit || 0) / 60);
   const sisaMenit = Math.abs(menit || 0) % 60;
-  return `${jam}j ${sisaMenit}m`;
+  return `${jam.toLocaleString('id-ID')}j ${sisaMenit}m`;
 }
 
 // Skala Nilai Peringkat Kinerja (Permendagri No. 86/2017) — sama persis dgn
@@ -823,6 +866,7 @@ async function loadAbsTable(page = 1) {
   } else {
     params.set('user_id', _user.id);
   }
+  if (_absFilterStatus) params.set('status', _absFilterStatus);
 
   try {
     const r = await fetch(`/api/absensi?${params}`, { headers: authHeaders() });
@@ -1086,7 +1130,9 @@ async function openAbsModal(id = null) {
       const r = await fetch('/api/users', { headers: authHeaders() });
       const d = await r.json();
       document.getElementById('absPegawai').innerHTML = '<option value="">— Pilih Pegawai —</option>' +
-        (d.users || []).filter(u => !u.is_admin).map(u => `<option value="${u.id}">${esc(u.nama)}</option>`).join('');
+        (d.users || [])
+          .filter(u => !u.is_admin && Array.isArray(u.permissions) && (u.permissions.includes('absensi') || u.permissions.includes('absensi.full')))
+          .map(u => `<option value="${u.id}">${esc(u.nama)}</option>`).join('');
       document.getElementById('absPegawai').dataset.filled = '1';
     } catch { /* noop */ }
   }
@@ -1873,10 +1919,11 @@ async function _cekPengajuanPendingReminder() {
 
 async function openPersetujuanModal() {
   openModal('modalPersetujuanAbsen');
-  await loadPersetujuanList();
+  // silent:false → klik manual, kalau kosong kasih empty state, jangan nutup modal diam-diam
+  await loadPersetujuanList({ silent: false });
 }
 
-async function loadPersetujuanList() {
+async function loadPersetujuanList({ silent = true } = {}) {
   const container = document.getElementById('absPersetujuanList');
   if (!container) return;
   container.innerHTML = `<div class="skeleton" style="height:60px;border-radius:10px;margin-bottom:10px"></div>`;
@@ -1885,9 +1932,15 @@ async function loadPersetujuanList() {
     const d = await r.json();
     const rows = d.pengajuan || [];
     if (!rows.length) {
-      // Gak ada lagi yang pending (mis. abis di-setujui/tolak sampai habis)
-      // → modal ikutan ditutup, gak perlu nampilin empty state ke admin.
-      closeModal('modalPersetujuanAbsen');
+      if (silent) {
+        // Auto-reminder / abis approve-tolak sampai habis → modal ikutan
+        // ditutup diam-diam, gak perlu nampilin empty state.
+        closeModal('modalPersetujuanAbsen');
+        return;
+      }
+      // Klik manual tombol Persetujuan Pengajuan → tetap kasih feedback,
+      // jangan nutup modal tiba-tiba tanpa penjelasan.
+      container.innerHTML = `<div style="text-align:center;padding:24px;color:var(--teks-muted);font-size:.85rem">Tidak ada pengajuan yang perlu disetujui saat ini.</div>`;
       return;
     }
     container.innerHTML = rows.map(p => `
