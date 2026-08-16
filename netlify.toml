@@ -3,7 +3,7 @@
   functions = "netlify/functions"
 
 # ── Cache headers ─────────────────────────────────────────────
-# root "/" — ikut ke-rewrite ke landing.html tapi netlify match header
+# root "/" - ikut ke-rewrite ke landing.html tapi netlify match header
 # berdasarkan URL yang diketik browser, bukan tujuan redirect, jadi harus
 # di-set terpisah dari rule "/landing.html" di atas atau gak kepakai sama sekali
 [[headers]]
@@ -109,6 +109,12 @@
 [[redirects]]
   from = "/api/auth/*"
   to = "/.netlify/functions/auth/:splat"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/api/eplanning/*"
+  to = "/.netlify/functions/eplanning/:splat"
   status = 200
   force = true
 
@@ -312,7 +318,7 @@
 
 # ── Scheduled: auto-tandai Alpa pegawai yg gak absen sama sekali ────────────
 # Jalan tiap hari jam 00:15 WITA (16:15 UTC). Logikanya ada di function
-# terpisah netlify/functions/absensi-cron-alpa.js (BUKAN di absensi.js) —
+# terpisah netlify/functions/absensi-cron-alpa.js (BUKAN di absensi.js) -
 # sengaja dipisah krn Netlify gak izinin satu function jadi scheduled
 # function SEKALIGUS endpoint HTTP biasa; kalau digabung, semua request
 # normal ke /api/absensi/* ikut ke-block ("which is a scheduled function").
