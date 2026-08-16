@@ -215,7 +215,7 @@ async function loadDashboardSuperlink() {
 
   const { links, bundles, stats } = await _fetchSuperlinkDashData();
 
-  const icon = `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;opacity:.85"><path d="M9 17H7A5 5 0 0 1 7 7h2"/><path d="M15 7h2a5 5 0 1 1 0 10h-2"/><line x1="8" x2="16" y1="12" y2="12"/></svg>`;
+  const icon = `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor" style="flex-shrink:0;opacity:.85"><path d="M3 12C3 12.5523 3.44772 13 4 13H10C10.5523 13 11 12.5523 11 12V4C11 3.44772 10.5523 3 10 3H4C3.44772 3 3 3.44772 3 4V12ZM3 20C3 20.5523 3.44772 21 4 21H10C10.5523 21 11 20.5523 11 20V16C11 15.4477 10.5523 15 10 15H4C3.44772 15 3 15.4477 3 16V20ZM13 20C13 20.5523 13.4477 21 14 21H20C20.5523 21 21 20.5523 21 20V12C21 11.4477 20.5523 11 20 11H14C13.4477 11 13 11.4477 13 12V20ZM14 3C13.4477 3 13 3.44772 13 4V8C13 8.55228 13.4477 9 14 9H20C20.5523 9 21 8.55228 21 8V4C21 3.44772 20.5523 3 20 3H14Z"/></svg>`;
   let html = _dashModuleHeader(icon, 'Dashboard', 'Ringkasan aktivitas Superlink');
 
   const totalKlik    = stats?.total_klik    ?? links.reduce((sum, l) => sum + (l.total_klik || 0), 0);
@@ -241,13 +241,14 @@ async function loadDashboardSuperlink() {
     }
   }
 
+  const iconTotalLink = `<svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 17H7A5 5 0 0 1 7 7h2"/><path d="M15 7h2a5 5 0 1 1 0 10h-2"/><line x1="8" x2="16" y1="12" y2="12"/></svg>`;
   const iconShort  = `<svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13.828 10.172a4 4 0 0 0-5.656 0l-4 4a4 4 0 1 0 5.656 5.656l1.102-1.101m-.758-4.899a4 4 0 0 0 5.656 0l4-4a4 4 0 0 0-5.656-5.656l-1.1 1.1"/></svg>`;
   const iconBundle = `<svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m7.5 4.27 9 5.15"/><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/></svg>`;
   const iconClick  = `<svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 9 5 12 1.8-5.2L21 14Z"/><path d="M7.2 2.2 8 5.1"/><path d="m5.1 8-2.9-.8"/><path d="M14 4.1 12 6"/><path d="m6 12-1.9 2"/></svg>`;
   const iconToday  = `<svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/><path d="M8 2v4"/><path d="M16 2v4"/></svg>`;
 
   html += `<div class="dash-kpi-row">
-    ${_kpiCard({ icon, label: 'Total Link', value: links.length, sub: `${linkAktif} aktif · ${linkNonaktif} nonaktif`, color: 'teal' })}
+    ${_kpiCard({ icon: iconTotalLink, label: 'Total Link', value: links.length, sub: `${linkAktif} aktif · ${linkNonaktif} nonaktif`, color: 'teal' })}
     ${_kpiCard({ icon: iconShort, label: 'Shortlink', value: shortlinkCnt, sub: `${shortlinkPct}% dari total link`, color: 'blue' })}
     ${_kpiCard({ icon: iconBundle, label: 'Bundle', value: bundles.length, sub: `${bundleAktif} aktif`, color: 'purple' })}
     ${_kpiCard({ icon: iconClick, label: 'Total Klik', value: totalKlik, sub: `± ${rataKlik} klik/link`, color: 'amber' })}
@@ -336,7 +337,7 @@ async function loadDashboardSurat() {
 
   const ss = await _fetchSuratDashData();
 
-  const icon = `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;opacity:.85"><rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>`;
+  const icon = `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor" style="flex-shrink:0;opacity:.85"><path d="M3 12C3 12.5523 3.44772 13 4 13H10C10.5523 13 11 12.5523 11 12V4C11 3.44772 10.5523 3 10 3H4C3.44772 3 3 3.44772 3 4V12ZM3 20C3 20.5523 3.44772 21 4 21H10C10.5523 21 11 20.5523 11 20V16C11 15.4477 10.5523 15 10 15H4C3.44772 15 3 15.4477 3 16V20ZM13 20C13 20.5523 13.4477 21 14 21H20C20.5523 21 21 20.5523 21 20V12C21 11.4477 20.5523 11 20 11H14C13.4477 11 13 11.4477 13 12V20ZM14 3C13.4477 3 13 3.44772 13 4V8C13 8.55228 13.4477 9 14 9H20C20.5523 9 21 8.55228 21 8V4C21 3.44772 20.5523 3 20 3H14Z"/></svg>`;
   let html = _dashModuleHeader(icon, 'Dashboard', 'Ringkasan surat masuk & keluar');
 
   const totalMasuk   = Number(ss?.total_masuk)  || 0;
@@ -512,7 +513,7 @@ async function loadDashboardAbsensi() {
   const rk     = d.rekap     || { hadir: 0, tugas_luar: 0, cuti: 0, alpa: 0, terlambat: 0, tidak_lengkap: 0 };
   const rkPrev = dPrev.rekap || { hadir: 0, tugas_luar: 0, cuti: 0, alpa: 0, terlambat: 0, tidak_lengkap: 0 };
 
-  const icon = `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;opacity:.85"><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/><path d="m9 16 2 2 4-4"/></svg>`;
+  const icon = `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor" style="flex-shrink:0;opacity:.85"><path d="M3 12C3 12.5523 3.44772 13 4 13H10C10.5523 13 11 12.5523 11 12V4C11 3.44772 10.5523 3 10 3H4C3.44772 3 3 3.44772 3 4V12ZM3 20C3 20.5523 3.44772 21 4 21H10C10.5523 21 11 20.5523 11 20V16C11 15.4477 10.5523 15 10 15H4C3.44772 15 3 15.4477 3 16V20ZM13 20C13 20.5523 13.4477 21 14 21H20C20.5523 21 21 20.5523 21 20V12C21 11.4477 20.5523 11 20 11H14C13.4477 11 13 11.4477 13 12V20ZM14 3C13.4477 3 13 3.44772 13 4V8C13 8.55228 13.4477 9 14 9H20C20.5523 9 21 8.55228 21 8V4C21 3.44772 20.5523 3 20 3H14Z"/></svg>`;
   let html = _dashModuleHeader(icon, 'Dashboard', full ? 'Ringkasan kehadiran seluruh pegawai bulan ini' : 'Ringkasan kehadiran Anda bulan ini');
 
   const iconHadir = `<svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 12l2 2 4-4"/><circle cx="12" cy="12" r="10"/></svg>`;
@@ -907,7 +908,7 @@ async function loadDashboardKinerja() {
     ? rekapRaw.filter(x => _userIndikatorIds && _userIndikatorIds.has(Number(x.id)))
     : rekapRaw;
 
-  const icon = `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;opacity:.85"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg>`;
+  const icon = `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor" style="flex-shrink:0;opacity:.85"><path d="M3 12C3 12.5523 3.44772 13 4 13H10C10.5523 13 11 12.5523 11 12V4C11 3.44772 10.5523 3 10 3H4C3.44772 3 3 3.44772 3 4V12ZM3 20C3 20.5523 3.44772 21 4 21H10C10.5523 21 11 20.5523 11 20V16C11 15.4477 10.5523 15 10 15H4C3.44772 15 3 15.4477 3 16V20ZM13 20C13 20.5523 13.4477 21 14 21H20C20.5523 21 21 20.5523 21 20V12C21 11.4477 20.5523 11 20 11H14C13.4477 11 13 11.4477 13 12V20ZM14 3C13.4477 3 13 3.44772 13 4V8C13 8.55228 13.4477 9 14 9H20C20.5523 9 21 8.55228 21 8V4C21 3.44772 20.5523 3 20 3H14Z"/></svg>`;
   let html = _dashModuleHeader(icon, 'Dashboard', 'Ringkasan capaian indikator kinerja periode berjalan');
 
   const total = ks?.total_indikator ?? rekap.length;
@@ -3119,18 +3120,26 @@ function _renderKinerjaWatch() {
           const dariItems   = tahunUnik.map(t => ({ val: t, label: String(t) }));
           const sampaiItems = tahunUnik.filter(t => t >= tDari).map(t => ({ val: t, label: String(t) }));
           return `
-            <span style="font-size:0.72rem;font-weight:600;color:#94a3b8;white-space:nowrap">Dari</span>
-            ${_kwCdd('kwTahunDariDd', dariItems, tDari, '_kwSetTahunDari', { minW: '90px' })}
-            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="#cbd5e1" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M13 7l5 5m0 0l-5 5m5-5H6"/></svg>
-            <span style="font-size:0.72rem;font-weight:600;color:#94a3b8;white-space:nowrap">Sampai</span>
-            ${_kwCdd('kwTahunSampaiDd', sampaiItems, tSampai, '_kwSetTahunSampai', { minW: '90px' })}
+            <div style="display:flex;align-items:center;gap:8px;flex-shrink:0">
+              <span style="font-size:0.72rem;font-weight:600;color:#94a3b8;white-space:nowrap">Dari</span>
+              ${_kwCdd('kwTahunDariDd', dariItems, tDari, '_kwSetTahunDari', { minW: '90px' })}
+            </div>
+            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="#cbd5e1" stroke-width="2.5" style="flex-shrink:0"><path stroke-linecap="round" stroke-linejoin="round" d="M13 7l5 5m0 0l-5 5m5-5H6"/></svg>
+            <div style="display:flex;align-items:center;gap:8px;flex-shrink:0">
+              <span style="font-size:0.72rem;font-weight:600;color:#94a3b8;white-space:nowrap">Sampai</span>
+              ${_kwCdd('kwTahunSampaiDd', sampaiItems, tSampai, '_kwSetTahunSampai', { minW: '90px' })}
+            </div>
           `;
         })() : `
           ${/* Mode Bulan: Dari → Sampai */''}
-          <span style="font-size:0.72rem;font-weight:600;color:#94a3b8;white-space:nowrap">Dari</span>
-          ${_kwMonthPicker('kwMpFrom', _kwTahunList.length ? _kwTahunList : [_kwTahunPilih], _kwRangeFrom?.key || periodeOptions[0]?.val, '_kwSetRangeFrom', availFromKeys)}
-          <span style="font-size:0.72rem;font-weight:600;color:#94a3b8;white-space:nowrap">Sampai</span>
-          ${_kwMonthPicker('kwMpTo', _kwTahunList.length ? _kwTahunList : [_kwTahunPilih], _kwRangeTo?.key || periodeOptions[periodeOptions.length-1]?.val, '_kwSetRangeTo', availToKeys)}
+          <div style="display:flex;align-items:center;gap:8px;flex-shrink:0">
+            <span style="font-size:0.72rem;font-weight:600;color:#94a3b8;white-space:nowrap">Dari</span>
+            ${_kwMonthPicker('kwMpFrom', _kwTahunList.length ? _kwTahunList : [_kwTahunPilih], _kwRangeFrom?.key || periodeOptions[0]?.val, '_kwSetRangeFrom', availFromKeys)}
+          </div>
+          <div style="display:flex;align-items:center;gap:8px;flex-shrink:0">
+            <span style="font-size:0.72rem;font-weight:600;color:#94a3b8;white-space:nowrap">Sampai</span>
+            ${_kwMonthPicker('kwMpTo', _kwTahunList.length ? _kwTahunList : [_kwTahunPilih], _kwRangeTo?.key || periodeOptions[periodeOptions.length-1]?.val, '_kwSetRangeTo', availToKeys)}
+          </div>
         `}
       </div>`;
 
@@ -5078,8 +5087,8 @@ div.kw-insight-card-v2 {
 }
 @media (max-width: 480px) {
   .kw-wrap, div.kw-wrap { padding: 14px 14px !important; border-radius: 12px !important; }
-  .kw-filter-row { flex-direction: column !important; align-items: flex-start !important; gap: 6px !important; overflow-x: auto !important; }
-  .kw-filter-row > div { flex-wrap: wrap !important; }
+  .kw-filter-row { flex-wrap: wrap !important; align-items: center !important; gap: 6px 8px !important; }
+  .kw-filter-row > div { flex-wrap: wrap !important; flex-basis: 100% !important; }
   .kw-card-panel { padding: 12px 12px !important; }
   .kw-month-table-v2 { font-size: 0.78rem !important; }
   .kw-month-table-v2 td, .kw-month-table-v2 th { padding: 6px 6px !important; }

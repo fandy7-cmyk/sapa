@@ -46,8 +46,8 @@
 // DELETE /api/eplanning/rekening/:kode                → admin only
 //
 // GET    /api/eplanning/sumberdana | /satuan          → master list (semua login)
-// POST   /api/eplanning/sumberdana | /satuan          → admin only, { nama }
-// PUT    /api/eplanning/sumberdana/:id | /satuan/:id  → admin only, { nama?, aktif? }
+// POST   /api/eplanning/sumberdana | /satuan          → admin only, { nama, kode? } (kode: sumberdana doang)
+// PUT    /api/eplanning/sumberdana/:id | /satuan/:id  → admin only, { nama?, kode?, aktif? }
 // DELETE /api/eplanning/sumberdana/:id | /satuan/:id  → admin only
 //
 // Wilayah administratif (Provinsi → Kab/Kota → Kecamatan → Desa/Kelurahan) - buat dropdown
@@ -194,6 +194,7 @@ async function ensureSchema(sql) {
     )
   `;
   await sql`ALTER TABLE eplanning_sumberdana ADD COLUMN IF NOT EXISTS aktif BOOLEAN NOT NULL DEFAULT true`;
+  await sql`ALTER TABLE eplanning_sumberdana ADD COLUMN IF NOT EXISTS kode TEXT`;
   await sql`
     CREATE TABLE IF NOT EXISTS eplanning_satuan (
       id   SERIAL PRIMARY KEY,
@@ -834,6 +835,37 @@ export const handler = async (event) => {
       }
       if (!role.isAdmin) return errorResponse('Unauthorized', 401);
 
+      // Impor Excel massal - admin only. Upsert per kode_subkegiatan (sama kayak POST single).
+      if (event.httpMethod === 'POST' && kode === 'import') {
+        const body = parseBody(event);
+        const rows = Array.isArray(body.rows) ? body.rows : [];
+        if (!rows.length) return errorResponse('Tidak ada baris untuk diimpor', 400);
+        if (rows.length > 1000) return errorResponse('Maksimal 1000 baris per batch', 400);
+
+        const kd  = rows.map(r => (r.kode_subkegiatan ?? '').toString().trim());
+        const nm  = rows.map(r => (r.nama_subkegiatan ?? '').toString().trim());
+        const ind = rows.map(r => (r.indikator ?? '').toString().trim() || null);
+        const sat = rows.map(r => (r.satuan ?? '').toString().trim() || null);
+
+        // Baris tanpa kode atau nama di-skip (biar gak nabrak NOT NULL / PK kosong)
+        const valid = rows.map((_, i) => i).filter(i => kd[i] && nm[i]);
+        if (!valid.length) return errorResponse('Tidak ada baris valid - kode & nama wajib diisi', 400);
+        const vkd = valid.map(i => kd[i]);
+        const vnm = valid.map(i => nm[i]);
+        const vind = valid.map(i => ind[i]);
+        const vsat = valid.map(i => sat[i]);
+
+        await sql`
+          INSERT INTO eplanning_subkegiatan (kode_subkegiatan, nama_subkegiatan, indikator, satuan)
+          SELECT * FROM unnest(${vkd}::text[], ${vnm}::text[], ${vind}::text[], ${vsat}::text[])
+          ON CONFLICT (kode_subkegiatan) DO UPDATE SET
+            nama_subkegiatan = EXCLUDED.nama_subkegiatan,
+            indikator = EXCLUDED.indikator,
+            satuan = EXCLUDED.satuan`;
+
+        return jsonResponse({ ok: true, inserted: valid.length, skipped: rows.length - valid.length }, 201);
+      }
+
       if (event.httpMethod === 'POST' && !kode) {
         const { kode_subkegiatan, nama_subkegiatan, indikator, satuan } = parseBody(event);
         if (!kode_subkegiatan || !nama_subkegiatan) return errorResponse('Kode dan nama wajib diisi', 400);
@@ -940,7 +972,8 @@ export const handler = async (event) => {
 
     // ═══════════════════════════ SUMBER DANA ═══════════════════════════
     if (resource === 'sumberdana') {
-      const id = segments[1] ? parseInt(segments[1]) : null;
+      const idRaw = segments[1] || null;
+      const id = idRaw && /^\d+$/.test(idRaw) ? parseInt(idRaw) : null;
 
       if (event.httpMethod === 'GET') {
         const rows = await sql`SELECT * FROM eplanning_sumberdana ORDER BY nama ASC`;
@@ -948,21 +981,52 @@ export const handler = async (event) => {
       }
       if (!role.isAdmin) return errorResponse('Unauthorized', 401);
 
+      // Impor Excel massal - admin only. Kolom kode (opsional) + nama, duplikat (nama sama) dilewati.
+      // Kalau nama udah ada, kode-nya di-update kalau baris impor bawa kode baru (biar bisa
+      // "lengkapi" master lama yang belum ada kode-nya tanpa bikin duplikat baris).
+      if (event.httpMethod === 'POST' && idRaw === 'import') {
+        const body = parseBody(event);
+        const rows = Array.isArray(body.rows) ? body.rows : [];
+        if (!rows.length) return errorResponse('Tidak ada baris untuk diimpor', 400);
+        if (rows.length > 1000) return errorResponse('Maksimal 1000 baris per batch', 400);
+
+        const seen = new Map();
+        for (const r of rows) {
+          const nama = (typeof r === 'string' ? r : (r.nama ?? '')).toString().trim();
+          if (!nama) continue;
+          const kode = (typeof r === 'string' ? '' : (r.kode ?? '')).toString().trim();
+          if (!seen.has(nama) || kode) seen.set(nama, kode || seen.get(nama) || '');
+        }
+        const namaList = [...seen.keys()];
+        const kodeList = namaList.map(n => seen.get(n) || null);
+        if (!namaList.length) return errorResponse('Tidak ada baris valid - nama wajib diisi', 400);
+
+        const added = await sql`
+          INSERT INTO eplanning_sumberdana (nama, kode)
+          SELECT s, k FROM unnest(${namaList}::text[], ${kodeList}::text[]) AS t(s, k)
+          ON CONFLICT (nama) DO UPDATE SET kode = COALESCE(EXCLUDED.kode, eplanning_sumberdana.kode)
+          WHERE eplanning_sumberdana.kode IS NULL AND EXCLUDED.kode IS NOT NULL
+          RETURNING nama`;
+
+        return jsonResponse({ ok: true, inserted: added.length, skipped: namaList.length - added.length }, 201);
+      }
+
       if (event.httpMethod === 'POST' && !id) {
-        const { nama } = parseBody(event);
+        const { nama, kode } = parseBody(event);
         if (!nama || !nama.trim()) return errorResponse('Nama wajib diisi', 400);
         const rows = await sql`
-          INSERT INTO eplanning_sumberdana (nama) VALUES (${nama.trim()})
+          INSERT INTO eplanning_sumberdana (nama, kode) VALUES (${nama.trim()}, ${kode?.trim() || null})
           ON CONFLICT (nama) DO NOTHING RETURNING *`;
         return jsonResponse({ sumberdana: rows[0] || null }, 201);
       }
       if (event.httpMethod === 'PUT' && id) {
-        const { nama, aktif } = parseBody(event);
+        const { nama, kode, aktif } = parseBody(event);
         if (nama !== undefined && !nama.trim()) return errorResponse('Nama wajib diisi', 400);
         try {
           const rows = await sql`
             UPDATE eplanning_sumberdana SET
               nama  = COALESCE(${nama !== undefined ? nama.trim() : null}, nama),
+              kode  = CASE WHEN ${kode !== undefined} THEN ${kode !== undefined ? (kode?.trim() || null) : null} ELSE kode END,
               aktif = COALESCE(${aktif ?? null}, aktif)
             WHERE id = ${id} RETURNING *`;
           if (!rows[0]) return errorResponse('Data tidak ditemukan', 404);

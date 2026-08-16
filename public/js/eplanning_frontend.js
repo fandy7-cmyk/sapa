@@ -1993,6 +1993,126 @@ async function epDeleteSubkegiatan(kode) {
   epLoadMasterSubkegiatan();
 }
 
+// ── Impor Excel Sub Kegiatan ─────────────────────────────────────────────
+const EP_SUBKEG_COLMAP = {
+  'KODE': 'kode_subkegiatan',
+  'KODE SUB KEGIATAN': 'kode_subkegiatan',
+  'KODE SUBKEGIATAN': 'kode_subkegiatan',
+  'NAMA': 'nama_subkegiatan',
+  'NAMA SUB KEGIATAN': 'nama_subkegiatan',
+  'NAMA SUBKEGIATAN': 'nama_subkegiatan',
+  'INDIKATOR': 'indikator',
+  'SATUAN': 'satuan',
+};
+
+function openImporSubkegiatanModal() {
+  document.getElementById('epImpSubkegFile').value = '';
+  epImpSubkegResetFileText();
+  document.getElementById('epImpSubkegProgress').style.display = 'none';
+  document.getElementById('epImpSubkegProgressBar').style.width = '0%';
+  openModal('modalImporSubkegiatan');
+}
+
+function epImpSubkegResetFileText() {
+  const t = document.getElementById('epImpSubkegFileText');
+  if (t) t.innerHTML = '<strong>Klik atau drag &amp; drop</strong> file di sini';
+}
+
+function epImpSubkegFileChange(input) {
+  const t = document.getElementById('epImpSubkegFileText');
+  if (t) t.innerHTML = input.files?.[0] ? `<strong>${esc(input.files[0].name)}</strong>` : '<strong>Klik atau drag &amp; drop</strong> file di sini';
+}
+
+function epImpSubkegFileDragOver(e) {
+  e.preventDefault();
+  document.getElementById('epImpSubkegUploadArea')?.classList.add('drag-over');
+}
+
+function epImpSubkegFileDragLeave(e) {
+  e.preventDefault();
+  document.getElementById('epImpSubkegUploadArea')?.classList.remove('drag-over');
+}
+
+function epImpSubkegFileDrop(e) {
+  e.preventDefault();
+  document.getElementById('epImpSubkegUploadArea')?.classList.remove('drag-over');
+  const input = document.getElementById('epImpSubkegFile');
+  if (e.dataTransfer?.files?.length) {
+    input.files = e.dataTransfer.files;
+    epImpSubkegFileChange(input);
+  }
+}
+
+function _epParseSubkegiatanSheet(arrayBuffer) {
+  const wb = XLSX.read(arrayBuffer, { type: 'array' });
+  const ws = wb.Sheets[wb.SheetNames[0]];
+  const raw = XLSX.utils.sheet_to_json(ws, { header: 1, raw: true, defval: '' });
+  if (!raw.length) return [];
+  const headerRow = raw[0].map(h => String(h || '').trim().toUpperCase());
+  const idxMap = {};
+  headerRow.forEach((h, i) => { if (EP_SUBKEG_COLMAP[h]) idxMap[EP_SUBKEG_COLMAP[h]] = i; });
+  const rows = [];
+  for (let i = 1; i < raw.length; i++) {
+    const r = raw[i];
+    if (!r || !r.length) continue;
+    const kode = idxMap.kode_subkegiatan != null ? String(r[idxMap.kode_subkegiatan] ?? '').trim() : '';
+    const nama = idxMap.nama_subkegiatan != null ? String(r[idxMap.nama_subkegiatan] ?? '').trim() : '';
+    if (!kode || !nama) continue; // baris kosong / tanpa kode-nama, skip
+    rows.push({
+      kode_subkegiatan: kode,
+      nama_subkegiatan: nama,
+      indikator: idxMap.indikator != null ? String(r[idxMap.indikator] ?? '').trim() : '',
+      satuan: idxMap.satuan != null ? String(r[idxMap.satuan] ?? '').trim() : '',
+    });
+  }
+  return rows;
+}
+
+async function epSubmitImporSubkegiatan() {
+  const fileInput = document.getElementById('epImpSubkegFile');
+  const file = fileInput.files && fileInput.files[0];
+  if (!file) { toast('Pilih file Excel dulu', 'error'); return; }
+
+  const btn = document.getElementById('btnMulaiImporSubkeg');
+  const btnBatal = document.getElementById('btnBatalImporSubkeg');
+  const progWrap = document.getElementById('epImpSubkegProgress');
+  const progBar = document.getElementById('epImpSubkegProgressBar');
+  const progText = document.getElementById('epImpSubkegProgressText');
+  btn.disabled = true; btnBatal.disabled = true;
+  progWrap.style.display = 'block';
+  progText.textContent = 'Membaca file…';
+
+  try {
+    const buf = await file.arrayBuffer();
+    const rows = _epParseSubkegiatanSheet(buf);
+    if (!rows.length) throw new Error('Tidak ada baris data yang bisa dibaca dari file ini (pastikan ada kolom Kode & Nama)');
+
+    const CHUNK = 500;
+    const totalChunks = Math.ceil(rows.length / CHUNK);
+    let inserted = 0;
+    for (let c = 0; c < totalChunks; c++) {
+      const chunk = rows.slice(c * CHUNK, (c + 1) * CHUNK);
+      const r = await fetch('/api/eplanning/subkegiatan/import', {
+        method: 'POST', headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+        body: JSON.stringify({ rows: chunk }),
+      });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.error || `Gagal impor batch ke-${c + 1}`);
+      inserted += d.inserted || chunk.length;
+      const pct = Math.round(((c + 1) / totalChunks) * 100);
+      progBar.style.width = pct + '%';
+      progText.textContent = `Mengimpor… ${Math.min((c + 1) * CHUNK, rows.length)} / ${rows.length} baris`;
+    }
+    toast(`Impor selesai - ${inserted} sub kegiatan tersimpan`, 'success');
+    closeModal('modalImporSubkegiatan');
+    epLoadMasterSubkegiatan();
+  } catch (err) {
+    toast(err.message, 'error');
+  } finally {
+    btn.disabled = false; btnBatal.disabled = false;
+  }
+}
+
 // ── SUMBER DANA (table + search + pagination) ──────────────────────────
 let _epSumberDanaFull = [];
 let _epSumberDanaSearch = '';
@@ -2001,7 +2121,7 @@ const _epSumberDanaPageSize = 10;
 
 async function epLoadMasterSumberDana() {
   const tb = document.getElementById('epMasterSumberDanaBody');
-  if (tb) tb.innerHTML = `<tr class="empty-row"><td colspan="3">Memuat data...</td></tr>`;
+  if (tb) tb.innerHTML = `<tr class="empty-row"><td colspan="4">Memuat data...</td></tr>`;
   try {
     const r = await fetch('/api/eplanning/sumberdana', { headers: authHeaders() });
     const d = await r.json();
@@ -2011,7 +2131,7 @@ async function epLoadMasterSumberDana() {
     const searchEl = document.getElementById('epSumberDanaSearch');
     if (searchEl) searchEl.value = '';
     epRenderSumberDanaTable();
-  } catch { if (tb) tb.innerHTML = `<tr class="empty-row"><td colspan="3">Gagal memuat</td></tr>`; }
+  } catch { if (tb) tb.innerHTML = `<tr class="empty-row"><td colspan="4">Gagal memuat</td></tr>`; }
 }
 function epFilterSumberDana() {
   _epSumberDanaSearch = (document.getElementById('epSumberDanaSearch')?.value || '').trim().toLowerCase();
@@ -2022,12 +2142,13 @@ function epRenderSumberDanaTable() {
   const tb = document.getElementById('epMasterSumberDanaBody');
   if (!tb) return;
   const filtered = _epSumberDanaSearch
-    ? _epSumberDanaFull.filter(s => s.nama.toLowerCase().includes(_epSumberDanaSearch))
+    ? _epSumberDanaFull.filter(s => s.nama.toLowerCase().includes(_epSumberDanaSearch) || (s.kode || '').toLowerCase().includes(_epSumberDanaSearch))
     : _epSumberDanaFull;
   const start = (_epSumberDanaPage - 1) * _epSumberDanaPageSize;
   const slice = filtered.slice(start, start + _epSumberDanaPageSize);
   tb.innerHTML = slice.length ? slice.map(s => `
     <tr>
+      <td>${esc(s.kode || '-')}</td>
       <td>${esc(s.nama)}</td>
       <td><span class="badge ${s.aktif ? 'badge-hijau' : 'badge-abu'}">${s.aktif ? 'Aktif' : 'Nonaktif'}</span></td>
       <td style="white-space:nowrap">
@@ -2035,13 +2156,14 @@ function epRenderSumberDanaTable() {
         <button class="btn btn-ghost btn-sm" data-tip="Edit" onclick="openSumberDanaModal(${s.id})">${EP_ICON_EDIT}</button>
         <button class="btn-hapus" data-tip="Hapus" onclick="epDeleteSumberDana(${s.id})">${EP_ICON_TRASH}</button>
       </td>
-    </tr>`).join('') : `<tr class="empty-row"><td colspan="3">${_epSumberDanaSearch ? 'Tidak ada hasil pencarian' : 'Belum ada data'}</td></tr>`;
+    </tr>`).join('') : `<tr class="empty-row"><td colspan="4">${_epSumberDanaSearch ? 'Tidak ada hasil pencarian' : 'Belum ada data'}</td></tr>`;
   renderPagination('epSumberDanaPagination', filtered.length, _epSumberDanaPage, _epSumberDanaPageSize, 'goEpSumberDanaPage');
 }
 window.goEpSumberDanaPage = (p) => { _epSumberDanaPage = p; epRenderSumberDanaTable(); };
 
 function openSumberDanaModal(id = null) {
   document.getElementById('epSumberDanaId').value = '';
+  document.getElementById('epSumberDanaKode').value = '';
   document.getElementById('epSumberDanaNama').value = '';
   document.getElementById('epSumberDanaAktif').checked = true;
   document.getElementById('epSumberDanaAktifLabel').textContent = 'Aktif';
@@ -2050,6 +2172,7 @@ function openSumberDanaModal(id = null) {
     const s = _epSumberDanaFull.find(x => x.id === id);
     if (s) {
       document.getElementById('epSumberDanaId').value = s.id;
+      document.getElementById('epSumberDanaKode').value = s.kode || '';
       document.getElementById('epSumberDanaNama').value = s.nama;
       document.getElementById('epSumberDanaAktif').checked = !!s.aktif;
       document.getElementById('epSumberDanaAktifLabel').textContent = s.aktif ? 'Aktif' : 'Nonaktif';
@@ -2060,15 +2183,16 @@ function openSumberDanaModal(id = null) {
 
 async function epSaveSumberDana() {
   const id = document.getElementById('epSumberDanaId').value;
+  const kode = document.getElementById('epSumberDanaKode').value.trim();
   const nama = document.getElementById('epSumberDanaNama').value.trim();
   const aktif = document.getElementById('epSumberDanaAktif').checked;
-  if (!nama) { toast('Nama sumber dana wajib diisi', 'error'); return; }
+  if (!nama) { toast('Nama wajib diisi', 'error'); return; }
   const btn = document.getElementById('btnSaveSumberDana');
   btn.disabled = true;
   try {
     const method = id ? 'PUT' : 'POST';
     const url = id ? `/api/eplanning/sumberdana/${id}` : '/api/eplanning/sumberdana';
-    const r = await fetch(url, { method, headers: { ...authHeaders(), 'Content-Type': 'application/json' }, body: JSON.stringify({ nama, aktif }) });
+    const r = await fetch(url, { method, headers: { ...authHeaders(), 'Content-Type': 'application/json' }, body: JSON.stringify({ nama, kode, aktif }) });
     const d = await r.json();
     if (!r.ok) throw new Error(d.error || 'Gagal menyimpan');
     toast(id ? 'Sumber dana diperbarui' : 'Sumber dana ditambahkan', 'success');
@@ -2100,6 +2224,125 @@ async function epDeleteSumberDana(id) {
   await fetch(`/api/eplanning/sumberdana/${id}`, { method: 'DELETE', headers: authHeaders() });
   toast('Sumber dana dihapus');
   epLoadMasterSumberDana();
+}
+
+// ── Impor Excel Sumber Dana ──────────────────────────────────────────────
+const EP_SUMBERDANA_COLMAP = {
+  'NAMA': 'nama',
+  'SUMBER DANA': 'nama',
+  'NAMA SUMBER DANA': 'nama',
+  'KODE': 'kode',
+  'KODE SUMBER DANA': 'kode',
+};
+
+function openImporSumberDanaModal() {
+  document.getElementById('epImpSdFile').value = '';
+  epImpSdResetFileText();
+  document.getElementById('epImpSdProgress').style.display = 'none';
+  document.getElementById('epImpSdProgressBar').style.width = '0%';
+  openModal('modalImporSumberDana');
+}
+
+function epImpSdResetFileText() {
+  const t = document.getElementById('epImpSdFileText');
+  if (t) t.innerHTML = '<strong>Klik atau drag &amp; drop</strong> file di sini';
+}
+
+function epImpSdFileChange(input) {
+  const t = document.getElementById('epImpSdFileText');
+  if (t) t.innerHTML = input.files?.[0] ? `<strong>${esc(input.files[0].name)}</strong>` : '<strong>Klik atau drag &amp; drop</strong> file di sini';
+}
+
+function epImpSdFileDragOver(e) {
+  e.preventDefault();
+  document.getElementById('epImpSdUploadArea')?.classList.add('drag-over');
+}
+
+function epImpSdFileDragLeave(e) {
+  e.preventDefault();
+  document.getElementById('epImpSdUploadArea')?.classList.remove('drag-over');
+}
+
+function epImpSdFileDrop(e) {
+  e.preventDefault();
+  document.getElementById('epImpSdUploadArea')?.classList.remove('drag-over');
+  const input = document.getElementById('epImpSdFile');
+  if (e.dataTransfer?.files?.length) {
+    input.files = e.dataTransfer.files;
+    epImpSdFileChange(input);
+  }
+}
+
+function _epParseSumberDanaSheet(arrayBuffer) {
+  const wb = XLSX.read(arrayBuffer, { type: 'array' });
+  const ws = wb.Sheets[wb.SheetNames[0]];
+  const raw = XLSX.utils.sheet_to_json(ws, { header: 1, raw: true, defval: '' });
+  if (!raw.length) return [];
+  const headerRow = raw[0].map(h => String(h || '').trim().toUpperCase());
+  let namaIdx = headerRow.findIndex(h => EP_SUMBERDANA_COLMAP[h] === 'nama');
+  let kodeIdx = headerRow.findIndex(h => EP_SUMBERDANA_COLMAP[h] === 'kode');
+  let startRow = 1;
+  if (namaIdx === -1) {
+    // Gak ada header yang cocok - anggap file cuma 1 kolom nama tanpa header, baca dari baris pertama
+    namaIdx = 0;
+    kodeIdx = -1;
+    startRow = 0;
+  }
+  const rows = [];
+  for (let i = startRow; i < raw.length; i++) {
+    const r = raw[i];
+    if (!r || !r.length) continue;
+    const nama = String(r[namaIdx] ?? '').trim();
+    if (!nama) continue;
+    const kode = kodeIdx !== -1 ? String(r[kodeIdx] ?? '').trim() : '';
+    rows.push({ kode, nama });
+  }
+  return rows;
+}
+
+async function epSubmitImporSumberDana() {
+  const fileInput = document.getElementById('epImpSdFile');
+  const file = fileInput.files && fileInput.files[0];
+  if (!file) { toast('Pilih file Excel dulu', 'error'); return; }
+
+  const btn = document.getElementById('btnMulaiImporSd');
+  const btnBatal = document.getElementById('btnBatalImporSd');
+  const progWrap = document.getElementById('epImpSdProgress');
+  const progBar = document.getElementById('epImpSdProgressBar');
+  const progText = document.getElementById('epImpSdProgressText');
+  btn.disabled = true; btnBatal.disabled = true;
+  progWrap.style.display = 'block';
+  progText.textContent = 'Membaca file…';
+
+  try {
+    const buf = await file.arrayBuffer();
+    const rows = _epParseSumberDanaSheet(buf);
+    if (!rows.length) throw new Error('Tidak ada baris data yang bisa dibaca dari file ini');
+
+    const CHUNK = 500;
+    const totalChunks = Math.ceil(rows.length / CHUNK);
+    let inserted = 0;
+    for (let c = 0; c < totalChunks; c++) {
+      const chunk = rows.slice(c * CHUNK, (c + 1) * CHUNK);
+      const r = await fetch('/api/eplanning/sumberdana/import', {
+        method: 'POST', headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+        body: JSON.stringify({ rows: chunk }),
+      });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.error || `Gagal impor batch ke-${c + 1}`);
+      inserted += d.inserted || 0;
+      const pct = Math.round(((c + 1) / totalChunks) * 100);
+      progBar.style.width = pct + '%';
+      progText.textContent = `Mengimpor… ${Math.min((c + 1) * CHUNK, rows.length)} / ${rows.length} baris`;
+    }
+    toast(`Impor selesai - ${inserted} sumber dana baru ditambahkan`, 'success');
+    closeModal('modalImporSumberDana');
+    epLoadMasterSumberDana();
+  } catch (err) {
+    toast(err.message, 'error');
+  } finally {
+    btn.disabled = false; btnBatal.disabled = false;
+  }
 }
 
 // ── SATUAN (table + search + pagination) ────────────────────────────────
