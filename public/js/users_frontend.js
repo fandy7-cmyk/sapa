@@ -20,9 +20,9 @@ async function loadBidangList() {
 }
 
 function getBidangNama(bidang_id) {
-  if (!bidang_id) return '—';
+  if (!bidang_id) return '-';
   const b = _bidang.find(x => x.id === bidang_id);
-  return b ? esc(b.nama) : '—';
+  return b ? esc(b.nama) : '-';
 }
 
 function renderBidangOptions(selectedId) {
@@ -30,7 +30,7 @@ function renderBidangOptions(selectedId) {
     .filter(b => b.aktif)
     .map(b => `<option value="${b.id}" ${b.id === selectedId ? 'selected' : ''}>${esc(b.nama)}</option>`)
     .join('');
-  return `<option value="">— Pilih Penanggung Jawab —</option>` + opts;
+  return `<option value="">- Pilih Penanggung Jawab -</option>` + opts;
 }
 
 // ── Searchable Bidang Dropdown ────────────────────────────────────────────
@@ -53,7 +53,7 @@ function initBidangSearchable() {
   const trigger = document.createElement('button');
   trigger.type = 'button';
   trigger.className = 'bsel-trigger csel-trigger';
-  trigger.innerHTML = `<span class="bsel-trigger-text csel-trigger-text${selectedText ? '' : ' placeholder'}">${selectedText || '— Pilih Penanggung Jawab —'}</span>
+  trigger.innerHTML = `<span class="bsel-trigger-text csel-trigger-text${selectedText ? '' : ' placeholder'}">${selectedText || '- Pilih Penanggung Jawab -'}</span>
     <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" class="csel-chev"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>`;
   wrap.appendChild(trigger);
 
@@ -104,7 +104,7 @@ function initBidangSearchable() {
         sel.dispatchEvent(new Event('change', { bubbles: true }));
         const textEl = trigger.querySelector('.bsel-trigger-text');
         if (!opt || opt.value === '') {
-          textEl.textContent = opt ? opt.text : '—';
+          textEl.textContent = opt ? opt.text : '-';
           textEl.classList.add('placeholder');
         } else {
           textEl.textContent = opt.text;
@@ -184,7 +184,7 @@ function initBidangSearchable() {
   }, true);
   window.addEventListener('resize', closePanel, true);
 
-  // Close on outside click — jangan tutup kalau klik di dalam panel atau trigger
+  // Close on outside click - jangan tutup kalau klik di dalam panel atau trigger
   const outsideHandler = (e) => {
     if (!panel.contains(e.target) && !trigger.contains(e.target)) closePanel();
   };
@@ -229,11 +229,11 @@ function renderUsersTable() {
     ? slice.map(u => `
       <tr>
         <td><strong>${esc(u.nama)}</strong></td>
-        <td>${esc(u.nip || '—')}</td>
+        <td>${esc(u.nip || '-')}</td>
         <td>${esc(u.email)}</td>
         <td style="max-width:220px;white-space:normal;word-break:break-word;line-height:1.35">${getBidangNama(u.bidang_id)}</td>
         <td><span class="badge badge-blue">User</span></td>
-        <td>${u.last_login ? fmtDate(u.last_login) : '—'}</td>
+        <td>${u.last_login ? fmtDate(u.last_login) : '-'}</td>
         <td style="white-space:nowrap">
           <button class="btn btn-ghost btn-sm" data-tip="Edit" onclick="editUser(${u.id})">
             <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
@@ -287,7 +287,7 @@ function _renderUrutanLaporanList(list) {
       <span class="urutan-lap-num">${i + 1}</span>
       <div class="urutan-lap-info">
         <div class="urutan-lap-nama">${esc(u.nama)}</div>
-        <div class="urutan-lap-nip">${esc(u.nip || '—')}</div>
+        <div class="urutan-lap-nip">${esc(u.nip || '-')}</div>
       </div>
     </div>`).join('');
   _initUrutanLaporanDrag();
@@ -493,6 +493,10 @@ const PERM_DEFS = [
   { key: 'kinerja.spm',         name: 'SPM (Standar Pelayanan Minimal)', desc: 'Input realisasi SPM' },
   { key: 'absensi',             name: 'Absensi',                  desc: 'Input & lihat absensi harian sendiri' },
   { key: 'absensi.full',        name: 'Absensi › Admin Penuh',    desc: 'Kelola absensi semua pegawai, atur jam kerja & hari libur (setara admin)' },
+  { key: 'eplanning.operator',   name: 'E-Planning › Operator',            desc: 'Bikin & edit usulan anggaran milik sendiri' },
+  { key: 'eplanning.kabid',      name: 'E-Planning › Kepala Unit Kerja',   desc: 'Review & setujui semua usulan di unit kerjanya (Puskesmas/Bidang/Sub Bagian)' },
+  { key: 'eplanning.sekretaris', name: 'E-Planning › Sekretaris Dinas',    desc: 'Verifikasi tambahan khusus usulan dari unit kerja tipe Sub Bagian, sebelum ke Admin' },
+  { key: 'eplanning.admin',      name: 'E-Planning › Admin Verifikator',  desc: 'Verifikasi lintas-bidang, sahkan final, kelola master data & pengaturan (setara admin)' },
 ];
 
 let _editingPermsUserId = null;
@@ -588,10 +592,12 @@ function renderBidangTable() {
   const start = (_bidangPage - 1) * _bidangPageSize;
   const slice = filtered.slice(start, start + _bidangPageSize);
 
+  const TIPE_LABEL = { puskesmas: 'Puskesmas', bidang: 'Bidang', sub_bagian: 'Sub Bagian' };
   tb.innerHTML = slice.length
     ? slice.map(b => `
       <tr>
         <td>${esc(b.nama)}</td>
+        <td>${esc(TIPE_LABEL[b.tipe] || b.tipe || 'Bidang')}</td>
         <td style="white-space:nowrap">
           <button class="btn btn-ghost btn-sm" data-tip="Edit" onclick="editBidang(${b.id})">
             <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
@@ -601,7 +607,7 @@ function renderBidangTable() {
           </button>
         </td>
       </tr>`).join('')
-    : '<tr class="empty-row"><td colspan="2">Belum ada bidang</td></tr>';
+    : '<tr class="empty-row"><td colspan="3">Belum ada bidang</td></tr>';
 
   renderPagination('bidangPagination', filtered.length, _bidangPage, _bidangPageSize, 'goBidangPage');
 }
@@ -626,6 +632,8 @@ async function loadBidangPage() {
 function openBidangModal() {
   document.getElementById('bidangId').value = '';
   document.getElementById('bidangNama').value = '';
+  document.getElementById('bidangTipe').value = 'bidang';
+  if (typeof syncCustomSelect === 'function') syncCustomSelect('bidangTipe');
   document.getElementById('modalBidangTitle').textContent = 'Tambah Bidang';
   openModal('modalBidang');
 }
@@ -634,13 +642,18 @@ function editBidang(id) {
   const b = _bidangList.find(x => x.id === id); if (!b) return;
   document.getElementById('bidangId').value = b.id;
   document.getElementById('bidangNama').value = b.nama;
+  document.getElementById('bidangTipe').value = b.tipe || 'bidang';
+  if (typeof syncCustomSelect === 'function') syncCustomSelect('bidangTipe');
   document.getElementById('modalBidangTitle').textContent = 'Edit Bidang';
   openModal('modalBidang');
 }
 
 async function saveBidang() {
   const id = document.getElementById('bidangId').value;
-  const body = { nama: document.getElementById('bidangNama').value.trim() };
+  const body = {
+    nama: document.getElementById('bidangNama').value.trim(),
+    tipe: document.getElementById('bidangTipe').value || 'bidang',
+  };
   if (!body.nama) { toast('Nama bidang wajib diisi', 'error'); return; }
   try {
     const r = await fetch(id ? `/api/bidang/${id}` : '/api/bidang', {
@@ -732,7 +745,7 @@ function _renderAssignIndikatorList() {
   // Group by penanggung_jawab
   const groups = {};
   filtered.forEach(r => {
-    const pj = r.penanggung_jawab || '— Tanpa PJ';
+    const pj = r.penanggung_jawab || '- Tanpa PJ';
     if (!groups[pj]) groups[pj] = [];
     groups[pj].push(r);
   });
@@ -787,7 +800,7 @@ function _assignToggle(id, checked) {
 }
 
 function _assignTogglePJ(pj, checked) {
-  const items = _assignIndikatorList.filter(r => (r.penanggung_jawab || '— Tanpa PJ') === pj);
+  const items = _assignIndikatorList.filter(r => (r.penanggung_jawab || '- Tanpa PJ') === pj);
   items.forEach(r => {
     if (checked) _assignSelectedIds.add(r.id);
     else _assignSelectedIds.delete(r.id);

@@ -15,7 +15,7 @@ let _refreshToken = null;
 let _user  = null;
 let _refreshInFlight = null; // promise tunggal supaya tidak ada refresh dobel paralel
 
-// ── Decode JWT payload (tanpa verifikasi signature — hanya baca exp) ─────
+// ── Decode JWT payload (tanpa verifikasi signature - hanya baca exp) ─────
 function _decodeJwtPayload(token) {
   try {
     if (!token || typeof token !== 'string') return null;
@@ -180,7 +180,7 @@ async function _doRefreshToken() {
 
 
 // ═══════════════════════════════════════════════════════════════════════════
-// IDLE TIMEOUT — 4m30s tidak aktif → warning modal, 5m → auto logout
+// IDLE TIMEOUT - 4m30s tidak aktif → warning modal, 5m → auto logout
 // ═══════════════════════════════════════════════════════════════════════════
 const _IDLE_WARNING_MS  = 4.5 * 60 * 1000;  // 4 menit 30 detik
 const _IDLE_LOGOUT_MS   = 5.0 * 60 * 1000;  // 5 menit
@@ -248,14 +248,14 @@ function _idleLogoutNow() {
   _handleSessionExpired();
 }
 
-// Mulai monitoring — dipanggil setelah login berhasil
+// Mulai monitoring - dipanggil setelah login berhasil
 function _idleStart() {
   _idleActive = true;
   _IDLE_EVENTS.forEach(ev => window.addEventListener(ev, _idleResetTimers, { passive: true }));
   _idleResetTimers(); // mulai timer pertama
 }
 
-// Hentikan monitoring — dipanggil saat logout
+// Hentikan monitoring - dipanggil saat logout
 function _idleStop() {
   _idleActive = false;
   _idleClearAll();
@@ -264,7 +264,7 @@ function _idleStop() {
 
 function authHeaders() {
   // Catatan: JANGAN panggil _handleSessionExpired() di sini.
-  // authHeaders() dipanggil sync sebagai argumen fetch() — memanggil logout di sini
+  // authHeaders() dipanggil sync sebagai argumen fetch() - memanggil logout di sini
   // menyebabkan race condition yang meng-interrupt boot flow secara prematur.
   // Biarkan server return 401 jika token expired; apiFetch() atau handler response
   // yang bertanggung jawab memanggil _handleSessionExpired().
@@ -273,7 +273,7 @@ function authHeaders() {
 }
 
 // ── apiFetch: wrapper fetch yang auto-handle 401 ───────────────────────────
-// Kalau kena 401 (access token expired — bisa terjadi kalau timer refresh
+// Kalau kena 401 (access token expired - bisa terjadi kalau timer refresh
 // terlambat, mis. tab browser sempat di-suspend), coba refresh sekali lalu
 // ulangi request asli sebelum benar-benar memaksa logout.
 async function apiFetch(url, opts = {}) {
@@ -596,59 +596,81 @@ function _startPeriodeTimer() {
 // ── MENU DEFINITIONS ────────────────────────────────────────────────────
 const MENUS = [
   {
-    id: 'superlink', label: 'Superlink', icon: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 17H7A5 5 0 0 1 7 7h2"/><path d="M15 7h2a5 5 0 1 1 0 10h-2"/><line x1="8" x2="16" y1="12" y2="12"/></svg>`,
+    id: 'superlink', label: 'Superlink', icon: `<svg class="ic-line" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M13.0607 8.11097L14.4749 9.52518C17.2086 12.2589 17.2086 16.691 14.4749 19.4247L14.1214 19.7782C11.3877 22.5119 6.95555 22.5119 4.22188 19.7782C1.48821 17.0446 1.48821 12.6124 4.22188 9.87874L5.6361 11.293C3.68348 13.2456 3.68348 16.4114 5.6361 18.364C7.58872 20.3166 10.7545 20.3166 12.7072 18.364L13.0607 18.0105C15.0133 16.0578 15.0133 12.892 13.0607 10.9394L11.6465 9.52518L13.0607 8.11097ZM19.7782 14.1214L18.364 12.7072C20.3166 10.7545 20.3166 7.58872 18.364 5.6361C16.4114 3.68348 13.2456 3.68348 11.293 5.6361L10.9394 5.98965C8.98678 7.94227 8.98678 11.1081 10.9394 13.0607L12.3536 14.4749L10.9394 15.8891L9.52518 14.4749C6.79151 11.7413 6.79151 7.30911 9.52518 4.57544L9.87874 4.22188C12.6124 1.48821 17.0446 1.48821 19.7782 4.22188C22.5119 6.95555 22.5119 11.3877 19.7782 14.1214Z"/></svg><svg class="ic-fill" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M13.0607 8.11097L14.4749 9.52518C17.2086 12.2589 17.2086 16.691 14.4749 19.4247L14.1214 19.7782C11.3877 22.5119 6.95555 22.5119 4.22188 19.7782C1.48821 17.0446 1.48821 12.6124 4.22188 9.87874L5.6361 11.293C3.68348 13.2456 3.68348 16.4114 5.6361 18.364C7.58872 20.3166 10.7545 20.3166 12.7072 18.364L13.0607 18.0105C15.0133 16.0578 15.0133 12.892 13.0607 10.9394L11.6465 9.52518L13.0607 8.11097ZM19.7782 14.1214L18.364 12.7072C20.3166 10.7545 20.3166 7.58872 18.364 5.6361C16.4114 3.68348 13.2456 3.68348 11.293 5.6361L10.9394 5.98965C8.98678 7.94227 8.98678 11.1081 10.9394 13.0607L12.3536 14.4749L10.9394 15.8891L9.52518 14.4749C6.79151 11.7413 6.79151 7.30911 9.52518 4.57544L9.87874 4.22188C12.6124 1.48821 17.0446 1.48821 19.7782 4.22188C22.5119 6.95555 22.5119 11.3877 19.7782 14.1214Z"/></svg>`,
     children: [
-      { id: 'dashboard-superlink', key: null, showIf: () => _user.is_admin || hasAccess('superlink.link') || hasAccess('superlink.shortlink') || hasAccess('superlink.bundle'), label: 'Dashboard', page: 'page-dashboard-superlink', loader: () => loadDashboardSuperlink(), icon: `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 17H7A5 5 0 0 1 7 7h2"/><path d="M15 7h2a5 5 0 1 1 0 10h-2"/><line x1="8" x2="16" y1="12" y2="12"/></svg>` },
-      { id: 'shortlink', key: null, showIf: () => _user.is_admin || hasAccess('superlink.link') || hasAccess('superlink.shortlink'), label: 'Shortlink', page: 'page-shortlink',  loader: () => loadShortlinks(), icon: `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 14a1 1 0 0 1-.78-1.63l9.9-10.2a.5.5 0 0 1 .86.46l-1.92 6.02A1 1 0 0 0 13 10h7a1 1 0 0 1 .78 1.63l-9.9 10.2a.5.5 0 0 1-.86-.46l1.92-6.02A1 1 0 0 0 11 14z"/></svg>` },
-      { id: 'bundle',    key: 'superlink.bundle',     label: 'Bundle',    page: 'page-bundle',     loader: () => loadBundles(),    icon: `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 21.73a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73z"/><path d="M12 22V12"/><path d="m3.3 7 7.703 4.734a2 2 0 0 0 1.994 0L20.7 7"/><path d="m7.5 4.27 9 5.15"/></svg>` },
+      { id: 'dashboard-superlink', key: null, showIf: () => _user.is_admin || hasAccess('superlink.link') || hasAccess('superlink.shortlink') || hasAccess('superlink.bundle'), label: 'Dashboard', page: 'page-dashboard-superlink', loader: () => loadDashboardSuperlink(), icon: `<svg class="ic-line" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M14 21C13.4477 21 13 20.5523 13 20V12C13 11.4477 13.4477 11 14 11H20C20.5523 11 21 11.4477 21 12V20C21 20.5523 20.5523 21 20 21H14ZM4 13C3.44772 13 3 12.5523 3 12V4C3 3.44772 3.44772 3 4 3H10C10.5523 3 11 3.44772 11 4V12C11 12.5523 10.5523 13 10 13H4ZM9 11V5H5V11H9ZM4 21C3.44772 21 3 20.5523 3 20V16C3 15.4477 3.44772 15 4 15H10C10.5523 15 11 15.4477 11 16V20C11 20.5523 10.5523 21 10 21H4ZM5 19H9V17H5V19ZM15 19H19V13H15V19ZM13 4C13 3.44772 13.4477 3 14 3H20C20.5523 3 21 3.44772 21 4V8C21 8.55228 20.5523 9 20 9H14C13.4477 9 13 8.55228 13 8V4ZM15 5V7H19V5H15Z"/></svg><svg class="ic-fill" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M3 12C3 12.5523 3.44772 13 4 13H10C10.5523 13 11 12.5523 11 12V4C11 3.44772 10.5523 3 10 3H4C3.44772 3 3 3.44772 3 4V12ZM3 20C3 20.5523 3.44772 21 4 21H10C10.5523 21 11 20.5523 11 20V16C11 15.4477 10.5523 15 10 15H4C3.44772 15 3 15.4477 3 16V20ZM13 20C13 20.5523 13.4477 21 14 21H20C20.5523 21 21 20.5523 21 20V12C21 11.4477 20.5523 11 20 11H14C13.4477 11 13 11.4477 13 12V20ZM14 3C13.4477 3 13 3.44772 13 4V8C13 8.55228 13.4477 9 14 9H20C20.5523 9 21 8.55228 21 8V4C21 3.44772 20.5523 3 20 3H14Z"/></svg>` },
+      { id: 'shortlink', key: null, showIf: () => _user.is_admin || hasAccess('superlink.link') || hasAccess('superlink.shortlink'), label: 'Shortlink', page: 'page-shortlink',  loader: () => loadShortlinks(), icon: `<svg class="ic-line" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M10 6V8H5V19H16V14H18V20C18 20.5523 17.5523 21 17 21H4C3.44772 21 3 20.5523 3 20V7C3 6.44772 3.44772 6 4 6H10ZM21 3V11H19L18.9999 6.413L11.2071 14.2071L9.79289 12.7929L17.5849 5H13V3H21Z"/></svg><svg class="ic-fill" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M10 6V8H5V19H16V14H18V20C18 20.5523 17.5523 21 17 21H4C3.44772 21 3 20.5523 3 20V7C3 6.44772 3.44772 6 4 6H10ZM21 3V12L17.206 8.207L11.2071 14.2071L9.79289 12.7929L15.792 6.793L12 3H21Z"/></svg>` },
+      { id: 'bundle',    key: 'superlink.bundle',     label: 'Bundle',    page: 'page-bundle',     loader: () => loadBundles(),    icon: `<svg class="ic-line" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M20.0833 15.1999L21.2854 15.9212C21.5221 16.0633 21.5989 16.3704 21.4569 16.6072C21.4146 16.6776 21.3557 16.7365 21.2854 16.7787L12.5144 22.0412C12.1977 22.2313 11.8021 22.2313 11.4854 22.0412L2.71451 16.7787C2.47772 16.6366 2.40093 16.3295 2.54301 16.0927C2.58523 16.0223 2.64413 15.9634 2.71451 15.9212L3.9166 15.1999L11.9999 20.0499L20.0833 15.1999ZM20.0833 10.4999L21.2854 11.2212C21.5221 11.3633 21.5989 11.6704 21.4569 11.9072C21.4146 11.9776 21.3557 12.0365 21.2854 12.0787L11.9999 17.6499L2.71451 12.0787C2.47772 11.9366 2.40093 11.6295 2.54301 11.3927C2.58523 11.3223 2.64413 11.2634 2.71451 11.2212L3.9166 10.4999L11.9999 15.3499L20.0833 10.4999ZM12.5144 1.30864L21.2854 6.5712C21.5221 6.71327 21.5989 7.0204 21.4569 7.25719C21.4146 7.32757 21.3557 7.38647 21.2854 7.42869L11.9999 12.9999L2.71451 7.42869C2.47772 7.28662 2.40093 6.97949 2.54301 6.7427C2.58523 6.67232 2.64413 6.61343 2.71451 6.5712L11.4854 1.30864C11.8021 1.11864 12.1977 1.11864 12.5144 1.30864ZM11.9999 3.33233L5.88723 6.99995L11.9999 10.6676L18.1126 6.99995L11.9999 3.33233Z"/></svg><svg class="ic-fill" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M20.0833 10.4999L21.2854 11.2212C21.5221 11.3633 21.5989 11.6704 21.4569 11.9072C21.4146 11.9776 21.3557 12.0365 21.2854 12.0787L11.9999 17.6499L2.71451 12.0787C2.47772 11.9366 2.40093 11.6295 2.54301 11.3927C2.58523 11.3223 2.64413 11.2634 2.71451 11.2212L3.9166 10.4999L11.9999 15.3499L20.0833 10.4999ZM20.0833 15.1999L21.2854 15.9212C21.5221 16.0633 21.5989 16.3704 21.4569 16.6072C21.4146 16.6776 21.3557 16.7365 21.2854 16.7787L12.5144 22.0412C12.1977 22.2313 11.8021 22.2313 11.4854 22.0412L2.71451 16.7787C2.47772 16.6366 2.40093 16.3295 2.54301 16.0927C2.58523 16.0223 2.64413 15.9634 2.71451 15.9212L3.9166 15.1999L11.9999 20.0499L20.0833 15.1999ZM12.5144 1.30864L21.2854 6.5712C21.5221 6.71327 21.5989 7.0204 21.4569 7.25719C21.4146 7.32757 21.3557 7.38647 21.2854 7.42869L11.9999 12.9999L2.71451 7.42869C2.47772 7.28662 2.40093 6.97949 2.54301 6.7427C2.58523 6.67232 2.64413 6.61343 2.71451 6.5712L11.4854 1.30864C11.8021 1.11864 12.1977 1.11864 12.5144 1.30864Z"/></svg>` },
 
     ],
   },
   {
-    id: 'surat', label: 'Surat', icon: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>`,
+    id: 'surat', label: 'Surat', icon: `<svg class="ic-line" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M3 3H21C21.5523 3 22 3.44772 22 4V20C22 20.5523 21.5523 21 21 21H3C2.44772 21 2 20.5523 2 20V4C2 3.44772 2.44772 3 3 3ZM20 7.23792L12.0718 14.338L4 7.21594V19H20V7.23792ZM4.51146 5L12.0619 11.662L19.501 5H4.51146Z"/></svg><svg class="ic-fill" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M3 3H21C21.5523 3 22 3.44772 22 4V20C22 20.5523 21.5523 21 21 21H3C2.44772 21 2 20.5523 2 20V4C2 3.44772 2.44772 3 3 3ZM12.0606 11.6829L5.64722 6.2377L4.35278 7.7623L12.0731 14.3171L19.6544 7.75616L18.3456 6.24384L12.0606 11.6829Z"/></svg>`,
     children: [
-      { id: 'dashboard-surat', key: null, showIf: () => _user.is_admin || hasAccess('surat.masuk') || hasAccess('surat.keluar'), label: 'Dashboard', page: 'page-dashboard-surat', loader: () => loadDashboardSurat(), icon: `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>` },
-      { id: 'surat-masuk',  key: 'surat.masuk',  label: 'Surat Masuk',  page: 'page-surat-masuk',  loader: () => loadSuratMasuk(1),  icon: `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.2 8.4c.5.38.8.97.8 1.6v10a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V10a2 2 0 0 1 .8-1.6l8-6a2 2 0 0 1 2.4 0l8 6Z"/><path d="m22 10-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 10"/></svg>` },
-      { id: 'surat-keluar', key: 'surat.keluar', label: 'Surat Keluar', page: 'page-surat-keluar', loader: () => loadSuratKeluar(1), icon: `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3.714 3.048a.498.498 0 0 0-.683.627l2.843 7.627a2 2 0 0 1 0 1.396l-2.842 7.627a.498.498 0 0 0 .682.627l18-8.5a.5.5 0 0 0 0-.904z"/><path d="M6 12h16"/></svg>` },
-      { id: 'laporan-surat', key: 'surat.masuk', label: 'Laporan', page: 'page-laporan-surat', loader: () => loadLaporanSurat(), icon: `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M8 18v-2"/><path d="M12 18v-4"/><path d="M16 18v-6"/></svg>` },
+      { id: 'dashboard-surat', key: null, showIf: () => _user.is_admin || hasAccess('surat.masuk') || hasAccess('surat.keluar'), label: 'Dashboard', page: 'page-dashboard-surat', loader: () => loadDashboardSurat(), icon: `<svg class="ic-line" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M14 21C13.4477 21 13 20.5523 13 20V12C13 11.4477 13.4477 11 14 11H20C20.5523 11 21 11.4477 21 12V20C21 20.5523 20.5523 21 20 21H14ZM4 13C3.44772 13 3 12.5523 3 12V4C3 3.44772 3.44772 3 4 3H10C10.5523 3 11 3.44772 11 4V12C11 12.5523 10.5523 13 10 13H4ZM9 11V5H5V11H9ZM4 21C3.44772 21 3 20.5523 3 20V16C3 15.4477 3.44772 15 4 15H10C10.5523 15 11 15.4477 11 16V20C11 20.5523 10.5523 21 10 21H4ZM5 19H9V17H5V19ZM15 19H19V13H15V19ZM13 4C13 3.44772 13.4477 3 14 3H20C20.5523 3 21 3.44772 21 4V8C21 8.55228 20.5523 9 20 9H14C13.4477 9 13 8.55228 13 8V4ZM15 5V7H19V5H15Z"/></svg><svg class="ic-fill" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M3 12C3 12.5523 3.44772 13 4 13H10C10.5523 13 11 12.5523 11 12V4C11 3.44772 10.5523 3 10 3H4C3.44772 3 3 3.44772 3 4V12ZM3 20C3 20.5523 3.44772 21 4 21H10C10.5523 21 11 20.5523 11 20V16C11 15.4477 10.5523 15 10 15H4C3.44772 15 3 15.4477 3 16V20ZM13 20C13 20.5523 13.4477 21 14 21H20C20.5523 21 21 20.5523 21 20V12C21 11.4477 20.5523 11 20 11H14C13.4477 11 13 11.4477 13 12V20ZM14 3C13.4477 3 13 3.44772 13 4V8C13 8.55228 13.4477 9 14 9H20C20.5523 9 21 8.55228 21 8V4C21 3.44772 20.5523 3 20 3H14Z"/></svg>` },
+      { id: 'surat-masuk',  key: 'surat.masuk',  label: 'Surat Masuk',  page: 'page-surat-masuk',  loader: () => loadSuratMasuk(1),  icon: `<svg class="ic-line" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M21 3C21.5523 3 22 3.44772 22 4V20C22 20.5523 21.5523 21 21 21H3C2.44772 21 2 20.5523 2 20V4C2 3.44772 2.44772 3 3 3H21ZM7.41604 14H4V19H20V14H16.584C15.8124 15.7659 14.0503 17 12 17C9.94968 17 8.1876 15.7659 7.41604 14ZM20 5H4V12H9C9 13.6569 10.3431 15 12 15C13.6569 15 15 13.6569 15 12H20V5Z"/></svg><svg class="ic-fill" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M3 3H21C21.5523 3 22 3.44772 22 4V20C22 20.5523 21.5523 21 21 21H3C2.44772 21 2 20.5523 2 20V4C2 3.44772 2.44772 3 3 3ZM9 12C9 13.6569 10.3431 15 12 15C13.6569 15 15 13.6569 15 12H20V5H4V12H9Z"/></svg>` },
+      { id: 'surat-keluar', key: 'surat.keluar', label: 'Surat Keluar', page: 'page-surat-keluar', loader: () => loadSuratKeluar(1), icon: `<svg class="ic-line" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M21.7267 2.95694L16.2734 22.0432C16.1225 22.5716 15.7979 22.5956 15.5563 22.1126L11 13L1.9229 9.36919C1.41322 9.16532 1.41953 8.86022 1.95695 8.68108L21.0432 2.31901C21.5716 2.14285 21.8747 2.43866 21.7267 2.95694ZM19.0353 5.09647L6.81221 9.17085L12.4488 11.4255L15.4895 17.5068L19.0353 5.09647Z"/></svg><svg class="ic-fill" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M1.94607 9.31543C1.42353 9.14125 1.4194 8.86022 1.95682 8.68108L21.043 2.31901C21.5715 2.14285 21.8746 2.43866 21.7265 2.95694L16.2733 22.0432C16.1223 22.5716 15.8177 22.59 15.5944 22.0876L11.9999 14L17.9999 6.00005L9.99992 12L1.94607 9.31543Z"/></svg>` },
+      { id: 'laporan-surat', key: 'surat.masuk', label: 'Laporan', page: 'page-laporan-surat', loader: () => loadLaporanSurat(), icon: `<svg class="ic-line" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M11 7H13V17H11V7ZM15 11H17V17H15V11ZM7 13H9V17H7V13ZM15 4H5V20H19V8H15V4ZM3 2.9918C3 2.44405 3.44749 2 3.9985 2H16L20.9997 7L21 20.9925C21 21.5489 20.5551 22 20.0066 22H3.9934C3.44476 22 3 21.5447 3 21.0082V2.9918Z"/></svg><svg class="ic-fill" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M16 2L21 7V21.0082C21 21.556 20.5551 22 20.0066 22H3.9934C3.44476 22 3 21.5447 3 21.0082V2.9918C3 2.44405 3.44495 2 3.9934 2H16ZM11 7V17H13V7H11ZM15 11V17H17V11H15ZM7 13V17H9V13H7Z"/></svg>` },
     ],
   },
   {
-    id: 'absensi', label: 'Absenku', icon: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/><path d="m9 16 2 2 4-4"/></svg>`,
+    id: 'absensi', label: 'Absenku', icon: `<svg class="ic-line" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M9 1V3H15V1H17V3H21C21.5523 3 22 3.44772 22 4V20C22 20.5523 21.5523 21 21 21H3C2.44772 21 2 20.5523 2 20V4C2 3.44772 2.44772 3 3 3H7V1H9ZM20 10H4V19H20V10ZM15.0355 11.136L16.4497 12.5503L11.5 17.5L7.96447 13.9645L9.37868 12.5503L11.5 14.6716L15.0355 11.136ZM7 5H4V8H20V5H17V6H15V5H9V6H7V5Z"/></svg><svg class="ic-fill" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M9 1V3H15V1H17V3H21C21.5523 3 22 3.44772 22 4V20C22 20.5523 21.5523 21 21 21H3C2.44772 21 2 20.5523 2 20V4C2 3.44772 2.44772 3 3 3H7V1H9ZM20 8H4V19H20V8ZM15.0355 10.136L16.4497 11.5503L11.5 16.5L7.96447 12.9645L9.37868 11.5503L11.5 13.6716L15.0355 10.136Z"/></svg>`,
     children: [
-      { id: 'dashboard-absensi', key: null, showIf: () => _user.is_admin || hasAccess('absensi') || hasAccess('absensi.full'), label: 'Dashboard', page: 'page-dashboard-absensi', loader: () => loadDashboardAbsensi(), icon: `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/><path d="m9 16 2 2 4-4"/></svg>` },
-      { id: 'absensi-harian', key: null, showIf: () => _user.is_admin || hasAccess('absensi') || hasAccess('absensi.full'), label: 'Absensi', page: 'page-absensi', loader: () => loadAbsensi(), icon: `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="m17 11 2 2 4-4"/></svg>` },
-      { id: 'absensi-pengaturan', key: null, showIf: () => _user.is_admin || hasAccess('absensi.full'), label: 'Pengaturan', page: 'page-absensi-pengaturan', loader: () => loadAbsPengaturan(), icon: `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>` },
-      { id: 'laporan-absensi', key: null, showIf: () => _user.is_admin || hasAccess('absensi') || hasAccess('absensi.full'), label: 'Laporan', page: 'page-laporan-absensi', loader: () => loadLaporanAbsensi(), icon: `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M8 18v-2"/><path d="M12 18v-4"/><path d="M16 18v-6"/></svg>` },
+      { id: 'dashboard-absensi', key: null, showIf: () => _user.is_admin || hasAccess('absensi') || hasAccess('absensi.full'), label: 'Dashboard', page: 'page-dashboard-absensi', loader: () => loadDashboardAbsensi(), icon: `<svg class="ic-line" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M14 21C13.4477 21 13 20.5523 13 20V12C13 11.4477 13.4477 11 14 11H20C20.5523 11 21 11.4477 21 12V20C21 20.5523 20.5523 21 20 21H14ZM4 13C3.44772 13 3 12.5523 3 12V4C3 3.44772 3.44772 3 4 3H10C10.5523 3 11 3.44772 11 4V12C11 12.5523 10.5523 13 10 13H4ZM9 11V5H5V11H9ZM4 21C3.44772 21 3 20.5523 3 20V16C3 15.4477 3.44772 15 4 15H10C10.5523 15 11 15.4477 11 16V20C11 20.5523 10.5523 21 10 21H4ZM5 19H9V17H5V19ZM15 19H19V13H15V19ZM13 4C13 3.44772 13.4477 3 14 3H20C20.5523 3 21 3.44772 21 4V8C21 8.55228 20.5523 9 20 9H14C13.4477 9 13 8.55228 13 8V4ZM15 5V7H19V5H15Z"/></svg><svg class="ic-fill" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M3 12C3 12.5523 3.44772 13 4 13H10C10.5523 13 11 12.5523 11 12V4C11 3.44772 10.5523 3 10 3H4C3.44772 3 3 3.44772 3 4V12ZM3 20C3 20.5523 3.44772 21 4 21H10C10.5523 21 11 20.5523 11 20V16C11 15.4477 10.5523 15 10 15H4C3.44772 15 3 15.4477 3 16V20ZM13 20C13 20.5523 13.4477 21 14 21H20C20.5523 21 21 20.5523 21 20V12C21 11.4477 20.5523 11 20 11H14C13.4477 11 13 11.4477 13 12V20ZM14 3C13.4477 3 13 3.44772 13 4V8C13 8.55228 13.4477 9 14 9H20C20.5523 9 21 8.55228 21 8V4C21 3.44772 20.5523 3 20 3H14Z"/></svg>` },
+      { id: 'absensi-harian', key: null, showIf: () => _user.is_admin || hasAccess('absensi') || hasAccess('absensi.full'), label: 'Absensi', page: 'page-absensi', loader: () => loadAbsensi(), icon: `<svg class="ic-line" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M17.0003 13V14C17.0003 16.7696 16.3364 19.445 15.0853 21.8455L14.8585 22.2663L13.1116 21.2924C14.2716 19.2115 14.9211 16.8817 14.9935 14.4559L15.0003 14V13H17.0003ZM11.0003 10H13.0003V14L12.9948 14.3787C12.9153 17.1495 11.9645 19.7731 10.3038 21.928L10.073 22.2189L8.52406 20.9536C10.0408 19.0969 10.9145 16.8017 10.9943 14.3663L11.0003 14V10ZM12.0003 6C14.7617 6 17.0003 8.23858 17.0003 11H15.0003C15.0003 9.34315 13.6571 8 12.0003 8C10.3434 8 9.00025 9.34315 9.00025 11V14C9.00025 16.2354 8.1806 18.3444 6.72928 19.9768L6.51767 20.2067L5.06955 18.8273C6.23328 17.6056 6.92099 16.0118 6.99381 14.3027L7.00025 14V11C7.00025 8.23858 9.23883 6 12.0003 6ZM12.0003 2C16.9708 2 21.0003 6.02944 21.0003 11V14C21.0003 15.6979 20.7985 17.3699 20.4035 18.9903L20.2647 19.5285L18.3349 19.0032C18.726 17.5662 18.9475 16.0808 18.9919 14.5684L19.0003 14V11C19.0003 7.13401 15.8662 4 12.0003 4C10.4279 4 8.97663 4.51841 7.80805 5.39364L6.38308 3.96769C7.92267 2.73631 9.87547 2 12.0003 2ZM4.96794 5.38282L6.39389 6.8078C5.5635 7.91652 5.0543 9.27971 5.00431 10.7593L4.99961 10.999L5.00378 13C5.00378 14.1195 4.73991 15.2026 4.24263 16.1772L4.08648 16.4663L2.34961 15.4747C2.72889 14.8103 2.95077 14.0681 2.99539 13.2924L3.00378 13L3.00361 11C3.00025 8.87522 3.73656 6.92242 4.96794 5.38282Z"/></svg><svg class="ic-fill" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M17.0003 13V14C17.0003 16.7696 16.3364 19.445 15.0853 21.8455L14.8585 22.2663L13.1116 21.2924C14.2716 19.2115 14.9211 16.8817 14.9935 14.4559L15.0003 14V13H17.0003ZM11.0003 10H13.0003V14L12.9948 14.3787C12.9153 17.1495 11.9645 19.7731 10.3038 21.928L10.073 22.2189L8.52406 20.9536C10.0408 19.0969 10.9145 16.8017 10.9943 14.3663L11.0003 14V10ZM12.0003 6C14.7617 6 17.0003 8.23858 17.0003 11H15.0003C15.0003 9.34315 13.6571 8 12.0003 8C10.3434 8 9.00025 9.34315 9.00025 11V14C9.00025 16.2354 8.1806 18.3444 6.72928 19.9768L6.51767 20.2067L5.06955 18.8273C6.23328 17.6056 6.92099 16.0118 6.99381 14.3027L7.00025 14V11C7.00025 8.23858 9.23883 6 12.0003 6ZM12.0003 2C16.9708 2 21.0003 6.02944 21.0003 11V14C21.0003 15.6979 20.7985 17.3699 20.4035 18.9903L20.2647 19.5285L18.3349 19.0032C18.726 17.5662 18.9475 16.0808 18.9919 14.5684L19.0003 14V11C19.0003 7.13401 15.8662 4 12.0003 4C10.4279 4 8.97663 4.51841 7.80805 5.39364L6.38308 3.96769C7.92267 2.73631 9.87547 2 12.0003 2ZM4.96794 5.38282L6.39389 6.8078C5.5635 7.91652 5.0543 9.27971 5.00431 10.7593L4.99961 10.999L5.00378 13C5.00378 14.1195 4.73991 15.2026 4.24263 16.1772L4.08648 16.4663L2.34961 15.4747C2.72889 14.8103 2.95077 14.0681 2.99539 13.2924L3.00378 13L3.00361 11C3.00025 8.87522 3.73656 6.92242 4.96794 5.38282Z"/></svg>` },
+      { id: 'absensi-pengaturan', key: null, showIf: () => _user.is_admin || hasAccess('absensi.full'), label: 'Pengaturan', page: 'page-absensi-pengaturan', loader: () => loadAbsPengaturan(), icon: `<svg class="ic-line" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M3.33946 17.0002C2.90721 16.2515 2.58277 15.4702 2.36133 14.6741C3.3338 14.1779 3.99972 13.1668 3.99972 12.0002C3.99972 10.8345 3.3348 9.824 2.36353 9.32741C2.81025 7.71651 3.65857 6.21627 4.86474 4.99001C5.7807 5.58416 6.98935 5.65534 7.99972 5.072C9.01009 4.48866 9.55277 3.40635 9.4962 2.31604C11.1613 1.8846 12.8847 1.90004 14.5031 2.31862C14.4475 3.40806 14.9901 4.48912 15.9997 5.072C17.0101 5.65532 18.2187 5.58416 19.1346 4.99007C19.7133 5.57986 20.2277 6.25151 20.66 7.00021C21.0922 7.7489 21.4167 8.53025 21.6381 9.32628C20.6656 9.82247 19.9997 10.8336 19.9997 12.0002C19.9997 13.166 20.6646 14.1764 21.6359 14.673C21.1892 16.2839 20.3409 17.7841 19.1347 19.0104C18.2187 18.4163 17.0101 18.3451 15.9997 18.9284C14.9893 19.5117 14.4467 20.5941 14.5032 21.6844C12.8382 22.1158 11.1148 22.1004 9.49633 21.6818C9.55191 20.5923 9.00929 19.5113 7.99972 18.9284C6.98938 18.3451 5.78079 18.4162 4.86484 19.0103C4.28617 18.4205 3.77172 17.7489 3.33946 17.0002ZM8.99972 17.1964C10.0911 17.8265 10.8749 18.8227 11.2503 19.9659C11.7486 20.0133 12.2502 20.014 12.7486 19.9675C13.1238 18.8237 13.9078 17.8268 14.9997 17.1964C16.0916 16.5659 17.347 16.3855 18.5252 16.6324C18.8146 16.224 19.0648 15.7892 19.2729 15.334C18.4706 14.4373 17.9997 13.2604 17.9997 12.0002C17.9997 10.74 18.4706 9.5632 19.2729 8.6665C19.1688 8.4405 19.0538 8.21822 18.9279 8.00021C18.802 7.78219 18.667 7.57148 18.5233 7.36842C17.3457 7.61476 16.0911 7.43414 14.9997 6.80405C13.9083 6.17395 13.1246 5.17768 12.7491 4.03455C12.2509 3.98714 11.7492 3.98646 11.2509 4.03292C10.8756 5.17671 10.0916 6.17364 8.99972 6.80405C7.9078 7.43447 6.65245 7.61494 5.47428 7.36803C5.18485 7.77641 4.93463 8.21117 4.72656 8.66637C5.52881 9.56311 5.99972 10.74 5.99972 12.0002C5.99972 13.2604 5.52883 14.4372 4.72656 15.3339C4.83067 15.5599 4.94564 15.7822 5.07152 16.0002C5.19739 16.2182 5.3324 16.4289 5.47612 16.632C6.65377 16.3857 7.90838 16.5663 8.99972 17.1964ZM11.9997 15.0002C10.3429 15.0002 8.99972 13.6571 8.99972 12.0002C8.99972 10.3434 10.3429 9.00021 11.9997 9.00021C13.6566 9.00021 14.9997 10.3434 14.9997 12.0002C14.9997 13.6571 13.6566 15.0002 11.9997 15.0002ZM11.9997 13.0002C12.552 13.0002 12.9997 12.5525 12.9997 12.0002C12.9997 11.4479 12.552 11.0002 11.9997 11.0002C11.4474 11.0002 10.9997 11.4479 10.9997 12.0002C10.9997 12.5525 11.4474 13.0002 11.9997 13.0002Z"/></svg><svg class="ic-fill" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M9.95401 2.2106C11.2876 1.93144 12.6807 1.92263 14.0449 2.20785C14.2219 3.3674 14.9048 4.43892 15.9997 5.07103C17.0945 5.70313 18.364 5.75884 19.4566 5.3323C20.3858 6.37118 21.0747 7.58203 21.4997 8.87652C20.5852 9.60958 19.9997 10.736 19.9997 11.9992C19.9997 13.2632 20.5859 14.3902 21.5013 15.1232C21.29 15.7636 21.0104 16.3922 20.6599 16.9992C20.3094 17.6063 19.9049 18.1627 19.4559 18.6659C18.3634 18.2396 17.0943 18.2955 15.9997 18.9274C14.9057 19.559 14.223 20.6294 14.0453 21.7879C12.7118 22.067 11.3187 22.0758 9.95443 21.7906C9.77748 20.6311 9.09451 19.5595 7.99967 18.9274C6.90484 18.2953 5.63539 18.2396 4.54272 18.6662C3.61357 17.6273 2.92466 16.4164 2.49964 15.1219C3.41412 14.3889 3.99968 13.2624 3.99968 11.9992C3.99968 10.7353 3.41344 9.60827 2.49805 8.87524C2.70933 8.23482 2.98894 7.60629 3.33942 6.99923C3.68991 6.39217 4.09443 5.83576 4.54341 5.33257C5.63593 5.75881 6.90507 5.703 7.99967 5.07103C9.09364 4.43942 9.7764 3.3691 9.95401 2.2106ZM11.9997 14.9992C13.6565 14.9992 14.9997 13.6561 14.9997 11.9992C14.9997 10.3424 13.6565 8.99923 11.9997 8.99923C10.3428 8.99923 8.99967 10.3424 8.99967 11.9992C8.99967 13.6561 10.3428 14.9992 11.9997 14.9992Z"/></svg>` },
+      { id: 'laporan-absensi', key: null, showIf: () => _user.is_admin || hasAccess('absensi') || hasAccess('absensi.full'), label: 'Laporan', page: 'page-laporan-absensi', loader: () => loadLaporanAbsensi(), icon: `<svg class="ic-line" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M11 7H13V17H11V7ZM15 11H17V17H15V11ZM7 13H9V17H7V13ZM15 4H5V20H19V8H15V4ZM3 2.9918C3 2.44405 3.44749 2 3.9985 2H16L20.9997 7L21 20.9925C21 21.5489 20.5551 22 20.0066 22H3.9934C3.44476 22 3 21.5447 3 21.0082V2.9918Z"/></svg><svg class="ic-fill" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M16 2L21 7V21.0082C21 21.556 20.5551 22 20.0066 22H3.9934C3.44476 22 3 21.5447 3 21.0082V2.9918C3 2.44405 3.44495 2 3.9934 2H16ZM11 7V17H13V7H11ZM15 11V17H17V11H15ZM7 13V17H9V13H7Z"/></svg>` },
     ],
   },
   {
-    id: 'kinerja', label: 'Kinerja', icon: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg>`,
+    id: 'kinerja', label: 'Kinerja', icon: `<svg class="ic-line" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M5 3V19H21V21H3V3H5ZM20.2929 6.29289L21.7071 7.70711L16 13.4142L13 10.415L8.70711 14.7071L7.29289 13.2929L13 7.58579L16 10.585L20.2929 6.29289Z"/></svg><svg class="ic-fill" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M5 3V19H21V21H3V3H5ZM19.9393 5.93934L22.0607 8.06066L16 14.1213L13 11.121L9.06066 15.0607L6.93934 12.9393L13 6.87868L16 9.879L19.9393 5.93934Z"/></svg>`,
     children: [
-      { id: 'dashboard-kinerja', key: null, showIf: () => _user.is_admin || _hasMonevIndikator || _hasIkkIndikator || _hasSpmIndikator, label: 'Dashboard', page: 'page-dashboard-kinerja', loader: () => loadDashboardKinerja(), icon: `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg>` },
-      { id: 'monev-kinerja', key: null, showIf: () => _hasMonevIndikator, label: 'IKU (Indikator Kinerja Utama)', page: 'page-kinerja', loader: () => { initKinerjaControls().then(() => loadKinerjaRekap()); }, icon: `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" x2="18" y1="20" y2="10"/><line x1="12" x2="12" y1="20" y2="4"/><line x1="6" x2="6" y1="20" y2="14"/></svg>` },
-      { id: 'realisasi-ikk', key: null, showIf: () => _hasIkkIndikator, label: 'IKK (Indikator Kinerja Kunci)', page: 'page-realisasi-ikk', loader: () => { initIkkControls().then(() => loadIkkRekap()); }, icon: `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="8" height="4" x="8" y="2" rx="1" ry="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="m9 14 2 2 4-4"/></svg>` },
-      { id: 'spm-kinerja', key: null, showIf: () => _hasSpmIndikator, label: 'Indikator SPM (Standar Pelayanan Minimal)', page: 'page-spm', loader: () => { initSpmControls().then(() => loadSpmRekap()); }, icon: `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2" width="6" height="20" rx="2"/><rect x="2" y="9" width="20" height="6" rx="2"/></svg>` },
-      { id: 'monitoring-kinerja', key: null, adminOnly: true, label: 'Monitoring Pengisian', page: 'page-monitoring-kinerja', loader: () => initMonitoringKinerja(), icon: `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0"/><circle cx="12" cy="12" r="3"/></svg>` },
-      { id: 'laporan-kinerja', key: null, showIf: () => _hasMonevIndikator || _hasIkkIndikator || _hasSpmIndikator, label: 'Laporan', page: 'page-laporan-kinerja', loader: () => loadLaporanKinerja(), icon: `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M8 18v-2"/><path d="M12 18v-4"/><path d="M16 18v-6"/></svg>` },
+      { id: 'dashboard-kinerja', key: null, showIf: () => _user.is_admin || _hasMonevIndikator || _hasIkkIndikator || _hasSpmIndikator, label: 'Dashboard', page: 'page-dashboard-kinerja', loader: () => loadDashboardKinerja(), icon: `<svg class="ic-line" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M14 21C13.4477 21 13 20.5523 13 20V12C13 11.4477 13.4477 11 14 11H20C20.5523 11 21 11.4477 21 12V20C21 20.5523 20.5523 21 20 21H14ZM4 13C3.44772 13 3 12.5523 3 12V4C3 3.44772 3.44772 3 4 3H10C10.5523 3 11 3.44772 11 4V12C11 12.5523 10.5523 13 10 13H4ZM9 11V5H5V11H9ZM4 21C3.44772 21 3 20.5523 3 20V16C3 15.4477 3.44772 15 4 15H10C10.5523 15 11 15.4477 11 16V20C11 20.5523 10.5523 21 10 21H4ZM5 19H9V17H5V19ZM15 19H19V13H15V19ZM13 4C13 3.44772 13.4477 3 14 3H20C20.5523 3 21 3.44772 21 4V8C21 8.55228 20.5523 9 20 9H14C13.4477 9 13 8.55228 13 8V4ZM15 5V7H19V5H15Z"/></svg><svg class="ic-fill" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M3 12C3 12.5523 3.44772 13 4 13H10C10.5523 13 11 12.5523 11 12V4C11 3.44772 10.5523 3 10 3H4C3.44772 3 3 3.44772 3 4V12ZM3 20C3 20.5523 3.44772 21 4 21H10C10.5523 21 11 20.5523 11 20V16C11 15.4477 10.5523 15 10 15H4C3.44772 15 3 15.4477 3 16V20ZM13 20C13 20.5523 13.4477 21 14 21H20C20.5523 21 21 20.5523 21 20V12C21 11.4477 20.5523 11 20 11H14C13.4477 11 13 11.4477 13 12V20ZM14 3C13.4477 3 13 3.44772 13 4V8C13 8.55228 13.4477 9 14 9H20C20.5523 9 21 8.55228 21 8V4C21 3.44772 20.5523 3 20 3H14Z"/></svg>` },
+      { id: 'monev-kinerja', key: null, showIf: () => _hasMonevIndikator, label: 'IKU (Indikator Kinerja Utama)', page: 'page-kinerja', loader: () => { initKinerjaControls().then(() => loadKinerjaRekap()); }, icon: `<svg class="ic-line" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M3 12H5V21H3V12ZM19 8H21V21H19V8ZM11 2H13V21H11V2Z"/></svg><svg class="ic-fill" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M3 12H7V21H3V12ZM17 8H21V21H17V8ZM10 2H14V21H10V2Z"/></svg>` },
+      { id: 'realisasi-ikk', key: null, showIf: () => _hasIkkIndikator, label: 'IKK (Indikator Kinerja Kunci)', page: 'page-realisasi-ikk', loader: () => { initIkkControls().then(() => loadIkkRekap()); }, icon: `<svg class="ic-line" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M7 4V2H17V4H20.0066C20.5552 4 21 4.44495 21 4.9934V21.0066C21 21.5552 20.5551 22 20.0066 22H3.9934C3.44476 22 3 21.5551 3 21.0066V4.9934C3 4.44476 3.44495 4 3.9934 4H7ZM7 6H5V20H19V6H17V8H7V6ZM9 4V6H15V4H9Z"/></svg><svg class="ic-fill" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M6 4V8H18V4H20.0066C20.5552 4 21 4.44495 21 4.9934V21.0066C21 21.5552 20.5551 22 20.0066 22H3.9934C3.44476 22 3 21.5551 3 21.0066V4.9934C3 4.44476 3.44495 4 3.9934 4H6ZM8 2H16V6H8V2Z"/></svg>` },
+      { id: 'spm-kinerja', key: null, showIf: () => _hasSpmIndikator, label: 'Indikator SPM (Standar Pelayanan Minimal)', page: 'page-spm', loader: () => { initSpmControls().then(() => loadSpmRekap()); }, icon: `<svg class="ic-line" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M20 6H23V8H22V19H23V21H1V19H2V8H1V6H4V4C4 3.44772 4.44772 3 5 3H19C19.5523 3 20 3.44772 20 4V6ZM20 8H4V19H7V12H9V19H11V12H13V19H15V12H17V19H20V8ZM6 5V6H18V5H6Z"/></svg><svg class="ic-fill" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M2 19V8H1V6H4V4C4 3.44772 4.44772 3 5 3H19C19.5523 3 20 3.44772 20 4V6H23V8H22V19H23V21H1V19H2ZM13 19V12H11V19H13ZM8 19V12H6V19H8ZM18 19V12H16V19H18ZM6 5V6H18V5H6Z"/></svg>` },
+      { id: 'monitoring-kinerja', key: null, adminOnly: true, label: 'Monitoring Pengisian', page: 'page-monitoring-kinerja', loader: () => initMonitoringKinerja(), icon: `<svg class="ic-line" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12.5065 3.62326L11.4835 5.39501C8.57378 4.51629 5.96968 4.94531 5.07207 6.50001C3.89477 8.53915 5.86239 12.1524 9.75027 14.3971C13.6382 16.6418 17.7512 16.5392 18.9285 14.5C19.8261 12.9453 18.8956 10.4756 16.6797 8.39501L17.7026 6.62326C20.7847 9.33196 22.1654 12.8934 20.6605 15.5C18.8003 18.7221 13.4717 18.8551 8.75027 16.1292C4.0289 13.4033 1.47976 8.72208 3.34002 5.50001C4.84492 2.89344 8.61964 2.30849 12.5065 3.62326ZM15.8842 1.77277L17.6163 2.77277L12.6163 11.433L10.8842 10.433L15.8842 1.77277ZM6.73233 20H17.0003V22H5.01761C4.94008 22.0014 4.86194 21.9938 4.78481 21.9768C4.77025 21.9735 4.7558 21.97 4.74147 21.9662C4.6589 21.944 4.57784 21.9108 4.50028 21.866C4.47106 21.8492 4.44301 21.831 4.41616 21.8118C4.30161 21.7292 4.20524 21.623 4.1342 21.5003C4.06328 21.3772 4.01939 21.2404 4.00518 21.0997C4.00446 21.0924 4.00381 21.085 4.00325 21.0777C3.98786 20.883 4.02924 20.6819 4.13425 20.5L6.38425 16.6029L8.1163 17.6029L6.73233 20Z"/></svg><svg class="ic-fill" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M14.3685 4.39807L10.8842 10.433L12.6163 11.433L16.1006 5.39807C20.27 8.17002 22.4058 12.4771 20.6605 15.5C18.8003 18.7221 13.4717 18.8551 8.75027 16.1292C4.0289 13.4033 1.47976 8.72208 3.34002 5.50001C5.08527 2.47715 9.88324 2.17321 14.3685 4.39807ZM15.8842 1.77277L17.6163 2.77277L16.1163 5.37084L14.3842 4.37084L15.8842 1.77277ZM6.73233 20H17.0003V22H5.01761C4.94008 22.0014 4.86194 21.9938 4.78481 21.9768C4.77025 21.9735 4.7558 21.97 4.74147 21.9662C4.6589 21.944 4.57784 21.9108 4.50028 21.866C4.47106 21.8492 4.44301 21.831 4.41616 21.8118C4.30161 21.7292 4.20524 21.623 4.1342 21.5003C4.06328 21.3772 4.01939 21.2404 4.00518 21.0997C4.00446 21.0924 4.00381 21.085 4.00325 21.0777C3.98786 20.883 4.02924 20.6819 4.13425 20.5L6.38425 16.6029L8.1163 17.6029L6.73233 20Z"/></svg>` },
+      { id: 'laporan-kinerja', key: null, showIf: () => _hasMonevIndikator || _hasIkkIndikator || _hasSpmIndikator, label: 'Laporan', page: 'page-laporan-kinerja', loader: () => loadLaporanKinerja(), icon: `<svg class="ic-line" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M11 7H13V17H11V7ZM15 11H17V17H15V11ZM7 13H9V17H7V13ZM15 4H5V20H19V8H15V4ZM3 2.9918C3 2.44405 3.44749 2 3.9985 2H16L20.9997 7L21 20.9925C21 21.5489 20.5551 22 20.0066 22H3.9934C3.44476 22 3 21.5447 3 21.0082V2.9918Z"/></svg><svg class="ic-fill" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M16 2L21 7V21.0082C21 21.556 20.5551 22 20.0066 22H3.9934C3.44476 22 3 21.5447 3 21.0082V2.9918C3 2.44405 3.44495 2 3.9934 2H16ZM11 7V17H13V7H11ZM15 11V17H17V11H15ZM7 13V17H9V13H7Z"/></svg>` },
     ],
   },
   {
-    id: 'master', label: 'Master Data', icon: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5V19A9 3 0 0 0 21 19V5"/><path d="M3 12A9 3 0 0 0 21 12"/></svg>`,
+    id: 'eplanning', label: 'e-Planning', icon: `<svg class="ic-line" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M21 3C21.5523 3 22 3.44772 22 4V20C22 20.5523 21.5523 21 21 21H3C2.44772 21 2 20.5523 2 20V4C2 3.44772 2.44772 3 3 3H21ZM11 13H4V19H11V13ZM20 13H13V19H20V13ZM11 5H4V11H11V5ZM20 5H13V11H20V5Z"/></svg><svg class="ic-fill" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M22 12.999V20C22 20.5523 21.5523 21 21 21H13V12.999H22ZM11 12.999V21H3C2.44772 21 2 20.5523 2 20V12.999H11ZM11 3V10.999H2V4C2 3.44772 2.44772 3 3 3H11ZM21 3C21.5523 3 22 3.44772 22 4V10.999H13V3H21Z"/></svg>`,
+    children: [
+      { id: 'eplanning-usulan', key: null, showIf: () => _user.is_admin || hasAccess('eplanning.admin') || hasAccess('eplanning.kabid') || hasAccess('eplanning.operator'), label: 'Usulanku', page: 'page-eplanning', loader: () => loadEplanning(), icon: `<svg class="ic-line" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M17 2V4H20.0066C20.5552 4 21 4.44495 21 4.9934V21.0066C21 21.5552 20.5551 22 20.0066 22H3.9934C3.44476 22 3 21.5551 3 21.0066V4.9934C3 4.44476 3.44495 4 3.9934 4H7V2H17ZM7 6H5V20H19V6H17V8H7V6ZM9 16V18H7V16H9ZM9 13V15H7V13H9ZM9 10V12H7V10H9ZM15 4H9V6H15V4Z"/></svg><svg class="ic-fill" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M6 4V8H18V4H20.0066C20.5552 4 21 4.44495 21 4.9934V21.0066C21 21.5552 20.5551 22 20.0066 22H3.9934C3.44476 22 3 21.5551 3 21.0066V4.9934C3 4.44476 3.44495 4 3.9934 4H6ZM9 17H7V19H9V17ZM9 14H7V16H9V14ZM9 11H7V13H9V11ZM16 2V6H8V2H16Z"/></svg>` },
+      { id: 'eplanning-subkegiatan', key: null, adminOnly: true, label: 'Sub Kegiatan', page: 'page-eplanning-subkegiatan', loader: () => epLoadMasterSubkegiatan(), icon: `<svg class="ic-line" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M19 4H5V20H19V4ZM3 2.9918C3 2.44405 3.44749 2 3.9985 2H19.9997C20.5519 2 20.9996 2.44772 20.9997 3L21 20.9925C21 21.5489 20.5551 22 20.0066 22H3.9934C3.44476 22 3 21.5447 3 21.0082V2.9918ZM11.2929 13.1213L15.5355 8.87868L16.9497 10.2929L11.2929 15.9497L7.40381 12.0607L8.81802 10.6464L11.2929 13.1213Z"/></svg><svg class="ic-fill" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M21 3V21.0082C21 21.556 20.5551 22 20.0066 22H3.9934C3.44476 22 3 21.5447 3 21.0082V2.9918C3 2.44405 3.44495 2 3.9934 2H20C20.5523 2 21 2.44772 21 3ZM11.2929 13.1213L8.81802 10.6464L7.40381 12.0607L11.2929 15.9497L16.9497 10.2929L15.5355 8.87868L11.2929 13.1213Z"/></svg>` },
+      { id: 'eplanning-sumberdana', key: null, adminOnly: true, label: 'Sumber Dana', page: 'page-eplanning-sumberdana', loader: () => epLoadMasterSumberDana(), icon: `<svg class="ic-line" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M22.0049 6.99979H23.0049V16.9998H22.0049V19.9998C22.0049 20.5521 21.5572 20.9998 21.0049 20.9998H3.00488C2.4526 20.9998 2.00488 20.5521 2.00488 19.9998V3.99979C2.00488 3.4475 2.4526 2.99979 3.00488 2.99979H21.0049C21.5572 2.99979 22.0049 3.4475 22.0049 3.99979V6.99979ZM20.0049 16.9998H14.0049C11.2435 16.9998 9.00488 14.7612 9.00488 11.9998C9.00488 9.23836 11.2435 6.99979 14.0049 6.99979H20.0049V4.99979H4.00488V18.9998H20.0049V16.9998ZM21.0049 14.9998V8.99979H14.0049C12.348 8.99979 11.0049 10.3429 11.0049 11.9998C11.0049 13.6566 12.348 14.9998 14.0049 14.9998H21.0049ZM14.0049 10.9998H17.0049V12.9998H14.0049V10.9998Z"/></svg><svg class="ic-fill" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M22.0049 5.99979H15.0049C11.6912 5.99979 9.00488 8.68608 9.00488 11.9998C9.00488 15.3135 11.6912 17.9998 15.0049 17.9998H22.0049V19.9998C22.0049 20.5521 21.5572 20.9998 21.0049 20.9998H3.00488C2.4526 20.9998 2.00488 20.5521 2.00488 19.9998V3.99979C2.00488 3.4475 2.4526 2.99979 3.00488 2.99979H21.0049C21.5572 2.99979 22.0049 3.4475 22.0049 3.99979V5.99979ZM15.0049 7.99979H23.0049V15.9998H15.0049C12.7957 15.9998 11.0049 14.2089 11.0049 11.9998C11.0049 9.79065 12.7957 7.99979 15.0049 7.99979ZM15.0049 10.9998V12.9998H18.0049V10.9998H15.0049Z"/></svg>` },
+      { id: 'eplanning-satuan', key: null, adminOnly: true, label: 'Satuan', page: 'page-eplanning-satuan', loader: () => epLoadMasterSatuan(), icon: `<svg class="ic-line" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M6.34323 14.728L3.5148 17.5565L7.05033 21.092L20.4854 7.65696L16.9498 4.12143L14.8285 6.24275L16.2427 7.65696L14.8285 9.07118L13.4143 7.65696L11.293 9.77828L13.4143 11.8996L12.0001 13.3138L9.87876 11.1925L7.75744 13.3138L9.17165 14.728L7.75744 16.1422L6.34323 14.728ZM17.6569 2.00011L22.6067 6.94986C22.9972 7.34038 22.9972 7.97354 22.6067 8.36407L7.75744 23.2133C7.36692 23.6038 6.73375 23.6038 6.34323 23.2133L1.39348 18.2636C1.00295 17.873 1.00295 17.2399 1.39348 16.8494L16.2427 2.00011C16.6332 1.60958 17.2664 1.60958 17.6569 2.00011Z"/></svg><svg class="ic-fill" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M4.92901 13.3138L7.05033 15.4351L8.46455 14.0209L6.34323 11.8996L8.46455 9.77828L11.293 12.6067L12.7072 11.1925L9.87876 8.36407L12.0001 6.24275L14.1214 8.36407L15.5356 6.94986L13.4143 4.82853L16.2427 2.00011C16.6332 1.60958 17.2664 1.60958 17.6569 2.00011L22.6067 6.94986C22.9972 7.34038 22.9972 7.97354 22.6067 8.36407L7.75744 23.2133C7.36692 23.6038 6.73375 23.6038 6.34323 23.2133L1.39348 18.2636C1.00295 17.873 1.00295 17.2399 1.39348 16.8494L4.92901 13.3138Z"/></svg>` },
+      { id: 'eplanning-rekening', key: null, adminOnly: true, label: 'Rekening', page: 'page-eplanning-rekening', loader: () => epLoadMasterRekening(1), icon: `<svg class="ic-line" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M2 20H22V22H2V20ZM4 12H6V19H4V12ZM9 12H11V19H9V12ZM13 12H15V19H13V12ZM18 12H20V19H18V12ZM2 7L12 2L22 7V11H2V7ZM4 8.23607V9H20V8.23607L12 4.23607L4 8.23607ZM12 8C11.4477 8 11 7.55228 11 7C11 6.44772 11.4477 6 12 6C12.5523 6 13 6.44772 13 7C13 7.55228 12.5523 8 12 8Z"/></svg><svg class="ic-fill" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M2 20H22V22H2V20ZM4 12H6V19H4V12ZM9 12H11V19H9V12ZM13 12H15V19H13V12ZM18 12H20V19H18V12ZM2 7L12 2L22 7V11H2V7ZM12 8C12.5523 8 13 7.55228 13 7C13 6.44772 12.5523 6 12 6C11.4477 6 11 6.44772 11 7C11 7.55228 11.4477 8 12 8Z"/></svg>` },
+      { id: 'eplanning-standarharga-group', adminOnly: false, label: 'Standar Harga Satuan', icon: `<svg class="ic-line" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M10.9042 2.10025L20.8037 3.51446L22.2179 13.414L13.0255 22.6063C12.635 22.9969 12.0019 22.9969 11.6113 22.6063L1.71184 12.7069C1.32131 12.3163 1.32131 11.6832 1.71184 11.2926L10.9042 2.10025ZM11.6113 4.22157L3.83316 11.9997L12.3184 20.485L20.0966 12.7069L19.036 5.28223L11.6113 4.22157ZM13.7327 10.5855C12.9516 9.80448 12.9516 8.53815 13.7327 7.7571C14.5137 6.97606 15.78 6.97606 16.5611 7.7571C17.3421 8.53815 17.3421 9.80448 16.5611 10.5855C15.78 11.3666 14.5137 11.3666 13.7327 10.5855Z"/></svg><svg class="ic-fill" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M10.9042 2.10025L20.8037 3.51446L22.2179 13.414L13.0255 22.6063C12.635 22.9969 12.0019 22.9969 11.6113 22.6063L1.71184 12.7069C1.32131 12.3163 1.32131 11.6832 1.71184 11.2926L10.9042 2.10025ZM13.7327 10.5855C14.5137 11.3666 15.78 11.3666 16.5611 10.5855C17.3421 9.80448 17.3421 8.53815 16.5611 7.7571C15.78 6.97606 14.5137 6.97606 13.7327 7.7571C12.9516 8.53815 12.9516 9.80448 13.7327 10.5855Z"/></svg>`, children: [
+        { id: 'eplanning-standarharga-ssh', key: null, showIf: () => _user.is_admin || hasAccess('eplanning.admin') || hasAccess('eplanning.kabid') || hasAccess('eplanning.operator'), label: 'SSH', page: 'page-eplanning-standarharga', loader: () => epShTabSwitch('SSH'), icon: `<svg class="ic-line" xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M2.00488 3.99979C2.00488 3.4475 2.4526 2.99979 3.00488 2.99979H21.0049C21.5572 2.99979 22.0049 3.4475 22.0049 3.99979V9.49979C20.6242 9.49979 19.5049 10.6191 19.5049 11.9998C19.5049 13.3805 20.6242 14.4998 22.0049 14.4998V19.9998C22.0049 20.5521 21.5572 20.9998 21.0049 20.9998H3.00488C2.4526 20.9998 2.00488 20.5521 2.00488 19.9998V3.99979ZM8.09024 18.9998C8.29615 18.4172 8.85177 17.9998 9.50488 17.9998C10.158 17.9998 10.7136 18.4172 10.9195 18.9998H20.0049V16.032C18.5232 15.2957 17.5049 13.7666 17.5049 11.9998C17.5049 10.2329 18.5232 8.7039 20.0049 7.96755V4.99979H10.9195C10.7136 5.58238 10.158 5.99979 9.50488 5.99979C8.85177 5.99979 8.29615 5.58238 8.09024 4.99979H4.00488V18.9998H8.09024ZM9.50488 10.9998C8.67646 10.9998 8.00488 10.3282 8.00488 9.49979C8.00488 8.67136 8.67646 7.99979 9.50488 7.99979C10.3333 7.99979 11.0049 8.67136 11.0049 9.49979C11.0049 10.3282 10.3333 10.9998 9.50488 10.9998ZM9.50488 15.9998C8.67646 15.9998 8.00488 15.3282 8.00488 14.4998C8.00488 13.6714 8.67646 12.9998 9.50488 12.9998C10.3333 12.9998 11.0049 13.6714 11.0049 14.4998C11.0049 15.3282 10.3333 15.9998 9.50488 15.9998Z"/></svg><svg class="ic-fill" xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M11.0049 20.9997C11.0049 20.1712 10.3333 19.4997 9.50488 19.4997C8.67646 19.4997 8.00488 20.1712 8.00488 20.9997H3.00488C2.4526 20.9997 2.00488 20.5519 2.00488 19.9997V3.99966C2.00488 3.44738 2.4526 2.99966 3.00488 2.99966H8.00488C8.00488 3.82809 8.67646 4.49966 9.50488 4.49966C10.3333 4.49966 11.0049 3.82809 11.0049 2.99966H21.0049C21.5572 2.99966 22.0049 3.44738 22.0049 3.99966V9.49966C20.6242 9.49966 19.5049 10.619 19.5049 11.9997C19.5049 13.3804 20.6242 14.4997 22.0049 14.4997V19.9997C22.0049 20.5519 21.5572 20.9997 21.0049 20.9997H11.0049ZM9.50488 10.4997C10.3333 10.4997 11.0049 9.82809 11.0049 8.99966C11.0049 8.17124 10.3333 7.49966 9.50488 7.49966C8.67646 7.49966 8.00488 8.17124 8.00488 8.99966C8.00488 9.82809 8.67646 10.4997 9.50488 10.4997ZM9.50488 16.4997C10.3333 16.4997 11.0049 15.8281 11.0049 14.9997C11.0049 14.1712 10.3333 13.4997 9.50488 13.4997C8.67646 13.4997 8.00488 14.1712 8.00488 14.9997C8.00488 15.8281 8.67646 16.4997 9.50488 16.4997Z"/></svg>` },
+        { id: 'eplanning-standarharga-hspk', key: null, showIf: () => _user.is_admin || hasAccess('eplanning.admin') || hasAccess('eplanning.kabid') || hasAccess('eplanning.operator'), label: 'HSPK', page: 'page-eplanning-standarharga', loader: () => epShTabSwitch('HSPK'), icon: `<svg class="ic-line" xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M4 8H20V5H4V8ZM14 19V10H10V19H14ZM16 19H20V10H16V19ZM8 19V10H4V19H8ZM3 3H21C21.5523 3 22 3.44772 22 4V20C22 20.5523 21.5523 21 21 21H3C2.44772 21 2 20.5523 2 20V4C2 3.44772 2.44772 3 3 3Z"/></svg><svg class="ic-fill" xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M15 21H9V10H15V21ZM17 21V10H22V20C22 20.5523 21.5523 21 21 21H17ZM7 21H3C2.44772 21 2 20.5523 2 20V10H7V21ZM22 8H2V4C2 3.44772 2.44772 3 3 3H21C21.5523 3 22 3.44772 22 4V8Z"/></svg>` },
+        { id: 'eplanning-standarharga-asb', key: null, showIf: () => _user.is_admin || hasAccess('eplanning.admin') || hasAccess('eplanning.kabid') || hasAccess('eplanning.operator'), label: 'ASB', page: 'page-eplanning-standarharga', loader: () => epShTabSwitch('ASB'), icon: `<svg class="ic-line" xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M3 12H5V21H3V12ZM19 8H21V21H19V8ZM11 2H13V21H11V2Z"/></svg><svg class="ic-fill" xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M3 12H7V21H3V12ZM17 8H21V21H17V8ZM10 2H14V21H10V2Z"/></svg>` },
+        { id: 'eplanning-standarharga-sbu', key: null, showIf: () => _user.is_admin || hasAccess('eplanning.admin') || hasAccess('eplanning.kabid') || hasAccess('eplanning.operator'), label: 'SBU', page: 'page-eplanning-standarharga', loader: () => epShTabSwitch('SBU'), icon: `<svg class="ic-line" xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M17 15.2454V22.1169C17 22.393 16.7761 22.617 16.5 22.617C16.4094 22.617 16.3205 22.5923 16.2428 22.5457L12 20L7.75725 22.5457C7.52046 22.6877 7.21333 22.6109 7.07125 22.3742C7.02463 22.2964 7 22.2075 7 22.1169V15.2454C5.17107 13.7793 4 11.5264 4 9C4 4.58172 7.58172 1 12 1C16.4183 1 20 4.58172 20 9C20 11.5264 18.8289 13.7793 17 15.2454ZM9 16.4185V19.4676L12 17.6676L15 19.4676V16.4185C14.0736 16.7935 13.0609 17 12 17C10.9391 17 9.92643 16.7935 9 16.4185ZM12 15C15.3137 15 18 12.3137 18 9C18 5.68629 15.3137 3 12 3C8.68629 3 6 5.68629 6 9C6 12.3137 8.68629 15 12 15Z"/></svg><svg class="ic-fill" xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M17 15.2454V22.1169C17 22.393 16.7761 22.617 16.5 22.617C16.4094 22.617 16.3205 22.5923 16.2428 22.5457L12 20L7.75725 22.5457C7.52046 22.6877 7.21333 22.6109 7.07125 22.3742C7.02463 22.2964 7 22.2075 7 22.1169V15.2454C5.17107 13.7793 4 11.5264 4 9C4 4.58172 7.58172 1 12 1C16.4183 1 20 4.58172 20 9C20 11.5264 18.8289 13.7793 17 15.2454ZM12 15C15.3137 15 18 12.3137 18 9C18 5.68629 15.3137 3 12 3C8.68629 3 6 5.68629 6 9C6 12.3137 8.68629 15 12 15ZM12 13C9.79086 13 8 11.2091 8 9C8 6.79086 9.79086 5 12 5C14.2091 5 16 6.79086 16 9C16 11.2091 14.2091 13 12 13Z"/></svg>` },
+      ] },
+      { id: 'eplanning-referensi-group', adminOnly: true, label: 'Referensi Sub Kegiatan Belanja', icon: `<svg class="ic-line" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M11.9997 2.00006L21.9997 7.00006V9.00006H1.99973V7.00006L11.9997 2.00006ZM4.99973 12.9999L1.99973 12.9999V10.9999L21.9997 10.9999V12.9999H18.9997V19.9999H20.9997V21.9999H2.99973V19.9999H4.99973V12.9999ZM6.99973 12.9999V19.9999H16.9997V12.9999H6.99973ZM11.9997 5.23611L9.23584 6.99979H14.7636L11.9997 5.23611Z"/></svg><svg class="ic-fill" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M11.9997 2.00006L21.9997 7.00006V9.00006H1.99973V7.00006L11.9997 2.00006ZM4.99973 12.9999L1.99973 12.9999V10.9999L21.9997 10.9999V12.9999H18.9997V19.9999H20.9997V21.9999H2.99973V19.9999H4.99973V12.9999ZM6.99973 12.9999V19.9999H16.9997V12.9999H6.99973Z"/></svg>`, children: [
+        { id: 'eplanning-ref-prioritasprov', key: null, adminOnly: true, label: 'Prioritas Pembangunan Provinsi', page: 'page-eplanning-referensi', loader: () => epRefTabSwitch('prioritasprov'), icon: `<svg class="ic-line" xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none"><path d="M5 22v-8m0 0V4m0 10 2.47-.494a8.676 8.676 0 0 1 4.925.452 8.677 8.677 0 0 0 5.327.361l.214-.053A1.404 1.404 0 0 0 19 12.904V5.537a1.2 1.2 0 0 0-1.49-1.164 7.999 7.999 0 0 1-4.911-.334l-.204-.081a8.677 8.677 0 0 0-4.924-.452L5 4m0 0V2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg><svg class="ic-fill" xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M5.75 1a.75.75 0 0 1 .75.75V3.6l1.72-.344a8.677 8.677 0 0 1 4.925.452l.204.081a7.999 7.999 0 0 0 4.91.334 1.2 1.2 0 0 1 1.491 1.164v7.367c0 .644-.439 1.206-1.064 1.362l-.214.053a8.677 8.677 0 0 1-5.327-.361 8.676 8.676 0 0 0-4.924-.452L6.5 13.6v8.15a.75.75 0 0 1-1.5 0v-20A.75.75 0 0 1 5.75 1Z"/></svg>` },
+        { id: 'eplanning-ref-prioritaskabkota', key: null, adminOnly: true, label: 'Prioritas Pembangunan Kab/Kota', page: 'page-eplanning-referensi', loader: () => epRefTabSwitch('prioritaskabkota'), icon: `<svg class="ic-line" xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none"><path d="M4 10.143C4 5.646 7.582 2 12 2s8 3.646 8 8.143c0 4.462-2.553 9.67-6.537 11.531a3.45 3.45 0 0 1-2.926 0C6.553 19.812 4 14.605 4 10.144Z" stroke="currentColor" stroke-width="1.5"/><circle cx="12" cy="10" r="3" stroke="currentColor" stroke-width="1.5"/></svg><svg class="ic-fill" xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path fill-rule="evenodd" clip-rule="evenodd" d="M12 2c-4.418 0-8 4.003-8 8.5 0 4.462 2.553 9.312 6.537 11.174a3.45 3.45 0 0 0 2.926 0C17.447 19.812 20 14.962 20 10.5 20 6.003 16.418 2 12 2Zm0 10a2 2 0 1 0 0-4 2 2 0 0 0 0 4Z"/></svg>` },
+        { id: 'eplanning-ref-bidangurusan', key: null, adminOnly: true, label: 'Bidang Urusan', page: 'page-eplanning-referensi', loader: () => epRefTabSwitch('bidangurusan'), icon: `<svg class="ic-line" xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none"><path d="M3 12c0 3.771 0 7.657 1.318 8.828C5.636 22 7.758 22 12 22c4.243 0 6.364 0 7.682-1.172C21 19.657 21 15.771 21 12" stroke="currentColor" stroke-width="1.5"/><path d="m14.66 14.202 6.008-1.802c.595-.179.893-.268 1.082-.482a.996.996 0 0 0 .1-.134c.15-.243.15-.553.15-1.175 0-2.45 0-3.675-.673-4.502a2.997 2.997 0 0 0-.434-.434C20.066 5 18.841 5 16.391 5H7.61c-2.45 0-3.675 0-4.502.673-.16.13-.305.275-.434.434C2 6.934 2 8.159 2 10.609c0 .622 0 .932.15 1.175.03.047.063.092.1.134.19.214.487.303 1.082.482l6.008 1.802M6.5 5c.823-.02 1.66-.545 1.94-1.32l.035-.103L8.5 3.5c.042-.127.064-.19.086-.246a2 2 0 0 1 1.735-1.25C10.38 2 10.448 2 10.58 2h2.838c.133 0 .2 0 .26.004a2 2 0 0 1 1.735 1.25c.023.056.044.12.086.246l.026.077c.018.053.026.08.035.103.28.775 1.116 1.3 1.939 1.32" stroke="currentColor" stroke-width="1.5"/><path d="M14 12.5h-4a.5.5 0 0 0-.5.5v2.162a.5.5 0 0 0 .314.464l.7.28a4 4 0 0 0 2.972 0l.7-.28a.5.5 0 0 0 .314-.464V13a.5.5 0 0 0-.5-.5Z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg><svg class="ic-fill" xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path fill-rule="evenodd" clip-rule="evenodd" d="M10.275 2.255c.084-.005.172-.005.286-.005h2.879c.113 0 .201 0 .285.005a2.75 2.75 0 0 1 2.385 1.72c.031.077.06.16.095.268l.003.01c.084.224.275.479.543.683.03.023.06.044.09.064 2.153.003 3.277.042 4.052.673.16.13.305.275.434.434.673.827.673 2.052.673 4.502 0 .622 0 .932-.15 1.175a.996.996 0 0 1-.1.134c-.19.214-.487.303-1.082.482L16 13.8V13a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v.8l-4.668-1.4c-.595-.179-.893-.268-1.082-.482a1.002 1.002 0 0 1-.1-.134C2 11.541 2 11.231 2 10.609c0-2.45 0-3.675.673-4.502.13-.16.275-.305.434-.434.775-.63 1.899-.67 4.053-.673.03-.02.06-.041.09-.064.267-.204.459-.46.542-.683.038-.114.066-.2.098-.279a2.75 2.75 0 0 1 2.385-1.719Zm4.544 2.563c.024.062.05.122.08.182H9.101c.029-.06.055-.12.08-.182v-.003l.005-.01.005-.012.005-.012.003-.01.002-.005.004-.012.004-.012.002-.006.003-.008.002-.007.002-.006c.039-.116.051-.153.063-.181a1.25 1.25 0 0 1 1.084-.782c.032-.002.072-.002.215-.002h2.838c.143 0 .183 0 .215.002.482.03.904.334 1.085.782.01.028.023.063.062.181l.002.006.002.007.003.008.002.006.004.012.004.012.002.005.004.01.004.012.005.012.004.01.002.003ZM14 12.5h-4a.5.5 0 0 0-.5.5v2.162a.5.5 0 0 0 .314.464l.7.28a4 4 0 0 0 2.972 0l.7-.28a.5.5 0 0 0 .314-.464V13a.5.5 0 0 0-.5-.5Zm-5.99 2.87-5.004-1.502c.03 3.114.212 5.982 1.312 6.96C5.636 22 7.758 22 12 22c4.242 0 6.364 0 7.682-1.172 1.1-.977 1.282-3.846 1.312-6.96l-5.005 1.501a2 2 0 0 1-1.246 1.65l-.7.28a5.5 5.5 0 0 1-4.086 0l-.7-.28a2 2 0 0 1-1.246-1.65Z"/></svg>` },
+        { id: 'eplanning-ref-tagbelanja', key: null, adminOnly: true, label: 'Label (Tag) Sub Kegiatan', page: 'page-eplanning-referensi', loader: () => epRefTabSwitch('tagbelanja'), icon: `<svg class="ic-line" xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none"><path d="M4.728 16.137c-1.545-1.546-2.318-2.318-2.605-3.321-.288-1.003-.042-2.068.45-4.197l.283-1.228c.413-1.792.62-2.688 1.233-3.302.614-.613 1.51-.82 3.302-1.233l1.228-.284c2.13-.491 3.194-.737 4.197-.45 1.003.288 1.775 1.061 3.32 2.606l1.83 1.83C20.657 9.248 22 10.592 22 12.262c0 1.671-1.345 3.015-4.034 5.704C15.277 20.657 13.933 22 12.262 22c-1.67 0-3.015-1.345-5.704-4.034l-1.83-1.83Z" stroke="currentColor" stroke-width="1.5"/><circle cx="8.607" cy="8.879" r="2" transform="rotate(-45 8.607 8.879)" stroke="currentColor" stroke-width="1.5"/><path d="m11.542 18.5 6.979-6.98" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg><svg class="ic-fill" xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path fill-rule="evenodd" clip-rule="evenodd" d="M2.123 12.816c.287 1.003 1.06 1.775 2.605 3.32l1.83 1.83C9.248 20.657 10.592 22 12.262 22c1.671 0 3.015-1.345 5.704-4.034C20.657 15.277 22 13.933 22 12.262c0-1.67-1.345-3.015-4.034-5.704l-1.83-1.83c-1.545-1.545-2.317-2.318-3.32-2.605-1.003-.288-2.068-.042-4.197.45l-1.228.283c-1.792.413-2.688.62-3.302 1.233-.613.614-.82 1.51-1.233 3.302l-.284 1.228c-.491 2.13-.737 3.194-.45 4.197Zm8-5.545a2.017 2.017 0 1 1-2.852 2.852 2.017 2.017 0 0 1 2.852-2.852Zm8.928 4.78-6.979 6.98a.75.75 0 0 1-1.06-1.061l6.978-6.98a.75.75 0 0 1 1.061 1.061Z"/></svg>` },
+      ] },
+    ],
+  },
+  {
+    id: 'master', label: 'Master Data', icon: `<svg class="ic-line" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M5 12.5C5 12.8134 5.46101 13.3584 6.53047 13.8931C7.91405 14.5849 9.87677 15 12 15C14.1232 15 16.0859 14.5849 17.4695 13.8931C18.539 13.3584 19 12.8134 19 12.5V10.3287C17.35 11.3482 14.8273 12 12 12C9.17273 12 6.64996 11.3482 5 10.3287V12.5ZM19 15.3287C17.35 16.3482 14.8273 17 12 17C9.17273 17 6.64996 16.3482 5 15.3287V17.5C5 17.8134 5.46101 18.3584 6.53047 18.8931C7.91405 19.5849 9.87677 20 12 20C14.1232 20 16.0859 19.5849 17.4695 18.8931C18.539 18.3584 19 17.8134 19 17.5V15.3287ZM3 17.5V7.5C3 5.01472 7.02944 3 12 3C16.9706 3 21 5.01472 21 7.5V17.5C21 19.9853 16.9706 22 12 22C7.02944 22 3 19.9853 3 17.5ZM12 10C14.1232 10 16.0859 9.58492 17.4695 8.89313C18.539 8.3584 19 7.81342 19 7.5C19 7.18658 18.539 6.6416 17.4695 6.10687C16.0859 5.41508 14.1232 5 12 5C9.87677 5 7.91405 5.41508 6.53047 6.10687C5.46101 6.6416 5 7.18658 5 7.5C5 7.81342 5.46101 8.3584 6.53047 8.89313C7.91405 9.58492 9.87677 10 12 10Z"/></svg><svg class="ic-fill" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M21 9.5V12.5C21 14.9853 16.9706 17 12 17C7.02944 17 3 14.9853 3 12.5V9.5C3 11.9853 7.02944 14 12 14C16.9706 14 21 11.9853 21 9.5ZM3 14.5C3 16.9853 7.02944 19 12 19C16.9706 19 21 16.9853 21 14.5V17.5C21 19.9853 16.9706 22 12 22C7.02944 22 3 19.9853 3 17.5V14.5ZM12 12C7.02944 12 3 9.98528 3 7.5C3 5.01472 7.02944 3 12 3C16.9706 3 21 5.01472 21 7.5C21 9.98528 16.9706 12 12 12Z"/></svg>`,
     adminOnly: true,
     children: [
-      { id: 'kelola-indikator', key: null, adminOnly: true, label: 'Kelola Indikator', page: 'page-kinerja-admin', loader: () => loadIndikatorAdmin(), icon: `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="21" x2="14" y1="4" y2="4"/><line x1="10" x2="3" y1="4" y2="4"/><line x1="21" x2="12" y1="12" y2="12"/><line x1="8" x2="3" y1="12" y2="12"/><line x1="21" x2="16" y1="20" y2="20"/><line x1="12" x2="3" y1="20" y2="20"/><line x1="14" x2="14" y1="2" y2="6"/><line x1="8" x2="8" y1="10" y2="14"/><line x1="16" x2="16" y1="18" y2="22"/></svg>` },
-      { id: 'kelola-target', key: null, adminOnly: true, label: 'Kelola Target', page: 'page-kelola-target', loader: () => loadKelolaTarget(), icon: `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>` },
-      { id: 'kelola-jenis', key: null, adminOnly: true, label: 'Kelola Jenis Kinerja', page: 'page-kelola-jenis', loader: () => loadKelolaJenis(), icon: `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/><rect width="6" height="4" x="9" y="3" rx="1"/><path d="M9 12h6"/><path d="M9 16h4"/></svg>` },
-      { id: 'kelola-laporan', key: null, adminOnly: true, label: 'Kelola Laporan', page: 'page-kelola-laporan', loader: () => loadLapTemplateAdmin(), icon: `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>` },
-      { id: 'periode', key: null, label: 'Periode', page: 'page-periode', loader: () => loadPeriodePage(), icon: `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2v4"/><path d="M16 2v4"/><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/><path d="M8 14h.01"/><path d="M12 14h.01"/><path d="M16 14h.01"/><path d="M8 18h.01"/><path d="M12 18h.01"/><path d="M16 18h.01"/></svg>` },
-      { id: 'pengguna', key: null, label: 'Pengguna', page: 'page-pengguna', loader: () => loadUsers(), icon: `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>` },
-      { id: 'bidang', key: null, label: 'Unit Kerja', page: 'page-bidang', loader: () => loadBidangPage(), icon: `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 22V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v18Z"/><path d="M6 12H4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h2"/><path d="M18 9h2a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2h-2"/><path d="M10 6h4"/><path d="M10 10h4"/><path d="M10 14h4"/><path d="M10 18h4"/></svg>` },
-      { id: 'pegawai', key: null, label: 'Struktur', page: 'page-pegawai', loader: () => { loadPegawai(); }, icon: `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2" width="6" height="6" rx="1"/><rect x="2" y="16" width="6" height="6" rx="1"/><rect x="16" y="16" width="6" height="6" rx="1"/><path d="M12 8v4M12 12H5v4M12 12h7v4"/></svg>` },
-      { id: 'dokumen-publik', key: null, label: 'Dokumen Publik', page: 'page-dokumen-publik', loader: () => { loadDokumenPublik(); }, icon: `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/></svg>` },
-      { id: 'pengumuman', key: null, adminOnly: true, label: 'Pengumuman', page: 'page-pengumuman', loader: () => { loadPengumuman(); loadTicker(); }, icon: `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" x2="4" y1="22" y2="15"/></svg>` },
-      { id: 'profil', key: null, label: 'Profil Instansi', page: 'page-profil', loader: () => loadProfil(), icon: `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>` },
-      { id: 'audit-trail', key: null, adminOnly: true, label: 'Audit Trail', page: 'page-audit-trail', loader: () => loadAuditTrail(1), icon: `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/><path d="m9 12 2 2 4-4"/></svg>` },
+      { id: 'kelola-indikator', key: null, adminOnly: true, label: 'Kelola Indikator', page: 'page-kinerja-admin', loader: () => loadIndikatorAdmin(), icon: `<svg class="ic-line" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M6.17071 18C6.58254 16.8348 7.69378 16 9 16C10.3062 16 11.4175 16.8348 11.8293 18H22V20H11.8293C11.4175 21.1652 10.3062 22 9 22C7.69378 22 6.58254 21.1652 6.17071 20H2V18H6.17071ZM12.1707 11C12.5825 9.83481 13.6938 9 15 9C16.3062 9 17.4175 9.83481 17.8293 11H22V13H17.8293C17.4175 14.1652 16.3062 15 15 15C13.6938 15 12.5825 14.1652 12.1707 13H2V11H12.1707ZM6.17071 4C6.58254 2.83481 7.69378 2 9 2C10.3062 2 11.4175 2.83481 11.8293 4H22V6H11.8293C11.4175 7.16519 10.3062 8 9 8C7.69378 8 6.58254 7.16519 6.17071 6H2V4H6.17071ZM9 6C9.55228 6 10 5.55228 10 5C10 4.44772 9.55228 4 9 4C8.44772 4 8 4.44772 8 5C8 5.55228 8.44772 6 9 6ZM15 13C15.5523 13 16 12.5523 16 12C16 11.4477 15.5523 11 15 11C14.4477 11 14 11.4477 14 12C14 12.5523 14.4477 13 15 13ZM9 20C9.55228 20 10 19.5523 10 19C10 18.4477 9.55228 18 9 18C8.44772 18 8 18.4477 8 19C8 19.5523 8.44772 20 9 20Z"/></svg><svg class="ic-fill" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M6.17071 18C6.58254 16.8348 7.69378 16 9 16C10.3062 16 11.4175 16.8348 11.8293 18H22V20H11.8293C11.4175 21.1652 10.3062 22 9 22C7.69378 22 6.58254 21.1652 6.17071 20H2V18H6.17071ZM12.1707 11C12.5825 9.83481 13.6938 9 15 9C16.3062 9 17.4175 9.83481 17.8293 11H22V13H17.8293C17.4175 14.1652 16.3062 15 15 15C13.6938 15 12.5825 14.1652 12.1707 13H2V11H12.1707ZM6.17071 4C6.58254 2.83481 7.69378 2 9 2C10.3062 2 11.4175 2.83481 11.8293 4H22V6H11.8293C11.4175 7.16519 10.3062 8 9 8C7.69378 8 6.58254 7.16519 6.17071 6H2V4H6.17071Z"/></svg>` },
+      { id: 'kelola-target', key: null, adminOnly: true, label: 'Kelola Target', page: 'page-kelola-target', loader: () => loadKelolaTarget(), icon: `<svg class="ic-line" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M13 1L13.001 4.06201C16.6192 4.51365 19.4869 7.38163 19.9381 11L23 11V13L19.938 13.001C19.4864 16.6189 16.6189 19.4864 13.001 19.938L13 23H11L11 19.9381C7.38163 19.4869 4.51365 16.6192 4.06201 13.001L1 13V11L4.06189 11C4.51312 7.38129 7.38129 4.51312 11 4.06189L11 1H13ZM12 6C8.68629 6 6 8.68629 6 12C6 15.3137 8.68629 18 12 18C15.3137 18 18 15.3137 18 12C18 8.68629 15.3137 6 12 6ZM12 10C13.1046 10 14 10.8954 14 12C14 13.1046 13.1046 14 12 14C10.8954 14 10 13.1046 10 12C10 10.8954 10.8954 10 12 10Z"/></svg><svg class="ic-fill" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M13 1L13.001 4.06201C16.6192 4.51365 19.4869 7.38163 19.9381 11L23 11V13L19.938 13.001C19.4864 16.6189 16.6189 19.4864 13.001 19.938L13 23H11L11 19.9381C7.38163 19.4869 4.51365 16.6192 4.06201 13.001L1 13V11L4.06189 11C4.51312 7.38129 7.38129 4.51312 11 4.06189L11 1H13ZM12 10C10.8954 10 10 10.8954 10 12C10 13.1046 10.8954 14 12 14C13.1046 14 14 13.1046 14 12C14 10.8954 13.1046 10 12 10Z"/></svg>` },
+      { id: 'kelola-jenis', key: null, adminOnly: true, label: 'Kelola Jenis Kinerja', page: 'page-kelola-jenis', loader: () => loadKelolaJenis(), icon: `<svg class="ic-line" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12.4142 5H21C21.5523 5 22 5.44772 22 6V20C22 20.5523 21.5523 21 21 21H3C2.44772 21 2 20.5523 2 20V4C2 3.44772 2.44772 3 3 3H10.4142L12.4142 5ZM4 5V19H20V7H11.5858L9.58579 5H4ZM8.59114 13.8089C8.52934 13.5486 8.49663 13.277 8.49663 12.9978C8.49663 12.7186 8.52933 12.4471 8.59112 12.1868L7.59998 11.6146L8.59949 9.88335L9.59133 10.456C9.98424 10.0843 10.4633 9.80275 10.9954 9.64438V8.5H12.9944V9.64438C13.5265 9.80274 14.0056 10.0843 14.3985 10.4559L15.3904 9.88325L16.39 11.6145L15.3987 12.1867C15.4605 12.447 15.4932 12.7186 15.4932 12.9978C15.4932 13.277 15.4605 13.5485 15.3987 13.8088L16.39 14.3811L15.3905 16.1123L14.3986 15.5396C14.0057 15.9113 13.5266 16.1928 12.9945 16.3512V17.4956H10.9955V16.3513C10.4634 16.1929 9.98434 15.9114 9.59141 15.5397L8.59954 16.1124L7.59998 14.3812L8.59114 13.8089ZM11.9949 14.4971C12.8229 14.4971 13.4942 13.8258 13.4942 12.9978C13.4942 12.1698 12.8229 11.4985 11.9949 11.4985C11.1669 11.4985 10.4957 12.1698 10.4957 12.9978C10.4957 13.8258 11.1669 14.4971 11.9949 14.4971Z"/></svg><svg class="ic-fill" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12.4142 5H21C21.5523 5 22 5.44772 22 6V20C22 20.5523 21.5523 21 21 21H3C2.44772 21 2 20.5523 2 20V4C2 3.44772 2.44772 3 3 3H10.4142L12.4142 5ZM8.59114 13.8089L7.59998 14.3812L8.59954 16.1124L9.59141 15.5397C9.98434 15.9114 10.4634 16.1929 10.9955 16.3513V17.4956H12.9945V16.3512C13.5266 16.1928 14.0057 15.9113 14.3986 15.5396L15.3905 16.1123L16.39 14.3811L15.3987 13.8088C15.4605 13.5485 15.4932 13.277 15.4932 12.9978C15.4932 12.7186 15.4605 12.447 15.3987 12.1867L16.39 11.6145L15.3904 9.88325L14.3985 10.4559C14.0056 10.0843 13.5265 9.80274 12.9944 9.64438V8.5H10.9954V9.64438C10.4633 9.80275 9.98424 10.0843 9.59133 10.456L8.59949 9.88335L7.59998 11.6146L8.59112 12.1868C8.52933 12.4471 8.49663 12.7186 8.49663 12.9978C8.49663 13.277 8.52934 13.5486 8.59114 13.8089ZM11.9949 14.4971C11.1669 14.4971 10.4957 13.8258 10.4957 12.9978C10.4957 12.1698 11.1669 11.4985 11.9949 11.4985C12.8229 11.4985 13.4942 12.1698 13.4942 12.9978C13.4942 13.8258 12.8229 14.4971 11.9949 14.4971Z"/></svg>` },
+      { id: 'kelola-laporan', key: null, adminOnly: true, label: 'Kelola Laporan', page: 'page-kelola-laporan', loader: () => loadLapTemplateAdmin(), icon: `<svg class="ic-line" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M11 7H13V17H11V7ZM15 11H17V17H15V11ZM7 13H9V17H7V13ZM15 4H5V20H19V8H15V4ZM3 2.9918C3 2.44405 3.44749 2 3.9985 2H16L20.9997 7L21 20.9925C21 21.5489 20.5551 22 20.0066 22H3.9934C3.44476 22 3 21.5447 3 21.0082V2.9918Z"/></svg><svg class="ic-fill" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M16 2L21 7V21.0082C21 21.556 20.5551 22 20.0066 22H3.9934C3.44476 22 3 21.5447 3 21.0082V2.9918C3 2.44405 3.44495 2 3.9934 2H16ZM11 7V17H13V7H11ZM15 11V17H17V11H15ZM7 13V17H9V13H7Z"/></svg>` },
+      { id: 'periode', key: null, label: 'Periode', page: 'page-periode', loader: () => loadPeriodePage(), icon: `<svg class="ic-line" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M9 1V3H15V1H17V3H21C21.5523 3 22 3.44772 22 4V20C22 20.5523 21.5523 21 21 21H3C2.44772 21 2 20.5523 2 20V4C2 3.44772 2.44772 3 3 3H7V1H9ZM20 11H4V19H20V11ZM8 13V15H6V13H8ZM13 13V15H11V13H13ZM18 13V15H16V13H18ZM7 5H4V9H20V5H17V7H15V5H9V7H7V5Z"/></svg><svg class="ic-fill" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M17 3H21C21.5523 3 22 3.44772 22 4V20C22 20.5523 21.5523 21 21 21H3C2.44772 21 2 20.5523 2 20V4C2 3.44772 2.44772 3 3 3H7V1H9V3H15V1H17V3ZM4 9V19H20V9H4ZM6 11H8V13H6V11ZM11 11H13V13H11V11ZM16 11H18V13H16V11Z"/></svg>` },
+      { id: 'pengguna', key: null, label: 'Pengguna', page: 'page-pengguna', loader: () => loadUsers(), icon: `<svg class="ic-line" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M2 22C2 17.5817 5.58172 14 10 14C14.4183 14 18 17.5817 18 22H16C16 18.6863 13.3137 16 10 16C6.68629 16 4 18.6863 4 22H2ZM10 13C6.685 13 4 10.315 4 7C4 3.685 6.685 1 10 1C13.315 1 16 3.685 16 7C16 10.315 13.315 13 10 13ZM10 11C12.21 11 14 9.21 14 7C14 4.79 12.21 3 10 3C7.79 3 6 4.79 6 7C6 9.21 7.79 11 10 11ZM18.2837 14.7028C21.0644 15.9561 23 18.752 23 22H21C21 19.564 19.5483 17.4671 17.4628 16.5271L18.2837 14.7028ZM17.5962 3.41321C19.5944 4.23703 21 6.20361 21 8.5C21 11.3702 18.8042 13.7252 16 13.9776V11.9646C17.6967 11.7222 19 10.264 19 8.5C19 7.11935 18.2016 5.92603 17.041 5.35635L17.5962 3.41321Z"/></svg><svg class="ic-fill" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M2 22C2 17.5817 5.58172 14 10 14C14.4183 14 18 17.5817 18 22H2ZM10 13C6.685 13 4 10.315 4 7C4 3.685 6.685 1 10 1C13.315 1 16 3.685 16 7C16 10.315 13.315 13 10 13ZM17.3628 15.2332C20.4482 16.0217 22.7679 18.7235 22.9836 22H20C20 19.3902 19.0002 17.0139 17.3628 15.2332ZM15.3401 12.9569C16.9728 11.4922 18 9.36607 18 7C18 5.58266 17.6314 4.25141 16.9849 3.09687C19.2753 3.55397 21 5.57465 21 8C21 10.7625 18.7625 13 16 13C15.7763 13 15.556 12.9853 15.3401 12.9569Z"/></svg>` },
+      { id: 'bidang', key: null, label: 'Unit Kerja', page: 'page-bidang', loader: () => loadBidangPage(), icon: `<svg class="ic-line" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M21 20H23V22H1V20H3V3C3 2.44772 3.44772 2 4 2H20C20.5523 2 21 2.44772 21 3V20ZM19 20V4H5V20H19ZM8 11H11V13H8V11ZM8 7H11V9H8V7ZM8 15H11V17H8V15ZM13 15H16V17H13V15ZM13 11H16V13H13V11ZM13 7H16V9H13V7Z"/></svg><svg class="ic-fill" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M21 20H23V22H1V20H3V3C3 2.44772 3.44772 2 4 2H20C20.5523 2 21 2.44772 21 3V20ZM8 11V13H11V11H8ZM8 7V9H11V7H8ZM8 15V17H11V15H8ZM13 15V17H16V15H13ZM13 11V13H16V11H13ZM13 7V9H16V7H13Z"/></svg>` },
+      { id: 'pegawai', key: null, label: 'Struktur', page: 'page-pegawai', loader: () => { loadPegawai(); }, icon: `<svg class="ic-line" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M6 7C6 3.68629 8.68629 1 12 1C15.3137 1 18 3.68629 18 7C18 7.26214 17.9831 7.5207 17.9504 7.77457C19.77 8.80413 21 10.7575 21 13C21 16.3137 18.3137 19 15 19H13V22H11V19H8.5C5.46243 19 3 16.5376 3 13.5C3 11.2863 4.30712 9.37966 6.19098 8.50704C6.06635 8.02551 6 7.52039 6 7ZM7.00964 10.3319C5.82176 10.8918 5 12.1008 5 13.5C5 15.433 6.567 17 8.5 17H15C17.2091 17 19 15.2091 19 13C19 11.3056 17.9461 9.85488 16.4544 9.27234L15.6129 8.94372C15.7907 8.30337 16 7.67183 16 7C16 4.79086 14.2091 3 12 3C9.79086 3 8 4.79086 8 7C8 8.30783 8.6266 9.46903 9.60019 10.2005L8.39884 11.7995C7.85767 11.3929 7.38716 10.8963 7.00964 10.3319Z"/></svg><svg class="ic-fill" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M18 7C18 7.2624 17.9832 7.52086 17.9505 7.77437C19.7712 8.80457 21 10.7588 21 13C21 16.3137 18.3137 19 15 19C14.2987 19 13.6256 18.8797 13 18.6586V22H11V18.4003C10.2499 18.7837 9.40022 19 8.5 19C5.46243 19 3 16.5376 3 13.5C3 12.0474 3.56312 10.7263 4.48297 9.74318C4.87725 10.8232 5.49744 11.7944 6.28576 12.5989L7.71424 11.1991C6.99071 10.4607 6.45705 9.53767 6.1906 8.50688C6.06607 8.02541 6 7.5204 6 7C6 3.68629 8.68629 1 12 1C15.3137 1 18 3.68629 18 7Z"/></svg>` },
+      { id: 'dokumen-publik', key: null, label: 'Dokumen Publik', page: 'page-dokumen-publik', loader: () => { loadDokumenPublik(); }, icon: `<svg class="ic-line" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M20 22H4C3.44772 22 3 21.5523 3 21V3C3 2.44772 3.44772 2 4 2H20C20.5523 2 21 2.44772 21 3V21C21 21.5523 20.5523 22 20 22ZM19 20V4H5V20H19ZM7 6H11V10H7V6ZM7 12H17V14H7V12ZM7 16H17V18H7V16ZM13 7H17V9H13V7Z"/></svg><svg class="ic-fill" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M20 22H4C3.44772 22 3 21.5523 3 21V3C3 2.44772 3.44772 2 4 2H20C20.5523 2 21 2.44772 21 3V21C21 21.5523 20.5523 22 20 22ZM7 6V10H11V6H7ZM7 12V14H17V12H7ZM7 16V18H17V16H7ZM13 7V9H17V7H13Z"/></svg>` },
+      { id: 'pengumuman', key: null, adminOnly: true, label: 'Pengumuman', page: 'page-pengumuman', loader: () => { loadPengumuman(); loadTicker(); }, icon: `<svg class="ic-line" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M9 17C9 17 16 18 19 21H20C20.5523 21 21 20.5523 21 20V13.937C21.8626 13.715 22.5 12.9319 22.5 12C22.5 11.0681 21.8626 10.285 21 10.063V4C21 3.44772 20.5523 3 20 3H19C16 6 9 7 9 7H5C3.89543 7 3 7.89543 3 9V15C3 16.1046 3.89543 17 5 17H6L7 22H9V17ZM11 8.6612C11.6833 8.5146 12.5275 8.31193 13.4393 8.04373C15.1175 7.55014 17.25 6.77262 19 5.57458V18.4254C17.25 17.2274 15.1175 16.4499 13.4393 15.9563C12.5275 15.6881 11.6833 15.4854 11 15.3388V8.6612ZM5 9H9V15H5V9Z"/></svg><svg class="ic-fill" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M21 10.063V4C21 3.44772 20.5523 3 20 3H19C17.0214 4.97864 13.3027 6.08728 11 6.61281V17.3872C13.3027 17.9127 17.0214 19.0214 19 21H20C20.5523 21 21 20.5523 21 20V13.937C21.8626 13.715 22.5 12.9319 22.5 12 22.5 11.0681 21.8626 10.285 21 10.063ZM5 7C3.89543 7 3 7.89543 3 9V15C3 16.1046 3.89543 17 5 17H6L7 22H9V7H5Z"/></svg>` },
+      { id: 'profil', key: null, label: 'Profil Instansi', page: 'page-profil', loader: () => loadProfil(), icon: `<svg class="ic-line" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M20 6H23V8H22V19H23V21H1V19H2V8H1V6H4V4C4 3.44772 4.44772 3 5 3H19C19.5523 3 20 3.44772 20 4V6ZM20 8H4V19H7V12H9V19H11V12H13V19H15V12H17V19H20V8ZM6 5V6H18V5H6Z"/></svg><svg class="ic-fill" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M2 19V8H1V6H4V4C4 3.44772 4.44772 3 5 3H19C19.5523 3 20 3.44772 20 4V6H23V8H22V19H23V21H1V19H2ZM13 19V12H11V19H13ZM8 19V12H6V19H8ZM18 19V12H16V19H18ZM6 5V6H18V5H6Z"/></svg>` },
+      { id: 'audit-trail', key: null, adminOnly: true, label: 'Audit Trail', page: 'page-audit-trail', loader: () => loadAuditTrail(1), icon: `<svg class="ic-line" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 1L20.2169 2.82598C20.6745 2.92766 21 3.33347 21 3.80217V13.7889C21 15.795 19.9974 17.6684 18.3282 18.7812L12 23L5.6718 18.7812C4.00261 17.6684 3 15.795 3 13.7889V3.80217C3 3.33347 3.32553 2.92766 3.78307 2.82598L12 1ZM12 3.04879L5 4.60434V13.7889C5 15.1263 5.6684 16.3752 6.7812 17.1171L12 20.5963L17.2188 17.1171C18.3316 16.3752 19 15.1263 19 13.7889V4.60434L12 3.04879ZM16.4524 8.22183L17.8666 9.63604L11.5026 16L7.25999 11.7574L8.67421 10.3431L11.5019 13.1709L16.4524 8.22183Z"/></svg><svg class="ic-fill" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 1L20.2169 2.82598C20.6745 2.92766 21 3.33347 21 3.80217V13.7889C21 15.795 19.9974 17.6684 18.3282 18.7812L12 23L5.6718 18.7812C4.00261 17.6684 3 15.795 3 13.7889V3.80217C3 3.33347 3.32553 2.92766 3.78307 2.82598L12 1ZM16.4524 8.22183L11.5019 13.1709L8.67421 10.3431L7.25999 11.7574L11.5026 16L17.8666 9.63604L16.4524 8.22183Z"/></svg>` },
     ],
   },
 ];
@@ -668,7 +690,7 @@ function buildSidebar() {
     dashEl.className = 'nav-item' + (_activeSubId === 'dashboard' ? ' active' : '');
     dashEl.dataset.sub = 'dashboard';
     if (collapsed) dashEl.dataset.tooltip = 'Dashboard Utama';
-    dashEl.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="7" height="9" x="3" y="3" rx="1"/><rect width="7" height="5" x="14" y="3" rx="1"/><rect width="7" height="9" x="14" y="12" rx="1"/><rect width="7" height="5" x="3" y="16" rx="1"/></svg><span class="nav-item-label">Dashboard Utama</span>`;
+    dashEl.innerHTML = `<span class="nav-icon-box"><svg class="ic-line" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M14 21C13.4477 21 13 20.5523 13 20V12C13 11.4477 13.4477 11 14 11H20C20.5523 11 21 11.4477 21 12V20C21 20.5523 20.5523 21 20 21H14ZM4 13C3.44772 13 3 12.5523 3 12V4C3 3.44772 3.44772 3 4 3H10C10.5523 3 11 3.44772 11 4V12C11 12.5523 10.5523 13 10 13H4ZM9 11V5H5V11H9ZM4 21C3.44772 21 3 20.5523 3 20V16C3 15.4477 3.44772 15 4 15H10C10.5523 15 11 15.4477 11 16V20C11 20.5523 10.5523 21 10 21H4ZM5 19H9V17H5V19ZM15 19H19V13H15V19ZM13 4C13 3.44772 13.4477 3 14 3H20C20.5523 3 21 3.44772 21 4V8C21 8.55228 20.5523 9 20 9H14C13.4477 9 13 8.55228 13 8V4ZM15 5V7H19V5H15Z"/></svg><svg class="ic-fill" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M3 12C3 12.5523 3.44772 13 4 13H10C10.5523 13 11 12.5523 11 12V4C11 3.44772 10.5523 3 10 3H4C3.44772 3 3 3.44772 3 4V12ZM3 20C3 20.5523 3.44772 21 4 21H10C10.5523 21 11 20.5523 11 20V16C11 15.4477 10.5523 15 10 15H4C3.44772 15 3 15.4477 3 16V20ZM13 20C13 20.5523 13.4477 21 14 21H20C20.5523 21 21 20.5523 21 20V12C21 11.4477 20.5523 11 20 11H14C13.4477 11 13 11.4477 13 12V20ZM14 3C13.4477 3 13 3.44772 13 4V8C13 8.55228 13.4477 9 14 9H20C20.5523 9 21 8.55228 21 8V4C21 3.44772 20.5523 3 20 3H14Z"/></svg></span><span class="nav-item-label">Dashboard Utama</span>`;
     dashEl.onclick = () => navigateTo('dashboard', 'Dashboard Utama', loadDashboard);
     nav.appendChild(dashEl);
   }
@@ -677,17 +699,30 @@ function buildSidebar() {
     if (group.adminOnly && !_user.is_admin) continue;
 
     const visibleChildren = group.children.filter(c => {
+      if (c.children) {
+        // Branch (sub-group level ke-3, mis. "Standar Harga Satuan") - visible kalau
+        // minimal 1 item di dalamnya accessible. Hasil filter-nya di-stash di c._visibleChildren
+        // biar gak perlu difilter ulang pas render.
+        if (c.adminOnly && !_user.is_admin) return false;
+        const visibleGrand = c.children.filter(gc => {
+          if (gc.adminOnly && !_user.is_admin) return false;
+          if (gc.showIf && !gc.showIf()) return false;
+          return !gc.key || hasAccess(gc.key);
+        });
+        c._visibleChildren = visibleGrand;
+        return visibleGrand.length > 0;
+      }
       if (c.adminOnly && !_user.is_admin) return false;
       if (c.showIf && !c.showIf()) return false;
       return !c.key || hasAccess(c.key);
     });
     if (!visibleChildren.length) continue;
 
-    const groupHasActive = visibleChildren.some(c => c.id === _activeSubId);
+    const groupHasActive = visibleChildren.some(c => c.id === _activeSubId || (c._visibleChildren && c._visibleChildren.some(gc => gc.id === _activeSubId)));
     const groupItem = document.createElement('div');
     groupItem.className = 'nav-item' + (groupHasActive ? ' has-active' : '');
     groupItem.dataset.group = group.id;
-    groupItem.innerHTML = `<span style="display:flex;align-items:center;flex-shrink:0">${group.icon}</span><span class="nav-item-label">${group.label}</span><svg class="nav-chevron${_openGroups[group.id] ? ' open' : ''}" id="chev-${group.id}" xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>`;
+    groupItem.innerHTML = `<span class="nav-icon-box">${group.icon}</span><span class="nav-item-label">${group.label}</span><svg class="nav-chevron${_openGroups[group.id] ? ' open' : ''}" id="chev-${group.id}" xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>`;
     groupItem.onclick = () => {
       if (collapsed) {
         _sidebarCollapsed = false;
@@ -717,9 +752,9 @@ function buildSidebar() {
       if (_sidebarCollapsed) return;
       // Hanya block autohide kalau group ini memang di-klik/pin terbuka
       // DAN ada child yang sedang aktif. Kalau hanya hover-open, tetap hide.
-      // Cek real-time dari DOM (bukan closure groupHasActive yg beku pas buildSidebar) —
+      // Cek real-time dari DOM (bukan closure groupHasActive yg beku pas buildSidebar) -
       // supaya kalau user navigasi ke child setelah sidebar dibangun, status ini ikut update
-      const stillHasActive = sub.querySelector('.nav-sub-item.active');
+      const stillHasActive = sub.querySelector('.nav-sub-item.active, .nav-sub-sub-item.active');
       if (_openGroups[group.id] && stillHasActive) return;
       _hoverTimer = setTimeout(() => {
         sub.classList.remove('open');
@@ -733,11 +768,73 @@ function buildSidebar() {
     sub.addEventListener('mouseleave', _closeHover);
 
     for (const child of visibleChildren) {
+      if (child.children) {
+        // Branch/sub-group level ke-3 - header expandable + list item di dalamnya.
+        const branchHasActive = child._visibleChildren.some(gc => gc.id === _activeSubId);
+        const branchItem = document.createElement('div');
+        branchItem.className = 'nav-sub-item nav-sub-group' + (branchHasActive ? ' has-active' : '');
+        branchItem.dataset.subgroup = child.id;
+        if (collapsed) branchItem.dataset.tooltip = child.label;
+        branchItem.innerHTML = `<span class="nav-icon-box">${child.icon}</span><span class="nav-sub-item-label">${child.label}</span><svg class="nav-chevron${_openGroups[child.id] ? ' open' : ''}" id="chev-${child.id}" xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>`;
+        branchItem.onclick = () => {
+          if (_sidebarCollapsed) {
+            _sidebarCollapsed = false;
+            try { localStorage.setItem('sapa_sidebar_collapsed', '0'); } catch(e) {}
+            _openGroups[group.id] = true;
+            _openGroups[child.id] = true;
+            _applySidebarCollapse();
+          } else {
+            toggleSubGroup(child.id);
+          }
+        };
+        sub.appendChild(branchItem);
+
+        const subsub = document.createElement('div');
+        subsub.className = 'nav-sub-sub' + (_openGroups[child.id] ? ' open' : '');
+        subsub.id = 'sub-' + child.id;
+
+        // Hover autohide/autoshow buat sub-group level ke-3 - sama pola-nya kayak
+        // group level 1 di atas, cuma scoped ke child.id (bukan group.id)
+        let _hoverTimerSub = null;
+        const _openHoverSub = () => {
+          if (_sidebarCollapsed) return;
+          clearTimeout(_hoverTimerSub);
+          subsub.classList.add('open');
+          const chevSub = document.getElementById('chev-' + child.id);
+          if (chevSub) chevSub.classList.add('open');
+        };
+        const _closeHoverSub = () => {
+          if (_sidebarCollapsed) return;
+          const stillHasActive = subsub.querySelector('.nav-sub-sub-item.active');
+          if (_openGroups[child.id] && stillHasActive) return;
+          _hoverTimerSub = setTimeout(() => {
+            subsub.classList.remove('open');
+            const chevSub = document.getElementById('chev-' + child.id);
+            if (chevSub) chevSub.classList.remove('open');
+          }, 150);
+        };
+        branchItem.addEventListener('mouseenter', _openHoverSub);
+        branchItem.addEventListener('mouseleave', _closeHoverSub);
+        subsub.addEventListener('mouseenter', () => clearTimeout(_hoverTimerSub));
+        subsub.addEventListener('mouseleave', _closeHoverSub);
+
+        for (const grand of child._visibleChildren) {
+          const gitem = document.createElement('div');
+          gitem.className = 'nav-sub-sub-item' + (_activeSubId === grand.id ? ' active' : '');
+          gitem.dataset.sub = grand.id;
+          if (collapsed) gitem.dataset.tooltip = grand.label;
+          gitem.innerHTML = `<span class="nav-icon-box">${grand.icon || '<span class="nav-sub-sub-dot"></span>'}</span><span class="nav-sub-sub-item-label">${grand.label}</span>`;
+          gitem.onclick = () => navigateTo(grand.id, grand.label, grand.loader, group.id, grand.page, child.id);
+          subsub.appendChild(gitem);
+        }
+        sub.appendChild(subsub);
+        continue;
+      }
       const item = document.createElement('div');
       item.className = 'nav-sub-item' + (_activeSubId === child.id ? ' active' : '');
       item.dataset.sub = child.id;
       if (collapsed) item.dataset.tooltip = child.label;
-      item.innerHTML = `<span style="display:flex;align-items:center;flex-shrink:0">${child.icon}</span><span class="nav-sub-item-label">${child.label}</span>`;
+      item.innerHTML = `<span class="nav-icon-box">${child.icon}</span><span class="nav-sub-item-label">${child.label}</span>`;
       item.onclick = () => navigateTo(child.id, child.label, child.loader, group.id, child.page);
       sub.appendChild(item);
     }
@@ -746,29 +843,37 @@ function buildSidebar() {
 }
 
 // Update highlight aktif & buka/tutup nav-sub TANPA rebuild DOM,
-// supaya transisi CSS (.nav-sub max-height, dsb) tetap kepakai halus —
+// supaya transisi CSS (.nav-sub max-height, dsb) tetap kepakai halus -
 // sebelumnya buildSidebar() dipanggil di sini yang bikin elemen baru
 // dengan class 'open' sudah nempel dari awal, jadi transisinya "kasar"/instan.
 function setSidebarActiveState() {
   const nav = document.getElementById('sidebarNav');
   if (!nav) return;
 
-  // Dashboard & item submenu: toggle .active sesuai _activeSubId
-  nav.querySelectorAll('.nav-item[data-sub], .nav-sub-item[data-sub]').forEach(el => {
+  // Dashboard & item submenu (termasuk level ke-3): toggle .active sesuai _activeSubId
+  nav.querySelectorAll('.nav-item[data-sub], .nav-sub-item[data-sub], .nav-sub-sub-item[data-sub]').forEach(el => {
     el.classList.toggle('active', el.dataset.sub === _activeSubId);
   });
 
-  // Group: toggle .has-active sesuai apakah ada child yang aktif
+  // Group level 1: toggle .has-active sesuai apakah ada child/grandchild yang aktif
   nav.querySelectorAll('.nav-item[data-group]').forEach(groupEl => {
     const gid = groupEl.dataset.group;
     const sub = document.getElementById('sub-' + gid);
-    const hasActive = !!(sub && sub.querySelector('.nav-sub-item.active'));
+    const hasActive = !!(sub && (sub.querySelector('.nav-sub-item.active') || sub.querySelector('.nav-sub-sub-item.active')));
     groupEl.classList.toggle('has-active', hasActive);
   });
 
-  // Buka/tutup nav-sub sesuai _openGroups — DOM lama dipertahankan,
+  // Sub-group level 2 (mis. "Standar Harga Satuan"): toggle .has-active sesuai item di dalamnya
+  nav.querySelectorAll('.nav-sub-item[data-subgroup]').forEach(branchEl => {
+    const bid = branchEl.dataset.subgroup;
+    const subsub = document.getElementById('sub-' + bid);
+    const hasActive = !!(subsub && subsub.querySelector('.nav-sub-sub-item.active'));
+    branchEl.classList.toggle('has-active', hasActive);
+  });
+
+  // Buka/tutup nav-sub & nav-sub-sub sesuai _openGroups - DOM lama dipertahankan,
   // jadi transisi max-height jalan mulus.
-  nav.querySelectorAll('.nav-sub').forEach(subEl => {
+  nav.querySelectorAll('.nav-sub, .nav-sub-sub').forEach(subEl => {
     const gid = subEl.id.replace('sub-', '');
     const shouldOpen = !!_openGroups[gid];
     subEl.classList.toggle('open', shouldOpen);
@@ -786,16 +891,24 @@ function toggleGroup(id) {
   setSidebarActiveState();
 }
 
+// Toggle sub-group (level ke-3, mis. "Standar Harga Satuan" di dalam menu e-Planning) -
+// beda dari toggleGroup(): TIDAK menutup group induk, cuma toggle sub-group ini sendiri.
+function toggleSubGroup(id) {
+  _openGroups[id] = !_openGroups[id];
+  setSidebarActiveState();
+}
+
 let _currentLoader = null;
 
-function navigateTo(subId, label, loader, groupId, pageId) {
+function navigateTo(subId, label, loader, groupId, pageId, subGroupId) {
   _activeSubId = subId;
   if (groupId) { _openGroups = {}; _openGroups[groupId] = true; }
+  if (subGroupId) { _openGroups[subGroupId] = true; }
 
   // Simpan posisi navigasi ke sessionStorage agar bisa di-restore saat refresh
   try {
     sessionStorage.setItem('sapa_nav', JSON.stringify({
-      subId, label, groupId: groupId || null, pageId: pageId || null
+      subId, label, groupId: groupId || null, pageId: pageId || null, subGroupId: subGroupId || null
     }));
   } catch(e) {}
 
@@ -1045,7 +1158,7 @@ document.getElementById('confirmOverlay').addEventListener('click', e => {
 function openModal(id)  { document.getElementById(id).classList.add('open'); }
 function closeModal(id) { document.getElementById(id).classList.remove('open'); }
 function esc(s) { return String(s||'').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
-function fmtDate(s) { if (!s) return '—'; const d = new Date(s); const tgl = d.toLocaleDateString('id-ID', {day:'2-digit',month:'short',year:'numeric',timeZone:'Asia/Makassar'}); const opt = {timeZone:'Asia/Makassar'}; const wita = new Date(d.toLocaleString('en-US', opt)); const hh = String(wita.getHours()).padStart(2,'0'); const mm = String(wita.getMinutes()).padStart(2,'0'); return `${tgl}, ${hh}:${mm} WITA`; }
+function fmtDate(s) { if (!s) return '-'; const d = new Date(s); const tgl = d.toLocaleDateString('id-ID', {day:'2-digit',month:'short',year:'numeric',timeZone:'Asia/Makassar'}); const opt = {timeZone:'Asia/Makassar'}; const wita = new Date(d.toLocaleString('en-US', opt)); const hh = String(wita.getHours()).padStart(2,'0'); const mm = String(wita.getMinutes()).padStart(2,'0'); return `${tgl}, ${hh}:${mm} WITA`; }
 
 // ── PAGINATION ───────────────────────────────────────────────────────────
 function renderPagination(containerId, total, page, limit, onPageChange) {
@@ -1114,7 +1227,7 @@ function _applyTopbarAvatar(fotoUrl) {
 // Ambil foto profil (join users.nip → pegawai.foto_url) dari server, cache
 // ringan di sessionStorage biar avatar nggak "kedip" balik ke inisial tiap
 // pindah halaman dalam sesi yang sama. Scope global (sama kayak
-// _applyTopbarAvatar) supaya bisa dipanggil juga dari doLogin() di app.html —
+// _applyTopbarAvatar) supaya bisa dipanggil juga dari doLogin() di app.html -
 // karena login itu SPA, gak reload halaman, jadi kode boot di dalam IIFE
 // app.js gak pernah kepanggil ulang.
 async function _bootRefreshFoto() {
@@ -1187,10 +1300,10 @@ async function _bootRefreshFoto() {
       buildSidebar();
       _applySidebarCollapse();
       _startPeriodeTimer();
-      // Reminder absen masuk/keluar — muncul otomatis kalau udah waktunya
+      // Reminder absensi masuk/keluar - muncul otomatis kalau udah waktunya
       // dan belum diisi, tanpa user perlu buka menu Absensi.
       if (typeof _cekAbsensiReminder === 'function') _cekAbsensiReminder();
-      // Notif pengajuan tugas luar/cuti pending — muncul otomatis buat
+      // Notif pengajuan tugas luar/cuti pending - muncul otomatis buat
       // admin/full begitu login, tanpa perlu buka menu Absensi dulu.
       if (typeof _cekPengajuanPendingReminder === 'function') _cekPengajuanPendingReminder();
 
@@ -1205,6 +1318,16 @@ async function _bootRefreshFoto() {
           if (onlyGroupId && g.id !== onlyGroupId) continue;
           if (g.adminOnly && !_user.is_admin) continue;
           for (const c of (g.children || [])) {
+            if (c.children) {
+              if (c.adminOnly && !_user.is_admin) continue;
+              for (const gc of c.children) {
+                const canAccessGc = !gc.adminOnly || _user.is_admin;
+                const keyOkGc     = !gc.key || hasAccess(gc.key);
+                const showOkGc    = !gc.showIf || gc.showIf();
+                if (canAccessGc && keyOkGc && showOkGc) return { child: gc, group: g, subGroup: c };
+              }
+              continue;
+            }
             const canAccess = !c.adminOnly || _user.is_admin;
             const keyOk     = !c.key || hasAccess(c.key);
             const showOk    = !c.showIf || c.showIf();
@@ -1217,7 +1340,7 @@ async function _bootRefreshFoto() {
       // Non-admin yang satu-satunya modul accessible-nya cuma "Kinerja" (nggak ada akses
       // Surat/Superlink/dll) → dipakai SEBAGAI FALLBACK doang kalau user memang nggak
       // punya akses ke Dashboard Utama. Kalau dia punya akses dashboard, dashboard tetap
-      // yang diutamakan — biar konsisten sama aturan "kalau ada akses dashboard, ke situ
+      // yang diutamakan - biar konsisten sama aturan "kalau ada akses dashboard, ke situ
       // dulu; baru kalau nggak ada, ke menu yang di-assign."
       const _onlyKinerjaAvailable = !_user.is_admin && (() => {
         const hasOtherModule = MENUS.some(g => {
@@ -1245,18 +1368,36 @@ async function _bootRefreshFoto() {
             // → biarkan fallback handler jalan
             _restored = false;
           } else if (nav.subId && nav.subId !== 'dashboard') {
+            let _found = false;
             for (const g of MENUS) {
-              const child = (g.children || []).find(c => c.id === nav.subId);
-              if (child) {
-                // Pastikan user masih punya akses ke menu ini
-                const canAccess = !child.adminOnly || _user.is_admin;
-                const keyOk     = !child.key || hasAccess(child.key);
-                const showOk    = !child.showIf || child.showIf();
-                if (canAccess && keyOk && showOk) {
-                  navigateTo(child.id, child.label, child.loader, g.id, child.page);
-                  _restored = true;
+              if (_found) break;
+              for (const child of (g.children || [])) {
+                if (child.id === nav.subId) {
+                  const canAccess = !child.adminOnly || _user.is_admin;
+                  const keyOk     = !child.key || hasAccess(child.key);
+                  const showOk    = !child.showIf || child.showIf();
+                  if (canAccess && keyOk && showOk) {
+                    navigateTo(child.id, child.label, child.loader, g.id, child.page);
+                    _restored = true;
+                  }
+                  _found = true;
+                  break;
                 }
-                break;
+                if (child.children) {
+                  const grand = child.children.find(gc => gc.id === nav.subId);
+                  if (grand) {
+                    const canAccessSub = !child.adminOnly || _user.is_admin;
+                    const canAccess = !grand.adminOnly || _user.is_admin;
+                    const keyOk     = !grand.key || hasAccess(grand.key);
+                    const showOk    = !grand.showIf || grand.showIf();
+                    if (canAccessSub && canAccess && keyOk && showOk) {
+                      navigateTo(grand.id, grand.label, grand.loader, g.id, grand.page, child.id);
+                      _restored = true;
+                    }
+                    _found = true;
+                    break;
+                  }
+                }
               }
             }
           }
@@ -1269,9 +1410,9 @@ async function _bootRefreshFoto() {
           // diutamakan Kinerja kalau itu satu-satunya modul yang dia punya
           const found = _onlyKinerjaAvailable ? _firstAccessibleChild('kinerja') : _firstAccessibleChild(null);
           if (found) {
-            navigateTo(found.child.id, found.child.label, found.child.loader, found.group.id, found.child.page);
+            navigateTo(found.child.id, found.child.label, found.child.loader, found.group.id, found.child.page, found.subGroup ? found.subGroup.id : null);
           } else {
-            // Tidak ada menu apapun — tampilkan pesan
+            // Tidak ada menu apapun - tampilkan pesan
             document.getElementById('mainContent').innerHTML =
               '<div style="padding:2rem;text-align:center;color:#6b7280;">Belum ada menu yang dapat diakses. Hubungi administrator.</div>';
           }
@@ -1548,7 +1689,7 @@ document.addEventListener('click', () => {
 });
 
 // ═══════════════════════════════════════════════════════════════════════════
-// DOC PREVIEW PANEL — viewDoc / viewDocMulti
+// DOC PREVIEW PANEL - viewDoc / viewDocMulti
 // Menggunakan #docPreviewPanel yang sudah ada di app.html.
 // File PDF    → PDF.js (render canvas lokal, tidak via iframe)
 // File Word   → mammoth.js (ArrayBuffer → HTML)
@@ -1595,7 +1736,7 @@ function _fixCloudinaryUrl(url, hintExt = '') {
   } catch { return url; }
 }
 
-// Proxy semua request file melalui /api/sign-url — menyertakan token di query string
+// Proxy semua request file melalui /api/sign-url - menyertakan token di query string
 // agar iframe dan img src yang tidak bisa kirim header Authorization tetap terautentikasi.
 // FIX: terima fileName sebagai parameter ke-3 agar ekstensi file tidak hilang.
 // Cloudinary menyimpan file non-gambar tanpa ekstensi di URL (public_id),
@@ -1614,7 +1755,7 @@ function _dpProxyUrl(rawUrl, mode = 'preview', fileName = '') {
   return `/api/sign-url?url=${encodeURIComponent(rawUrl)}&mode=${mode}${tokenParam}${nameParam}`;
 }
 
-// Handle error dari proxy — jangan logout, cukup tampilkan pesan error di preview
+// Handle error dari proxy - jangan logout, cukup tampilkan pesan error di preview
 // (401 di sini dari sign-url/storage, bukan sesi app user)
 async function _dpCheckProxy(resp) {
   // Handle redirect 302 dari sign-url (file terlalu besar untuk di-proxy → Cloudinary langsung)
@@ -1622,11 +1763,11 @@ async function _dpCheckProxy(resp) {
   // Karena kita fetch ke same-origin (/api/sign-url), redirect akan di-follow → resp.ok = true.
   // Jika entah bagaimana masuk sini dengan status 302, tangkap Location-nya.
   if (resp.status === 302 || resp.redirected) {
-    // resp.url berisi URL final setelah redirect — kembalikan sebagai resp palsu
+    // resp.url berisi URL final setelah redirect - kembalikan sebagai resp palsu
     return { ok: true, status: 200, _redirectUrl: resp.url, arrayBuffer: async () => null, headers: resp.headers };
   }
   if (resp.status === 401) {
-    // FIX: baca body 401 dari sign-url untuk debug — lihat console browser
+    // FIX: baca body 401 dari sign-url untuk debug - lihat console browser
     try {
       const debug = await resp.clone().json();
       console.error('[sign-url 401 debug]', JSON.stringify(debug));
@@ -1642,7 +1783,7 @@ async function _dpCheckProxy(resp) {
       // Jika bukan JSON atau sudah re-throw dari atas
       if (jsonErr.message && !jsonErr.message.includes('JSON')) throw jsonErr;
     }
-    throw new Error('Gagal mengakses file — link mungkin sudah kedaluwarsa. Coba download langsung.');
+    throw new Error('Gagal mengakses file - link mungkin sudah kedaluwarsa. Coba download langsung.');
   }
   return resp;
 }
@@ -1867,7 +2008,7 @@ function _dpRenderImage(url, name) {
   img.src = url;
 }
 
-// ── Renderer: PDF — S1: PDF.js canvas | S2: blob+iframe | S3: iframe langsung
+// ── Renderer: PDF - S1: PDF.js canvas | S2: blob+iframe | S3: iframe langsung
 async function _dpRenderPdf(proxyUrl, name, originalUrl) {
   const body     = document.getElementById('docPreviewBody');
   const gdocsBtn = document.getElementById('docPreviewGdocsBtn');
@@ -1932,7 +2073,7 @@ async function _dpRenderPdf(proxyUrl, name, originalUrl) {
       console.log('[PDF S1] Berhasil via Cloudinary langsung, size:', (buf1.byteLength/1024).toFixed(0), 'KB');
       return;
     } catch (e) {
-      console.warn('[PDF S1] Gagal fetch Cloudinary langsung:', e.message, '— coba proxy…');
+      console.warn('[PDF S1] Gagal fetch Cloudinary langsung:', e.message, '- coba proxy…');
     }
   }
 
@@ -1962,10 +2103,10 @@ async function _dpRenderPdf(proxyUrl, name, originalUrl) {
     console.log('[PDF S2] Berhasil via proxy, size:', (buf2.byteLength/1024).toFixed(0), 'KB');
     return;
   } catch (e) {
-    console.warn('[PDF S2] Gagal via proxy:', e.message, '— coba iframe blob…');
+    console.warn('[PDF S2] Gagal via proxy:', e.message, '- coba iframe blob…');
   }
 
-  // ── S3: Iframe blob — fetch proxy → Blob URL → iframe native viewer ──────
+  // ── S3: Iframe blob - fetch proxy → Blob URL → iframe native viewer ──────
   try {
     body.innerHTML = _dpLoadingHtml('Memuat PDF (mode native)…');
     const r3 = await fetch(proxyUrl, { redirect: 'follow' });
@@ -2072,7 +2213,7 @@ function _dpShowSheet(container, workbook, sheetName) {
   </div>`;
 }
 
-// ── Renderer: PPT/PPTX — tidak bisa lokal, tampilkan download ─────────────
+// ── Renderer: PPT/PPTX - tidak bisa lokal, tampilkan download ─────────────
 function _dpRenderPptFallback(downloadUrl, fileName) {
   const body = document.getElementById('docPreviewBody');
   body.style.background = '';
@@ -2165,7 +2306,7 @@ const LAP_JENIS_COLOR    = {
   program:  { bg:'#fef3c7', col:'#92400e', hdr:'#d97706', light:'#fffbeb' },
   kegiatan: { bg:'#fee2e2', col:'#991b1b', hdr:'#dc2626', light:'#fff5f5' },
 };
-// selectedId per level [tujuanId, sasaranId, programId] — null jika belum dipilih
+// selectedId per level [tujuanId, sasaranId, programId] - null jika belum dipilih
 let _lapCascadeSel = [null, null, null];
 // cache data per level: Map<parentId|'root', items[]>
 let _lapCascadeCache = {};
@@ -2195,7 +2336,7 @@ function switchLapMode(mode) {
 
 // ── Entry point (dipanggil saat tab Laporan dibuka) ───────────────────────
 async function loadLapTemplateAdmin() {
-  // Mode urusan — tabel sederhana
+  // Mode urusan - tabel sederhana
   const tbody = document.getElementById('lapTemplateBody');
   if (!tbody) return;
   tbody.innerHTML = `<tr class="empty-row"><td colspan="5"><span class="btn-spin" style="width:11px;height:11px;vertical-align:-1px;margin-right:6px"></span>Memuat data...</td></tr>`;
@@ -2246,7 +2387,7 @@ function _renderUrusanTable() {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-// CASCADE WATERFALL — Tujuan → Sasaran → Program → Kegiatan
+// CASCADE WATERFALL - Tujuan → Sasaran → Program → Kegiatan
 // ═══════════════════════════════════════════════════════════════════════════
 
 async function _initLapCascade() {
@@ -2405,7 +2546,7 @@ function _openCascadeEdit(level, id) {
 // ── Custom select untuk field Induk di modal TSP ──────────────────────────
 // Panel dirender floating position:fixed di document.body saat dibuka (bukan
 // position:absolute nested di wrap), biar gak ke-clip overflow-y:auto pada
-// .modal-body — sama pola dgn initIndikatorPJSearchable() di kinerja.js &
+// .modal-body - sama pola dgn initIndikatorPJSearchable() di kinerja.js &
 // buildCustomSelect() di app.html.
 function _buildLapParentCsel(wrapperId, opts, selectedVal, placeholder, jenisLabel) {
   const wrap = document.getElementById(wrapperId);
@@ -2438,7 +2579,7 @@ function _buildLapParentCsel(wrapperId, opts, selectedVal, placeholder, jenisLab
   `;
   wrap.appendChild(trigger);
 
-  // Panel — dibuat sekarang tapi baru di-append ke document.body saat dibuka
+  // Panel - dibuat sekarang tapi baru di-append ke document.body saat dibuka
   const panel = document.createElement('div');
   panel.className = 'csel-panel csel-panel-fixed';
   panel.style.display = 'none';
@@ -2517,7 +2658,7 @@ function _buildLapParentCsel(wrapperId, opts, selectedVal, placeholder, jenisLab
     if (!panel.contains(e.target) && !trigger.contains(e.target)) closePanel();
   };
   // Cek e.target: scroll DI DALAM panel sendiri (list opsi overflow-y:auto)
-  // gak boleh nutup panel — 'scroll' event gak bubble tapi tetap lewat capture
+  // gak boleh nutup panel - 'scroll' event gak bubble tapi tetap lewat capture
   // phase, jadi kalau gak dicek target-nya bakal ke-capture juga di sini.
   const scrollHandler = (e) => {
     if (panel.style.display === 'none') return;
@@ -2558,7 +2699,7 @@ function openLapTemplateModal(id = null, jenis = null, parentId = null, parentNa
   if (!isUrusan && level > 0) {
     parentDisplay.style.display = '';
     const parentJenis = LAP_CASCADE_LEVELS[level - 1];
-    _buildLapParentCsel('lapTemplateParentWrap', [], parentId, '— Memuat Induk —', LAP_JENIS_LABEL[parentJenis]);
+    _buildLapParentCsel('lapTemplateParentWrap', [], parentId, '- Memuat Induk -', LAP_JENIS_LABEL[parentJenis]);
     fetch(`/api/kinerja/laporan-template?jenis=${parentJenis}`, { headers: authHeaders() })
       .then(r => r.json())
       .then(data => {
@@ -2566,10 +2707,10 @@ function openLapTemplateModal(id = null, jenis = null, parentId = null, parentNa
           value: String(t.id),
           label: `${LAP_JENIS_LABEL[parentJenis]} ${i + 1}: ${t.nama}`
         }));
-        _buildLapParentCsel('lapTemplateParentWrap', opts, parentId ? String(parentId) : '', `— Pilih ${LAP_JENIS_LABEL[parentJenis]} —`, LAP_JENIS_LABEL[parentJenis]);
+        _buildLapParentCsel('lapTemplateParentWrap', opts, parentId ? String(parentId) : '', `- Pilih ${LAP_JENIS_LABEL[parentJenis]} -`, LAP_JENIS_LABEL[parentJenis]);
       })
       .catch(() => {
-        _buildLapParentCsel('lapTemplateParentWrap', [], '', '— Gagal memuat —', '');
+        _buildLapParentCsel('lapTemplateParentWrap', [], '', '- Gagal memuat -', '');
       });
   } else {
     parentDisplay.style.display = 'none';
@@ -2631,7 +2772,7 @@ async function saveLapTemplate() {
         if (!_lapCascadeCache[`${parentLevel}_${grandParentId ?? 'root'}`]) {
           await _loadCascadeLevel(parentLevel, grandParentId);
         }
-        // Simulasikan klik parent baru — otomatis handle highlight + reload child
+        // Simulasikan klik parent baru - otomatis handle highlight + reload child
         await _selectCascadeItem(level - 1, newParentId);
       } else {
         // Parent sama, reload kolom ini saja
@@ -2674,7 +2815,7 @@ async function deleteLapTemplate(id, nama, mode = 'urusan', cascadeLevel = null)
 async function openLapTemplateIndikatorModal(templateId, templateNama, templateJenis) {
   _lapTplCurrentTemplateId = templateId;
   _lapTplSelectedIds = new Set();
-  document.getElementById('modalLapTemplateIndTitle').textContent = `Indikator — ${templateNama}`;
+  document.getElementById('modalLapTemplateIndTitle').textContent = `Indikator - ${templateNama}`;
   document.getElementById('modalLapTemplateIndSub').textContent = templateJenis === 'urusan' ? 'Template Urusan' : 'Template Tujuan/Sasaran/Program';
   document.getElementById('lapTplIndSearch').value = '';
   document.getElementById('lapTplIndFilterJenis').value = '';

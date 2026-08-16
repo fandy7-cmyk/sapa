@@ -1,6 +1,6 @@
-// Format tanggal tanpa jam — misal: 04 Jun 2026
+// Format tanggal tanpa jam - misal: 04 Jun 2026
 function fmtDateOnly(val) {
-  if (!val) return '—';
+  if (!val) return '-';
   const d = new Date(val);
   if (isNaN(d)) return val;
   return d.toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' });
@@ -21,7 +21,7 @@ function _smStatCard(label, value, color, iconPath) {
 
 // ── Render badge / tombol dokumen di kolom tabel (multi-file aware) ────────
 function renderDocsBadge(fileUrlRaw, label) {
-  if (!fileUrlRaw) return '<span style="color:var(--teks-muted)">—</span>';
+  if (!fileUrlRaw) return '<span style="color:var(--teks-muted)">-</span>';
   let files = [];
   try {
     const parsed = JSON.parse(fileUrlRaw);
@@ -29,7 +29,7 @@ function renderDocsBadge(fileUrlRaw, label) {
   } catch {
     files = [{ url: fileUrlRaw, name: 'Dokumen' }];
   }
-  if (!files.length) return '<span style="color:var(--teks-muted)">—</span>';
+  if (!files.length) return '<span style="color:var(--teks-muted)">-</span>';
   if (files.length === 1) {
     return `<span style="display:inline-flex;align-items:center;gap:3px">
       <button class="btn btn-ghost btn-sm" data-tip="Lihat Dokumen" onclick="viewDocMulti([{url:decodeURIComponent('${encodeURIComponent(files[0].url)}'),name:decodeURIComponent('${encodeURIComponent(files[0].name||'')}')}],0,decodeURIComponent('${encodeURIComponent(label||'')}'))">
@@ -37,7 +37,7 @@ function renderDocsBadge(fileUrlRaw, label) {
       </button>
     </span>`;
   }
-  // Multiple files — langsung buka modal preview dengan navigasi (sama seperti kinerja)
+  // Multiple files - langsung buka modal preview dengan navigasi (sama seperti kinerja)
   const filesJson = encodeURIComponent(JSON.stringify(files));
   const labelJson = encodeURIComponent(label || '');
   return `<span style="display:inline-flex;align-items:center;gap:3px">
@@ -83,7 +83,7 @@ async function deleteDocBadge(btn, fileUrlRaw) {
   });
   if (!ok) return;
 
-  // Update DB — fetch data lengkap dulu, lalu PUT dengan semua field + file_url/file_name = null
+  // Update DB - fetch data lengkap dulu, lalu PUT dengan semua field + file_url/file_name = null
   try {
     const apiBase = isSM ? '/api/surat-masuk' : '/api/surat-keluar';
     const rGet = await fetch(`${apiBase}?limit=1000`, { headers: authHeaders() });
@@ -136,7 +136,7 @@ async function deleteDocBadge(btn, fileUrlRaw) {
 
     // Re-render kolom dokumen di baris ini saja (tanpa reload full)
     const docsCell = tr.querySelectorAll('td')[isSM ? 8 : 6];
-    if (docsCell) docsCell.innerHTML = '<span style="color:var(--teks-muted)">—</span>';
+    if (docsCell) docsCell.innerHTML = '<span style="color:var(--teks-muted)">-</span>';
   } catch (err) { toast('Error: ' + err.message, 'error'); }
 }
 
@@ -279,13 +279,13 @@ async function loadSuratMasuk(page = 1) {
       <tr>
         <td>${smOffset + idx + 1}</td>
         <td>${esc(s.asal_surat)}</td>
-        <td>${s.no_surat ? esc(s.no_surat) : '—'}</td>
-        <td>${s.tanggal_surat ? fmtDateOnly(s.tanggal_surat) : '—'}</td>
+        <td>${s.no_surat ? esc(s.no_surat) : '-'}</td>
+        <td>${s.tanggal_surat ? fmtDateOnly(s.tanggal_surat) : '-'}</td>
         <td>${esc(s.perihal)}</td>
         <td>${fmtDateOnly(s.tanggal_terima)}</td>
-        <td>${s.batas_waktu ? `<span style="white-space:nowrap">${fmtDateOnly(s.batas_waktu)}</span>` : '—'}</td>
-        <td>${s.pegawai ? esc(s.pegawai) : '—'}</td>
-        <td style="text-align:center">${renderDocsBadge(s.file_url, 'Surat Masuk — ' + (s.perihal||''))}</td>
+        <td>${s.batas_waktu ? `<span style="white-space:nowrap">${fmtDateOnly(s.batas_waktu)}</span>` : '-'}</td>
+        <td>${s.pegawai ? esc(s.pegawai) : '-'}</td>
+        <td style="text-align:center">${renderDocsBadge(s.file_url, 'Surat Masuk - ' + (s.perihal||''))}</td>
         <td>
           ${(() => {
             const isTerlambat = !s.selesai && s.batas_waktu && new Date(s.batas_waktu) < new Date();
@@ -335,7 +335,7 @@ function renderPegawaiOptions(selectedNama) {
   const opts = _smPegawaiList.map(u =>
     `<option value="${esc(u.nama)}" ${u.nama === selectedNama ? 'selected' : ''}>${esc(u.nama)}</option>`
   ).join('');
-  return `<option value="">— Pilih Pegawai —</option>` + opts;
+  return `<option value="">- Pilih Pegawai -</option>` + opts;
 }
 
 async function openSMModal() {
@@ -456,14 +456,14 @@ async function loadSuratKeluar(page = 1) {
       <tr>
         <td>${skOffset + idx + 1}</td>
         <td>${esc(s.tujuan_surat)}</td>
-        <td>${s.no_surat ? esc(s.no_surat) : '—'}</td>
-        <td>${s.tanggal_surat ? fmtDateOnly(s.tanggal_surat) : '—'}</td>
+        <td>${s.no_surat ? esc(s.no_surat) : '-'}</td>
+        <td>${s.tanggal_surat ? fmtDateOnly(s.tanggal_surat) : '-'}</td>
         <td>${esc(s.perihal)}</td>
-        <td>${s.pegawai ? esc(s.pegawai) : '—'}</td>
-        <td style="text-align:center">${renderDocsBadge(s.file_url, 'Surat Keluar — ' + (s.perihal||''))}</td>
+        <td>${s.pegawai ? esc(s.pegawai) : '-'}</td>
+        <td style="text-align:center">${renderDocsBadge(s.file_url, 'Surat Keluar - ' + (s.perihal||''))}</td>
         <td style="white-space:nowrap">
           ${(isFull || s.created_by === (_user && _user.id)) ? `<button class="btn btn-ghost btn-sm" data-tip="Edit" onclick="editSK(${s.id})"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg></button>
-          <button class="btn-hapus" data-tip="Hapus" onclick="deleteSK(${s.id})"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path stroke-linecap="round" stroke-linejoin="round" d="M19 6l-1 14H6L5 6"/><path stroke-linecap="round" stroke-linejoin="round" d="M10 11v6m4-6v6"/><path stroke-linecap="round" stroke-linejoin="round" d="M9 6V4h6v2"/></svg></button>` : '<span style="color:var(--teks-muted)">—</span>'}
+          <button class="btn-hapus" data-tip="Hapus" onclick="deleteSK(${s.id})"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path stroke-linecap="round" stroke-linejoin="round" d="M19 6l-1 14H6L5 6"/><path stroke-linecap="round" stroke-linejoin="round" d="M10 11v6m4-6v6"/><path stroke-linecap="round" stroke-linejoin="round" d="M9 6V4h6v2"/></svg></button>` : '<span style="color:var(--teks-muted)">-</span>'}
         </td>
       </tr>`).join('')
       : '<tr class="empty-row"><td colspan="8">Tidak ada data</td></tr>';
@@ -547,10 +547,10 @@ async function deleteSK(id) {
   toast('Surat berhasil dihapus'); loadSuratKeluar(_skPage);
 }
 // ═══════════════════════════════════════════════════════════════════════════
-// UPLOAD BUKTI DOKUMEN — MULTI-FILE helper functions
+// UPLOAD BUKTI DOKUMEN - MULTI-FILE helper functions
 // ═══════════════════════════════════════════════════════════════════════════
 
-// State upload per prefix ('sm' | 'sk') — files adalah array [{url, name}]
+// State upload per prefix ('sm' | 'sk') - files adalah array [{url, name}]
 const _uploadState = {};
 
 function _getUploadState(prefix) {
@@ -558,7 +558,7 @@ function _getUploadState(prefix) {
   return _uploadState[prefix];
 }
 
-/* ── Tab switcher — no-op, tab link sudah dihapus ── */
+/* ── Tab switcher - no-op, tab link sudah dihapus ── */
 function switchUploadTab(prefix, tab) { /* tidak digunakan lagi */ }
 
 /* ── Reset semua state upload (saat buka modal baru) ── */
@@ -574,11 +574,11 @@ function resetUploadArea(prefix) {
   if (area) area.classList.remove('drag-over');
 }
 
-/* ── Tampilkan file yang sudah ada (saat edit) — mendukung JSON array atau single URL lama ── */
+/* ── Tampilkan file yang sudah ada (saat edit) - mendukung JSON array atau single URL lama ── */
 function setExistingFile(prefix, fileUrlRaw, fileNameRaw) {
   if (!fileUrlRaw) return;
   const state = _getUploadState(prefix);
-  // Coba parse JSON array [{url,name},...] — format baru
+  // Coba parse JSON array [{url,name},...] - format baru
   let files = [];
   try {
     const parsed = JSON.parse(fileUrlRaw);
@@ -593,7 +593,7 @@ function setExistingFile(prefix, fileUrlRaw, fileNameRaw) {
   _renderFileList(prefix);
 }
 
-/* ── Getter untuk saveSM/saveSK — mengembalikan JSON string array ── */
+/* ── Getter untuk saveSM/saveSK - mengembalikan JSON string array ── */
 function getUploadUrl(prefix) {
   const state = _getUploadState(prefix);
   if (!state.files.length) return null;
@@ -695,7 +695,7 @@ function _showBatchUploadToast(results) {
   }
 }
 
-/* ── File input change — support multiple ── */
+/* ── File input change - support multiple ── */
 async function handleFileSelect(e, prefix) {
   const files = Array.from(e.target.files || []);
   e.target.value = ''; // reset agar bisa pilih file yang sama lagi
@@ -778,7 +778,7 @@ async function removeUploadedFile(prefix, idx) {
     if (ok) {
       toast('File berhasil dihapus dari server');
     } else {
-      toast('File dihapus dari daftar (hapus Cloudinary gagal — cek console)', 'error');
+      toast('File dihapus dari daftar (hapus Cloudinary gagal - cek console)', 'error');
     }
   } else {
     toast('File dihapus');

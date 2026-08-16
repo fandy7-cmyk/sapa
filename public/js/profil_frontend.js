@@ -1,5 +1,5 @@
 // js/profil_frontend.js
-// Kelola Profil Instansi — Tugas & Fungsi + Kontak/Lokasi — admin only
+// Kelola Profil Instansi - Tugas & Fungsi + Kontak/Lokasi - admin only
 
 'use strict';
 

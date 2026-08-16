@@ -12,7 +12,7 @@
 
 import { v2 as cloudinary }        from 'cloudinary';
 import { requireAuth }              from './_auth.js';
-import { jsonResponse, errorResponse } from './_db.js';
+import { jsonResponse, errorResponse, getDb } from './_db.js';
 
 cloudinary.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
@@ -21,7 +21,7 @@ cloudinary.config({
   secure:     true,
 });
 
-// Struktur folder Cloudinary per kategori — sebelumnya semua upload (surat
+// Struktur folder Cloudinary per kategori - sebelumnya semua upload (surat
 // maupun data dukung kinerja) numpuk jadi satu di folder 'surat-dinkes'.
 // Sekarang dipisah per modul supaya gampang di-audit di Media Library.
 // 'kategori' dikirim dari frontend (kinerja.js / surat.js); kalau tidak
@@ -34,6 +34,7 @@ const FOLDER_MAP = {
   surat_masuk:  'SAPA/Surat/Surat Masuk',
   absensi:      'SAPA/Absensi',
   foto_profil:  'SAPA/Foto Profil',
+  eplanning:    'SAPA/E-Planning',
 };
 const DEFAULT_FOLDER = 'SAPA';
 
@@ -50,7 +51,7 @@ const ALLOWED_TYPES = {
   'image/webp':  'webp',
 };
 
-// JANGAN pakai resource_type:'auto' — Cloudinary kadang simpan PDF sebagai 'image'
+// JANGAN pakai resource_type:'auto' - Cloudinary kadang simpan PDF sebagai 'image'
 // sehingga URL jadi /image/upload/ dan fetch gagal 401.
 // Paksa eksplisit: non-gambar → 'raw', gambar → 'image'.
 const IMAGE_MIMES = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/gif']);
@@ -92,7 +93,22 @@ export const handler = async (event) => {
       return errorResponse('File tidak ditemukan dalam request', 400);
     }
 
-    const folder = FOLDER_MAP[fields.kategori] || DEFAULT_FOLDER;
+    // E-Planning dipecah lagi per Unit Kerja (bidang) masing-masing user, jadi
+    // foldernya SAPA/E-Planning/<Unit Kerja>, bukan numpuk semua bidang jadi satu.
+    // bidang_nama diambil dari DB pakai auth.id (bukan dari field yg dikirim
+    // client) supaya gak bisa dipalsukan/di-spoof lewat FormData.
+    let folder = FOLDER_MAP[fields.kategori] || DEFAULT_FOLDER;
+    if (fields.kategori === 'eplanning') {
+      const sql = getDb();
+      const rows = await sql`
+        SELECT b.nama AS bidang_nama
+        FROM users u LEFT JOIN bidang b ON b.id = u.bidang_id
+        WHERE u.id = ${auth.id}
+      `;
+      const bidangNama = (rows[0]?.bidang_nama || 'Umum').trim();
+      const safeBidang = bidangNama.replace(/[\/\\]+/g, '-').slice(0, 80) || 'Umum';
+      folder = `SAPA/E-Planning/${safeBidang}`;
+    }
 
     // ── Validasi ───────────────────────────────────────────────────────────
     if (fileBuffer.length > MAX_SIZE_MB * 1024 * 1024) {
@@ -140,7 +156,7 @@ export const handler = async (event) => {
 };
 
 // ═══════════════════════════════════════════════════════════════════════════
-// MULTIPART PARSER — tanpa dependency tambahan
+// MULTIPART PARSER - tanpa dependency tambahan
 // ═══════════════════════════════════════════════════════════════════════════
 function parseMultipart(buffer, boundary) {
   const result = { fileBuffer: null, fileName: 'file', mimeType: 'application/octet-stream', fields: {} };
@@ -169,7 +185,7 @@ function parseMultipart(buffer, boundary) {
     const typeMatch = headerStr.match(/Content-Type:\s*([^\r\n]+)/i);
 
     if (dispMatch) {
-      // Part file — JANGAN break di sini. Field lain (mis. 'kategori') bisa
+      // Part file - JANGAN break di sini. Field lain (mis. 'kategori') bisa
       // saja diletakkan setelah 'file' di FormData, jadi tetap lanjut scan
       // supaya semua field kebaca terlepas dari urutannya.
       result.fileName   = dispMatch[1];

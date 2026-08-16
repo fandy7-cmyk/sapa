@@ -35,7 +35,7 @@ function _formatAlamatTomTom(addr) {
   if (!addr) return null;
   const parts = [];
 
-  // Kecamatan — municipalitySubdivision biasanya level kecamatan/kelurahan.
+  // Kecamatan - municipalitySubdivision biasanya level kecamatan/kelurahan.
   // Kalau kosong, fallback ke municipality (di beberapa daerah TomTom cuma
   // ngasih data sampai level ini, mis. kecamatan-kecamatan di Banggai Laut).
   const kecamatanRaw = addr.municipalitySubdivision || addr.municipality;
@@ -43,7 +43,7 @@ function _formatAlamatTomTom(addr) {
     parts.push(_labelWilayah(kecamatanRaw, 'Kecamatan', 'kecamatan'));
   }
 
-  // Kabupaten / Kota — countrySecondarySubdivision adalah level county/regency
+  // Kabupaten / Kota - countrySecondarySubdivision adalah level county/regency
   // yang sesuai sama hierarki resmi TomTom (municipality itu setingkat kota/
   // kecamatan, BUKAN kabupaten).
   // municipality cuma dipakai sbg fallback kalau countrySecondarySubdivision kosong.

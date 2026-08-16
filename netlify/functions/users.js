@@ -17,7 +17,7 @@ const DEFAULT_PASSWORD = 'Balut2026';
 export const handler = async (event) => {
   if (event.httpMethod === 'OPTIONS') return jsonResponse({});
 
-  // Cek auth dasar — endpoint tertentu butuh admin
+  // Cek auth dasar - endpoint tertentu butuh admin
   const auth = requireAuth(event);
   if (!auth) return errorResponse('Unauthorized', 401);
 
@@ -32,7 +32,7 @@ export const handler = async (event) => {
   const isPerencanaan = segments[0] === 'perencanaan';
   const userId = segments[0] && !isNaN(segments[0]) ? parseInt(segments[0]) : null;
 
-  // ── GET /api/users/perencanaan — semua user terautentikasi boleh akses ──
+  // ── GET /api/users/perencanaan - semua user terautentikasi boleh akses ──
   if (event.httpMethod === 'GET' && isPerencanaan) {
     try {
       const rows = await sql`
@@ -49,7 +49,7 @@ export const handler = async (event) => {
     }
   }
 
-  // ── GET /api/users/:id/indikator — user boleh fetch indikator miliknya sendiri ──
+  // ── GET /api/users/:id/indikator - user boleh fetch indikator miliknya sendiri ──
   if (event.httpMethod === 'GET' && userId && segments[1] === 'indikator') {
     if (auth.id !== userId && !auth.is_admin) return errorResponse('Unauthorized', 401);
     try {
@@ -63,7 +63,7 @@ export const handler = async (event) => {
     }
   }
 
-  // ── GET /api/users/:id/foto — user boleh fetch foto profil miliknya sendiri.
+  // ── GET /api/users/:id/foto - user boleh fetch foto profil miliknya sendiri.
   // Prioritas: avatar_url yang di-upload sendiri oleh user > foto_url resmi
   // dari data Pegawai (join lewat NIP, dikelola admin di halaman Struktur).
   if (event.httpMethod === 'GET' && userId && segments[1] === 'foto') {
@@ -85,7 +85,7 @@ export const handler = async (event) => {
     }
   }
 
-  // ── PUT /api/users/:id/avatar — user upload/hapus foto profil sendiri
+  // ── PUT /api/users/:id/avatar - user upload/hapus foto profil sendiri
   // (kolom avatar_url terpisah dari pegawai.foto_url yang dikelola admin) ──
   if (event.httpMethod === 'PUT' && userId && segments[1] === 'avatar') {
     if (auth.id !== userId && !auth.is_admin) return errorResponse('Unauthorized', 401);
@@ -131,7 +131,7 @@ export const handler = async (event) => {
     }
   }
 
-  // ── PUT /api/users/urutan-laporan — admin atur urutan manual pegawai
+  // ── PUT /api/users/urutan-laporan - admin atur urutan manual pegawai
   // buat Laporan Absensi (PDF), gantiin sortir A-Z default ──
   if (event.httpMethod === 'PUT' && !userId && segments[0] === 'urutan-laporan') {
     const { order } = parseBody(event);
@@ -313,7 +313,7 @@ export const handler = async (event) => {
         detail: { target_nama: check[0].nama, target_email: check[0].email, sesi_dicabut: revoked.length }
       });
       // Catatan: access token (JWT) yang sudah terlanjur terbit tetap valid
-      // sampai masa berlakunya habis (maks. 1 jam) — ini bukan revoke instan,
+      // sampai masa berlakunya habis (maks. 1 jam) - ini bukan revoke instan,
       // tapi user tidak akan bisa memperpanjang sesi lewat refresh token lagi.
       return jsonResponse({ ok: true, sesi_dicabut: revoked.length });
     } catch (err) {

@@ -1,5 +1,5 @@
 // js/audit_frontend.js
-// Audit Trail — log login & aksi sistem — admin only
+// Audit Trail - log login & aksi sistem - admin only
 
 'use strict';
 
@@ -69,7 +69,7 @@ function _initAuditFilters() {
   _auditFiltersBound = true;
 }
 
-// Rebuild dropdown "Semua Aksi" — hanya tampilkan aksi yang benar-benar ada di data.
+// Rebuild dropdown "Semua Aksi" - hanya tampilkan aksi yang benar-benar ada di data.
 // "Semua Aksi" sendiri cuma ditampilkan kalau aksinya lebih dari 1 macam.
 async function buildAuditAksiFilter() {
   const sel = document.getElementById('auditFilterAksi');
@@ -128,30 +128,30 @@ async function loadAuditTrail(page = _auditPage) {
 }
 
 function _auditDetailText(aksi, detail) {
-  if (!detail) return '—';
+  if (!detail) return '-';
   switch (aksi) {
     case 'login_failed':
       return detail.reason === 'email_not_found' ? 'Email tidak terdaftar'
            : detail.reason === 'wrong_password'  ? 'Password salah'
-           : '—';
+           : '-';
     case 'create':
     case 'update':
-      return [detail.no_agenda, detail.perihal].filter(Boolean).join(' — ') || '—';
+      return [detail.no_agenda, detail.perihal].filter(Boolean).join(' - ') || '-';
     case 'delete':
-      return [detail.no_agenda, detail.perihal || detail.asal_surat || detail.tujuan_surat].filter(Boolean).join(' — ') || '—';
+      return [detail.no_agenda, detail.perihal || detail.asal_surat || detail.tujuan_surat].filter(Boolean).join(' - ') || '-';
     case 'update_status':
       return detail.selesai ? 'Ditandai selesai' : 'Ditandai belum selesai';
     case 'create_user':
     case 'update_user':
-      return [detail.nama, detail.email].filter(Boolean).join(' — ') || '—';
+      return [detail.nama, detail.email].filter(Boolean).join(' - ') || '-';
     case 'update_permissions':
-      return Array.isArray(detail.permissions) ? `${detail.permissions.length} hak akses` : '—';
+      return Array.isArray(detail.permissions) ? `${detail.permissions.length} hak akses` : '-';
     case 'update_indikator':
-      return Array.isArray(detail.indikator_ids) ? `${detail.indikator_ids.length} indikator` : '—';
+      return Array.isArray(detail.indikator_ids) ? `${detail.indikator_ids.length} indikator` : '-';
     case 'force_logout':
-      return detail.target_nama ? `${detail.target_nama} — ${detail.sesi_dicabut ?? 0} sesi dicabut` : '—';
+      return detail.target_nama ? `${detail.target_nama} - ${detail.sesi_dicabut ?? 0} sesi dicabut` : '-';
     default:
-      return '—';
+      return '-';
   }
 }
 
@@ -167,10 +167,10 @@ function _lokasiIsAkurat(lokasi) {
 
 function _lokasiAkuratIcon(akurat) {
   if (akurat) {
-    // setara gps_fixed (Material) — crosshair + titik tengah = lokasi terkunci dari GPS
+    // setara gps_fixed (Material) - crosshair + titik tengah = lokasi terkunci dari GPS
     return `<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="#16a34a" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0" data-tip="Lokasi akurat (GPS perangkat)"><line x1="2" y1="12" x2="5" y2="12"/><line x1="19" y1="12" x2="22" y2="12"/><line x1="12" y1="2" y2="5" x2="12"/><line x1="12" y1="19" x2="12" y2="22"/><circle cx="12" cy="12" r="7"/><circle cx="12" cy="12" r="3"/></svg>`;
   }
-  // setara location_searching (Material) — crosshair tanpa titik tengah = masih mencari/perkiraan
+  // setara location_searching (Material) - crosshair tanpa titik tengah = masih mencari/perkiraan
   return `<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="#d97706" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0" data-tip="Lokasi perkiraan dari IP, bisa kurang akurat"><line x1="2" y1="12" x2="5" y2="12"/><line x1="19" y1="12" x2="22" y2="12"/><line x1="12" y1="2" y2="5" x2="12"/><line x1="12" y1="19" x2="12" y2="22"/><circle cx="12" cy="12" r="7"/></svg>`;
 }
 
@@ -190,18 +190,18 @@ function renderAuditTrailTable(logs) {
     }) + ' WITA';
     const detail = l.detail ? (typeof l.detail === 'string' ? JSON.parse(l.detail) : l.detail) : null;
     const detailText = _auditDetailText(l.aksi, detail);
-    const lokasiText = l.lokasi || '—';
+    const lokasiText = l.lokasi || '-';
     const lokasiIcon = l.lokasi ? _lokasiAkuratIcon(_lokasiIsAkurat(l.lokasi)) : '';
     return `
       <tr>
         <td style="font-size:.8rem;color:var(--teks-muted);white-space:nowrap">${waktu}</td>
         <td>
-          <div style="font-weight:600;color:var(--teks)">${esc(l.nama || '—')}</div>
-          <div style="font-size:.76rem;color:var(--teks-muted)">${esc(l.email || '—')}</div>
+          <div style="font-weight:600;color:var(--teks)">${esc(l.nama || '-')}</div>
+          <div style="font-size:.76rem;color:var(--teks-muted)">${esc(l.email || '-')}</div>
         </td>
         <td>${_auditAksiBadge(l.aksi)}</td>
         <td style="font-size:.8rem;color:var(--teks-muted)">${esc(detailText)}</td>
-        <td style="font-size:.8rem;color:var(--teks-muted)">${esc(l.ip_address || '—')}</td>
+        <td style="font-size:.8rem;color:var(--teks-muted)">${esc(l.ip_address || '-')}</td>
         <td style="font-size:.8rem;color:var(--teks-muted)"><span style="display:inline-flex;align-items:center;gap:5px">${lokasiIcon}${esc(lokasiText)}</span></td>
       </tr>`;
   }).join('');

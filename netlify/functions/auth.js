@@ -19,7 +19,7 @@ export const handler = async (event) => {
     const { nip, password, lokasi } = parseBody(event);
     if (!nip || !password) return errorResponse('Username dan password wajib diisi', 400);
 
-    // NIP tetap string (bukan number) — bisa punya leading zero & panjangnya tetap (18 digit)
+    // NIP tetap string (bukan number) - bisa punya leading zero & panjangnya tetap (18 digit)
     const nipNorm = String(nip).trim();
     const { ip } = getReqMeta(event);
 
@@ -86,7 +86,7 @@ export const handler = async (event) => {
     }
   }
 
-  // ── REFRESH — tukar refresh token dengan access token baru (rotasi) ──────
+  // ── REFRESH - tukar refresh token dengan access token baru (rotasi) ──────
   if (event.httpMethod === 'POST' && path === '/refresh') {
     const { refresh_token } = parseBody(event);
     if (!refresh_token) return errorResponse('Refresh token wajib diisi', 400);
@@ -128,7 +128,7 @@ export const handler = async (event) => {
     }
   }
 
-  // ── LOGOUT — revoke refresh token milik sesi ini saja ─────────────────
+  // ── LOGOUT - revoke refresh token milik sesi ini saja ─────────────────
   if (event.httpMethod === 'POST' && path === '/logout') {
     const { refresh_token } = parseBody(event);
     if (refresh_token) {
@@ -140,7 +140,7 @@ export const handler = async (event) => {
     return jsonResponse({ ok: true });
   }
 
-  // ── LOGOUT-ALL — revoke semua refresh token milik user (semua device) ──
+  // ── LOGOUT-ALL - revoke semua refresh token milik user (semua device) ──
   if (event.httpMethod === 'POST' && path === '/logout-all') {
     const auth = requireAuth(event);
     if (!auth) return errorResponse('Unauthorized', 401);

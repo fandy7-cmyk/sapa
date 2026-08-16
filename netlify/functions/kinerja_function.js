@@ -15,10 +15,10 @@ function parseDukungUrls(raw) {
 }
 
 // Best-effort: hapus file Cloudinary yang sudah tidak dipakai lagi (diganti/dihapus).
-// WAJIB di-await oleh caller — kalau fire-and-forget, Netlify Function bisa
+// WAJIB di-await oleh caller - kalau fire-and-forget, Netlify Function bisa
 // freeze begitu response dikirim balik, dan request destroy ke Cloudinary
 // keputus di tengah jalan sebelum sempat selesai (file tetap nyangkut).
-// Tidak pernah throw — kegagalan Cloudinary tidak boleh menggagalkan operasi DB.
+// Tidak pernah throw - kegagalan Cloudinary tidak boleh menggagalkan operasi DB.
 async function cleanupOldDukungFiles(oldUrls, newUrls) {
   const keep = new Set(newUrls);
   const toDelete = oldUrls.filter(u => !keep.has(u));
@@ -60,7 +60,7 @@ export const handler = async (event) => {
 
   // Auto-migrate: kolom tipe_perhitungan di kinerja_indikator.
   // Dijalankan di sini (top-level, sebelum routing) supaya SEMUA endpoint
-  // (rekap, realisasi, indikator, dll) aman memakai kolom ini — bukan cuma /jenis-kinerja.
+  // (rekap, realisasi, indikator, dll) aman memakai kolom ini - bukan cuma /jenis-kinerja.
   try {
     await sql`
       ALTER TABLE kinerja_indikator
@@ -77,7 +77,7 @@ export const handler = async (event) => {
     const auth = requireAuth(event);
     if (!auth) return errorResponse('Unauthorized', 401);
 
-    // GET — semua yang login bisa baca (untuk dropdown di modal indikator)
+    // GET - semua yang login bisa baca (untuk dropdown di modal indikator)
     if (event.httpMethod === 'GET') {
       try {
         const rows = await sql`
@@ -144,11 +144,11 @@ export const handler = async (event) => {
   }
 
   // ─────────────────────────────────────────────────────────────────────────────
-  // JENIS KINERJA  —  /api/kinerja/jenis-kinerja
+  // JENIS KINERJA  -  /api/kinerja/jenis-kinerja
   // GET    → semua yang login bisa baca
-  // POST   → admin only — tambah jenis baru
-  // PUT    /jenis-kinerja/:id → admin only — edit
-  // DELETE /jenis-kinerja/:id → admin only — hapus (cek dulu apakah masih dipakai)
+  // POST   → admin only - tambah jenis baru
+  // PUT    /jenis-kinerja/:id → admin only - edit
+  // DELETE /jenis-kinerja/:id → admin only - hapus (cek dulu apakah masih dipakai)
   // ─────────────────────────────────────────────────────────────────────────────
   if (sub === 'jenis-kinerja') {
     const auth = requireAuth(event);
@@ -307,7 +307,7 @@ export const handler = async (event) => {
   // INDIKATOR
   // ─────────────────────────────────────────────────────────────────────────────
   if (sub === 'indikator') {
-    // GET — semua yang login bisa baca
+    // GET - semua yang login bisa baca
     if (event.httpMethod === 'GET') {
       const auth = requireAuth(event);
       if (!auth) return errorResponse('Unauthorized', 401);
@@ -625,7 +625,7 @@ export const handler = async (event) => {
       try {
         // Ambil data_dukung_url lama SEBELUM upsert, supaya bisa dibandingkan
         // dan file yang sudah tidak dipakai (diganti/dihapus) ikut dibersihkan
-        // dari Cloudinary — sebelumnya file lama numpuk selamanya di sana.
+        // dari Cloudinary - sebelumnya file lama numpuk selamanya di sana.
         let oldDukungUrls = [];
         if (clear_data_dukung || data_dukung_url !== undefined) {
           const existing = await sql`
@@ -710,7 +710,7 @@ export const handler = async (event) => {
   }
 
   // ─────────────────────────────────────────────────────────────────────────────
-  // REKAP/TAHUN-LIST — daftar distinct tahun yang punya data realisasi
+  // REKAP/TAHUN-LIST - daftar distinct tahun yang punya data realisasi
   // (harus dicek SEBELUM blok 'rekap' biasa, karena keduanya sama-sama
   //  punya sub === 'rekap'; bedanya cuma di segments[1])
   // ─────────────────────────────────────────────────────────────────────────────
@@ -728,7 +728,7 @@ export const handler = async (event) => {
   }
 
   // ─────────────────────────────────────────────────────────────────────────────
-  // REKAP — join group + indikator + realisasi
+  // REKAP - join group + indikator + realisasi
   // ─────────────────────────────────────────────────────────────────────────────
   if (sub === 'rekap') {
     const auth = requireAuth(event);
@@ -1821,7 +1821,7 @@ export const handler = async (event) => {
   }
 
   // ─────────────────────────────────────────────────────────────────────────────
-  // STATS — untuk dashboard stat card Kinerja
+  // STATS - untuk dashboard stat card Kinerja
   // GET /api/kinerja/stats?bulan=1&tahun=2026
   // ─────────────────────────────────────────────────────────────────────────────
   if (sub === 'stats') {
@@ -1918,12 +1918,12 @@ export const handler = async (event) => {
   }
 
   // ─────────────────────────────────────────────────────────────────────────────
-  // MONITORING — Admin only
+  // MONITORING - Admin only
   // GET /api/kinerja/monitoring?bulan=5&tahun=2026&jenis=monev
   // ─────────────────────────────────────────────────────────────────────────────
   if (sub === 'monitoring') {
     const admin = requireAdmin(event);
-    if (!admin) return errorResponse('Unauthorized — admin only', 401);
+    if (!admin) return errorResponse('Unauthorized - admin only', 401);
 
     const bulan = qs.bulan ? parseInt(qs.bulan) : null;   // null = semua bulan
     const tahun = qs.tahun ? parseInt(qs.tahun) : null;   // null = semua tahun
@@ -2213,7 +2213,7 @@ export const handler = async (event) => {
 
       const pjMap = {};
       for (const r of rows) {
-        const pj = r.penanggung_jawab || '— Tanpa PJ —';
+        const pj = r.penanggung_jawab || '- Tanpa PJ -';
         if (!pjMap[pj]) pjMap[pj] = { penanggung_jawab: pj, total: 0, terisi: 0, belum: 0 };
         pjMap[pj].total++;
         if (r.status === 'terisi') pjMap[pj].terisi++;
@@ -2242,7 +2242,7 @@ export const handler = async (event) => {
     const adminUser = requireAdmin(event);
     if (!adminUser) return errorResponse('Unauthorized', 401);
 
-    // Pastikan tabel ada — tanpa FK dulu agar tidak error jika tabel belum ada
+    // Pastikan tabel ada - tanpa FK dulu agar tidak error jika tabel belum ada
     try {
       await sql`CREATE TABLE IF NOT EXISTS laporan_template (
         id SERIAL PRIMARY KEY, jenis TEXT NOT NULL DEFAULT 'urusan',

@@ -60,20 +60,36 @@ export const handler = async (event) => {
 
   // ── PUT /api/dokumen-publik/:id ───────────────────────────
   if (event.httpMethod === 'PUT' && id) {
-    const { judul, keterangan, kategori, file_url, aktif } = parseBody(event);
+    const body = parseBody(event);
     try {
+      // Ambil data existing dulu, baru merge field yang dikirim di JS.
+      // (sebelumnya pakai fallback nested sql`kategori`/sql`keterangan` di dalam
+      // template UPDATE buat "biarin nilai lama" - itu gak didukung driver
+      // @neondatabase/serverless: bukan jadi raw SQL fragment, malah nge-eksekusi
+      // query terpisah dan hasil object-nya ke-stringify jadi nilai kolom, makanya
+      // kategori/keterangan kesimpen jadi teks "{"parameterizedQuery":...}" tiap
+      // kali PUT partial kayak toggle aktif yang cuma ngirim {aktif:...}.)
+      const existingRows = await sql`SELECT * FROM dokumen_publik WHERE id = ${id} AND deleted_at IS NULL`;
+      if (!existingRows.length) return errorResponse('Dokumen tidak ditemukan', 404);
+      const existing = existingRows[0];
+
+      const judul      = body.judul !== undefined ? body.judul.trim() : existing.judul;
+      const keterangan = body.keterangan !== undefined ? (body.keterangan?.trim() || null) : existing.keterangan;
+      const kategori   = body.kategori !== undefined ? (body.kategori?.trim() || null) : existing.kategori;
+      const file_url   = body.file_url !== undefined ? body.file_url.trim() : existing.file_url;
+      const aktif      = body.aktif !== undefined ? !!body.aktif : existing.aktif;
+
       const rows = await sql`
         UPDATE dokumen_publik SET
-          judul      = COALESCE(${judul?.trim() ?? null}, judul),
-          keterangan = ${keterangan !== undefined ? (keterangan?.trim() || null) : sql`keterangan`},
-          kategori   = ${kategori !== undefined ? (kategori?.trim() || null) : sql`kategori`},
-          file_url   = COALESCE(${file_url?.trim() ?? null}, file_url),
-          aktif      = COALESCE(${aktif ?? null}, aktif),
+          judul      = ${judul},
+          keterangan = ${keterangan},
+          kategori   = ${kategori},
+          file_url   = ${file_url},
+          aktif      = ${aktif},
           updated_at = NOW()
         WHERE id = ${id}
         RETURNING *
       `;
-      if (!rows.length) return errorResponse('Dokumen tidak ditemukan', 404);
       return jsonResponse({ dokumen: rows[0] });
     } catch (err) {
       console.error('[PUT /api/dokumen-publik/:id]', err);

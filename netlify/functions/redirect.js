@@ -43,7 +43,7 @@ function getBundleHtml() {
   <style>
     /* ── Logo brand-footer: animasi sama persis kayak .topbar-icon-wrap di
        landing.html (ring spin conic-gradient + partikel orbit berkedip +
-       loop fade-in/scale/glow tiap 6 detik) — di-prefix "bf-" biar gak
+       loop fade-in/scale/glow tiap 6 detik) - di-prefix "bf-" biar gak
        nabrak style lain yang mungkin dipakai css/styles.css. ── */
     .bf-icon-wrap {
       position: relative;

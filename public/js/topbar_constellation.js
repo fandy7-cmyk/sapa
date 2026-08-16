@@ -64,7 +64,7 @@
       return;
     }
 
-    // Skala ulang posisi partikel yang SUDAH ADA biar polanya tetap nyambung —
+    // Skala ulang posisi partikel yang SUDAH ADA biar polanya tetap nyambung -
     // jangan di-random ulang total, itu penyebab konstelasi "loncat"/reset
     // tiap pindah menu (lebar topbar sering geser dikit gara-gara scrollbar
     // muncul/ilang saat konten halaman ganti).

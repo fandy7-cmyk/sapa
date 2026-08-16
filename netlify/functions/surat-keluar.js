@@ -88,7 +88,7 @@ export const handler = async (event) => {
     } catch (err) { return errorResponse('Gagal mengambil data surat keluar: ' + err.message); }
   }
 
-  // ── POST — hanya admin & user "surat.keluar.full" yang boleh input surat baru ──
+  // ── POST - hanya admin & user "surat.keluar.full" yang boleh input surat baru ──
   // No. agenda di-generate OTOMATIS oleh sistem (reset ke 1 tiap ganti tahun, berdasarkan tahun tanggal_surat),
   // supaya nggak bentrok antar user yang input manual.
   if (event.httpMethod === 'POST' && !numId) {
@@ -120,7 +120,7 @@ export const handler = async (event) => {
     } catch (err) { return errorResponse('Gagal menyimpan surat keluar'); }
   }
 
-  // ── PUT — admin/full-access bebas; user biasa hanya boleh edit surat yang dia input sendiri ──
+  // ── PUT - admin/full-access bebas; user biasa hanya boleh edit surat yang dia input sendiri ──
   if (event.httpMethod === 'PUT' && numId) {
     const fullAccess = await checkFullAccess(auth, sql);
     if (!fullAccess) {
@@ -153,7 +153,7 @@ export const handler = async (event) => {
     } catch (err) { return errorResponse('Gagal mengupdate surat keluar'); }
   }
 
-  // ── DELETE — admin/full-access bebas; user biasa hanya boleh hapus surat yang dia input sendiri ──
+  // ── DELETE - admin/full-access bebas; user biasa hanya boleh hapus surat yang dia input sendiri ──
   if (event.httpMethod === 'DELETE' && numId) {
     const fullAccess = await checkFullAccess(auth, sql);
     if (!fullAccess) {
@@ -164,7 +164,7 @@ export const handler = async (event) => {
       const before = await sql`SELECT no_agenda, perihal, tujuan_surat, file_url FROM surat_keluar WHERE id = ${numId}`;
       await sql`DELETE FROM surat_keluar WHERE id = ${numId}`;
       // Best-effort: ikut hapus file lampiran di Cloudinary supaya tidak numpuk.
-      // WAJIB di-await — kalau fire-and-forget, Netlify Function bisa freeze
+      // WAJIB di-await - kalau fire-and-forget, Netlify Function bisa freeze
       // begitu response dikirim, dan request destroy ke Cloudinary keputus
       // di tengah jalan sebelum sempat selesai (file jadi tetap nyangkut).
       // Kegagalannya sendiri tetap tidak boleh menggagalkan penghapusan record.

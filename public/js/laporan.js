@@ -44,7 +44,7 @@
   document.head.appendChild(s);
 })();
 
-// laporan.js — Fungsi Laporan Surat & Laporan Kinerja
+// laporan.js - Fungsi Laporan Surat & Laporan Kinerja
 
 // ══════════════════════════════════════════════════════
 //  LAPORAN ABSENSI
@@ -81,7 +81,7 @@ async function _populateLapAbsFilters() {
     await _populateLapAbsPegawai();
   }
 
-  // Dropdown bulan cuma di-rebuild sekali per kunjungan halaman — perubahan
+  // Dropdown bulan cuma di-rebuild sekali per kunjungan halaman - perubahan
   // filter Unit Kerja/Pegawai/Tahun setelahnya masing-masing manggil ulang
   // _rebuildLapAbsFilterBulan() lewat handler-nya sendiri.
   if (bulanSel && !bulanSel.dataset.rebuilt) {
@@ -96,7 +96,7 @@ async function _populateLapAbsFilters() {
   }
 }
 
-// Dropdown Tahun menyesuaikan data yg ADA (& pegawai yg sedang difilter) —
+// Dropdown Tahun menyesuaikan data yg ADA (& pegawai yg sedang difilter) -
 // bukan 4 tahun statis. Sama seperti di halaman Absensi.
 async function _rebuildLapAbsFilterTahun() {
   const sel = document.getElementById('lapAbsTahun');
@@ -128,7 +128,7 @@ async function _rebuildLapAbsFilterTahun() {
 }
 
 // Dropdown Unit Kerja menyesuaikan data yg ADA utk tahun (& pegawai yg sedang
-// difilter) terpilih — sama kayak dropdown bulan, bukan daftar statis semua
+// difilter) terpilih - sama kayak dropdown bulan, bukan daftar statis semua
 // unit kerja di master data.
 async function _rebuildLapAbsFilterBidang() {
   const sel = document.getElementById('lapAbsBidang');
@@ -189,7 +189,7 @@ function _renderLapAbsPegawaiOptions() {
 }
 
 // Dropdown bulan menyesuaikan data yg ADA utk tahun (& pegawai/unit kerja yg
-// sedang difilter) — bukan 12 bulan statis. Sama seperti di halaman Absensi.
+// sedang difilter) - bukan 12 bulan statis. Sama seperti di halaman Absensi.
 async function _rebuildLapAbsFilterBulan() {
   const bulanSel = document.getElementById('lapAbsBulan');
   if (!bulanSel) return;
@@ -222,7 +222,7 @@ async function _rebuildLapAbsFilterBulan() {
   syncCustomSelect?.('lapAbsBulan');
 }
 
-// Sama kayak _rebuildLapAbsFilterBulan — cuma tampilin opsi status yg beneran
+// Sama kayak _rebuildLapAbsFilterBulan - cuma tampilin opsi status yg beneran
 // ada datanya di bulan/tahun (& pegawai/unit kerja) yg lagi difilter
 async function _rebuildLapAbsFilterStatus() {
   const sel = document.getElementById('lapAbsStatus');
@@ -252,14 +252,14 @@ async function _rebuildLapAbsFilterStatus() {
   syncCustomSelect?.('lapAbsStatus');
 }
 
-// Ganti bulan langsung (opsi yg ditampilkan sudah pasti ada datanya) — gak perlu rebuild dropdown bulan,
+// Ganti bulan langsung (opsi yg ditampilkan sudah pasti ada datanya) - gak perlu rebuild dropdown bulan,
 // tapi opsi Status yg tersedia bisa berubah
 async function setLapAbsFilterBulan() {
   await _rebuildLapAbsFilterStatus();
   loadLaporanAbsensi(1);
 }
 
-// Filter Status cuma mempersempit tabel detail — kartu rekap (KPI) di atas tetap
+// Filter Status cuma mempersempit tabel detail - kartu rekap (KPI) di atas tetap
 // nunjukin total keseluruhan bulan itu
 function setLapAbsFilterStatus() {
   _lapAbsFilterStatus = document.getElementById('lapAbsStatus')?.value || '';
@@ -292,10 +292,10 @@ async function setLapAbsFilterBidang() {
 }
 
 // ══════════════════════════════════════════════════════
-//  DOWNLOAD / PREVIEW LAPORAN ABSENSI — PDF
+//  DOWNLOAD / PREVIEW LAPORAN ABSENSI - PDF
 // ══════════════════════════════════════════════════════
 
-// ── Filter rentang tanggal (dari-sampai) — alternatif Bulan/Tahun ──
+// ── Filter rentang tanggal (dari-sampai) - alternatif Bulan/Tahun ──
 function _rentangTanggalYMDLap(mulaiStr, selesaiStr) {
   const parse = (s) => { const [y, m, d] = s.split('-').map(Number); return Date.UTC(y, m - 1, d); };
   const fmt = (t) => {
@@ -351,7 +351,7 @@ async function downloadLaporanAbsensiPDF(btnEl) {
   if (btnEl) { btnEl.disabled = true; btnEl.innerHTML = `<span class="btn-spin" style="width:12px;height:12px"></span> Memuat data...`; }
 
   try {
-    // ── Daftar pegawai yg ditampilkan (baris) — semua pegawai dlm scope filter,
+    // ── Daftar pegawai yg ditampilkan (baris) - semua pegawai dlm scope filter,
     // bukan cuma yg kebetulan punya baris absensi bulan ini ──
     let pegawaiList;
     if (full) {
@@ -376,7 +376,7 @@ async function downloadLaporanAbsensiPDF(btnEl) {
       return;
     }
 
-    // ── Jam Kerja per pegawai (kolom rekap tambahan) — cuma dihitung kalau BUKAN
+    // ── Jam Kerja per pegawai (kolom rekap tambahan) - cuma dihitung kalau BUKAN
     // mode rentang tanggal custom, krn endpoint /api/absensi/jam-kerja cuma
     // terima bulan+tahun (bukan rentang tanggal bebas). Mode rentang tampil "-".
     let jamKerjaMap = new Map();
@@ -391,7 +391,7 @@ async function downloadLaporanAbsensiPDF(btnEl) {
       jamKerjaMap = new Map(hasilJK);
     }
 
-    // ── Ambil semua baris absensi periode ini (server dipaginasi 15/hal) — loop semua halaman ──
+    // ── Ambil semua baris absensi periode ini (server dipaginasi 15/hal) - loop semua halaman ──
     let allRows = [];
     let page = 1, totalPages = 1;
     do {
@@ -511,14 +511,14 @@ async function downloadLaporanAbsensiPDF(btnEl) {
         const a = absMap.get(`${peg.id}|${k.ymd}`);
         if (a) {
           const isToday = k.ymd === todayISO();
-          // Hari ini + udah absen masuk tapi belum absen keluar → masih "Menunggu Absen
-          // Keluar" (proses), BUKAN langsung Tepat Waktu — baru dihitung Tepat Waktu/
-          // Tidak Lengkap setelah absen keluar tercatat (lihat isPending di tabel Laporan
+          // Hari ini + udah absensi masuk tapi belum absensi keluar → masih "Menunggu Absensi
+          // Keluar" (proses), BUKAN langsung Tepat Waktu - baru dihitung Tepat Waktu/
+          // Tidak Lengkap setelah absensi keluar tercatat (lihat isPending di tabel Laporan
           // Absensi biasa, versi cetak PDF ini sempet ketinggalan nyontek logikanya).
           const isPending = isToday && a.status === 'hadir' && a.jam_masuk && !a.jam_keluar;
           const isTidakLengkap = !isPending && a.status === 'hadir' && (!a.jam_masuk || !a.jam_keluar) && !isToday;
           const isTerlambat = a.status === 'hadir' && a.terlambat;
-          if (isPending) { /* belum ditotal ke rekap kolom manapun sampai absen keluar tercatat */ }
+          if (isPending) { /* belum ditotal ke rekap kolom manapun sampai absensi keluar tercatat */ }
           else if (isTidakLengkap) cTidakLengkap++;
           else if (isTerlambat) cTerlambat++;
           else if (a.status === 'hadir') cHadir++;
@@ -557,7 +557,7 @@ async function downloadLaporanAbsensiPDF(btnEl) {
     }).join('');
 
     // ── Header 3 baris: judul bulan / "Tanggal" / no urut tanggal / hari ──
-    // Header dibuat seragam (gak dibedain warnanya per weekend/libur) — pembeda
+    // Header dibuat seragam (gak dibedain warnanya per weekend/libur) - pembeda
     // weekend/libur cukup di sel body pakai ikon + warna, biar header tetap bersih.
     const REKAP_KOLOM = [
       { icon: svgHadirHdr,     title: 'Tepat Waktu' },
@@ -632,7 +632,7 @@ async function downloadLaporanAbsensiPDF(btnEl) {
   }
 }
 
-// Kartu ke-7 "Jam Kerja" di Laporan — style & skala warna sama persis kayak
+// Kartu ke-7 "Jam Kerja" di Laporan - style & skala warna sama persis kayak
 // _absJamKerjaCard() di absensi_frontend.js, tapi pakai filter lapAbsBulan/
 // lapAbsTahun/lapAbsPegawai/lapAbsBidang milik halaman Laporan sendiri (bukan
 // filter halaman Absensi) supaya konsisten sama apa yg lagi ditampilin di sini.
@@ -653,7 +653,7 @@ async function _lapAbsJamKerjaCardHtml(bulan, tahun, pegawaiId, bidangId, full) 
     const sub = d.agregat
       ? `${pct}% dari target ${_absFmtJam(d.target_menit)} · ${d.hari_kerja_total} hari kerja · total dari ${d.jumlah_pegawai} pegawai`
       : `${pct}% dari target ${_absFmtJam(d.target_menit)} · ${d.hari_kerja_total} hari kerja ${d.bulan ? 'bulan ini' : 'tahun ini'}`;
-    // Satu warna aja utk seluruh kartu (border, angka, ikon, progress bar) —
+    // Satu warna aja utk seluruh kartu (border, angka, ikon, progress bar) -
     // ngikutin Skala Nilai Peringkat Kinerja (sama kayak _absJamKerjaCard()).
     const { warna } = _kinerjaSkalaWarna(pctAsli);
     const kartu = `
@@ -703,7 +703,7 @@ async function loadLaporanAbsensi(page = 1) {
   const pegawaiId = full ? (document.getElementById('lapAbsPegawai')?.value || '') : _user.id;
   const bidangId = full ? (document.getElementById('lapAbsBidang')?.value || '') : '';
 
-  // Rekap kartu — fetch rekap (6 kartu) & jam-kerja (kartu ke-7) PARALEL, baru
+  // Rekap kartu - fetch rekap (6 kartu) & jam-kerja (kartu ke-7) PARALEL, baru
   // di-render bareng sekali innerHTML. Dulu jam-kerja nyusul via fetch terpisah
   // stlh innerHTML 6 kartu di-set duluan → kartu ke-7 sempet hilang tiap ganti
   // filter (ke-reset barengan overwrite, baru numpul lagi pas fetch-nya kelar).
@@ -752,25 +752,25 @@ async function loadLaporanAbsensi(page = 1) {
         const isTidakLengkap = a.status === 'hadir' && (!a.jam_masuk || !a.jam_keluar) && !isToday;
         const isTerlambat = a.status === 'hadir' && a.terlambat;
         const statusKey = isPending ? 'pending' : isTidakLengkap ? 'tidak_lengkap' : isTerlambat ? 'terlambat' : a.status;
-        const statusLabel = isPending ? 'Menunggu Absen Keluar' : isTidakLengkap ? 'Tidak Lengkap' : isTerlambat ? 'Terlambat' : STATUS_LABEL[a.status];
+        const statusLabel = isPending ? 'Menunggu Absensi Keluar' : isTidakLengkap ? 'Tidak Lengkap' : isTerlambat ? 'Terlambat' : STATUS_LABEL[a.status];
         const statusBadge = isPending ? 'badge-warning' : isTidakLengkap ? 'badge-ungu' : isTerlambat ? 'badge-warning' : STATUS_BADGE[a.status];
         const statusIcon = STATUS_ICON[statusKey] || '';
         const jamKeluarCell = a.jam_keluar
           ? `${a.jam_keluar.slice(0,5)} WITA`
           : (isToday && a.status === 'hadir'
-              ? `<span data-tip="Belum absen pulang" style="display:inline-flex;color:var(--kuning);cursor:default"><svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 22h14"/><path d="M5 2h14"/><path d="M17 22v-4.172a2 2 0 0 0-.586-1.414L12 12l-4.414 4.414A2 2 0 0 0 7 17.828V22"/><path d="M7 2v4.172a2 2 0 0 0 .586 1.414L12 12l4.414-4.414A2 2 0 0 0 17 6.172V2"/></svg></span>`
-              : '—');
+              ? `<span data-tip="Belum absensi pulang" style="display:inline-flex;color:var(--kuning);cursor:default"><svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 22h14"/><path d="M5 2h14"/><path d="M17 22v-4.172a2 2 0 0 0-.586-1.414L12 12l-4.414 4.414A2 2 0 0 0 7 17.828V22"/><path d="M7 2v4.172a2 2 0 0 0 .586 1.414L12 12l4.414-4.414A2 2 0 0 0 17 6.172V2"/></svg></span>`
+              : '-');
         const tipParts = [];
         if (isTerlambat) tipParts.push(`Telat ${a.menit_terlambat} menit`);
-        if (isTidakLengkap) tipParts.push(!a.jam_masuk ? 'Absen masuk belum tercatat' : 'Absen pulang belum tercatat');
-        if (isPending) tipParts.push('Absen pulang baru bisa dicatat mulai jam pulang');
+        if (isTidakLengkap) tipParts.push(!a.jam_masuk ? 'Absensi masuk belum tercatat' : 'Absensi pulang belum tercatat');
+        if (isPending) tipParts.push('Absensi pulang baru bisa dicatat mulai jam pulang');
         const statusTip = tipParts.length ? ` data-tip="${tipParts.join(' • ')}"` : '';
         return `
         <tr>
           <td style="text-align:center">${(page - 1) * 10 + i + 1}</td>
           <td style="display:${full ? '' : 'none'}">${esc(a.user_nama || '')}</td>
           <td style="text-align:center">${new Date(a.tanggal).toLocaleDateString('id-ID', { day: '2-digit', month: 'long', year: 'numeric' })}</td>
-          <td style="text-align:center">${a.jam_masuk ? a.jam_masuk.slice(0,5) + ' WITA' : '—'}</td>
+          <td style="text-align:center">${a.jam_masuk ? a.jam_masuk.slice(0,5) + ' WITA' : '-'}</td>
           <td style="text-align:center">${jamKeluarCell}</td>
           <td style="text-align:left"><span class="badge ${statusBadge}"${statusTip}>${statusIcon}${statusLabel}</span></td>
         </tr>`;
@@ -837,7 +837,7 @@ async function _initLaporanSuratFilter(smRows, skRows) {
   _laporanSuratFilterReady = true;
 }
 
-// Rebuild dropdown Jenis (Semua/Masuk/Keluar) — opsi yang datanya kosong
+// Rebuild dropdown Jenis (Semua/Masuk/Keluar) - opsi yang datanya kosong
 // (untuk tahun yang sedang dipilih) tidak ditampilkan.
 function _initLaporanSuratJenisFilter(smRows, skRows) {
   const sel = document.getElementById('laporanSuratJenis');
@@ -926,10 +926,10 @@ async function loadLaporanSurat() {
       const isTerlambat = !r.selesai && r.batas_waktu && new Date(r.batas_waktu) < now;
       allRows.push({
         _jenis: 'masuk',
-        no_surat: r.no_surat || r.nomor_surat || '—',
-        perihal: r.perihal || r.subject || '—',
+        no_surat: r.no_surat || r.nomor_surat || '-',
+        perihal: r.perihal || r.subject || '-',
         tanggal: r.tanggal_terima || r.tanggal || null,
-        pengirim_tujuan: r.asal_surat || r.pengirim || r.asal || '—',
+        pengirim_tujuan: r.asal_surat || r.pengirim || r.asal || '-',
         batas_waktu: r.batas_waktu || null,
         selesai: !!r.selesai,
         terlambat: !!isTerlambat,
@@ -940,10 +940,10 @@ async function loadLaporanSurat() {
     skFiltered.forEach(r => {
       allRows.push({
         _jenis: 'keluar',
-        no_surat: r.no_surat || r.nomor_surat || '—',
-        perihal: r.perihal || r.subject || '—',
+        no_surat: r.no_surat || r.nomor_surat || '-',
+        perihal: r.perihal || r.subject || '-',
         tanggal: r.tanggal_surat || r.tanggal || null,
-        pengirim_tujuan: r.tujuan_surat || r.tujuan || r.kepada || '—',
+        pengirim_tujuan: r.tujuan_surat || r.tujuan || r.kepada || '-',
         batas_waktu: null,
         selesai: true,
         terlambat: false,
@@ -1002,10 +1002,10 @@ function _lapRenderSuratTbody(rows) {
   tbody.innerHTML = pageRows.map((r, i) => {
     const tgl = r.tanggal
       ? new Date(r.tanggal).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' })
-      : '—';
+      : '-';
     const batas = r.batas_waktu
       ? new Date(r.batas_waktu).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' })
-      : '—';
+      : '-';
     const jenisBadge = r._jenis === 'masuk'
       ? `<span style="background:#d1fae5;color:#065f46;padding:2px 8px;border-radius:99px;font-size:.7rem">Masuk</span>`
       : `<span style="background:#ede9fe;color:#4c1d95;padding:2px 8px;border-radius:99px;font-size:.7rem">Keluar</span>`;
@@ -1148,10 +1148,10 @@ function _lapKinerjaRowHtml(r, no, bulanTampil) {
   const bulanCells = bulanTampil.map(b => {
     const v = r.realisasiPerBulan[b];
     const isEmpty = v === null || v === undefined || v === '';
-    return `<td style="text-align:center;font-size:.75rem;color:${isEmpty ? '#000000' : '#1e293b'}">${isEmpty ? '—' : v}</td>`;
+    return `<td style="text-align:center;font-size:.75rem;color:${isEmpty ? '#000000' : '#1e293b'}">${isEmpty ? '-' : v}</td>`;
   }).join('');
-  const sdPelaporan = r._realisasiSd ?? '—';
-  const capaian     = r._capaian !== null ? r._capaian + '%' : '—';
+  const sdPelaporan = r._realisasiSd ?? '-';
+  const capaian     = r._capaian !== null ? r._capaian + '%' : '-';
   const capColor    = r._capaian === null ? '#000000'
     : parseFloat(r._capaian) >= 100 ? '#059669'
     : parseFloat(r._capaian) >= 80  ? '#2563eb'
@@ -1171,16 +1171,16 @@ function _lapKinerjaRowHtml(r, no, bulanTampil) {
       <div style="font-weight:600;line-height:1.6"><span>${r.nama_indikator}</span>${negBadge}</div>
       <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:5px">${tipeBadge}${jenisBadges}</div>
     </td>
-    <td style="text-align:center;color:#000000">${r.target ?? '—'}</td>
-    <td style="text-align:center;color:#000000">${r.satuan || '—'}</td>
-    <td class="td-bidang" style="font-size:.75rem;color:${r.penanggung_jawab?'#1e293b':'#94a3b8'}">${r.penanggung_jawab || '—'}</td>
+    <td style="text-align:center;color:#000000">${r.target ?? '-'}</td>
+    <td style="text-align:center;color:#000000">${r.satuan || '-'}</td>
+    <td class="td-bidang" style="font-size:.75rem;color:${r.penanggung_jawab?'#1e293b':'#94a3b8'}">${r.penanggung_jawab || '-'}</td>
     ${bulanCells}
-    <td style="text-align:center;font-weight:600;color:${sdPelaporan==='—'?'#000000':'#1e293b'}">${sdPelaporan}</td>
+    <td style="text-align:center;font-weight:600;color:${sdPelaporan==='-'?'#000000':'#1e293b'}">${sdPelaporan}</td>
     <td style="text-align:center;font-weight:700;color:${capColor}">${capaian}</td>
-    <td style="font-size:.75rem;text-align:${r._fpenghambat?'left':'center'};color:${r._fpenghambat?'#1e293b':'#000000'};max-width:180px;word-break:break-word;overflow-wrap:anywhere">${r._fpenghambat ? _lapMdToHtml(r._fpenghambat) : '—'}</td>
-    <td style="font-size:.75rem;text-align:${r._solusi?'left':'center'};color:${r._solusi?'#1e293b':'#000000'};max-width:180px;word-break:break-word;overflow-wrap:anywhere">${r._solusi ? _lapMdToHtml(r._solusi) : '—'}</td>
-    <td style="font-size:.75rem;text-align:${r._fpendukung?'left':'center'};color:${r._fpendukung?'#1e293b':'#000000'};max-width:180px;word-break:break-word;overflow-wrap:anywhere">${r._fpendukung ? _lapMdToHtml(r._fpendukung) : '—'}</td>
-    <td style="font-size:.75rem;text-align:${r._rencana_tl?'left':'center'};color:${r._rencana_tl?'#1e293b':'#000000'};max-width:180px;word-break:break-word;overflow-wrap:anywhere">${r._rencana_tl ? _lapMdToHtml(r._rencana_tl) : '—'}</td>
+    <td style="font-size:.75rem;text-align:${r._fpenghambat?'left':'center'};color:${r._fpenghambat?'#1e293b':'#000000'};max-width:180px;word-break:break-word;overflow-wrap:anywhere">${r._fpenghambat ? _lapMdToHtml(r._fpenghambat) : '-'}</td>
+    <td style="font-size:.75rem;text-align:${r._solusi?'left':'center'};color:${r._solusi?'#1e293b':'#000000'};max-width:180px;word-break:break-word;overflow-wrap:anywhere">${r._solusi ? _lapMdToHtml(r._solusi) : '-'}</td>
+    <td style="font-size:.75rem;text-align:${r._fpendukung?'left':'center'};color:${r._fpendukung?'#1e293b':'#000000'};max-width:180px;word-break:break-word;overflow-wrap:anywhere">${r._fpendukung ? _lapMdToHtml(r._fpendukung) : '-'}</td>
+    <td style="font-size:.75rem;text-align:${r._rencana_tl?'left':'center'};color:${r._rencana_tl?'#1e293b':'#000000'};max-width:180px;word-break:break-word;overflow-wrap:anywhere">${r._rencana_tl ? _lapMdToHtml(r._rencana_tl) : '-'}</td>
   </tr>`;
 }
 
@@ -1228,7 +1228,7 @@ function _lapMonthPicker(id, tahunList, activeVal, onPickFn) {
   const activeY = activeVal ? parseInt(activeVal.split('-')[0]) : (tahunList[tahunList.length-1] || new Date().getFullYear());
   const activeM = activeVal ? parseInt(activeVal.split('-')[1]) : 0;
   window._lapMpData[id] = { onPickFn, tahunList, activeVal: activeVal || '', viewYear: activeY };
-  const lbl = activeVal ? `${_BL[activeM]} ${activeY}` : '— Pilih —';
+  const lbl = activeVal ? `${_BL[activeM]} ${activeY}` : '- Pilih -';
   return `<div class="lap-mp" id="${id}" onclick="event.stopPropagation();_lapMpToggle('${id}')">
       <span class="lap-mp-label">${lbl}</span>
       <svg class="lap-mp-caret" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
@@ -1468,7 +1468,7 @@ async function loadLaporanKinerja() {
 
   // Selalu minta scope=bidang ke backend (superset terluas yang boleh dilihat user utk jenis
   // IKK/SPM: semua indikator di bidang yg sama, bukan cuma yg di-assign). Untuk non-admin, kita
-  // filter lagi ke "punya sendiri" di frontend kalau dropdown scope di-set ke 'mine' — jadi cukup
+  // filter lagi ke "punya sendiri" di frontend kalau dropdown scope di-set ke 'mine' - jadi cukup
   // satu kali fetch, nggak perlu round-trip dua kali tiap ganti dropdown.
   const fetchBulan = async (b, jenisParam) => {
     try {
@@ -1532,7 +1532,7 @@ async function loadLaporanKinerja() {
     rows = scope === 'bidang' ? bidangRows : myRows;
 
     // Dropdown scope cuma relevan kalau bidang si-user beranggotakan indikator
-    // lain di luar miliknya sendiri — kalau enggak, "Semua Indikator Bidang" bakal
+    // lain di luar miliknya sendiri - kalau enggak, "Semua Indikator Bidang" bakal
     // sama persis hasilnya dgn "Indikator Saya", jadi disembunyikan aja.
     const scopeWrap = document.getElementById('laporanKinerjaScopeWrap');
     if (scopeWrap) {
@@ -1585,7 +1585,7 @@ async function loadLaporanKinerja() {
     row._solusi       = lastSolusi;
     row._fpendukung   = lastFpendukung;
     row._rencana_tl   = lastRencanaTl;
-    row.nama_indikator = row.indikator_kinerja || row.nama_indikator || row.indikator || '—';
+    row.nama_indikator = row.indikator_kinerja || row.nama_indikator || row.indikator || '-';
     row.target         = row.target_display != null ? row.target_display : fmtNum(row.target_tahun ?? row.target);
 
     const target = parseFloat(row.target_tahun);
@@ -1606,9 +1606,9 @@ async function loadLaporanKinerja() {
   const capRows    = rows.filter(r => r._capaian !== null);
   const rataCapaian = capRows.length
     ? (capRows.reduce((s, r) => s + parseFloat(r._capaian), 0) / capRows.length).toFixed(1)
-    : '—';
+    : '-';
 
-  // ── Render tabel — kolom bulan dibatasi s.d bulanPelaporan ──
+  // ── Render tabel - kolom bulan dibatasi s.d bulanPelaporan ──
   const BULAN_PENDEK  = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];
   const BULAN_PANJANG = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
   const bulanTampil   = bulanList.filter(b => b >= bulanDari && b <= bulanSampai);
@@ -1656,7 +1656,7 @@ async function loadLaporanKinerja() {
       if (tb) { tb.style.background = '#fff'; tb.style.backgroundColor = '#fff'; }
     }
     // Baris 2 (nama bulan) harus sticky NEMPEL DI BAWAH baris 1 (TW), bukan
-    // top:0 juga — kalau top:0 dua-duanya, pas discroll baris bulan numpuk
+    // top:0 juga - kalau top:0 dua-duanya, pas discroll baris bulan numpuk
     // balik ke atas nabrak baris TW alih-alih nempel di bawahnya.
     // Tinggi baris 1 diukur dinamis (bukan hardcode) karena tergantung
     // konten (mis. "Indikator Kinerja" bisa wrap 2 baris di layar sempit).
@@ -1769,7 +1769,7 @@ function _statusBadge(capaian) {
 
 
 // ══════════════════════════════════════════════════════
-//  SHARED — PDF HELPER (kop surat + print window)
+//  SHARED - PDF HELPER (kop surat + print window)
 // ══════════════════════════════════════════════════════
 
 function _kopSuratHtml() {
@@ -1791,7 +1791,7 @@ function _kopSuratHtml() {
     </div>`;
 }
 
-// Buka tab preview — user bisa lihat, lalu Ctrl+P / Save as PDF
+// Buka tab preview - user bisa lihat, lalu Ctrl+P / Save as PDF
 function _bukaPreviewPDF(htmlBody, judulDokumen, orientation) {
   const ori = orientation || 'landscape';
   const fullHtml = `<!DOCTYPE html>
@@ -1879,7 +1879,7 @@ function _bukaPreviewPDF(htmlBody, judulDokumen, orientation) {
 
 
 // ══════════════════════════════════════════════════════
-//  DOWNLOAD / PREVIEW LAPORAN SURAT — PDF
+//  DOWNLOAD / PREVIEW LAPORAN SURAT - PDF
 // ══════════════════════════════════════════════════════
 
 function downloadLaporanSuratPDF(btnEl) {
@@ -1892,8 +1892,8 @@ function downloadLaporanSuratPDF(btnEl) {
   // Subtitle fleksibel sesuai filter aktif
   const jenisLabel  = jenis === 'masuk' ? 'Surat Masuk' : jenis === 'keluar' ? 'Surat Keluar' : 'Surat Masuk & Keluar';
   const statusLabel = status === 'selesai' ? ' · Selesai' : status === 'belum' ? ' · Belum Selesai' : status === 'terlambat' ? ' · Terlambat' : '';
-  const subtitleLabel = `${jenisLabel}${statusLabel} — ${tahunLabel}`;
-  const judulDoc = `Laporan Surat — ${tahunLabel}`;
+  const subtitleLabel = `${jenisLabel}${statusLabel} - ${tahunLabel}`;
+  const judulDoc = `Laporan Surat - ${tahunLabel}`;
 
   // ── Rekap bulanan (hanya untuk summary, tidak ditampilkan di PDF) ──
   let totalMasuk = 0, totalSelesai = 0, totalBelum = 0, totalKeluar = 0;
@@ -1902,8 +1902,8 @@ function downloadLaporanSuratPDF(btnEl) {
   // ── Tabel detail surat ──
   const now = new Date();
   const detailRows = (allRows || []).map((r, i) => {
-    const tgl   = r.tanggal   ? new Date(r.tanggal  ).toLocaleDateString('id-ID', { day:'2-digit', month:'short', year:'numeric' }) : '—';
-    const batas = r.batas_waktu ? new Date(r.batas_waktu).toLocaleDateString('id-ID', { day:'2-digit', month:'short', year:'numeric' }) : '—';
+    const tgl   = r.tanggal   ? new Date(r.tanggal  ).toLocaleDateString('id-ID', { day:'2-digit', month:'short', year:'numeric' }) : '-';
+    const batas = r.batas_waktu ? new Date(r.batas_waktu).toLocaleDateString('id-ID', { day:'2-digit', month:'short', year:'numeric' }) : '-';
     const bg    = 'white';
 
     const jenisBadge = r._jenis === 'masuk'
@@ -1964,7 +1964,7 @@ function downloadLaporanSuratPDF(btnEl) {
 
 
 // ══════════════════════════════════════════════════════
-//  HELPER — Rebuild filter status dinamis
+//  HELPER - Rebuild filter status dinamis
 // ══════════════════════════════════════════════════════
 
 function _rebuildSuratStatusOptions(allRows, currentVal) {
@@ -2098,11 +2098,11 @@ function _applyLaporanKinerjaFilters(rows) {
 }
 
 // ══════════════════════════════════════════════════════
-//  DOWNLOAD LAPORAN PER URUSAN — PDF
+//  DOWNLOAD LAPORAN PER URUSAN - PDF
 //  Struktur: header urusan + baris indikator (sama seperti laporan utama)
 // ══════════════════════════════════════════════════════
 
-// Badge inline "Makna Indikator" (circle panah) & "Tipe Perhitungan" + "Jenis" (pill) —
+// Badge inline "Makna Indikator" (circle panah) & "Tipe Perhitungan" + "Jenis" (pill) -
 // ditempel langsung di sel INDIKATOR KINERJA, gaya sama persis dengan tampilan di app
 // (bukan kolom terpisah), biar layout tabel PDF gak melebar.
 function _lapMaknaBadgeHtml(bermaknaNegatif) {
@@ -2132,7 +2132,7 @@ function _lapKinerjaPdfRowHtml(r, no, displayCols, namaIndikatorOverride) {
   const bulanCells = displayCols.map(c => {
     const v = c.type === 'tw' ? r.realisasiPerBulan?.[c.lastBulan] : r.realisasiPerBulan?.[c.bulan];
     const empty = v === null || v === undefined || v === '';
-    return `<td style="padding:3px 2px;border:1px solid #000;text-align:center;vertical-align:top;font-size:10px;color:${empty ? '#000000' : '#1e293b'};min-width:34px;white-space:nowrap">${empty ? '—' : v}</td>`;
+    return `<td style="padding:3px 2px;border:1px solid #000;text-align:center;vertical-align:top;font-size:10px;color:${empty ? '#000000' : '#1e293b'};min-width:34px;white-space:nowrap">${empty ? '-' : v}</td>`;
   }).join('');
   const capColor = r._capaian === null ? '#000000'
     : parseFloat(r._capaian) >= 100 ? '#059669'
@@ -2144,20 +2144,20 @@ function _lapKinerjaPdfRowHtml(r, no, displayCols, namaIndikatorOverride) {
       <div style="display:flex;align-items:center;gap:5px;flex-wrap:wrap"><span>${namaIndikatorOverride || r.nama_indikator}</span>${_lapMaknaBadgeHtml(r.bermakna_negatif)}</div>
       ${_lapIndikatorBadgeRowHtml(r)}
     </td>
-    <td style="padding:4px 3px;border:1px solid #000;text-align:center;vertical-align:top;font-size:10px;color:#000000">${r.target ?? '—'}</td>
-    <td style="padding:4px 3px;border:1px solid #000;text-align:center;vertical-align:top;font-size:10px;color:#000000">${r.satuan || '—'}</td>
-    <td style="padding:4px 5px;border:1px solid #000;text-align:center;vertical-align:top;font-size:10px;color:#1e293b;min-width:110px">${r.penanggung_jawab || '—'}</td>
+    <td style="padding:4px 3px;border:1px solid #000;text-align:center;vertical-align:top;font-size:10px;color:#000000">${r.target ?? '-'}</td>
+    <td style="padding:4px 3px;border:1px solid #000;text-align:center;vertical-align:top;font-size:10px;color:#000000">${r.satuan || '-'}</td>
+    <td style="padding:4px 5px;border:1px solid #000;text-align:center;vertical-align:top;font-size:10px;color:#1e293b;min-width:110px">${r.penanggung_jawab || '-'}</td>
     ${bulanCells}
-    <td style="padding:4px 3px;border:1px solid #000;text-align:center;vertical-align:top;font-size:10px;font-weight:700;color:#000000">${r._realisasiSd ?? '—'}</td>
-    <td style="padding:4px 3px;border:1px solid #000;text-align:center;vertical-align:top;font-size:10px;font-weight:700;color:${capColor}">${r._capaian !== null ? r._capaian + '%' : '—'}</td>
-    <td style="padding:4px 5px;border:1px solid #000;text-align:${r._fpenghambat?'left':'center'};vertical-align:top;font-size:10px;max-width:220px;word-break:break-word;overflow-wrap:anywhere">${r._fpenghambat ? _lapMdToHtml(r._fpenghambat) : '—'}</td>
-    <td style="padding:4px 5px;border:1px solid #000;text-align:${r._solusi?'left':'center'};vertical-align:top;font-size:10px;max-width:220px;word-break:break-word;overflow-wrap:anywhere">${r._solusi ? _lapMdToHtml(r._solusi) : '—'}</td>
-    <td style="padding:4px 5px;border:1px solid #000;text-align:${r._fpendukung?'left':'center'};vertical-align:top;font-size:10px;max-width:220px;word-break:break-word;overflow-wrap:anywhere">${r._fpendukung ? _lapMdToHtml(r._fpendukung) : '—'}</td>
-    <td style="padding:4px 5px;border:1px solid #000;text-align:${r._rencana_tl?'left':'center'};vertical-align:top;font-size:10px;max-width:220px;word-break:break-word;overflow-wrap:anywhere">${r._rencana_tl ? _lapMdToHtml(r._rencana_tl) : '—'}</td>
+    <td style="padding:4px 3px;border:1px solid #000;text-align:center;vertical-align:top;font-size:10px;font-weight:700;color:#000000">${r._realisasiSd ?? '-'}</td>
+    <td style="padding:4px 3px;border:1px solid #000;text-align:center;vertical-align:top;font-size:10px;font-weight:700;color:${capColor}">${r._capaian !== null ? r._capaian + '%' : '-'}</td>
+    <td style="padding:4px 5px;border:1px solid #000;text-align:${r._fpenghambat?'left':'center'};vertical-align:top;font-size:10px;max-width:220px;word-break:break-word;overflow-wrap:anywhere">${r._fpenghambat ? _lapMdToHtml(r._fpenghambat) : '-'}</td>
+    <td style="padding:4px 5px;border:1px solid #000;text-align:${r._solusi?'left':'center'};vertical-align:top;font-size:10px;max-width:220px;word-break:break-word;overflow-wrap:anywhere">${r._solusi ? _lapMdToHtml(r._solusi) : '-'}</td>
+    <td style="padding:4px 5px;border:1px solid #000;text-align:${r._fpendukung?'left':'center'};vertical-align:top;font-size:10px;max-width:220px;word-break:break-word;overflow-wrap:anywhere">${r._fpendukung ? _lapMdToHtml(r._fpendukung) : '-'}</td>
+    <td style="padding:4px 5px;border:1px solid #000;text-align:${r._rencana_tl?'left':'center'};vertical-align:top;font-size:10px;max-width:220px;word-break:break-word;overflow-wrap:anywhere">${r._rencana_tl ? _lapMdToHtml(r._rencana_tl) : '-'}</td>
   </tr>`;
 }
 
-// Baris flat langsung dari data.rows (tanpa grouping Urusan/TSP) — dipakai untuk non-admin,
+// Baris flat langsung dari data.rows (tanpa grouping Urusan/TSP) - dipakai untuk non-admin,
 // yang laporannya cuma berisi indikator tanggung jawabnya sendiri jadi grouping gak diperlukan.
 function _lapKinerjaFlatRowsHtml(rows, displayCols) {
   let no = 0;
@@ -2290,7 +2290,7 @@ async function downloadLaporanByUrusan(btnEl) {
 }
 
 // ══════════════════════════════════════════════════════
-//  DOWNLOAD LAPORAN PER TSP — PDF
+//  DOWNLOAD LAPORAN PER TSP - PDF
 //  Struktur: NO | SASARAN STRATEGIS/PROGRAM/KEGIATAN | INDIKATOR | SATUAN | TARGET TAHUN
 // ══════════════════════════════════════════════════════
 
@@ -2423,23 +2423,23 @@ async function downloadLaporanByTSP(btnEl) {
 
       return tpl.indikator.map((ind, idx) => {
         const r = rowById[parseInt(ind.id)];
-        const target    = r?.target  ?? '—';
-        const satuan    = r?.satuan  || ind.satuan || '—';
-        const namaInd   = r?.nama_indikator || ind.indikator_kinerja || '—';
-        const realisasi = r?._realisasiSd ?? '—';
-        const capaian   = r?._capaian !== null && r?._capaian !== undefined ? r._capaian + '%' : '—';
+        const target    = r?.target  ?? '-';
+        const satuan    = r?.satuan  || ind.satuan || '-';
+        const namaInd   = r?.nama_indikator || ind.indikator_kinerja || '-';
+        const realisasi = r?._realisasiSd ?? '-';
+        const capaian   = r?._capaian !== null && r?._capaian !== undefined ? r._capaian + '%' : '-';
         const capColor  = !r?._capaian ? '#000000'
           : parseFloat(r._capaian) >= 100 ? '#059669'
           : parseFloat(r._capaian) >= 80  ? '#2563eb'
           : parseFloat(r._capaian) >= 60  ? '#d97706' : '#dc2626';
-        const permasalahan = r?._fpenghambat ? _lapMdToHtml(r._fpenghambat) : '—';
-        const solusi       = r?._solusi ? _lapMdToHtml(r._solusi) : '—';
-        const fpendukung   = r?._fpendukung ? _lapMdToHtml(r._fpendukung) : '—';
-        const rencanaTl    = r?._rencana_tl ? _lapMdToHtml(r._rencana_tl) : '—';
+        const permasalahan = r?._fpenghambat ? _lapMdToHtml(r._fpenghambat) : '-';
+        const solusi       = r?._solusi ? _lapMdToHtml(r._solusi) : '-';
+        const fpendukung   = r?._fpendukung ? _lapMdToHtml(r._fpendukung) : '-';
+        const rencanaTl    = r?._rencana_tl ? _lapMdToHtml(r._rencana_tl) : '-';
         const bulanCells = displayCols.map(c => {
           const v = c.type === 'tw' ? r?.realisasiPerBulan?.[c.lastBulan] : r?.realisasiPerBulan?.[c.bulan];
           const empty = v === null || v === undefined || v === '';
-          return `<td style="padding:5px 2px;border:1px solid #000;text-align:center;font-size:10px;color:${empty ? '#000000' : '#1e293b'};vertical-align:top;min-width:34px;white-space:nowrap">${empty ? '—' : v}</td>`;
+          return `<td style="padding:5px 2px;border:1px solid #000;text-align:center;font-size:10px;color:${empty ? '#000000' : '#1e293b'};vertical-align:top;min-width:34px;white-space:nowrap">${empty ? '-' : v}</td>`;
         }).join('');
 
         let groupCell;
@@ -2467,7 +2467,7 @@ async function downloadLaporanByTSP(btnEl) {
           </td>
           <td style="padding:5px 6px;border:1px solid #000;text-align:center;font-size:10px;vertical-align:top">${satuan}</td>
           <td style="padding:5px 6px;border:1px solid #000;text-align:center;font-size:10px;font-weight:700;vertical-align:top">${target}</td>
-          <td style="padding:5px 6px;border:1px solid #000;text-align:center;font-size:10px;color:#1e293b;vertical-align:top;min-width:110px">${r?.penanggung_jawab || '—'}</td>
+          <td style="padding:5px 6px;border:1px solid #000;text-align:center;font-size:10px;color:#1e293b;vertical-align:top;min-width:110px">${r?.penanggung_jawab || '-'}</td>
           ${bulanCells}
           <td style="padding:5px 6px;border:1px solid #000;text-align:center;font-size:10px;font-weight:700;vertical-align:top">${realisasi}</td>
           <td style="padding:5px 6px;border:1px solid #000;text-align:center;font-size:10px;font-weight:700;color:${capColor};vertical-align:top">${capaian}</td>
@@ -2480,7 +2480,7 @@ async function downloadLaporanByTSP(btnEl) {
     }).join('');
 
     // Non-admin gak punya hierarki Tujuan/Sasaran/Program/Kegiatan, jadi kolom
-    // grouping-nya di-skip — pakai header tabel yang sama sederhananya kayak
+    // grouping-nya di-skip - pakai header tabel yang sama sederhananya kayak
     // laporan Capaian Indikator (flat per-indikator).
     const theadHtml = orderedTpl ? `
           <tr style="background:#0d9488">

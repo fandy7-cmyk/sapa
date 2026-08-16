@@ -1,5 +1,5 @@
 // js/pengumuman_frontend.js
-// Kelola Pengumuman — admin only
+// Kelola Pengumuman - admin only
 
 'use strict';
 
@@ -227,7 +227,7 @@ async function savePengumuman() {
   if (!judul) { toast('Judul wajib diisi', 'error'); return; }
   if (!isiText) { toast('Isi wajib diisi', 'error'); return; }
 
-  // Validasi & bersihkan aksi — skip entry kosong
+  // Validasi & bersihkan aksi - skip entry kosong
   const aksi = _aksiItems
     .map(a => ({ label: (a.label || '').trim(), url: (a.url || '').trim() }))
     .filter(a => a.label && a.url);
@@ -303,7 +303,7 @@ function formatTanggal(str) {
 }
 function goPengumumanPage(p) { _pengumumanPage = p; renderPengumumanTable(); }
 /* ═══════════════════════════════════════════════════════════════
-   TICKER — running text admin
+   TICKER - running text admin
    ═══════════════════════════════════════════════════════════════ */
 let _tickerAll = [];
 

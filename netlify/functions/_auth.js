@@ -9,9 +9,9 @@ if (!JWT_SECRET) {
   throw new Error('JWT_SECRET env var belum di-set!');
 }
 
-// Access token sekarang pendek (1 jam) — kalau dicuri/bocor, jendela pakainya kecil.
+// Access token sekarang pendek (1 jam) - kalau dicuri/bocor, jendela pakainya kecil.
 // Sesi panjang dipertahankan lewat refresh token (lihat generateRefreshToken di bawah),
-// yang juga bisa di-revoke server-side (blacklist) — beda dari access token JWT biasa
+// yang juga bisa di-revoke server-side (blacklist) - beda dari access token JWT biasa
 // yang sifatnya stateless dan tidak bisa "dicabut" sebelum expired.
 const ACCESS_TOKEN_TTL = '1h';
 const REFRESH_TOKEN_TTL_MS = 8 * 60 * 60 * 1000; // 8 jam, menyamai durasi sesi lama

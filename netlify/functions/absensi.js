@@ -6,8 +6,8 @@
 // GET    /api/absensi/rekap              → ringkasan mingguan/bulanan
 // GET    /api/absensi/ringkasan-bulan    → agregat 1 bulan (harian+ranking+status hr ini) utk dashboard, gak nembus paginasi
 // GET    /api/absensi/jam-kerja          → akumulasi jam kerja bulan ini vs target (widget halaman Absensi)
-// POST   /api/absensi/checkin            → user absen masuk (hari aktif/hari ini)
-// PUT    /api/absensi/checkout           → user absen pulang (hari aktif/hari ini)
+// POST   /api/absensi/checkin            → user absensi masuk (hari aktif/hari ini)
+// PUT    /api/absensi/checkout           → user absensi pulang (hari aktif/hari ini)
 // POST   /api/absensi                    → admin/full input manual (hari sebelumnya / status hadir-tugas_luar-cuti-alpa)
 // PUT    /api/absensi/:id                → admin/full edit baris absensi
 // DELETE /api/absensi/:id                → admin/full hapus baris absensi
@@ -67,9 +67,9 @@ function _menitDariJam(jamStr) {
   return h * 60 + m;
 }
 
-// ── helper: cek apakah jam sekarang sudah masuk jendela waktu absen ────────
-// Jendela cuma punya batas AWAL (blm boleh absen sblm jam ini) — tanpa batas
-// akhir, supaya absen telat/pulang malam tetap bisa dicatat (statusnya yg
+// ── helper: cek apakah jam sekarang sudah masuk jendela waktu absensi ────────
+// Jendela cuma punya batas AWAL (blm boleh absensi sblm jam ini) - tanpa batas
+// akhir, supaya absensi telat/pulang malam tetap bisa dicatat (statusnya yg
 // nanti kebaca Terlambat, bukan tombolnya diblokir total).
 function cekJendelaWaktu(tanggalStr, jamSekarangStr, batasAwalStr, batasAkhirStr) {
   const toMin = (t) => {
@@ -86,7 +86,7 @@ function cekJendelaWaktu(tanggalStr, jamSekarangStr, batasAwalStr, batasAkhirStr
   return { boleh: true };
 }
 
-// Zona waktu instansi: WITA (Asia/Makassar, UTC+8, tanpa DST) — dipakai utk
+// Zona waktu instansi: WITA (Asia/Makassar, UTC+8, tanpa DST) - dipakai utk
 // menentukan "hari ini" & jam saat checkin/checkout, independen dari TZ server
 // Netlify Functions (biasanya UTC).
 const TZ = 'Asia/Makassar';
@@ -103,9 +103,9 @@ function nowTimeStr() {
 // Kriteria HARUS ketat & cocok persis dgn yg di-generate absensi-cron-alpa.js:
 // status alpa, input_by NULL (cron gak login sbg siapa2), keterangan persis
 // teks otomatisnya. Kalau baris udah diedit admin (input_by keisi) atau
-// statusnya beda, JANGAN dianggap aman — itu berarti udah ada campur tangan
+// statusnya beda, JANGAN dianggap aman - itu berarti udah ada campur tangan
 // manusia & harus ditolak/diminta edit manual, bukan di-overwrite diam2.
-const KETERANGAN_CRON_ALPA = 'Otomatis: tidak ada absen masuk & pulang';
+const KETERANGAN_CRON_ALPA = 'Otomatis: tidak ada absensi masuk & pulang';
 function isCronAlpaRow(row) {
   return row.status === 'alpa' && row.input_by === null && row.keterangan === KETERANGAN_CRON_ALPA;
 }
@@ -463,7 +463,7 @@ export const handler = async (event) => {
       let body = {};
       try { body = JSON.parse(event.body || '{}'); } catch { /* noop */ }
       // Jam diinput manual sama pegawai (absensi fisik/biometrik sudah tercatat
-      // di sistem Pemda — SAPA cuma buat rekap internal OPD), fallback ke jam
+      // di sistem Pemda - SAPA cuma buat rekap internal OPD), fallback ke jam
       // server kalau body kosong (kompatibilitas versi lama).
       const jamInput = typeof body.jam === 'string' ? body.jam.trim() : '';
       if (jamInput && !/^([01]\d|2[0-3]):[0-5]\d$/.test(jamInput)) return errorResponse('Format jam tidak valid (HH:MM)', 400);
@@ -473,7 +473,7 @@ export const handler = async (event) => {
       if (libur.length) return errorResponse(`Hari ini libur (${libur[0].keterangan}), absensi tidak diperlukan`, 400);
 
       const existing = await sql`SELECT id, jam_masuk FROM absensi WHERE user_id = ${auth.id} AND tanggal = ${tanggal} LIMIT 1`;
-      if (existing.length && existing[0].jam_masuk) return errorResponse('Anda sudah absen masuk hari ini', 409);
+      if (existing.length && existing[0].jam_masuk) return errorResponse('Anda sudah absensi masuk hari ini', 409);
 
       const settingsRows = await sql`SELECT * FROM absensi_settings WHERE id = 1`;
       const settings = settingsRows[0];
@@ -485,8 +485,8 @@ export const handler = async (event) => {
       if (!jendela.boleh) {
         return errorResponse(
           jendela.alasan === 'akhir'
-            ? `Sudah lewat batas waktu absen masuk (sampai jam ${jendela.batas} WITA). Hubungi admin untuk input manual.`
-            : `Belum waktunya absen masuk (mulai jam ${jendela.batas} WITA)`,
+            ? `Sudah lewat batas waktu absensi masuk (sampai jam ${jendela.batas} WITA). Hubungi admin untuk input manual.`
+            : `Belum waktunya absensi masuk (mulai jam ${jendela.batas} WITA)`,
           400,
         );
       }
@@ -514,7 +514,7 @@ export const handler = async (event) => {
       return jsonResponse({ absensi: row });
     } catch (err) {
       console.error('[POST /api/absensi/checkin]', err);
-      return errorResponse('Gagal mencatat absen masuk');
+      return errorResponse('Gagal mencatat absensi masuk');
     }
   }
 
@@ -528,8 +528,8 @@ export const handler = async (event) => {
       if (jamInput && !/^([01]\d|2[0-3]):[0-5]\d$/.test(jamInput)) return errorResponse('Format jam tidak valid (HH:MM)', 400);
       const jam = jamInput || nowTimeStr();
       const existing = await sql`SELECT id, jam_masuk, jam_keluar FROM absensi WHERE user_id = ${auth.id} AND tanggal = ${tanggal} LIMIT 1`;
-      if (!existing.length || !existing[0].jam_masuk) return errorResponse('Anda belum absen masuk hari ini', 400);
-      if (existing[0].jam_keluar) return errorResponse('Anda sudah absen keluar hari ini', 409);
+      if (!existing.length || !existing[0].jam_masuk) return errorResponse('Anda belum absensi masuk hari ini', 400);
+      if (existing[0].jam_keluar) return errorResponse('Anda sudah absensi keluar hari ini', 409);
 
       const settingsRows = await sql`SELECT * FROM absensi_settings WHERE id = 1`;
       const settings = settingsRows[0];
@@ -540,8 +540,8 @@ export const handler = async (event) => {
       if (!jendela.boleh) {
         return errorResponse(
           jendela.alasan === 'akhir'
-            ? `Sudah lewat batas waktu absen keluar (sampai jam ${jendela.batas} WITA). Hubungi admin untuk input manual.`
-            : `Belum waktunya absen keluar (mulai jam ${jendela.batas} WITA)`,
+            ? `Sudah lewat batas waktu absensi keluar (sampai jam ${jendela.batas} WITA). Hubungi admin untuk input manual.`
+            : `Belum waktunya absensi keluar (mulai jam ${jendela.batas} WITA)`,
           400,
         );
       }
@@ -554,7 +554,7 @@ export const handler = async (event) => {
       return jsonResponse({ absensi: rows[0] });
     } catch (err) {
       console.error('[PUT /api/absensi/checkout]', err);
-      return errorResponse('Gagal mencatat absen pulang');
+      return errorResponse('Gagal mencatat absensi pulang');
     }
   }
 
@@ -585,18 +585,18 @@ export const handler = async (event) => {
       const rekap = { hadir: 0, tugas_luar: 0, cuti: 0, alpa: 0, terlambat: 0, tidak_lengkap: 0, total_menit_terlambat: 0 };
       const hariIniStr = todayStr();
       for (const r of rows) {
-        // izin/sakit: status lama sebelum digabung jadi tugas_luar — data lama di DB
+        // izin/sakit: status lama sebelum digabung jadi tugas_luar - data lama di DB
         // tetap dihitung sbg tugas_luar biar rekap gak pincang
         const key = (r.status === 'izin' || r.status === 'sakit') ? 'tugas_luar' : r.status;
         // 'hadir' harus pecah jadi 3 kategori eksklusif di statcard: tidak_lengkap
-        // (salah satu jam_masuk/jam_keluar kosong — prioritas tertinggi krn butuh
+        // (salah satu jam_masuk/jam_keluar kosong - prioritas tertinggi krn butuh
         // tindak lanjut admin) > terlambat > hadir tepat waktu. HARI INI dikecualikan
-        // dari tidak_lengkap — jendela Absen Keluar mungkin belum kebuka / belum
+        // dari tidak_lengkap - jendela Absensi Keluar mungkin belum kebuka / belum
         // waktunya, jadi belum tentu "kelewatan", masih bisa disusulin nanti.
         const belumSelesaiTapiHariIni = r.tanggal === hariIniStr;
         const isPendingHariIni = key === 'hadir' && (!r.jam_masuk || !r.jam_keluar) && belumSelesaiTapiHariIni;
         if (isPendingHariIni) {
-          // netral — masih berjalan, jendela absen pulang belum tentu kebuka, jangan
+          // netral - masih berjalan, jendela absensi pulang belum tentu kebuka, jangan
           // dihitung Tepat Waktu ataupun Tidak Lengkap dulu (lihat _absensiHeatmapPanel FE)
         } else if (key === 'hadir' && (!r.jam_masuk || !r.jam_keluar) && !belumSelesaiTapiHariIni) {
           rekap.tidak_lengkap += 1;
@@ -608,7 +608,7 @@ export const handler = async (event) => {
         }
       }
 
-      // Ringkasan "hari ini" (khusus dashboard, full-access, tanpa filter pegawai — boleh difilter bidang)
+      // Ringkasan "hari ini" (khusus dashboard, full-access, tanpa filter pegawai - boleh difilter bidang)
       let hariIni = null;
       if (full && !targetUserId) {
         const totalRows = bidangId
@@ -656,7 +656,7 @@ export const handler = async (event) => {
     const m = parseInt(bulan), y = parseInt(tahun);
 
     try {
-      // 1) Breakdown per hari x status x terlambat (buat tren + heatmap) — hasilnya
+      // 1) Breakdown per hari x status x terlambat (buat tren + heatmap) - hasilnya
       // paling banyak ~31 hari x 5 status, jauh lebih ringkas drpd kirim tiap baris absensi.
       const harianRows = await sql`
         SELECT a.tanggal::text AS tanggal, a.status, a.terlambat, a.jam_masuk, a.jam_keluar,
@@ -680,7 +680,7 @@ export const handler = async (event) => {
         const key = (r.status === 'izin' || r.status === 'sakit') ? 'tugas_luar' : r.status;
         const isPendingHariIni = key === 'hadir' && (!r.jam_masuk || !r.jam_keluar) && tgl === todayStrVal;
         if (isPendingHariIni) {
-          // netral — masih berjalan, jangan dihitung ke hadir/terlambat/tidak_lengkap dulu
+          // netral - masih berjalan, jangan dihitung ke hadir/terlambat/tidak_lengkap dulu
         } else if (key === 'hadir') {
           if (r.tidak_lengkap) c.tidak_lengkap += r.jumlah;
           else if (r.terlambat) c.terlambat += r.jumlah;
@@ -690,7 +690,7 @@ export const handler = async (event) => {
       }
       const harian = [...harianMap.values()];
 
-      // 2) Ranking keterlambatan & 3) status "sudah absen hari ini" — cuma relevan
+      // 2) Ranking keterlambatan & 3) status "sudah absensi hari ini" - cuma relevan
       // buat dashboard admin/full tanpa filter pegawai spesifik (perbandingan antar pegawai)
       let ranking_terlambat = [];
       let sudah_absen_user_ids = [];
@@ -730,7 +730,7 @@ export const handler = async (event) => {
   // Target dihitung dari jam kerja standar (absensi_settings) x jumlah hari kerja
   // (Senin-Jumat, bukan hari libur) di bulan tsb. Aktual = akumulasi jam_keluar -
   // jam_masuk utk status hadir yg lengkap. Cuti/Tugas Luar (baris ini cuma ada
-  // kalau sudah disetujui admin — lihat approve pengajuan di atas) dihitung PENUH
+  // kalau sudah disetujui admin - lihat approve pengajuan di atas) dihitung PENUH
   // sesuai jam kerja standar hari itu, bukan 0, biar gak ngerugiin pegawai yg
   // cuti/tugas luar disetujui.
   if (isJamKerja && event.httpMethod === 'GET') {
@@ -745,7 +745,7 @@ export const handler = async (event) => {
     const y = tahun ? parseInt(tahun) : parseInt(todayStr().slice(0, 4));
     // bulan eksplisit '' (bukan sekadar gak dikirim) → "Semua Bulan", agregat satu
     // tahun. Bedain dari "gak dikirim sama sekali" (fallback lama) yg tetap ke bulan
-    // berjalan — sama pola kayak endpoint /rekap di atas.
+    // berjalan - sama pola kayak endpoint /rekap di atas.
     const bulanDikirim = event.queryStringParameters && Object.prototype.hasOwnProperty.call(event.queryStringParameters, 'bulan');
     const semuaBulan = bulanDikirim && !bulan;
     const m = bulan ? parseInt(bulan) : (semuaBulan ? null : parseInt(todayStr().slice(5, 7)));
@@ -762,7 +762,7 @@ export const handler = async (event) => {
       `;
       const liburSet = new Set(liburRows.map(r => r.tanggal));
 
-      // Total hari kerja & target menit — sebulan penuh kalau ada filter bulan,
+      // Total hari kerja & target menit - sebulan penuh kalau ada filter bulan,
       // atau setahun penuh (jumlahin tiap bulan) kalau mode "Semua Bulan" (m null).
       // Sama utk semua pegawai (jam kerja standar institusi), jadi berlaku juga
       // sebagai target PER PEGAWAI di mode agregat.
@@ -827,7 +827,7 @@ export const handler = async (event) => {
         const isJumatRow = dow === 5;
         const targetHari = isJumatRow ? targetMenitJumat : targetMenitSeninKamis;
         if (r.status === 'hadir' && r.jam_masuk && r.jam_keluar) {
-          // Clamp ke jendela jam kerja standar (jam_masuk s/d jam_pulang) —
+          // Clamp ke jendela jam kerja standar (jam_masuk s/d jam_pulang) -
           // masuk lebih pagi / pulang lebih telat dari jadwal gak nambah durasi
           // (gak dpt "bonus"), dan yang penting: telat masuk / pulang cepat
           // TETAP ngurangin durasi apa adanya, jadi gak bisa ditutup-tutupi
@@ -846,7 +846,7 @@ export const handler = async (event) => {
 
       const persentase = targetMenit > 0 ? Math.round((aktualMenit / targetMenit) * 1000) / 10 : 0;
       // Mode agregat sekarang tampilin TOTAL gabungan (bukan dibagi rata per
-      // pegawai) — lebih gampang dibaca & tetap benar dipakai baik pas filter
+      // pegawai) - lebih gampang dibaca & tetap benar dipakai baik pas filter
       // "semua pegawai" maupun pas difilter ke 1 unit/bidang kerja tertentu.
 
       return jsonResponse({
@@ -867,7 +867,7 @@ export const handler = async (event) => {
   }
 
   // ══════════════════════════ TAHUN TERSEDIA (utk dropdown filter) ══════════════════════════
-  // Sama kayak bulan-tersedia — cuma tampilin tahun yg beneran punya data absensi,
+  // Sama kayak bulan-tersedia - cuma tampilin tahun yg beneran punya data absensi,
   // bukan daftar 4 tahun statis (tahun berjalan s/d 3 tahun ke belakang).
   if (isTahunTersedia && event.httpMethod === 'GET') {
     const { user_id } = event.queryStringParameters || {};
@@ -914,7 +914,7 @@ export const handler = async (event) => {
   }
 
   // ══════════════════════════ UNIT KERJA TERSEDIA (utk dropdown filter) ══════════════════════════
-  // Sama kayak bulan-tersedia — cuma tampilin unit kerja yg beneran punya data absensi
+  // Sama kayak bulan-tersedia - cuma tampilin unit kerja yg beneran punya data absensi
   // di tahun terpilih, bukan semua unit kerja yg ada di master data.
   if (isBidangTersedia && event.httpMethod === 'GET') {
     if (!full) return errorResponse('Unauthorized', 401);
@@ -941,7 +941,7 @@ export const handler = async (event) => {
   }
 
   // ══════════════════════════ STATUS TERSEDIA (utk dropdown filter) ══════════════════════════
-  // Sama kayak bulan-tersedia — cuma tampilin opsi status yg beneran ada datanya
+  // Sama kayak bulan-tersedia - cuma tampilin opsi status yg beneran ada datanya
   // di bulan/tahun (& pegawai/unit kerja) yg lagi difilter, bukan daftar statis
   // 7 status. Status di sini adalah status TURUNAN, samain persis kondisinya
   // dgn filter di GET /api/absensi (list utama) biar konsisten.
@@ -988,7 +988,7 @@ export const handler = async (event) => {
     if (!full && user_id && parseInt(user_id) !== auth.id) return errorResponse('Unauthorized', 401);
     const bidangId = full && bidang_id ? parseInt(bidang_id) : null;
     // Status di tabel adalah status TURUNAN (dihitung di FE dari kombinasi
-    // status/terlambat/jam_masuk/jam_keluar/tanggal — lihat loadAbsTable),
+    // status/terlambat/jam_masuk/jam_keluar/tanggal - lihat loadAbsTable),
     // jadi difilter di sini pakai kondisi yg sama persis, bukan cuma a.status.
     const statusFilter = status || null;
 
@@ -999,7 +999,7 @@ export const handler = async (event) => {
       // Prioritas: bulan+tahun > rentang dari/sampai > tahun saja ("Semua Bulan") →
       // dinormalisasi jadi variabel efektif di JS dulu, biar query SQL-nya tetap 1
       // bentuk statis dgn parameter nullable (bukan nyusun fragment WHERE dinamis,
-      // yg ternyata gak didukung driver Neon — lihat catatan di bulan-tersedia).
+      // yg ternyata gak didukung driver Neon - lihat catatan di bulan-tersedia).
       let effYear = null, effMonth = null, effDari = null, effSampai = null;
       if (bulan && tahun) {
         effYear = parseInt(tahun); effMonth = parseInt(bulan);
@@ -1065,9 +1065,9 @@ export const handler = async (event) => {
     if (!user_id || !tanggal) return errorResponse('Pegawai dan tanggal wajib diisi', 400);
     if (status && !STATUS_VALID.includes(status)) return errorResponse('Status tidak valid', 400);
 
-    // Rentang tanggal (Tugas Luar/Cuti multi-hari) — satu baris absensi
+    // Rentang tanggal (Tugas Luar/Cuti multi-hari) - satu baris absensi
     // ter-generate otomatis per hari dlm rentang (termasuk Sabtu/Minggu),
-    // pegawai gak perlu absen manual tiap hari selama rentang itu.
+    // pegawai gak perlu absensi manual tiap hari selama rentang itu.
     const isRentang = !!tanggal_selesai && tanggal_selesai !== tanggal;
     if (isRentang) {
       if (status !== 'tugas_luar' && status !== 'cuti') {
@@ -1085,7 +1085,7 @@ export const handler = async (event) => {
         // Cek semua tanggal yg udah ke-record. Baris murni hasil cron alpa
         // (blm disentuh manusia) AMAN di-overwrite otomatis; baris lain
         // (checkin asli, atau udah pernah diedit admin) BLOKIR semuanya biar
-        // admin cek/hapus manual dulu — tetap all-or-nothing utk yg blocking.
+        // admin cek/hapus manual dulu - tetap all-or-nothing utk yg blocking.
         const bentrok = await sql`
           SELECT id, tanggal::text AS tanggal, status, input_by, keterangan
           FROM absensi WHERE user_id = ${user_id} AND tanggal = ANY(${tanggalList}::date[])
@@ -1130,7 +1130,7 @@ export const handler = async (event) => {
       }
     }
 
-    // Tanggal tunggal (bukan rentang) — tolak kalau akhir pekan atau hari libur
+    // Tanggal tunggal (bukan rentang) - tolak kalau akhir pekan atau hari libur
     const dowInput = new Date(`${tanggal}T00:00:00`).getDay();
     if (dowInput === 0 || dowInput === 6) {
       return errorResponse('Tanggal tersebut akhir pekan, absensi tidak diperlukan', 400);
@@ -1200,7 +1200,7 @@ export const handler = async (event) => {
 
       // status '' (string kosong) dikirim frontend scr eksplisit = admin milih "Otomatis"
       // di dropdown → berarti hadir/terlambat (dihitung dari jam_masuk), BUKAN "biarin
-      // status lama". Beda sama status yg emang gak dikirim sama sekali (key absen dari
+      // status lama". Beda sama status yg emang gak dikirim sama sekali (key absensi dari
       // body) → baru fallback ke status existing.
       const finalStatus = status !== undefined ? (status || 'hadir') : existing[0].status;
       const finalJamMasuk = jam_masuk !== undefined ? (jam_masuk || null) : existing[0].jam_masuk;
@@ -1257,7 +1257,7 @@ export const handler = async (event) => {
       }
       // Baris ini asalnya dari pengajuan yang sudah disetujui (Cuti/Tugas Luar).
       // Kalau gak ada lagi baris absensi lain yang masih pakai pengajuan itu
-      // (rentang multi-hari), hapus juga record pengajuannya — biar kartu
+      // (rentang multi-hari), hapus juga record pengajuannya - biar kartu
       // "Pengajuan Saya" di sisi user gak nampilin status Disetujui basi
       // buat data yang sudah dihapus admin.
       if (existing[0].pengajuan_id) {

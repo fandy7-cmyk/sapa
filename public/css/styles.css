@@ -1,11 +1,11 @@
 /* ═══════════════════════════════════════════════════════════════════════════
-   SAPA Perencanaan — Unified Stylesheet
+   SAPA Perencanaan - Unified Stylesheet
    Digunakan oleh: login.html · app.html · bundle.html
    ═══════════════════════════════════════════════════════════════════════════ */
 
 
 /* ═══════════════════════════════════════════════════════════════════════════
-   1. DESIGN TOKENS — Golden Ratio System
+   1. DESIGN TOKENS - Golden Ratio System
       φ = 1.618034 | Base = 8px
       Spacing (Fibonacci): 3,5,8,13,21,34,55,89,144
       Font scale × φ: .618 .764 .875 1 1.125 1.375 1.618 2.618rem
@@ -41,7 +41,7 @@
   --r-lg:   21px;
   --r-xl:   34px;
 
-  /* colors — Tema Biru Teal (white-dominant) */
+  /* colors - Tema Biru Teal (white-dominant) */
   --hijau-mid:   #0d9488;
   --aksen:       #0d9488;
   --hijau:       #0f766e;
@@ -67,8 +67,8 @@
   --red:         #e63946;
 
   /* layout */
-  --sidebar-w:    233px;   /* Fibonacci — app.html */
-  --topbar-h:     55px;    /* sp-7 — app.html */
+  --sidebar-w:    233px;   /* Fibonacci - app.html */
+  --topbar-h:     55px;    /* sp-7 - app.html */
   --panel-left-w: 50%;    /* 50% kiri, 50% kanan */
 
   /* shadows & transitions */
@@ -89,7 +89,7 @@
 
 
 /* ═══════════════════════════════════════════════════════════════════════════
-   3. BASE BODY — shared background & overlay
+   3. BASE BODY - shared background & overlay
    ═══════════════════════════════════════════════════════════════════════════ */
 body {
   font-family: 'Plus Jakarta Sans', sans-serif;
@@ -105,7 +105,7 @@ body.login-mode {
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
-   SCROLLBAR GLOBAL — satu sumber untuk semua elemen scrollable di sistem
+   SCROLLBAR GLOBAL - satu sumber untuk semua elemen scrollable di sistem
    (tabel, modal, sidebar, dsb). Ubah di sini, berlaku ke seluruh app.
    ═══════════════════════════════════════════════════════════════════════════ */
 * {
@@ -117,7 +117,7 @@ body.login-mode {
 *::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
 *::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
 
-/* overlay gradient — putih dominan */
+/* overlay gradient - putih dominan */
 body::before {
   content: '';
   position: fixed; inset: 0; z-index: 0;
@@ -127,14 +127,14 @@ body::before {
 
 /* ==== Aurora lembut di background halaman login ====
    Ganti starfield/orbit lama (150+ elemen animasi) dengan percikan cahaya
-   kecil yang melayang naik pelan — ringan (transform+opacity saja, tanpa JS)
+   kecil yang melayang naik pelan - ringan (transform+opacity saja, tanpa JS)
    dan tidak mengganggu kehalusan gradient dasar. */
 .lp-aurora {
   position: absolute; inset: 0; z-index: 0;
   overflow: hidden; pointer-events: none;
 }
 
-/* Percikan cahaya yang berotasi mengelilingi titik pusat layar — pola sama
+/* Percikan cahaya yang berotasi mengelilingi titik pusat layar - pola sama
    dengan .portal-particle di landing.html (orbit + twinkle), bukan lagi
    lurus dari bawah ke atas. Radius tiap partikel di-generate JS lewat
    custom property --r. */
@@ -226,7 +226,7 @@ body::before {
   50%      { opacity: 1; }
 }
 
-/* Loop entrance + idle glow — total siklus 6s */
+/* Loop entrance + idle glow - total siklus 6s */
 .sidebar-brand-icon img {
   width: 30px; height: 30px; object-fit: contain; display: block;
 }
@@ -309,6 +309,65 @@ body::before {
 }
 .nav-item svg { flex-shrink: 0; }
 .nav-chevron { margin-left: auto; transition: transform .25s cubic-bezier(.4,0,.2,1); flex-shrink: 0; transform: rotate(-90deg); transform-origin: 50% 50%; transform-box: fill-box; }
+
+/* Icon container - "chip" di belakang tiap icon nav, biar gak nempel telanjang ke teks */
+.nav-icon-box {
+  display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+  width: 26px; height: 26px; border-radius: var(--r-sm);
+  background: var(--abu-1); border: 1px solid var(--abu-2); color: #64748b;
+  transition: background var(--transition), border-color var(--transition), color var(--transition);
+}
+.nav-sub-item .nav-icon-box,
+.nav-sub-sub-item .nav-icon-box { width: 22px; height: 22px; border-radius: 7px; }
+.nav-item:hover .nav-icon-box,
+.nav-sub-item:hover .nav-icon-box { background: var(--abu-2); border-color: var(--abu-2); color: #111827; }
+.nav-item.active .nav-icon-box,
+.nav-sub-item.active .nav-icon-box,
+.nav-sub-sub-item.active .nav-icon-box {
+  background: var(--hijau); border-color: var(--hijau); color: #fff;
+}
+/* Parent group/branch yang isinya ada item aktif (tapi dia sendiri bukan halaman aktif) -
+   dikasih tint lembut aja, jangan solid, biar solid hijau tetap eksklusif buat halaman yang lagi dibuka */
+.nav-item.has-active .nav-icon-box,
+.nav-sub-item.nav-sub-group.has-active .nav-icon-box {
+  background: var(--hijau-light); border-color: var(--hijau-light); color: var(--hijau);
+}
+.nav-sub-sub-dot { width: 6px; height: 6px; border-radius: 999px; background: currentColor; opacity: .5; }
+
+/* Outline (line) tampil normal, solid (fill) begitu item/parent-nya aktif -
+   dua svg dirender sekaligus, mana yang tampil murni CSS, gak perlu JS swap. */
+.nav-icon-box .ic-line,
+.nav-icon-box .ic-fill { display: block; }
+.nav-icon-box .ic-fill { display: none; }
+.nav-item.active .nav-icon-box .ic-line,
+.nav-item.has-active .nav-icon-box .ic-line,
+.nav-sub-item.active .nav-icon-box .ic-line,
+.nav-sub-item.nav-sub-group.has-active .nav-icon-box .ic-line,
+.nav-sub-sub-item.active .nav-icon-box .ic-line { display: none; }
+.nav-item.active .nav-icon-box .ic-fill,
+.nav-item.has-active .nav-icon-box .ic-fill,
+.nav-sub-item.active .nav-icon-box .ic-fill,
+.nav-sub-item.nav-sub-group.has-active .nav-icon-box .ic-fill,
+.nav-sub-sub-item.active .nav-icon-box .ic-fill { display: block; }
+
+/* Animasi icon sidebar: pop/rotate halus pas hover & active - CSS-only, ringan */
+.nav-item svg:not(.nav-chevron),
+.nav-sub-item svg:not(.nav-chevron),
+.nav-sub-sub-item svg {
+  transition: transform .25s cubic-bezier(.4,0,.2,1);
+  transform-origin: 50% 50%;
+  transform-box: fill-box;
+}
+.nav-item:hover svg:not(.nav-chevron),
+.nav-sub-item:hover svg:not(.nav-chevron),
+.nav-sub-sub-item:hover svg {
+  transform: scale(1.15) rotate(-6deg);
+}
+.nav-item.has-active svg:not(.nav-chevron),
+.nav-sub-item.active svg:not(.nav-chevron),
+.nav-sub-sub-item.active svg {
+  transform: scale(1.1);
+}
 .nav-chevron.open { transform: rotate(0deg); }
 .nav-sub {
   margin-left: var(--sp-3); padding-left: var(--sp-3);
@@ -333,13 +392,39 @@ body::before {
   content: ''; position: absolute; left: 0; top: 20%; bottom: 20%;
   width: var(--sp-1); border-radius: 999px; background: var(--hijau);
 }
+/* Sub-group level ke-3 (mis. "Standar Harga Satuan" > SSH/HSPK/ASB/SBU) */
+.nav-sub-item.nav-sub-group { cursor: pointer; position: relative; }
+.nav-sub-item.nav-sub-group.has-active { color: var(--hijau); font-weight: 700; }
+.nav-sub-item.nav-sub-group .nav-chevron { width: 13px; height: 13px; }
+.nav-sub-sub {
+  margin-left: var(--sp-3); padding-left: var(--sp-3);
+  border-left: 1.5px dashed #e2e8f0;
+  overflow: hidden; max-height: 0;
+  transition: max-height .3s cubic-bezier(.4,0,.2,1);
+}
+.nav-sub-sub.open { max-height: 400px; }
+.nav-sub-sub-item {
+  display: flex; align-items: center; gap: var(--sp-2); padding: var(--sp-2) var(--sp-3);
+  border-radius: var(--r-sm); cursor: pointer; transition: all var(--transition);
+  color: #111827; font-size: var(--fs-sm); font-weight: 500;
+}
+.nav-sub-sub-dot { width: 5px; height: 5px; border-radius: 50%; background: #9ca3af; flex-shrink: 0; }
+.nav-sub-sub-item:hover { background: var(--abu-1); color: #000000; }
+.nav-sub-sub-item.active {
+  background: #ccfbf1; color: var(--hijau); font-weight: 700; position: relative;
+}
+.nav-sub-sub-item.active .nav-sub-sub-dot { background: var(--hijau); }
+.nav-sub-sub-item.active::before {
+  content: ''; position: absolute; left: 0; top: 20%; bottom: 20%;
+  width: var(--sp-1); border-radius: 999px; background: var(--hijau);
+}
 
 .sidebar-overlay {
   display: none; position: fixed; inset: 0; z-index: 190; background: rgba(0,0,0,.5);
 }
 .sidebar-overlay.open { display: block; }
 
-/* ── Sidebar collapse toggle — floating tab di tepi kanan sidebar ── */
+/* ── Sidebar collapse toggle - floating tab di tepi kanan sidebar ── */
 .btn-sidebar-collapse {
   position: static;
   flex-shrink: 0;
@@ -412,7 +497,7 @@ body::before {
   display: block;
 }
 
-/* Tooltip toggle button — sama style dengan nav-fixed-tooltip */
+/* Tooltip toggle button - sama style dengan nav-fixed-tooltip */
 #tooltipSidebarToggle {
   position: fixed; transform: translateY(-50%);
   background: #ccfbf1; color: var(--hijau); font-size: .72rem; font-weight: 600;
@@ -430,7 +515,7 @@ body::before {
 /* Label section (nav-label) hilang */
 .sidebar.collapsed .nav-label { display: none; }
 
-/* Group header — jadi divider tipis, tidak clickable feel */
+/* Group header - jadi divider tipis, tidak clickable feel */
 .sidebar.collapsed .nav-item {
   justify-content: center;
   padding: var(--sp-1) 0;
@@ -476,7 +561,25 @@ body::before {
 }
 .sidebar.collapsed .nav-sub-item-label { display: none; }
 
-/* Tooltip pada sub-item saat collapsed — dirender via JS (position:fixed) agar tidak ke-clip overflow-y .sidebar-nav */
+/* Sub-group level ke-3 saat sidebar collapsed - perlakukan sama kayak nav-sub biasa */
+.sidebar.collapsed .nav-sub-sub {
+  display: block !important;
+  max-height: none !important;
+  margin-left: 0;
+  padding-left: 0;
+  border-left: none;
+  overflow: visible;
+}
+.sidebar.collapsed .nav-sub-sub-item {
+  justify-content: center;
+  padding: 6px 0;
+  gap: 0;
+}
+.sidebar.collapsed .nav-sub-sub-dot { display: none; }
+.sidebar.collapsed .nav-sub-sub-item-label { display: none; }
+.sidebar.collapsed .nav-sub-item.nav-sub-group .nav-chevron { display: none; }
+
+/* Tooltip pada sub-item saat collapsed - dirender via JS (position:fixed) agar tidak ke-clip overflow-y .sidebar-nav */
 .nav-fixed-tooltip {
   position: fixed; transform: translateY(-50%);
   background: #ccfbf1; color: var(--hijau); font-size: .72rem; font-weight: 600;
@@ -488,7 +591,7 @@ body::before {
 }
 .nav-fixed-tooltip.show { opacity: 1; }
 
-/* ── Tooltip custom generik (pengganti native `title`) — pakai attribute data-tip="teks" ──
+/* ── Tooltip custom generik (pengganti native `title`) - pakai attribute data-tip="teks" ──
    Dirender via JS position:fixed biar gak ke-clip overflow:auto di tabel manapun.
    Tema disamakan dengan .nav-fixed-tooltip yang udah ada. */
 .qtip-box {
@@ -514,7 +617,7 @@ body::before {
 .qtip-box.qtip-top::after    { top: 100%;    border-top-color: var(--hijau); }
 .qtip-box.qtip-bottom::after { bottom: 100%; border-bottom-color: var(--hijau); }
 
-/* Varian warna qtip — dipakai via data-tip-variant="danger|success" pada elemen sumbernya */
+/* Varian warna qtip - dipakai via data-tip-variant="danger|success" pada elemen sumbernya */
 .qtip-box.qtip-danger { background: #fee2e2; color: #991b1b; }
 .qtip-box.qtip-danger.qtip-top::after    { border-top-color: #fee2e2; }
 .qtip-box.qtip-danger.qtip-bottom::after { border-bottom-color: #fee2e2; }
@@ -530,7 +633,7 @@ body::before {
   padding: 0;
 }
 
-/* ── Panel formula "Σ" — floating position:fixed, di-append ke body (lihat toggleFormulaPanel di kinerja.js).
+/* ── Panel formula "Σ" - floating position:fixed, di-append ke body (lihat toggleFormulaPanel di kinerja.js).
    Sengaja gak nested di dalam td sticky biar gak ke-clip overflow:hidden / dorong tinggi baris tabel. ── */
 .fx-float-panel {
   position: fixed;
@@ -572,7 +675,7 @@ body::before {
 }
 .sidebar.collapsed .nav-item[data-sub="dashboard"]::before { display: block; }
 
-/* Main area offset transition — topbar TIDAK ikut collapse */
+/* Main area offset transition - topbar TIDAK ikut collapse */
 .main { flex: 1; margin-left: var(--sidebar-w); display: flex; flex-direction: column; min-height: 100vh;
   transition: margin-left .3s ease;
 }
@@ -596,7 +699,7 @@ body::before {
 }
 .topbar-title { font-size: var(--fs-lg); font-weight: 700; color: #ffffff; flex: 0 1 auto; }
 
-/* Constellation drift — partikel teal melayang & berkedip di antara logo & profil */
+/* Constellation drift - partikel teal melayang & berkedip di antara logo & profil */
 .topbar-constellation {
   flex: 1 1 auto; min-width: 60px; align-self: stretch;
   position: relative; overflow: hidden; pointer-events: none;
@@ -647,7 +750,7 @@ body::before {
 .card-title-sm { font-size: var(--fs-lg); font-weight: 700; color: var(--teks); }
 
 table { width: 100%; border-collapse: collapse; }
-/* Kolom "Dibuat Oleh" hanya untuk Super Admin — sembunyikan untuk user biasa */
+/* Kolom "Dibuat Oleh" hanya untuk Super Admin - sembunyikan untuk user biasa */
 body:not(.is-admin) .col-admin-only { display: none; }
 th {
   font-size: var(--fs-xs); font-weight: 700; color: var(--teks-muted);
@@ -663,7 +766,7 @@ tr:last-child td { border-bottom: none; }
 tr:hover td:not(.td-sticky-no):not(.td-sticky-name) { background: var(--abu-1); }
 .empty-row td { text-align: center; color: var(--teks-muted); padding: var(--sp-6); font-style: italic; }
 
-/* ── Default table — teal header ── */
+/* ── Default table - teal header ── */
 .card table th {
   background: var(--hijau);
   color: #fff;
@@ -683,7 +786,7 @@ tr:hover td:not(.td-sticky-no):not(.td-sticky-name) { background: var(--abu-1); 
 /* ── Freeze header: dipakai tabel lain yg butuh header nempel (Shortlink, Bundle) ── */
 .freeze-table thead th { position: sticky; top: 0; z-index: 2; }
 
-/* ── Periode table — colored header ── */
+/* ── Periode table - colored header ── */
 .periode-table th {
   background: var(--hijau);
   color: #fff;
@@ -731,7 +834,7 @@ tr:hover td:not(.td-sticky-no):not(.td-sticky-name) { background: var(--abu-1); 
 .btn-ghost.btn-sm svg, .btn-danger.btn-sm svg { pointer-events: none; }
 [title] { cursor: pointer; }
 
-/* Komponen ikon Hapus — dipakai di SEMUA modul (Kinerja, Superlink, Surat, Absensi, dll).
+/* Komponen ikon Hapus - dipakai di SEMUA modul (Kinerja, Superlink, Surat, Absensi, dll).
    Cukup ubah di sini, otomatis berlaku ke semua tombol Hapus di seluruh aplikasi. */
 .btn-hapus {
   display: inline-flex; align-items: center; justify-content: center; gap: var(--sp-2);
@@ -743,17 +846,129 @@ tr:hover td:not(.td-sticky-no):not(.td-sticky-name) { background: var(--abu-1); 
 .btn-hapus:hover { background: var(--merah); color: #fff; border-color: var(--merah); }
 .btn-hapus svg { pointer-events: none; }
 
-/* Komponen ikon Edit — pasangan .btn-hapus, dipakai di SEMUA modul.
+/* Komponen ikon Edit - pasangan .btn-hapus, dipakai di SEMUA modul.
    Cukup ubah di sini, otomatis berlaku ke semua tombol Edit ikon di seluruh aplikasi. */
 .btn-edit {
   display: inline-flex; align-items: center; justify-content: center; gap: var(--sp-2);
   padding: var(--sp-2) var(--sp-3); border-radius: var(--r-sm); font-family: inherit;
   font-size: var(--fs-sm); font-weight: 700; cursor: pointer;
-  border: 1.5px solid var(--abu-2); transition: all var(--transition);
-  background: transparent; color: var(--teks-muted);
+  border: 1.5px solid #fde68a; transition: all var(--transition);
+  background: #fef3c7; color: #92400e;
 }
-.btn-edit:hover { background: var(--abu-1); color: var(--teks); border-color: var(--abu-3, #cbd5e1); }
+.btn-edit:hover { background: #d97706; color: #fff; border-color: #d97706; }
 .btn-edit svg { pointer-events: none; }
+
+/* Ukuran tombol aksi ikon disamain kayak yang di menu Pengguna: kotak
+   seragam ~34x34 dengan padding nyaman, dipasang global (bukan cuma pas
+   pointer:coarse/touch device doang kayak sebelumnya) biar konsisten di
+   SEMUA modul & semua ukuran layar - Superlink, Kinerja, Absensi, Surat,
+   Users, dll. Tombol yang ada teksnya (mis. "Detail") tetap melebar wajar
+   karena ini cuma nge-set batas minimum, bukan lebar tetap. */
+.btn-ghost.btn-sm,
+.btn-hapus,
+.btn-edit {
+  min-height: 34px;
+  min-width: 34px;
+  padding: 6px;
+}
+
+/* Komponen tombol Aktifkan/Nonaktifkan (toggle status) & Detail/Lihat/Rincian -
+   dipakai di SEMUA modul (e-Planning, Superlink, Surat, Struktur, Pengumuman, dll).
+   Ditandai lewat atribut data-tip (bukan class baru) supaya otomatis berlaku ke
+   tombol yang sudah ada tanpa perlu ubah tiap file JS satu-satu.
+   PENTING: dipisah jadi 2 selector persis (bukan satu selector *="ktifkan" yang
+   nyocok ke DUA-duanya "Aktifkan" & "Nonaktifkan" sekaligus - itu bug lama yang
+   bikin tombolnya keliatan gak berubah abis diklik, soalnya dua state kepasang
+   warna yang sama persis. Sekarang kebalik state = kebalik warna juga). */
+.btn-ghost[data-tip="Nonaktifkan"] {
+  background: #d1fae5; color: #047857; border-color: #6ee7b7;
+}
+.btn-ghost[data-tip="Nonaktifkan"]:hover {
+  background: #047857; color: #fff; border-color: #047857;
+}
+.btn-ghost[data-tip="Aktifkan"] {
+  background: var(--abu-1, #f1f5f9); color: var(--teks-muted); border-color: var(--abu-2, #e2e8f0);
+}
+.btn-ghost[data-tip="Aktifkan"]:hover {
+  background: #047857; color: #fff; border-color: #047857;
+}
+.btn-ghost[data-tip*="Rincian"],
+.btn-ghost[data-tip*="Tampilkan"],
+.btn-ghost[data-tip="Detail"],
+.btn-ghost[data-tip*="Preview"],
+.btn-ghost[data-tip="Buka file"],
+.btn-ghost[data-tip^="Lihat"] {
+  background: #dbeafe; color: #1e40af; border-color: #93c5fd;
+}
+.btn-ghost[data-tip*="Rincian"]:hover,
+.btn-ghost[data-tip*="Tampilkan"]:hover,
+.btn-ghost[data-tip="Detail"]:hover,
+.btn-ghost[data-tip*="Preview"]:hover,
+.btn-ghost[data-tip="Buka file"]:hover,
+.btn-ghost[data-tip^="Lihat"]:hover {
+  background: #1e40af; color: #fff; border-color: #1e40af;
+}
+
+/* Tombol Edit yang masih pakai class generic .btn.btn-ghost.btn-sm (belum di-migrasi
+   ke class .btn-edit satu-satu). Ditandai lewat data-tip="Edit" biar otomatis kepasang
+   warna yang sama dengan .btn-edit tanpa perlu ubah tiap file JS. */
+.btn-ghost[data-tip="Edit"] {
+  background: #fef3c7; color: #92400e; border-color: #fde68a;
+}
+.btn-ghost[data-tip="Edit"]:hover {
+  background: #d97706; color: #fff; border-color: #d97706;
+}
+
+/* Tombol aksi persetujuan (Submit/Ajukan, Setujui/Sahkan, Tolak/Kirim Balik) yang
+   sebelumnya cuma dikasih warna teks lewat inline style manual di eplanning_frontend.js.
+   Dipasangkan lewat data-tip biar tint-nya seragam dengan Edit/Hapus/Detail/Toggle
+   di atas, dan inline style-nya sudah dihapus supaya nggak tabrakan. */
+.btn-ghost[data-tip*="Submit"],
+.btn-ghost[data-tip*="Ajukan"] {
+  background: #dbeafe; color: #1e40af; border-color: #93c5fd;
+}
+.btn-ghost[data-tip*="Submit"]:hover,
+.btn-ghost[data-tip*="Ajukan"]:hover {
+  background: #1e40af; color: #fff; border-color: #1e40af;
+}
+.btn-ghost[data-tip*="Setujui"],
+.btn-ghost[data-tip*="Sahkan"] {
+  background: #d1fae5; color: #047857; border-color: #6ee7b7;
+}
+.btn-ghost[data-tip*="Setujui"]:hover,
+.btn-ghost[data-tip*="Sahkan"]:hover {
+  background: #047857; color: #fff; border-color: #047857;
+}
+.btn-ghost[data-tip="Tolak"] {
+  background: #fee2e2; color: var(--merah); border-color: #fca5a5;
+}
+.btn-ghost[data-tip="Tolak"]:hover {
+  background: var(--merah); color: #fff; border-color: var(--merah);
+}
+.btn-ghost[data-tip="Batalkan"] {
+  background: #ffedd5; color: #c2410c; border-color: #fdba74;
+}
+.btn-ghost[data-tip="Batalkan"]:hover {
+  background: #c2410c; color: #fff; border-color: #c2410c;
+}
+.btn-ghost[data-tip="Tambah tahun lain"] {
+  background: #d1fae5; color: #047857; border-color: #6ee7b7;
+}
+.btn-ghost[data-tip="Tambah tahun lain"]:hover {
+  background: #047857; color: #fff; border-color: #047857;
+}
+.btn-ghost[data-tip="Tandai Selesai"] {
+  background: #d1fae5; color: #047857; border-color: #6ee7b7;
+}
+.btn-ghost[data-tip="Tandai Selesai"]:hover {
+  background: #047857; color: #fff; border-color: #047857;
+}
+.btn-ghost[data-tip="Buka Kembali"] {
+  background: #ffedd5; color: #c2410c; border-color: #fdba74;
+}
+.btn-ghost[data-tip="Buka Kembali"]:hover {
+  background: #c2410c; color: #fff; border-color: #c2410c;
+}
 
 
 /* ═══════════════════════════════════════════════════════════════════════════
@@ -772,6 +987,10 @@ tr:hover td:not(.td-sticky-no):not(.td-sticky-name) { background: var(--abu-1); 
 .badge-fuchsia { background: #fae8ff; color: #a21caf; }
 .badge-abu    { background: #f1f5f9; color: #64748b; }
 .badge-admin  { background: linear-gradient(135deg, var(--hijau), var(--hijau-mid)); color: #fff; }
+/* Chip: dipakai modul E-Planning untuk daftar master data (sumber dana, satuan) */
+.chip { display: inline-flex; align-items: center; gap: 6px; padding: 5px 10px; margin: 3px; border-radius: 999px; background: #f1f5f9; color: #334155; font-size: 12.5px; font-weight: 600; }
+.chip button { background: none; border: none; color: #94a3b8; cursor: pointer; font-size: 14px; line-height: 1; padding: 0; }
+.chip button:hover { color: #dc2626; }
 .badge-aktif  {
   background: var(--sukses); color: #fff;
   padding: .15rem .5rem; border-radius: 999px;
@@ -932,6 +1151,33 @@ tr:hover td:not(.td-sticky-no):not(.td-sticky-name) { background: var(--abu-1); 
   background: #fff; border-color: var(--hijau); box-shadow: 0 0 0 var(--sp-1) rgba(6,95,70,.1);
 }
 
+/* ── Multi-select "chips" (mis. Kode Rekening Terkait di modal Standar Harga) ── */
+.chip-multi-wrap {
+  width: 100%; min-height: 44px; padding: 7px var(--sp-3);
+  background: var(--abu-1); border: 1.5px solid var(--abu-2); border-radius: var(--r-sm);
+  display: flex; flex-wrap: wrap; align-items: center; gap: 6px; cursor: text;
+  transition: all var(--transition);
+}
+.chip-multi-wrap:focus-within {
+  background: #fff; border-color: var(--hijau); box-shadow: 0 0 0 var(--sp-1) rgba(6,95,70,.1);
+}
+.chip-multi-item {
+  display: inline-flex; align-items: center; gap: 5px;
+  background: var(--hijau-light); color: var(--hijau); font-weight: 700; font-size: 12.5px;
+  padding: 4px 6px 4px 10px; border-radius: 999px; max-width: 100%;
+}
+.chip-multi-item span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.chip-multi-remove {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 16px; height: 16px; border-radius: 50%; flex-shrink: 0;
+  color: var(--hijau); background: rgba(15,118,110,.14); cursor: pointer; font-size: 13px; line-height: 1;
+}
+.chip-multi-remove:hover { background: rgba(15,118,110,.28); }
+.chip-multi-input {
+  flex: 1 1 90px; min-width: 90px; border: none; outline: none; background: transparent;
+  font-family: inherit; font-size: var(--fs-base); color: var(--teks); padding: 4px 2px;
+}
+
 /* ── Custom Select Wrapper ──────────────────────────────────────────────── */
 /* ── Custom Select (select-wrap) ─────────────────────────────────────────── */
 /* The native <select> is hidden; JS builds a custom dropdown panel.         */
@@ -987,6 +1233,23 @@ tr:hover td:not(.td-sticky-no):not(.td-sticky-name) { background: var(--abu-1); 
   font-size: .72rem;
   font-weight: 600;
 }
+.ep-sh-pagesize-select .csel-trigger {
+  padding: 3px 6px;
+  font-size: var(--fs-sm);
+  background: #fff;
+}
+.ep-sh-pagesize-select .csel-chevron { width: 12px; height: 12px; }
+/* Panel opsinya dirender floating nempel ke <body>, bukan nested di dalam
+   .ep-sh-pagesize-select - makanya class-nya ditempel langsung ke panel
+   (lihat renderShPagination() di eplanning_frontend.js), bukan pakai
+   descendant selector dari .ep-sh-pagesize-select. */
+.ep-sh-pagesize-panel { min-width: 76px; width: 76px; }
+.ep-sh-pagesize-panel .csel-option {
+  padding: 6px 10px;
+  font-size: var(--fs-sm);
+  gap: 8px;
+}
+.ep-sh-pagesize-panel .csel-option-check { width: 11px; height: 11px; }
 .tahun-select-wrap .csel-chevron,
 .bulan-select-wrap .csel-chevron {
   width: 14px; height: 14px;
@@ -1015,7 +1278,7 @@ tr:hover td:not(.td-sticky-no):not(.td-sticky-name) { background: var(--abu-1); 
   align-items: center;
   gap: 10px;
   padding: 9px var(--sp-4);
-  font-size: var(--fs-base);
+  font-size: var(--fs-sm);
   color: var(--teks);
   cursor: pointer;
   transition: background var(--transition);
@@ -1032,7 +1295,7 @@ tr:hover td:not(.td-sticky-no):not(.td-sticky-name) { background: var(--abu-1); 
 }
 .csel-option.selected .csel-option-check { opacity: 1; }
 
-/* Search box di dalam panel — dipakai select dgn banyak opsi (mis. Filter User).
+/* Search box di dalam panel - dipakai select dgn banyak opsi (mis. Filter User).
    Panel jadi flex-column: search box fixed di atas, cuma list opsi yg discroll. */
 .csel-panel.csel-panel-searchable {
   max-height: none;
@@ -1069,10 +1332,10 @@ tr:hover td:not(.td-sticky-no):not(.td-sticky-name) { background: var(--abu-1); 
   font-style: italic;
 }
 
-/* Varian floating position:fixed — dipakai custom-select generik (buildCustomSelect
+/* Varian floating position:fixed - dipakai custom-select generik (buildCustomSelect
    di app.html) biar panel dropdown gak ke-clip overflow:hidden di container manapun
    (mis. .kinerja-table-wrap.card yang overflow-y:hidden buat scroll horizontal).
-   Posisi top/left/width di-set inline via JS saat dibuka — sama pola dgn .fx-float-panel. */
+   Posisi top/left/width di-set inline via JS saat dibuka - sama pola dgn .fx-float-panel. */
 .csel-panel.csel-panel-fixed {
   position: fixed;
   top: auto; left: auto; right: auto;
@@ -1115,7 +1378,7 @@ tr:hover td:not(.td-sticky-no):not(.td-sticky-name) { background: var(--abu-1); 
 .share-actions-row .btn { flex: 1; justify-content: center; }
 #shareWaBtn:hover { background: #dcfce7; color: #15803d; border-color: #86efac; }
 
-/* ── Share dropdown menu (mirip s.id) — tombol "Bagikan" di row Link/Bundle ── */
+/* ── Share dropdown menu (mirip s.id) - tombol "Bagikan" di row Link/Bundle ── */
 .share-menu {
   display: none; position: fixed; z-index: 9999; width: 210px;
   background: #fff; border-radius: var(--r-lg);
@@ -1136,12 +1399,87 @@ tr:hover td:not(.td-sticky-no):not(.td-sticky-name) { background: var(--abu-1); 
 .share-menu-item:hover svg { opacity: 1; color: var(--hijau); }
 .share-menu-divider { height: 1px; background: var(--abu-1); margin: 0 var(--sp-2); flex-shrink: 0; }
 
-/* ── Icon status di tabel Superlink (jam=berjangka, lock=proteksi) ── */
+/* ── Icon status di tabel Superlink (jam=berjangka, lock=proteksi) ──
+   Sebelumnya cuma ganti warna teks pas aktif, ikonnya sendiri masih polos
+   nyaris nggak keliatan (opacity .55, no bg) - beda jauh sama Detail/Edit/
+   Hapus yang udah full pill berwarna. Sekarang dikasih pill background juga
+   pas statusnya aktif, biar konsisten satu bahasa visual sama tombol lain.
+   Pas nonaktif tetap abu-abu pudar (opacity .55) - itu memang state "off". */
 .icon-status { color: var(--teks-muted); opacity: .55; }
-.icon-status.active { color: var(--hijau, #0f766e); opacity: 1; }
 .icon-status:hover { opacity: 1; }
+.icon-status.active[data-tip^="Berlaku"],
+.icon-status.active[data-tip*="berjangka"] {
+  opacity: 1; background: #ffedd5; color: #c2410c; border-color: #fdba74;
+}
+.icon-status.active[data-tip^="Berlaku"]:hover,
+.icon-status.active[data-tip*="berjangka"]:hover {
+  background: #c2410c; color: #fff; border-color: #c2410c;
+}
+.icon-status.active[data-tip*="diproteksi"] {
+  opacity: 1; background: #ede9fe; color: #6d28d9; border-color: #c4b5fd;
+}
+.icon-status.active[data-tip*="diproteksi"]:hover {
+  background: #6d28d9; color: #fff; border-color: #6d28d9;
+}
 
-/* Samakan tinggi & alignment tombol aksi tabel Shortlink — tombol "Detail" (ada
+/* Tombol Bagikan & QR Code di tabel Superlink - utilitas yang selalu aktif
+   (bukan status toggle), jadi dikasih tint tetap biar nggak polos putih
+   sendirian di antara tombol-tombol lain yang udah berwarna. */
+.btn-ghost[data-share-trigger],
+.btn-ghost[data-tip="Bagikan"] {
+  background: #e0f2fe; color: #0369a1; border-color: #7dd3fc;
+}
+.btn-ghost[data-share-trigger]:hover,
+.btn-ghost[data-tip="Bagikan"]:hover {
+  background: #0369a1; color: #fff; border-color: #0369a1;
+}
+.btn-ghost[data-tip="QR Code"] {
+  background: #e0e7ff; color: #4338ca; border-color: #a5b4fc;
+}
+.btn-ghost[data-tip="QR Code"]:hover {
+  background: #4338ca; color: #fff; border-color: #4338ca;
+}
+
+/* Kolom AKSI di modul Users (Hak Akses, Assign Indikator, Reset Password,
+   Paksa Logout) - sama kasusnya kayak Superlink, masih polos .btn-ghost
+   default padahal duduk sebaris sama Edit(kuning)/Hapus(merah) yang udah
+   berwarna. Warna dipilih beda-beda per tombol biar nggak ketuker sama
+   tombol tetangganya di baris yang sama. */
+.btn-ghost[data-tip="Hak Akses"] {
+  background: #ede9fe; color: #6d28d9; border-color: #c4b5fd;
+}
+.btn-ghost[data-tip="Hak Akses"]:hover {
+  background: #6d28d9; color: #fff; border-color: #6d28d9;
+}
+.btn-ghost[data-tip="Assign Indikator"] {
+  background: #e0e7ff; color: #4338ca; border-color: #a5b4fc;
+}
+.btn-ghost[data-tip="Assign Indikator"]:hover {
+  background: #4338ca; color: #fff; border-color: #4338ca;
+}
+.btn-ghost[data-tip="Reset Password"] {
+  background: #ccfbf1; color: #0f766e; border-color: #5eead4;
+}
+.btn-ghost[data-tip="Reset Password"]:hover {
+  background: #0f766e; color: #fff; border-color: #0f766e;
+}
+.btn-ghost[data-tip="Paksa Logout"] {
+  background: #ffedd5; color: #c2410c; border-color: #fdba74;
+}
+.btn-ghost[data-tip="Paksa Logout"]:hover {
+  background: #c2410c; color: #fff; border-color: #c2410c;
+}
+
+/* Tombol Salin kode (kolom Tampilkan Rekening e-Planning) - satu-satunya
+   tombol di kolomnya, tapi tetap disamakan biar nggak polos sendirian. */
+.btn-ghost[data-tip="Salin kode"] {
+  background: #e0f2fe; color: #0369a1; border-color: #7dd3fc;
+}
+.btn-ghost[data-tip="Salin kode"]:hover {
+  background: #0369a1; color: #fff; border-color: #0369a1;
+}
+
+/* Samakan tinggi & alignment tombol aksi tabel Shortlink - tombol "Detail" (ada
    teks) bikin baseline baris bergeser & tombol sesudahnya (Edit, Hapus) jadi
    turun kalau align-nya masih default (baseline). */
 #slTableBody .btn-sm, #bundleTableBody .btn-sm, #slTableBody .btn-hapus, #bundleTableBody .btn-hapus { line-height: 1; vertical-align: middle; }
@@ -1427,7 +1765,7 @@ input[type="checkbox"].toggle:checked::after { left: 19px; }
 .tw-btn:hover { background:var(--abu-1); color:var(--teks); border-color:#94a3b8; }
 .tw-btn.active { background:var(--hijau); border-color:var(--hijau); color:#fff; box-shadow:0 2px 8px rgba(15,118,110,.25); }
 
-/* ── Selector Bulan — Segmented Control ─────────────────────────── */
+/* ── Selector Bulan - Segmented Control ─────────────────────────── */
 .seg-bulan-wrap {
   display:flex; flex-wrap:wrap;
   background:#fff;
@@ -1472,7 +1810,7 @@ input[type="checkbox"].toggle:checked::after { left: 19px; }
 /* Header 2 baris (mis. TW I/II lalu nama bulan di Laporan Kinerja): baris 1
    nempel top:0, baris 2 HARUS nempel di bawah baris 1 (top diisi dinamis via
    JS = tinggi baris 1), bukan ikut top:0 dari rule .kinerja-table th di atas
-   — kalau ikut top:0, pas discroll baris 2 numpuk balik ke atas nabrak
+   - kalau ikut top:0, pas discroll baris 2 numpuk balik ke atas nabrak
    baris 1 alih-alih nempel di bawahnya (freeze jadi keliatan "gak maksimal"). */
 .kinerja-table thead tr.lap-th-row1 th { top:0; z-index:3; }
 .kinerja-table thead tr.lap-th-row2 th { z-index:2; }
@@ -1482,7 +1820,7 @@ input[type="checkbox"].toggle:checked::after { left: 19px; }
 .kinerja-table th[style*="left:0"]    { z-index:5 !important; background:var(--hijau); }
 .kinerja-table th[style*="left:34px"] { z-index:5 !important; border-right:1px solid rgba(0,0,0,.12); left:44px !important; background:var(--hijau); }
 .kinerja-table td { padding:var(--sp-3) var(--sp-3); border-bottom:1px solid var(--abu-1); vertical-align:middle; user-select:text; overflow:hidden; background:#fff; }
-/* Laporan Kinerja: Faktor Penghambat/Solusi/Faktor Pendukung/RTL — baris "1. "/"- "
+/* Laporan Kinerja: Faktor Penghambat/Solusi/Faktor Pendukung/RTL - baris "1. "/"- "
    dirender jadi <ol>/<ul> beneran (lihat _lapMdToHtml di laporan.js) supaya wrap-nya
    hanging-indent rapi, bukan nempel ke margin kiri kayak sebelumnya. */
 .lap-md-line { white-space:pre-wrap; }
@@ -1523,12 +1861,12 @@ ol.lap-md-list > li::before {
 .kinerja-table tr:last-child td { border-bottom:none; }
 .kinerja-table tr:hover td:not(.td-sticky-no):not(.td-sticky-name) { background:var(--abu-1); }
 .kinerja-table .sasaran-row td { background:rgba(6,95,70,.07); font-weight:700; color:var(--teks); font-size:.78rem; padding:6px 10px; }
-/* Kolom satuan & target — cegah teks bocor ke belakang sticky */
+/* Kolom satuan & target - cegah teks bocor ke belakang sticky */
 .kinerja-table td.td-satuan { white-space:normal; word-break:break-word; max-width:80px; }
 .kinerja-table td.td-bidang { white-space:normal; word-break:break-word; max-width:160px; }
 .kinerja-table td.td-target { white-space:nowrap; overflow:hidden; max-width:80px; text-overflow:ellipsis; }
 
-/* ── Tabel Running Text (ticker) — kolom Teks wrap, jangan scroll horizontal ── */
+/* ── Tabel Running Text (ticker) - kolom Teks wrap, jangan scroll horizontal ── */
 #tickerTable { table-layout: fixed; min-width: 0; }
 #tickerTable td, #tickerTable th { white-space: normal; }
 /* Samakan padding dengan tabel default (.card table) agar konsisten dgn tabel Pengumuman di atasnya */
@@ -1559,7 +1897,7 @@ ol.lap-md-list > li::before {
 .capaian-badge.na  { background:var(--abu-1); color:var(--teks-muted); }
 
 .realisasi-input-cell { min-width:150px; }
-/* Wrapper spinner custom buat input realisasi — gaya disamain persis sama
+/* Wrapper spinner custom buat input realisasi - gaya disamain persis sama
    spinner jam (.cdtp-time-spin/.cdtp-spin-btn) di custom datetime picker:
    tombol panah naik/turun nempel di kanan input, transparan & baru kelihatan
    pas fokus/hover, warna ngikut tema hijau/teal aplikasi. */
@@ -1584,7 +1922,7 @@ ol.lap-md-list > li::before {
 .realisasi-input-cell .realisasi-spin-btn:hover { background:var(--hijau-light); color:var(--hijau); }
 .realisasi-input-cell .realisasi-spin:hover .realisasi-spin-btn,
 .realisasi-input-cell .realisasi-spin:focus-within .realisasi-spin-btn { opacity:1; pointer-events:auto; }
-/* Dropdown predikat (select tipe_nilai='predikat') — samakan tampilan dgn input
+/* Dropdown predikat (select tipe_nilai='predikat') - samakan tampilan dgn input
    angka di kolom yang sama (font-size .82rem, bold, padding senada) supaya gak
    kelihatan lebih besar/beda gaya dari cell realisasi angka biasa. */
 .realisasi-input-cell select,
@@ -1593,7 +1931,7 @@ ol.lap-md-list > li::before {
   font-weight:700;
 }
 .realisasi-input-cell .csel-trigger { padding-top:6px; padding-bottom:6px; }
-/* Placeholder ("Pilih Peringkat") gak ikut bold — bold cuma buat nilai yang
+/* Placeholder ("Pilih Peringkat") gak ikut bold - bold cuma buat nilai yang
    udah beneran dipilih user, biar konsisten sama gaya placeholder di tempat lain. */
 .realisasi-input-cell .csel-trigger-text.placeholder { font-weight:400; }
 .realisasi-input-cell .csel-trigger-text { text-align:center; }
@@ -1766,16 +2104,16 @@ ol.lap-md-list > li::before {
 .btn-reset-row svg { pointer-events:none; flex-shrink:0; }
 
 /* ── Warna baris berdasarkan state ──────────────────────────────────────── */
-/* Default — putih / abu bergantian, tidak ada highlight */
+/* Default - putih / abu bergantian, tidak ada highlight */
 .kinerja-table tr.row-state-default td:not(.td-sticky-no):not(.td-sticky-name) { background:transparent; }
 
-/* Editing — oranye lembut */
+/* Editing - oranye lembut */
 .kinerja-table tr.row-state-editing td:not(.td-sticky-no):not(.td-sticky-name) {
   background:#fff7ed !important;
 }
 .kinerja-table tr.row-state-editing:hover td:not(.td-sticky-no):not(.td-sticky-name) { background:#fed7aa !important; }
 
-/* Saved — hijau lembut */
+/* Saved - hijau lembut */
 /* Handled per-class for sticky td */ .kinerja-table tr.row-state-saved td:not(.td-sticky-no):not(.td-sticky-name) {
   background:#ecfdf5 !important;
 }
@@ -1904,8 +2242,28 @@ ol.lap-md-list > li::before {
 .dash-mod-stat-val--alert { color: #dc2626; }
 .dash-mod-stat-lbl { font-size: .7rem; color: var(--teks-muted); font-weight: 600; letter-spacing: .02em; text-align: right; }
 
-/* Panel "perlu perhatian" — highlight merah utk item overdue */
+/* Panel "perlu perhatian" - highlight merah utk item overdue */
 .dash-panel--urgent .dash-panel-header { color: #dc2626; }
+
+/* Panel notice akhir pekan / hari libur - samain persis sama kartu "Hari Ini"
+   libur di halaman Absensi (.abs-hariini-card--libur): border aksen merah di
+   kiri + tint pink lembut, bukan border rata 4 sisi + header pink solid kayak
+   sebelumnya. Animasi napas halus tetap dipertahankan (dimatiin kalau user
+   prefer motion rendah). Selector digandain (.dash-panel.dash-panel--libur)
+   biar spesifisitasnya menang lawan rule .dash-panel base lain yang ada di
+   bawahnya di file ini (kalau cuma single-class, siapa yang datang belakangan
+   di file yang menang - makanya sebelumnya ketiban rule base & jadi putih lagi). */
+.dash-panel.dash-panel--libur { background: rgba(254,242,242,.92); border-color: #fecaca; border-left: 3.5px solid #ef4444; animation: dashLiburNapas 3.2s ease-in-out infinite; }
+.dash-panel--libur .dash-panel-header { background: transparent; border-bottom-color: #fecaca; }
+.dash-libur-heading { display: flex; align-items: center; justify-content: center; gap: 6px; color: #dc2626; font-weight: 700; font-size: .95rem; }
+.dash-libur-caption { font-size: .7rem; font-weight: 600; color: #94a3b8; text-transform: uppercase; letter-spacing: .03em; margin-top: 4px; }
+@keyframes dashLiburNapas {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(220,38,38,.12); }
+  50% { box-shadow: 0 0 0 7px rgba(220,38,38,.05); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .dash-panel--libur { animation: none; }
+}
 .dash-panel-empty { padding: 22px 18px; text-align: center; color: var(--teks-muted); font-size: .84rem; }
 
 /* Mini trend chart (sparkline bar) di panel dashboard */
@@ -1963,7 +2321,7 @@ body.login-page::before {
   animation: cardIn .7s cubic-bezier(.4,0,.2,1) both;
 }
 
-/* left panel — branding (38.2% = minor φ) */
+/* left panel - branding (38.2% = minor φ) */
 .panel-left {
   flex: 0 0 var(--panel-left-w);
   background: linear-gradient(145deg, #0c2d2b 0%, #071a19 50%, #040f0e 100%);
@@ -2030,7 +2388,7 @@ body.login-page::before {
 /* left footer */
 .left-footer { position: relative; z-index: 1; font-size: var(--fs-xs); color: rgba(255,255,255,.75); line-height: var(--phi); text-align: center; animation: lpFadeUp .6s cubic-bezier(.4,0,.2,1) .5s both; }
 
-/* right panel — form (61.8% = major φ) */
+/* right panel - form (61.8% = major φ) */
 .panel-right { flex: 1; background: #ffffff; padding: var(--sp-7) var(--sp-7); display: flex; flex-direction: column; justify-content: center; border-radius: 0 var(--r-xl) var(--r-xl) 0; }
 
 /* welcome section */
@@ -2051,7 +2409,7 @@ body.login-page::before {
 .panel-right .field:nth-of-type(2) { animation: lpFadeUp .55s cubic-bezier(.4,0,.2,1) .4s both; }
 .panel-right .forgot-row { animation: lpFadeUp .55s cubic-bezier(.4,0,.2,1) .46s both; }
 .panel-right .btn-login  { animation: lpFadeUp .55s cubic-bezier(.4,0,.2,1) .52s both; }
-/* NOTE: .info-banner sengaja TIDAK diberi entrance animation — elemen ini
+/* NOTE: .info-banner sengaja TIDAK diberi entrance animation - elemen ini
    defaultnya hidden (opacity:0) dan baru muncul lewat class .show saat user
    klik "Lupa password?". animation ...both sebelumnya maksa opacity:1 di
    akhir animasi, nabrak logic show/hide-nya (makanya banner muncul sendiri). */
@@ -2143,7 +2501,7 @@ body.login-page::before {
 }
 .btn-login.loading .spinner { display: block; }
 
-/* ── Spinner dashed generik — pengganti ikon SVG refresh berputar ──
+/* ── Spinner dashed generik - pengganti ikon SVG refresh berputar ──
    Dipakai inline di tombol (Simpan, Reset, dll) via `<span class="btn-spin"></span>`.
    Warnanya ngikut warna teks tombol (currentColor) biar otomatis kontras. */
 .btn-spin {
@@ -2264,7 +2622,7 @@ body.login-page::before {
 
 
 /* ═══════════════════════════════════════════════════════════════════════════
-   25. RESPONSIVE — Komprehensif untuk semua perangkat
+   25. RESPONSIVE - Komprehensif untuk semua perangkat
    Breakpoints:
      xl  : ≤ 1280px  (laptop kecil / tablet landscape)
      lg  : ≤ 1024px  (tablet landscape)
@@ -2488,7 +2846,7 @@ body.login-page::before {
   .card { padding: var(--sp-3) var(--sp-2); border-radius: var(--r-md); }
   .card-header { margin-bottom: var(--sp-3); }
 
-  /* ── Modal — slide up dari bawah ── */
+  /* ── Modal - slide up dari bawah ── */
   .modal-overlay { padding: var(--sp-2); align-items: flex-end; }
   .modal-box { border-radius: var(--r-md) var(--r-md) 0 0; max-height: 92vh; }
   .modal-header { padding: var(--sp-3) var(--sp-4); }
@@ -2620,11 +2978,11 @@ body.login-page::before {
 
 
 /* ═══════════════════════════════════════════════════════════════════════════
-   DASHBOARD — Module Cards & Panels  (app.html)
+   DASHBOARD - Module Cards & Panels  (app.html)
    ═══════════════════════════════════════════════════════════════════════════ */
 
 /* ══════════════════════════════════════════════════════
-       DASHBOARD — grouped module cards
+       DASHBOARD - grouped module cards
        ══════════════════════════════════════════════════════ */
 
 /* Welcome banner */
@@ -2639,7 +2997,7 @@ body.login-page::before {
 .dash-welcome-title { font-size: 1.05rem; font-weight: 600; margin-bottom: 3px; color: var(--teks); }
 .dash-welcome-sub   { font-size: .82rem; color: var(--teks-muted); opacity: 1; }
 
-/* Module grid — 1 card per modul */
+/* Module grid - 1 card per modul */
 .dash-module-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
@@ -2765,7 +3123,7 @@ body.login-page::before {
   100% { background-position: -200% 0; }
 }
 
-/* Responsive dashboard — sudah dikelola di section 25 di atas */
+/* Responsive dashboard - sudah dikelola di section 25 di atas */
 @media (max-width: 640px) {
   .dash-module-grid { grid-template-columns: repeat(2, 1fr); gap: 10px; }
   .dash-panels      { grid-template-columns: 1fr; }
@@ -2773,7 +3131,7 @@ body.login-page::before {
 }
 
 /* ═══════════════════════════════════════════════════════════════
-   WIDGET: PANTAU INDIKATOR — paste ke <style> di app.html
+   WIDGET: PANTAU INDIKATOR - paste ke <style> di app.html
    ═══════════════════════════════════════════════════════════════ */
 
 /* ── Wrapper utama ── */
@@ -2990,7 +3348,7 @@ body.login-page::before {
   margin-top: 1px;
 }
 
-/* ── Chart title — lihat definisi baru di bagian bawah ── */
+/* ── Chart title - lihat definisi baru di bagian bawah ── */
 /* .kw-chart-title moved to new section below */
 
 /* ── Body (2 kolom) ── */
@@ -3234,7 +3592,7 @@ body.login-page::before {
   color: #94a3b8; font-style: italic;
 }
 
-/* ── KPI Strip — 4 kartu horizontal ── */
+/* ── KPI Strip - 4 kartu horizontal ── */
 .kw-kpi-strip {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
@@ -3544,7 +3902,7 @@ body.login-page::before {
 }
 .upload-tab-btn:not(.active):hover { background: var(--abu-1, #f8fafc); }
 /* ═══════════════════════════════════════════════════════════════
-   MULTI-FILE LIST — digunakan di modal dukung kinerja & surat
+   MULTI-FILE LIST - digunakan di modal dukung kinerja & surat
    ═══════════════════════════════════════════════════════════════ */
 .multi-file-list {
   display: flex; flex-direction: column; gap: 6px;
@@ -3612,7 +3970,7 @@ body.login-page::before {
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
-   26. TABEL UMUM — Horizontal scroll & misc mobile fixes
+   26. TABEL UMUM - Horizontal scroll & misc mobile fixes
    ═══════════════════════════════════════════════════════════════════════════ */
 
 @media (max-width: 768px) {
@@ -3648,26 +4006,26 @@ body.login-page::before {
   }
 }
 /* ═══════════════════════════════════════════════════════════════════════════
-   RESPONSIVE PATCH v2 — Komprehensif, override semua breakpoint di atas
+   RESPONSIVE PATCH v2 - Komprehensif, override semua breakpoint di atas
    Urutan: 1280 → 1024 → 900 → 768 → 640 → 480 → 360 + orientasi + coarse
    ═══════════════════════════════════════════════════════════════════════════ */
 
-/* ─── 1. Viewport meta guard — pastikan tidak ada overflow horizontal ─── */
+/* ─── 1. Viewport meta guard - pastikan tidak ada overflow horizontal ─── */
 html { overflow-x: hidden; }
 body { overflow-x: hidden; }
 
-/* ─── 2. Table wrapper global — semua tabel bisa scroll horizontal ─── */
+/* ─── 2. Table wrapper global - semua tabel bisa scroll horizontal ─── */
 .card          { overflow-x: auto; -webkit-overflow-scrolling: touch; }
 .table-wrap,
 .kinerja-table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; width: 100%; }
 
-/* ─── 3. Modal overlay main — sesuaikan dengan sidebar collapsed di mobile ─── */
+/* ─── 3. Modal overlay main - sesuaikan dengan sidebar collapsed di mobile ─── */
 .modal-overlay-main {
   left: var(--sidebar-w);
 }
 
 /* ══════════════════════════════════════════════════════
-   XL ≤ 1280px — Laptop kecil / tablet landscape
+   XL ≤ 1280px - Laptop kecil / tablet landscape
    ══════════════════════════════════════════════════════ */
 @media (max-width: 1280px) {
   :root { --sidebar-w: 210px; }
@@ -3681,7 +4039,7 @@ body { overflow-x: hidden; }
 }
 
 /* ══════════════════════════════════════════════════════
-   LG ≤ 1024px — Tablet landscape
+   LG ≤ 1024px - Tablet landscape
    ══════════════════════════════════════════════════════ */
 @media (max-width: 1024px) {
   :root { --sidebar-w: 195px; }
@@ -3706,7 +4064,7 @@ body { overflow-x: hidden; }
 }
 
 /* ══════════════════════════════════════════════════════
-   MD ≤ 900px — Tablet kecil landscape / phablet
+   MD ≤ 900px - Tablet kecil landscape / phablet
    ══════════════════════════════════════════════════════ */
 @media (max-width: 900px) {
   .kw-body { grid-template-columns: 1fr; }
@@ -3723,7 +4081,7 @@ body { overflow-x: hidden; }
 }
 
 /* ══════════════════════════════════════════════════════
-   MD ≤ 768px — Tablet portrait / mobile landscape
+   MD ≤ 768px - Tablet portrait / mobile landscape
    ══════════════════════════════════════════════════════ */
 @media (max-width: 768px) {
   /* ─ App shell ─ */
@@ -3789,7 +4147,7 @@ body { overflow-x: hidden; }
   .toast { min-width: 220px; max-width: calc(100vw - 32px); }
   #confirmBox { max-width: calc(100vw - 32px); }
 
-  /* Login — tumpuk vertikal */
+  /* Login - tumpuk vertikal */
   .card.login-card { flex-direction: column; max-width: 480px; }
   .panel-left { flex: none; padding: var(--sp-5) var(--sp-6); min-height: unset; }
   .feature-list { display: none; }
@@ -3821,7 +4179,7 @@ body { overflow-x: hidden; }
 }
 
 /* ══════════════════════════════════════════════════════
-   SM ≤ 640px — Mobile besar / phablet
+   SM ≤ 640px - Mobile besar / phablet
    ══════════════════════════════════════════════════════ */
 @media (max-width: 640px) {
   /* App shell */
@@ -3891,13 +4249,13 @@ body { overflow-x: hidden; }
   .tw-btn { flex: 1; text-align: center; justify-content: center; }
   .seg-bulan-wrap { } .bulan-btn { padding: 8px 12px; font-size: .72rem; }
 
-  /* Stat card surat masuk — pastikan tidak overflow */
+  /* Stat card surat masuk - pastikan tidak overflow */
   .stat-grid .stat-card { min-width: 0; }
   .stat-label { font-size: .58rem; }
 }
 
 /* ══════════════════════════════════════════════════════
-   XS ≤ 480px — Mobile standar
+   XS ≤ 480px - Mobile standar
    ══════════════════════════════════════════════════════ */
 @media (max-width: 480px) {
   :root { --topbar-h: 50px; }
@@ -3914,7 +4272,7 @@ body { overflow-x: hidden; }
   .stat-value { font-size: var(--fs-lg); }
   .stat-icon { display: none; }
 
-  /* Dashboard modules — 2 kolom tetap tapi lebih kompak */
+  /* Dashboard modules - 2 kolom tetap tapi lebih kompak */
   .dash-module-grid { grid-template-columns: 1fr 1fr; gap: 8px; }
   .dash-mod-stats { flex-wrap: wrap; }
   .dash-mod-stat {
@@ -3947,7 +4305,7 @@ body { overflow-x: hidden; }
   .card-header { margin-bottom: var(--sp-3); flex-direction: column; align-items: flex-start; }
   .card table { min-width: 420px; }
 
-  /* Modal — slide up dari bawah */
+  /* Modal - slide up dari bawah */
   .modal-overlay { padding: var(--sp-2); align-items: flex-end; }
   .modal-box { border-radius: var(--r-md) var(--r-md) 0 0; max-height: 92vh; width: 100%; }
   .modal-header { padding: var(--sp-3) var(--sp-4); }
@@ -4002,12 +4360,12 @@ body { overflow-x: hidden; }
   .periode-info-bar { font-size: .72rem; flex-wrap: wrap; }
   .kinerja-toolbar { gap: 5px; }
 
-  /* Laporan stat grid — pastikan 2×2 */
+  /* Laporan stat grid - pastikan 2×2 */
   .stat-grid { grid-template-columns: repeat(2, 1fr); }
 }
 
 /* ══════════════════════════════════════════════════════
-   XXS ≤ 360px — Mobile kecil (Galaxy A, iPhone SE, dll)
+   XXS ≤ 360px - Mobile kecil (Galaxy A, iPhone SE, dll)
    ══════════════════════════════════════════════════════ */
 @media (max-width: 360px) {
   :root { --topbar-h: 46px; }
@@ -4066,7 +4424,7 @@ body { overflow-x: hidden; }
 }
 
 /* ══════════════════════════════════════════════════════
-   Touch / pointer coarse — area tap lebih besar
+   Touch / pointer coarse - area tap lebih besar
    ══════════════════════════════════════════════════════ */
 @media (pointer: coarse) {
   .btn-sm, .btn-hapus { padding: var(--sp-2) var(--sp-3); min-height: 38px; }
@@ -4129,7 +4487,7 @@ body { overflow-x: hidden; }
 }
 
 /* ══════════════════════════════════════════════════════
-   Print — sembunyikan navigasi, cetak konten saja
+   Print - sembunyikan navigasi, cetak konten saja
    ══════════════════════════════════════════════════════ */
 @media print {
   .sidebar, .topbar, .btn-hamburger,
@@ -4143,7 +4501,7 @@ body { overflow-x: hidden; }
   .kinerja-table { min-width: unset; }
 }
 /* ═══════════════════════════════════════════════════════════════════════════
-   MOBILE FIX v3 — Superlink (Link/Shortlink/Bundle) & tabel umum
+   MOBILE FIX v3 - Superlink (Link/Shortlink/Bundle) & tabel umum
    ═══════════════════════════════════════════════════════════════════════════ */
 
 /* ─── GLOBAL: Semua tabel di dalam .card wajib bisa scroll horizontal ─── */
@@ -4162,7 +4520,7 @@ body { overflow-x: hidden; }
   min-width: 480px;
 }
 
-/* ─── Kolom URL / URL Tujuan — truncate panjang ─── */
+/* ─── Kolom URL / URL Tujuan - truncate panjang ─── */
 td.col-url,
 td.col-url-tujuan,
 th.col-url,
@@ -4204,13 +4562,13 @@ th.col-slug {
   color: var(--teks);
 }
 
-/* ─── Kolom JUDUL — tidak terlalu lebar ─── */
+/* ─── Kolom JUDUL - tidak terlalu lebar ─── */
 td.col-judul,
 th.col-judul {
   min-width: 90px;
 }
 
-/* ─── Kolom AKSI — tidak wrap ─── */
+/* ─── Kolom AKSI - tidak wrap ─── */
 td.col-aksi,
 th.col-aksi {
   white-space: nowrap;
@@ -4235,7 +4593,7 @@ td.col-perihal {
 
 /* ═══ MOBILE ≤ 768px ═══ */
 @media (max-width: 768px) {
-  /* Semua card yang punya tabel — scroll wrapper */
+  /* Semua card yang punya tabel - scroll wrapper */
   .card {
     overflow: hidden; /* clip border-radius */
   }
@@ -4281,7 +4639,7 @@ td.col-perihal {
     padding: var(--sp-3);
   }
 
-  /* Tabel Link — semua tabel umum */
+  /* Tabel Link - semua tabel umum */
   .card table {
     min-width: 380px;
     font-size: .78rem;
@@ -4322,7 +4680,7 @@ td.col-perihal {
     font-size: .74rem;
   }
 
-  /* Sembunyikan kolom yang tidak kritis — tergantung class */
+  /* Sembunyikan kolom yang tidak kritis - tergantung class */
   /* Kolom nomor baris tetap tampil */
   th.col-hide-xs,
   td.col-hide-xs {
@@ -4348,7 +4706,7 @@ td.col-perihal {
 }
 
 /* ═══════════════════════════════════════════════════════
-   SURAT MASUK — Tabel khusus
+   SURAT MASUK - Tabel khusus
    ═══════════════════════════════════════════════════════ */
 @media (max-width: 640px) {
   /* Surat masuk tabel */
@@ -4361,7 +4719,7 @@ td.col-perihal {
 }
 
 /* ═══════════════════════════════════════════════════════
-   KELOLA INDIKATOR — Tabel admin
+   KELOLA INDIKATOR - Tabel admin
    ═══════════════════════════════════════════════════════ */
 @media (max-width: 768px) {
   .indikator-admin-table {
@@ -4379,7 +4737,7 @@ td.col-perihal {
 }
 
 /* ═══════════════════════════════════════════════════════
-   LAPORAN KINERJA — Filter row & stat grid
+   LAPORAN KINERJA - Filter row & stat grid
    ═══════════════════════════════════════════════════════ */
 .laporan-filter-row {
   display: flex;
@@ -4398,7 +4756,7 @@ td.col-perihal {
   .laporan-filter-row .btn { width: 100%; justify-content: center; }
 }
 
-/* Distribusi capaian bar — wrap di mobile */
+/* Distribusi capaian bar - wrap di mobile */
 .distribusi-bar {
   display: flex;
   flex-wrap: wrap;
@@ -4414,7 +4772,7 @@ td.col-perihal {
 }
 
 /* ═══════════════════════════════════════════════════════
-   PERIODE AKTIF INFO BAR — wrap di mobile
+   PERIODE AKTIF INFO BAR - wrap di mobile
    ═══════════════════════════════════════════════════════ */
 @media (max-width: 480px) {
   .periode-info-bar {
@@ -4426,7 +4784,7 @@ td.col-perihal {
 }
 
 /* ═══════════════════════════════════════════════════════
-   TOPBAR — Profile dropdown posisi
+   TOPBAR - Profile dropdown posisi
    ═══════════════════════════════════════════════════════ */
 @media (max-width: 480px) {
   .topbar-dropdown {
@@ -4436,7 +4794,7 @@ td.col-perihal {
 }
 
 /* ═══════════════════════════════════════════════════════
-   CARD HEADER ACTION — Stack di mobile
+   CARD HEADER ACTION - Stack di mobile
    ═══════════════════════════════════════════════════════ */
 @media (max-width: 480px) {
   .card-header {
@@ -4451,7 +4809,7 @@ td.col-perihal {
 }
 
 /* ═══════════════════════════════════════════════════════
-   TOOLBAR SEARCH + TAMBAH — Layout mobile
+   TOOLBAR SEARCH + TAMBAH - Layout mobile
    ═══════════════════════════════════════════════════════ */
 
 /* ── Tablet ≤768px: wrap row, select 2-kolom ── */
@@ -4546,7 +4904,7 @@ td.col-perihal {
 }
 
 /* ═══════════════════════════════════════════════════════
-   LAPORAN KINERJA — Filter bar responsive (override grid generik)
+   LAPORAN KINERJA - Filter bar responsive (override grid generik)
    ═══════════════════════════════════════════════════════ */
 .lap-kinerja-toolbar .lap-kinerja-range { display:flex; align-items:center; flex:1; min-width:0; }
 .lap-kinerja-toolbar .lap-kinerja-jenis.select-wrap { min-width:160px; }
@@ -4574,7 +4932,7 @@ td.col-perihal {
 }
 
 /* ═══════════════════════════════════════════════════════
-   REALISASI IKK — Tambah class khusus IKK yang lebih sempit
+   REALISASI IKK - Tambah class khusus IKK yang lebih sempit
    ═══════════════════════════════════════════════════════ */
 .ikk-table-wrap {
   overflow-x: auto;
@@ -4612,7 +4970,7 @@ td.col-perihal {
 
 
 /* ═══════════════════════════════════════════════════════════════════════════
-   OVERRIDE FIX — Resolusi konflik rule lama vs mobile fix
+   OVERRIDE FIX - Resolusi konflik rule lama vs mobile fix
    ═══════════════════════════════════════════════════════════════════════════ */
 
 /* 
@@ -4673,7 +5031,7 @@ td.col-perihal {
     color: #0d9488;
   }
 
-  /* Surat Masuk — kolom perihal bisa break */
+  /* Surat Masuk - kolom perihal bisa break */
   #page-surat-masuk td:nth-child(5),
   #page-surat-keluar td:nth-child(5) {
     min-width: 130px;
@@ -4705,7 +5063,7 @@ td.col-perihal {
 .content { overflow: visible; min-height: 0; }
 .main { overflow-x: hidden; } /* hanya main yang clip horizontal */
 /* ═══════════════════════════════════════════════════════════════════════════
-   UNIVERSAL TABLE SCROLL — v4
+   UNIVERSAL TABLE SCROLL - v4
    Semua tabel di seluruh sistem wajib bisa scroll horizontal di mobile.
    Strategi: gunakan CSS-only tanpa ubah HTML.
    
@@ -4721,7 +5079,7 @@ td.col-perihal {
   position: relative;
 }
 
-/* ── 2. CSS-only scroll wrapper — berlaku untuk SEMUA tabel di app ── */
+/* ── 2. CSS-only scroll wrapper - berlaku untuk SEMUA tabel di app ── */
 
 /* Semua tabel di dalam .card (langsung maupun nested) → full width + card scroll */
 .card > table,
@@ -4795,7 +5153,7 @@ td.col-perihal {
 .card > table,
 .card table { min-width: 480px; }
 
-/* Tabel Kinerja & IKK — banyak kolom */
+/* Tabel Kinerja & IKK - banyak kolom */
 .kinerja-table       { min-width: 860px; }
 .indikator-admin-table { min-width: 700px; }
 .ikk-table           { min-width: 700px; }
@@ -4809,7 +5167,7 @@ td.col-perihal {
 
 
 /* ═══════════════════════════════════════════════════════════════════════════
-   RESPONSIVE SCROLL — Per breakpoint
+   RESPONSIVE SCROLL - Per breakpoint
    ═══════════════════════════════════════════════════════════════════════════ */
 
 /* ── ≤1024px: semua tabel aktif scroll ── */
@@ -4895,7 +5253,7 @@ td.col-perihal {
 
 
 /* ═══════════════════════════════════════════════════════════════════════════
-   SCROLL INDICATOR — hint visual scroll ke kanan di mobile
+   SCROLL INDICATOR - hint visual scroll ke kanan di mobile
    ═══════════════════════════════════════════════════════════════════════════ */
 @media (max-width: 768px) {
   /* Fade kanan sebagai hint ada konten di sebelah kanan */
@@ -4930,7 +5288,7 @@ td.col-perihal {
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
-   CUSTOM DATETIME PICKER — SAPA Perencanaan
+   CUSTOM DATETIME PICKER - SAPA Perencanaan
    Menggantikan input[type="datetime-local"] bawaan browser.
    Struktur: .cdtp-wrap > .cdtp-trigger + .cdtp-panel
    ═══════════════════════════════════════════════════════════════════════════ */
@@ -5001,7 +5359,7 @@ td.col-perihal {
   to   { opacity: 1; transform: translateY(0); }
 }
 
-/* ── Panel header — navigasi bulan/tahun ── */
+/* ── Panel header - navigasi bulan/tahun ── */
 .cdtp-header {
   display: flex;
   align-items: center;
@@ -5254,7 +5612,7 @@ td.col-perihal {
 
 
 /* ═══════════════════════════════════════════════════════════════════════════
-   CUSTOM DATETIME PICKER (cdtp) — SAPA Perencanaan
+   CUSTOM DATETIME PICKER (cdtp) - SAPA Perencanaan
    ═══════════════════════════════════════════════════════════════════════════ */
 .cdtp-trigger {
   display: flex; align-items: center; gap: 8px; width: 100%;
@@ -5286,6 +5644,35 @@ td.col-perihal {
 /* Wrapper harus position:relative agar panel ter-posisi */
 [data-cdtp] { position: relative; }
 [data-ctp]  { position: relative; z-index: 1; }
+
+/* ── CTP inline (jam-only) - satu kotak langsung isi, gak ada popup ── */
+.ctp-inline {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  height: var(--input-h);
+  padding: 0 10px;
+  background: var(--abu-1);
+  border: 1.5px solid var(--abu-2);
+  border-radius: var(--r-sm);
+  transition: all var(--transition);
+}
+.ctp-inline:focus-within { background: #fff; border-color: var(--hijau); box-shadow: 0 0 0 3px rgba(13,148,136,.12); }
+.ctp-inline.cdtp-disabled { background: var(--abu-1); opacity: .65; }
+.ctp-inline.cdtp-disabled .cdtp-time-val { cursor: not-allowed; }
+.ctp-inline-icon { flex-shrink: 0; color: var(--teks-muted); }
+.ctp-inline .cdtp-time-spin { flex: 0 0 auto; }
+.ctp-inline .cdtp-time-val { width: 54px; height: 32px; padding-right: 14px; font-size: .88rem; }
+.ctp-inline .cdtp-time-sep { margin: 0; }
+.ctp-inline-clear {
+  margin-left: auto;
+  flex-shrink: 0;
+  color: var(--teks-muted); cursor: pointer; width: 18px; height: 18px;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: 50%; transition: all var(--transition); background: var(--abu-2);
+}
+.ctp-inline-clear:hover { background: var(--merah); color: #fff; }
 
 .cdtp-header {
   display: flex; align-items: center; justify-content: space-between;
@@ -5417,7 +5804,7 @@ td.col-perihal {
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
-   PANTAU INDIKATOR — Filter Bar (Bulan / TW / Semester / Tahun)
+   PANTAU INDIKATOR - Filter Bar (Bulan / TW / Semester / Tahun)
    ═══════════════════════════════════════════════════════════════════════════ */
 
 /* ── Filter bar container ── */
@@ -5625,9 +6012,9 @@ td.col-perihal {
   color: #0f766e;
   font-weight: 700;
 }/* ═══════════════════════════════════════════════════════════════════════════
-   PATCH: PANTAU INDIKATOR — REDESIGN
+   PATCH: PANTAU INDIKATOR - REDESIGN
    Tambahkan di bagian PALING BAWAH styles.css, setelah semua .kw-* existing.
-   Class baru tidak menimpa class lama — aman untuk rollback.
+   Class baru tidak menimpa class lama - aman untuk rollback.
    ═══════════════════════════════════════════════════════════════════════════ */
 
 /* ── Header: judul + badge periode ── */
@@ -5683,7 +6070,7 @@ td.col-perihal {
   outline-offset: 1px;
 }
 
-/* ── KPI grid — 4 kolom (upgrade dari kw-kpi-strip) ── */
+/* ── KPI grid - 4 kolom (upgrade dari kw-kpi-strip) ── */
 .kw-kpi-grid-v2 {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -5924,7 +6311,7 @@ td.col-perihal {
   position: fixed !important;
   z-index: 99999 !important;
 }/* ═══════════════════════════════════════════════════════════════════════════
-   GOLDEN RATIO SYSTEM PATCH — SAPA Perencanaan
+   GOLDEN RATIO SYSTEM PATCH - SAPA Perencanaan
    φ = 1.618034  |  φ² = 2.618  |  φ³ = 4.236  |  1/φ = 0.618
    
    PRINSIP YANG DITERAPKAN:
@@ -5939,7 +6326,7 @@ td.col-perihal {
    ═══════════════════════════════════════════════════════════════════════════ */
 
 /* ═══════════════════════════════════════════════════════════════════════════
-   1. GOLDEN RATIO TOKENS — Sumber kebenaran tunggal
+   1. GOLDEN RATIO TOKENS - Sumber kebenaran tunggal
    ═══════════════════════════════════════════════════════════════════════════ */
 :root {
   /* ── Konstanta φ ── */
@@ -5966,8 +6353,8 @@ td.col-perihal {
   --fs-md:   1rem;      /* base */
   --fs-lg:   1.125rem;  /* sub-heading */
   --fs-xl:   1.375rem;  /* heading */
-  --fs-2xl:  1.618rem;  /* φ — page title */
-  --fs-3xl:  2.618rem;  /* φ² — hero */
+  --fs-2xl:  1.618rem;  /* φ - page title */
+  --fs-3xl:  2.618rem;  /* φ² - hero */
   --fs-hero: 3.618rem;  /* brand name */
 
   /* ── Line Heights (φ-derived) ── */
@@ -6042,7 +6429,7 @@ td.col-perihal {
 
 
 /* ═══════════════════════════════════════════════════════════════════════════
-   2. BASE TYPOGRAPHY — φ-scale applied
+   2. BASE TYPOGRAPHY - φ-scale applied
    ═══════════════════════════════════════════════════════════════════════════ */
 
 body {
@@ -6069,7 +6456,7 @@ p:last-child { margin-bottom: 0; }
 
 
 /* ═══════════════════════════════════════════════════════════════════════════
-   3. LAYOUT — φ-proportioned containers
+   3. LAYOUT - φ-proportioned containers
    ═══════════════════════════════════════════════════════════════════════════ */
 
 /* App shell */
@@ -6080,7 +6467,7 @@ p:last-child { margin-bottom: 0; }
   min-height: 100vh;
 }
 
-/* Sidebar — Fibonacci width */
+/* Sidebar - Fibonacci width */
 .sidebar {
   width: var(--sidebar-w);
   min-height: 100vh;
@@ -6095,7 +6482,7 @@ p:last-child { margin-bottom: 0; }
   box-shadow: var(--shadow-sm);
 }
 
-/* Topbar — Fibonacci height */
+/* Topbar - Fibonacci height */
 .topbar {
   height: var(--topbar-h);
   display: flex;
@@ -6111,7 +6498,7 @@ p:last-child { margin-bottom: 0; }
   transition: padding-left .3s ease;
 }
 
-/* Main content — φ-spaced */
+/* Main content - φ-spaced */
 .main {
   flex: 1;
   margin-left: var(--sidebar-w);
@@ -6148,7 +6535,7 @@ p:last-child { margin-bottom: 0; }
 
 
 /* ═══════════════════════════════════════════════════════════════════════════
-   4. SIDEBAR — φ-proportioned nav items
+   4. SIDEBAR - φ-proportioned nav items
    ═══════════════════════════════════════════════════════════════════════════ */
 
 .sidebar-header {
@@ -6282,17 +6669,57 @@ p:last-child { margin-bottom: 0; }
   background: var(--hijau);
 }
 
-
-/* ═══════════════════════════════════════════════════════════════════════════
-   5. BUTTONS — φ-height proportions
-   ═══════════════════════════════════════════════════════════════════════════ */
+/* Sub-group level ke-3 (mis. "Standar Harga Satuan" > SSH/HSPK/ASB/SBU) */
+.nav-sub-item.nav-sub-group { cursor: pointer; position: relative; }
+.nav-sub-item.nav-sub-group.has-active { color: var(--hijau); font-weight: 700; }
+.nav-sub-item.nav-sub-group .nav-chevron { width: 13px; height: 13px; }
+.nav-sub-sub {
+  margin-left: var(--sp-3);
+  padding-left: var(--sp-3);
+  border-left: 1.5px dashed var(--abu-2);
+  overflow: hidden;
+  max-height: 0;
+  transition: max-height var(--dur-md) var(--ease);
+}
+.nav-sub-sub.open { max-height: 400px; }
+.nav-sub-sub-item {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: var(--sp-2) var(--sp-3);
+  min-height: calc(var(--sp-5) + var(--sp-2));
+  border-radius: var(--r-sm);
+  cursor: pointer;
+  transition: all var(--transition);
+  color: var(--teks);
+  font-size: var(--fs-sm);
+  font-weight: 500;
+}
+.nav-sub-sub-dot { width: 5px; height: 5px; border-radius: 50%; background: var(--abu-2); flex-shrink: 0; }
+.nav-sub-sub-item:hover { background: var(--abu-1); color: var(--teks); }
+.nav-sub-sub-item.active {
+  background: var(--hijau-light);
+  color: var(--hijau);
+  font-weight: 700;
+  position: relative;
+}
+.nav-sub-sub-item.active .nav-sub-sub-dot { background: var(--hijau); }
+.nav-sub-sub-item.active::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 20%; bottom: 20%;
+  width: var(--sp-1);
+  border-radius: var(--r-full);
+  background: var(--hijau);
+}
 
 .btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: var(--sp-2);
-  height: var(--btn-h-md);            /* 42px — φ-derived */
+  height: var(--btn-h-md);            /* 42px - φ-derived */
   padding: 0 var(--sp-5);
   border-radius: var(--r-sm);
   font-family: inherit;
@@ -6306,8 +6733,14 @@ p:last-child { margin-bottom: 0; }
   text-decoration: none;
 }
 
-/* Small: height = Fibonacci 34px */
-.btn-sm, .btn-hapus {
+/* Small: height = Fibonacci 34px
+   .btn-hapus SENGAJA gak dimasukkan di sini: dia tombol ikon persegi 34x34
+   (diatur di blok ".btn-ghost.btn-sm, .btn-hapus, .btn-edit" ~baris 867), bukan
+   tombol teks. Kalau ikut kena rule ini (padding 0 var(--sp-4)) dia jadi lebih
+   lebar dari tombol ikon lain (Buka/Edit/Nonaktifkan) yang sama-sama 34x34,
+   soalnya spesifisitasnya sama-sama satu-class dan rule ini menang di source
+   order. Itu penyebab tombol Hapus keliatan lebih besar dari yang lain. */
+.btn-sm {
   height: var(--btn-h-sm);  /* 34px */
   padding: 0 var(--sp-4);
   font-size: var(--fs-sm);
@@ -6365,7 +6798,7 @@ p:last-child { margin-bottom: 0; }
 
 
 /* ═══════════════════════════════════════════════════════════════════════════
-   6. CARDS — φ-padding, golden proportion
+   6. CARDS - φ-padding, golden proportion
    ═══════════════════════════════════════════════════════════════════════════ */
 
 .card {
@@ -6398,7 +6831,7 @@ p:last-child { margin-bottom: 0; }
 
 
 /* ═══════════════════════════════════════════════════════════════════════════
-   7. STAT CARDS — φ-proportioned
+   7. STAT CARDS - φ-proportioned
    ═══════════════════════════════════════════════════════════════════════════ */
 
 /* Grid: columns auto-fill at φ-derived minimum */
@@ -6436,7 +6869,7 @@ p:last-child { margin-bottom: 0; }
   line-height: var(--lh-tight);
 }
 
-/* Value: φ scale — 1.618rem */
+/* Value: φ scale - 1.618rem */
 .stat-value {
   font-size: var(--fs-2xl);   /* = 1.618rem = 1φ */
   font-weight: 800;
@@ -6459,7 +6892,7 @@ p:last-child { margin-bottom: 0; }
 
 
 /* ═══════════════════════════════════════════════════════════════════════════
-   8. TABLE — φ-spaced rows
+   8. TABLE - φ-spaced rows
    ═══════════════════════════════════════════════════════════════════════════ */
 
 table { width: 100%; border-collapse: collapse; }
@@ -6470,7 +6903,7 @@ th {
   color: var(--teks-muted);
   text-transform: uppercase;
   letter-spacing: .6px;
-  padding: var(--sp-3) var(--sp-4);   /* 8px × 13px — Fibonacci */
+  padding: var(--sp-3) var(--sp-4);   /* 8px × 13px - Fibonacci */
   text-align: left;
   border-bottom: 1.5px solid var(--abu-2);
   white-space: nowrap;
@@ -6489,11 +6922,11 @@ td {
 tr:last-child td { border-bottom: none; }
 tr:hover td:not(.td-sticky-no):not(.td-sticky-name) { background: var(--abu-1); }
 
-/* Row height: ~55px (Fibonacci) — via line-height + padding */
+/* Row height: ~55px (Fibonacci) - via line-height + padding */
 
 
 /* ═══════════════════════════════════════════════════════════════════════════
-   9. FORM FIELDS — φ-height inputs
+   9. FORM FIELDS - φ-height inputs
    ═══════════════════════════════════════════════════════════════════════════ */
 
 .field { margin-bottom: var(--sp-5); }
@@ -6510,7 +6943,7 @@ tr:hover td:not(.td-sticky-no):not(.td-sticky-name) { background: var(--abu-1); 
 .field select,
 .field textarea {
   width: 100%;
-  height: var(--input-h);     /* 42px — φ × 26 ≈ Fibonacci-adjacent */
+  height: var(--input-h);     /* 42px - φ × 26 ≈ Fibonacci-adjacent */
   padding: 0 var(--sp-4);
   background: var(--abu-1);
   border: 1.5px solid var(--abu-2);
@@ -6554,14 +6987,14 @@ tr:hover td:not(.td-sticky-no):not(.td-sticky-name) { background: var(--abu-1); 
 
 
 /* ═══════════════════════════════════════════════════════════════════════════
-   10. BADGES — φ-proportioned pills
+   10. BADGES - φ-proportioned pills
    ═══════════════════════════════════════════════════════════════════════════ */
 
 .badge {
   display: inline-flex;
   align-items: center;
   gap: var(--sp-1);
-  padding: var(--sp-1) var(--sp-3);   /* 3 × 8 — Fibonacci */
+  padding: var(--sp-1) var(--sp-3);   /* 3 × 8 - Fibonacci */
   border-radius: var(--r-full);
   font-size: var(--fs-xs);
   font-weight: 700;
@@ -6594,7 +7027,7 @@ tr:hover td:not(.td-sticky-no):not(.td-sticky-name) { background: var(--abu-1); 
 
 
 /* ═══════════════════════════════════════════════════════════════════════════
-   11. MODAL — φ-proportioned widths
+   11. MODAL - φ-proportioned widths
    ═══════════════════════════════════════════════════════════════════════════ */
 
 /* Standard modal: width at φ-comfortable reading */
@@ -6659,14 +7092,14 @@ tr:hover td:not(.td-sticky-no):not(.td-sticky-name) { background: var(--abu-1); 
 
 
 /* ═══════════════════════════════════════════════════════════════════════════
-   12. DASHBOARD — φ-grid layout
+   12. DASHBOARD - φ-grid layout
    ═══════════════════════════════════════════════════════════════════════════ */
 
 /* Welcome banner: height proportional via padding */
 .dash-welcome {
   background: #fff;
   border-radius: var(--r-md);
-  padding: var(--sp-4) var(--sp-5);    /* 13 × 21 — Fibonacci */
+  padding: var(--sp-4) var(--sp-5);    /* 13 × 21 - Fibonacci */
   margin-bottom: var(--sp-5);
   border: 1px solid var(--abu-2);
   box-shadow: var(--shadow-xs);
@@ -6787,7 +7220,7 @@ tr:hover td:not(.td-sticky-no):not(.td-sticky-name) { background: var(--abu-1); 
 
 
 /* ═══════════════════════════════════════════════════════════════════════════
-   13. LOGIN PAGE — φ-split panel (61.8% / 38.2%)
+   13. LOGIN PAGE - φ-split panel (61.8% / 38.2%)
    ═══════════════════════════════════════════════════════════════════════════ */
 
 /* Login card: max-width at comfortable φ-reading */
@@ -6809,7 +7242,7 @@ tr:hover td:not(.td-sticky-no):not(.td-sticky-name) { background: var(--abu-1); 
 .panel-left {
   flex: 0 0 var(--panel-left-w);  /* uses CSS variable */
   background: linear-gradient(145deg, #0c2d2b 0%, #071a19 50%, #040f0e 100%);
-  padding: var(--sp-7) var(--sp-6);  /* 55 × 34 — Fibonacci */
+  padding: var(--sp-7) var(--sp-6);  /* 55 × 34 - Fibonacci */
   display: flex;
   flex-direction: column;
   position: relative;
@@ -6893,7 +7326,7 @@ tr:hover td:not(.td-sticky-no):not(.td-sticky-name) { background: var(--abu-1); 
 
 
 /* ═══════════════════════════════════════════════════════════════════════════
-   14. BUNDLE PAGE — φ-centered, maximal mobile readability
+   14. BUNDLE PAGE - φ-centered, maximal mobile readability
    ═══════════════════════════════════════════════════════════════════════════ */
 
 /* Page wrap: max-width at φ-comfortable reading (460 ≈ 284 × φ) */
@@ -7022,14 +7455,14 @@ tr:hover td:not(.td-sticky-no):not(.td-sticky-name) { background: var(--abu-1); 
 
 
 /* ═══════════════════════════════════════════════════════════════════════════
-   15. LOGO PARTNER ROW — φ-proportioned logos
+   15. LOGO PARTNER ROW - φ-proportioned logos
    ═══════════════════════════════════════════════════════════════════════════ */
 
 .logo-partner-row {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: var(--sp-5);    /* 21px — Fibonacci */
+  gap: var(--sp-5);    /* 21px - Fibonacci */
   margin: 0 auto var(--sp-5);
 }
 
@@ -7052,7 +7485,7 @@ tr:hover td:not(.td-sticky-no):not(.td-sticky-name) { background: var(--abu-1); 
 
 
 /* ═══════════════════════════════════════════════════════════════════════════
-   16. BRAND FOOTER — φ-spaced
+   16. BRAND FOOTER - φ-spaced
    ═══════════════════════════════════════════════════════════════════════════ */
 
 .brand-footer {
@@ -7084,7 +7517,7 @@ tr:hover td:not(.td-sticky-no):not(.td-sticky-name) { background: var(--abu-1); 
 
 
 /* ═══════════════════════════════════════════════════════════════════════════
-   17. TOAST NOTIFICATIONS — φ-spaced
+   17. TOAST NOTIFICATIONS - φ-spaced
    ═══════════════════════════════════════════════════════════════════════════ */
 
 #toastContainer {
@@ -7145,7 +7578,7 @@ tr:hover td:not(.td-sticky-no):not(.td-sticky-name) { background: var(--abu-1); 
 
 
 /* ═══════════════════════════════════════════════════════════════════════════
-   18. PAGINATION — Fibonacci button sizes
+   18. PAGINATION - Fibonacci button sizes
    ═══════════════════════════════════════════════════════════════════════════ */
 
 .pagination-wrap {
@@ -7210,7 +7643,7 @@ tr:hover td:not(.td-sticky-no):not(.td-sticky-name) { background: var(--abu-1); 
 
 
 /* ═══════════════════════════════════════════════════════════════════════════
-   19. KINERJA TABLE — φ-spaced cells
+   19. KINERJA TABLE - φ-spaced cells
    ═══════════════════════════════════════════════════════════════════════════ */
 
 .kinerja-table {
@@ -7332,7 +7765,7 @@ tr:hover td:not(.td-sticky-no):not(.td-sticky-name) { background: var(--abu-1); 
 
 
 /* ═══════════════════════════════════════════════════════════════════════════
-   20. KINERJA TOOLBAR — φ-spaced controls
+   20. KINERJA TOOLBAR - φ-spaced controls
    ═══════════════════════════════════════════════════════════════════════════ */
 
 .kinerja-toolbar {
@@ -7378,7 +7811,7 @@ tr:hover td:not(.td-sticky-no):not(.td-sticky-name) { background: var(--abu-1); 
 
 
 /* ═══════════════════════════════════════════════════════════════════════════
-   21. CONFIRM DIALOG — φ-proportioned
+   21. CONFIRM DIALOG - φ-proportioned
    ═══════════════════════════════════════════════════════════════════════════ */
 
 #confirmBox {
@@ -7433,7 +7866,7 @@ tr:hover td:not(.td-sticky-no):not(.td-sticky-name) { background: var(--abu-1); 
 
 
 /* ═══════════════════════════════════════════════════════════════════════════
-   22. SEARCH / TOOLBAR — φ-height inputs
+   22. SEARCH / TOOLBAR - φ-height inputs
    ═══════════════════════════════════════════════════════════════════════════ */
 
 .toolbar {
@@ -7485,7 +7918,7 @@ tr:hover td:not(.td-sticky-no):not(.td-sticky-name) { background: var(--abu-1); 
 
 
 /* ═══════════════════════════════════════════════════════════════════════════
-   23. PERMISSIONS GRID — φ-gapped
+   23. PERMISSIONS GRID - φ-gapped
    ═══════════════════════════════════════════════════════════════════════════ */
 
 .perm-grid {
@@ -7525,7 +7958,7 @@ tr:hover td:not(.td-sticky-no):not(.td-sticky-name) { background: var(--abu-1); 
 
 
 /* ═══════════════════════════════════════════════════════════════════════════
-   24. PANTAU INDIKATOR — φ-spaced widget
+   24. PANTAU INDIKATOR - φ-spaced widget
    ═══════════════════════════════════════════════════════════════════════════ */
 
 /* Main widget wrapper */
@@ -7612,7 +8045,7 @@ tr:hover td:not(.td-sticky-no):not(.td-sticky-name) { background: var(--abu-1); 
 
 
 /* ═══════════════════════════════════════════════════════════════════════════
-   25. CUSTOM SELECT — φ-height trigger
+   25. CUSTOM SELECT - φ-height trigger
    ═══════════════════════════════════════════════════════════════════════════ */
 
 .csel-trigger {
@@ -7642,7 +8075,7 @@ tr:hover td:not(.td-sticky-no):not(.td-sticky-name) { background: var(--abu-1); 
   align-items: center;
   gap: var(--sp-3);
   padding: var(--sp-3) var(--sp-4);   /* 8 × 13 */
-  font-size: var(--fs-base);
+  font-size: var(--fs-sm);
   color: var(--teks);
   cursor: pointer;
   transition: background var(--transition);
@@ -7656,7 +8089,7 @@ tr:hover td:not(.td-sticky-no):not(.td-sticky-name) { background: var(--abu-1); 
 
 
 /* ═══════════════════════════════════════════════════════════════════════════
-   27. SKELETON LOADER — shimmer animation
+   27. SKELETON LOADER - shimmer animation
    ═══════════════════════════════════════════════════════════════════════════ */
 
 .skeleton {
@@ -7668,7 +8101,7 @@ tr:hover td:not(.td-sticky-no):not(.td-sticky-name) { background: var(--abu-1); 
 
 
 /* ═══════════════════════════════════════════════════════════════════════════
-   28. UPLOAD AREA — φ-proportioned
+   28. UPLOAD AREA - φ-proportioned
    ═══════════════════════════════════════════════════════════════════════════ */
 
 .upload-area {
@@ -7699,7 +8132,7 @@ tr:hover td:not(.td-sticky-no):not(.td-sticky-name) { background: var(--abu-1); 
 
 
 /* ═══════════════════════════════════════════════════════════════════════════
-   29. SURAT MASUK — φ table rows
+   29. SURAT MASUK - φ table rows
    ═══════════════════════════════════════════════════════════════════════════ */
 
 .surat-table {
@@ -7726,7 +8159,7 @@ tr:hover td:not(.td-sticky-no):not(.td-sticky-name) { background: var(--abu-1); 
   vertical-align: middle;
 }
 
-/* ── Laporan Absensi: cell gak boleh wrap ke banyak baris di HP — biarin
+/* ── Laporan Absensi: cell gak boleh wrap ke banyak baris di HP - biarin
    tabel yang scroll ke samping (parent .card udah overflow:auto), bukan
    teksnya yang dipepetin sampe numpuk beberapa baris. ── */
 #lapAbsTable th, #lapAbsTable td { white-space: nowrap; }
@@ -7738,7 +8171,7 @@ tr:hover td:not(.td-sticky-no):not(.td-sticky-name) { background: var(--abu-1); 
 
 
 /* ═══════════════════════════════════════════════════════════════════════════
-   30. KEYFRAMES — Fibonacci-timed animations
+   30. KEYFRAMES - Fibonacci-timed animations
    ═══════════════════════════════════════════════════════════════════════════ */
 
 @keyframes fadeUp   { from { opacity: 0; transform: translateY(var(--sp-3)); }  to { opacity: 1; transform: translateY(0); } }
@@ -7755,7 +8188,7 @@ tr:hover td:not(.td-sticky-no):not(.td-sticky-name) { background: var(--abu-1); 
 
 
 /* ═══════════════════════════════════════════════════════════════════════════
-   31. LINK CARD — φ-proportioned grid
+   31. LINK CARD - φ-proportioned grid
    ═══════════════════════════════════════════════════════════════════════════ */
 
 .link-grid {
@@ -7812,7 +8245,7 @@ tr:hover td:not(.td-sticky-no):not(.td-sticky-name) { background: var(--abu-1); 
 
 
 /* ═══════════════════════════════════════════════════════════════════════════
-   32. PERIODE TABLE — φ-colored header
+   32. PERIODE TABLE - φ-colored header
    ═══════════════════════════════════════════════════════════════════════════ */
 
 .periode-table th {
@@ -7833,7 +8266,7 @@ tr:hover td:not(.td-sticky-no):not(.td-sticky-name) { background: var(--abu-1); 
 
 
 /* ═══════════════════════════════════════════════════════════════════════════
-   33. TOPBAR PROFILE DROPDOWN — φ-proportioned
+   33. TOPBAR PROFILE DROPDOWN - φ-proportioned
    ═══════════════════════════════════════════════════════════════════════════ */
 
 /* Avatar button: Fibonacci 34px, bulat + ring gradient teal */
@@ -7922,7 +8355,7 @@ tr:hover td:not(.td-sticky-no):not(.td-sticky-name) { background: var(--abu-1); 
 .topbar-dd-item.danger:hover { background: #fee2e2; }
 .topbar-dd-bidang { font-size: .68rem; color: var(--teks-muted); margin-top: 1px; opacity: .75; white-space: normal; word-break: break-word; }
 
-/* ≤ 768px — Mobile: sidebar collapses, single column layouts */
+/* ≤ 768px - Mobile: sidebar collapses, single column layouts */
 @media (max-width: 768px) {
   /* Sidebar collapses off-screen */
   .sidebar {
@@ -7972,7 +8405,7 @@ tr:hover td:not(.td-sticky-no):not(.td-sticky-name) { background: var(--abu-1); 
   .content { padding: var(--sp-4) var(--sp-4) var(--sp-7); padding-top: calc(var(--topbar-h) + var(--sp-4)); }
 }
 
-/* ≤ 480px — Small mobile */
+/* ≤ 480px - Small mobile */
 @media (max-width: 480px) {
   :root { --topbar-h: 50px; }
 
@@ -8003,7 +8436,7 @@ tr:hover td:not(.td-sticky-no):not(.td-sticky-name) { background: var(--abu-1); 
   .content { padding: var(--sp-3) var(--sp-2) var(--sp-7); padding-top: calc(var(--topbar-h) + var(--sp-3)); }
 }
 
-/* ≤ 360px — Tiny mobile */
+/* ≤ 360px - Tiny mobile */
 @media (max-width: 360px) {
   :root { --topbar-h: 46px; }
   .stat-grid { grid-template-columns: 1fr 1fr; gap: var(--sp-1); }
@@ -8045,7 +8478,7 @@ tr:hover td:not(.td-sticky-no):not(.td-sticky-name) { background: var(--abu-1); 
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
-   SISTEM-WIDE RESPONSIVE FIX — Toolbar & Filter Bar (semua modul)
+   SISTEM-WIDE RESPONSIVE FIX - Toolbar & Filter Bar (semua modul)
    Prioritas tinggi: override rule lama yang stacking filter vertikal
    ═══════════════════════════════════════════════════════════════════════════ */
 
@@ -8079,7 +8512,7 @@ tr:hover td:not(.td-sticky-no):not(.td-sticky-name) { background: var(--abu-1); 
   }
 }
 
-/* ── Filter bar (laporan surat, laporan kinerja) — 2-kolom di mobile ── */
+/* ── Filter bar (laporan surat, laporan kinerja) - 2-kolom di mobile ── */
 @media (max-width: 640px) {
   .filter-bar {
     display: grid !important;
@@ -8218,7 +8651,7 @@ tr:hover td:not(.td-sticky-no):not(.td-sticky-name) { background: var(--abu-1); 
   }
 }
 
-/* ── Kelola Target: label+tahun range, filter jenis, search — masing-masing baris sendiri di mobile ── */
+/* ── Kelola Target: label+tahun range, filter jenis, search - masing-masing baris sendiri di mobile ── */
 #page-kelola-target .toolbar {
   display: flex !important;
   flex-direction: column;
@@ -8363,7 +8796,7 @@ tr:hover td:not(.td-sticky-no):not(.td-sticky-name) { background: var(--abu-1); 
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
-   PERIODE TABLE — Responsive fix
+   PERIODE TABLE - Responsive fix
    ═══════════════════════════════════════════════════════════════════════════ */
 
 /* Pastikan tabel periode selalu bisa scroll horizontal */
@@ -8440,7 +8873,7 @@ tr:hover td:not(.td-sticky-no):not(.td-sticky-name) { background: var(--abu-1); 
   animation: spin 1.4s linear infinite;
   margin: 0 auto;
 }
-/* ── Kelola Laporan — jenis segmented control ─────────────────────────── */
+/* ── Kelola Laporan - jenis segmented control ─────────────────────────── */
 .lap-jenis-btn {
   display: inline-flex;
   align-items: center;
@@ -8618,7 +9051,7 @@ tr:hover td:not(.td-sticky-no):not(.td-sticky-name) { background: var(--abu-1); 
   color: var(--teal, #0d9488);
 }
 /* ══════════════════════════════════════════════════════
-   CASCADE WATERFALL — Kelola Laporan TSP
+   CASCADE WATERFALL - Kelola Laporan TSP
    ══════════════════════════════════════════════════════ */
 .lap-cascade-col {
   flex: 1;
@@ -8755,7 +9188,7 @@ tr:hover td:not(.td-sticky-no):not(.td-sticky-name) { background: var(--abu-1); 
   flex-shrink: 0;
 }
 /* ═══════════════════════════════════════════
-   DASHBOARD MODUL — KPI ROW & BAR LIST (Superlink/Surat/Kinerja)
+   DASHBOARD MODUL - KPI ROW & BAR LIST (Superlink/Surat/Kinerja)
    ═══════════════════════════════════════════ */
 .dash-kpi-row {
   display: grid;
@@ -8795,7 +9228,7 @@ tr:hover td:not(.td-sticky-no):not(.td-sticky-name) { background: var(--abu-1); 
 .dash-kpi-sub.down { color: #ef4444; }
 .dash-kpi-card--alert { border-left-color: #ef4444; }
 
-/* Kartu "Total Jam Kerja" (Absensi) — progress bar capaian menyatu DI DALAM
+/* Kartu "Total Jam Kerja" (Absensi) - progress bar capaian menyatu DI DALAM
    kartu (bukan kotak terpisah di bawahnya). Bg/border/shadow/radius kartu
    sekarang dipegang SATU elemen (.abs-jamkerja-wrap) biar gak ada jahitan/
    garis di antara bagian atas (_kpiCard) & progress bar; bagian dalamnya
@@ -8822,7 +9255,7 @@ tr:hover td:not(.td-sticky-no):not(.td-sticky-name) { background: var(--abu-1); 
   .abs-jamkerja-wrap { animation: none; }
 }
 
-/* Panel "Total Jam Kerja Bulan Ini" di Dashboard — animasi pulsa yang sama
+/* Panel "Total Jam Kerja Bulan Ini" di Dashboard - animasi pulsa yang sama
    dipakai ulang di sini (lihat _absensiJamKerjaPanel di dashboard.js), cuma
    beda wrapper class karena markup-nya beda (dash-panel, bukan dash-kpi-card). */
 .dash-jamkerja-panel { animation: absJamKerjaPulsa 2.2s ease-out infinite; }
@@ -8885,7 +9318,7 @@ tr:hover td:not(.td-sticky-no):not(.td-sticky-name) { background: var(--abu-1); 
 
 /* Baris Belum Absen Hari Ini + Tren Kehadiran Harian + Total Jam Kerja Bulan Ini:
    daftar nama ramping di kiri, grafik tren di tengah mengambil sisa lebar,
-   kartu jam kerja ramping di kanan — ketiganya disamakan tingginya. */
+   kartu jam kerja ramping di kanan - ketiganya disamakan tingginya. */
 .dash-panels--belum-tren-row { grid-template-columns: 320px 1fr 300px; align-items: stretch; }
 @media (max-width: 1200px) {
   .dash-panels--belum-tren-row { grid-template-columns: 320px 1fr; }
@@ -8906,7 +9339,7 @@ tr:hover td:not(.td-sticky-no):not(.td-sticky-name) { background: var(--abu-1); 
   .dash-kpi-val { font-size: 1.25rem; }
   .dash-kpi-lbl { font-size: .66rem; }
 }
-/* Statcard rekap Absensi (admin) — selalu 1 baris, gak wrap ke baris 2
+/* Statcard rekap Absensi (admin) - selalu 1 baris, gak wrap ke baris 2
    kayak dash-kpi-row default (auto-fit minmax 160px).
    #absRekapBox cuma dipaksa N kolom pas Super Admin (body.is-admin), karena
    di situ dia sendirian ambil lebar penuh (kartu "Hari Ini" disembunyikan).
@@ -8914,8 +9347,8 @@ tr:hover td:not(.td-sticky-no):not(.td-sticky-name) { background: var(--abu-1); 
    .abs-hariini-flex-wrap, jadi tetap pakai rule repeat(3,1fr) yang sudah ada
    biar gak kepepet sempit.
    #absRekapBox sekarang selalu 7 kartu (kartu ke-7 "Jam Kerja"/"Rata-rata Jam
-   Kerja" udah tampil juga di admin — lihat absensi_frontend.js). #lapAbsRekapBox
-   (Laporan) sekarang JUGA 7 kartu dgn pola grid yang sama — lihat rule di
+   Kerja" udah tampil juga di admin - lihat absensi_frontend.js). #lapAbsRekapBox
+   (Laporan) sekarang JUGA 7 kartu dgn pola grid yang sama - lihat rule di
    bawah. */
 body.is-admin #absRekapBox { grid-template-columns: repeat(6, 0.85fr) 1.5fr; }
 @media (max-width: 1100px) {
@@ -8927,7 +9360,7 @@ body.is-admin #absRekapBox { grid-template-columns: repeat(6, 0.85fr) 1.5fr; }
   body.is-admin #absRekapBox .abs-jamkerja-wrap:nth-child(7):last-child { grid-column: 1 / -1; }
 }
 /* #lapAbsRekapBox (Laporan) sekarang JUGA 7 kartu (nyusul kartu ke-7 "Jam
-   Kerja" ditambahin — lihat _lapAbsJamKerjaCardHtml di laporan.js), pola sama
+   Kerja" ditambahin - lihat _lapAbsJamKerjaCardHtml di laporan.js), pola sama
    kayak #absRekapBox: 6 kartu ramping + 1 kartu Jam Kerja lebih lebar. */
 #lapAbsRekapBox { grid-template-columns: repeat(6, 0.85fr) 1.5fr; }
 @media (max-width: 1100px) {
@@ -8950,7 +9383,7 @@ body.is-admin #absRekapBox { grid-template-columns: repeat(6, 0.85fr) 1.5fr; }
   #page-laporan-absensi .toolbar > .btn { flex: 1 1 100%; justify-content: center; }
 }
 /* ═══════════════════════════════════════════════════════════════════════
-   KELOLA PERIODE — card style (gantiin tabel lama, ala "Periode Aktif")
+   KELOLA PERIODE - card style (gantiin tabel lama, ala "Periode Aktif")
    ═══════════════════════════════════════════════════════════════════════ */
 #periodeCardsWrap {
   display: grid;
@@ -9119,13 +9552,34 @@ body.is-admin #absRekapBox { grid-template-columns: repeat(6, 0.85fr) 1.5fr; }
   margin-top: var(--sp-3); font-size: var(--fs-xs); color: #be123c;
 }
 
+/* ── Switcher "Tahun Anggaran" - terpisah jelas dari card timer, biar gak ambigu
+   sama countdown (card di bawahnya cuma nampilin status periode utk tahun terpilih) ── */
+.ep-tahun-switcher {
+  display: inline-flex; align-items: center; gap: var(--sp-3);
+  background: #fff;
+  border: 1.5px solid var(--abu-2);
+  border-left: 3px solid var(--hijau);
+  border-radius: var(--r-sm);
+  padding: var(--sp-2) var(--sp-4);
+  margin-bottom: var(--sp-3);
+  box-shadow: 0 1px 3px rgba(15,23,42,.04);
+}
+.ep-tahun-switcher-label {
+  display: flex; align-items: center; gap: 6px;
+  font-size: var(--fs-xs); font-weight: 700; color: var(--hijau);
+  text-transform: uppercase; letter-spacing: .3px; white-space: nowrap;
+}
+.ep-tahun-switcher .tahun-select-wrap { min-width: 96px; }
+
 @media (max-width: 640px) {
+  .ep-tahun-switcher { width: 100%; }
+
   .kperiode-header { padding: var(--sp-3) var(--sp-4); }
   .kperiode-body { padding: var(--sp-3) var(--sp-4); }
   .kperiode-window-row { flex-direction: column; align-items: flex-start; gap: var(--sp-2); }
 }
 /* ══════════════════════════════════════════════════════════════════════
-   MODUL ABSENSI — tempel di akhir styles.css
+   MODUL ABSENSI - tempel di akhir styles.css
    Pakai variabel warna yg sudah ada (--hijau, --abu-1, --teks, dst)
    ══════════════════════════════════════════════════════════════════════ */
 
@@ -9134,7 +9588,7 @@ body.is-admin #absRekapBox { grid-template-columns: repeat(6, 0.85fr) 1.5fr; }
 .abs-hariini-flex-wrap .dash-kpi-row { flex: 1; min-width: 0; margin-bottom: 0; grid-template-columns: repeat(3, 1fr); align-content: stretch; }
 .abs-hariini-flex-wrap .dash-kpi-card { height: 100%; }
 /* Kartu ke-7 (Jam Kerja Bulan Ini) sendirian di baris terakhir grid 3 kolom → span penuh biar gak nyisa ruang kosong */
-/* Kartu ke-7 full-width sebaris sendiri — cuma relevan buat view pegawai
+/* Kartu ke-7 full-width sebaris sendiri - cuma relevan buat view pegawai
    biasa (non-admin), di mana #absRekapBox berbagi lebar sama kartu "Hari
    Ini" jadi 6 kartu gak muat 1 baris & kartu ke-7 lebih enak melebar sendiri.
    Buat admin, #absRekapBox sendirian ambil lebar penuh & sudah di-set
@@ -9160,8 +9614,15 @@ body:not(.is-admin) .abs-hariini-flex-wrap .dash-kpi-row .abs-jamkerja-wrap:nth-
 .abs-hariini-card--oranye   { border-left: 3.5px solid #f59e0b; background: rgba(255,251,235,.92); }
 .abs-hariini-card--kuning   { border-left: 3.5px solid #eab308; background: rgba(254,252,232,.92); }
 .abs-hariini-card--hijau    { border-left: 3.5px solid #10b981; background: rgba(236,253,245,.92); }
+/* Akhir pekan / hari libur - tint merah sama pola napas halus kayak
+   panel "Belum Absen Hari Ini" di Dashboard (.dash-panel--libur), biar
+   konsisten se-app dan langsung kebaca "tanggal merah" sekilas lirik. */
+.abs-hariini-card--libur { border-left: 3.5px solid #ef4444; background: rgba(254,242,242,.92); animation: dashLiburNapas 3.2s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) {
+  .abs-hariini-card--libur { animation: none; }
+}
 /* "terlewat" (jendela absen udah tertutup, belum sempat absen) sengaja dibedain
-   BUKAN cuma lewat warna — soalnya tetap satu keluarga merah sama state "merah"
+   BUKAN cuma lewat warna - soalnya tetap satu keluarga merah sama state "merah"
    (urgent-masih-bisa-aksi). Bedanya lewat: merah lebih tua/gelap + pola hazard-
    stripe di background + badge segitiga peringatan, biar kebaca "danger/stop,
    hubungi admin" walau dilirik sekilas. */
@@ -9187,6 +9648,10 @@ body:not(.is-admin) .abs-hariini-flex-wrap .dash-kpi-row .abs-jamkerja-wrap:nth-
 }
 .abs-hariini-tgl { font-weight: 700; font-size: var(--fs-md, 1rem); color: var(--teks); margin-bottom: 12px; }
 .abs-hariini-status { display: inline-block; }
+/* Notice "Absensi tidak diperlukan" (akhir pekan / libur / cuti-tugas) - satu
+   blok tersusun rapi (badge > heading > caption), disamain sama notice "libur"
+   di Dashboard (.dash-libur-heading / .dash-libur-caption di section Dashboard). */
+.abs-libur-notice { text-align: center; padding: 14px 0 6px; }
 .abs-hariini-main { display: flex; gap: 28px; align-items: stretch; }
 .abs-hariini-left { flex: 0 1 auto; min-width: 0; max-width: 420px; }
 .abs-hariini-right {
@@ -9258,7 +9723,7 @@ body:not(.is-admin) .abs-hariini-flex-wrap .dash-kpi-row .abs-jamkerja-wrap:nth-
   .abs-jam-live-done-badge::before { animation: none; display: none; }
   .abs-jam-live-done-check { stroke-dashoffset: 0; animation: none; }
 }
-/* "Sudah Bisa" (jendela absen kebuka, BUTUH AKSI) — dibedain dari "done"
+/* "Sudah Bisa" (jendela absen kebuka, BUTUH AKSI) - dibedain dari "done"
    (beneran udah selesai) biar centang hijau gak kepake dobel-makna. Warna
    ngikutin urgensi yg sama kayak border card: merah = absen masuk, kuning =
    absen keluar. Icon panah (bukan centang) buat nunjukin "ayo lakukan", bukan
@@ -9324,7 +9789,8 @@ body:not(.is-admin) .abs-hariini-flex-wrap .dash-kpi-row .abs-jamkerja-wrap:nth-
   .abs-hariini-main { flex-direction: column; }
   .abs-hariini-left { max-width: none; }
   .abs-hariini-right { width: 100%; border-left: none; border-top: 1px solid var(--border, #e2e8f0); padding-left: 0; padding-top: 16px; }
-  .abs-hariini-info { width: 100%; border-left: none; border-top: 1px solid var(--border, #e2e8f0); padding-left: 0; padding-top: 16px; flex-direction: row; flex-wrap: wrap; gap: 16px; }
+  .abs-hariini-info { width: 100%; border-left: none; border-top: 1px solid var(--border, #e2e8f0); padding-left: 0; padding-top: 16px; flex-direction: row; flex-wrap: wrap; gap: 12px 20px; }
+  .abs-hariini-info > .abs-jadwal-label { flex: 0 0 100%; margin-bottom: 0; }
 }
 
 .abs-rekap-row { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; margin-bottom: 16px; }
@@ -9373,3 +9839,19 @@ body:not(.is-admin) .abs-hariini-flex-wrap .dash-kpi-row .abs-jamkerja-wrap:nth-
 .urutan-lap-info { min-width: 0; }
 .urutan-lap-nama { font-size: .85rem; font-weight: 600; color: var(--teks); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .urutan-lap-nip { font-size: .72rem; color: var(--teks-muted); }
+/* Font textarea isi panjang (Nama Sub Kegiatan, Indikator, dll di e-Planning,
+   dan textarea sejenis lain) - dikecilkan dari body text (--fs-base .875rem)
+   ke --fs-sm (.764rem), biar konten panjang gak berat/kebesaran di mata.
+   Selector polos ".field textarea" ditaruh paling akhir file biar menang lawan
+   rule ".field input, .field select, .field textarea" yang lain di atas (spesifisitas
+   sama, jadi urutan terakhir yang menang). */
+.field textarea { font-size: var(--fs-sm); line-height: 1.5; }
+
+/* Konsistensi ukuran font toolbar (search bar "Cari..." & trigger dropdown
+   custom kayak "Semua Unit Kerja"/"Semua Status") - sebelumnya --fs-base
+   (.875rem), lebih gede dari isi list dropdown-nya sendiri (.csel-option
+   pakai --fs-sm .764rem), jadi kerasa gak nyambung pas dropdown dibuka.
+   Disamain ke --fs-sm biar konsisten. Ditaruh di akhir file biar menang
+   lawan rule .search-wrap input / .csel-trigger yang lain (spesifisitas sama). */
+.search-wrap input,
+.csel-trigger { font-size: var(--fs-sm); }

@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>SAPA Perencanaan</title>
-  <meta name="app-version" content="1.2.2" />
+  <meta name="app-version" content="1.2.4" />
   <meta property="og:type"         content="website" />
   <meta property="og:site_name"    content="SAPA Perencanaan" />
   <meta property="og:title"        content="SAPA Perencanaan" />
@@ -49,7 +49,7 @@
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
     :root {
-      /* Spacing — golden ratio scale (×1.618, base 10px) */
+      /* Spacing - golden ratio scale (×1.618, base 10px) */
       --sp-1: 6px;
       --sp-2: 10px;
       --sp-3: 16px;
@@ -59,7 +59,7 @@
       --sp-7: 110px;
       --sp-8: 178px;
 
-      /* Typography — golden ratio scale (base 10 ×1.618 per step) */
+      /* Typography - golden ratio scale (base 10 ×1.618 per step) */
       --fs-xs:   10px;   /* base */
       --fs-sm:   13px;   /* ×1.272 (minor third, half-φ step) */
       --fs-md:   14px;   /* body comfortable */
@@ -69,7 +69,7 @@
       --fs-2xl:  42px;   /* 26 × φ ≈ 42 */
       --fs-3xl:  68px;   /* 42 × φ ≈ 68 */
 
-      /* Border radius — golden ratio scale */
+      /* Border radius - golden ratio scale */
       --r-sm: 5px;
       --r-md: 8px;
       --r-lg: 13px;
@@ -113,7 +113,7 @@
     }
 
     /* ══════════════════════════════════════════════
-       TOPBAR — white, clean, Nexcent-style
+       TOPBAR - white, clean, Nexcent-style
     ══════════════════════════════════════════════ */
     /* ── Ticker bar ───────────────────────────────────────────── */
     #tickerBar {
@@ -405,7 +405,7 @@
     }
 
     /* ══════════════════════════════════════════════
-       HERO — pure white, 2-column
+       HERO - pure white, 2-column
     ══════════════════════════════════════════════ */
     .hero {
       background: #ffffff;
@@ -431,7 +431,7 @@
     .hero-visual-top .portal-wrap { margin-left: 0; margin-bottom: var(--sp-4); }
 
     /* ══════════════════════════════════════════════
-       PORTAL ICON — pintu besar + icon melayang masuk
+       PORTAL ICON - pintu besar + icon melayang masuk
     ══════════════════════════════════════════════ */
     .portal-wrap {
       position: relative;
@@ -443,7 +443,7 @@
       margin-left: 18px;
     }
 
-    /* Lingkaran latar — sync fade in/out dengan logoPulse 10s */
+    /* Lingkaran latar - sync fade in/out dengan logoPulse 10s */
     .portal-bg {
       position: absolute;
       inset: 0;
@@ -467,7 +467,7 @@
       50%      { box-shadow: 0 0 0 12px rgba(20,184,166,.16), 0 0 26px 4px rgba(45,212,191,.22); }
     }
 
-    /* Ring conic berputar — dipisah 2 layer: luar (fade+scale) & dalam (rotate murni)
+    /* Ring conic berputar - dipisah 2 layer: luar (fade+scale) & dalam (rotate murni)
        supaya animasi rotate tidak ketiban/ketimpa animasi scale (sama-sama pakai transform) */
     .portal-ring-fade {
       position: absolute;
@@ -491,7 +491,7 @@
       to   { transform: rotate(360deg); }
     }
 
-    /* Pulse ring — ganda, saling susul, lebih kuat */
+    /* Pulse ring - ganda, saling susul, lebih kuat */
     .portal-bg::after {
       content: '';
       position: absolute;
@@ -508,7 +508,7 @@
       100% { opacity: 0;  transform: scale(1.5); }
     }
 
-    /* Partikel sparkle mengorbit lingkaran — efek galaksi/alam semesta */
+    /* Partikel sparkle mengorbit lingkaran - efek galaksi/alam semesta */
     .portal-particles { position: absolute; inset: -20px; pointer-events: none; z-index: 1; }
     .portal-particle {
       position: absolute; top: 50%; left: 50%;
@@ -527,7 +527,7 @@
       50%      { opacity: 1; }
     }
 
-    /* 24 partikel — orbit satu arah, kecepatan proporsional radius (mirip Hukum Kepler) */
+    /* 24 partikel - orbit satu arah, kecepatan proporsional radius (mirip Hukum Kepler) */
     .pp-1 { --r: 34px; width: 2px; height: 2px; background: var(--teal-300); box-shadow: 0 0 4px 1px rgba(94,234,212,.8); animation-duration: 8.1s, 3.0s; animation-delay: -3.1s, -0.7s; }
     .pp-2 { --r: 47px; width: 3px; height: 3px; background: var(--teal-500); box-shadow: 0 0 6px 2px rgba(20,184,166,.75); animation-duration: 10.1s, 3.4s; animation-delay: -4.2s, -0.9s; }
     .pp-3 { --r: 58px; width: 4px; height: 4px; background: var(--teal-600); box-shadow: 0 0 6px 2px rgba(13,148,136,.7); animation-duration: 11.7s, 3.8s; animation-delay: -5.2s, -1.2s; }
@@ -609,7 +609,7 @@
       0%, 100% { filter: drop-shadow(0 2px 4px rgba(20,184,166,.18)); }
       50%      { filter: drop-shadow(0 5px 14px rgba(20,184,166,.5)); }
     }
-    /* 0%=0s 8%=0.8s  75%=7.5s  85%=8.5s  100%=10s — bouncy overshoot masuk */
+    /* 0%=0s 8%=0.8s  75%=7.5s  85%=8.5s  100%=10s - bouncy overshoot masuk */
     @keyframes logoPulse {
       0%   { opacity:0; transform:scale(0.15) rotate(-8deg); }
       7%   { opacity:1; transform:scale(1.18) rotate(3deg); }
@@ -778,6 +778,22 @@
       color: var(--teal-700);
       background: var(--teal-100);
     }
+    .btn-hero-vispm {
+      display: inline-flex; align-items: center; gap: var(--sp-2);
+      height: 42px; padding: 0 var(--sp-4);
+      background: var(--teal-50);
+      color: var(--teal-700);
+      border: 1.5px solid var(--teal-300);
+      border-radius: var(--r-lg);
+      font-family: inherit; font-size: var(--fs-base); font-weight: 500;
+      cursor: pointer; text-decoration: none; white-space: nowrap;
+      transition: all var(--tr);
+    }
+    .btn-hero-vispm:hover {
+      border-color: var(--teal-400);
+      color: var(--teal-700);
+      background: var(--teal-100);
+    }
 
     /* hero right: SVG illustration */
     .hero-visual {
@@ -795,7 +811,7 @@
     }
 
     /* ══════════════════════════════════════════════
-       STAT BAR — white, teal numbers
+       STAT BAR - white, teal numbers
     ══════════════════════════════════════════════ */
     .stat-bar {
       background: var(--white);
@@ -1286,7 +1302,7 @@
       .portal-main-icon { width: 34px; height: 34px; }
       .portal-main-icon img { width: 24px; height: 24px; }
       .portal-particles { transform: scale(.8); }
-      .btn-hero-login, .btn-hero-ghost { height: 42px; font-size: var(--fs-sm); }
+      .btn-hero-login, .btn-hero-ghost, .btn-hero-vispm { height: 42px; font-size: var(--fs-sm); }
 
       /* Stat bar */
       .stat-bar-inner { grid-template-columns: repeat(2, 1fr); gap: var(--sp-2); }
@@ -1331,7 +1347,7 @@
     /* ── Small mobile (≤480px) ── */
     @media (max-width: 480px) {
       .hero-actions { flex-direction: column; width: 100%; }
-      .btn-hero-login, .btn-hero-ghost { width: 100%; justify-content: center; }
+      .btn-hero-login, .btn-hero-ghost, .btn-hero-vispm { width: 100%; justify-content: center; }
     }
 
     /* ── Small mobile (≤380px) ── */
@@ -1744,10 +1760,14 @@
       Kontak
     </a>
   </nav>
-  <div class="mobile-nav-footer">
+  <div class="mobile-nav-footer" style="display:flex;flex-direction:column;gap:var(--sp-2)">
     <a class="btn-login" href="/login" style="width:100%;justify-content:center">
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg>
       Masuk Portal
+    </a>
+    <a class="btn-hero-vispm" href="https://vispm.netlify.app/" target="_blank" rel="noopener" style="width:100%;justify-content:center">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2" width="6" height="20" rx="2"/><rect x="2" y="9" width="20" height="6" rx="2"/></svg>
+      VISPM | Verifikasi Indeks SPM
     </a>
   </div>
 </div>
@@ -1819,13 +1839,13 @@
         dan informasi dalam satu tempat.
       </p>
       <div class="hero-actions">
-        <a class="btn-hero-login" href="/login">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg>
-          Masuk Portal
-        </a>
         <a class="btn-hero-ghost" href="https://dinkesppkb.banggailautkab.go.id/" target="_blank" rel="noopener">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
           Dinas Kesehatan PPKB
+        </a>
+        <a class="btn-hero-vispm" href="https://vispm.netlify.app/" target="_blank" rel="noopener">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2" width="6" height="20" rx="2"/><rect x="2" y="9" width="20" height="6" rx="2"/></svg>
+          VISPM | Verifikasi Indeks SPM
         </a>
       </div>
     </div>
@@ -1881,7 +1901,7 @@
         <rect x="195" y="240" width="50" height="16" rx="3" fill="#e2e8f0"/>
         <rect x="180" y="254" width="80" height="10" rx="5" fill="#cbd5e1"/>
 
-        <!-- Floating card 1 — bottom left -->
+        <!-- Floating card 1 - bottom left -->
         <rect x="20" y="270" width="148" height="60" rx="10" fill="#ffffff" stroke="#e2e8f0" stroke-width="1.5" filter="url(#sh)"/>
         <rect x="34" y="284" width="28" height="28" rx="7" fill="#f0fdfa"/>
         <!-- doc icon -->
@@ -1895,7 +1915,7 @@
         <rect x="122" y="316" width="32" height="12" rx="6" fill="#ccfbf1"/>
         <text x="126" y="325" fill="#0f7a63" font-size="7" font-weight="700" font-family="sans-serif">Aktif</text>
 
-        <!-- Floating card 2 — right -->
+        <!-- Floating card 2 - right -->
         <rect x="382" y="160" width="120" height="74" rx="10" fill="#ffffff" stroke="#e2e8f0" stroke-width="1.5" filter="url(#sh)"/>
         <!-- mini donut chart -->
         <circle cx="406" cy="197" r="18" fill="none" stroke="#f1f5f9" stroke-width="7"/>
@@ -1910,7 +1930,7 @@
         <circle cx="434" cy="212" r="4" fill="#f1f5f9"/>
         <text x="441" y="215" fill="#64748b" font-size="7.5" font-family="sans-serif">Sisa</text>
 
-        <!-- Person — flat illustration -->
+        <!-- Person - flat illustration -->
         <!-- body shadow -->
         <ellipse cx="400" cy="390" rx="34" ry="8" fill="#c7e8e4" opacity=".5"/>
         <!-- legs -->
@@ -1985,7 +2005,7 @@
       <span class="stat-label">Pegawai</span>
     </div>
     <div class="stat-item">
-      <span class="stat-num" id="statTahun">—</span>
+      <span class="stat-num" id="statTahun">-</span>
       <span class="stat-label">Tahun Berjalan</span>
     </div>
   </div>
@@ -2688,7 +2708,7 @@ async function loadProfilLanding() {
 
       kontakMap.innerHTML = '<div id="leafletMap" style="width:100%;height:100%"></div>';
 
-      // Leaflet (CSS+JS ~150KB) di-lazy-load di sini, bukan di <head> —
+      // Leaflet (CSS+JS ~150KB) di-lazy-load di sini, bukan di <head> -
       // peta cuma dipakai di section kontak footer, jauh di bawah fold,
       // jadi gak perlu ikut blokir render awal halaman.
       _loadLeaflet().then(() => {
@@ -2704,7 +2724,7 @@ async function loadProfilLanding() {
           attributionControl: true,
         });
 
-        // Tile layer satelit (Esri World Imagery) — default
+        // Tile layer satelit (Esri World Imagery) - default
         L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
           attribution: '&copy; <a href="https://www.esri.com/">Esri</a>',
           maxZoom: 19,
@@ -2800,7 +2820,7 @@ loadInfo();
   const elD = document.getElementById('statDokumen');
   const elG = document.getElementById('statPegawai');
   try {
-    // Endpoint ini sekarang boleh di-cache singkat di edge (lihat landing.js) —
+    // Endpoint ini sekarang boleh di-cache singkat di edge (lihat landing.js) -
     // makanya TIDAK pakai cache:'no-store' atau timestamp cache-busting lagi,
     // biar visitor2 dalam window cache dapat response instan.
     const r = await fetch('/api/landing/stats');
@@ -2821,7 +2841,7 @@ loadInfo();
       const counted = items.filter(p => !skipPattern.test(p.jabatan || ""));
       if (elG) { elG.textContent = counted.length; elG.classList.remove('loading'); }
     } catch {
-      if (elG) { elG.textContent = '—'; elG.classList.remove('loading'); }
+      if (elG) { elG.textContent = '-'; elG.classList.remove('loading'); }
     }
   }
 })();
@@ -2839,7 +2859,7 @@ async function initVisit() {
     return n.toLocaleString('id-ID');
   }
 
-  // Cek sessionStorage — jika sesi ini belum tercatat, POST dulu
+  // Cek sessionStorage - jika sesi ini belum tercatat, POST dulu
   const SESSION_KEY = 'sapa_visited';
   const alreadyCounted = sessionStorage.getItem(SESSION_KEY);
 
@@ -2869,7 +2889,7 @@ async function initVisit() {
     numEl.textContent = fmtNum(total);
   } catch {
     numEl.classList.remove('loading');
-    numEl.textContent = '—';
+    numEl.textContent = '-';
   }
 }
 
@@ -2880,13 +2900,13 @@ async function initVisit() {
 
 
 <style>
-/* Org chart tree — landing modal */
+/* Org chart tree - landing modal */
 .lnd-org-chart { display:flex; flex-direction:column; align-items:center; font-family:inherit; padding:8px 0 24px; width:max-content; min-width:100%; }
 .lnd-org-roots { display:flex; flex-wrap:nowrap; justify-content:center; gap:36px; width:max-content; min-width:100%; }
 .lnd-org-node-wrap { display:flex; flex-direction:column; align-items:center; }
     /* Baris/level yang beneran lebih lebar dari area scroll otomatis jatuh ke start-align
        (biar semua kartu pasti kejangkau scroll), tapi baris/level lain yang masih muat
-       TETEP center — gak ikut kegeser. `safe` cuma "kalah" ke start kalau center bakal
+       TETEP center - gak ikut kegeser. `safe` cuma "kalah" ke start kalau center bakal
        bikin konten kepotong gak kejangkau. Berlaku per-elemen, gak nyebar ke ancestor/descendant. */
     @supports (justify-content: safe center) {
       .lnd-org-chart      { align-items: safe center; }
@@ -2897,7 +2917,7 @@ async function initVisit() {
     }
     /* Fallback buat browser lawas tanpa `safe center` (lihat JS applyOverflowFix):
        class ditandai per-baris, bukan di root chart, jadi cuma baris yang beneran
-       overflow yang kepaksa start-align — baris/level lain tetep center. */
+       overflow yang kepaksa start-align - baris/level lain tetep center. */
     .lnd-org-roots.lnd-org-row-overflow,
     .lnd-org-children-row.lnd-org-row-overflow {
       justify-content: flex-start !important;
@@ -2963,7 +2983,7 @@ async function initVisit() {
 </style>
 
 <script>
-/* ── Struktur Organisasi — section (lazy load) ──────────────── */
+/* ── Struktur Organisasi - section (lazy load) ──────────────── */
 (function() {
   let _loaded = false;
 
@@ -3047,7 +3067,7 @@ async function initVisit() {
       // kejangkau scroll di sejumlah browser. Deteksi overflow-nya, lalu
       // matiin centering biar semua kartu pasti bisa discroll penuh.
       // Browser modern (Chrome 115+/Firefox/Safari 16+) udah ditangani murni
-      // lewat CSS `justify-content/align-items: safe center` di atas — itu
+      // lewat CSS `justify-content/align-items: safe center` di atas - itu
       // otomatis jatuh ke start-align CUMA di baris yang beneran overflow,
       // tanpa nyeret baris/level lain yang masih muat. Fallback JS di bawah
       // cuma jalan buat browser lawas yang belum kenal keyword `safe`.
@@ -3056,8 +3076,8 @@ async function initVisit() {
         const applyOverflowFix = () => {
           const chartEl = body.querySelector('.lnd-org-chart');
           if (!chartEl) return;
-          // Cuma tandain baris yang SENDIRI lebih lebar dari area scroll —
-          // bukan seluruh chart — biar level yang masih muat tetep center.
+          // Cuma tandain baris yang SENDIRI lebih lebar dari area scroll -
+          // bukan seluruh chart - biar level yang masih muat tetep center.
           const rows = chartEl.querySelectorAll('.lnd-org-roots, .lnd-org-children-row');
           rows.forEach(row => {
             const overflowing = row.scrollWidth > body.clientWidth + 1;

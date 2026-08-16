@@ -1,5 +1,5 @@
 // js/dokumen_publik_frontend.js
-// Kelola Dokumen Publik — admin only
+// Kelola Dokumen Publik - admin only
 
 'use strict';
 
@@ -88,7 +88,7 @@ function renderDokumenTable() {
             </div>
           </div>
         </td>
-        <td style="font-size:.82rem">${esc(d.kategori || '—')}</td>
+        <td style="font-size:.82rem">${esc(d.kategori || '-')}</td>
         <td><span class="badge ${d.aktif ? 'badge-hijau' : 'badge-abu'}">${d.aktif ? 'Aktif' : 'Nonaktif'}</span></td>
         <td style="font-size:.8rem;color:var(--teks-muted)">${formatTanggalDok(d.created_at)}</td>
         <td>
@@ -182,9 +182,16 @@ async function toggleDokumen(id, currentAktif) {
       headers: { ...authHeaders(), 'Content-Type': 'application/json' },
       body: JSON.stringify({ aktif: !currentAktif }),
     });
+    const data = await r.json();
     if (!r.ok) throw new Error();
     toast(!currentAktif ? 'Dokumen diaktifkan' : 'Dokumen dinonaktifkan', 'success');
-    loadDokumenPublik();
+    // Update state lokal langsung dari hasil PUT (RETURNING * -> udah pasti data
+    // paling baru). JANGAN fetch ulang via loadDokumenPublik() sesudah ini -
+    // itu race dengan write barusan dan kadang balikin data lama, nimpa balik
+    // state yang udah bener jadi keliatan "gak berhasil" sampai reload manual.
+    const idx = _dokumenAll.findIndex(d => d.id === id);
+    if (idx !== -1 && data?.dokumen) _dokumenAll[idx] = data.dokumen;
+    renderDokumenTable();
   } catch {
     toast('Gagal mengubah status', 'error');
   }
@@ -208,7 +215,7 @@ async function deleteDokumen(id) {
 
 /* ── Helper ───────────────────────────────────────────────────── */
 function formatTanggalDok(str) {
-  if (!str) return '—';
+  if (!str) return '-';
   const d = new Date(str);
   const tgl = d.toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric', timeZone: 'Asia/Makassar' });
   const wita = new Date(d.toLocaleString('en-US', { timeZone: 'Asia/Makassar' }));

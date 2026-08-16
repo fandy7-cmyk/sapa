@@ -1,5 +1,5 @@
 // netlify/functions/sign-url.js
-// Proxy file dari Cloudinary — ESM (harus konsisten dengan fungsi lain di project ini).
+// Proxy file dari Cloudinary - ESM (harus konsisten dengan fungsi lain di project ini).
 // Parameter: ?url=&mode=preview|download&token=&name=
 //
 // PENTING: Gunakan ESM (import/export) bukan CJS (require/exports.handler)
@@ -12,7 +12,7 @@ import { isRawExtension, deleteFromCloudinary } from './_cloudinary.js';
 
 // ── JWT verify (pakai signature check yang sama dengan _auth.js) ──────────
 // SEBELUMNYA fungsi ini hanya base64-decode payload tanpa cek signature
-// sama sekali — artinya siapa pun bisa memalsukan token. Sekarang pakai
+// sama sekali - artinya siapa pun bisa memalsukan token. Sekarang pakai
 // jwt.verify (via verifyToken) supaya token benar-benar divalidasi.
 function decodeJwt(token) {
   const payload = verifyToken((token || '').trim());
@@ -26,7 +26,7 @@ function decodeJwt(token) {
 // ── Perbaiki URL Cloudinary jika resource_type-nya salah ─────────────────
 // FIX: File non-gambar (PDF, docx, dll) yg diupload dengan resource_type:'auto'
 // oleh Cloudinary disimpan sebagai 'raw', namun URL yang tersimpan di DB
-// bisa /image/upload/ — menyebabkan HTTP 400 saat di-fetch.
+// bisa /image/upload/ - menyebabkan HTTP 400 saat di-fetch.
 // Solusi: ganti /image/upload/ → /raw/upload/ untuk ekstensi file non-gambar.
 // Jika URL tidak mengandung ekstensi (Cloudinary simpan tanpa ext di public_id),
 // gunakan hintExt (dari param `name` yang dikirim frontend) sebagai petunjuk.
@@ -52,7 +52,7 @@ function fixCloudinaryUrl(rawUrl, hintExt = '') {
 // 1. File di-set type:'authenticated' (private), atau
 // 2. Domain server tidak ada di Cloudinary Allowed Origins (Restricted Media Delivery)
 //
-// PENTING — ada DUA jenis signed URL Cloudinary:
+// PENTING - ada DUA jenis signed URL Cloudinary:
 // A) Signed URL (untuk delivery_type:'upload' / public files):
 //    Format : /upload/s--{8char_SHA1}--/{version}/{public_id.ext}
 //    to_sign: "public_id={pid}&timestamp={ts}{secret}"
@@ -167,7 +167,7 @@ async function fetchViaCloudinaryAdmin(rawUrl, resourceType = 'raw') {
     // Dapatkan metadata file termasuk secure_url dari Admin API
     console.log('[sign-url] Signed URL gagal, coba Admin API resources endpoint...');
     const creds    = Buffer.from(`${apiKey}:${apiSecret}`).toString('base64');
-    // FIX: encode per segment (jangan encode '/') — Admin API butuh path separator tetap '/'
+    // FIX: encode per segment (jangan encode '/') - Admin API butuh path separator tetap '/'
     const pidEncoded = fullPath.split('/').map(encodeURIComponent).join('/');
     const adminUrl = `https://api.cloudinary.com/v1_1/${cloudName}/resources/${resourceType}/${deliveryType}/${pidEncoded}`;
     const adminResp = await fetch(adminUrl, {
@@ -261,7 +261,7 @@ export const handler = async (event) => {
   if (user._expired) return { statusCode: 401, headers: CORS, body: JSON.stringify({ error: 'Sesi Anda telah berakhir. Silakan login kembali.', reason: 'token_expired' }) };
 
   // ══════════════════════════════════════════════════════════════════════════
-  // DELETE — hapus file dari Cloudinary
+  // DELETE - hapus file dari Cloudinary
   // ══════════════════════════════════════════════════════════════════════════
   if (event.httpMethod === 'DELETE' || (event.httpMethod === 'POST' && qs.action === 'delete')) {
     let body = {};
@@ -278,7 +278,7 @@ export const handler = async (event) => {
   }
 
   // ══════════════════════════════════════════════════════════════════════════
-  // GET — proxy/preview file
+  // GET - proxy/preview file
   // ══════════════════════════════════════════════════════════════════════════
   if (event.httpMethod !== 'GET')
     return { statusCode: 405, headers: CORS, body: JSON.stringify({ error: 'Method not allowed' }) };
@@ -290,7 +290,7 @@ export const handler = async (event) => {
   try { targetUrlObj = new URL(rawUrl); } catch {
     return { statusCode: 400, headers: CORS, body: JSON.stringify({ error: 'URL tidak valid' }) };
   }
-  // Hanya izinkan fetch ke domain Cloudinary — cegah server dipakai sebagai
+  // Hanya izinkan fetch ke domain Cloudinary - cegah server dipakai sebagai
   // proxy SSRF ke URL https arbitrer (internal probing / abuse pihak ketiga).
   const ALLOWED_PROXY_HOSTS = ['res.cloudinary.com'];
   if (targetUrlObj.protocol !== 'https:' || !ALLOWED_PROXY_HOSTS.includes(targetUrlObj.hostname)) {
@@ -302,7 +302,7 @@ export const handler = async (event) => {
   // Jika nama dari URL tidak punya ekstensi yang dikenal, coba ekstrak dari param `name`.
   const _rawFileName = (name || decodeURIComponent(rawUrl.split('/').pop().split('?')[0]) || 'dokumen').trim();
   const _urlFileName = decodeURIComponent(rawUrl.split('/').pop().split('?')[0]);
-  // Pastikan fileName mengandung ekstensi — jika tidak ada, coba ambil dari name param
+  // Pastikan fileName mengandung ekstensi - jika tidak ada, coba ambil dari name param
   function _hasKnownExt(fn) {
     const e = fn.split('.').pop().toLowerCase();
     return e !== fn.toLowerCase() && Object.keys(MIME_MAP).includes(e);
@@ -352,7 +352,7 @@ export const handler = async (event) => {
     // - 403: domain server tidak ada di Cloudinary Allowed Origins
     // - 400: resource_type salah (image vs raw)
     if (!upstream.ok && (upstream.status === 401 || upstream.status === 403 || upstream.status === 400)) {
-      console.log(`[sign-url] S3: Cloudinary ${upstream.status} — mencoba Admin API + signed URL...`);
+      console.log(`[sign-url] S3: Cloudinary ${upstream.status} - mencoba Admin API + signed URL...`);
       // Coba resource_type yang terdeteksi dulu, lalu fallback ke yang lain
       let adminResult = await fetchViaCloudinaryAdmin(fetchUrl, detectedResourceType);
       if (!adminResult || !adminResult.ok) {
@@ -364,7 +364,7 @@ export const handler = async (event) => {
         upstream = adminResult;
         console.log('[sign-url] S3 berhasil:', upstream.status);
       } else {
-        console.warn('[sign-url] S3 gagal — cek: (1) env vars CLOUDINARY_* di .env, (2) delivery type file di Cloudinary Dashboard');
+        console.warn('[sign-url] S3 gagal - cek: (1) env vars CLOUDINARY_* di .env, (2) delivery type file di Cloudinary Dashboard');
       }
     }
 
@@ -372,13 +372,13 @@ export const handler = async (event) => {
       let debugHint = '';
       if (upstream.status === 403) {
         debugHint = 'Akses ditolak Cloudinary (Host not in allowlist). Solusi: buka Cloudinary Dashboard → Settings → Security → Allowed fetch domains → tambahkan domain Netlify Anda. Atau pastikan env vars CLOUDINARY_API_KEY/SECRET/CLOUD_NAME sudah di-set agar Admin API fallback bisa berjalan.';
-        console.error('[sign-url] Cloudinary 403 — semua strategy gagal. URL:', fetchUrl);
+        console.error('[sign-url] Cloudinary 403 - semua strategy gagal. URL:', fetchUrl);
       } else if (upstream.status === 401) {
         debugHint = 'File private/authenticated di Cloudinary. Pastikan: (1) CLOUDINARY_API_KEY, CLOUDINARY_API_SECRET, CLOUDINARY_CLOUD_NAME sudah di-set di Netlify env vars. (2) Upload preset menggunakan delivery type "public" bukan "authenticated". (3) Jika file sudah terlanjur authenticated, ubah di Cloudinary Media Explorer atau re-upload.';
-        console.error('[sign-url] Cloudinary 401 — URL:', fetchUrl);
+        console.error('[sign-url] Cloudinary 401 - URL:', fetchUrl);
       } else if (upstream.status === 400) {
         debugHint = 'URL Cloudinary tidak valid. Cek resource_type: /image/upload/ vs /raw/upload/.';
-        console.error('[sign-url] Cloudinary 400 — URL:', fetchUrl);
+        console.error('[sign-url] Cloudinary 400 - URL:', fetchUrl);
       }
       return {
         statusCode: upstream.status,

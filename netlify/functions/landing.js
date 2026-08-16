@@ -1,5 +1,5 @@
 // netlify/functions/landing.js
-// Endpoint publik untuk landing page SAPA — tanpa autentikasi
+// Endpoint publik untuk landing page SAPA - tanpa autentikasi
 //
 // GET /api/landing/shortlinks  → daftar shortlink aktif (yang punya slug_pendek)
 // GET /api/landing/bundles     → daftar bundle aktif + jumlah item
@@ -117,7 +117,7 @@ export const handler = async (event) => {
     // Endpoint ringan khusus buat stat-bar: cuma COUNT, gak narik full rows.
     // Satu round-trip ke Neon, bukan 3 request terpisah yang nunggu full list.
     if (sub === 'stats') {
-      // 3 query independen — dulu di-await berurutan (3x round-trip ke Neon),
+      // 3 query independen - dulu di-await berurutan (3x round-trip ke Neon),
       // sekarang paralel. pengumuman punya fallback sendiri (tabelnya opsional).
       const [pengumumanRes, dokumenRes, pegawaiRes] = await Promise.allSettled([
         sql`
@@ -151,7 +151,7 @@ export const handler = async (event) => {
       const dokumen = dokumenRes.value[0].c;
       const pegawai = pegawaiRes.value[0].c;
 
-      // Endpoint publik non-sensitif (cuma angka count) — boleh di-cache
+      // Endpoint publik non-sensitif (cuma angka count) - boleh di-cache
       // singkat di edge/CDN Netlify. Ini nolongin kasus cold-start Neon:
       // visitor pertama nunggu koneksi DB "bangun", visitor2 dalam 60 detik
       // berikutnya langsung dapat response dari cache tanpa nunggu DB sama sekali.

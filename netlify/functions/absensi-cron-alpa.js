@@ -2,7 +2,7 @@
 //
 // CRON: auto-tandai Alpa (dipicu scheduled invocation, lihat netlify.toml)
 // Dipisah dari absensi.js karena Netlify TIDAK MENGIZINKAN satu function
-// dipakai sekaligus sebagai "scheduled function" DAN endpoint HTTP biasa —
+// dipakai sekaligus sebagai "scheduled function" DAN endpoint HTTP biasa -
 // begitu sebuah function terdaftar dgn `schedule` di netlify.toml, request
 // HTTP normal ke function itu ditolak (dev: pesan "which is a scheduled
 // function"; production: function jadi gak bisa diakses via HTTP publik).
@@ -47,7 +47,7 @@ export const handler = async (event) => {
         INSERT INTO absensi
           (user_id, tanggal, jam_masuk, jam_keluar, status, terlambat, menit_terlambat, keterangan, input_by)
         VALUES
-          (${u.id}, ${tanggal}, NULL, NULL, 'alpa', false, 0, 'Otomatis: tidak ada absen masuk & pulang', NULL)
+          (${u.id}, ${tanggal}, NULL, NULL, 'alpa', false, 0, 'Otomatis: tidak ada absensi masuk & pulang', NULL)
       `;
       ditandai++;
     }

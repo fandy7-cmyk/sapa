@@ -2,7 +2,7 @@
 // Helper bersama untuk hapus file dari Cloudinary via Management API.
 // Diekstrak dari sign-url.js supaya bisa dipakai juga di surat-keluar.js /
 // surat-masuk.js saat menghapus SELURUH record surat (bukan cuma satu
-// dokumen dari daftar upload) — sebelumnya jalur ini tidak membersihkan
+// dokumen dari daftar upload) - sebelumnya jalur ini tidak membersihkan
 // file di Cloudinary sama sekali, menyebabkan file numpuk.
 import crypto from 'crypto';
 
@@ -26,7 +26,7 @@ export async function deleteFromCloudinary(rawUrl) {
   try {
     const urlObj    = new URL(rawUrl);
     const parts     = urlObj.pathname.split('/');
-    // Dukung delivery type 'upload' maupun 'authenticated' — sebelumnya cuma
+    // Dukung delivery type 'upload' maupun 'authenticated' - sebelumnya cuma
     // cari 'upload' sehingga file authenticated gagal dihapus (silent fail).
     let uploadIdx = parts.indexOf('upload');
     if (uploadIdx === -1) uploadIdx = parts.indexOf('authenticated');

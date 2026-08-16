@@ -16,7 +16,7 @@ async function fetchLokasi(ip) {
     if (!r.ok) return null;
     const d = await r.json();
     if (d.status !== 'success') return null;
-    // Catatan: IP-based geolocation cuma akurat sampai level kota/kabupaten —
+    // Catatan: IP-based geolocation cuma akurat sampai level kota/kabupaten -
     // tidak mungkin dapat desa/kecamatan dari IP saja. Ini fallback kalau
     // browser tidak kasih izin lokasi GPS (lihat _getBrowserLokasi di app.html).
     // Label disamakan gaya dgn versi GPS (Kabupaten/Kota, Provinsi) biar konsisten.
@@ -51,7 +51,7 @@ export const LOGIN_WINDOW_MINUTES = 15;
 
 // Catatan: kolom `email` di tabel `login_attempts` sekarang menampung NIP
 // (identifier login berubah dari email → NIP), bukan alamat email. Nama
-// kolom di DB sengaja tidak diubah supaya tidak perlu migrasi skema — cukup
+// kolom di DB sengaja tidak diubah supaya tidak perlu migrasi skema - cukup
 // diperlakukan sebagai "identifier" generik di sini.
 export async function checkLoginRateLimit(sql, identifier, ip, windowMinutes = LOGIN_WINDOW_MINUTES, maxAttempts = MAX_LOGIN_ATTEMPTS) {
   const rows = await sql`
@@ -69,7 +69,7 @@ export async function recordLoginAttempt(sql, identifier, ip) {
   } catch (e) { console.error('[recordLoginAttempt]', e); }
 }
 
-// Dipanggil setelah login sukses — bersihkan riwayat percobaan gagal
+// Dipanggil setelah login sukses - bersihkan riwayat percobaan gagal
 // supaya hitungan "sisa percobaan" reset fresh untuk sesi berikutnya.
 export async function clearLoginAttempts(sql, identifier) {
   try {

@@ -1,5 +1,5 @@
 // js/struktur_frontend.js
-// Kelola Pegawai & Struktur Organisasi — admin only
+// Kelola Pegawai & Struktur Organisasi - admin only
 
 'use strict';
 
@@ -86,10 +86,10 @@ function renderPegawaiTable() {
             </div>
           </div>
         </td>
-        <td style="font-size:.82rem">${esc(p.jabatan || '—')}</td>
-        <td style="font-size:.82rem">${esc(p.golongan || '—')}</td>
-        <td style="font-size:.8rem;color:var(--teks-muted)">${p.urutan ?? '—'}</td>
-        <td style="font-size:.8rem;color:var(--teks-muted)">${esc(p.parent_nama || '—')}</td>
+        <td style="font-size:.82rem">${esc(p.jabatan || '-')}</td>
+        <td style="font-size:.82rem">${esc(p.golongan || '-')}</td>
+        <td style="font-size:.8rem;color:var(--teks-muted)">${p.urutan ?? '-'}</td>
+        <td style="font-size:.8rem;color:var(--teks-muted)">${esc(p.parent_nama || '-')}</td>
         <td><span class="badge ${p.aktif ? 'badge-hijau' : 'badge-abu'}">${p.aktif ? 'Aktif' : 'Nonaktif'}</span></td>
         <td>
           <div style="display:flex;gap:6px">
@@ -176,9 +176,9 @@ function _buildAtatanDropdown(excludeId = null) {
   const opts = _pegawaiAll
     .filter(p => !excluded.has(p.id))
     .sort((a, b) => (a.urutan ?? 999) - (b.urutan ?? 999) || a.nama.localeCompare(b.nama))
-    .map(p => `<option value="${p.id}">${esc(p.nama)}${p.jabatan ? ' — ' + esc(p.jabatan) : ''}</option>`)
+    .map(p => `<option value="${p.id}">${esc(p.nama)}${p.jabatan ? ' - ' + esc(p.jabatan) : ''}</option>`)
     .join('');
-  sel.innerHTML = `<option value="">— Tidak ada (root) —</option>` + opts;
+  sel.innerHTML = `<option value="">- Tidak ada (root) -</option>` + opts;
   if (typeof initCustomSelects === 'function') initCustomSelects();
 }
 

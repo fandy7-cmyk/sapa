@@ -41,9 +41,9 @@ function _debounce(fn, delay = 400) {
 
 // ── Format tanggal+jam WITA (dipakai list Link, mirip s.id) ──
 function _fmtWita(iso) {
-  if (!iso) return '—';
+  if (!iso) return '-';
   const d = new Date(iso);
-  if (isNaN(d.getTime())) return '—';
+  if (isNaN(d.getTime())) return '-';
   try {
     const parts = new Intl.DateTimeFormat('en-GB', {
       timeZone: 'Asia/Makassar', day: '2-digit', month: 'short', year: 'numeric',
@@ -51,7 +51,7 @@ function _fmtWita(iso) {
     }).formatToParts(d);
     const get = t => parts.find(p => p.type === t)?.value || '';
     return `${get('day')} ${get('month')} ${get('year')} ${get('hour')}:${get('minute')} WITA`;
-  } catch { return '—'; }
+  } catch { return '-'; }
 }
 
 // ── Slug availability checker (dipakai Link & Bundle) ────
@@ -109,7 +109,7 @@ async function _checkSlugAvailability(endpoint, rawSlug, excludeId, statusElId, 
     if (btn) btn.disabled = available === false;
     onResult(available !== false);
   } catch {
-    // Gagal cek (mis. offline) — jangan blokir user, biarkan validasi final terjadi di server saat submit
+    // Gagal cek (mis. offline) - jangan blokir user, biarkan validasi final terjadi di server saat submit
     if (statusEl) { statusEl.className = 'slug-status'; statusEl.innerHTML = ''; }
     if (btn) btn.disabled = false;
     onResult(true);
@@ -117,7 +117,7 @@ async function _checkSlugAvailability(endpoint, rawSlug, excludeId, statusElId, 
 }
 
 // ═══════════════════════════════════════════
-// LINKS (data source) — dipakai bareng oleh halaman Shortlink
+// LINKS (data source) - dipakai bareng oleh halaman Shortlink
 // ═══════════════════════════════════════════
 let _links = [];
 let _linkSlugAvailable = true;
@@ -134,7 +134,7 @@ async function loadLinks() {
     const lr = await fetch('/api/links', { headers: authHeaders() });
     const ld = await lr.json();
     _links = ld.links || [];
-    // Rebuild filter status dropdown — hanya tampilkan opsi yg ada datanya
+    // Rebuild filter status dropdown - hanya tampilkan opsi yg ada datanya
     const slfs = document.getElementById('slFilterStatus');
     if (slfs) slfs.innerHTML = _buildStatusOptions(_links, l => l.aktif, l => _linkIsExpired(l));
   } catch (e) { console.error(e); }
@@ -144,7 +144,7 @@ function openLinkModal(id) {
   document.getElementById('linkId').value = '';
   document.getElementById('linkUrl').value = '';
   document.getElementById('linkSlug').value = '';
-  document.getElementById('slugPreview').textContent = '—';
+  document.getElementById('slugPreview').textContent = '-';
   document.getElementById('linkSlugStatus').className = 'slug-status';
   document.getElementById('linkSlugStatus').innerHTML = '';
   _linkSlugAvailable = true;
@@ -198,7 +198,7 @@ function editLink(id) {
   document.getElementById('linkId').value = l.id;
   document.getElementById('linkUrl').value = l.url;
   document.getElementById('linkSlug').value = l.slug_pendek || '';
-  document.getElementById('slugPreview').textContent = l.slug_pendek || '—';
+  document.getElementById('slugPreview').textContent = l.slug_pendek || '-';
   document.getElementById('linkSlugStatus').className = 'slug-status';
   document.getElementById('linkSlugStatus').innerHTML = '';
   _linkSlugAvailable = true;
@@ -223,7 +223,7 @@ function editLink(id) {
 }
 
 document.getElementById('linkSlug').addEventListener('input', function() {
-  document.getElementById('slugPreview').textContent = this.value || '—';
+  document.getElementById('slugPreview').textContent = this.value || '-';
   _checkLinkSlugDebounced();
 });
 
@@ -287,7 +287,7 @@ async function deleteLink(id) {
 }
 
 // ═══════════════════════════════════════════
-// SHORTLINK — halaman unified: semua link + shortlink
+// SHORTLINK - halaman unified: semua link + shortlink
 // ═══════════════════════════════════════════
 let _slFiltered = [], _slPage = 1, _slPageSize = 10;
 
@@ -336,7 +336,7 @@ function renderShortlinks() {
       <td>${_linkIsExpired(l)
           ? `<span class="badge badge-red" data-tip="Berlaku s.d ${esc(fmtDate(l.expired_at))}">Kedaluwarsa</span>`
           : `<span class="badge ${l.aktif?'badge-green':'badge-red'}">${l.aktif?'Aktif':'Nonaktif'}</span>`}</td>
-      <td class="col-admin-only" style="color:var(--teks-muted);font-size:.78rem">${l.created_by_nama ? esc(l.created_by_nama) : '—'}</td>
+      <td class="col-admin-only" style="color:var(--teks-muted);font-size:.78rem">${l.created_by_nama ? esc(l.created_by_nama) : '-'}</td>
       <td style="white-space:nowrap">${l.slug_pendek ? `
           <button class="btn btn-ghost btn-sm icon-status${l.expired_at ? ' active' : ''}" data-tip="${l.expired_at ? 'Berlaku s.d ' + esc(fmtDate(l.expired_at)) : 'Tautan berjangka'}" onclick="editLink(${l.id})"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg></button>
           <button class="btn btn-ghost btn-sm icon-status${l.is_protected ? ' active' : ''}" data-tip="${l.is_protected ? 'Tautan diproteksi' : 'Tautan tanpa proteksi'}" onclick="editLink(${l.id})"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="10" width="16" height="10" rx="2"/><path d="M7 10V7a5 5 0 0110 0v3"/></svg></button>
@@ -371,7 +371,7 @@ async function loadBundles() {
     _bundles = d.bundles || [];
     _bundlesFiltered = [..._bundles]; _bundlePage = 1;
     renderBundles();
-    // Rebuild filter dropdowns — hanya tampilkan opsi yg ada datanya
+    // Rebuild filter dropdowns - hanya tampilkan opsi yg ada datanya
     const bfs = document.getElementById('bundleFilterStatus');
     if (bfs) bfs.innerHTML = _buildStatusOptions(_bundles, b => b.aktif, b => _bundleIsExpired(b));
   } catch {}
@@ -411,7 +411,7 @@ function renderBundles() {
       <td>${_bundleIsExpired(b)
           ? `<span class="badge badge-red" data-tip="Berlaku s.d ${esc(fmtDate(b.expired_at))}">Kedaluwarsa</span>`
           : `<span class="badge ${b.aktif?'badge-green':'badge-red'}">${b.aktif?'Aktif':'Nonaktif'}</span>`}</td>
-      <td class="col-admin-only" style="color:var(--teks-muted);font-size:.78rem">${b.created_by_nama ? esc(b.created_by_nama) : '—'}</td>
+      <td class="col-admin-only" style="color:var(--teks-muted);font-size:.78rem">${b.created_by_nama ? esc(b.created_by_nama) : '-'}</td>
       <td style="white-space:nowrap">
         <button class="btn btn-ghost btn-sm icon-status${b.expired_at ? ' active' : ''}" data-tip="${b.expired_at ? 'Berlaku s.d ' + esc(fmtDate(b.expired_at)) : 'Bundle berjangka'}" onclick="editBundle(${b.id})"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg></button>
         <button class="btn btn-ghost btn-sm icon-status${b.is_protected ? ' active' : ''}" data-tip="${b.is_protected ? 'Bundle diproteksi' : 'Bundle tanpa proteksi'}" onclick="editBundle(${b.id})"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="10" width="16" height="10" rx="2"/><path d="M7 10V7a5 5 0 0110 0v3"/></svg></button>
@@ -464,7 +464,7 @@ function openBundleModal() {
   document.getElementById('bundleJudul').value = '';
   document.getElementById('bundleSlug').value = '';
   document.getElementById('bundleDeskripsi').value = '';
-  document.getElementById('bundleSlugPreview').textContent = '—';
+  document.getElementById('bundleSlugPreview').textContent = '-';
   document.getElementById('bundleSlugStatus').className = 'slug-status';
   document.getElementById('bundleSlugStatus').innerHTML = '';
   _bundleSlugAvailable = true;
@@ -514,13 +514,13 @@ function _toggleBundlePasswordField() {
 document.getElementById('bundleJudul').addEventListener('input', function() {
   if (!document.getElementById('bundleSlug').value) {
     const slug = this.value.toLowerCase().replace(/[^a-z0-9\s-]/g,'').trim().replace(/\s+/g,'-').substring(0,60);
-    document.getElementById('bundleSlugPreview').textContent = slug || '—';
+    document.getElementById('bundleSlugPreview').textContent = slug || '-';
     _checkBundleSlugDebounced();
   }
 });
 
 document.getElementById('bundleSlug').addEventListener('input', function() {
-  document.getElementById('bundleSlugPreview').textContent = this.value || '—';
+  document.getElementById('bundleSlugPreview').textContent = this.value || '-';
   _checkBundleSlugDebounced();
 });
 
@@ -702,7 +702,7 @@ async function deleteBundleItem(itemId) {
 }
 
 // ═══════════════════════════════════════════
-// SHARE MODAL — QR code + copy + WhatsApp (mirip s.id)
+// SHARE MODAL - QR code + copy + WhatsApp (mirip s.id)
 // dipakai bareng oleh Shortlink & Bundle
 // ═══════════════════════════════════════════
 let _shareUrl = '';
@@ -738,7 +738,7 @@ function _qrTrackUrl(url) {
   return url + (url.includes('?') ? '&' : '?') + 'src=qr';
 }
 
-// Ambil {judul, url} target share dari Link/Bundle — dipakai openShareModal & menu dropdown Bagikan
+// Ambil {judul, url} target share dari Link/Bundle - dipakai openShareModal & menu dropdown Bagikan
 function _resolveShareTarget(type, id) {
   if (type === 'link') {
     const l = _links.find(x => x.id === id);
@@ -961,7 +961,7 @@ function _openItemDetail(type, id, info) {
       dariEl._ldBound = true;
     }
     // Load pertama: kirim tanggal yang kita hitung sendiri (todayIso/weekAgoIso),
-    // JANGAN baca dari hidden input ldRangeDari/ldRangeSampai — widget CDTP
+    // JANGAN baca dari hidden input ldRangeDari/ldRangeSampai - widget CDTP
     // nulis ke situ secara async, jadi 30ms setelah .set() belum tentu sempat
     // ke-commit. Kalau masih kebaca kosong, _ldReloadAnalytics langsung
     // return duluan tanpa pernah fetch (makanya total visitor diem di 0
@@ -992,7 +992,7 @@ function _ldQrStyle() {
 function _ldDateOnly(v) {
   if (!v) return '';
   // v adalah ISO timestamp UTC (dari toISOString()/CDTP). Geser +8 jam ke WITA
-  // dulu sebelum ambil tanggalnya — kalau langsung split('T')[0] dari ISO UTC,
+  // dulu sebelum ambil tanggalnya - kalau langsung split('T')[0] dari ISO UTC,
   // klik yang terjadi dini hari WITA (00:00-08:00, masih "kemarin" di UTC)
   // bisa kepotong dari rentang query analytics dan kebaca 0.
   const d = new Date(v);
@@ -1026,7 +1026,7 @@ function _renderLdChart(daily, dari, sampai) {
   const cur = new Date(dari + 'T00:00:00');
   const end = new Date(sampai + 'T00:00:00');
   while (cur <= end && days.length < 120) {
-    // Pakai komponen tanggal lokal langsung, JANGAN toISOString() — itu geser
+    // Pakai komponen tanggal lokal langsung, JANGAN toISOString() - itu geser
     // ke UTC dulu, jadi "hari ini" WITA bisa kebaca mundur satu hari dan
     // nggak pernah match sama key tanggal WITA yang dikirim backend (bikin
     // grafik keliatan "Empty Data" walau total visitor-nya udah kehitung).

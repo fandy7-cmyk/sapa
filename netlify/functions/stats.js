@@ -60,7 +60,7 @@ export const handler = async (event) => {
     // berurutan (hari tanpa klik tetap muncul dengan jumlah=0), bukan cuma
     // tanggal yang kebetulan ada datanya. Ini krusial karena frontend
     // (dashboard.js) mengandalkan array ini punya panjang & urutan tetap
-    // (termasuk buat hitung "vs kemarin") — kalau hari ini belum ada klik,
+    // (termasuk buat hitung "vs kemarin") - kalau hari ini belum ada klik,
     // GROUP BY biasa bakal skip baris hari ini dan bikin semua index geser.
     const klik_7hari = isAdmin
       ? await sql`

@@ -12,11 +12,11 @@ function normTarget(r) {
   return r;
 }
 
-// Predikat SAKIP — dipakai untuk indikator bertipe_nilai 'predikat' (realisasi/target
+// Predikat SAKIP - dipakai untuk indikator bertipe_nilai 'predikat' (realisasi/target
 // berupa huruf predikat, bukan angka bebas). Tingkatan dari terendah ke tertinggi.
 // Angka "tier" ini yang disimpan di kolom numerik (realisasi/target) supaya semua
 // rumus capaian (kumulatif, rata-rata, bermakna_negatif, dst) yang sudah ada tetap
-// jalan tanpa perlu diubah — hanya LABEL tampilannya (realisasi_display/target_display)
+// jalan tanpa perlu diubah - hanya LABEL tampilannya (realisasi_display/target_display)
 // yang berupa huruf predikat.
 const PREDIKAT_LEVELS = [
   { label: 'D',  tier: 1 },
@@ -29,12 +29,12 @@ const PREDIKAT_LEVELS = [
 ];
 const PREDIKAT_TIER_BY_LABEL = Object.fromEntries(PREDIKAT_LEVELS.map(p => [p.label, p.tier]));
 
-// Fallback: kalau target_tahun (kolom numerik) kosong/NaN — biasanya karena data
+// Fallback: kalau target_tahun (kolom numerik) kosong/NaN - biasanya karena data
 // lama yang ke-input sebelum fitur predikat ada, atau target_display sempat
-// disimpan manual sebagai teks tanpa tier-nya — coba rekonstruksi tier dari label
+// disimpan manual sebagai teks tanpa tier-nya - coba rekonstruksi tier dari label
 // huruf predikat (target_display). Dipakai di semua tempat yang butuh target
 // numerik untuk hitung capaian (preview, validasi simpan, dsb) supaya indikator
-// bertarget huruf (BB, CC, dst.) tidak macet nunjukkin "—" gara-gara data lama.
+// bertarget huruf (BB, CC, dst.) tidak macet nunjukkin "-" gara-gara data lama.
 function _targetNumForRow(row) {
   let t = parseFloat(row?.target_tahun);
   if (isNaN(t) && row?.tipe_nilai === 'predikat' && row?.target_display) {
@@ -53,7 +53,7 @@ function _predikatOptionsHtml(selectedTier) {
 
 // Render cell input realisasi: dropdown predikat kalau row.tipe_nilai === 'predikat',
 // input number seperti biasa kalau tidak. onchangeFn = nama fungsi global (string),
-// dipanggil dengan row.id sebagai argumen — sama seperti input number sebelumnya.
+// dipanggil dengan row.id sebagai argumen - sama seperti input number sebelumnya.
 function _renderRealisasiInputCell(row, idPrefix, onchangeFn) {
   const id = `${idPrefix}_${row.id}`;
   const disabled = !!row.realisasi_id;
@@ -63,7 +63,7 @@ function _renderRealisasiInputCell(row, idPrefix, onchangeFn) {
     // placeholder netral ("Pilih Peringkat"), BUKAN "-", supaya user gak salah kira
     // "-" itu udah kepilih otomatis. Begitu user aktif milih apapun (termasuk "-"),
     // data-placeholder ini dihapus di sisi klik (lihat buildCustomSelect/app.html)
-    // dan tampilannya balik jadi teks opsi asli ("-", "D", dst) — perilaku sama
+    // dan tampilannya balik jadi teks opsi asli ("-", "D", dst) - perilaku sama
     // persis kayak sebelumnya begitu user sudah menentukan pilihan.
     const belumPernahDiisi = row.realisasi == null && !row.realisasi_id;
     const selectEl = `<select id="${id}" ${disabled ? 'disabled readonly' : ''}
@@ -75,7 +75,7 @@ function _renderRealisasiInputCell(row, idPrefix, onchangeFn) {
     // select engine (initCustomSelects) langsung membangun trigger custom-nya sejak
     // render awal. Trigger sendiri sudah dibikin menghormati select.disabled (lihat
     // guard di buildCustomSelect/app.html) jadi tetap gak bisa diutak-atik selagi
-    // terkunci — cuma sekarang tampilannya konsisten custom, bukan dropdown bawaan
+    // terkunci - cuma sekarang tampilannya konsisten custom, bukan dropdown bawaan
     // browser begitu baris dibuka lewat tombol Edit.
     return `<div class="select-wrap" style="min-width:110px">${selectEl}</div>`;
   }
@@ -98,7 +98,7 @@ function _renderRealisasiInputCell(row, idPrefix, onchangeFn) {
 }
 
 // Tombol spin custom buat cell realisasi (gaya sama kayak spinner jam di custom
-// datetime picker/cdtp) — gantiin spinner native browser yang gak konsisten
+// datetime picker/cdtp) - gantiin spinner native browser yang gak konsisten
 // antar-browser. dir = 1 (tambah) / -1 (kurang), step diambil dari atribut
 // step input (default 0.01), lalu manual trigger onchangeFn (markDirty dkk)
 // biar state dirty & preview capaian tetap sinkron kayak input manual.
@@ -131,7 +131,7 @@ let _targetRows = []; // [{id?, tahun, target, target_display}]
 let _targetMap  = {}; // {indikator_id: [{tahun, target, target_display}]}
 
 // ═══════════════════════════════════════════════════════════════════════════
-// KINERJA — state
+// KINERJA - state
 // ═══════════════════════════════════════════════════════════════════════════
 let _kinerja_bulan  = new Date().getMonth() + 1;   // 1–12
 let _kinerja_tahun  = new Date().getFullYear();
@@ -155,7 +155,7 @@ let _spm_tahun  = new Date().getFullYear();
 let _spmData    = [];
 let _spmSearch  = '';   // teks pencarian indikator (tabel rekap SPM)
 
-// ── Pagination & search — Indikator Admin ────────────────────────────────
+// ── Pagination & search - Indikator Admin ────────────────────────────────
 let _indikatorPage      = 1;
 const _indikatorPageSize = 15;
 let _indikatorSearch    = '';
@@ -165,7 +165,7 @@ let _indikatorFilterPJ    = '';   // '' atau nama PJ
 let _indikatorFilterTahun = '';   // '' atau tahun (string)
 let _indikatorSort        = 'urutan'; // 'urutan' | 'nama_asc' | 'nama_desc' | 'terbaru' | 'terlama' | 'target_desc' | 'target_asc' | 'jenis_kinerja'
 
-// ── Pagination & search — Group Admin ───────────────────────────────────
+// ── Pagination & search - Group Admin ───────────────────────────────────
 let _groupPage      = 1;
 const _groupPageSize = 15;
 let _groupSearch    = '';
@@ -178,7 +178,7 @@ const JENIS_META = {
   kegiatan: { label: 'Kegiatan',          cls: 'group-kegiatan' },
 };
 
-// ── Jenis Kinerja — state dinamis ────────────────────────────────────────
+// ── Jenis Kinerja - state dinamis ────────────────────────────────────────
 // Diisi dari API /api/kinerja/jenis-kinerja saat loadIndikatorAdmin
 let _jenisList = [];  // [{id, kode, label, warna_bg, warna_teks, urutan, aktif, is_builtin}]
 let _editingJenisId = null;
@@ -197,7 +197,7 @@ function _renderJenisBadges(row) {
       badges.push(`<span style="display:inline-flex;align-items:center;font-size:.7rem;font-weight:700;color:${j.warna_teks};background:${j.warna_bg};padding:2px 7px;border-radius:5px;margin-right:3px">${escHtml(j.label)}</span>`);
     }
   }
-  return badges.length ? badges.join('') : '<span style="color:var(--teks-muted);font-size:.75rem">—</span>';
+  return badges.length ? badges.join('') : '<span style="color:var(--teks-muted);font-size:.75rem">-</span>';
 }
 
 // Helper: apakah row punya setidaknya satu jenis aktif
@@ -230,7 +230,7 @@ let _periodeListTerbuka = [];
 let _allPeriodeList     = [];  // semua periode dari DB (untuk admin year selector)
 let _userIndikatorIds   = null; // Set<number> assigned indikator untuk non-admin, null = belum load
 
-// Load assigned indikator IDs untuk user non-admin (idempotent — skip jika sudah di-load)
+// Load assigned indikator IDs untuk user non-admin (idempotent - skip jika sudah di-load)
 async function _ensureUserIndikatorIds() {
   if (_user?.is_admin) return;                 // admin tidak perlu filter
   if (_userIndikatorIds !== null) return;      // sudah di-load sebelumnya
@@ -249,7 +249,7 @@ function _renderKinerjaWindowBanner(containerId, jenis) {
   // Admin → tidak tampilkan banner
   if (_user?.is_admin) { wrap.innerHTML = ''; return; }
 
-  const fmtDT = iso => iso ? new Date(iso).toLocaleString('id-ID', { day:'2-digit', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit', timeZone: 'Asia/Makassar' }) + ' WITA' : '—';
+  const fmtDT = iso => iso ? new Date(iso).toLocaleString('id-ID', { day:'2-digit', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit', timeZone: 'Asia/Makassar' }) + ' WITA' : '-';
 
   // Cari periode untuk bulan yang sedang dipilih, filter by jenis
   const targetBulan = jenis === 'ikk' ? _ikk_bulan : jenis === 'spm' ? _spm_bulan : _kinerja_bulan;
@@ -279,7 +279,7 @@ function _renderKinerjaWindowBanner(containerId, jenis) {
   wrap.innerHTML = `
     <div style="display:flex;align-items:center;gap:8px;padding:10px 14px;border-radius:8px;background:#f0fdf4;border:1px solid #bbf7d0;color:#166534;font-size:.83rem;margin-bottom:10px">
       <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-      <span>Input <strong>terbuka</strong> — batas pengisian hingga <strong>${fmtDT(pa.close_at)}</strong></span>
+      <span>Input <strong>terbuka</strong> - batas pengisian hingga <strong>${fmtDT(pa.close_at)}</strong></span>
     </div>`;
 }
 
@@ -311,7 +311,7 @@ function _renderKinerjaCountdown(containerId, jenis) {
 
   const closeMs = new Date(pa.close_at).getTime();
   const openMs  = pa.open_at ? new Date(pa.open_at).getTime() : null;
-  const openLabel  = pa.open_at  ? new Date(pa.open_at).toLocaleString('id-ID', { day:'2-digit', month:'long', year:'numeric', hour:'2-digit', minute:'2-digit', timeZone: 'Asia/Makassar' }).replace(' pukul','') + ' WITA' : '—';
+  const openLabel  = pa.open_at  ? new Date(pa.open_at).toLocaleString('id-ID', { day:'2-digit', month:'long', year:'numeric', hour:'2-digit', minute:'2-digit', timeZone: 'Asia/Makassar' }).replace(' pukul','') + ' WITA' : '-';
   const closeLabel = new Date(pa.close_at).toLocaleString('id-ID', { day:'2-digit', month:'long', year:'numeric', hour:'2-digit', minute:'2-digit', timeZone: 'Asia/Makassar' }).replace(' pukul','') + ' WITA';
   const bulanTahunLabel = `${BULAN_FULL[pa.bulan]} ${pa.tahun}`;
   const jm = _kperiodeJenisMeta(jenis);
@@ -409,7 +409,7 @@ function _renderKinerjaCountdown(containerId, jenis) {
   _kinerjaCountdownTimers[containerId] = setInterval(_tick, 1000);
 }
 
-// ── Year selector — diisi dari daftar periode di DB ──────────────────────
+// ── Year selector - diisi dari daftar periode di DB ──────────────────────
 async function initKinerjaControls() {
   // Ambil semua periode yang window-nya terbuka sekarang
   try {
@@ -553,7 +553,7 @@ function _renderPeriodeInfo() {
   const kWrapper = document.getElementById('kinerjaBulanWrapper');
   const tahunWrap = document.getElementById('kinerjaTahunWrap');
 
-  // Badge teks "Periode input: ..." sudah tidak dipakai — selalu pakai dropdown tahun & bulan
+  // Badge teks "Periode input: ..." sudah tidak dipakai - selalu pakai dropdown tahun & bulan
   if (el) el.style.display = 'none';
 
   if (_user?.is_admin) {
@@ -723,19 +723,19 @@ function _renderDukungBtn(row, tw, tahun, source, initialEditable = false) {
   if (fileCount > 0) {
     const previewFn  = `openDukungPreview(${row.id}, ${twVal}, ${tahunVal}, '${source}')`;
     const uploadFnAlt = source === 'ikk' ? `openIkkDukungModal(${row.id}, ${twVal}, ${tahunVal})` : `openDukungModal(${row.id}, ${twVal}, ${tahunVal}, '${source}')`;
-    const label = 'Uploaded';
+    const label = fileCount > 1 ? `Uploaded (${fileCount})` : 'Uploaded';
     // Baris yang belum disimpan (belum punya realisasi_id) tetap dalam mode edit aktif,
     // jadi tombol ganti/hapus file harus tetap terbuka tanpa perlu klik Edit dulu.
     const isEditable = initialEditable;
 
-    // Tombol Uploaded: locked by default — hanya bisa diklik jika row dalam mode edit atau initialEditable
+    // Tombol Uploaded: locked by default - hanya bisa diklik jika row dalam mode edit atau initialEditable
     return `<span style="display:inline-flex;align-items:center;gap:3px" data-dukung-id="${row.id}">
       <button
         class="dukung-uploaded-btn"
         data-indikator-id="${row.id}" data-tw="${twVal}" data-tahun="${tahunVal}" data-source="${source}"
         data-tip="${isEditable ? 'Kelola / ganti file' : 'Klik Edit terlebih dahulu untuk mengganti file'}"
         ${isEditable ? `onclick="${uploadFnAlt}"` : 'disabled'}
-        style="display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:6px;border:none;${isEditable ? 'cursor:pointer' : 'cursor:not-allowed'};font-size:.75rem;font-weight:600;font-family:inherit;background:#d1fae5;color:#065f46;opacity:.85">
+        style="display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:6px;border:none;${isEditable ? 'cursor:pointer' : 'cursor:not-allowed'};font-size:.75rem;font-weight:600;font-family:inherit;background:#d1fae5;color:#065f46;opacity:.85;white-space:nowrap">
         <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
         ${label}
       </button>
@@ -772,7 +772,7 @@ function _renderDukungBtn(row, tw, tahun, source, initialEditable = false) {
 }
 
 
-// ── Pagination — IKU / IKK / IKK ─────────────────────────────────────────
+// ── Pagination - IKU / IKK / IKK ─────────────────────────────────────────
 let _ikuPage = 1; const _ikuPageSize = 10;
 let _ikkPage = 1; const _ikkPageSize = 10;
 let _spmPage = 1; const _spmPageSize = 10;
@@ -781,7 +781,7 @@ function _goIkkPage(p) { _ikkPage = p; _renderIkkTable(document.getElementById('
 function _goSpmPage(p) { _spmPage = p; _renderSpmTable(document.getElementById('spmTableBody')); }
 
 
-// Dipanggil dari input #kinerjaSearch (sejajar Tahun/Bulan) — filter tabel rekap IKU
+// Dipanggil dari input #kinerjaSearch (sejajar Tahun/Bulan) - filter tabel rekap IKU
 function filterKinerjaTable() {
   _kinerjaSearch = (document.getElementById('kinerjaSearch')?.value || '').trim().toLowerCase();
   _ikuPage = 1;
@@ -843,7 +843,7 @@ function renderKinerjaTable(tbody) {
 
     no++;
     const capaian = (row.realisasi_id && row.capaian_persen != null) ? Number(row.capaian_persen) : null;
-    let badgeClass = 'na', badgeText = '—';
+    let badgeClass = 'na', badgeText = '-';
     if (capaian !== null && !isNaN(capaian)) {
       badgeText = capaian.toFixed(1) + '%';
       badgeClass = capaian >= 91 ? 'st' : capaian >= 76 ? 'ti' : capaian >= 66 ? 'sd' : capaian >= 51 ? 'rd' : 'sr';
@@ -856,7 +856,7 @@ function renderKinerjaTable(tbody) {
       ? String(row.target_display)
       : (_targetNum != null && !isNaN(_targetNum)
           ? (Number.isInteger(_targetNum) ? String(_targetNum) : _targetNum.toFixed(2))
-          : '—');
+          : '-');
 
     // Tentukan row state class berdasarkan status data
     const rowStateClass = row.realisasi_id ? 'row-state-saved' : 'row-state-default';
@@ -866,7 +866,7 @@ function renderKinerjaTable(tbody) {
       <td class="td-sticky-name" style="position:sticky;left:34px;z-index:3"><div style="font-weight:600;line-height:1.6"><span>${escHtml(row.indikator_kinerja)}</span>${negBadge}</div><div style="display:flex;align-items:center;gap:6px;margin-top:5px">${row.formula ? `<div class="fx-wrap"><button style="display:inline-flex;align-items:center;justify-content:center;gap:4px;box-sizing:border-box;height:24px;font-size:0.62rem;font-weight:700;line-height:1;color:#0f766e;background:#f0fdfa;border:1px solid #99f6e4;border-radius:4px;padding:0 8px;cursor:pointer;font-family:inherit;appearance:none;-webkit-appearance:none;margin:0" data-tip="Lihat formula perhitungan" data-formula="${escHtml(row.formula)}" onclick="toggleFormulaPanel(this)"><span>Σ</span><span class=\"fx-arrow\" style=\"display:inline-block;transition:transform .2s;font-style:normal\">▾</span></button></div>` : ''}${_tipeBadge(row.tipe_perhitungan)}</div></td>
       <td class="td-satuan">${escHtml(row.satuan || '')}</td>
       <td class="td-target" style="font-weight:700">${targetFmt}</td>
-      ${_user?.is_admin ? `<td class="td-bidang" style="color:var(--teks-mid)">${escHtml(row.penanggung_jawab || '—')}</td>` : ''}
+      ${_user?.is_admin ? `<td class="td-bidang" style="color:var(--teks-mid)">${escHtml(row.penanggung_jawab || '-')}</td>` : ''}
       <td class="realisasi-input-cell">
         ${_renderRealisasiInputCell(row, 'real', 'markDirty')}
       </td>
@@ -990,7 +990,7 @@ function toggleEditRow(indikatorId) {
     const taEl   = wrap.querySelector('.ps-rte');
     if (!taEl) return;
     if (isReadonly) {
-      // Masuk edit mode: sembunyikan view, tampilkan editor — skip wrap yg hidden
+      // Masuk edit mode: sembunyikan view, tampilkan editor - skip wrap yg hidden
       if (wrap.style.display === 'none') return;
       if (readEl) readEl.style.display = 'none';
       taEl.style.display = '';
@@ -1173,7 +1173,7 @@ function toggleIkkEditRow(indikatorId) {
     const taEl   = wrap.querySelector('.ps-rte');
     if (!taEl) return;
     if (isReadonly) {
-      // Masuk edit mode: sembunyikan view, tampilkan editor — skip wrap yg hidden
+      // Masuk edit mode: sembunyikan view, tampilkan editor - skip wrap yg hidden
       if (wrap.style.display === 'none') return;
       if (readEl) readEl.style.display = 'none';
       taEl.style.display = '';
@@ -1304,7 +1304,7 @@ function markDirty(indikatorId) {
 }
 
 // Cek apakah teks cuma berisi simbol/tanda baca (-, :, ., dst.) tanpa
-// huruf/angka asli — dianggap tidak bermakna sebagai keterangan.
+// huruf/angka asli - dianggap tidak bermakna sebagai keterangan.
 function _isSymbolOnly(val) {
   const v = (val || '').trim();
   if (!v) return true;
@@ -1313,7 +1313,7 @@ function _isSymbolOnly(val) {
 
 // Warning real-time saat user mengetik di Faktor Penghambat/Solusi/dst:
 // kalau isiannya cuma simbol (mis. "-", ";", "?") tanpa disambung teks,
-// kasih toast supaya user langsung sadar — bukan nunggu sampai klik Simpan.
+// kasih toast supaya user langsung sadar - bukan nunggu sampai klik Simpan.
 // Map menyimpan NILAI terakhir yang sudah di-warn (bukan cuma flag boolean),
 // supaya ganti ke simbol lain (mis. "-" -> "?") tetap memicu toast baru,
 // tapi mengetik ulang nilai yang sama persis tidak nge-spam toast.
@@ -1343,7 +1343,7 @@ function _canSaveRow({ row, realVal, targetVal, bermakna_negatif, fpenghambatVal
   const realEmpty = realVal === '' || realVal === null || realVal === undefined;
   if (realEmpty) {
     // Indikator bertipe predikat (mis. Peringkat SAKIP) sering baru dinilai di
-    // akhir tahun — untuk bulan-bulan menunggu penilaian, realisasi boleh
+    // akhir tahun - untuk bulan-bulan menunggu penilaian, realisasi boleh
     // dikosongkan ("-") asal Faktor Penghambat & Solusi tetap dijelaskan
     // (mis. "menunggu hasil penilaian"), supaya baris tetap bisa disimpan.
     if (row?.tipe_nilai !== 'predikat') return false;
@@ -1354,14 +1354,14 @@ function _canSaveRow({ row, realVal, targetVal, bermakna_negatif, fpenghambatVal
   const r = parseFloat(realVal);
   const t = parseFloat(targetVal);
   if (isNaN(r) || isNaN(t)) return false;
-  // target=0 berarti "belum ada sasaran tahun ini" (bukan data invalid) — capaian
+  // target=0 berarti "belum ada sasaran tahun ini" (bukan data invalid) - capaian
   // memang tidak bisa dihitung (lihat guard `t = 0` di query capaian_persen backend),
   // jadi lewati pengecekan bucket capaian (<100 vs >=100) di bawah ini. Tanpa guard
   // ini, tombol Simpan macet permanen untuk indikator bertarget 0 walau realisasi &
   // data dukung sudah lengkap.
   if (t !== 0) {
     // Pakai realisasi EFEKTIF (basis kumulatif/rata-rata lintas bulan), sama seperti
-    // yang dipakai previewCapaian/saveRealisasiRow — supaya kondisi field wajib
+    // yang dipakai previewCapaian/saveRealisasiRow - supaya kondisi field wajib
     // (capaian < 100 vs >= 100) konsisten dengan capaian yang ditampilkan ke user.
     // Tanpa ini, tombol Simpan bisa nge-cek bucket capaian yang salah begitu masuk
     // bulan ke-2 dst pada indikator Kumulatif/Rata-rata, dan macet permanen.
@@ -1376,7 +1376,7 @@ function _canSaveRow({ row, realVal, targetVal, bermakna_negatif, fpenghambatVal
     }
   }
   // Wajib: data dukung harus sudah diupload (hanya untuk tombol Simpan,
-  // bukan untuk tombol Upload itu sendiri — kalau tidak, jadi lingkaran:
+  // bukan untuk tombol Upload itu sendiri - kalau tidak, jadi lingkaran:
   // upload baru aktif kalau sudah upload)
   if (requireDukung && !hasDukung) return false;
   return true;
@@ -1437,7 +1437,7 @@ function _updateSaveBtnState(indikatorId) {
 // untuk preview live capaian, yaitu basis bulan-bulan lain (selain bulan yang
 // sedang diketik) dikombinasikan dengan nilai yang sedang diketik.
 // row.capaian_persen (raw dari server) merepresentasikan kumulatif/rata-rata s.d. bulan ini
-// SEBELUM nilai baru yang sedang diketik disimpan — jadi basis bulan lain bisa diturunkan dari situ.
+// SEBELUM nilai baru yang sedang diketik disimpan - jadi basis bulan lain bisa diturunkan dari situ.
 function _hitungRealisasiEfektifPreview(row, realisasiInput) {
   const tipe = row.tipe_perhitungan;
   if (tipe !== 'kumulatif' && tipe !== 'rata_rata') return realisasiInput;
@@ -1450,7 +1450,7 @@ function _hitungRealisasiEfektifPreview(row, realisasiInput) {
   // Balikkan capaian_persen (dari server) jadi angka realisasi kumulatif/rata-rata
   // aktual. Untuk indikator bermakna_negatif, rumus capaian di server dibalik
   // (capaian = (2*target - realisasi) / target * 100), jadi rekonstruksinya juga
-  // harus dibalik — kalau tetap pakai rumus positif, basis bulan lain jadi salah
+  // harus dibalik - kalau tetap pakai rumus positif, basis bulan lain jadi salah
   // dan preview capaian bakal beda dengan hasil hitung ulang server setelah Simpan.
   const _reconstructActual = (capPersen) => row.bermakna_negatif
     ? target * (2 - capPersen / 100)
@@ -1488,7 +1488,7 @@ function previewCapaian(indikatorId) {
   const badge     = document.getElementById(`badge_${indikatorId}`);
   if (!badge) return;
   if (isNaN(realisasi) || isNaN(target) || target === 0) {
-    badge.textContent = '—'; badge.className = 'capaian-badge na';
+    badge.textContent = '-'; badge.className = 'capaian-badge na';
     _togglePermasalahanSolusi('', indikatorId, null);
     return;
   }
@@ -1511,7 +1511,7 @@ async function saveRealisasiRow(indikatorId) {
 
   const row = _kinerjaData.find(r => r.id === indikatorId);
 
-  // Validasi field wajib — hitung capaian dari nilai input vs target
+  // Validasi field wajib - hitung capaian dari nilai input vs target
   // (untuk kumulatif/rata_rata, pakai basis efektif lintas bulan, bukan angka bulan ini saja)
   const _realVal  = parseFloat(real);
   const _targetVal = _targetNumForRow(row);
@@ -1597,7 +1597,7 @@ async function saveRealisasiRow(indikatorId) {
         _kinerjaData[idx].realisasi_id      = d.realisasi?.id ?? _kinerjaData[idx].realisasi_id;
       }
       // Refresh capaian_persen dari server (hitung ulang kumulatif lintas bulan)
-      // lakukan background — tidak mengubah UI state yang sudah dikunci
+      // lakukan background - tidak mengubah UI state yang sudah dikunci
       fetch(`/api/kinerja/rekap?bulan=${_kinerja_bulan}&tahun=${_kinerja_tahun}`, { headers: authHeaders() })
         .then(res => res.ok ? res.json() : null)
         .then(fresh => {
@@ -1606,19 +1606,19 @@ async function saveRealisasiRow(indikatorId) {
             const i = _kinerjaData.findIndex(x => x.id === freshRow.id);
             if (i >= 0) _kinerjaData[i].capaian_persen = freshRow.capaian_persen;
             // Update badge capaian di DOM untuk semua row (termasuk indikator kumulatif)
-            // — hanya jika baris tersebut sudah punya realisasi tersimpan untuk bulan ini
+            // - hanya jika baris tersebut sudah punya realisasi tersimpan untuk bulan ini
             const badge = document.getElementById(`badge_${freshRow.id}`);
             if (badge) {
               const cap = (freshRow.realisasi_id && freshRow.capaian_persen != null) ? Number(freshRow.capaian_persen) : null;
               if (cap === null || isNaN(cap)) {
-                badge.textContent = '—'; badge.className = 'capaian-badge na';
+                badge.textContent = '-'; badge.className = 'capaian-badge na';
               } else {
                 badge.textContent = cap.toFixed(1) + '%';
                 badge.className = 'capaian-badge ' + (cap >= 91 ? 'st' : cap >= 76 ? 'ti' : cap >= 66 ? 'sd' : cap >= 51 ? 'rd' : 'sr');
               }
             }
           }
-        }).catch(() => {}); // silent fail — badge tetap dari previewCapaian
+        }).catch(() => {}); // silent fail - badge tetap dari previewCapaian
       // Update visibility ps-read dan wrap setelah save
       const _savedRow = _kinerjaData[idx >= 0 ? idx : -1];
       const _realVal2  = parseFloat(_savedRow?.realisasi ?? '');
@@ -1874,7 +1874,7 @@ function _indikatorSortTargetVal(row) {
   return isNaN(num) ? null : num;
 }
 
-// Helper: ranking jenis kinerja untuk sort — ikut urutan _jenisList (IKU/IKK/SPM/custom sesuai `urutan`),
+// Helper: ranking jenis kinerja untuk sort - ikut urutan _jenisList (IKU/IKK/SPM/custom sesuai `urutan`),
 // baris tanpa jenis apapun ditaruh paling akhir
 function _indikatorSortJenisRank(row) {
   for (let i = 0; i < _jenisList.length; i++) {
@@ -1919,7 +1919,7 @@ function _sortIndikatorRows(rows) {
       break;
     case 'jenis_kinerja': {
       // Rank berdasar urutan jenis (IKU/IKK/SPM/custom, "Tanpa Jenis" di akhir).
-      // Sesama jenis TIDAK diurutkan alfabet — dibiarkan ikut urutan default (group/urutan/id),
+      // Sesama jenis TIDAK diurutkan alfabet - dibiarkan ikut urutan default (group/urutan/id),
       // supaya indikator yang baru dipindah jenis-nya (mis. dari IKK ke IKU) gak lompat ke
       // posisi No. 1 cuma karena namanya diawali huruf "A", tapi tetap di posisi urutan aslinya.
       const ranked = sorted.map((row, idx) => ({ row, idx, rank: _indikatorSortJenisRank(row) }));
@@ -1989,7 +1989,7 @@ function _renderFormulaMath(formula, _unused) {
   </div>`;
 }
 
-// ── Panel formula (dropdown "Σ") — dirender floating position:fixed di document.body,
+// ── Panel formula (dropdown "Σ") - dirender floating position:fixed di document.body,
 // bukan nested di dalam td sticky, biar gak ikut kena overflow:hidden / gak dorong tinggi baris. ──
 let _fxPanelEl  = null;
 let _fxOwnerBtn = null;
@@ -2084,7 +2084,7 @@ function renderIndikatorAdmin() {
       (row.satuan || '').toLowerCase().includes(_indikatorSearch) ||
       (Array.isArray(row.pic_users) && row.pic_users.some(n => (n || '').toLowerCase().includes(_indikatorSearch)))
     )) return false;
-    // Jenis Kinerja — dinamis
+    // Jenis Kinerja - dinamis
     if (_indikatorFilterJenis === 'none') {
       const anyJenis = _jenisList.some(j => _rowHasJenis(row, j.kode));
       if (anyJenis) return false;
@@ -2119,12 +2119,12 @@ function renderIndikatorAdmin() {
         <td class="td-satuan">${escHtml(row.satuan)}</td>
         <td style="white-space:nowrap">${(() => {
           const targets = _targetMap[row.id] || [];
-          if (!targets.length) return '<span style="color:var(--teks-muted)">—</span>';
+          if (!targets.length) return '<span style="color:var(--teks-muted)">-</span>';
           if (_indikatorFilterTahun) {
             // Hanya tampilkan target untuk tahun yang dipilih
             const t = targets.find(t => String(t.tahun) === _indikatorFilterTahun);
-            if (!t) return '<span style="color:var(--teks-muted);font-size:.72rem">—</span>';
-            const val = t.target_display != null ? String(t.target_display) : (t.target != null ? String(t.target) : '—');
+            if (!t) return '<span style="color:var(--teks-muted);font-size:.72rem">-</span>';
+            const val = t.target_display != null ? String(t.target_display) : (t.target != null ? String(t.target) : '-');
             return `<span style="display:inline-flex;align-items:center;gap:3px;font-size:.82rem;font-weight:600;color:#0f766e">${escHtml(val)}</span>`;
           }
           const thisYear = new Date().getFullYear();
@@ -2133,7 +2133,7 @@ function renderIndikatorAdmin() {
           const shown  = sorted.slice(0, 3).sort((a, b) => a.tahun - b.tahun);
           const rest   = targets.length - 3;
           const badges = shown.map(t => {
-            const val = t.target_display != null ? String(t.target_display) : (t.target != null ? String(t.target) : '—');
+            const val = t.target_display != null ? String(t.target_display) : (t.target != null ? String(t.target) : '-');
             return `<span style="display:inline-flex;align-items:center;gap:3px;font-size:.72rem;font-weight:600;background:#f0fdfa;color:#0f766e;border:1px solid #99f6e4;border-radius:5px;padding:2px 6px;margin:1px 2px 1px 0">${t.tahun}<span style="color:#64748b;font-weight:400">:</span>${escHtml(val)}</span>`;
           }).join('');
           const moreBadge = rest > 0
@@ -2141,10 +2141,10 @@ function renderIndikatorAdmin() {
             : '';
           return badges + moreBadge;
         })()}</td>
-        <td style="max-width:220px;white-space:normal;word-break:break-word;line-height:1.35">${escHtml(row.penanggung_jawab || '—')}</td>
+        <td style="max-width:220px;white-space:normal;word-break:break-word;line-height:1.35">${escHtml(row.penanggung_jawab || '-')}</td>
         <td>${(() => {
           const pics = Array.isArray(row.pic_users) ? row.pic_users.filter(Boolean) : [];
-          if (!pics.length) return '<span style="color:var(--teks-muted);font-size:.75rem">—</span>';
+          if (!pics.length) return '<span style="color:var(--teks-muted);font-size:.75rem">-</span>';
           return pics.map(nama => `<span style="display:inline-flex;align-items:center;font-size:.7rem;font-weight:600;background:#eff6ff;color:#1e40af;border:1px solid #bfdbfe;border-radius:5px;padding:2px 7px;margin:1px 3px 1px 0">${escHtml(nama)}</span>`).join('');
         })()}</td>
         <td>
@@ -2195,7 +2195,7 @@ function _getFilteredIndikatorRows() {
 }
 
 // ══════════════════════════════════════════════════════
-//  DOWNLOAD KELOLA INDIKATOR — PDF (gaya sama dengan laporan.js:
+//  DOWNLOAD KELOLA INDIKATOR - PDF (gaya sama dengan laporan.js:
 //  kop surat resmi + tabel + tanda tangan, dibuka di tab baru untuk di-print/Save as PDF)
 // ══════════════════════════════════════════════════════
 async function downloadIndikatorPDF(btnEl) {
@@ -2213,27 +2213,27 @@ async function downloadIndikatorPDF(btnEl) {
 
     const bodyRows = filtered.map((row, i) => {
       const targets = _targetMap[row.id] || [];
-      let targetStr = '—';
+      let targetStr = '-';
       if (targets.length) {
         if (_indikatorFilterTahun) {
           const t = targets.find(t => String(t.tahun) === _indikatorFilterTahun);
-          targetStr = t ? String(t.target_display != null ? t.target_display : (t.target != null ? t.target : '—')) : '—';
+          targetStr = t ? String(t.target_display != null ? t.target_display : (t.target != null ? t.target : '-')) : '-';
         } else {
           targetStr = [...targets]
             .sort((a, b) => a.tahun - b.tahun)
-            .map(t => `${t.tahun}: ${t.target_display != null ? t.target_display : (t.target != null ? t.target : '—')}`)
+            .map(t => `${t.tahun}: ${t.target_display != null ? t.target_display : (t.target != null ? t.target : '-')}`)
             .join('; ');
         }
       }
       const pics = Array.isArray(row.pic_users) ? row.pic_users.filter(Boolean) : [];
 
-      // Badge Jenis Kinerja — sama persis kayak style di UI (_renderJenisBadges), pakai warna dinamis dari _jenisList
+      // Badge Jenis Kinerja - sama persis kayak style di UI (_renderJenisBadges), pakai warna dinamis dari _jenisList
       const jenisBadgeHtml = _jenisList
         .filter(j => j.aktif && _rowHasJenis(row, j.kode))
         .map(j => `<span style="display:inline-block;font-size:8px;font-weight:700;color:${j.warna_teks};background:${j.warna_bg};padding:2px 6px;border-radius:4px;margin:1px 2px 1px 0">${escHtml(j.label)}</span>`)
         .join('');
 
-      // Badge Makna Indikator — sama persis kayak style di UI (pill + panah)
+      // Badge Makna Indikator - sama persis kayak style di UI (pill + panah)
       const maknaBadgeHtml = row.bermakna_negatif
         ? `<span style="display:inline-block;font-size:8px;font-weight:700;color:#991b1b;background:#fee2e2;padding:2px 6px;border-radius:4px">&darr; Negatif</span>`
         : `<span style="display:inline-block;font-size:8px;font-weight:700;color:#065f46;background:#d1fae5;padding:2px 6px;border-radius:4px">&uarr; Positif</span>`;
@@ -2241,11 +2241,11 @@ async function downloadIndikatorPDF(btnEl) {
       return `<tr style="background:white">
         <td style="padding:4px 5px;border:1px solid #000;text-align:center;font-size:9px">${i + 1}</td>
         <td style="padding:4px 6px;border:1px solid #000;font-size:9px">${row.indikator_kinerja || ''}</td>
-        <td style="padding:4px 4px;border:1px solid #000;text-align:center;font-size:9px">${row.satuan || '—'}</td>
+        <td style="padding:4px 4px;border:1px solid #000;text-align:center;font-size:9px">${row.satuan || '-'}</td>
         <td style="padding:4px 4px;border:1px solid #000;text-align:center;font-size:9px;white-space:nowrap">${targetStr}</td>
-        <td style="padding:4px 6px;border:1px solid #000;font-size:9px">${row.penanggung_jawab || '—'}</td>
-        <td style="padding:4px 6px;border:1px solid #000;font-size:9px">${pics.length ? pics.join(', ') : '—'}</td>
-        <td style="padding:4px 4px;border:1px solid #000;text-align:center;font-size:9px">${jenisBadgeHtml || '—'}</td>
+        <td style="padding:4px 6px;border:1px solid #000;font-size:9px">${row.penanggung_jawab || '-'}</td>
+        <td style="padding:4px 6px;border:1px solid #000;font-size:9px">${pics.length ? pics.join(', ') : '-'}</td>
+        <td style="padding:4px 4px;border:1px solid #000;text-align:center;font-size:9px">${jenisBadgeHtml || '-'}</td>
         <td style="padding:4px 4px;border:1px solid #000;text-align:center;font-size:9px">${maknaBadgeHtml}</td>
       </tr>`;
     }).join('');
@@ -2282,7 +2282,7 @@ async function downloadIndikatorPDF(btnEl) {
 window.downloadIndikatorPDF = downloadIndikatorPDF;
 
 function _buildBidangOptions(selectedNama) {
-  const none = `<option value="">— Pilih Penanggung Jawab —</option>`;
+  const none = `<option value="">- Pilih Penanggung Jawab -</option>`;
   const opts = _bidangListKinerja
     .filter(b => b.aktif)
     .map(b => {
@@ -2292,7 +2292,7 @@ function _buildBidangOptions(selectedNama) {
   return none + opts;
 }
 
-// Searchable dropdown untuk #indikatorPJ — sama dengan initBidangSearchable di users_frontend.js
+// Searchable dropdown untuk #indikatorPJ - sama dengan initBidangSearchable di users_frontend.js
 function initIndikatorPJSearchable() {
   const sel = document.getElementById('indikatorPJ');
   if (!sel) return;
@@ -2302,10 +2302,10 @@ function initIndikatorPJSearchable() {
   // Bersihkan custom UI lama
   wrap.querySelectorAll('.bsel-trigger, .bsel-panel, .csel-trigger, .csel-panel').forEach(el => el.remove());
   // Panel dari buildCustomSelect (generic engine) dirender floating di document.body,
-  // jadi gak ke-cover querySelectorAll di atas — bersihkan lewat referensinya biar gak orphan.
+  // jadi gak ke-cover querySelectorAll di atas - bersihkan lewat referensinya biar gak orphan.
   if (wrap._cselPanel) { wrap._cselPanel.remove(); wrap._cselPanel = null; }
   wrap.classList.remove('csel-ready');
-  // Fungsi ini dipanggil ulang tiap modal indikator dibuka — buang listener
+  // Fungsi ini dipanggil ulang tiap modal indikator dibuka - buang listener
   // window/document dari instance sebelumnya dulu, biar gak numpuk (memory leak
   // & bisa salah nutup panel punya instance lama).
   if (wrap._bselOutside)  document.removeEventListener('click', wrap._bselOutside);
@@ -2319,7 +2319,7 @@ function initIndikatorPJSearchable() {
   const trigger = document.createElement('button');
   trigger.type = 'button';
   trigger.className = 'bsel-trigger csel-trigger';
-  trigger.innerHTML = `<span class="bsel-trigger-text csel-trigger-text${selectedText ? '' : ' placeholder'}">${selectedText || '— Pilih Penanggung Jawab —'}</span>
+  trigger.innerHTML = `<span class="bsel-trigger-text csel-trigger-text${selectedText ? '' : ' placeholder'}">${selectedText || '- Pilih Penanggung Jawab -'}</span>
     <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" class="csel-chev"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>`;
   wrap.appendChild(trigger);
 
@@ -2367,7 +2367,7 @@ function initIndikatorPJSearchable() {
         sel.dispatchEvent(new Event('change', { bubbles: true }));
         const textEl = trigger.querySelector('.bsel-trigger-text');
         if (!opt || opt.value === '') {
-          textEl.textContent = opt ? opt.text : '—';
+          textEl.textContent = opt ? opt.text : '-';
           textEl.classList.add('placeholder');
         } else {
           textEl.textContent = opt.text;
@@ -2447,7 +2447,7 @@ function initIndikatorPJSearchable() {
 }
 
 function _buildGroupOptions(selectedId) {
-  const none = `<option value="">— Tanpa Group —</option>`;
+  const none = `<option value="">- Tanpa Group -</option>`;
   const opts = _groupList
     .filter(g => g.aktif)
     .map(g => {
@@ -2473,7 +2473,7 @@ function openIndikatorModal(id) {
   document.getElementById('indikatorTipePerhitungan').value = row?.tipe_perhitungan || 'non_kumulatif';
   document.getElementById('indikatorTipeNilai') && (document.getElementById('indikatorTipeNilai').value = row?.tipe_nilai || 'angka');
   // Set .value langsung gak kedetect MutationObserver custom-select (yg cuma
-  // nangkep perubahan childList/attribute, bukan property .value) — trigger
+  // nangkep perubahan childList/attribute, bukan property .value) - trigger
   // visualnya jadi gak ke-update dan tetep nunjukin opsi default/lama. Sync
   // manual di sini biar kotak dropdown-nya beneran nampilin nilai yg baru di-set.
   if (typeof syncCustomSelect === 'function') {
@@ -2482,7 +2482,7 @@ function openIndikatorModal(id) {
     syncCustomSelect('indikatorTipeNilai');
   }
   document.getElementById('indikatorAktif') && (document.getElementById('indikatorAktif').checked = row ? row.aktif : true);
-  // Jenis kinerja checkboxes — dinamis dari _jenisList
+  // Jenis kinerja checkboxes - dinamis dari _jenisList
   const jenisWrap = document.getElementById('indikatorJenisWrap');
   if (jenisWrap) {
     const customArr = Array.isArray(row?.jenis_custom) ? row.jenis_custom : [];
@@ -2507,7 +2507,7 @@ function openIndikatorModal(id) {
     }).join('')
     || '<span style="color:var(--teks-muted);font-size:.82rem">Belum ada jenis. Tambah dari bagian Kelola Jenis di bawah.</span>';
   }
-  // Formula — parse JSON ke 4 field
+  // Formula - parse JSON ke 4 field
   const fHidden = document.getElementById('indikatorFormula');
   const fNama      = document.getElementById('fNama');
   const fPembilang = document.getElementById('fPembilang');
@@ -2599,7 +2599,7 @@ async function saveIndikator() {
     toast(id ? 'Indikator diperbarui' : 'Indikator ditambahkan. Atur target di menu "Kelola Target".');
     closeModal('modalIndikator');
     loadIndikatorAdmin({ keepFilter: true });
-    // Refresh juga tabel realisasi IKU/IKK/SPM (kalau lagi dimuat) — supaya capaian
+    // Refresh juga tabel realisasi IKU/IKK/SPM (kalau lagi dimuat) - supaya capaian
     // langsung ikut ke-update begitu tipe_perhitungan / bermakna_negatif / target diubah,
     // tanpa user harus manual reload/pindah bulan dulu.
     try { if (typeof loadKinerjaRekap === 'function') await loadKinerjaRekap(); } catch (_) {}
@@ -2639,7 +2639,7 @@ function _onJenisCbChange(cb) {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-// KELOLA JENIS KINERJA — halaman tersendiri di Master Data
+// KELOLA JENIS KINERJA - halaman tersendiri di Master Data
 // ═══════════════════════════════════════════════════════════════════════════
 let _allJenisList = []; // semua jenis termasuk nonaktif (untuk section kelola jenis)
 
@@ -2670,7 +2670,7 @@ function renderKelolJenisSection(allJenis) {
         </span>
       </td>
       <td style="text-align:center;font-size:.78rem;color:var(--teks-muted);font-family:monospace">${escHtml(j.kode)}</td>
-      <td style="text-align:center">${j.deskripsi ? `<span style="font-size:.78rem;color:var(--teks-muted)">${escHtml(j.deskripsi)}</span>` : '—'}</td>
+      <td style="text-align:center">${j.deskripsi ? `<span style="font-size:.78rem;color:var(--teks-muted)">${escHtml(j.deskripsi)}</span>` : '-'}</td>
       <td style="text-align:center">
         <span style="font-size:.72rem;font-weight:600;padding:2px 8px;border-radius:5px;
           ${j.aktif ? 'background:#d1fae5;color:#065f46' : 'background:#f1f5f9;color:#94a3b8'}">
@@ -2981,9 +2981,9 @@ function renderKelolaTarget() {
     ind.jenis_monev ? `<span style="font-size:.67rem;font-weight:700;color:#1e40af;background:#dbeafe;padding:1px 5px;border-radius:4px">IKU</span>` : '',
     ind.jenis_ikk   ? `<span style="font-size:.67rem;font-weight:700;color:#065f46;background:#d1fae5;padding:1px 5px;border-radius:4px">IKK</span>` : '',
     ind.jenis_spm   ? `<span style="font-size:.67rem;font-weight:700;color:#b45309;background:#fef3c7;padding:1px 5px;border-radius:4px">SPM</span>` : '',
-  ].filter(Boolean).join(' ') || '<span style="color:var(--teks-muted);font-size:.75rem">—</span>';
+  ].filter(Boolean).join(' ') || '<span style="color:var(--teks-muted);font-size:.75rem">-</span>';
 
-  // Header kolom tahun — ikut style .kinerja-table th (var(--hijau), #fff)
+  // Header kolom tahun - ikut style .kinerja-table th (var(--hijau), #fff)
   const COL_W = 110; // px per kolom tahun
   const tahunHeaders = visibleTahun.map(y =>
     `<th style="min-width:${COL_W}px;width:${COL_W}px;text-align:center;border-left:1px solid rgba(255,255,255,.15)">${y}</th>`
@@ -2998,7 +2998,7 @@ function renderKelolaTarget() {
       const isPredikat = ind.tipe_nilai === 'predikat';
       // Kasus "kejebak": target_display sudah ada teks (kelihatan terisi di kotak),
       // tapi kolom target numerik yang beneran dipakai untuk hitung capaian masih
-      // NULL di database — ini terjadi kalau user ngetik nilai yang PERSIS SAMA
+      // NULL di database - ini terjadi kalau user ngetik nilai yang PERSIS SAMA
       // dengan nilai default yang sudah tampil, sehingga event onchange browser
       // tidak pernah kepicu dan saveKtTarget()/saveKtTargetNew() tidak pernah
       // terpanggil. Tandai dengan border oranye + ikon ⚠️ yang bisa diklik untuk
@@ -3018,7 +3018,7 @@ function renderKelolaTarget() {
             onchange="saveKtTarget(this)"
             onfocus="this.style.borderColor='var(--hijau)'" onblur="this.style.borderColor='${isStuck ? '#f59e0b' : ''}'"
             style="width:82px;text-align:center;padding:4px 6px;border:1.5px solid ${isStuck ? '#f59e0b' : '#e2e8f0'};border-radius:6px;font-size:.82rem;font-family:inherit;transition:border-color .15s">`}
-          ${isStuck ? `<span onclick="forceSaveKtTarget(${t.id},${ind.id})" data-tip="Belum tersimpan ke database — klik untuk simpan ulang" style="position:absolute;top:-7px;right:-7px;width:16px;height:16px;background:#f59e0b;color:#fff;border-radius:50%;font-size:.62rem;font-weight:700;display:flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 1px 3px rgba(0,0,0,.25)">!</span>` : ''}
+          ${isStuck ? `<span onclick="forceSaveKtTarget(${t.id},${ind.id})" data-tip="Belum tersimpan ke database - klik untuk simpan ulang" style="position:absolute;top:-7px;right:-7px;width:16px;height:16px;background:#f59e0b;color:#fff;border-radius:50%;font-size:.62rem;font-weight:700;display:flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 1px 3px rgba(0,0,0,.25)">!</span>` : ''}
           </div>
         </td>`;
       } else {
@@ -3028,10 +3028,10 @@ function renderKelolaTarget() {
                  <select data-iid="${ind.id}" data-tahun="${y}" onchange="saveKtTargetNew(this)"
                  style="width:82px;text-align:center;padding:4px 6px;border:1.5px dashed #d1d5db;border-radius:6px;font-size:.82rem;font-family:inherit;color:#94a3b8;background:#f8fafc">${_predikatOptionsHtml(null)}</select>
                </div>`
-            : `<input type="text" value="" placeholder="—"
+            : `<input type="text" value="" placeholder="-"
             data-iid="${ind.id}" data-tahun="${y}"
             onchange="saveKtTargetNew(this)"
-            onfocus="this.style.borderColor='var(--hijau)';this.placeholder=''" onblur="this.style.borderColor='';this.placeholder='—'"
+            onfocus="this.style.borderColor='var(--hijau)';this.placeholder=''" onblur="this.style.borderColor='';this.placeholder='-'"
             style="width:82px;text-align:center;padding:4px 6px;border:1.5px dashed #d1d5db;border-radius:6px;font-size:.82rem;font-family:inherit;color:#94a3b8;background:#f8fafc;transition:border-color .15s">`}
         </td>`;
       }
@@ -3117,7 +3117,7 @@ async function saveKtTarget(input) {
 // Perbaiki target yang "kejebak": target_display sudah tampil ada isinya di kotak,
 // tapi kolom target numerik masih NULL di database karena event onchange tidak
 // pernah kepicu (user mengetik nilai yang sama persis dengan yang sudah tampil).
-// Dipanggil dari ikon ⚠️ di renderKelolaTarget — langsung PUT ulang target_display
+// Dipanggil dari ikon ⚠️ di renderKelolaTarget - langsung PUT ulang target_display
 // yang ada supaya ke-parse jadi angka, tanpa perlu user ngetik ulang manual.
 async function forceSaveKtTarget(tid, iid) {
   const ind = _ktIndList.find(x => x.id === iid);
@@ -3206,7 +3206,7 @@ function openKtDeleteTarget(iid) {
   if (list) {
     list.innerHTML = tahunList.map(y => {
       const t = ind.targets[y];
-      const val = t.target_display != null ? String(t.target_display) : (t.target != null ? String(t.target) : '—');
+      const val = t.target_display != null ? String(t.target_display) : (t.target != null ? String(t.target) : '-');
       return `<label style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:8px 10px;border:1.5px solid #e2e8f0;border-radius:6px;cursor:pointer;font-size:.85rem">
         <span style="display:flex;align-items:center;gap:8px">
           <input type="checkbox" class="ktDelYear" value="${t.id}" data-tahun="${y}" style="width:15px;height:15px;accent-color:var(--merah);cursor:pointer">
@@ -3296,7 +3296,7 @@ function _goKelolaTarget() {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-// DATA DUKUNG KINERJA — MULTI-FILE
+// DATA DUKUNG KINERJA - MULTI-FILE
 // ═══════════════════════════════════════════════════════════════════════════
 let _dukungState = { indikatorId: null, tw: null, tahun: null, files: [] };
 
@@ -3349,7 +3349,7 @@ async function openDukungModal(indikatorId, tw, tahun) {
   openModal('modalDukung');
 }
 
-// Preview-only — selalu buka docPreviewPanel dengan navigasi multi-file
+// Preview-only - selalu buka docPreviewPanel dengan navigasi multi-file
 function openDukungPreview(indikatorId, tw, tahun, source) {
   const data = source === 'ikk' ? _ikkData : source === 'spm' ? _spmData : _kinerjaData;
   const row  = data.find(r => r.id === indikatorId);
@@ -3364,7 +3364,7 @@ function openDukungPreview(indikatorId, tw, tahun, source) {
   }
   if (!files.length) return;
 
-  const periodeLabel = `Data Dukung — ${row.indikator_kinerja || ''}`;
+  const periodeLabel = `Data Dukung - ${row.indikator_kinerja || ''}`;
   viewDocMulti(files, 0, periodeLabel);
 }
 
@@ -3403,16 +3403,69 @@ function _renderDukungList() {
     </div>`;
 }
 
+// Progress "current/total" per baris (indikatorId) - walau upload jalan paralel (bukan
+// berurutan kayak e-Planning), current dihitung dari jumlah file yang UDAH kelar (sukses/gagal),
+// jadi tetep nunjukin angka "2/5" yang naik seiring proses, format sama kayak e-Planning.
+const _dukungBatchProgress = {};
+
+// Render status "Mengupload..." di tombol tabel (mode autoSave) - dipanggil tiap kali progress
+// batch berubah. Ring persentase cuma dipakai kalau totalnya 1 file (biar gak ambigu pas paralel).
+function _renderDukungRowUploading(indikatorId) {
+  const tr = document.querySelector(`[data-id="${indikatorId}"]`);
+  const dukungTd = tr?.querySelector('td[data-col="dukung"]');
+  if (!dukungTd) return;
+  const loadingCount = _dukungState.files.filter(f => f._loading).length;
+  if (!loadingCount) return;
+  const prog = _dukungBatchProgress[indikatorId];
+  const single = !prog || prog.total <= 1;
+  dukungTd.innerHTML = `<button disabled style="display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:6px;border:none;font-size:.75rem;font-weight:600;font-family:inherit;background:#fef3c7;color:#92400e;white-space:nowrap">
+    ${single ? `<svg width="12" height="12" viewBox="0 0 36 36" style="display:inline-block;flex-shrink:0">
+      <circle cx="18" cy="18" r="15" fill="none" stroke="#d1e9e4" stroke-width="5"/>
+      <circle id="dukungRing_${indikatorId}" cx="18" cy="18" r="15" fill="none" stroke="#0f766e" stroke-width="5"
+        stroke-linecap="round" pathLength="100" stroke-dasharray="100" stroke-dashoffset="100"
+        transform="rotate(-90 18 18)" style="transition:stroke-dashoffset .15s linear"></circle>
+    </svg>` : `<span class="btn-spin" style="width:12px;height:12px"></span>`}
+    Mengupload…${!single ? ` ${prog.current}/${prog.total}` : ''}
+  </button>`;
+}
+
 function handleDukungFileSelect(e) {
-  Array.from(e.target.files || []).forEach(f => _processDukungFile(f));
+  const files = Array.from(e.target.files || []);
   e.target.value = '';
+  _processDukungBatch(files);
 }
 function handleDukungDragOver(e) { e.preventDefault(); document.getElementById('dukungUploadArea')?.classList.add('drag-over'); }
 function handleDukungDragLeave(e) { document.getElementById('dukungUploadArea')?.classList.remove('drag-over'); }
 function handleDukungDrop(e) {
   e.preventDefault();
   document.getElementById('dukungUploadArea')?.classList.remove('drag-over');
-  Array.from(e.dataTransfer?.files || []).forEach(f => _processDukungFile(f));
+  _processDukungBatch(Array.from(e.dataTransfer?.files || []));
+}
+
+// Upload beberapa file sekaligus (paralel) lalu toast diringkas jadi 1x per batch,
+// gak per-file - sama pola kayak upload file di e-Planning.
+async function _processDukungBatch(files) {
+  if (!files.length) return;
+  const isAutoSave = _dukungState._autoSave;
+  const indikatorId = _dukungState.indikatorId;
+  if (isAutoSave) _dukungBatchProgress[indikatorId] = { current: 0, total: files.length };
+  const results = await Promise.all(files.map(f => _processDukungFile(f)));
+  if (isAutoSave) delete _dukungBatchProgress[indikatorId];
+  const failMsgs = results.filter(Boolean);
+  const okCount  = results.length - failMsgs.length;
+  if (isAutoSave) {
+    // Sukses udah ke-cover sama toast "Data dukung tersimpan" dari _autoSaveDukung
+    // (dipanggil otomatis pas semua file selesai) - di sini cuma toast kalau ada yang gagal.
+    if (failMsgs.length) {
+      toast(failMsgs.length > 1 ? `${failMsgs.length} file gagal diupload (${failMsgs[0]})` : failMsgs[0], 'error');
+    }
+  } else if (failMsgs.length && okCount) {
+    toast(`${okCount} file berhasil diupload, ${failMsgs.length} gagal (${failMsgs[0]})`, 'error');
+  } else if (failMsgs.length) {
+    toast(failMsgs.length > 1 ? `${failMsgs.length} file gagal diupload (${failMsgs[0]})` : failMsgs[0], 'error');
+  } else if (okCount) {
+    toast(okCount > 1 ? `${okCount} file berhasil diupload` : 'File berhasil diupload');
+  }
 }
 
 // Upload file via XHR (bukan fetch) supaya bisa dapat progress asli dari browser
@@ -3440,35 +3493,17 @@ function _uploadFileWithProgress(file, kategori, onProgress) {
 }
 
 async function _processDukungFile(file) {
-  if (file.size > 2 * 1024 * 1024) { toast(`${file.name}: terlalu besar (maks. 2 MB)`, 'error'); return; }
+  if (file.size > 2 * 1024 * 1024) return `${file.name}: terlalu besar (maks. 2 MB)`;
 
   const isAutoSave = _dukungState._autoSave;
   const { indikatorId, _source } = _dukungState;
 
-  // Jika mode autoSave (dipanggil dari tombol tabel langsung), tunjukkan status di tombol tabel
-  if (isAutoSave) {
-    const dataArr = _source === 'ikk' ? _ikkData : _source === 'spm' ? _spmData : _kinerjaData;
-    const rowIdx  = dataArr.findIndex(r => r.id === indikatorId);
-    // Cari td kolom data dukung — tombol ada di sana
-    const tr = document.querySelector(`[data-id="${indikatorId}"]`);
-    const dukungTd = tr?.querySelector('td[data-col="dukung"]');
-    if (dukungTd) {
-      dukungTd.innerHTML = `<button disabled style="display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:6px;border:none;font-size:.75rem;font-weight:600;font-family:inherit;background:#fef3c7;color:#92400e">
-        <svg width="12" height="12" viewBox="0 0 36 36" style="display:inline-block;flex-shrink:0">
-          <circle cx="18" cy="18" r="15" fill="none" stroke="#d1e9e4" stroke-width="5"/>
-          <circle id="dukungRing_${indikatorId}" cx="18" cy="18" r="15" fill="none" stroke="#0f766e" stroke-width="5"
-            stroke-linecap="round" pathLength="100" stroke-dasharray="100" stroke-dashoffset="100"
-            transform="rotate(-90 18 18)" style="transition:stroke-dashoffset .15s linear"></circle>
-        </svg>
-        Mengupload...
-      </button>`;
-    }
-  }
-
-  // Tambah placeholder loading (untuk modal jika terbuka)
+  // Tambah placeholder loading (untuk modal jika terbuka) - dipush dulu SEBELUM render row,
+  // biar _renderDukungRowUploading bisa ngitung loadingCount yang bener termasuk file ini.
   const idx = _dukungState.files.length;
   _dukungState.files.push({ url: null, name: file.name, _loading: true });
   if (!isAutoSave) _renderDukungList();
+  else _renderDukungRowUploading(indikatorId);
 
   const pw = document.getElementById('dukungProgressWrap');
   const pb = document.getElementById('dukungProgressBar');
@@ -3491,27 +3526,35 @@ async function _processDukungFile(file) {
     _dukungState.files[idx] = { url: d.url, name: d.name || file.name };
     if (!isAutoSave) {
       _renderDukungList();
-      toast(`${file.name} berhasil diupload`);
     } else {
+      if (_dukungBatchProgress[indikatorId]) _dukungBatchProgress[indikatorId].current++;
       // Auto-save hanya setelah SEMUA file selesai upload (cegah toast berganda)
       const stillLoading = _dukungState.files.some(f => f._loading);
       if (!stillLoading) await _autoSaveDukung();
+      else _renderDukungRowUploading(indikatorId); // masih ada file lain - update progress current/total
     }
+    return null;
   } catch (err) {
     if (!isAutoSave && pw) pw.style.display = 'none';
     _dukungState.files.splice(idx, 1);
     if (!isAutoSave) _renderDukungList();
     else {
-      // Kembalikan tombol Upload jika gagal
-      const dataArr = _source === 'ikk' ? _ikkData : _source === 'spm' ? _spmData : _kinerjaData;
-      const source  = _source;
-      const { tw, tahun } = _dukungState;
-      const rowObj  = dataArr.find(r => r.id === indikatorId);
-      const tr = document.querySelector(`[data-id="${indikatorId}"]`);
-      const dukungTd = tr?.querySelector('td[data-col="dukung"]');
-      if (dukungTd && rowObj) dukungTd.innerHTML = _renderDukungBtn(rowObj, tw, tahun, source, !rowObj.realisasi_id);
+      if (_dukungBatchProgress[indikatorId]) _dukungBatchProgress[indikatorId].current++;
+      const stillLoading = _dukungState.files.some(f => f._loading);
+      if (stillLoading) {
+        _renderDukungRowUploading(indikatorId); // masih ada file lain - update progress current/total, jangan reset tombol dulu
+      } else {
+        // Semua file di batch ini udah kelar (baik sukses/gagal) → kembalikan tombol Upload
+        const dataArr = _source === 'ikk' ? _ikkData : _source === 'spm' ? _spmData : _kinerjaData;
+        const source  = _source;
+        const { tw, tahun } = _dukungState;
+        const rowObj  = dataArr.find(r => r.id === indikatorId);
+        const tr = document.querySelector(`[data-id="${indikatorId}"]`);
+        const dukungTd = tr?.querySelector('td[data-col="dukung"]');
+        if (dukungTd && rowObj) dukungTd.innerHTML = _renderDukungBtn(rowObj, tw, tahun, source, !rowObj.realisasi_id);
+      }
     }
-    toast(err.message || 'Gagal upload', 'error');
+    return err.message || 'Gagal upload';
   }
 }
 
@@ -3637,7 +3680,7 @@ async function saveDukung() {
   } catch { toast('Gagal menyimpan data dukung', 'error'); }
 }
 // ═══════════════════════════════════════════════════════════════════════════
-// REALISASI IKK — halaman terpisah, logika mirip Monev Kinerja
+// REALISASI IKK - halaman terpisah, logika mirip Monev Kinerja
 // ═══════════════════════════════════════════════════════════════════════════
 async function initIkkControls() {
   // Pastikan _periodeListTerbuka sudah terisi (bisa jadi initKinerjaControls belum dipanggil)
@@ -3688,7 +3731,7 @@ async function initIkkControls() {
 function _syncIkkBulanButtons() {
   const sel = document.getElementById('ikkBulanSelector');
   if (!sel) return;
-  // Gunakan daftar semua bulan terbuka (sama seperti Monev) — bukan hanya 1 periode pertama
+  // Gunakan daftar semua bulan terbuka (sama seperti Monev) - bukan hanya 1 periode pertama
   const bulanTerbuka = new Set(_periodeListTerbuka.filter(p => p.jenis === 'ikk').map(p => p.bulan));
   const items = [];
   for (let bulan = 1; bulan <= 12; bulan++) {
@@ -3713,7 +3756,7 @@ function _renderIkkPeriodeInfo() {
   const iWrapper = document.getElementById('ikkBulanWrapper');
   const tahunWrap = document.getElementById('ikkTahunWrap');
 
-  // Badge teks "Periode input: ..." sudah tidak dipakai — selalu pakai dropdown tahun & bulan
+  // Badge teks "Periode input: ..." sudah tidak dipakai - selalu pakai dropdown tahun & bulan
   if (el) el.style.display = 'none';
 
   if (_user?.is_admin) {
@@ -3804,7 +3847,7 @@ async function loadIkkRekap() {
   }
 }
 
-// Dipanggil dari input #ikkSearch (sejajar Tahun/Bulan) — filter tabel rekap IKK
+// Dipanggil dari input #ikkSearch (sejajar Tahun/Bulan) - filter tabel rekap IKK
 function filterIkkTable() {
   _ikkSearch = (document.getElementById('ikkSearch')?.value || '').trim().toLowerCase();
   _ikkPage = 1;
@@ -3864,7 +3907,7 @@ function _renderIkkTable(tbody) {
 
     no++;
     const capaian = (row.realisasi_id && row.capaian_persen != null) ? Number(row.capaian_persen) : null;
-    let badgeClass = 'na', badgeText = '—';
+    let badgeClass = 'na', badgeText = '-';
     if (capaian !== null && !isNaN(capaian)) {
       badgeText = capaian.toFixed(1) + '%';
       badgeClass = capaian >= 91 ? 'st' : capaian >= 76 ? 'ti' : capaian >= 66 ? 'sd' : capaian >= 51 ? 'rd' : 'sr';
@@ -3875,7 +3918,7 @@ function _renderIkkTable(tbody) {
       ? String(row.target_display)
       : (_targetNum != null && !isNaN(_targetNum)
           ? (Number.isInteger(_targetNum) ? String(_targetNum) : _targetNum.toFixed(2))
-          : '—');
+          : '-');
 
     // Tentukan row state class untuk IKK
     const ikkRowStateClass = row.realisasi_id ? 'row-state-saved' : 'row-state-default';
@@ -3886,7 +3929,7 @@ function _renderIkkTable(tbody) {
       <td class="td-sticky-name" style="position:sticky;left:34px;z-index:3"><div style="font-weight:600;line-height:1.6"><span>${escHtml(row.indikator_kinerja)}</span>${row.bermakna_negatif ? `<span data-tip="Bermakna Negatif" data-tip-variant="danger" style="display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;background:#fee2e2;border-radius:50%;margin-left:5px;vertical-align:middle;flex-shrink:0"><svg xmlns=\"http://www.w3.org/2000/svg\" width=\"9\" height=\"9\" fill=\"none\" viewBox=\"0 0 24 24\" stroke=\"#991b1b\" stroke-width=\"2.8\"><path stroke-linecap=\"round\" stroke-linejoin=\"round\" d=\"M19 14l-7 7m0 0l-7-7m7 7V3\"/></svg></span>` : `<span data-tip="Bermakna Positif" data-tip-variant="success" style="display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;background:#d1fae5;border-radius:50%;margin-left:5px;vertical-align:middle;flex-shrink:0"><svg xmlns=\"http://www.w3.org/2000/svg\" width=\"9\" height=\"9\" fill=\"none\" viewBox=\"0 0 24 24\" stroke=\"#065f46\" stroke-width=\"2.8\"><path stroke-linecap=\"round\" stroke-linejoin=\"round\" d=\"M5 10l7-7m0 0l7 7m-7-7v18\"/></svg></span>`}</div><div style="display:flex;align-items:center;gap:6px;margin-top:5px">${row.formula ? `<div class="fx-wrap"><button style="display:inline-flex;align-items:center;justify-content:center;gap:4px;box-sizing:border-box;height:24px;font-size:0.62rem;font-weight:700;line-height:1;color:#0f766e;background:#f0fdfa;border:1px solid #99f6e4;border-radius:4px;padding:0 8px;cursor:pointer;font-family:inherit;appearance:none;-webkit-appearance:none;margin:0" data-tip="Lihat formula perhitungan" data-formula="${escHtml(row.formula)}" onclick="toggleFormulaPanel(this)"><span>Σ</span><span class=\"fx-arrow\" style=\"display:inline-block;transition:transform .2s;font-style:normal\">▾</span></button></div>` : ''}${_tipeBadge(row.tipe_perhitungan)}</div></td>
       <td class="td-satuan">${escHtml(row.satuan || '')}</td>
       <td class="td-target" style="font-weight:700">${targetFmt}</td>
-      ${_user?.is_admin ? `<td class="td-bidang" style="color:var(--teks-mid)">${escHtml(row.penanggung_jawab || '—')}</td>` : ''}
+      ${_user?.is_admin ? `<td class="td-bidang" style="color:var(--teks-mid)">${escHtml(row.penanggung_jawab || '-')}</td>` : ''}
       <td class="realisasi-input-cell">
         ${_renderRealisasiInputCell(row, 'ikk_real', 'markIkkDirty')}
       </td>
@@ -3958,10 +4001,10 @@ function markIkkDirty(indikatorId) {
   const badge     = document.getElementById(`ikk_badge_${indikatorId}`);
   if (!badge) return;
   if (isNaN(realisasi) || isNaN(target) || target === 0) {
-    badge.textContent = '—'; badge.className = 'capaian-badge na';
+    badge.textContent = '-'; badge.className = 'capaian-badge na';
     _togglePermasalahanSolusi('ikk', indikatorId, null);
     // Tetap update status tombol Upload/Simpan walau capaian gak bisa dihitung
-    // (mis. target=0 = "belum ada sasaran") — tanpa ini tombol Upload macet
+    // (mis. target=0 = "belum ada sasaran") - tanpa ini tombol Upload macet
     // permanen karena _updateIkkSaveBtnState gak pernah kepanggil.
     _updateIkkSaveBtnState(indikatorId);
     return;
@@ -4033,7 +4076,7 @@ async function saveIkkRealisasiRow(indikatorId) {
   let rencana     = document.getElementById(`ikk_rencana_${indikatorId}`)?.value?.trim();
 
   const rowIkk = _ikkData.find(r => r.id === indikatorId);
-  // Validasi field wajib — hitung capaian dari nilai input vs target
+  // Validasi field wajib - hitung capaian dari nilai input vs target
   // (untuk kumulatif/rata_rata, pakai basis efektif lintas bulan, bukan angka bulan ini saja)
   const _realIkk   = parseFloat(real);
   const _targetIkk = _targetNumForRow(rowIkk);
@@ -4123,7 +4166,7 @@ async function saveIkkRealisasiRow(indikatorId) {
             if (badge) {
               const cap = (freshRow.realisasi_id && freshRow.capaian_persen != null) ? Number(freshRow.capaian_persen) : null;
               if (cap === null || isNaN(cap)) {
-                badge.textContent = '—'; badge.className = 'capaian-badge na';
+                badge.textContent = '-'; badge.className = 'capaian-badge na';
               } else {
                 badge.textContent = cap.toFixed(1) + '%';
                 badge.className = 'capaian-badge ' + (cap >= 91 ? 'st' : cap >= 76 ? 'ti' : cap >= 66 ? 'sd' : cap >= 51 ? 'rd' : 'sr');
@@ -4152,7 +4195,7 @@ async function saveIkkRealisasiRow(indikatorId) {
   } catch (err) { toast('Error: ' + err.message, 'error'); if (btn) { btn.disabled = false; btn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/><path d="M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7"/><path d="M7 3v4a1 1 0 0 0 1 1h7"/></svg> Simpan`; } }
 }
 
-// Data dukung IKK — reuse modal yang sama, tapi update _ikkData
+// Data dukung IKK - reuse modal yang sama, tapi update _ikkData
 async function openIkkDukungModal(indikatorId, bulan, tahun) {
   _dukungState = { indikatorId, tw: bulan, tahun, files: [], _source: 'ikk' };
   const area = document.getElementById('dukungUploadArea');
@@ -4164,7 +4207,7 @@ async function openIkkDukungModal(indikatorId, bulan, tahun) {
 
   const row = _ikkData.find(r => r.id === indikatorId);
   document.getElementById('dukungIndikatorLabel').textContent = row?.indikator_kinerja || '';
-  document.getElementById('dukungTwLabel').textContent = `${BULAN_FULL[bulan] || bulan} ${tahun} — IKK`;
+  document.getElementById('dukungTwLabel').textContent = `${BULAN_FULL[bulan] || bulan} ${tahun} - IKK`;
 
   if (row?.data_dukung_url) {
     try {
@@ -4184,7 +4227,7 @@ function escHtml(str) {
   return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
-// Aman dipakai di dalam onclick='...(${_jsAttr(val)})' — JSON.stringify menghasilkan
+// Aman dipakai di dalam onclick='...(${_jsAttr(val)})' - JSON.stringify menghasilkan
 // tanda kutip ganda, jadi attribute HTML-nya WAJIB pakai kutip tunggal (onclick='...').
 function _jsAttr(val) {
   return JSON.stringify(val).replace(/'/g, '&#39;');
@@ -4193,7 +4236,7 @@ function _jsAttr(val) {
 // ── Permasalahan & Solusi: hanya tampil jika capaian < 100% ───────────────
 // Jika capaian >= 100% (target tercapai), editor disembunyikan & diganti
 // catatan "Target tercapai". Jika capaian null/NaN (belum diisi), editor tetap tampil.
-// Auto-resize textarea mengikuti konten (tanpa scroll) — dipertahankan untuk
+// Auto-resize textarea mengikuti konten (tanpa scroll) - dipertahankan untuk
 // kompatibilitas, tapi .ps-rte (div contenteditable) sudah tumbuh natural jadi no-op.
 function _autoResizeTA(el) {
   if (!el || el.tagName !== 'TEXTAREA') return;
@@ -4207,7 +4250,7 @@ function _autoResizeAllTA(tr) {
 
 // ══════════════════════════════════════════════════════════════════════════
 // Rich text (markdown-lite) untuk Faktor Penghambat / Solusi / Faktor
-// Pendukung / Rencana Tindak Lanjut — dipakai di modul IKU, IKK, dan SPM.
+// Pendukung / Rencana Tindak Lanjut - dipakai di modul IKU, IKK, dan SPM.
 // Disimpan di DB sbg teks markdown-lite biasa (kompatibel dgn data lama):
 //   **tebal**   _miring_   "- item" (daftar simbol)   "1. item" (bernomor)
 // Toolbar melayang muncul saat teks di-select (mirip Notion), tombol:
@@ -4232,7 +4275,7 @@ function _mdToHtml(md) {
 // Sama seperti _mdToHtml, tapi khusus buat tampilan baca (ps-read-full / "Selengkapnya").
 // Baris "1. " / "- " yang berurutan dikelompokkan jadi <ol>/<ul> beneran (bukan cuma
 // teks angka + <br>) supaya saat teks panjang wrap ke baris berikutnya, lekukannya rapi
-// (hanging indent) — bukan nempel ke margin kiri kayak _mdToHtml biasa.
+// (hanging indent) - bukan nempel ke margin kiri kayak _mdToHtml biasa.
 function _mdToHtmlDisplay(md) {
   if (!md) return '';
   const inlineFmt = (line) => {
@@ -4266,7 +4309,7 @@ function _mdToHtmlDisplay(md) {
 // Markdown-lite -> HTML khusus buat isi .ps-rte (editor contenteditable).
 // Setiap baris dibungkus <div class="rte-line"> sendiri-sendiri (bukan cuma
 // dipisah <br> kayak _mdToHtml) supaya baris "1. " / "- " bisa dikasih CSS
-// hanging-indent (.rte-line--list) — pas teksnya panjang dan wrap ke baris
+// hanging-indent (.rte-line--list) - pas teksnya panjang dan wrap ke baris
 // berikutnya, lekukannya nyambung rapi di bawah kata pertama, bukan nempel
 // ke margin kiri.
 function _mdToRteHtml(md) {
@@ -4308,7 +4351,7 @@ function _htmlToMd(el) {
       if (tag === 'EM' || tag === 'I')     { out += '_' + walk(n) + '_'; return; }
       if (tag === 'DIV' || tag === 'P') {
         // Baris kosong dirender sebagai <div><br></div> (placeholder biar
-        // tingginya tetap kelihatan) — jangan sampai <br> placeholder ini
+        // tingginya tetap kelihatan) - jangan sampai <br> placeholder ini
         // ikut ditambahin sebagai baris kosong ekstra ("\n" dobel).
         const isEmptyLine = n.childNodes.length === 1 && n.firstChild.nodeType === 1 && n.firstChild.tagName === 'BR';
         out += (out ? '\n' : '') + (isEmptyLine ? '' : walk(n));
@@ -4350,7 +4393,7 @@ function _installRteValueShim(el) {
 // Enter di dalam .ps-rte selalu jadi <br> (bukan <div> baru bawaan browser)
 // supaya struktur DOM tetap flat & gampang dikonversi ke markdown-lite.
 // Kalau baris saat ini list ("- " / "1. "), Enter otomatis lanjut ke marker
-// berikutnya (mirip Notion/editor lain) — Enter di baris list yang kosong
+// berikutnya (mirip Notion/editor lain) - Enter di baris list yang kosong
 // (cuma marker doang, belum diisi apa2) keluar dari mode list.
 document.addEventListener('keydown', function(e) {
   const el = e.target;
@@ -4698,7 +4741,7 @@ function _rteToggleInline(range, tagName) {
 
 // Cari batas "baris" saat ini di dalam .ps-rte (dipisah oleh <br>, struktur flat).
 // Sebelumnya ini coba nebak "node anak-langsung el tempat caret berada" dari
-// range.startContainer secara manual (jalan-jalan lewat parentElement) — rapuh
+// range.startContainer secara manual (jalan-jalan lewat parentElement) - rapuh
 // banget, karena bentuk container beda-beda tergantung browser habis kita
 // insertNode/setStartAfter (kadang text node baris, kadang node hasil merge,
 // kadang element itu sendiri), dan salah tebak bikin baris salah kedeteksi
@@ -4778,7 +4821,7 @@ function _rteWrapMarker(lineDiv) {
 // Toggle "- " (bullet) atau "1. " (nomor) di depan baris tempat cursor/selection berada.
 function _rteToggleListPrefix(el, range, mode) {
   // .ps-rte yang baru mulai diketik (belum pernah lewat _mdToRteHtml) belum
-  // punya wrapper <div class="rte-line"> sama sekali — bungkus dulu isinya
+  // punya wrapper <div class="rte-line"> sama sekali - bungkus dulu isinya
   // jadi satu baris supaya closest('.rte-line') di bawah bisa nemuin induknya.
   if (!el.querySelector(':scope > .rte-line')) {
     const wrap = document.createElement('div');
@@ -4842,11 +4885,11 @@ function _renderPSCell(idBase, indikatorId, value, capaian, canEdit, label, onch
   const belumIsi  = capaian === null || isNaN(capaian);
   // Indikator predikat (mis. Peringkat SAKIP) yang realisasinya sengaja
   // dikosongkan ("-", menunggu penilaian akhir tahun) tetap perlu bisa diisi
-  // Faktor Penghambat & Solusi untuk menjelaskan progresnya — jangan
+  // Faktor Penghambat & Solusi untuk menjelaskan progresnya - jangan
   // disembunyikan total seperti indikator angka biasa yang belum diisi apa-apa.
   // TAPI kalau user belum PERNAH sama sekali interaksi sama dropdown peringkat
   // (belumPernahDiisi: gak ada realisasi_id sama sekali, baris masih perawan),
-  // tetap sembunyikan dulu — jangan langsung aktif dari awal sebelum user
+  // tetap sembunyikan dulu - jangan langsung aktif dari awal sebelum user
   // menentukan pilihan apapun (termasuk "-"). Begitu user pilih apapun di
   // dropdown, _togglePermasalahanSolusi() di runtime yang nampilin fieldnya.
   const predikatBelumDisentuh = isPredikat && belumPernahDiisi;
@@ -4871,18 +4914,18 @@ function _renderPSCell(idBase, indikatorId, value, capaian, canEdit, label, onch
             </div>
             <!-- Edit mode: rich text editor (markdown-lite: **tebal**, _miring_, "- "/"1. " daftar) -->
             <div class="ps-rte" id="${idBase}_${indikatorId}" contenteditable="${locked ? 'false' : 'true'}"
-              data-placeholder="${canEdit ? 'Ketik di sini...' : '—'}"
+              data-placeholder="${canEdit ? 'Ketik di sini...' : '-'}"
               ${locked ? 'readonly' : ''}
               data-tip="${locked ? `Klik tombol Edit untuk mengisi ${label}` : ''}"
               style="${locked ? 'cursor:not-allowed;display:none;' : ''}"
               oninput="_checkSymbolOnlyInput(this, '${label}'); ${onchangeFn}(${indikatorId})">${_mdToRteHtml(value || '')}</div>
           </div>
           <div id="${idBase}note_${indikatorId}" class="ps-tercapai-note" style="${showNote && hasValue ? '' : 'display:none'}">
-            —
+            -
           </div>`;
 }
 
-// Update konten + truncation ps-read setelah save (dipakai IKU/IKK/SPM) — samain
+// Update konten + truncation ps-read setelah save (dipakai IKU/IKK/SPM) - samain
 // logic-nya dengan _renderPSCell supaya "Selengkapnya" langsung muncul tanpa reload.
 function _updatePSReadAfterSave(base, indikatorId, val) {
   const LIMIT   = 80;
@@ -4963,11 +5006,11 @@ function _togglePermasalahanSolusi(prefix, indikatorId, capaian) {
   const tercapai = capaian !== null && !isNaN(capaian) && capaian >= 100;
   const belumIsi = capaian === null || isNaN(capaian);
   const p = prefix ? prefix + '_' : '';
-  // Kolom < 100: f_penghambat, solusi — untuk indikator predikat yang realisasinya
+  // Kolom < 100: f_penghambat, solusi - untuk indikator predikat yang realisasinya
   // sengaja dikosongkan ("-", menunggu penilaian akhir tahun), tetap tampilkan
   // supaya user bisa menjelaskan progres, bukan disembunyikan total. TAPI kalau
   // dropdown-nya masih data-placeholder (belum pernah disentuh user sama sekali),
-  // tetap sembunyikan dulu — samain dengan logic initial render di _renderPSCell.
+  // tetap sembunyikan dulu - samain dengan logic initial render di _renderPSCell.
   const realEl = isPredikat ? document.getElementById(`${p}real_${indikatorId}`) : null;
   const predikatBelumDisentuh = isPredikat && realEl?.tagName === 'SELECT' && !!realEl.dataset.placeholder;
   const hideBawah  = tercapai || (belumIsi && (!isPredikat || predikatBelumDisentuh));
@@ -4979,7 +5022,7 @@ function _togglePermasalahanSolusi(prefix, indikatorId, capaian) {
   // Kalau baris lagi diedit dan wrap ini baru kelihatan (mis. gara-gara realisasi
   // naik/turun ngelewatin ambang 100% pas edit), pastikan textarea-nya ikut
   // ke-switch ke mode edit. Tanpa ini, wrap yang masih hidden pas tombol Edit
-  // diklik (di-skip sama toggleEditRow) bakal macet nunjukkin "—" tanpa bisa
+  // diklik (di-skip sama toggleEditRow) bakal macet nunjukkin "-" tanpa bisa
   // diisi, dan tombol Simpan gak akan pernah aktif walau user udah ganti target.
   const syncWrapEditMode = (wrap) => {
     if (!isEditingRow || !wrap || wrap.style.display === 'none') return;
@@ -4999,7 +5042,7 @@ function _togglePermasalahanSolusi(prefix, indikatorId, capaian) {
     syncWrapEditMode(wrap);
     const note = document.getElementById(`${p}${base}note_${indikatorId}`);
     if (note) {
-      // Tampilkan "—" hanya kalau tercapai DAN sebelumnya ada nilai tersimpan
+      // Tampilkan "-" hanya kalau tercapai DAN sebelumnya ada nilai tersimpan
       const ta = document.getElementById(`${p}${base}_${indikatorId}`);
       const hasVal = (ta?.value || '').trim().length > 0;
       note.style.display = (tercapai && hasVal) ? '' : 'none';
@@ -5026,7 +5069,7 @@ function showPage(pageId) {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-// MONITORING PENGISIAN KINERJA — Admin Only
+// MONITORING PENGISIAN KINERJA - Admin Only
 // ═══════════════════════════════════════════════════════════════════════════
 
 let _mon_bulan  = new Date().getMonth() + 1;
@@ -5265,7 +5308,7 @@ function _monRenderPJCards() {
     </div>`;
 }
 
-// ── Progress per User — muncul saat salah satu Penanggung Jawab dipilih ──
+// ── Progress per User - muncul saat salah satu Penanggung Jawab dipilih ──
 function _monRenderUserCards() {
   const el = document.getElementById('monUserCards');
   if (!el) return;
@@ -5292,7 +5335,7 @@ function _monRenderUserCards() {
   if (!list.length) {
     el.innerHTML = `
       <div style="margin-bottom:var(--sp-5)">
-        <div style="font-size:var(--fs-sm);font-weight:700;color:var(--teks);margin-bottom:var(--sp-3)">Progress per User — ${escHtml(_mon_pj)}</div>
+        <div style="font-size:var(--fs-sm);font-weight:700;color:var(--teks);margin-bottom:var(--sp-3)">Progress per User - ${escHtml(_mon_pj)}</div>
         <div style="font-size:var(--fs-xs);color:var(--teks-muted);font-style:italic">Belum ada user yang ditugaskan di bidang ini.</div>
       </div>`;
     return;
@@ -5328,7 +5371,7 @@ function _monRenderUserCards() {
     <div style="margin-bottom:var(--sp-5)">
       <div style="font-size:var(--fs-sm);font-weight:700;color:var(--teks);margin-bottom:var(--sp-3);display:flex;align-items:center;gap:var(--sp-2)">
         <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="var(--hijau)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-        <span>Progress per User — ${escHtml(_mon_pj)}</span>
+        <span>Progress per User - ${escHtml(_mon_pj)}</span>
         ${_mon_user ? `<button onclick="setMonUser('')" style="font-size:var(--fs-xs);background:var(--hijau-light);border:none;border-radius:999px;padding:2px 10px;cursor:pointer;color:var(--hijau);font-weight:700;display:inline-flex;align-items:center;gap:3px"><svg xmlns="http://www.w3.org/2000/svg" width="9" height="9" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>Reset</button>` : ''}
       </div>
       <div style="display:flex;flex-wrap:wrap;gap:var(--sp-3)">${cards}</div>
@@ -5399,7 +5442,7 @@ function _monRenderTable() {
 
   const fmtDT = iso => iso
     ? new Date(iso).toLocaleString('id-ID', { day:'2-digit', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit', timeZone: 'Asia/Makassar' }) + ' WITA'
-    : '—';
+    : '-';
 
   let html = '';
   let no = start;
@@ -5437,12 +5480,12 @@ function _monRenderTable() {
 
     const capaian = r.capaian_persen != null
       ? `<span class="capaian-badge ${r.capaian_persen >= 100 ? 'ok' : r.capaian_persen >= 75 ? 'mid' : 'low'}">${r.capaian_persen}%</span>`
-      : `<span class="capaian-badge na">—</span>`;
+      : `<span class="capaian-badge na">-</span>`;
 
     const targetTx = escHtml(
       r.target_display != null ? String(r.target_display)
       : r.target_tahun  != null ? String(r.target_tahun)
-      : '—'
+      : '-'
     );
     const tipeInfo   = TIPE_PERHITUNGAN_INFO[r.tipe_perhitungan] || TIPE_PERHITUNGAN_INFO.non_kumulatif;
     const tipeBadge  = `<span data-tip="${escHtml(tipeInfo.title)}" style="display:inline-flex;align-items:center;background:${tipeInfo.bg};color:${tipeInfo.teks};border:1px solid ${tipeInfo.border};border-radius:4px;padding:1px 5px;font-size:.63rem;font-weight:700">${tipeInfo.label}</span>`;
@@ -5453,7 +5496,7 @@ function _monRenderTable() {
     // Kolom bulan (hanya saat mode semua bulan)
     const bulanCell = isAllBulan
       ? `<td style="text-align:center;font-size:.75rem;font-weight:600;color:#475569;padding:10px 8px;white-space:nowrap">
-           ${r.bulan ? _MON_BULAN_NAMA[r.bulan] : '—'}
+           ${r.bulan ? _MON_BULAN_NAMA[r.bulan] : '-'}
          </td>`
       : '';
 
@@ -5463,7 +5506,7 @@ function _monRenderTable() {
         <div style="font-size:.82rem;font-weight:600;color:#1e293b;line-height:1.4;white-space:normal;word-break:break-word"><span>${escHtml(r.indikator_kinerja)}</span>${maknaIcon}</div>
         <div style="margin-top:3px;display:flex;align-items:center;gap:3px;flex-wrap:wrap">${tipeBadge}${jenisBadges}</div>
       </td>
-      <td style="font-size:.78rem;color:#64748b;padding:10px 8px;word-break:break-word;white-space:normal">${escHtml(r.penanggung_jawab || '—')}</td>
+      <td style="font-size:.78rem;color:#64748b;padding:10px 8px;word-break:break-word;white-space:normal">${escHtml(r.penanggung_jawab || '-')}</td>
       <td style="font-size:.78rem;padding:10px 8px;white-space:nowrap">${targetTx}</td>
       ${bulanCell}
       <td style="text-align:center;padding:10px 8px">${statusBadge}</td>
@@ -5549,7 +5592,7 @@ function _monSyncStatusBtn() {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-// SPM — Standar Pelayanan Minimal
+// SPM - Standar Pelayanan Minimal
 // ═══════════════════════════════════════════════════════════════════════════
 
 async function initSpmControls() {
@@ -5652,7 +5695,7 @@ function _renderSpmPeriodeInfo() {
   const wrapper  = document.getElementById('spmBulanWrapper');
   const tahunWrap = document.getElementById('spmTahunWrap');
 
-  // Badge teks "Periode input: ..." sudah tidak dipakai — selalu pakai dropdown tahun & bulan
+  // Badge teks "Periode input: ..." sudah tidak dipakai - selalu pakai dropdown tahun & bulan
   if (el) el.style.display = 'none';
 
   if (_user?.is_admin) {
@@ -5723,7 +5766,7 @@ async function loadSpmRekap() {
   }
 }
 
-// Dipanggil dari input #spmSearch (sejajar Tahun/Bulan) — filter tabel rekap SPM
+// Dipanggil dari input #spmSearch (sejajar Tahun/Bulan) - filter tabel rekap SPM
 function filterSpmTable() {
   _spmSearch = (document.getElementById('spmSearch')?.value || '').trim().toLowerCase();
   _spmPage = 1;
@@ -5767,7 +5810,7 @@ function _renderSpmTable(tbody) {
   _spmRows.forEach(row => {
     i++;
     const capaian = (row.realisasi_id && row.capaian_persen != null) ? Number(row.capaian_persen) : null;
-    let badgeClass = 'na', badgeText = '—';
+    let badgeClass = 'na', badgeText = '-';
     if (capaian !== null && !isNaN(capaian)) {
       badgeText = capaian.toFixed(1) + '%';
       badgeClass = capaian >= 91 ? 'st' : capaian >= 76 ? 'ti' : capaian >= 66 ? 'sd' : capaian >= 51 ? 'rd' : 'sr';
@@ -5777,14 +5820,14 @@ function _renderSpmTable(tbody) {
       ? String(row.target_display)
       : (_targetNum != null && !isNaN(_targetNum)
           ? (Number.isInteger(_targetNum) ? String(_targetNum) : _targetNum.toFixed(2))
-          : '—');
+          : '-');
     const rowStateClass = row.realisasi_id ? 'row-state-saved' : 'row-state-default';
     html += `<tr data-id="${row.id}" class="${rowStateClass}">
       <td class="td-sticky-no" style="text-align:center;color:var(--teks-muted);position:sticky;left:0;z-index:3">${i}</td>
       <td class="td-sticky-name" style="position:sticky;left:34px;z-index:3"><div style="font-weight:600;line-height:1.6"><span>${escHtml(row.nama_indikator || row.indikator_kinerja || '')}</span>${row.bermakna_negatif ? `<span data-tip="Bermakna Negatif" data-tip-variant="danger" style="display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;background:#fee2e2;border-radius:50%;margin-left:5px;vertical-align:middle;flex-shrink:0"><svg xmlns=\"http://www.w3.org/2000/svg\" width=\"9\" height=\"9\" fill=\"none\" viewBox=\"0 0 24 24\" stroke=\"#991b1b\" stroke-width=\"2.8\"><path stroke-linecap=\"round\" stroke-linejoin=\"round\" d=\"M19 14l-7 7m0 0l-7-7m7 7V3\"/></svg></span>` : `<span data-tip="Bermakna Positif" data-tip-variant="success" style="display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;background:#d1fae5;border-radius:50%;margin-left:5px;vertical-align:middle;flex-shrink:0"><svg xmlns=\"http://www.w3.org/2000/svg\" width=\"9\" height=\"9\" fill=\"none\" viewBox=\"0 0 24 24\" stroke=\"#065f46\" stroke-width=\"2.8\"><path stroke-linecap=\"round\" stroke-linejoin=\"round\" d=\"M5 10l7-7m0 0l7 7m-7-7v18\"/></svg></span>`}</div><div style="display:flex;align-items:center;gap:6px;margin-top:5px">${row.formula ? `<div class="fx-wrap"><button style="display:inline-flex;align-items:center;justify-content:center;gap:4px;box-sizing:border-box;height:24px;font-size:0.62rem;font-weight:700;line-height:1;color:#0f766e;background:#f0fdfa;border:1px solid #99f6e4;border-radius:4px;padding:0 8px;cursor:pointer;font-family:inherit;appearance:none;-webkit-appearance:none;margin:0" data-tip="Lihat formula perhitungan" data-formula="${escHtml(row.formula)}" onclick="toggleFormulaPanel(this)"><span>Σ</span><span class=\"fx-arrow\" style=\"display:inline-block;transition:transform .2s;font-style:normal\">▾</span></button></div>` : ''}${_tipeBadge(row.tipe_perhitungan)}</div></td>
       <td class="td-satuan">${escHtml(row.satuan || '')}</td>
       <td class="td-target" style="font-weight:700">${targetFmt}</td>
-      ${_user?.is_admin ? `<td class="td-bidang" style="color:var(--teks-mid)">${escHtml(row.penanggung_jawab || '—')}</td>` : ''}
+      ${_user?.is_admin ? `<td class="td-bidang" style="color:var(--teks-mid)">${escHtml(row.penanggung_jawab || '-')}</td>` : ''}
       <td class="realisasi-input-cell">
         ${_renderRealisasiInputCell(row, 'spm_real', 'markSpmDirty')}
       </td>
@@ -5907,7 +5950,7 @@ function toggleSpmEditRow(indikatorId) {
     const taEl   = wrap.querySelector('.ps-rte');
     if (!taEl) return;
     if (isReadonly) {
-      // Masuk edit mode: sembunyikan view, tampilkan editor — skip wrap yg hidden
+      // Masuk edit mode: sembunyikan view, tampilkan editor - skip wrap yg hidden
       if (wrap.style.display === 'none') return;
       if (readEl) readEl.style.display = 'none';
       taEl.style.display = '';
@@ -6088,7 +6131,7 @@ function previewSpmCapaian(indikatorId) {
   const badge     = document.getElementById(`spm_badge_${indikatorId}`);
   if (!badge) return;
   if (isNaN(realisasi) || isNaN(target) || target === 0) {
-    badge.textContent = '—'; badge.className = 'capaian-badge na';
+    badge.textContent = '-'; badge.className = 'capaian-badge na';
     _togglePermasalahanSolusi('spm', indikatorId, null);
     return;
   }
@@ -6110,7 +6153,7 @@ async function saveSpmRealisasiRow(indikatorId) {
   let rencana     = document.getElementById(`spm_rencana_${indikatorId}`)?.value?.trim();
 
   const row = _spmData.find(r => r.id === indikatorId);
-  // Validasi field wajib — hitung capaian dari nilai input vs target
+  // Validasi field wajib - hitung capaian dari nilai input vs target
   // (untuk kumulatif/rata_rata, pakai basis efektif lintas bulan, bukan angka bulan ini saja)
   const _realVal   = parseFloat(real);
   const _targetVal = _targetNumForRow(row);
@@ -6201,7 +6244,7 @@ async function saveSpmRealisasiRow(indikatorId) {
             if (badge) {
               const cap = (freshRow.realisasi_id && freshRow.capaian_persen != null) ? Number(freshRow.capaian_persen) : null;
               if (cap === null || isNaN(cap)) {
-                badge.textContent = '—'; badge.className = 'capaian-badge na';
+                badge.textContent = '-'; badge.className = 'capaian-badge na';
               } else {
                 badge.textContent = cap.toFixed(1) + '%';
                 badge.className = 'capaian-badge ' + (cap >= 91 ? 'st' : cap >= 76 ? 'ti' : cap >= 66 ? 'sd' : cap >= 51 ? 'rd' : 'sr');
@@ -6295,7 +6338,7 @@ async function openSpmDukungModal(indikatorId, bulan, tahun) {
 
   const row = _spmData.find(r => r.id === indikatorId);
   document.getElementById('dukungIndikatorLabel').textContent = row?.nama_indikator || row?.indikator_kinerja || '';
-  document.getElementById('dukungTwLabel').textContent = `${BULAN_FULL[bulan] || bulan} ${tahun} — SPM`;
+  document.getElementById('dukungTwLabel').textContent = `${BULAN_FULL[bulan] || bulan} ${tahun} - SPM`;
 
   if (row?.data_dukung_url) {
     try {

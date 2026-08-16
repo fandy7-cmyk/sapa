@@ -1,6 +1,6 @@
 // netlify/functions/profil.js
-// GET  /api/profil           → admin only — ambil profil instansi
-// PUT  /api/profil           → admin only — simpan profil instansi
+// GET  /api/profil           → admin only - ambil profil instansi
+// PUT  /api/profil           → admin only - simpan profil instansi
 //
 // (Endpoint publik /api/landing/* ditangani oleh netlify/functions/landing.js)
 
