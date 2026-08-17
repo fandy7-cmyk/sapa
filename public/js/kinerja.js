@@ -1,10 +1,10 @@
-// ── Helper ───────────────────────────────────────────────────────────────
+
 function normTarget(r) {
   if (r.target_tahun != null) r.target_tahun = parseFloat(r.target_tahun);
   if (r.target_display == null && r.target_tahun != null) r.target_display = null;
   r.bermakna_negatif = r.bermakna_negatif === true || r.bermakna_negatif === 'true';
   r.tipe_nilai = r.tipe_nilai === 'predikat' ? 'predikat' : 'angka';
-  // Parse jenis_custom: Neon JSONB bisa datang sebagai string
+  
   if (typeof r.jenis_custom === 'string') {
     try { r.jenis_custom = JSON.parse(r.jenis_custom); } catch { r.jenis_custom = []; }
   }
@@ -12,12 +12,6 @@ function normTarget(r) {
   return r;
 }
 
-// Predikat SAKIP - dipakai untuk indikator bertipe_nilai 'predikat' (realisasi/target
-// berupa huruf predikat, bukan angka bebas). Tingkatan dari terendah ke tertinggi.
-// Angka "tier" ini yang disimpan di kolom numerik (realisasi/target) supaya semua
-// rumus capaian (kumulatif, rata-rata, bermakna_negatif, dst) yang sudah ada tetap
-// jalan tanpa perlu diubah - hanya LABEL tampilannya (realisasi_display/target_display)
-// yang berupa huruf predikat.
 const PREDIKAT_LEVELS = [
   { label: 'D',  tier: 1 },
   { label: 'C',  tier: 2 },
@@ -29,12 +23,6 @@ const PREDIKAT_LEVELS = [
 ];
 const PREDIKAT_TIER_BY_LABEL = Object.fromEntries(PREDIKAT_LEVELS.map(p => [p.label, p.tier]));
 
-// Fallback: kalau target_tahun (kolom numerik) kosong/NaN - biasanya karena data
-// lama yang ke-input sebelum fitur predikat ada, atau target_display sempat
-// disimpan manual sebagai teks tanpa tier-nya - coba rekonstruksi tier dari label
-// huruf predikat (target_display). Dipakai di semua tempat yang butuh target
-// numerik untuk hitung capaian (preview, validasi simpan, dsb) supaya indikator
-// bertarget huruf (BB, CC, dst.) tidak macet nunjukkin "-" gara-gara data lama.
 function _targetNumForRow(row) {
   let t = parseFloat(row?.target_tahun);
   if (isNaN(t) && row?.tipe_nilai === 'predikat' && row?.target_display) {
@@ -52,31 +40,30 @@ function _predikatOptionsHtml(selectedTier) {
 }
 
 // Render cell input realisasi: dropdown predikat kalau row.tipe_nilai === 'predikat',
-// input number seperti biasa kalau tidak. onchangeFn = nama fungsi global (string),
-// dipanggil dengan row.id sebagai argumen - sama seperti input number sebelumnya.
+
 function _renderRealisasiInputCell(row, idPrefix, onchangeFn) {
   const id = `${idPrefix}_${row.id}`;
   const disabled = !!row.realisasi_id;
   if (row.tipe_nilai === 'predikat') {
-    // Belum PERNAH diisi sama sekali (gak ada baris realisasi tersimpan sama sekali,
-    // termasuk yang sengaja dikosongkan/"-") → trigger custom select tampilkan
-    // placeholder netral ("Pilih Peringkat"), BUKAN "-", supaya user gak salah kira
-    // "-" itu udah kepilih otomatis. Begitu user aktif milih apapun (termasuk "-"),
-    // data-placeholder ini dihapus di sisi klik (lihat buildCustomSelect/app.html)
-    // dan tampilannya balik jadi teks opsi asli ("-", "D", dst) - perilaku sama
-    // persis kayak sebelumnya begitu user sudah menentukan pilihan.
+    
+    
+    
+    
+    
+    
+    
     const belumPernahDiisi = row.realisasi == null && !row.realisasi_id;
     const selectEl = `<select id="${id}" ${disabled ? 'disabled readonly' : ''}
              ${belumPernahDiisi ? 'data-placeholder="Pilih Peringkat"' : ''}
              data-tip="${disabled ? 'Klik tombol Edit untuk mengisi realisasi' : ''}"
              style="${disabled ? 'cursor:not-allowed' : ''}"
              onchange="${onchangeFn}(${row.id})">${_predikatOptionsHtml(row.realisasi != null ? row.realisasi : null)}</select>`;
-    // Selalu dibungkus .select-wrap (termasuk saat disabled/terkunci) supaya custom
-    // select engine (initCustomSelects) langsung membangun trigger custom-nya sejak
-    // render awal. Trigger sendiri sudah dibikin menghormati select.disabled (lihat
-    // guard di buildCustomSelect/app.html) jadi tetap gak bisa diutak-atik selagi
-    // terkunci - cuma sekarang tampilannya konsisten custom, bukan dropdown bawaan
-    // browser begitu baris dibuka lewat tombol Edit.
+    
+    
+    
+    
+    
+    
     return `<div class="select-wrap" style="min-width:110px">${selectEl}</div>`;
   }
   const spinBtns = disabled ? '' : `
@@ -116,9 +103,6 @@ function _realisasiSpin(btn, dir, onchangeFn, rowId) {
   if (typeof window[onchangeFn] === 'function') window[onchangeFn](rowId);
 }
 
-// Ambil label tampilan realisasi buat dikirim sebagai realisasi_display: kalau
-// predikat, ambil teks label dari <option> yang lagi dipilih (bukan angka tier-nya);
-// kalau angka biasa, pakai raw value dari input apa adanya (perilaku lama).
 function _getRealisasiDisplayFromEl(realEl, row, rawVal) {
   if (row?.tipe_nilai === 'predikat' && realEl?.tagName === 'SELECT') {
     return realEl.selectedOptions?.[0]?.text || null;
@@ -163,9 +147,8 @@ let _indikatorFilterJenis = '';   // '', 'monev', 'ikk', 'none'
 let _indikatorFilterMakna = '';   // '', 'positif', 'negatif'
 let _indikatorFilterPJ    = '';   // '' atau nama PJ
 let _indikatorFilterTahun = '';   // '' atau tahun (string)
-let _indikatorSort        = 'urutan'; // 'urutan' | 'nama_asc' | 'nama_desc' | 'terbaru' | 'terlama' | 'target_desc' | 'target_asc' | 'jenis_kinerja'
+let _indikatorSort        = 'urutan'; 
 
-// ── Pagination & search - Group Admin ───────────────────────────────────
 let _groupPage      = 1;
 const _groupPageSize = 15;
 let _groupSearch    = '';
@@ -178,12 +161,9 @@ const JENIS_META = {
   kegiatan: { label: 'Kegiatan',          cls: 'group-kegiatan' },
 };
 
-// ── Jenis Kinerja - state dinamis ────────────────────────────────────────
-// Diisi dari API /api/kinerja/jenis-kinerja saat loadIndikatorAdmin
-let _jenisList = [];  // [{id, kode, label, warna_bg, warna_teks, urutan, aktif, is_builtin}]
+let _jenisList = [];  
 let _editingJenisId = null;
 
-// Helper: render badge jenis untuk satu row indikator
 function _renderJenisBadges(row) {
   const badges = [];
   for (const j of _jenisList) {
@@ -208,32 +188,28 @@ function _rowHasJenis(row, kode) {
   return Array.isArray(row.jenis_custom) && row.jenis_custom.includes(kode);
 }
 
-// ── Cek apakah window input untuk bulan tertentu sedang terbuka (non-admin) ──
-// Jika bulan tidak diberikan, cek bulan yang sedang dipilih (_kinerja_bulan)
 function _isKinerjaInputOpen(bulan, jenis) {
-  // Admin selalu bisa input kapan saja
+  
   if (_user?.is_admin) return true;
   const targetBulan = bulan != null ? bulan : jenis === 'spm' ? _spm_bulan : jenis === 'ikk' ? _ikk_bulan : _kinerja_bulan;
-  // Cari periode yang cocok bulan DAN jenis-nya
+  
   return _periodeListTerbuka.some(p =>
     p.bulan === targetBulan &&
     (jenis ? p.jenis === jenis : true) &&
     isPeriodeInputOpen(p)
   );
 }
-// Helper shorthand per jenis
+
 function _isMonevInputOpen(bulan) { return _isKinerjaInputOpen(bulan, 'monev'); }
 function _isIkkInputOpen(bulan)   { return _isKinerjaInputOpen(bulan, 'ikk');   }
 
-// Cache daftar periode yang sedang terbuka (diisi oleh loadPeriodeAktif)
 let _periodeListTerbuka = [];
-let _allPeriodeList     = [];  // semua periode dari DB (untuk admin year selector)
-let _userIndikatorIds   = null; // Set<number> assigned indikator untuk non-admin, null = belum load
+let _allPeriodeList     = [];  
+let _userIndikatorIds   = null; 
 
-// Load assigned indikator IDs untuk user non-admin (idempotent - skip jika sudah di-load)
 async function _ensureUserIndikatorIds() {
-  if (_user?.is_admin) return;                 // admin tidak perlu filter
-  if (_userIndikatorIds !== null) return;      // sudah di-load sebelumnya
+  if (_user?.is_admin) return;                 
+  if (_userIndikatorIds !== null) return;      
   if (!_user?.id) { _userIndikatorIds = new Set(); return; }
   try {
     const r = await fetch(`/api/users/${_user.id}/indikator`, { headers: authHeaders() });
@@ -246,15 +222,15 @@ function _renderKinerjaWindowBanner(containerId, jenis) {
   const wrap = document.getElementById(containerId);
   if (!wrap) return;
 
-  // Admin → tidak tampilkan banner
+  
   if (_user?.is_admin) { wrap.innerHTML = ''; return; }
 
   const fmtDT = iso => iso ? new Date(iso).toLocaleString('id-ID', { day:'2-digit', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit', timeZone: 'Asia/Makassar' }) + ' WITA' : '-';
 
-  // Cari periode untuk bulan yang sedang dipilih, filter by jenis
+  
   const targetBulan = jenis === 'ikk' ? _ikk_bulan : jenis === 'spm' ? _spm_bulan : _kinerja_bulan;
   const pa = _periodeListTerbuka.find(p => p.bulan === targetBulan && (!jenis || p.jenis === jenis)) ?? null;
-  // Apakah sama sekali tidak ada periode terbuka untuk jenis ini?
+  
   const adaPeriodeJenis = _periodeListTerbuka.some(p => !jenis || p.jenis === jenis);
 
   if (!pa && !adaPeriodeJenis) {
@@ -267,7 +243,7 @@ function _renderKinerjaWindowBanner(containerId, jenis) {
   }
 
   if (!pa) {
-    // Ada periode terbuka tapi bukan untuk bulan ini
+    
     wrap.innerHTML = `
       <div style="display:flex;align-items:center;gap:8px;padding:10px 14px;border-radius:8px;background:#fffbeb;border:1px solid #fde68a;color:#92400e;font-size:.83rem;margin-bottom:10px">
         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
@@ -283,7 +259,6 @@ function _renderKinerjaWindowBanner(containerId, jenis) {
     </div>`;
 }
 
-// ── Countdown timer sisa waktu periode input ─────────────────────────────
 let _kinerjaCountdownTimer = null;
 const _kinerjaCountdownTimers = {};
 
@@ -299,14 +274,14 @@ function _renderKinerjaCountdown(containerId, jenis) {
   const wrap = document.getElementById(containerId);
   if (!wrap) return;
 
-  // Admin → sembunyikan
+  
   if (_user?.is_admin) { wrap.style.display = 'none'; wrap.innerHTML = ''; return; }
 
   // Cari periode aktif untuk bulan yg dipilih, filter by jenis
   const targetBulan = jenis === 'ikk' ? _ikk_bulan : jenis === 'spm' ? _spm_bulan : _kinerja_bulan;
   const pa = _periodeListTerbuka.find(p => p.bulan === targetBulan && (!jenis || p.jenis === jenis)) ?? null;
 
-  // Jika tidak ada periode aktif untuk bulan ini, sembunyikan
+  
   if (!pa || !pa.close_at) { wrap.style.display = 'none'; wrap.innerHTML = ''; return; }
 
   const closeMs = new Date(pa.close_at).getTime();
@@ -361,14 +336,14 @@ function _renderKinerjaCountdown(containerId, jenis) {
     if (!timerEl || !fillEl || !cardEl) { clearInterval(_kinerjaCountdownTimers[containerId]); return; }
 
     if (diff <= 0) {
-      // Waktu habis
+      
       timerEl.textContent = 'Ditutup';
       cardEl.className = 'kperiode-card expired';
       fillEl.style.width = '100%';
       if (expiredEl) expiredEl.style.display = 'block';
       clearInterval(_kinerjaCountdownTimers[containerId]);
       _kinerjaCountdownTimers[containerId] = null;
-      // Hapus periode ini dari list terbuka → button bulan langsung disabled
+      
       _periodeListTerbuka = _periodeListTerbuka.filter(p => p.bulan !== _kinerja_bulan);
       _syncBulanButtons();
       _renderPeriodeInfo();
@@ -381,13 +356,13 @@ function _renderKinerjaCountdown(containerId, jenis) {
     const detik = Math.floor((diff % 60000) / 1000);
     const pad = n => String(n).padStart(2, '0');
 
-    // Urgency relatif terhadap panjang periode (bukan patokan jam absolut aja),
-    // sinkron dgn perhitungan di halaman Kelola Periode (admin).
+    
+    
     const total   = openMs && closeMs > openMs ? (closeMs - openMs) : null;
     const sisaPct = total ? (diff / total) * 100 : 100;
     let urgency = 'ok';
-    if (diff < 3600000 || sisaPct <= 10) urgency = 'urgent';       // sisa < 1 jam ATAU < 10% durasi
-    else if (diff < 86400000 || sisaPct <= 25) urgency = 'warn';   // sisa < 1 hari ATAU < 25% durasi
+    if (diff < 3600000 || sisaPct <= 10) urgency = 'urgent';       
+    else if (diff < 86400000 || sisaPct <= 25) urgency = 'warn';   
 
     timerEl.textContent = hari > 0
       ? `${hari}h ${pad(jam)}:${pad(menit)}:${pad(detik)}`
@@ -403,17 +378,16 @@ function _renderKinerjaCountdown(containerId, jenis) {
     }
   }
 
-  // Clear timer sebelumnya jika ada (per container)
+  
   if (_kinerjaCountdownTimers[containerId]) clearInterval(_kinerjaCountdownTimers[containerId]);
   _tick();
   _kinerjaCountdownTimers[containerId] = setInterval(_tick, 1000);
 }
 
-// ── Year selector - diisi dari daftar periode di DB ──────────────────────
 async function initKinerjaControls() {
   const isAdmin = _user?.is_admin;
-  // Dulu: periode/aktif -> user-indikator -> (admin) periode BERURUTAN (3 round-trip
-  // nunggu satu-satu). Ketiganya independen satu sama lain, jadi ditembak paralel.
+  
+  
   await Promise.all([
     fetch('/api/periode/aktif')
       .then(r => r.ok ? r.json() : null)
@@ -429,26 +403,26 @@ async function initKinerjaControls() {
   ]);
   if (isAdmin) _populateTahunSelector('kinerjaTahunSelect', _kinerja_tahun, setKinerjaTahun);
 
-  // Jika ada periode monev terbuka, set tahun & bulan dari periode monev (terlama dulu)
+  
   const _monevTerbuka = _periodeListTerbuka.filter(p => p.jenis === 'monev')
     .sort((a, b) => a.tahun !== b.tahun ? a.tahun - b.tahun : a.bulan - b.bulan);
   if (_monevTerbuka.length) {
     _kinerja_tahun = _monevTerbuka[0].tahun;
     _kinerja_bulan = _monevTerbuka[0].bulan;
-    _periodeAktif  = _monevTerbuka[0]; // kompatibilitas
+    _periodeAktif  = _monevTerbuka[0]; 
   } else if (_user?.is_admin) {
-    // Admin: pakai tahun & bulan sekarang sebagai default
+    
     _kinerja_tahun = new Date().getFullYear();
     _kinerja_bulan = new Date().getMonth() + 1;
   }
 
-  // Non-admin: populate dropdown tahun (hanya tahun-tahun yang punya periode monev terbuka)
+  
   if (!_user?.is_admin && _monevTerbuka.length) {
     const _tahunNonAdmin = [...new Set(_monevTerbuka.map(p => p.tahun))].sort((a, b) => a - b);
     _populateTahunSelector('kinerjaTahunSelect', _kinerja_tahun, setKinerjaTahun, _tahunNonAdmin);
   }
 
-  // Sync tahun selector ke nilai aktif
+  
   const kSel = document.getElementById('kinerjaTahunSelect');
   if (kSel) kSel.value = _kinerja_tahun;
 
@@ -456,16 +430,15 @@ async function initKinerjaControls() {
   _renderPeriodeInfo();
   _renderKinerjaCountdown('kinerjaCountdownBar', 'monev');
   _renderKinerjaCountdown('ikkCountdownBar', 'ikk');
-  // Refresh timer di topbar dengan data terbaru
+  
   if (typeof _startPeriodeTimer === 'function') _startPeriodeTimer();
 }
 
-// Populate tahun dropdown dari _allPeriodeList (admin) atau list eksplisit (non-admin, dari periode terbuka)
 function _populateTahunSelector(elId, currentTahun, onChangeFn, tahunListOverride) {
   const sel = document.getElementById(elId);
   if (!sel) return;
   const tahunList = tahunListOverride || [...new Set(_allPeriodeList.map(p => p.tahun))].sort((a, b) => a - b);
-  // Fallback: jika tidak ada periode di DB, pakai tahun sekarang
+  
   const list = tahunList.length ? tahunList : [new Date().getFullYear()];
   sel.innerHTML = list.map(t =>
     `<option value="${t}" ${t === currentTahun ? 'selected' : ''}>${t}</option>`
@@ -486,7 +459,7 @@ function _populateTahunSelector(elId, currentTahun, onChangeFn, tahunListOverrid
 function setKinerjaTahun(tahun) {
   _kinerja_tahun = tahun;
   if (!_user?.is_admin) {
-    // Non-admin: pilih bulan pertama yang periodenya terbuka untuk tahun ini
+    
     const periodeThnIni = _periodeListTerbuka.filter(p => p.jenis === 'monev' && p.tahun === tahun)
       .sort((a, b) => a.bulan - b.bulan);
     if (periodeThnIni.length) _kinerja_bulan = periodeThnIni[0].bulan;
@@ -512,28 +485,27 @@ function setIkkTahun(tahun) {
   loadIkkRekap();
 }
 
-// Label bulan Indonesia
 const BULAN_LABEL = ['','Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];
 const BULAN_FULL  = ['','Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
 
 function _syncBulanButtons() {
   const sel = document.getElementById('bulanSelector');
   if (!sel) return;
-  // Kumpulkan semua bulan yang periodenya sedang terbuka (bisa lebih dari 1)
+  
   const bulanTerbuka = new Set(_periodeListTerbuka.filter(p => p.jenis === 'monev').map(p => p.bulan));
   const items = [];
   for (let bulan = 1; bulan <= 12; bulan++) {
-    // Admin: tampilkan semua 12 bulan tanpa pembatasan. Non-admin: hanya bulan yang periodenya terbuka.
+    
     const isTampil = _user?.is_admin ? true : bulanTerbuka.has(bulan);
     if (!isTampil) continue;
-    // Tampilkan label "NamaBulan Tahun" sesuai periode yang cocok
+    
     const periodeMatch = _user?.is_admin
       ? _allPeriodeList.find(p => p.jenis === 'monev' && p.bulan === bulan && p.tahun === _kinerja_tahun)
       : _periodeListTerbuka.find(p => p.jenis === 'monev' && p.bulan === bulan);
     const tahunLabel = periodeMatch ? periodeMatch.tahun : _kinerja_tahun;
     items.push({ bulan, tahun: tahunLabel });
   }
-  // Urutkan: tahun ASC, bulan ASC (admin cukup urut nomor bulan)
+  
   items.sort((a, b) => _user?.is_admin ? (a.bulan - b.bulan) : ((a.tahun * 100 + a.bulan) - (b.tahun * 100 + b.bulan)));
   sel.innerHTML = items.map(it =>
     `<option value="${it.bulan}"${it.bulan === _kinerja_bulan ? ' selected' : ''}>${BULAN_FULL[it.bulan]}</option>`
@@ -547,7 +519,7 @@ function _renderPeriodeInfo() {
   const kWrapper = document.getElementById('kinerjaBulanWrapper');
   const tahunWrap = document.getElementById('kinerjaTahunWrap');
 
-  // Badge teks "Periode input: ..." sudah tidak dipakai - selalu pakai dropdown tahun & bulan
+  
   if (el) el.style.display = 'none';
 
   if (_user?.is_admin) {
@@ -556,7 +528,7 @@ function _renderPeriodeInfo() {
     return;
   }
 
-  // Non-admin: sembunyikan wrapper kalau tidak ada periode monev aktif
+  
   const _monevAktif = _periodeListTerbuka.filter(p => p.jenis === 'monev');
   if (_monevAktif.length === 0) {
     if (kWrapper) kWrapper.style.display = 'none';
@@ -567,11 +539,11 @@ function _renderPeriodeInfo() {
 }
 
 function setKinerjaBulan(bulan) {
-  // Guard: bulan tidak boleh dipilih jika bukan admin dan bukan bulan terbuka
+  
   if (!_user?.is_admin) {
     const bulanTerbuka = new Set(_periodeListTerbuka.filter(p => p.jenis === 'monev').map(p => p.bulan));
     if (!bulanTerbuka.has(bulan)) return;
-    // Sync tahun ke periode Monev yang sesuai bulan yang dipilih
+    
     const periodeMatch = _periodeListTerbuka.find(p => p.jenis === 'monev' && p.bulan === bulan);
     if (periodeMatch) _kinerja_tahun = periodeMatch.tahun;
   }
@@ -583,16 +555,13 @@ function setKinerjaBulan(bulan) {
   loadKinerjaRekap();
 }
 
-// ═══════════════════════════════════════════════════════════════════════════
-// REKAP (halaman utama kinerja)
-// ═══════════════════════════════════════════════════════════════════════════
 async function loadKinerjaRekap() {
   const tbody = document.getElementById('kinerjaTableBody');
   if (!tbody) return;
 
-  // Guard: non-admin tidak perlu lihat tabel kalau tidak ada periode aktif sama sekali
+  
   if (!_user?.is_admin && !_periodeListTerbuka.some(p => p.jenis === 'monev')) {
-    // Sembunyikan card tabel (termasuk thead), tampilkan pesan di luarnya
+    
     const tableCard = tbody.closest('.card');
     if (tableCard) tableCard.style.display = 'none';
     let msgEl = document.getElementById('kinerjaNoperiodeMsg');
@@ -687,7 +656,6 @@ function _lockDukungButtons(indikatorId) {
   }
 }
 
-// Suntik tombol Reset (admin) ke baris setelah Simpan sukses, tanpa perlu reload
 function _ensureResetBtn(indikatorId, prefix, jenis) {
   if (!_user?.is_admin) return;
   if (document.getElementById(`${prefix}resetbtn_${indikatorId}`)) return;
@@ -718,11 +686,11 @@ function _renderDukungBtn(row, tw, tahun, source, initialEditable = false) {
     const previewFn  = `openDukungPreview(${row.id}, ${twVal}, ${tahunVal}, '${source}')`;
     const uploadFnAlt = source === 'ikk' ? `openIkkDukungModal(${row.id}, ${twVal}, ${tahunVal})` : `openDukungModal(${row.id}, ${twVal}, ${tahunVal}, '${source}')`;
     const label = fileCount > 1 ? `Uploaded (${fileCount})` : 'Uploaded';
-    // Baris yang belum disimpan (belum punya realisasi_id) tetap dalam mode edit aktif,
-    // jadi tombol ganti/hapus file harus tetap terbuka tanpa perlu klik Edit dulu.
+    
+    
     const isEditable = initialEditable;
 
-    // Tombol Uploaded: locked by default - hanya bisa diklik jika row dalam mode edit atau initialEditable
+    
     return `<span style="display:inline-flex;align-items:center;gap:3px" data-dukung-id="${row.id}">
       <button
         class="dukung-uploaded-btn"
@@ -765,8 +733,6 @@ function _renderDukungBtn(row, tw, tahun, source, initialEditable = false) {
   </button>`;
 }
 
-
-// ── Pagination - IKU / IKK / IKK ─────────────────────────────────────────
 let _ikuPage = 1; const _ikuPageSize = 10;
 let _ikkPage = 1; const _ikkPageSize = 10;
 let _spmPage = 1; const _spmPageSize = 10;
@@ -774,8 +740,6 @@ function _goIkuPage(p) { _ikuPage = p; renderKinerjaTable(document.getElementByI
 function _goIkkPage(p) { _ikkPage = p; _renderIkkTable(document.getElementById('ikkTableBody')); }
 function _goSpmPage(p) { _spmPage = p; _renderSpmTable(document.getElementById('spmTableBody')); }
 
-
-// Dipanggil dari input #kinerjaSearch (sejajar Tahun/Bulan) - filter tabel rekap IKU
 function filterKinerjaTable() {
   _kinerjaSearch = (document.getElementById('kinerjaSearch')?.value || '').trim().toLowerCase();
   _ikuPage = 1;
@@ -796,7 +760,7 @@ function renderKinerjaTable(tbody) {
     return;
   }
 
-  // Filter berdasarkan kata kunci pencarian (nama indikator, satuan, bidang/PJ)
+  
   const _filtered = _kinerjaSearch
     ? _kinerjaData.filter(row =>
         (row.indikator_kinerja || '').toLowerCase().includes(_kinerjaSearch) ||
@@ -844,7 +808,7 @@ function renderKinerjaTable(tbody) {
     }
     const negBadge = row.bermakna_negatif ? `<span data-tip="Bermakna Negatif" data-tip-variant="danger" style="display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;background:#fee2e2;border-radius:50%;margin-left:5px;vertical-align:middle;flex-shrink:0"><svg xmlns=\"http://www.w3.org/2000/svg\" width=\"9\" height=\"9\" fill=\"none\" viewBox=\"0 0 24 24\" stroke=\"#991b1b\" stroke-width=\"2.8\"><path stroke-linecap=\"round\" stroke-linejoin=\"round\" d=\"M19 14l-7 7m0 0l-7-7m7 7V3\"/></svg></span>` : `<span data-tip="Bermakna Positif" data-tip-variant="success" style="display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;background:#d1fae5;border-radius:50%;margin-left:5px;vertical-align:middle;flex-shrink:0"><svg xmlns=\"http://www.w3.org/2000/svg\" width=\"9\" height=\"9\" fill=\"none\" viewBox=\"0 0 24 24\" stroke=\"#065f46\" stroke-width=\"2.8\"><path stroke-linecap=\"round\" stroke-linejoin=\"round\" d=\"M5 10l7-7m0 0l7 7m-7-7v18\"/></svg></span>`;
 
-    // Format target: dari JOIN kinerja_target (tahun aktif)
+    
     const _targetNum = row.target_tahun != null ? Number(row.target_tahun) : null;
     const targetFmt = row.target_display != null
       ? String(row.target_display)
@@ -852,7 +816,7 @@ function renderKinerjaTable(tbody) {
           ? (Number.isInteger(_targetNum) ? String(_targetNum) : _targetNum.toFixed(2))
           : '-');
 
-    // Tentukan row state class berdasarkan status data
+    
     const rowStateClass = row.realisasi_id ? 'row-state-saved' : 'row-state-default';
 
     html += `<tr data-id="${row.id}" class="${rowStateClass}">
@@ -910,11 +874,11 @@ function renderKinerjaTable(tbody) {
   });
   tbody.innerHTML = html;
   if (typeof window.initCustomSelects === 'function') window.initCustomSelects();
-  // Toggle header kolom Penanggung Jawab (hanya tampil untuk admin)
+  
   document.querySelectorAll('.col-bidang-iku').forEach(el => { el.style.display = _user?.is_admin ? '' : 'none'; });
   renderPagination('ikuPagination', _filtered.length, _ikuPage, _ikuPageSize, '_goIkuPage');
-  // Tampilkan warning di kolom Data Dukung untuk baris yang sudah tersimpan
-  // tapi belum punya file dukung
+  
+  
   if (canEdit) {
     _kinerjaData.forEach(row => {
       if (row.realisasi_id && !row.data_dukung_url) {
@@ -932,7 +896,7 @@ function renderKinerjaTable(tbody) {
 }
 
 function toggleEditRow(indikatorId) {
-  // Guard: non-admin tidak bisa edit di luar window monev
+  
   if (!_user?.is_admin && !_isMonevInputOpen()) {
     const pa = _periodeListTerbuka.find(p => p.jenis === 'monev' && p.bulan === _kinerja_bulan) ?? null;
     const close = pa?.close_at ? new Date(pa.close_at) : null;
@@ -959,7 +923,7 @@ function toggleEditRow(indikatorId) {
     if (!el) return;
     if (isReadonly) {
       el.removeAttribute('readonly');
-      if (el.tagName === 'SELECT') el.disabled = false; // predikat: <select> pakai disabled, bukan readonly
+      if (el.tagName === 'SELECT') el.disabled = false; 
       if (el.classList.contains('ps-rte')) el.contentEditable = 'true';
       el.style.background = 'var(--putih)';
       el.style.cursor = '';
@@ -967,7 +931,7 @@ function toggleEditRow(indikatorId) {
       el.dataset.tip = '';
     } else {
       el.setAttribute('readonly', '');
-      if (el.tagName === 'SELECT') el.disabled = true; // predikat: kunci balik pakai disabled
+      if (el.tagName === 'SELECT') el.disabled = true; 
       if (el.classList.contains('ps-rte')) el.contentEditable = 'false';
       el.style.background = '';
       el.style.cursor = 'not-allowed';
@@ -976,21 +940,20 @@ function toggleEditRow(indikatorId) {
     }
   });
 
-
-  // Switch ps-cell-wrap antara view mode (ps-read) dan edit mode (textarea)
+  
   const psCells = document.querySelectorAll(`tr[data-id="${indikatorId}"] .ps-cell-wrap`);
   psCells.forEach(wrap => {
     const readEl = wrap.querySelector('.ps-read');
     const taEl   = wrap.querySelector('.ps-rte');
     if (!taEl) return;
     if (isReadonly) {
-      // Masuk edit mode: sembunyikan view, tampilkan editor - skip wrap yg hidden
+      
       if (wrap.style.display === 'none') return;
       if (readEl) readEl.style.display = 'none';
       taEl.style.display = '';
       taEl.contentEditable = 'true';
     } else {
-      // Keluar edit mode: update view text lalu tampilkan kembali
+      
       const val = taEl.value || '';
       const LIMIT = 80;
       const shortEl = wrap.querySelector('[id$="short_' + indikatorId + '"]');
@@ -1006,7 +969,7 @@ function toggleEditRow(indikatorId) {
       taEl.style.cursor = 'not-allowed';
     }
   });
-  // Unlock / lock tombol data dukung (Uploaded & Upload)
+  
   const dukungBtn     = document.querySelector(`[data-dukung-id="${indikatorId}"] .dukung-uploaded-btn`);
   const uploadOnlyBtn = document.querySelector(`tr[data-id="${indikatorId}"] .dukung-upload-btn`);
 
@@ -1050,7 +1013,7 @@ function toggleEditRow(indikatorId) {
 
   if (uploadOnlyBtn) {
     if (isReadonly) {
-      // Masuk mode edit → aktifkan tombol Upload
+      
       uploadOnlyBtn.disabled = false;
       uploadOnlyBtn.style.cursor = 'pointer';
       uploadOnlyBtn.style.opacity = '1';
@@ -1061,7 +1024,7 @@ function toggleEditRow(indikatorId) {
       const src    = uploadOnlyBtn.dataset.source;
       uploadOnlyBtn.onclick = () => triggerDukungUpload(indikatorId, parseInt(twV), parseInt(tahunV), src);
     } else {
-      // Keluar mode edit → kunci kembali
+      
       uploadOnlyBtn.disabled = true;
       uploadOnlyBtn.style.cursor = 'not-allowed';
       uploadOnlyBtn.style.opacity = '.65';
@@ -1072,13 +1035,13 @@ function toggleEditRow(indikatorId) {
   }
 
   if (isReadonly) {
-    // ── Masuk mode edit ──────────────────────────────────────────────────────
-    // Warna baris → orange (editing)
+    
+    
     if (tr) {
       tr.classList.remove('row-state-default', 'row-state-saved');
       tr.classList.add('row-state-editing');
     }
-    // Tombol Edit → badge "Sedang Diedit"
+    
     if (editBtn) {
       editBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg> Sedang Diedit`;
       editBtn.classList.add('btn-edit-row--active');
@@ -1099,7 +1062,7 @@ function toggleEditRow(indikatorId) {
       tr.classList.remove('row-state-editing');
       tr.classList.add(row?.realisasi_id ? 'row-state-saved' : 'row-state-default');
     }
-    // Tombol Edit → kembali normal dengan SVG + teks "Edit"
+    
     if (editBtn) {
       editBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg> Edit`;
       editBtn.classList.remove('btn-edit-row--active');
@@ -1142,7 +1105,7 @@ function toggleIkkEditRow(indikatorId) {
     if (!el) return;
     if (isReadonly) {
       el.removeAttribute('readonly');
-      if (el.tagName === 'SELECT') el.disabled = false; // predikat: <select> pakai disabled, bukan readonly
+      if (el.tagName === 'SELECT') el.disabled = false; 
       if (el.classList.contains('ps-rte')) el.contentEditable = 'true';
       el.style.background = 'var(--putih)';
       el.style.cursor = '';
@@ -1150,7 +1113,7 @@ function toggleIkkEditRow(indikatorId) {
       el.dataset.tip = '';
     } else {
       el.setAttribute('readonly', '');
-      if (el.tagName === 'SELECT') el.disabled = true; // predikat: kunci balik pakai disabled
+      if (el.tagName === 'SELECT') el.disabled = true; 
       if (el.classList.contains('ps-rte')) el.contentEditable = 'false';
       el.style.background = '';
       el.style.cursor = 'not-allowed';
@@ -1159,21 +1122,20 @@ function toggleIkkEditRow(indikatorId) {
     }
   });
 
-
-  // Switch ps-cell-wrap antara view mode (ps-read) dan edit mode (textarea)
+  
   const psCells = document.querySelectorAll(`tr[data-id="${indikatorId}"] .ps-cell-wrap`);
   psCells.forEach(wrap => {
     const readEl = wrap.querySelector('.ps-read');
     const taEl   = wrap.querySelector('.ps-rte');
     if (!taEl) return;
     if (isReadonly) {
-      // Masuk edit mode: sembunyikan view, tampilkan editor - skip wrap yg hidden
+      
       if (wrap.style.display === 'none') return;
       if (readEl) readEl.style.display = 'none';
       taEl.style.display = '';
       taEl.contentEditable = 'true';
     } else {
-      // Keluar edit mode: update view text lalu tampilkan kembali
+      
       const val = taEl.value || '';
       const LIMIT = 80;
       const shortEl = wrap.querySelector('[id$="short_' + indikatorId + '"]');
@@ -1189,7 +1151,7 @@ function toggleIkkEditRow(indikatorId) {
       taEl.style.cursor = 'not-allowed';
     }
   });
-  // Unlock / lock tombol data dukung IKK (Uploaded & Upload)
+  
   const ikkDukungBtn     = document.querySelector(`[data-dukung-id="${indikatorId}"] .dukung-uploaded-btn`);
   const ikkUploadOnlyBtn = document.querySelector(`tr[data-id="${indikatorId}"] .dukung-upload-btn`);
 
@@ -1253,7 +1215,7 @@ function toggleIkkEditRow(indikatorId) {
   }
 
   if (isReadonly) {
-    // ── Masuk mode edit ──────────────────────────────────────────────────────
+    
     if (tr) {
       tr.classList.remove('row-state-default', 'row-state-saved');
       tr.classList.add('row-state-editing');
@@ -1331,8 +1293,6 @@ function _checkSymbolOnlyInput(el, label) {
   }, 600);
 }
 
-// Cek apakah baris boleh disimpan: realisasi harus diisi,
-// serta field wajib sesuai kondisi capaian.
 function _canSaveRow({ row, realVal, targetVal, bermakna_negatif, fpenghambatVal, solusiVal, fpendukungVal, rencanaVal, hasDukung }, requireDukung = true) {
   const realEmpty = realVal === '' || realVal === null || realVal === undefined;
   if (realEmpty) {
@@ -1348,30 +1308,30 @@ function _canSaveRow({ row, realVal, targetVal, bermakna_negatif, fpenghambatVal
   const r = parseFloat(realVal);
   const t = parseFloat(targetVal);
   if (isNaN(r) || isNaN(t)) return false;
-  // target=0 berarti "belum ada sasaran tahun ini" (bukan data invalid) - capaian
-  // memang tidak bisa dihitung (lihat guard `t = 0` di query capaian_persen backend),
-  // jadi lewati pengecekan bucket capaian (<100 vs >=100) di bawah ini. Tanpa guard
-  // ini, tombol Simpan macet permanen untuk indikator bertarget 0 walau realisasi &
-  // data dukung sudah lengkap.
+  
+  
+  
+  
+  
   if (t !== 0) {
-    // Pakai realisasi EFEKTIF (basis kumulatif/rata-rata lintas bulan), sama seperti
-    // yang dipakai previewCapaian/saveRealisasiRow - supaya kondisi field wajib
-    // (capaian < 100 vs >= 100) konsisten dengan capaian yang ditampilkan ke user.
-    // Tanpa ini, tombol Simpan bisa nge-cek bucket capaian yang salah begitu masuk
-    // bulan ke-2 dst pada indikator Kumulatif/Rata-rata, dan macet permanen.
+    
+    
+    
+    
+    
     const rEfektif = row ? _hitungRealisasiEfektifPreview(row, r) : r;
     const capaian = bermakna_negatif ? ((t - (rEfektif - t)) / t) * 100 : (rEfektif / t) * 100;
     if (capaian < 100) {
-      // Wajib: f_penghambat + solusi, dan tidak boleh cuma simbol
+      
       if (_isSymbolOnly(fpenghambatVal) || _isSymbolOnly(solusiVal)) return false;
     } else {
-      // Wajib: f_pendukung + rencana_tl, dan tidak boleh cuma simbol
+      
       if (_isSymbolOnly(fpendukungVal) || _isSymbolOnly(rencanaVal)) return false;
     }
   }
-  // Wajib: data dukung harus sudah diupload (hanya untuk tombol Simpan,
-  // bukan untuk tombol Upload itu sendiri - kalau tidak, jadi lingkaran:
-  // upload baru aktif kalau sudah upload)
+  
+  
+  
   if (requireDukung && !hasDukung) return false;
   return true;
 }
@@ -1426,12 +1386,6 @@ function _updateSaveBtnState(indikatorId) {
   }
 }
 
-// Untuk indikator bertipe "Jumlah..." (akumulasi kumulatif lintas bulan) ATAU
-// bertipe "Rata-rata" (rata-rata lintas bulan): hitung nilai realisasi "efektif"
-// untuk preview live capaian, yaitu basis bulan-bulan lain (selain bulan yang
-// sedang diketik) dikombinasikan dengan nilai yang sedang diketik.
-// row.capaian_persen (raw dari server) merepresentasikan kumulatif/rata-rata s.d. bulan ini
-// SEBELUM nilai baru yang sedang diketik disimpan - jadi basis bulan lain bisa diturunkan dari situ.
 function _hitungRealisasiEfektifPreview(row, realisasiInput) {
   const tipe = row.tipe_perhitungan;
   if (tipe !== 'kumulatif' && tipe !== 'rata_rata') return realisasiInput;
@@ -1441,11 +1395,11 @@ function _hitungRealisasiEfektifPreview(row, realisasiInput) {
   const savedThisMonth = row.realisasi_id ? (parseFloat(row.realisasi) || 0) : 0;
   const sudahTerisiBulanIni = !!row.realisasi_id;
 
-  // Balikkan capaian_persen (dari server) jadi angka realisasi kumulatif/rata-rata
-  // aktual. Untuk indikator bermakna_negatif, rumus capaian di server dibalik
-  // (capaian = (2*target - realisasi) / target * 100), jadi rekonstruksinya juga
-  // harus dibalik - kalau tetap pakai rumus positif, basis bulan lain jadi salah
-  // dan preview capaian bakal beda dengan hasil hitung ulang server setelah Simpan.
+  
+  
+  
+  
+  
   const _reconstructActual = (capPersen) => row.bermakna_negatif
     ? target * (2 - capPersen / 100)
     : (capPersen / 100) * target;
@@ -1459,8 +1413,8 @@ function _hitungRealisasiEfektifPreview(row, realisasiInput) {
     return basisBulanLain + realisasiInput;
   }
 
-  // rata_rata: rekonstruksi jumlah (sum) dari rata-rata lama, lalu hitung rata-rata baru
-  // setelah nilai bulan ini diganti/ditambahkan dengan realisasiInput.
+  
+  
   const oldCount = Number(row.bulan_terisi_count) || 0;
   if (capPersenRaw == null || isNaN(capPersenRaw) || isNaN(target) || target === 0 || oldCount === 0) {
     return realisasiInput;
@@ -1543,25 +1497,25 @@ async function saveRealisasiRow(indikatorId) {
     if (!r.ok) { toast(d.error || 'Gagal menyimpan', 'error'); if (btn) { btn.disabled = false; btn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/><path d="M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7"/><path d="M7 3v4a1 1 0 0 0 1 1h7"/></svg> Simpan`; } }
     else {
       toast('Tersimpan');
-      // Invalidate cache chart dashboard supaya Pantau Indikator fetch data fresh
+      
       if (typeof _invalidateKinerjaDashboardCache === 'function') _invalidateKinerjaDashboardCache(_kinerja_tahun);
-      // Kunci kembali input setelah simpan
+      
       ['real_', 'fpenghambat_', 'solusi_', 'fpendukung_', 'rencana_'].forEach(prefix => {
         const el = document.getElementById(`${prefix}${indikatorId}`);
         if (el) {
           el.setAttribute('readonly', '');
-          if (el.tagName === 'SELECT') el.disabled = true; // predikat: <select> pakai disabled, bukan readonly
+          if (el.tagName === 'SELECT') el.disabled = true; 
           el.style.background = '';
           el.style.cursor = 'not-allowed';
           if (el.classList.contains('ps-rte')) { el.style.resize = 'none'; el.style.display = 'none'; el.contentEditable = 'false'; }
           el.dataset.tip = 'Klik tombol Edit untuk mengisi';
         }
       });
-      // Kunci kembali tombol data dukung (Upload kembali ke warna default)
+      
       _lockDukungButtons(indikatorId);
-      // Tampilkan tombol Reset (admin) tanpa perlu reload
+      
       _ensureResetBtn(indikatorId, '', 'monev');
-      // Update warna baris → hijau (tersimpan)
+      
       const tr = document.querySelector(`tr[data-id="${indikatorId}"]`);
       if (tr) {
         tr.classList.remove('row-state-default', 'row-state-editing');
@@ -1590,8 +1544,8 @@ async function saveRealisasiRow(indikatorId) {
         _kinerjaData[idx].rencana_tl        = d.realisasi?.rencana_tl ?? null;
         _kinerjaData[idx].realisasi_id      = d.realisasi?.id ?? _kinerjaData[idx].realisasi_id;
       }
-      // Refresh capaian_persen dari server (hitung ulang kumulatif lintas bulan)
-      // lakukan background - tidak mengubah UI state yang sudah dikunci
+      
+      
       fetch(`/api/kinerja/rekap?bulan=${_kinerja_bulan}&tahun=${_kinerja_tahun}`, { headers: authHeaders() })
         .then(res => res.ok ? res.json() : null)
         .then(fresh => {
@@ -1599,8 +1553,8 @@ async function saveRealisasiRow(indikatorId) {
           for (const freshRow of fresh.rekap) {
             const i = _kinerjaData.findIndex(x => x.id === freshRow.id);
             if (i >= 0) _kinerjaData[i].capaian_persen = freshRow.capaian_persen;
-            // Update badge capaian di DOM untuk semua row (termasuk indikator kumulatif)
-            // - hanya jika baris tersebut sudah punya realisasi tersimpan untuk bulan ini
+            
+            
             const badge = document.getElementById(`badge_${freshRow.id}`);
             if (badge) {
               const cap = (freshRow.realisasi_id && freshRow.capaian_persen != null) ? Number(freshRow.capaian_persen) : null;
@@ -1612,8 +1566,8 @@ async function saveRealisasiRow(indikatorId) {
               }
             }
           }
-        }).catch(() => {}); // silent fail - badge tetap dari previewCapaian
-      // Update visibility ps-read dan wrap setelah save
+        }).catch(() => {}); 
+      
       const _savedRow = _kinerjaData[idx >= 0 ? idx : -1];
       const _realVal2  = parseFloat(_savedRow?.realisasi ?? '');
       const _targetVal2 = _targetNumForRow(_savedRow);
@@ -1628,7 +1582,7 @@ async function saveRealisasiRow(indikatorId) {
           _updatePSReadAfterSave(base, indikatorId, val);
         });
       }
-      // Tampilkan warning di kolom Data Dukung jika belum ada file
+      
       if (!row?.data_dukung_url) {
         const dukungCell = document.querySelector(`tr[data-id="${indikatorId}"] td[data-col="dukung"]`);
         if (dukungCell && !dukungCell.querySelector('.dukung-warning')) {
@@ -1646,9 +1600,6 @@ async function saveRealisasiRow(indikatorId) {
   }
 }
 
-// ═══════════════════════════════════════════════════════════════════════════
-// ADMIN: KELOLA GROUP
-// ═══════════════════════════════════════════════════════════════════════════
 async function loadGroupAdmin() {
   const tbody = document.getElementById('groupAdminBody');
   if (!tbody) return;
@@ -1758,9 +1709,6 @@ async function deleteGroup(id) {
   loadGroupAdmin();
 }
 
-// ═══════════════════════════════════════════════════════════════════════════
-// ADMIN: KELOLA INDIKATOR
-// ═══════════════════════════════════════════════════════════════════════════
 async function loadIndikatorAdmin({ keepFilter = false } = {}) {
   const tbody = document.getElementById('indikatorAdminBody');
   if (!tbody) return;
@@ -1784,7 +1732,7 @@ async function loadIndikatorAdmin({ keepFilter = false } = {}) {
     _groupList         = dg.group    || [];
     _bidangListKinerja = db.bidang   || [];
     _jenisList         = (dj.jenis   || []).filter(j => j.aktif);
-    // Build targetMap: { indikator_id: [{tahun, target, target_display}] }
+    
     _targetMap = {};
     for (const t of (dt.target || [])) {
       if (!_targetMap[t.indikator_id]) _targetMap[t.indikator_id] = [];
@@ -1810,7 +1758,7 @@ async function loadIndikatorAdmin({ keepFilter = false } = {}) {
       const sortEl = document.getElementById('indikatorSort');
       if (sortEl) sortEl.value = _indikatorSort;
     }
-    // Populate filter Jenis Kinerja secara dinamis
+    
     const jenisFilterEl = document.getElementById('indikatorFilterJenis');
     if (jenisFilterEl) {
       const all = (dj.jenis || []).filter(j => j.aktif);
@@ -1869,7 +1817,7 @@ function _indikatorSortTargetVal(row) {
 }
 
 // Helper: ranking jenis kinerja untuk sort - ikut urutan _jenisList (IKU/IKK/SPM/custom sesuai `urutan`),
-// baris tanpa jenis apapun ditaruh paling akhir
+
 function _indikatorSortJenisRank(row) {
   for (let i = 0; i < _jenisList.length; i++) {
     if (_rowHasJenis(row, _jenisList[i].kode)) return i;
@@ -1877,7 +1825,6 @@ function _indikatorSortJenisRank(row) {
   return Infinity;
 }
 
-// Sort array baris indikator sesuai _indikatorSort (dipakai bareng oleh tabel & download PDF biar konsisten)
 function _sortIndikatorRows(rows) {
   const sorted = [...rows];
   switch (_indikatorSort) {
@@ -1912,17 +1859,17 @@ function _sortIndikatorRows(rows) {
       });
       break;
     case 'jenis_kinerja': {
-      // Rank berdasar urutan jenis (IKU/IKK/SPM/custom, "Tanpa Jenis" di akhir).
-      // Sesama jenis TIDAK diurutkan alfabet - dibiarkan ikut urutan default (group/urutan/id),
-      // supaya indikator yang baru dipindah jenis-nya (mis. dari IKK ke IKU) gak lompat ke
-      // posisi No. 1 cuma karena namanya diawali huruf "A", tapi tetap di posisi urutan aslinya.
+      
+      
+      
+      
       const ranked = sorted.map((row, idx) => ({ row, idx, rank: _indikatorSortJenisRank(row) }));
       ranked.sort((a, b) => (a.rank - b.rank) || (a.idx - b.idx));
       return ranked.map(x => x.row);
     }
     case 'urutan':
     default:
-      // biarkan urutan default dari backend (group/urutan/id)
+      
       break;
   }
   return sorted;
@@ -1935,8 +1882,6 @@ window.loadKelolaJenis      = loadKelolaJenis;
 window._updateJenisPreview  = _updateJenisPreview;
 window._onJenisCbChange     = _onJenisCbChange;
 
-// Badge kecil penanda tipe perhitungan (Kumulatif / Rata-rata / Non-Kumulatif)
-// dipakai di tabel Kelola Indikator & tabel isi realisasi (biar user non-admin tahu)
 const TIPE_PERHITUNGAN_INFO = {
   kumulatif:     { label: 'Kumulatif',     bg: '#eff6ff', teks: '#1d4ed8', border: '#bfdbfe', title: 'Nilai capaian dijumlahkan berjalan dari Januari s.d. bulan yang diisi' },
   rata_rata:     { label: 'Rata-rata',     bg: '#fffbeb', teks: '#b45309', border: '#fde68a', title: 'Nilai capaian dihitung rata-rata dari bulan-bulan yang sudah diisi' },
@@ -1947,9 +1892,6 @@ function _tipeBadge(tipe) {
   return `<span data-tip="${escHtml(info.title)}" style="display:inline-flex;align-items:center;justify-content:center;box-sizing:border-box;height:24px;font-size:.62rem;font-weight:600;line-height:1;padding:0 8px;border-radius:5px;background:${info.bg};color:${info.teks};border:1px solid ${info.border};white-space:nowrap;flex-shrink:0;cursor:default">${info.label}</span>`;
 }
 
-// Render formula sebagai pecahan matematis
-// Format input: "Pembilang / Penyebut × konstanta"
-// Contoh: "Jumlah kematian bayi / Jumlah kelahiran hidup × 1000 KH"
 function _renderFormulaMath(formula, _unused) {
   if (!formula) return '';
   // Parse JSON format baru: {nama, pembilang, penyebut, pengali}
@@ -1960,7 +1902,7 @@ function _renderFormulaMath(formula, _unused) {
     return `<div style="font-size:0.60rem;font-style:italic;color:#0f766e;line-height:1.4;padding:2px 5px;background:#f0fdfa;border-left:2px solid #14b8a6;border-radius:0 4px 4px 0">${escHtml(formula)}</div>`;
   }
   const { nama, pembilang, penyebut, pengali } = f;
-  // Kalau tidak ada pembilang/penyebut, tampil teks biasa
+  
   if (!pembilang && !penyebut) {
     return `<div style="font-size:0.60rem;font-style:italic;color:#0f766e;line-height:1.4;padding:2px 5px;background:#f0fdfa;border-left:2px solid #14b8a6;border-radius:0 4px 4px 0">${escHtml(nama||'')}</div>`;
   }
@@ -2032,7 +1974,6 @@ function toggleFormulaPanel(btn) {
 }
 window.toggleFormulaPanel = toggleFormulaPanel;
 
-// Preview live di modal
 function _previewFormula() {
   const nama      = document.getElementById('fNama')?.value.trim() || '';
   const pembilang = document.getElementById('fPembilang')?.value.trim() || '';
@@ -2054,12 +1995,12 @@ function renderIndikatorAdmin() {
   const tbody = document.getElementById('indikatorAdminBody');
   if (!tbody) return;
 
-  // Update header kolom Target biar selalu sinkron sama _indikatorFilterTahun
-  // (dipanggil dari filterIndikator() maupun loadIndikatorAdmin() saat load awal)
+  
+  
   const thTargetEl = document.getElementById('thTarget');
   if (thTargetEl) thTargetEl.textContent = _indikatorFilterTahun ? `Target ${_indikatorFilterTahun}` : 'Target';
 
-  // Populate PJ dropdown (deduplicated)
+  
   const pjSelect = document.getElementById('indikatorFilterPJ');
   if (pjSelect) {
     const pjList = [...new Set(
@@ -2085,10 +2026,10 @@ function renderIndikatorAdmin() {
     } else if (_indikatorFilterJenis) {
       if (!_rowHasJenis(row, _indikatorFilterJenis)) return false;
     }
-    // Makna
+    
     if (_indikatorFilterMakna === 'negatif' && !row.bermakna_negatif)  return false;
     if (_indikatorFilterMakna === 'positif' &&  row.bermakna_negatif)  return false;
-    // Penanggung Jawab
+    
     if (_indikatorFilterPJ && (row.penanggung_jawab || '') !== _indikatorFilterPJ) return false;
     return true;
   });
@@ -2102,7 +2043,7 @@ function renderIndikatorAdmin() {
   const sortedFiltered = _sortIndikatorRows(filtered);
   const start  = (_indikatorPage - 1) * _indikatorPageSize;
   const slice  = sortedFiltered.slice(start, start + _indikatorPageSize);
-  // Offset nomor urut
+  
   let rows = '';
   slice.forEach((row, i) => {
     const no = start + i + 1;
@@ -2164,8 +2105,6 @@ function renderIndikatorAdmin() {
   renderPagination('indikatorPagination', filtered.length, _indikatorPage, _indikatorPageSize, 'goIndikatorPage');
 }
 
-// Filter (+ sort) list indikator mengikuti filter/sort yang sedang aktif di tabel Kelola Indikator
-// dipakai buat download PDF biar urutannya sama persis kayak yang lagi dilihat user di tabel
 function _getFilteredIndikatorRows() {
   const filtered = _indikatorList.filter(row => {
     if (_indikatorSearch && !(
@@ -2221,7 +2160,7 @@ async function downloadIndikatorPDF(btnEl) {
       }
       const pics = Array.isArray(row.pic_users) ? row.pic_users.filter(Boolean) : [];
 
-      // Badge Jenis Kinerja - sama persis kayak style di UI (_renderJenisBadges), pakai warna dinamis dari _jenisList
+      
       const jenisBadgeHtml = _jenisList
         .filter(j => j.aktif && _rowHasJenis(row, j.kode))
         .map(j => `<span style="display:inline-block;font-size:8px;font-weight:700;color:${j.warna_teks};background:${j.warna_bg};padding:2px 6px;border-radius:4px;margin:1px 2px 1px 0">${escHtml(j.label)}</span>`)
@@ -2293,15 +2232,15 @@ function initIndikatorPJSearchable() {
   const wrap = sel.closest('.select-wrap');
   if (!wrap) return;
 
-  // Bersihkan custom UI lama
+  
   wrap.querySelectorAll('.bsel-trigger, .bsel-panel, .csel-trigger, .csel-panel').forEach(el => el.remove());
-  // Panel dari buildCustomSelect (generic engine) dirender floating di document.body,
-  // jadi gak ke-cover querySelectorAll di atas - bersihkan lewat referensinya biar gak orphan.
+  
+  
   if (wrap._cselPanel) { wrap._cselPanel.remove(); wrap._cselPanel = null; }
   wrap.classList.remove('csel-ready');
-  // Fungsi ini dipanggil ulang tiap modal indikator dibuka - buang listener
-  // window/document dari instance sebelumnya dulu, biar gak numpuk (memory leak
-  // & bisa salah nutup panel punya instance lama).
+  
+  
+  
   if (wrap._bselOutside)  document.removeEventListener('click', wrap._bselOutside);
   if (wrap._bselScroll)   window.removeEventListener('scroll', wrap._bselScroll, true);
   if (wrap._bselResize)   window.removeEventListener('resize', wrap._bselResize, true);
@@ -2317,12 +2256,12 @@ function initIndikatorPJSearchable() {
     <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" class="csel-chev"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>`;
   wrap.appendChild(trigger);
 
-  // Panel
+  
   const panel = document.createElement('div');
   panel.className = 'bsel-panel csel-panel';
   panel.style.cssText = 'display:none;padding:0';
 
-  // Search input
+  
   const searchWrap = document.createElement('div');
   searchWrap.style.cssText = 'padding:8px 10px;border-bottom:1px solid var(--border,#e2e8f0);position:sticky;top:0;background:#fff;z-index:1';
   const searchInp = document.createElement('input');
@@ -2333,7 +2272,7 @@ function initIndikatorPJSearchable() {
   searchWrap.appendChild(searchInp);
   panel.appendChild(searchWrap);
 
-  // Options list
+  
   const listEl = document.createElement('div');
   listEl.className = 'bsel-list';
   listEl.style.cssText = 'max-height:220px;overflow-y:scroll;overscroll-behavior:contain';
@@ -2432,7 +2371,7 @@ function initIndikatorPJSearchable() {
   document.addEventListener('click', outsideHandler, { once: false });
   window.addEventListener('scroll', scrollHandler, true);
   window.addEventListener('resize', closePanel, true);
-  // simpan referensi biar bisa di-cleanup di panggilan initIndikatorPJSearchable berikutnya
+  
   wrap._bselOutside = outsideHandler;
   wrap._bselScroll  = scrollHandler;
   wrap._bselResize  = closePanel;
@@ -2466,17 +2405,17 @@ function openIndikatorModal(id) {
   document.getElementById('indikatorNegatif').value   = row?.bermakna_negatif ? 'negatif' : 'positif';
   document.getElementById('indikatorTipePerhitungan').value = row?.tipe_perhitungan || 'non_kumulatif';
   document.getElementById('indikatorTipeNilai') && (document.getElementById('indikatorTipeNilai').value = row?.tipe_nilai || 'angka');
-  // Set .value langsung gak kedetect MutationObserver custom-select (yg cuma
-  // nangkep perubahan childList/attribute, bukan property .value) - trigger
-  // visualnya jadi gak ke-update dan tetep nunjukin opsi default/lama. Sync
-  // manual di sini biar kotak dropdown-nya beneran nampilin nilai yg baru di-set.
+  
+  
+  
+  
   if (typeof syncCustomSelect === 'function') {
     syncCustomSelect('indikatorNegatif');
     syncCustomSelect('indikatorTipePerhitungan');
     syncCustomSelect('indikatorTipeNilai');
   }
   document.getElementById('indikatorAktif') && (document.getElementById('indikatorAktif').checked = row ? row.aktif : true);
-  // Jenis kinerja checkboxes - dinamis dari _jenisList
+  
   const jenisWrap = document.getElementById('indikatorJenisWrap');
   if (jenisWrap) {
     const customArr = Array.isArray(row?.jenis_custom) ? row.jenis_custom : [];
@@ -2524,7 +2463,6 @@ function openIndikatorModal(id) {
   openModal('modalIndikator');
 }
 
-// ── Target Per Tahun helpers ──────────────────────────────────────────────
 function _renderTargetRows() {
   const tbody = document.getElementById('targetTahunTbody');
   if (!tbody) return;
@@ -2561,7 +2499,7 @@ function _removeTargetRow(i) {
 
 async function saveIndikator() {
   const groupVal = document.getElementById('indikatorGroup').value;
-  // Collect jenis dari checkboxes dinamis
+  
   const jenisChecked = new Set(
     [...document.querySelectorAll('#indikatorJenisWrap input.jenis-cb-input:checked')]
       .map(cb => cb.dataset.kode)
@@ -2593,9 +2531,9 @@ async function saveIndikator() {
     toast(id ? 'Indikator diperbarui' : 'Indikator ditambahkan. Atur target di menu "Kelola Target".');
     closeModal('modalIndikator');
     loadIndikatorAdmin({ keepFilter: true });
-    // Refresh juga tabel realisasi IKU/IKK/SPM (kalau lagi dimuat) - supaya capaian
-    // langsung ikut ke-update begitu tipe_perhitungan / bermakna_negatif / target diubah,
-    // tanpa user harus manual reload/pindah bulan dulu.
+    
+    
+    
     try { if (typeof loadKinerjaRekap === 'function') await loadKinerjaRekap(); } catch (_) {}
     try { if (typeof loadIkkRekap === 'function') await loadIkkRekap(); } catch (_) {}
     try { if (typeof loadSpmRekap === 'function') await loadSpmRekap(); } catch (_) {}
@@ -2615,7 +2553,6 @@ async function deleteIndikator(id) {
   loadIndikatorAdmin({ keepFilter: true });
 }
 
-// ── Helper: toggle warna chip saat checkbox jenis di-klik ────────────────
 function _onJenisCbChange(cb) {
   const kode  = cb.dataset.kode;
   const label = _jenisList.find(j => j.kode === kode);
@@ -2789,12 +2726,12 @@ async function deleteJenis(id, label) {
   });
   if (!okAwal) return;
 
-  // Pertama cek ke server apakah masih dipakai
+  
   const r = await fetch(`/api/kinerja/jenis-kinerja/${id}`, { method: 'DELETE', headers: authHeaders() });
   const d = await r.json();
 
   if (r.status === 409 && d.error === 'JENIS_MASIH_DIPAKAI') {
-    // Tampilkan dialog konfirmasi dengan daftar indikator yang terpengaruh
+    
     const daftarInd = d.indikator.slice(0, 5).map(x => `• ${escHtml(x.nama)}`).join('<br>');
     const more = d.count > 5 ? `<br><span style="color:var(--teks-muted)">...dan ${d.count - 5} lainnya</span>` : '';
     const ok = await showConfirm({
@@ -2805,7 +2742,7 @@ async function deleteJenis(id, label) {
       okText: 'Hapus & Bersihkan', okClass: 'btn-danger', icon: 'trash',
     });
     if (!ok) return;
-    // Force delete via query param
+    
     const r2 = await fetch(`/api/kinerja/jenis-kinerja/${id}?force=1`, { method: 'DELETE', headers: authHeaders() });
     if (!r2.ok) { toast('Gagal menghapus jenis', 'error'); return; }
     toast(`Jenis "${label}" dihapus`);
@@ -2818,12 +2755,11 @@ async function deleteJenis(id, label) {
   loadKelolaJenis();
   loadIndikatorAdmin({ keepFilter: true });
 }
-// ═══════════════════════════════════════════════════════════════════════════
-// State: satu objek per indikator, targets = { [tahun]: {id, target, target_display} }
-let _ktIndList    = [];   // [{id, indikator_kinerja, satuan, jenis_monev, jenis_ikk, jenis_spm, targets:{tahun:row}}]
-let _ktAllTahun   = [];   // sorted list semua tahun yang ada di DB
-let _ktTahunDari  = null; // int | null
-let _ktTahunSampai= null; // int | null
+
+let _ktIndList    = [];   
+let _ktAllTahun   = [];   
+let _ktTahunDari  = null; 
+let _ktTahunSampai= null; 
 let _ktSearch     = '';
 let _ktFilterJenis= '';
 let _ktPage       = 1;
@@ -2857,17 +2793,17 @@ async function loadKelolaTarget() {
     const indikatorList = di.indikator || [];
     const targetList    = dt.target    || [];
 
-    // Build targetMap per indikator: { indikator_id: { tahun: {id,target,target_display} } }
+    
     const tMap = {};
     for (const t of targetList) {
       if (!tMap[t.indikator_id]) tMap[t.indikator_id] = {};
       tMap[t.indikator_id][t.tahun] = t;
     }
 
-    // Semua tahun yang ada, sorted
+    
     _ktAllTahun = [...new Set(targetList.map(t => t.tahun))].sort((a, b) => a - b);
 
-    // Build _ktIndList
+    
     _ktIndList = indikatorList.map(ind => ({
       id:               ind.id,
       indikator_kinerja: ind.indikator_kinerja,
@@ -2879,7 +2815,7 @@ async function loadKelolaTarget() {
       targets:          tMap[ind.id] || {},
     }));
 
-    // Populate Dari / Sampai dropdowns
+    
     const thisYear = new Date().getFullYear();
     const dariEl   = document.getElementById('ktTahunDari');
     const sampaiEl = document.getElementById('ktTahunSampai');
@@ -2917,7 +2853,7 @@ function filterKelolaTarget() {
   const sampaiEl = document.getElementById('ktTahunSampai');
   _ktTahunDari   = dariEl   ? parseInt(dariEl.value)   || null : null;
   _ktTahunSampai = sampaiEl ? parseInt(sampaiEl.value) || null : null;
-  // Swap kalau terbalik
+  
   if (_ktTahunDari && _ktTahunSampai && _ktTahunDari > _ktTahunSampai) {
     [_ktTahunDari, _ktTahunSampai] = [_ktTahunSampai, _ktTahunDari];
     if (dariEl)   dariEl.value   = _ktTahunDari;
@@ -2931,14 +2867,14 @@ function renderKelolaTarget() {
   const container = document.getElementById('ktCardContainer');
   if (!container) return;
 
-  // Tentukan kolom tahun yang ditampilkan
+  
   const visibleTahun = _ktAllTahun.filter(y => {
     if (_ktTahunDari   && y < _ktTahunDari)   return false;
     if (_ktTahunSampai && y > _ktTahunSampai) return false;
     return true;
   });
 
-  // Filter indikator
+  
   let filtered = _ktIndList.filter(ind => {
     if (_ktSearch && !ind.indikator_kinerja.toLowerCase().includes(_ktSearch)) return false;
     if (_ktFilterJenis === 'iku' && !ind.jenis_monev) return false;
@@ -2990,14 +2926,14 @@ function renderKelolaTarget() {
       const t = ind.targets[y];
       const val = t ? (t.target_display != null ? String(t.target_display) : (t.target != null ? String(t.target) : '')) : '';
       const isPredikat = ind.tipe_nilai === 'predikat';
-      // Kasus "kejebak": target_display sudah ada teks (kelihatan terisi di kotak),
-      // tapi kolom target numerik yang beneran dipakai untuk hitung capaian masih
-      // NULL di database - ini terjadi kalau user ngetik nilai yang PERSIS SAMA
-      // dengan nilai default yang sudah tampil, sehingga event onchange browser
-      // tidak pernah kepicu dan saveKtTarget()/saveKtTargetNew() tidak pernah
-      // terpanggil. Tandai dengan border oranye + ikon ⚠️ yang bisa diklik untuk
-      // force-save tanpa harus ngetik ulang manual (trik ganti-ke-nilai-lain-lalu-
-      // balik-lagi).
+      
+      
+      
+      
+      
+      
+      
+      
       const isStuck = t && t.target == null && t.target_display != null && String(t.target_display).trim() !== '';
       if (t) {
         return `<td style="text-align:center;border-left:1px solid var(--abu-1)">
@@ -3078,7 +3014,7 @@ async function saveKtTarget(input) {
   const iid  = parseInt(input.dataset.iid);
   let val, tNum;
   if (input.tagName === 'SELECT') {
-    // Predikat: value select = angka tier, label tampilan diambil dari teks opsi terpilih
+    
     tNum = input.value ? parseInt(input.value) : NaN;
     val  = input.selectedOptions?.[0]?.text || '';
   } else {
@@ -3108,11 +3044,6 @@ async function saveKtTarget(input) {
   } catch (err) { toast('Error: ' + err.message, 'error'); }
 }
 
-// Perbaiki target yang "kejebak": target_display sudah tampil ada isinya di kotak,
-// tapi kolom target numerik masih NULL di database karena event onchange tidak
-// pernah kepicu (user mengetik nilai yang sama persis dengan yang sudah tampil).
-// Dipanggil dari ikon ⚠️ di renderKelolaTarget - langsung PUT ulang target_display
-// yang ada supaya ke-parse jadi angka, tanpa perlu user ngetik ulang manual.
 async function forceSaveKtTarget(tid, iid) {
   const ind = _ktIndList.find(x => x.id === iid);
   if (!ind) { toast('Data indikator tidak ditemukan', 'error'); return; }
@@ -3142,7 +3073,7 @@ async function saveKtTargetNew(input) {
   const tahun = parseInt(input.dataset.tahun);
   let val, tNum;
   if (input.tagName === 'SELECT') {
-    if (!input.value) return; // ignore jika belum dipilih
+    if (!input.value) return; 
     tNum = parseInt(input.value);
     val  = input.selectedOptions?.[0]?.text || '';
   } else {
@@ -3162,17 +3093,17 @@ async function saveKtTargetNew(input) {
 
     const newRow = { ...d.target, target: d.target?.target != null ? parseFloat(d.target.target) : null };
 
-    // Update cache _ktIndList
+    
     const ind = _ktIndList.find(x => x.id === iid);
     if (ind) ind.targets[tahun] = newRow;
 
-    // Update cache _targetMap
+    
     if (!_targetMap[iid]) _targetMap[iid] = [];
     const existing = _targetMap[iid].find(x => x.tahun === tahun);
     if (existing) Object.assign(existing, newRow);
     else _targetMap[iid].push(newRow);
 
-    // Tambahkan kolom tahun baru jika belum ada
+    
     if (!_ktAllTahun.includes(tahun)) {
       _ktAllTahun = [..._ktAllTahun, tahun].sort((a, b) => a - b);
       const opts = _ktAllTahun.map(y => `<option value="${y}">${y}</option>`).join('');
@@ -3273,7 +3204,6 @@ async function saveKtAddTarget() {
   } catch (err) { toast('Error: ' + err.message, 'error'); }
 }
 
-// Tombol "Kelola Target" di modal indikator → tutup modal, navigasi ke kelola-target, filter by indikator
 function _goKelolaTarget() {
   const id = _editingIndikatorId;
   closeModal('modalIndikator');
@@ -3289,16 +3219,12 @@ function _goKelolaTarget() {
   }
 }
 
-// ═══════════════════════════════════════════════════════════════════════════
-// DATA DUKUNG KINERJA - MULTI-FILE
-// ═══════════════════════════════════════════════════════════════════════════
 let _dukungState = { indikatorId: null, tw: null, tahun: null, files: [] };
 
-// Tombol Upload (belum ada file) → langsung buka file picker, tanpa modal
 function triggerDukungUpload(indikatorId, tw, tahun, source) {
   const dataArr = source === 'ikk' ? _ikkData : source === 'spm' ? _spmData : _kinerjaData;
   const row = dataArr.find(r => r.id === indikatorId);
-  // Inisialisasi state dengan file yang sudah ada (jika ada)
+  
   let existingFiles = [];
   if (row?.data_dukung_url) {
     try {
@@ -3308,7 +3234,7 @@ function triggerDukungUpload(indikatorId, tw, tahun, source) {
   }
   _dukungState = { indikatorId, tw, tahun, files: existingFiles, _source: source, _autoSave: true };
 
-  // Reset & trigger file input langsung
+  
   const fi = document.getElementById('dukungFileInput');
   if (!fi) return;
   fi.value = '';
@@ -3326,7 +3252,7 @@ async function openDukungModal(indikatorId, tw, tahun) {
   if (fi)   fi.value = '';
   if (pw)   pw.style.display = 'none';
 
-  // Load existing files (format JSON array atau single URL lama)
+  
   const row = _kinerjaData.find(r => r.id === indikatorId);
   document.getElementById('dukungIndikatorLabel').textContent = row?.indikator_kinerja || '';
   document.getElementById('dukungTwLabel').textContent = `TW ${['','I','II','III','IV'][tw]} ${tahun}`;
@@ -3343,7 +3269,6 @@ async function openDukungModal(indikatorId, tw, tahun) {
   openModal('modalDukung');
 }
 
-// Preview-only - selalu buka docPreviewPanel dengan navigasi multi-file
 function openDukungPreview(indikatorId, tw, tahun, source) {
   const data = source === 'ikk' ? _ikkData : source === 'spm' ? _spmData : _kinerjaData;
   const row  = data.find(r => r.id === indikatorId);
@@ -3436,8 +3361,6 @@ function handleDukungDrop(e) {
   _processDukungBatch(Array.from(e.dataTransfer?.files || []));
 }
 
-// Upload beberapa file sekaligus (paralel) lalu toast diringkas jadi 1x per batch,
-// gak per-file - sama pola kayak upload file di e-Planning.
 async function _processDukungBatch(files) {
   if (!files.length) return;
   const isAutoSave = _dukungState._autoSave;
@@ -3448,8 +3371,8 @@ async function _processDukungBatch(files) {
   const failMsgs = results.filter(Boolean);
   const okCount  = results.length - failMsgs.length;
   if (isAutoSave) {
-    // Sukses udah ke-cover sama toast "Data dukung tersimpan" dari _autoSaveDukung
-    // (dipanggil otomatis pas semua file selesai) - di sini cuma toast kalau ada yang gagal.
+    
+    
     if (failMsgs.length) {
       toast(failMsgs.length > 1 ? `${failMsgs.length} file gagal diupload (${failMsgs[0]})` : failMsgs[0], 'error');
     }
@@ -3462,7 +3385,6 @@ async function _processDukungBatch(files) {
   }
 }
 
-// Upload file via XHR (bukan fetch) supaya bisa dapat progress asli dari browser
 function _uploadFileWithProgress(file, kategori, onProgress) {
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
@@ -3492,8 +3414,8 @@ async function _processDukungFile(file) {
   const isAutoSave = _dukungState._autoSave;
   const { indikatorId, _source } = _dukungState;
 
-  // Tambah placeholder loading (untuk modal jika terbuka) - dipush dulu SEBELUM render row,
-  // biar _renderDukungRowUploading bisa ngitung loadingCount yang bener termasuk file ini.
+  
+  
   const idx = _dukungState.files.length;
   _dukungState.files.push({ url: null, name: file.name, _loading: true });
   if (!isAutoSave) _renderDukungList();
@@ -3522,10 +3444,10 @@ async function _processDukungFile(file) {
       _renderDukungList();
     } else {
       if (_dukungBatchProgress[indikatorId]) _dukungBatchProgress[indikatorId].current++;
-      // Auto-save hanya setelah SEMUA file selesai upload (cegah toast berganda)
+      
       const stillLoading = _dukungState.files.some(f => f._loading);
       if (!stillLoading) await _autoSaveDukung();
-      else _renderDukungRowUploading(indikatorId); // masih ada file lain - update progress current/total
+      else _renderDukungRowUploading(indikatorId); 
     }
     return null;
   } catch (err) {
@@ -3536,9 +3458,9 @@ async function _processDukungFile(file) {
       if (_dukungBatchProgress[indikatorId]) _dukungBatchProgress[indikatorId].current++;
       const stillLoading = _dukungState.files.some(f => f._loading);
       if (stillLoading) {
-        _renderDukungRowUploading(indikatorId); // masih ada file lain - update progress current/total, jangan reset tombol dulu
+        _renderDukungRowUploading(indikatorId); 
       } else {
-        // Semua file di batch ini udah kelar (baik sukses/gagal) → kembalikan tombol Upload
+        
         const dataArr = _source === 'ikk' ? _ikkData : _source === 'spm' ? _spmData : _kinerjaData;
         const source  = _source;
         const { tw, tahun } = _dukungState;
@@ -3552,7 +3474,6 @@ async function _processDukungFile(file) {
   }
 }
 
-// Simpan data dukung ke API tanpa buka modal (dipanggil setelah upload sukses di mode autoSave)
 async function _autoSaveDukung() {
   const { indikatorId, tw, tahun, files, _source } = _dukungState;
   const doneFiles = files.filter(f => f.url && !f._loading);
@@ -3566,20 +3487,20 @@ async function _autoSaveDukung() {
     const d = await r.json();
     if (!r.ok) { toast(d.error || 'Gagal menyimpan', 'error'); return; }
     toast('Data dukung tersimpan');
-    // Update cache & re-render baris
+    
     const dataArr = _source === 'ikk' ? _ikkData : _source === 'spm' ? _spmData : _kinerjaData;
     const rowIdx  = dataArr.findIndex(x => x.id === indikatorId);
     if (rowIdx >= 0) {
       dataArr[rowIdx].data_dukung_url  = urlJson;
       dataArr[rowIdx].data_dukung_nama = nameStr;
     }
-    // Re-render hanya tombol di baris yang bersangkutan
+    
     const tr = document.querySelector(`[data-id="${indikatorId}"]`);
     const dukungTd = tr?.querySelector('td[data-col="dukung"]');
     if (dukungTd && rowIdx >= 0) {
       dukungTd.innerHTML = _renderDukungBtn(dataArr[rowIdx], tw, tahun, _source, !dataArr[rowIdx].realisasi_id);
     }
-    // Refresh status tombol Simpan (data dukung sudah ada)
+    
     if (_source === 'spm') _updateSpmSaveBtnState(indikatorId);
     else if (_source === 'ikk') _updateIkkSaveBtnState(indikatorId);
     else _updateSaveBtnState(indikatorId);
@@ -3611,12 +3532,12 @@ async function deleteDukungAll(indikatorId, tw, tahun, source) {
       dataArr[rowIdx].data_dukung_url  = null;
       dataArr[rowIdx].data_dukung_nama = null;
     }
-    // Re-render tombol di baris
+    
     const tr = document.querySelector(`[data-id="${indikatorId}"]`);
     const dukungTd = tr?.querySelector('td[data-col="dukung"]');
     if (dukungTd && rowIdx >= 0) {
       dukungTd.innerHTML = _renderDukungBtn(dataArr[rowIdx], tw, tahun, source, !dataArr[rowIdx].realisasi_id);
-      // Tetap unlock tombol Upload karena masih dalam mode edit
+      
       const uploadBtn = dukungTd.querySelector('.dukung-upload-btn');
       if (uploadBtn) {
         uploadBtn.disabled = false;
@@ -3627,7 +3548,7 @@ async function deleteDukungAll(indikatorId, tw, tahun, source) {
         uploadBtn.onclick = () => triggerDukungUpload(indikatorId, tw, tahun, source);
       }
     }
-    // Data dukung dihapus → Simpan harus ke-disable kembali
+    
     if (source === 'spm') _updateSpmSaveBtnState(indikatorId);
     else if (source === 'ikk') _updateIkkSaveBtnState(indikatorId);
     else _updateSaveBtnState(indikatorId);
@@ -3657,7 +3578,7 @@ async function saveDukung() {
     const d = await r.json();
     if (!r.ok) { toast(d.error || 'Gagal menyimpan', 'error'); return; }
     toast('Data dukung tersimpan');
-    // Update cache sesuai sumber
+    
     const dataArr = _source === 'ikk' ? _ikkData : _source === 'spm' ? _spmData : _kinerjaData;
     const renderFn = _source === 'ikk'
       ? () => _renderIkkTable(document.getElementById('ikkTableBody'))
@@ -3673,13 +3594,11 @@ async function saveDukung() {
     renderFn();
   } catch { toast('Gagal menyimpan data dukung', 'error'); }
 }
-// ═══════════════════════════════════════════════════════════════════════════
-// REALISASI IKK - halaman terpisah, logika mirip Monev Kinerja
-// ═══════════════════════════════════════════════════════════════════════════
+
 async function initIkkControls() {
   const isAdmin = _user?.is_admin;
-  // Dulu 3 fetch berurutan (periode/aktif -> user-indikator -> periode admin),
-  // sekarang paralel - masing2 tetap dilewatin kalau udah ke-cache sebelumnya.
+  
+  
   await Promise.all([
     !_periodeListTerbuka.length
       ? fetch('/api/periode/aktif')
@@ -3695,22 +3614,22 @@ async function initIkkControls() {
           .catch(() => {})
       : Promise.resolve(),
   ]);
-  // Set bulan & tahun IKK ke periode pertama yang terbuka (jika ada)
+  
   const _ikkTerbuka = _periodeListTerbuka.filter(p => p.jenis === 'ikk')
     .sort((a, b) => a.tahun !== b.tahun ? a.tahun - b.tahun : a.bulan - b.bulan);
   if (_ikkTerbuka.length) {
     _ikk_tahun = _ikkTerbuka[0].tahun;
     _ikk_bulan = _ikkTerbuka[0].bulan;
   } else if (_user?.is_admin) {
-    // Admin: default ke tahun & bulan sekarang
+    
     _ikk_tahun = new Date().getFullYear();
     _ikk_bulan = new Date().getMonth() + 1;
   }
-  // Admin: populate tahun selector IKK
+  
   if (_user?.is_admin) {
     _populateTahunSelector('ikkTahunSelect', _ikk_tahun, setIkkTahun);
   } else if (_ikkTerbuka.length) {
-    // Non-admin: populate dropdown tahun (hanya tahun-tahun yang punya periode ikk terbuka)
+    
     const _tahunNonAdmin = [...new Set(_ikkTerbuka.map(p => p.tahun))].sort((a, b) => a - b);
     _populateTahunSelector('ikkTahunSelect', _ikk_tahun, setIkkTahun, _tahunNonAdmin);
   }
@@ -3722,7 +3641,7 @@ async function initIkkControls() {
 function _syncIkkBulanButtons() {
   const sel = document.getElementById('ikkBulanSelector');
   if (!sel) return;
-  // Gunakan daftar semua bulan terbuka (sama seperti Monev) - bukan hanya 1 periode pertama
+  
   const bulanTerbuka = new Set(_periodeListTerbuka.filter(p => p.jenis === 'ikk').map(p => p.bulan));
   const items = [];
   for (let bulan = 1; bulan <= 12; bulan++) {
@@ -3747,7 +3666,7 @@ function _renderIkkPeriodeInfo() {
   const iWrapper = document.getElementById('ikkBulanWrapper');
   const tahunWrap = document.getElementById('ikkTahunWrap');
 
-  // Badge teks "Periode input: ..." sudah tidak dipakai - selalu pakai dropdown tahun & bulan
+  
   if (el) el.style.display = 'none';
 
   if (_user?.is_admin) {
@@ -3756,7 +3675,7 @@ function _renderIkkPeriodeInfo() {
     return;
   }
 
-  // Non-admin: sembunyikan wrapper kalau tidak ada periode ikk aktif
+  
   const _ikkAktif = _periodeListTerbuka.filter(p => p.jenis === 'ikk');
   if (_ikkAktif.length === 0) {
     if (iWrapper) iWrapper.style.display = 'none';
@@ -3767,11 +3686,11 @@ function _renderIkkPeriodeInfo() {
 }
 
 function setIkkBulan(bulan) {
-  // Guard: non-admin tidak bisa pilih bulan yang tidak ada dalam daftar terbuka
+  
   if (!_user?.is_admin) {
     const bulanTerbuka = new Set(_periodeListTerbuka.filter(p => p.jenis === 'ikk').map(p => p.bulan));
     if (!bulanTerbuka.has(bulan)) return;
-    // Sync tahun ke periode IKK yang sesuai bulan yang dipilih
+    
     const periodeMatch = _periodeListTerbuka.find(p => p.jenis === 'ikk' && p.bulan === bulan);
     if (periodeMatch) _ikk_tahun = periodeMatch.tahun;
   }
@@ -3786,9 +3705,9 @@ async function loadIkkRekap() {
   const tbody = document.getElementById('ikkTableBody');
   if (!tbody) return;
 
-  // Guard: non-admin tidak perlu lihat tabel kalau tidak ada periode aktif sama sekali
+  
   if (!_user?.is_admin && !_periodeListTerbuka.some(p => p.jenis === 'ikk')) {
-    // Sembunyikan card tabel, tampilkan pesan di luarnya
+    
     const tableCard = tbody.closest('.card');
     if (tableCard) tableCard.style.display = 'none';
     let msgEl = document.getElementById('ikkNoperiodeMsg');
@@ -3959,7 +3878,7 @@ function _renderIkkTable(tbody) {
         ${_user?.is_admin && row.realisasi_id ? `
           <button class="btn-reset-row" id="ikk_resetbtn_${row.id}" data-tip="Reset data realisasi baris ini (admin)"
             onclick="resetRealisasiRow(${row.id}, 'ikk')">
-            <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+            <svg xmlns="http:
             Reset
           </button>
         ` : ''}
@@ -3968,12 +3887,12 @@ function _renderIkkTable(tbody) {
   });
   tbody.innerHTML = html;
   if (typeof window.initCustomSelects === 'function') window.initCustomSelects();
-  // Toggle header kolom Penanggung Jawab (hanya tampil untuk admin)
+  
   document.querySelectorAll('.col-bidang-ikk').forEach(el => { el.style.display = _user?.is_admin ? '' : 'none'; });
   renderPagination('ikkPagination', _filtered.length, _ikkPage, _ikkPageSize, '_goIkkPage');
-  // Sinkronkan status tombol Upload/Simpan begitu tabel selesai di-render, supaya
-  // baris yang sudah punya realisasi (mis. dari reload/edit) langsung tampil status
-  // tombol yang benar tanpa nunggu user ngetik ulang buat memicu event onchange.
+  
+  
+  
   _ikkRows.forEach(row => { if (document.getElementById(`ikk_savebtn_${row.id}`)) _updateIkkSaveBtnState(row.id); });
 }
 
@@ -3982,7 +3901,7 @@ function markIkkDirty(indikatorId) {
   if (btn) {
     btn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/><path d="M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7"/><path d="M7 3v4a1 1 0 0 0 1 1h7"/></svg> Simpan`;
   }
-  // Preview capaian IKK
+  
   const row = _ikkData.find(r => r.id === indikatorId);
   if (!row) return;
   const realEl = document.getElementById(`ikk_real_${indikatorId}`);
@@ -3994,9 +3913,9 @@ function markIkkDirty(indikatorId) {
   if (isNaN(realisasi) || isNaN(target) || target === 0) {
     badge.textContent = '-'; badge.className = 'capaian-badge na';
     _togglePermasalahanSolusi('ikk', indikatorId, null);
-    // Tetap update status tombol Upload/Simpan walau capaian gak bisa dihitung
-    // (mis. target=0 = "belum ada sasaran") - tanpa ini tombol Upload macet
-    // permanen karena _updateIkkSaveBtnState gak pernah kepanggil.
+    
+    
+    
     _updateIkkSaveBtnState(indikatorId);
     return;
   }
@@ -4067,8 +3986,8 @@ async function saveIkkRealisasiRow(indikatorId) {
   let rencana     = document.getElementById(`ikk_rencana_${indikatorId}`)?.value?.trim();
 
   const rowIkk = _ikkData.find(r => r.id === indikatorId);
-  // Validasi field wajib - hitung capaian dari nilai input vs target
-  // (untuk kumulatif/rata_rata, pakai basis efektif lintas bulan, bukan angka bulan ini saja)
+  
+  
   const _realIkk   = parseFloat(real);
   const _targetIkk = _targetNumForRow(rowIkk);
   if (!isNaN(_realIkk) && !isNaN(_targetIkk) && _targetIkk !== 0) {
@@ -4102,21 +4021,21 @@ async function saveIkkRealisasiRow(indikatorId) {
     if (!r.ok) { toast(d.error || 'Gagal menyimpan', 'error'); if (btn) { btn.disabled = false; btn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/><path d="M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7"/><path d="M7 3v4a1 1 0 0 0 1 1h7"/></svg> Simpan`; } }
     else {
       toast('Tersimpan');
-      // Invalidate cache chart dashboard supaya Pantau Indikator fetch data fresh
+      
       if (typeof _invalidateKinerjaDashboardCache === 'function') _invalidateKinerjaDashboardCache(_ikk_tahun);
-      // Kunci kembali input setelah simpan
+      
       ['ikk_real_', 'ikk_fpenghambat_', 'ikk_solusi_', 'ikk_fpendukung_', 'ikk_rencana_'].forEach(prefix => {
         const el = document.getElementById(`${prefix}${indikatorId}`);
         if (el) {
           el.setAttribute('readonly', '');
-          if (el.tagName === 'SELECT') el.disabled = true; // predikat: <select> pakai disabled, bukan readonly
+          if (el.tagName === 'SELECT') el.disabled = true; 
           el.style.background = '';
           el.style.cursor = 'not-allowed';
           if (el.classList.contains('ps-rte')) { el.style.resize = 'none'; el.style.display = 'none'; el.contentEditable = 'false'; }
           el.dataset.tip = 'Klik tombol Edit untuk mengisi';
         }
       });
-      // Update warna baris → hijau (tersimpan)
+      
       const tr = document.querySelector(`tr[data-id="${indikatorId}"]`);
       if (tr) {
         tr.classList.remove('row-state-default', 'row-state-editing');
@@ -4145,7 +4064,7 @@ async function saveIkkRealisasiRow(indikatorId) {
         _ikkData[idx].rencana_tl        = d.realisasi?.rencana_tl ?? null;
         _ikkData[idx].realisasi_id      = d.realisasi?.id ?? _ikkData[idx].realisasi_id;
       }
-      // Refresh capaian_persen dari server (hitung ulang kumulatif lintas bulan)
+      
       fetch(`/api/kinerja/rekap?bulan=${_ikk_bulan}&tahun=${_ikk_tahun}&jenis=ikk`, { headers: authHeaders() })
         .then(res => res.ok ? res.json() : null)
         .then(fresh => {
@@ -4165,9 +4084,9 @@ async function saveIkkRealisasiRow(indikatorId) {
             }
           }
         }).catch(() => {});
-      // Kunci kembali tombol data dukung (Upload kembali ke warna default)
+      
       _lockDukungButtons(indikatorId);
-      // Tampilkan tombol Reset (admin) tanpa perlu reload
+      
       _ensureResetBtn(indikatorId, 'ikk_', 'ikk');
       const _savedIkk = _ikkData[idx >= 0 ? idx : -1];
       const _rIkk = parseFloat(_savedIkk?.realisasi ?? '');
@@ -4186,7 +4105,6 @@ async function saveIkkRealisasiRow(indikatorId) {
   } catch (err) { toast('Error: ' + err.message, 'error'); if (btn) { btn.disabled = false; btn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/><path d="M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7"/><path d="M7 3v4a1 1 0 0 0 1 1h7"/></svg> Simpan`; } }
 }
 
-// Data dukung IKK - reuse modal yang sama, tapi update _ikkData
 async function openIkkDukungModal(indikatorId, bulan, tahun) {
   _dukungState = { indikatorId, tw: bulan, tahun, files: [], _source: 'ikk' };
   const area = document.getElementById('dukungUploadArea');
@@ -4212,7 +4130,6 @@ async function openIkkDukungModal(indikatorId, bulan, tahun) {
   openModal('modalDukung');
 }
 
-
 function escHtml(str) {
   if (!str) return '';
   return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
@@ -4224,11 +4141,6 @@ function _jsAttr(val) {
   return JSON.stringify(val).replace(/'/g, '&#39;');
 }
 
-// ── Permasalahan & Solusi: hanya tampil jika capaian < 100% ───────────────
-// Jika capaian >= 100% (target tercapai), editor disembunyikan & diganti
-// catatan "Target tercapai". Jika capaian null/NaN (belum diisi), editor tetap tampil.
-// Auto-resize textarea mengikuti konten (tanpa scroll) - dipertahankan untuk
-// kompatibilitas, tapi .ps-rte (div contenteditable) sudah tumbuh natural jadi no-op.
 function _autoResizeTA(el) {
   if (!el || el.tagName !== 'TEXTAREA') return;
   el.style.height = 'auto';
@@ -4238,15 +4150,6 @@ function _autoResizeAllTA(tr) {
   if (!tr) return;
   tr.querySelectorAll('.textarea-cell textarea').forEach(_autoResizeTA);
 }
-
-// ══════════════════════════════════════════════════════════════════════════
-// Rich text (markdown-lite) untuk Faktor Penghambat / Solusi / Faktor
-// Pendukung / Rencana Tindak Lanjut - dipakai di modul IKU, IKK, dan SPM.
-// Disimpan di DB sbg teks markdown-lite biasa (kompatibel dgn data lama):
-//   **tebal**   _miring_   "- item" (daftar simbol)   "1. item" (bernomor)
-// Toolbar melayang muncul saat teks di-select (mirip Notion), tombol:
-// Bold, Italic, Daftar simbol, Daftar bernomor.
-// ══════════════════════════════════════════════════════════════════════════
 
 function _escMd2Html(str) {
   return String(str || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
@@ -4263,10 +4166,6 @@ function _mdToHtml(md) {
   }).join('<br>');
 }
 
-// Sama seperti _mdToHtml, tapi khusus buat tampilan baca (ps-read-full / "Selengkapnya").
-// Baris "1. " / "- " yang berurutan dikelompokkan jadi <ol>/<ul> beneran (bukan cuma
-// teks angka + <br>) supaya saat teks panjang wrap ke baris berikutnya, lekukannya rapi
-// (hanging indent) - bukan nempel ke margin kiri kayak _mdToHtml biasa.
 function _mdToHtmlDisplay(md) {
   if (!md) return '';
   const inlineFmt = (line) => {
@@ -4297,12 +4196,6 @@ function _mdToHtmlDisplay(md) {
   return html;
 }
 
-// Markdown-lite -> HTML khusus buat isi .ps-rte (editor contenteditable).
-// Setiap baris dibungkus <div class="rte-line"> sendiri-sendiri (bukan cuma
-// dipisah <br> kayak _mdToHtml) supaya baris "1. " / "- " bisa dikasih CSS
-// hanging-indent (.rte-line--list) - pas teksnya panjang dan wrap ke baris
-// berikutnya, lekukannya nyambung rapi di bawah kata pertama, bukan nempel
-// ke margin kiri.
 function _mdToRteHtml(md) {
   if (!md) return '';
   const inlineFmt = (line) => {
@@ -4341,9 +4234,9 @@ function _htmlToMd(el) {
       if (tag === 'STRONG' || tag === 'B') { out += '**' + walk(n) + '**'; return; }
       if (tag === 'EM' || tag === 'I')     { out += '_' + walk(n) + '_'; return; }
       if (tag === 'DIV' || tag === 'P') {
-        // Baris kosong dirender sebagai <div><br></div> (placeholder biar
-        // tingginya tetap kelihatan) - jangan sampai <br> placeholder ini
-        // ikut ditambahin sebagai baris kosong ekstra ("\n" dobel).
+        
+        
+        
         const isEmptyLine = n.childNodes.length === 1 && n.firstChild.nodeType === 1 && n.firstChild.tagName === 'BR';
         out += (out ? '\n' : '') + (isEmptyLine ? '' : walk(n));
         return;
@@ -4357,8 +4250,7 @@ function _htmlToMd(el) {
 
 // Textarea lama & elemen lain di seluruh app baca/tulis `.value` (mis.
 // document.getElementById('solusi_1').value). Daripada ubah ratusan
-// pemanggilan itu satu-satu, kita definisikan getter/setter `value` di atas
-// div contenteditable supaya perilakunya transparan sama seperti textarea.
+
 function _installRteValueShim(el) {
   if (!el || el._rteShimmed) return;
   el._rteShimmed = true;
@@ -4381,11 +4273,6 @@ function _installRteValueShim(el) {
   }).observe(document.body, { childList: true, subtree: true });
 })();
 
-// Enter di dalam .ps-rte selalu jadi <br> (bukan <div> baru bawaan browser)
-// supaya struktur DOM tetap flat & gampang dikonversi ke markdown-lite.
-// Kalau baris saat ini list ("- " / "1. "), Enter otomatis lanjut ke marker
-// berikutnya (mirip Notion/editor lain) - Enter di baris list yang kosong
-// (cuma marker doang, belum diisi apa2) keluar dari mode list.
 document.addEventListener('keydown', function(e) {
   const el = e.target;
   if (e.key !== 'Enter' || !el?.classList?.contains?.('ps-rte')) return;
@@ -4394,10 +4281,10 @@ document.addEventListener('keydown', function(e) {
   if (!sel.rangeCount) return;
   const range = sel.getRangeAt(0);
 
-  // .ps-rte yang baru mulai diketik dari kosong (belum pernah lewat
-  // _mdToRteHtml) belum punya wrapper <div class="rte-line"> sama sekali --
-  // bungkus dulu isinya jadi satu baris, sama kayak _rteToggleListPrefix,
-  // supaya closest('.rte-line') di bawah gak gagal & Enter gak ke-block.
+  
+  
+  
+  
   if (!el.querySelector(':scope > .rte-line')) {
     const wrap = document.createElement('div');
     wrap.className = 'rte-line';
@@ -4431,8 +4318,8 @@ document.addEventListener('keydown', function(e) {
     return;
   }
 
-  // Pisah baris di posisi caret: sisa sebelum caret tetap di lineDiv,
-  // sisa sesudah caret pindah ke <div class="rte-line"> baru.
+  
+  
   const afterRange = range.cloneRange();
   afterRange.setEndAfter(lineDiv.lastChild || lineDiv);
   const afterFrag = afterRange.extractContents();
@@ -4446,18 +4333,18 @@ document.addEventListener('keydown', function(e) {
 
   const newRange = document.createRange();
   if (markerLen > 0) {
-    // Marker dibungkus <span class="rte-marker"> (rata kanan lewat CSS) biar
-    // titik di belakang nomor sejajar walau digitnya beda jumlah (1 vs 2).
+    
+    
     const nextMarkerText = bulletM ? '-' : `${parseInt(numM[1], 10) + 1}.`;
     const sep = _rteInsertMarker(newLine, nextMarkerText);
     newRange.setStart(sep, sep.length);
   } else {
     newLine.classList.remove('rte-line--list');
-    // Baris baru non-list yang masih kosong butuh <br> placeholder biar
-    // div-nya gak collapse (tingginya ilang) selama belum ada teks diketik.
-    // Kalau markerLen>0, marker text node sendiri udah jadi konten -> gak
-    // perlu <br>, soalnya <br> nyempil abis marker bisa ke-translate jadi
-    // baris baru kosong beneran pas HTML<->markdown round-trip (bug lama).
+    
+    
+    
+    
+    
     if (!newLine.childNodes.length) newLine.appendChild(document.createElement('br'));
     newRange.setStart(newLine, 0);
   }
@@ -4467,13 +4354,6 @@ document.addEventListener('keydown', function(e) {
   el.dispatchEvent(new Event('input', { bubbles: true }));
 });
 
-// Ketik "1. "/"- " langsung di awal baris (bukan lewat Enter/toolbar) --
-// sebelumnya cuma teks polos nempel, gak ke-convert jadi <span
-// class="rte-marker"> sama sekali, jadi "1."-nya gak sejajar (gak rata
-// kanan) sama nomor baris berikutnya yang dibuat via Enter. Begitu user
-// baru aja ngetik spasi setelah marker ("1."/"-"), convert baris itu di
-// tempat, sama persis strukturnya kayak yang dibuat _rteInsertMarker
-// (span marker + NBSP pemisah + sisa teks).
 document.addEventListener('input', function(e) {
   const el = e.target;
   if (!el?.classList?.contains?.('ps-rte')) return;
@@ -4482,11 +4362,11 @@ document.addEventListener('input', function(e) {
   const range = sel.getRangeAt(0);
   const node = range.startContainer;
 
-  // .ps-rte yang baru mulai diketik dari kosong (baris pertama) belum
-  // punya wrapper <div class="rte-line"> sama sekali -- bungkus dulu sama
-  // kayak fix yang sama di handler Enter/paste, biar closest('.rte-line')
-  // di bawah ketemu. Tanpa ini baris pertama gak pernah ke-convert (cuma
-  // baris ke-2 dst hasil Enter yang kepasang benar).
+  
+  
+  
+  
+  
   if (!el.querySelector(':scope > .rte-line')) {
     const wrap = document.createElement('div');
     wrap.className = 'rte-line';
@@ -4499,8 +4379,8 @@ document.addEventListener('input', function(e) {
   const first = lineDiv.firstChild;
   if (!first || first.nodeType !== 3) return;
   const m = first.nodeValue.match(/^(\d+\.|-)[ \u00A0]/);
-  // Convert cuma pas caret persis di akhir marker+spasi yang baru diketik
-  // (bukan pas masih ngetik digit nomornya, mis. "1" sebelum titik/spasi).
+  
+  
   if (!m || range.startContainer !== first || range.startOffset !== m[0].length) return;
 
   const span = document.createElement('span');
@@ -4518,9 +4398,6 @@ document.addEventListener('input', function(e) {
   sel.addRange(newRange);
 });
 
-// Paste di dalam .ps-rte dipaksa jadi plain text (baris dipertahankan via <br>).
-// Tanpa ini, paste dari Word/Google Docs bawa HTML asli (list, underline, dst)
-// yang gak dikenal skema markdown-lite kita -> struktur rusak begitu disimpan.
 document.addEventListener('paste', function(e) {
   const el = e.target;
   if (!el?.classList?.contains?.('ps-rte')) return;
@@ -4547,7 +4424,7 @@ document.addEventListener('paste', function(e) {
   let lineDiv = range.startContainer.nodeType === 1 ? range.startContainer : range.startContainer.parentElement;
   lineDiv = lineDiv ? lineDiv.closest('.rte-line') : null;
   if (!lineDiv || !el.contains(lineDiv)) {
-    // Gak ketemu baris (elemen kosong) -> buat baris pertama dulu.
+    
     lineDiv = document.createElement('div');
     lineDiv.className = 'rte-line';
     el.appendChild(lineDiv);
@@ -4556,7 +4433,7 @@ document.addEventListener('paste', function(e) {
   }
 
   if (lines.length === 1) {
-    // Paste satu baris: cukup sisipkan teks di posisi caret, gak perlu baris baru.
+    
     range.deleteContents();
     const tn = document.createTextNode(lines[0]);
     range.insertNode(tn);
@@ -4568,8 +4445,8 @@ document.addEventListener('paste', function(e) {
     return;
   }
 
-  // Paste banyak baris: sisa teks setelah caret di baris ini dipindah ke
-  // baris terakhir hasil paste, baris tengah jadi <div class="rte-line"> baru.
+  
+  
   const afterRange = range.cloneRange();
   afterRange.setEndAfter(lineDiv.lastChild || lineDiv);
   const afterFrag = afterRange.extractContents();
@@ -4578,9 +4455,9 @@ document.addEventListener('paste', function(e) {
   range.deleteContents();
   const firstTn = document.createTextNode(lines[0]);
   range.insertNode(firstTn);
-  // Baris pertama (lineDiv) isinya gabungan teks lama + lines[0] yang baru
-  // dipaste -> cek ulang seluruh teksnya buat nentuin format list, bukan
-  // cuma lines[0] doang (yang bisa aja cuma potongan tengah kalimat).
+  
+  
+  
   lineDiv.classList.toggle('rte-line--list', /^(\d+\.\s|-\s)/.test(lineDiv.textContent || ''));
   // Bungkus markernya jadi <span class="rte-marker"> (rata kanan lewat CSS)
   // biar list yang di-paste align-nya sama kayak list yang diketik langsung.
@@ -4591,9 +4468,9 @@ document.addEventListener('paste', function(e) {
   for (let i = 1; i < lines.length; i++) {
     const div = document.createElement('div');
     div.className = 'rte-line';
-    // Deteksi format list ("1. "/"- ") per baris hasil paste, biar
-    // hanging-indent (.rte-line--list) tetap kepasang -- tanpa ini, list
-    // panjang yang di-paste bakal keliatan patah/gak rata pas teksnya wrap.
+    
+    
+    
     if (/^(\d+\.\s|-\s)/.test(lines[i])) div.classList.add('rte-line--list');
     div.appendChild(document.createTextNode(lines[i]));
     if (i === lines.length - 1) div.appendChild(afterFrag);
@@ -4612,7 +4489,6 @@ document.addEventListener('paste', function(e) {
   el.dispatchEvent(new Event('input', { bubbles: true }));
 });
 
-// ── Floating toolbar ────────────────────────────────────────────────────
 let _rteToolbarEl = null, _rteActiveEl = null;
 function _ensureRteToolbar() {
   if (_rteToolbarEl) return _rteToolbarEl;
@@ -4625,7 +4501,7 @@ function _ensureRteToolbar() {
     <button type="button" data-cmd="ul" data-tip="Daftar simbol"><svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h.01"/><path d="M3 18h.01"/><path d="M3 6h.01"/><path d="M8 12h13"/><path d="M8 18h13"/><path d="M8 6h13"/></svg></button>
     <button type="button" data-cmd="ol" data-tip="Daftar bernomor"><svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="M10 12h11"/><path d="M10 18h11"/><path d="M10 6h11"/><path d="M4 10h2"/><path d="M4 6h1v4"/><path d="M6 18H4c0-1 2-2 2-3s-1-1.5-2-1"/></svg></button>
   `;
-  tb.addEventListener('mousedown', e => e.preventDefault()); // jangan hilangkan selection user
+  tb.addEventListener('mousedown', e => e.preventDefault()); 
   tb.addEventListener('click', e => {
     const btn = e.target.closest('button[data-cmd]');
     if (!btn) return;
@@ -4658,20 +4534,10 @@ document.addEventListener('selectionchange', () => {
   _rteUpdateToolbarState(tb);
 });
 
-// Tandai tombol Tebal/Miring/Daftar simbol/Daftar bernomor aktif (state
-// "pressed") kalau teks/baris yang lagi di-select emang udah dalam format
-// itu -- sebelumnya cuma Tebal/Miring yang kelihatan aktif, Daftar simbol &
-// Daftar bernomor gak pernah nyala walau cursor lagi di baris list, jadi
-// toolbar-nya gak mencerminkan format yang lagi aktif secara konsisten.
-// Tebal/Miring pakai queryCommandState (native, baca computed style
-// font-weight/font-style di selection) -- tetap akurat walau STRONG/EM-nya
-// dipasang manual (bukan execCommand), karena tag itu sendiri emang bikin
-// computed style-nya bold/italic. Daftar simbol/bernomor dicek dari marker
-// baris tempat cursor/selection berada (sama kayak _rteToggleListPrefix).
 function _rteUpdateToolbarState(tb) {
   let boldOn = false, italicOn = false;
-  try { boldOn = document.queryCommandState('bold'); } catch { /* no-op */ }
-  try { italicOn = document.queryCommandState('italic'); } catch { /* no-op */ }
+  try { boldOn = document.queryCommandState('bold'); } catch {  }
+  try { italicOn = document.queryCommandState('italic'); } catch {  }
   tb.querySelector('button[data-cmd="bold"]')?.classList.toggle('active', boldOn);
   tb.querySelector('button[data-cmd="italic"]')?.classList.toggle('active', italicOn);
 
@@ -4703,8 +4569,6 @@ function _rteApplyCmd(cmd) {
   if (_rteToolbarEl) _rteUpdateToolbarState(_rteToolbarEl);
 }
 
-// Bold/italic: bungkus (atau lepas bungkus, kalau selection udah persis di
-// dalam tag yang sama) selection dengan STRONG/EM.
 function _rteToggleInline(range, tagName) {
   const findTag = (node) => {
     const n = node.nodeType === 1 ? node : node.parentElement;
@@ -4730,15 +4594,6 @@ function _rteToggleInline(range, tagName) {
   sel.addRange(newRange);
 }
 
-// Cari batas "baris" saat ini di dalam .ps-rte (dipisah oleh <br>, struktur flat).
-// Sebelumnya ini coba nebak "node anak-langsung el tempat caret berada" dari
-// range.startContainer secara manual (jalan-jalan lewat parentElement) - rapuh
-// banget, karena bentuk container beda-beda tergantung browser habis kita
-// insertNode/setStartAfter (kadang text node baris, kadang node hasil merge,
-// kadang element itu sendiri), dan salah tebak bikin baris salah kedeteksi
-// (nomor macet di angka tertentu / marker gak ke-generate sama sekali).
-// Sekarang pakai Range.compareBoundaryPoints: bandingin POSISI caret langsung
-// terhadap posisi tiap <br>, gak peduli node macam apa containernya.
 function _rteLineBounds(el, range) {
   const kids = Array.from(el.childNodes);
   const point = document.createRange();
@@ -4752,7 +4607,7 @@ function _rteLineBounds(el, range) {
     const brPoint = document.createRange();
     brPoint.setStartBefore(kids[i]);
     brPoint.collapse(true);
-    // Caret ada di titik ini atau sebelum <br> ini -> <br> ini batas akhir baris caret.
+    
     if (point.compareBoundaryPoints(Range.START_TO_START, brPoint) <= 0) { end = i; break; }
   }
   let start = 0;
@@ -4760,11 +4615,6 @@ function _rteLineBounds(el, range) {
   return { start, end, kids };
 }
 
-// ── Marker list ("1."/"-") sebagai <span class="rte-marker"> ──────────────
-// Dipisah dari teks baris (bukan nempel jadi teks polos) supaya bisa
-// di-render rata kanan dalam kotak lebar tetap lewat CSS: titik di belakang
-// nomor 1 digit & 2 digit jadi sejajar. Helper2 ini dipakai di 3 tempat
-// yang bikin/lepas marker secara langsung di DOM: Enter, paste, & toolbar.
 function _rteMarkerSpan(lineDiv) {
   const first = lineDiv && lineDiv.firstChild;
   return (first && first.nodeType === 1 && first.classList && first.classList.contains('rte-marker')) ? first : null;
@@ -4772,7 +4622,7 @@ function _rteMarkerSpan(lineDiv) {
 function _rteRemoveMarker(lineDiv) {
   const span = _rteMarkerSpan(lineDiv);
   if (span) {
-    // NBSP pemisah tepat setelah span (kalau ada) ikut dibuang juga.
+    
     const next = span.nextSibling;
     if (next && next.nodeType === 3 && next.nodeValue.charAt(0) === '\u00A0') {
       next.nodeValue = next.nodeValue.slice(1);
@@ -4791,10 +4641,7 @@ function _rteInsertMarker(lineDiv, text) {
   lineDiv.classList.add('rte-line--list');
   return sep;
 }
-// Bungkus marker teks polos ("1. "/"- ") yang belum dibungkus <span> (mis.
-// baris hasil paste dari luar) jadi rte-marker, supaya alignment-nya
-// konsisten sama baris yang dibuat lewat Enter/toolbar. No-op kalau bukan
-// baris list, atau markernya udah dibungkus, atau gak ketemu pola marker.
+
 function _rteWrapMarker(lineDiv) {
   if (!lineDiv || !lineDiv.classList.contains('rte-line--list')) return;
   if (_rteMarkerSpan(lineDiv)) return;
@@ -4821,10 +4668,10 @@ function _rteToggleListPrefix(el, range, mode) {
     el.appendChild(wrap);
   }
 
-  // Cari SEMUA baris yang kena selection (bukan cuma baris tempat selection
-  // mulai) -- sebelumnya di sini cuma baris pertama yang diproses, makanya
-  // toggle bullet/nomor di teks yang di-select beberapa baris cuma nempel
-  // ke baris pertama doang, sisanya dianggurin.
+  
+  
+  
+  
   const findLine = (node) => {
     const n = node && (node.nodeType === 1 ? node : node.parentElement);
     return n ? n.closest('.rte-line') : null;
@@ -4842,9 +4689,9 @@ function _rteToggleListPrefix(el, range, mode) {
   const lines = allLines.slice(lo, hi + 1);
   if (!lines.length) return;
 
-  // Marker sekarang disimpan sebagai <span class="rte-marker"> (bukan teks
-  // polos nempel di depan baris) supaya rata-kanan lewat CSS jalan -- deteksi
-  // & lepas/pasangnya juga lewat span itu, bukan regex di text node depan.
+  
+  
+  
   const isOlMarker = (txt) => /^\d+\.$/.test(txt);
   const isUlMarker = (txt) => txt === '-';
   const markerTextOf = (lineDiv) => { const s = _rteMarkerSpan(lineDiv); return s ? s.textContent : ''; };
@@ -4860,8 +4707,8 @@ function _rteToggleListPrefix(el, range, mode) {
     if (isRemoving) {
       _rteRemoveMarker(lineDiv);
     } else {
-      // Kalau baris ini kebetulan udah pakai format list satunya (mis.
-      // lagi "- " terus yang diminta "ol"), lepas dulu biar gak dobel prefix.
+      
+      
       const existing = markerTextOf(lineDiv);
       const hasOther = mode === 'ul' ? isOlMarker(existing) : isUlMarker(existing);
       if (hasOther) _rteRemoveMarker(lineDiv);
@@ -4874,15 +4721,15 @@ function _rteToggleListPrefix(el, range, mode) {
 function _renderPSCell(idBase, indikatorId, value, capaian, canEdit, label, onchangeFn, locked = true, tercapaiCol = false, isPredikat = false, belumPernahDiisi = false) {
   const tercapai  = capaian !== null && !isNaN(capaian) && capaian >= 100;
   const belumIsi  = capaian === null || isNaN(capaian);
-  // Indikator predikat (mis. Peringkat SAKIP) yang realisasinya sengaja
-  // dikosongkan ("-", menunggu penilaian akhir tahun) tetap perlu bisa diisi
-  // Faktor Penghambat & Solusi untuk menjelaskan progresnya - jangan
-  // disembunyikan total seperti indikator angka biasa yang belum diisi apa-apa.
-  // TAPI kalau user belum PERNAH sama sekali interaksi sama dropdown peringkat
-  // (belumPernahDiisi: gak ada realisasi_id sama sekali, baris masih perawan),
-  // tetap sembunyikan dulu - jangan langsung aktif dari awal sebelum user
-  // menentukan pilihan apapun (termasuk "-"). Begitu user pilih apapun di
-  // dropdown, _togglePermasalahanSolusi() di runtime yang nampilin fieldnya.
+  
+  
+  
+  
+  
+  
+  
+  
+  
   const predikatBelumDisentuh = isPredikat && belumPernahDiisi;
   const hideTA    = tercapaiCol
     ? !tercapai
@@ -4948,7 +4795,6 @@ function _updatePSReadAfterSave(base, indikatorId, val) {
   readEl.style.display = hasVal ? '' : 'none';
 }
 
-// Simpan referensi ps-read yang sedang expanded (untuk auto-collapse saat klik luar)
 let _psExpandedEl = null;
 
 function _collapsePSExpand(readEl) {
@@ -4971,7 +4817,7 @@ function _togglePSExpand(idBase, indikatorId, event) {
   if (!fullEl) return;
   const expanded = fullEl.style.display !== 'none';
   if (!expanded) {
-    // Collapse yang sebelumnya expand dulu
+    
     if (_psExpandedEl && _psExpandedEl !== readEl) _collapsePSExpand(_psExpandedEl);
     fullEl.style.display = '';
     if (shortEl) shortEl.style.display = 'none';
@@ -4982,14 +4828,11 @@ function _togglePSExpand(idBase, indikatorId, event) {
   }
 }
 
-// Klik di luar ps-read yang expand → otomatis collapse
 document.addEventListener('click', function(e) {
   if (!_psExpandedEl) return;
   if (!_psExpandedEl.contains(e.target)) _collapsePSExpand(_psExpandedEl);
 });
 
-// Toggle tampilan textarea Permasalahan/Solusi vs catatan "Target tercapai"
-// berdasarkan nilai capaian terbaru (dipanggil saat preview capaian live)
 function _togglePermasalahanSolusi(prefix, indikatorId, capaian) {
   const dataArr = prefix === 'ikk' ? _ikkData : prefix === 'spm' ? _spmData : _kinerjaData;
   const row = dataArr.find(r => r.id === indikatorId);
@@ -5005,16 +4848,16 @@ function _togglePermasalahanSolusi(prefix, indikatorId, capaian) {
   const realEl = isPredikat ? document.getElementById(`${p}real_${indikatorId}`) : null;
   const predikatBelumDisentuh = isPredikat && realEl?.tagName === 'SELECT' && !!realEl.dataset.placeholder;
   const hideBawah  = tercapai || (belumIsi && (!isPredikat || predikatBelumDisentuh));
-  // Kolom >= 100: f_pendukung, rencana_tl
+  
   const hideAtas   = belumIsi || !tercapai;
   const tr = document.querySelector(`tr[data-id="${indikatorId}"]`);
   const isEditingRow = !!tr?.classList.contains('row-state-editing');
 
-  // Kalau baris lagi diedit dan wrap ini baru kelihatan (mis. gara-gara realisasi
-  // naik/turun ngelewatin ambang 100% pas edit), pastikan textarea-nya ikut
-  // ke-switch ke mode edit. Tanpa ini, wrap yang masih hidden pas tombol Edit
-  // diklik (di-skip sama toggleEditRow) bakal macet nunjukkin "-" tanpa bisa
-  // diisi, dan tombol Simpan gak akan pernah aktif walau user udah ganti target.
+  
+  
+  
+  
+  
   const syncWrapEditMode = (wrap) => {
     if (!isEditingRow || !wrap || wrap.style.display === 'none') return;
     const readEl = wrap.querySelector('.ps-read');
@@ -5046,7 +4889,6 @@ function _togglePermasalahanSolusi(prefix, indikatorId, capaian) {
   });
 }
 
-
 function showPage(pageId) {
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   const el = document.getElementById(pageId);
@@ -5059,14 +4901,10 @@ function showPage(pageId) {
   }
 }
 
-// ═══════════════════════════════════════════════════════════════════════════
-// MONITORING PENGISIAN KINERJA - Admin Only
-// ═══════════════════════════════════════════════════════════════════════════
-
 let _mon_bulan  = new Date().getMonth() + 1;
 let _mon_tahun  = new Date().getFullYear();
-let _mon_jenis  = 'all';   // 'monev' | 'ikk' | 'all'
-let _mon_status = 'all';     // 'all' | 'terisi' | 'belum'
+let _mon_jenis  = 'all';   
+let _mon_status = 'all';     
 let _mon_pj     = '';
 let _mon_user   = '';   // filter by individual user (PIC)
 let _mon_search = '';
@@ -5077,7 +4915,6 @@ let _mon_data   = null;
 const _MON_BULAN_NAMA = ['','Januari','Februari','Maret','April','Mei','Juni',
                          'Juli','Agustus','September','Oktober','November','Desember'];
 
-// ── Populate tahun dari _allPeriodeList ───────────────────────────────────
 function _monPopulateTahun() {
   const sel = document.getElementById('monTahunSelect');
   if (!sel) return;
@@ -5089,12 +4926,11 @@ function _monPopulateTahun() {
   if (typeof syncCustomSelect === 'function') syncCustomSelect('monTahunSelect');
 }
 
-// ── Populate bulan dari periode yang ada di tahun terpilih ────────────────
 function _monPopulateBulan() {
   const sel = document.getElementById('monBulanSelect');
   if (!sel) return;
-  // Kumpulkan bulan dari _allPeriodeList untuk tahun yang dipilih
-  // Kalau _mon_tahun kosong (Semua Tahun), tampilkan semua bulan yang pernah ada
+  
+  
   const bulanSet = _mon_tahun
     ? new Set(_allPeriodeList.filter(p => p.tahun === _mon_tahun).map(p => p.bulan))
     : new Set(_allPeriodeList.map(p => p.bulan));
@@ -5115,9 +4951,8 @@ function _monPopulateBulan() {
   if (typeof syncCustomSelect === 'function') syncCustomSelect('monBulanSelect');
 }
 
-// ── Init saat halaman pertama kali dibuka ─────────────────────────────────
 async function initMonitoringKinerja() {
-  // Pastikan _allPeriodeList sudah terisi (bisa jadi initKinerjaControls belum selesai)
+  
   if (!_allPeriodeList.length) {
     try {
       const r = await fetch('/api/periode', { headers: authHeaders() });
@@ -5125,7 +4960,7 @@ async function initMonitoringKinerja() {
     } catch { _allPeriodeList = []; }
   }
 
-  // Populate dari data periode (bukan hardcode)
+  
   _monPopulateTahun();
   _monPopulateBulan();
   _mon_tahun = document.getElementById('monTahunSelect')?.value
@@ -5171,7 +5006,6 @@ async function loadMonitoringKinerja() {
   _monRenderTable();
 }
 
-// ── Summary cards ─────────────────────────────────────────────────────────
 function _monRenderSummary() {
   const el = document.getElementById('monSummaryCards');
   if (!el || !_mon_data) return;
@@ -5218,7 +5052,6 @@ function _monRenderSummary() {
     </div>`;
 }
 
-// ── Populate filter User dari data yang sedang termuat (scoped ke Bidang aktif) ──
 function _monPopulateUserSelect() {
   const sel = document.getElementById('monUserSelect');
   if (!sel || !_mon_data) return;
@@ -5228,7 +5061,7 @@ function _monPopulateUserSelect() {
   const users = new Set();
   rows.forEach(r => (Array.isArray(r.pic_users) ? r.pic_users : []).forEach(u => u && users.add(u)));
   const list = [...users].sort((a, b) => a.localeCompare(b, 'id'));
-  // Reset kalau user yang lagi difilter sudah tidak relevan lagi (mis. ganti bidang)
+  
   if (_mon_user && !list.includes(_mon_user)) _mon_user = '';
   sel.innerHTML = '<option value="">Semua User</option>' +
     list.map(u => `<option value="${escHtml(u)}"${u === _mon_user ? ' selected' : ''}>${escHtml(u)}</option>`).join('');
@@ -5378,7 +5211,7 @@ function _monRenderTable() {
   const body = document.getElementById('monTableBody');
   if (!body || !_mon_data) return;
 
-  // Mode semua bulan: tampilkan kolom Bulan ekstra
+  
   const isAllBulan = (_mon_bulan === '' || _mon_bulan == null);
   const colCount = isAllBulan ? 8 : 7;
 
@@ -5390,7 +5223,7 @@ function _monRenderTable() {
       th.setAttribute('data-bulan-col', '1');
       th.style.cssText = 'width:90px;text-align:center';
       th.textContent = 'Bulan';
-      thead.insertBefore(th, thead.children[4]); // sebelum kolom Status
+      thead.insertBefore(th, thead.children[4]); 
     } else if (!isAllBulan && thead.querySelector('th[data-bulan-col]')) {
       thead.querySelector('th[data-bulan-col]').remove();
     }
@@ -5398,17 +5231,17 @@ function _monRenderTable() {
 
   let rows = [...(_mon_data.indikator || [])];
 
-  // Filter status
+  
   if (_mon_status === 'terisi') rows = rows.filter(r => r.status === 'terisi');
   if (_mon_status === 'belum')  rows = rows.filter(r => r.status === 'belum');
 
-  // Filter PJ (Penanggung Jawab)
+  
   if (_mon_pj) rows = rows.filter(r => r.penanggung_jawab === _mon_pj);
 
-  // Filter User (PIC)
+  
   if (_mon_user) rows = rows.filter(r => Array.isArray(r.pic_users) && r.pic_users.includes(_mon_user));
 
-  // Filter search
+  
   if (_mon_search) {
     const q = _mon_search.toLowerCase();
     rows = rows.filter(r =>
@@ -5424,7 +5257,7 @@ function _monRenderTable() {
     return;
   }
 
-  // Pagination
+  
   const total = rows.length;
   const pages = Math.ceil(total / _MON_PER_PAGE);
   if (_mon_page > pages) _mon_page = pages;
@@ -5684,7 +5517,7 @@ function _renderSpmPeriodeInfo() {
   const wrapper  = document.getElementById('spmBulanWrapper');
   const tahunWrap = document.getElementById('spmTahunWrap');
 
-  // Badge teks "Periode input: ..." sudah tidak dipakai - selalu pakai dropdown tahun & bulan
+  
   if (el) el.style.display = 'none';
 
   if (_user?.is_admin) {
@@ -5857,7 +5690,7 @@ function _renderSpmTable(tbody) {
         ${_user?.is_admin && row.realisasi_id ? `
           <button class="btn-reset-row" id="spm_resetbtn_${row.id}" data-tip="Reset data realisasi baris ini (admin)"
             onclick="resetRealisasiRow(${row.id}, 'spm')">
-            <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+            <svg xmlns="http:
             Reset
           </button>
         ` : ''}
@@ -5866,12 +5699,12 @@ function _renderSpmTable(tbody) {
   });
   tbody.innerHTML = html;
   if (typeof window.initCustomSelects === 'function') window.initCustomSelects();
-  // Toggle header kolom Penanggung Jawab (hanya tampil untuk admin)
+  
   document.querySelectorAll('.col-bidang-spm').forEach(el => {
     el.style.display = _user?.is_admin ? '' : 'none';
   });
   renderPagination('spmPagination', _filtered.length, _spmPage, _spmPageSize, '_goSpmPage');
-  // Warning "Belum diupload" untuk baris yang tersimpan tapi belum ada file dukung
+  
   if (canEdit) {
     _spmData.forEach(row => {
       if (row.realisasi_id && !row.data_dukung_url) {
@@ -5914,7 +5747,7 @@ function toggleSpmEditRow(indikatorId) {
     if (!el) return;
     if (isReadonly) {
       el.removeAttribute('readonly');
-      if (el.tagName === 'SELECT') el.disabled = false; // predikat: <select> pakai disabled, bukan readonly
+      if (el.tagName === 'SELECT') el.disabled = false; 
       if (el.classList.contains('ps-rte')) el.contentEditable = 'true';
       el.style.background = 'var(--putih)';
       el.style.cursor = '';
@@ -5922,7 +5755,7 @@ function toggleSpmEditRow(indikatorId) {
       el.dataset.tip = '';
     } else {
       el.setAttribute('readonly', '');
-      if (el.tagName === 'SELECT') el.disabled = true; // predikat: kunci balik pakai disabled
+      if (el.tagName === 'SELECT') el.disabled = true; 
       if (el.classList.contains('ps-rte')) el.contentEditable = 'false';
       el.style.background = '';
       el.style.cursor = 'not-allowed';
@@ -5931,21 +5764,20 @@ function toggleSpmEditRow(indikatorId) {
     }
   });
 
-
-  // Switch ps-cell-wrap antara view mode (ps-read) dan edit mode (textarea)
+  
   const psCells = document.querySelectorAll(`tr[data-id="${indikatorId}"] .ps-cell-wrap`);
   psCells.forEach(wrap => {
     const readEl = wrap.querySelector('.ps-read');
     const taEl   = wrap.querySelector('.ps-rte');
     if (!taEl) return;
     if (isReadonly) {
-      // Masuk edit mode: sembunyikan view, tampilkan editor - skip wrap yg hidden
+      
       if (wrap.style.display === 'none') return;
       if (readEl) readEl.style.display = 'none';
       taEl.style.display = '';
       taEl.contentEditable = 'true';
     } else {
-      // Keluar edit mode: update view text lalu tampilkan kembali
+      
       const val = taEl.value || '';
       const LIMIT = 80;
       const shortEl = wrap.querySelector('[id$="short_' + indikatorId + '"]');
@@ -5961,7 +5793,7 @@ function toggleSpmEditRow(indikatorId) {
       taEl.style.cursor = 'not-allowed';
     }
   });
-  // Unlock / lock tombol data dukung
+  
   const dukungBtn     = document.querySelector(`[data-dukung-id="${indikatorId}"] .dukung-uploaded-btn`);
   const uploadOnlyBtn = document.querySelector(`tr[data-id="${indikatorId}"] .dukung-upload-btn`);
   const deleteBtn     = document.querySelector(`tr[data-id="${indikatorId}"] .dukung-delete-btn`);
@@ -6142,8 +5974,8 @@ async function saveSpmRealisasiRow(indikatorId) {
   let rencana     = document.getElementById(`spm_rencana_${indikatorId}`)?.value?.trim();
 
   const row = _spmData.find(r => r.id === indikatorId);
-  // Validasi field wajib - hitung capaian dari nilai input vs target
-  // (untuk kumulatif/rata_rata, pakai basis efektif lintas bulan, bukan angka bulan ini saja)
+  
+  
   const _realVal   = parseFloat(real);
   const _targetVal = _targetNumForRow(row);
   if (!isNaN(_realVal) && !isNaN(_targetVal) && _targetVal !== 0) {
@@ -6179,22 +6011,22 @@ async function saveSpmRealisasiRow(indikatorId) {
       if (btn) { btn.disabled = false; btn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/><path d="M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7"/><path d="M7 3v4a1 1 0 0 0 1 1h7"/></svg> Simpan`; }
     } else {
       toast('Tersimpan');
-      // Invalidate cache chart dashboard supaya Pantau Indikator fetch data fresh
+      
       if (typeof _invalidateKinerjaDashboardCache === 'function') _invalidateKinerjaDashboardCache(_spm_tahun);
       ['spm_real_', 'spm_fpenghambat_', 'spm_solusi_', 'spm_fpendukung_', 'spm_rencana_'].forEach(prefix => {
         const el = document.getElementById(`${prefix}${indikatorId}`);
         if (el) {
           el.setAttribute('readonly', '');
-          if (el.tagName === 'SELECT') el.disabled = true; // predikat: <select> pakai disabled, bukan readonly
+          if (el.tagName === 'SELECT') el.disabled = true; 
           el.style.background = '';
           el.style.cursor = 'not-allowed';
           if (el.classList.contains('ps-rte')) { el.style.resize = 'none'; el.style.display = 'none'; el.contentEditable = 'false'; }
           el.dataset.tip = 'Klik tombol Edit untuk mengisi';
         }
       });
-      // Kunci kembali tombol data dukung (Upload kembali ke warna default)
+      
       _lockDukungButtons(indikatorId);
-      // Tampilkan tombol Reset (admin) tanpa perlu reload
+      
       _ensureResetBtn(indikatorId, 'spm_', 'spm');
       const tr = document.querySelector(`tr[data-id="${indikatorId}"]`);
       if (tr) { tr.classList.remove('row-state-default', 'row-state-editing'); tr.classList.add('row-state-saved'); }
@@ -6221,7 +6053,7 @@ async function saveSpmRealisasiRow(indikatorId) {
         _spmData[idx].rencana_tl        = d.realisasi?.rencana_tl ?? null;
         _spmData[idx].realisasi_id      = d.realisasi?.id ?? _spmData[idx].realisasi_id;
       }
-      // Refresh capaian_persen dari server (hitung ulang kumulatif lintas bulan)
+      
       fetch(`/api/kinerja/rekap?bulan=${_spm_bulan}&tahun=${_spm_tahun}&jenis=spm`, { headers: authHeaders() })
         .then(res => res.ok ? res.json() : null)
         .then(fresh => {
@@ -6254,7 +6086,7 @@ async function saveSpmRealisasiRow(indikatorId) {
           _updatePSReadAfterSave(base, indikatorId, val);
         });
       }
-      // Warning data dukung belum diupload
+      
       if (!row?.data_dukung_url) {
         const dukungCell = document.querySelector(`tr[data-id="${indikatorId}"] td[data-col="dukung"]`);
         if (dukungCell && !dukungCell.querySelector('.dukung-warning')) {
@@ -6272,7 +6104,6 @@ async function saveSpmRealisasiRow(indikatorId) {
   }
 }
 
-// ── Reset realisasi row (admin only) ────────────────────────────────────────
 const _RESET_BTN_IDLE_HTML = `<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>\n      Reset`;
 
 async function resetRealisasiRow(indikatorId, jenis) {
@@ -6302,7 +6133,7 @@ async function resetRealisasiRow(indikatorId, jenis) {
       return;
     }
     toast('Data realisasi berhasil direset');
-    // Reload dari server agar state sinkron
+    
     if (jenis === 'ikk') {
       await loadIkkRekap();
     } else if (jenis === 'spm') {

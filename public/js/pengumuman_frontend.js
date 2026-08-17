@@ -1,15 +1,12 @@
-// js/pengumuman_frontend.js
-// Kelola Pengumuman - admin only
+
 
 'use strict';
 
-/* ── State ────────────────────────────────────────────────────── */
 let _pengumumanAll  = [];
 let _pengumumanPage = 1;
 const _pengumumanPerPage = 15;
-let _quillPengumuman = null; // Quill rich-text instance
+let _quillPengumuman = null; 
 
-/* ── Load & render ────────────────────────────────────────────── */
 async function loadPengumuman() {
   const tb0 = document.getElementById('pengumumanTableBody');
   if (tb0) tb0.innerHTML = `<tr class="empty-row"><td colspan="5"><span class="btn-spin" style="width:11px;height:11px;vertical-align:-1px;margin-right:6px"></span>Memuat data...</td></tr>`;
@@ -92,8 +89,6 @@ function renderPengumumanTable() {
   renderPagination('pengumumanPagination', total, _pengumumanPage, _pengumumanPerPage, 'goPengumumanPage');
 }
 
-/* ── Helper: build filter Tipe & Status dari data ───────────────
-   "Semua X" cuma ditampilkan kalau opsinya lebih dari 1 macam ── */
 function buildPengumumanTipeFilter() {
   const sel = document.getElementById('pengumumanFilterTipe');
   if (!sel) return;
@@ -125,8 +120,7 @@ function buildPengumumanStatusFilter() {
   if (typeof syncCustomSelect === 'function') syncCustomSelect('pengumumanFilterStatus');
 }
 
-/* ── Aksi Builder ─────────────────────────────────────────────── */
-let _aksiItems = []; // [{label, url}]
+let _aksiItems = []; 
 
 function _renderAksiList() {
   const wrap = document.getElementById('pengumumanAksiList');
@@ -227,7 +221,7 @@ async function savePengumuman() {
   if (!judul) { toast('Judul wajib diisi', 'error'); return; }
   if (!isiText) { toast('Isi wajib diisi', 'error'); return; }
 
-  // Validasi & bersihkan aksi - skip entry kosong
+  
   const aksi = _aksiItems
     .map(a => ({ label: (a.label || '').trim(), url: (a.url || '').trim() }))
     .filter(a => a.label && a.url);
@@ -285,7 +279,6 @@ async function deletePengumuman(id) {
   }
 }
 
-/* ── Helper ───────────────────────────────────────────────────── */
 function stripHtml(html) {
   const tmp = document.createElement('div');
   tmp.innerHTML = html;
@@ -302,9 +295,6 @@ function formatTanggal(str) {
   return `${tgl}, ${hh}:${mm} WITA`;
 }
 function goPengumumanPage(p) { _pengumumanPage = p; renderPengumumanTable(); }
-/* ═══════════════════════════════════════════════════════════════
-   TICKER - running text admin
-   ═══════════════════════════════════════════════════════════════ */
 let _tickerAll = [];
 
 async function loadTicker() {

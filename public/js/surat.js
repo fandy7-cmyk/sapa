@@ -1,4 +1,4 @@
-// Format tanggal tanpa jam - misal: 04 Jun 2026
+
 function fmtDateOnly(val) {
   if (!val) return '-';
   const d = new Date(val);
@@ -6,7 +6,6 @@ function fmtDateOnly(val) {
   return d.toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' });
 }
 
-// ── Stat card helper (icon + border-left berwarna) ──────────────────────
 function _smStatCard(label, value, color, iconPath) {
   return `<div class="stat-card" style="border-left-color:${color}">
     <div class="stat-card-body">
@@ -19,7 +18,6 @@ function _smStatCard(label, value, color, iconPath) {
   </div>`;
 }
 
-// ── Render badge / tombol dokumen di kolom tabel (multi-file aware) ────────
 function renderDocsBadge(fileUrlRaw, label) {
   if (!fileUrlRaw) return '<span style="color:var(--teks-muted)">-</span>';
   let files = [];
@@ -37,7 +35,7 @@ function renderDocsBadge(fileUrlRaw, label) {
       </button>
     </span>`;
   }
-  // Multiple files - langsung buka modal preview dengan navigasi (sama seperti kinerja)
+  
   const filesJson = encodeURIComponent(JSON.stringify(files));
   const labelJson = encodeURIComponent(label || '');
   return `<span style="display:inline-flex;align-items:center;gap:3px">
@@ -54,21 +52,21 @@ async function deleteDocBadge(btn, fileUrlRaw) {
   const tr = btn.closest('tr');
   if (!tr) return;
 
-  // Tentukan apakah surat masuk atau keluar dari struktur tabel
-  // smTableBody = surat masuk (11 kolom), skTableBody = surat keluar (8 kolom)
+  
+  
   const tbody = tr.closest('tbody');
   const isSM  = tbody?.id === 'smTableBody';
   const isSK  = tbody?.id === 'skTableBody';
   if (!isSM && !isSK) return;
 
-  // Ambil id dari tombol edit/hapus di kolom Aksi (onclick="editSM(id)" atau "editSK(id)")
+  
   const aksiBtn = tr.querySelector('[onclick^="editSM"], [onclick^="editSK"]');
   if (!aksiBtn) return;
   const match = aksiBtn.getAttribute('onclick').match(/\d+/);
   if (!match) return;
   const recordId = parseInt(match[0]);
 
-  // Parse file list untuk konfirmasi
+  
   let files = [];
   try {
     const parsed = JSON.parse(fileUrlRaw);
@@ -83,7 +81,7 @@ async function deleteDocBadge(btn, fileUrlRaw) {
   });
   if (!ok) return;
 
-  // Update DB - fetch data lengkap dulu, lalu PUT dengan semua field + file_url/file_name = null
+  
   try {
     const apiBase = isSM ? '/api/surat-masuk' : '/api/surat-keluar';
     const rGet = await fetch(`${apiBase}?limit=1000`, { headers: authHeaders() });
@@ -127,14 +125,14 @@ async function deleteDocBadge(btn, fileUrlRaw) {
     });
     if (!r.ok) { const d = await r.json().catch(()=>{}); toast(d?.error || 'Gagal menghapus', 'error'); return; }
 
-    // Hapus dari Cloudinary (background)
+    
     for (const f of files) {
       if (f.url) deleteCloudinaryFile(f.url);
     }
 
     toast('Dokumen berhasil dihapus');
 
-    // Re-render kolom dokumen di baris ini saja (tanpa reload full)
+    
     const docsCell = tr.querySelectorAll('td')[isSM ? 8 : 6];
     if (docsCell) docsCell.innerHTML = '<span style="color:var(--teks-muted)">-</span>';
   } catch (err) { toast('Error: ' + err.message, 'error'); }
@@ -145,7 +143,7 @@ function toggleDocDD(id, event) {
   const el = document.getElementById(id);
   if (!el) return;
   const isOpen = el.style.display !== 'none';
-  // Tutup semua yang lain
+  
   document.querySelectorAll('.doc-dd-panel').forEach(p => p.style.display = 'none');
   el.style.display = isOpen ? 'none' : 'block';
   if (!isOpen) {
@@ -156,9 +154,6 @@ function toggleDocDD(id, event) {
   }
 }
 
-// ═══════════════════════════════════════════
-// SURAT MASUK
-// ═══════════════════════════════════════════
 let _smFilter = '', _smPage = 1;
 
 // Populate dropdown tahun surat masuk/keluar dari data yang sudah ada
@@ -248,10 +243,10 @@ async function loadSuratMasuk(page = 1) {
   const isAdmin = !!(_user && _user.is_admin);
   // isFull = admin ATAU non-admin dengan hak akses "surat.masuk.full" (setara admin khusus surat masuk)
   const isFull  = isAdmin || (typeof hasAccess === 'function' && hasAccess('surat.masuk.full'));
-  // Non-full cuma bisa lihat suratnya sendiri, jadi filter Pegawai nggak relevan
+  
   const pegawaiWrap = document.getElementById('smFilterPegawai')?.closest('.select-wrap');
   if (pegawaiWrap) pegawaiWrap.style.display = isFull ? '' : 'none';
-  // Hanya admin & user "Surat Masuk > Admin Penuh" yang boleh input surat baru
+  
   const btnTambahSM = document.getElementById('btnTambahSM');
   if (btnTambahSM) btnTambahSM.style.display = isFull ? '' : 'none';
   const q      = document.getElementById('smSearch')?.value || '';
@@ -303,12 +298,12 @@ async function loadSuratMasuk(page = 1) {
       : '<tr class="empty-row"><td colspan="11">Tidak ada data</td></tr>';
     renderPagination('smPagination', d.total||0, page, 10, 'loadSuratMasuk');
 
-    // Populate dropdown tahun hanya saat page=1 tanpa filter tahun (supaya tetap lengkap)
+    
     if (page === 1 && !tahun && !bulan) {
       try {
-        // Dulu fetch SEMUA baris (limit=9999, SELECT *) cuma buat nurunin
-        // pilihan dropdown. Sekarang endpoint ringan yg cuma kirim kolom
-        // yg kepake (tanggal_surat/tanggal_terima/pegawai/selesai/batas_waktu).
+        
+        
+        
         const rAll = await fetch('/api/surat-masuk/filter-meta', { headers: authHeaders() });
         const dAll = await rAll.json();
         _populateSuratTahun(dAll.surat || [], 'smFilterTahun');
@@ -323,10 +318,10 @@ async function loadSuratMasuk(page = 1) {
 }
 
 let _smData = [];
-let _smPegawaiList = [];   // cache user Sub Bag Perencanaan
+let _smPegawaiList = [];   
 
 async function loadPegawaiPerencanaan() {
-  if (_smPegawaiList.length) return;   // sudah di-cache
+  if (_smPegawaiList.length) return;   
   try {
     const r = await fetch('/api/users/perencanaan', { headers: authHeaders() });
     const d = await r.json();
@@ -359,7 +354,7 @@ async function openSMModal() {
 async function editSM(id) {
   try {
     await loadPegawaiPerencanaan();
-    // Reload list buat cari data
+    
     const r = await fetch(`/api/surat-masuk?limit=1000`, { headers: authHeaders() });
     const d = await r.json();
     const s = d.surat.find(x => x.id === id); if (!s) return;
@@ -424,20 +419,17 @@ async function deleteSM(id) {
   toast('Surat berhasil dihapus'); loadSuratMasuk(_smPage);
 }
 
-// ═══════════════════════════════════════════
-// SURAT KELUAR
-// ═══════════════════════════════════════════
 let _skPage = 1;
 
 async function loadSuratKeluar(page = 1) {
   _skPage = page;
   const isAdmin = !!(_user && _user.is_admin);
-  // isFull = admin ATAU non-admin dengan hak akses "surat.keluar.full" (setara admin khusus surat keluar)
+  
   const isFull  = isAdmin || (typeof hasAccess === 'function' && hasAccess('surat.keluar.full'));
-  // Non-full cuma bisa lihat suratnya sendiri, jadi filter Pegawai nggak relevan
+  
   const pegawaiWrap = document.getElementById('skFilterPegawai')?.closest('.select-wrap');
   if (pegawaiWrap) pegawaiWrap.style.display = isFull ? '' : 'none';
-  // Hanya admin & user "Surat Keluar > Admin Penuh" yang boleh input surat baru
+  
   const btnTambahSK = document.getElementById('btnTambahSK');
   if (btnTambahSK) btnTambahSK.style.display = isFull ? '' : 'none';
   const q       = document.getElementById('skSearch')?.value || '';
@@ -472,10 +464,10 @@ async function loadSuratKeluar(page = 1) {
       : '<tr class="empty-row"><td colspan="8">Tidak ada data</td></tr>';
     renderPagination('skPagination', d.total||0, page, 10, 'loadSuratKeluar');
 
-    // Populate dropdown tahun surat keluar
+    
     if (page === 1 && !tahun && !bulan) {
       try {
-        // Sama kayak surat masuk - endpoint ringan, bukan fetch semua baris
+        
         const rAll = await fetch('/api/surat-keluar/filter-meta', { headers: authHeaders() });
         const dAll = await rAll.json();
         _populateSuratTahun(dAll.surat || [], 'skFilterTahun');
@@ -550,11 +542,7 @@ async function deleteSK(id) {
   await fetch(`/api/surat-keluar/${id}`, { method: 'DELETE', headers: authHeaders() });
   toast('Surat berhasil dihapus'); loadSuratKeluar(_skPage);
 }
-// ═══════════════════════════════════════════════════════════════════════════
-// UPLOAD BUKTI DOKUMEN - MULTI-FILE helper functions
-// ═══════════════════════════════════════════════════════════════════════════
 
-// State upload per prefix ('sm' | 'sk') - files adalah array [{url, name}]
 const _uploadState = {};
 
 function _getUploadState(prefix) {
@@ -562,10 +550,8 @@ function _getUploadState(prefix) {
   return _uploadState[prefix];
 }
 
-/* ── Tab switcher - no-op, tab link sudah dihapus ── */
-function switchUploadTab(prefix, tab) { /* tidak digunakan lagi */ }
+function switchUploadTab(prefix, tab) {  }
 
-/* ── Reset semua state upload (saat buka modal baru) ── */
 function resetUploadArea(prefix) {
   const state = _getUploadState(prefix);
   state.tab = 'file'; state.files = [];
@@ -578,11 +564,10 @@ function resetUploadArea(prefix) {
   if (area) area.classList.remove('drag-over');
 }
 
-/* ── Tampilkan file yang sudah ada (saat edit) - mendukung JSON array atau single URL lama ── */
 function setExistingFile(prefix, fileUrlRaw, fileNameRaw) {
   if (!fileUrlRaw) return;
   const state = _getUploadState(prefix);
-  // Coba parse JSON array [{url,name},...] - format baru
+  
   let files = [];
   try {
     const parsed = JSON.parse(fileUrlRaw);
@@ -590,14 +575,13 @@ function setExistingFile(prefix, fileUrlRaw, fileNameRaw) {
       files = parsed.filter(f => f && f.url);
     }
   } catch {
-    // Format lama: single URL string
+    
     files = [{ url: fileUrlRaw, name: fileNameRaw || 'Dokumen' }];
   }
   state.files = files;
   _renderFileList(prefix);
 }
 
-/* ── Getter untuk saveSM/saveSK - mengembalikan JSON string array ── */
 function getUploadUrl(prefix) {
   const state = _getUploadState(prefix);
   if (!state.files.length) return null;
@@ -609,7 +593,6 @@ function getUploadName(prefix) {
   return state.files.map(f => f.name).join(', ');
 }
 
-/* ── Render daftar file yang sudah ada / diupload ── */
 function _renderFileList(prefix) {
   const container = document.getElementById(`${prefix}FilePreview`);
   if (!container) return;
@@ -631,7 +614,7 @@ function _buildFileCard(prefix, f, idx) {
   const iconColor = { pdf: '#ef4444', doc: '#3b82f6', docx: '#3b82f6', xls: '#22c55e', xlsx: '#22c55e', jpg: '#f59e0b', jpeg: '#f59e0b', png: '#f59e0b' }[ext] || '#64748b';
   const isImg = ['jpg','jpeg','png','gif','webp'].includes(ext);
   const isLoading = f._loading;
-  // Icon trash SVG (hapus dari daftar + Cloudinary)
+  
   const trashSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path stroke-linecap="round" stroke-linejoin="round" d="M19 6l-1 14H6L5 6"/><path stroke-linecap="round" stroke-linejoin="round" d="M10 11v6m4-6v6"/><path stroke-linecap="round" stroke-linejoin="round" d="M9 6V4h6v2"/></svg>`;
   return `
     <div class="multi-file-card" id="${prefix}FileCard${idx}" style="${isLoading ? 'opacity:.6' : ''}">
@@ -662,7 +645,6 @@ function escSurat(s) {
   return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
 }
 
-/* ── Drag & Drop events ── */
 function handleDragOver(e, prefix) {
   e.preventDefault();
   document.getElementById(`${prefix}UploadArea`)?.classList.add('drag-over');
@@ -679,7 +661,6 @@ async function handleDrop(e, prefix) {
   _showBatchUploadToast(results);
 }
 
-/* ── Tampilkan satu toast ringkasan setelah batch upload ── */
 function _showBatchUploadToast(results) {
   if (!results || !results.length) return;
   const success = results.filter(r => r && r.ok);
@@ -689,7 +670,7 @@ function _showBatchUploadToast(results) {
     else toast(failed[0]?.error || 'Gagal upload file', 'error');
     return;
   }
-  // Multi-file: satu toast ringkasan
+  
   if (failed.length === 0) {
     toast(`${success.length} file berhasil diupload`);
   } else if (success.length === 0) {
@@ -699,7 +680,6 @@ function _showBatchUploadToast(results) {
   }
 }
 
-/* ── File input change - support multiple ── */
 async function handleFileSelect(e, prefix) {
   const files = Array.from(e.target.files || []);
   e.target.value = ''; // reset agar bisa pilih file yang sama lagi
@@ -715,7 +695,7 @@ async function processFile(prefix, file) {
     toast(`${file.name}: terlalu besar (maks. ${MAX_MB} MB)`, 'error'); return;
   }
 
-  // Tambahkan placeholder loading ke list
+  
   const state = _getUploadState(prefix);
   const placeholderIdx = state.files.length;
   state.files.push({ url: null, name: file.name, _loading: true });
@@ -742,26 +722,25 @@ async function processFile(prefix, file) {
     }
     const d = await r.json();
     if (pb) { pb.style.width = '100%'; setTimeout(() => { if (pw) pw.style.display = 'none'; }, 600); }
-    // Update placeholder dengan data nyata
+    
     state.files[placeholderIdx] = { url: d.url, name: d.name || file.name };
     _renderFileList(prefix);
     return { ok: true, name: file.name };
   } catch (err) {
     if (pw) pw.style.display = 'none';
-    // Hapus placeholder yang gagal
+    
     state.files.splice(placeholderIdx, 1);
     _renderFileList(prefix);
     return { ok: false, name: file.name, error: err.message || 'Gagal upload file' };
   }
 }
 
-/* ── Hapus satu file dari list + dari Cloudinary ── */
 async function removeUploadedFile(prefix, idx) {
   const state = _getUploadState(prefix);
   const file  = state.files[idx];
   if (!file) return;
 
-  // Konfirmasi hapus jika file sudah terupload (punya URL)
+  
   if (file.url) {
     const ok = await showConfirm({
       title:  'Hapus File',
@@ -772,11 +751,11 @@ async function removeUploadedFile(prefix, idx) {
     if (!ok) return;
   }
 
-  // Hapus dari UI dulu (optimistik)
+  
   state.files.splice(idx, 1);
   _renderFileList(prefix);
 
-  // Hapus dari Cloudinary (background, tidak block UI)
+  
   if (file.url) {
     const ok = await deleteCloudinaryFile(file.url);
     if (ok) {
@@ -789,15 +768,10 @@ async function removeUploadedFile(prefix, idx) {
   }
 }
 
-/* ── Backward compat alias (dipanggil dari showFilePreview lama jika ada) ── */
-function showFilePreview() {} // no-op, sudah diganti _renderFileList
-// ═══════════════════════════════════════════════════════════════════════════
-// DELETE FILE CLOUDINARY
-// ═══════════════════════════════════════════════════════════════════════════
+function showFilePreview() {} 
 
-/* ── Hapus file dari Cloudinary via sign-url DELETE endpoint ── */
 async function deleteCloudinaryFile(url) {
-  if (!url || !url.includes('cloudinary.com')) return true; // bukan Cloudinary, skip
+  if (!url || !url.includes('cloudinary.com')) return true; 
   try {
     const r = await fetch('/.netlify/functions/sign-url', {
       method: 'DELETE',

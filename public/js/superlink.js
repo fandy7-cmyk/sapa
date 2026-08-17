@@ -1,4 +1,4 @@
-// ── Toggle label helper ──────────────────────────────────
+
 function _updateToggleLabel(id) {
   const el = document.getElementById(id);
   if (!el) return;
@@ -6,20 +6,14 @@ function _updateToggleLabel(id) {
   if (lbl) lbl.textContent = el.checked ? 'Aktif' : 'Nonaktif';
 }
 
-// ── Cek link kedaluwarsa (expired_at lewat), lepas dari flag aktif mentah ──
 function _linkIsExpired(l) {
   return !!l.expired_at && new Date(l.expired_at) < new Date();
 }
 
-// ── Cek bundle kedaluwarsa (sama logikanya kayak link) ──
 function _bundleIsExpired(b) {
   return !!b.expired_at && new Date(b.expired_at) < new Date();
 }
 
-// ── Status dropdown: hanya tampilkan opsi yang ada datanya ──
-// "Semua Status" cuma ditampilkan kalau statusnya lebih dari 1 macam
-// ── Status dropdown: hanya Aktif & Kedaluwarsa (samain dgn badge di tabel) ──
-// "Semua Status" cuma ditampilkan kalau statusnya lebih dari 1 macam
 function _buildStatusOptions(data, getAktif = d => d.aktif, getExpired = () => false) {
   const kedaluwarsaCount = data.filter(d => getExpired(d)).length;
   const aktifCount       = data.filter(d => !getExpired(d) && getAktif(d)).length;
@@ -54,22 +48,12 @@ function _fmtWita(iso) {
   } catch { return '-'; }
 }
 
-// ── Slug availability checker (dipakai Link & Bundle) ────
 const SlugIcons = {
   check: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>`,
   cross: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18M6 6l12 12"/></svg>`,
   spin: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="M21 12a9 9 0 1 1-9-9"/></svg>`,
 };
 
-/**
- * Cek ketersediaan slug ke backend & update UI status + tombol simpan.
- * @param {string} endpoint - '/api/links' atau '/api/bundles'
- * @param {string} rawSlug - nilai slug mentah dari input
- * @param {string|number|null} excludeId - id record saat ini (mode edit)
- * @param {string} statusElId - id elemen div status
- * @param {string} btnId - id tombol simpan
- * @param {(available: boolean|null) => void} onResult - callback simpan state availability
- */
 async function _checkSlugAvailability(endpoint, rawSlug, excludeId, statusElId, btnId, onResult) {
   const statusEl = document.getElementById(statusElId);
   const btn = document.getElementById(btnId);
@@ -134,7 +118,7 @@ async function loadLinks() {
     const lr = await fetch('/api/links', { headers: authHeaders() });
     const ld = await lr.json();
     _links = ld.links || [];
-    // Rebuild filter status dropdown - hanya tampilkan opsi yg ada datanya
+    
     const slfs = document.getElementById('slFilterStatus');
     if (slfs) slfs.innerHTML = _buildStatusOptions(_links, l => l.aktif, l => _linkIsExpired(l));
   } catch (e) { console.error(e); }
@@ -185,7 +169,6 @@ function _toggleLinkPasswordField() {
     ? 'Kosongkan jika tidak ingin mengganti password' : 'Masukkan password baru';
 }
 
-// datetime-local butuh format lokal 'YYYY-MM-DDTHH:mm' tanpa timezone
 function _isoToLocalInput(iso) {
   if (!iso) return '';
   const d = new Date(iso);
@@ -236,7 +219,7 @@ function _autoJudulLink(url, slug) {
 }
 
 async function saveLink() {
-  // Auto-commit picker yang masih terbuka (user belum klik "Pilih")
+  
   const mExp = document.getElementById('cdtp_linkExpired');
   if (mExp?._cdtp?.commit) mExp._cdtp.commit();
 
@@ -258,7 +241,7 @@ async function saveLink() {
     body.clear_password = true;
   } else if (pwInput) {
     body.password = pwInput;
-  } // kalau protectedNow true & pwInput kosong (edit, sudah ada password) -> jangan diubah
+  } 
   if (!body.url) { toast('URL wajib diisi', 'error'); return; }
   if (protectedNow && !pwInput && !_linkWasProtected) { toast('Isi password utk proteksi tautan', 'error'); return; }
   if (!_linkSlugAvailable) { toast('Slug pendek sudah digunakan, ganti dulu', 'error'); return; }
@@ -286,9 +269,6 @@ async function deleteLink(id) {
   } catch { toast('Gagal menghapus', 'error'); }
 }
 
-// ═══════════════════════════════════════════
-// SHORTLINK - halaman unified: semua link + shortlink
-// ═══════════════════════════════════════════
 let _slFiltered = [], _slPage = 1, _slPageSize = 10;
 
 async function loadShortlinks() {
@@ -355,9 +335,6 @@ function copySlug(slug) {
   navigator.clipboard.writeText(url).then(() => toast('URL disalin: ' + url));
 }
 
-// ═══════════════════════════════════════════
-// BUNDLES
-// ═══════════════════════════════════════════
 let _bundles = [], _bundlesFiltered = [], _bundlePage = 1, _bundlePageSize = 10;
 let _currentBundleId = null;
 let _currentBundleItems = [];
@@ -371,7 +348,7 @@ async function loadBundles() {
     _bundles = d.bundles || [];
     _bundlesFiltered = [..._bundles]; _bundlePage = 1;
     renderBundles();
-    // Rebuild filter dropdowns - hanya tampilkan opsi yg ada datanya
+    
     const bfs = document.getElementById('bundleFilterStatus');
     if (bfs) bfs.innerHTML = _buildStatusOptions(_bundles, b => b.aktif, b => _bundleIsExpired(b));
   } catch {}
@@ -434,7 +411,7 @@ function copyBundleUrl(slug) {
 }
 
 function _setBundleItemsLocked(locked) {
-  // Kunci/unlock tombol tambah item & form inline
+  
   const btn = document.getElementById('btnTambahItem');
   const hint = document.getElementById('bundleSaveHint');
   if (locked) {
@@ -450,7 +427,7 @@ let _bundleSlugAvailable = true;
 const _checkBundleSlugDebounced = _debounce(function () {
   const explicit = document.getElementById('bundleSlug').value.trim();
   const judul = document.getElementById('bundleJudul').value;
-  // Kalau field slug dikosongkan, backend auto-generate dari judul → cek slug hasil generate itu
+  
   const val = explicit || judul.toLowerCase().replace(/[^a-z0-9\s-]/g,'').trim().replace(/\s+/g,'-').substring(0,60);
   const excludeId = document.getElementById('bundleId').value || null;
   _checkSlugAvailability('/api/bundles', val, excludeId, 'bundleSlugStatus', 'btnSaveBundle', (avail) => {
@@ -607,7 +584,7 @@ async function saveBundle() {
     body.clear_password = true;
   } else if (pwInput) {
     body.password = pwInput;
-  } // kalau protectedNow true & pwInput kosong (edit, sudah ada password) -> jangan diubah
+  } 
   try {
     const r = await fetch(id ? `/api/bundles/${id}` : '/api/bundles', {
       method: id ? 'PUT' : 'POST', headers: authHeaders(),
@@ -618,10 +595,10 @@ async function saveBundle() {
     toast(id ? 'Bundle diperbarui' : 'Bundle dibuat');
     loadBundles();
     if (id) {
-      // Edit: tutup modal langsung
+      
       closeModal('modalBundle');
     } else {
-      // Buat baru: tetap buka modal agar bisa langsung tambah items
+      
       _currentBundleId = d.bundle.id;
       document.getElementById('bundleId').value = d.bundle.id;
       document.getElementById('bundleSlug').value = d.bundle.slug;
@@ -642,7 +619,6 @@ async function deleteBundle(id) {
   toast('Bundle berhasil dihapus'); loadBundles();
 }
 
-// ── Bundle Items (inline form) ──────────────────────────
 function showInlineItemForm() {
   document.getElementById('bundleItemId').value = '';
   document.getElementById('biJudul').value = '';
@@ -701,10 +677,6 @@ async function deleteBundleItem(itemId) {
   loadBundles();
 }
 
-// ═══════════════════════════════════════════
-// SHARE MODAL - QR code + copy + WhatsApp (mirip s.id)
-// dipakai bareng oleh Shortlink & Bundle
-// ═══════════════════════════════════════════
 let _shareUrl = '';
 
 // Helper reusable: render QR (dgn logo di tengah) ke dalam sebuah box.
@@ -721,9 +693,9 @@ function _renderQrCode(box, url, opts = {}) {
   new QRCode(box, {
     text: url, width: size, height: size,
     colorDark: '#000000', colorLight: '#ffffff',
-    correctLevel: QRCode.CorrectLevel.H, // H = koreksi tinggi, wajib krn ketiban logo
+    correctLevel: QRCode.CorrectLevel.H, 
   });
-  // Icon aplikasi di tengah QR (mirip s.id)
+  
   const logo = document.createElement('img');
   logo.src = '/favicon.png';
   logo.alt = 'SAPA';
@@ -738,7 +710,6 @@ function _qrTrackUrl(url) {
   return url + (url.includes('?') ? '&' : '?') + 'src=qr';
 }
 
-// Ambil {judul, url} target share dari Link/Bundle - dipakai openShareModal & menu dropdown Bagikan
 function _resolveShareTarget(type, id) {
   if (type === 'link') {
     const l = _links.find(x => x.id === id);
@@ -770,13 +741,8 @@ function copyShareUrl() {
   navigator.clipboard.writeText(_shareUrl).then(() => toast('URL disalin: ' + _shareUrl));
 }
 
-// ═══════════════════════════════════════════
-// SHARE DROPDOWN MENU (mirip s.id): tombol "Bagikan" di row Link/Bundle
-// buka menu quick-share (Share ke lainnya, Facebook, X, WhatsApp, Salin,
-// Kode QR) alih-alih langsung buka modal QR.
-// ═══════════════════════════════════════════
 let _shareMenuEl = null;
-let _shareMenuCtx = null; // { type, id }
+let _shareMenuCtx = null; 
 
 const _shareMenuIcons = {
   native:   `<svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a3 3 0 1 0-2.83-4H15a3 3 0 0 0 .05.54L8.09 8.49a3 3 0 1 0 0 7.02l6.96 3.95A3 3 0 1 0 15.83 18l-6.96-3.95a3 3 0 0 0 0-2.1L15.83 8A3 3 0 0 0 18 8z"/></svg>`,
@@ -881,11 +847,8 @@ function _runShareAction(act, type, id) {
   }
 }
 
-// ═══════════════════════════════════════════
-// LINK DETAIL (mirip s.id: QR, status proteksi/berjangka, Analytics)
-// ═══════════════════════════════════════════
 let _ldCurrentId = null;
-let _ldCurrentType = 'link'; // 'link' | 'bundle'
+let _ldCurrentType = 'link'; 
 
 function openLinkDetail(id) {
   const l = _links.find(x => x.id === id); if (!l || !l.slug_pendek) return;
@@ -902,7 +865,7 @@ function openBundleDetail(id) {
   const b = _bundles.find(x => x.id === id); if (!b) return;
   _openItemDetail('bundle', id, {
     slug: b.slug,
-    url: b.judul, // dipakai sebagai baris kedua (deskripsi singkat), bukan tautan tujuan
+    url: b.judul, 
     created_at: b.created_at,
     is_protected: b.is_protected,
     expired_at: b.expired_at,
@@ -942,7 +905,7 @@ function _openItemDetail(type, id, info) {
 
   openModal('modalLinkDetail');
 
-  // Default rentang Analytics: 7 hari terakhir
+  
   const today = new Date();
   const weekAgo = new Date(today.getTime() - 6 * 86400000);
   const todayIso = today.toISOString();
@@ -960,13 +923,13 @@ function _openItemDetail(type, id, info) {
       sampaiEl.addEventListener('change', () => _ldReloadAnalytics());
       dariEl._ldBound = true;
     }
-    // Load pertama: kirim tanggal yang kita hitung sendiri (todayIso/weekAgoIso),
-    // JANGAN baca dari hidden input ldRangeDari/ldRangeSampai - widget CDTP
-    // nulis ke situ secara async, jadi 30ms setelah .set() belum tentu sempat
-    // ke-commit. Kalau masih kebaca kosong, _ldReloadAnalytics langsung
-    // return duluan tanpa pernah fetch (makanya total visitor diem di 0
-    // walau data klik-nya ada). Baca-dari-DOM tetap dipakai buat perubahan
-    // manual lewat date picker (event 'change' di atas).
+    
+    
+    
+    
+    
+    
+    
     _ldReloadAnalytics(_ldDateOnly(weekAgoIso), _ldDateOnly(todayIso));
   }, 30);
 }
@@ -993,8 +956,8 @@ function _ldDateOnly(v) {
   if (!v) return '';
   // v adalah ISO timestamp UTC (dari toISOString()/CDTP). Geser +8 jam ke WITA
   // dulu sebelum ambil tanggalnya - kalau langsung split('T')[0] dari ISO UTC,
-  // klik yang terjadi dini hari WITA (00:00-08:00, masih "kemarin" di UTC)
-  // bisa kepotong dari rentang query analytics dan kebaca 0.
+  
+  
   const d = new Date(v);
   if (isNaN(d.getTime())) return v.split('T')[0];
   return new Date(d.getTime() + 8 * 3600000).toISOString().slice(0, 10);
@@ -1026,10 +989,10 @@ function _renderLdChart(daily, dari, sampai) {
   const cur = new Date(dari + 'T00:00:00');
   const end = new Date(sampai + 'T00:00:00');
   while (cur <= end && days.length < 120) {
-    // Pakai komponen tanggal lokal langsung, JANGAN toISOString() - itu geser
-    // ke UTC dulu, jadi "hari ini" WITA bisa kebaca mundur satu hari dan
-    // nggak pernah match sama key tanggal WITA yang dikirim backend (bikin
-    // grafik keliatan "Empty Data" walau total visitor-nya udah kehitung).
+    
+    
+    
+    
     const key = `${cur.getFullYear()}-${String(cur.getMonth() + 1).padStart(2, '0')}-${String(cur.getDate()).padStart(2, '0')}`;
     const found = daily.find(d => d.tanggal === key);
     days.push({ tanggal: key, klik: found ? found.klik : 0 });
@@ -1071,16 +1034,16 @@ function downloadShareQr() {
 
   if (!canvas) { finishDownload(fallbackImg ? fallbackImg.src : null); return; }
 
-  // Upscale 4x biar hasil unduhan tajam & gede (~1040px), setara s.id, bukan cuma 260px display size
+  
   const scale = 4;
   const qrPixel = canvas.width * scale;
-  const margin = qrPixel * 0.08; // quiet zone putih di pinggir, biar ga mepet kayak s.id
+  const margin = qrPixel * 0.08; 
   const out = document.createElement('canvas');
   out.width = qrPixel + margin * 2; out.height = qrPixel + margin * 2;
   const ctx = out.getContext('2d');
   ctx.fillStyle = '#fff';
   ctx.fillRect(0, 0, out.width, out.height);
-  ctx.imageSmoothingEnabled = false; // jaga modul QR tetap tajam (kotak2), gak blur
+  ctx.imageSmoothingEnabled = false; 
   ctx.drawImage(canvas, margin, margin, qrPixel, qrPixel);
 
   if (logo && logo.complete && logo.naturalWidth > 0) {

@@ -1,10 +1,8 @@
-// ═══════════════════════════════════════════
-// USERS (admin only)
-// ═══════════════════════════════════════════
-let _users  = [];
-let _bidang = [];  // cache master bidang
 
-// ── Pagination state untuk tabel Users ──
+
+let _users  = [];
+let _bidang = [];  
+
 let _userPage     = 1;
 const _userPageSize = 10;
 let _userSearch   = '';
@@ -42,7 +40,7 @@ function initBidangSearchable() {
   const wrap = sel.closest('.select-wrap');
   if (!wrap) return;
 
-  // Hapus semua custom UI lama (bsel maupun csel yang dibuat oleh initAll global)
+  
   wrap.querySelectorAll('.bsel-trigger, .bsel-panel, .csel-trigger, .csel-panel').forEach(el => el.remove());
   wrap.classList.remove('csel-ready');
 
@@ -57,12 +55,12 @@ function initBidangSearchable() {
     <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" class="csel-chev"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>`;
   wrap.appendChild(trigger);
 
-  // ── Panel ───────────────────────────────────────────────────────────────
+  
   const panel = document.createElement('div');
   panel.className = 'bsel-panel csel-panel';
   panel.style.cssText = 'display:none;padding:0';
 
-  // Search input
+  
   const searchWrap = document.createElement('div');
   searchWrap.style.cssText = 'padding:8px 10px;border-bottom:1px solid var(--border,#e2e8f0);position:sticky;top:0;background:#fff;z-index:1';
   const searchInp = document.createElement('input');
@@ -73,13 +71,13 @@ function initBidangSearchable() {
   searchWrap.appendChild(searchInp);
   panel.appendChild(searchWrap);
 
-  // Options list container
+  
   const listEl = document.createElement('div');
   listEl.className = 'bsel-list';
   listEl.style.cssText = 'max-height:220px;overflow-y:scroll;overscroll-behavior:contain';
   panel.appendChild(listEl);
 
-  // Panel di-mount ke body agar position:fixed tidak terpotong stacking context modal
+  
   wrap.appendChild(panel);
 
   function renderList(query) {
@@ -121,7 +119,7 @@ function initBidangSearchable() {
   }
 
   function openPanel() {
-    // Close any other open csel/bsel panel
+    
     document.querySelectorAll('.bsel-panel, .csel-panel').forEach(p => {
       if (p !== panel) {
         p.style.display = 'none';
@@ -129,7 +127,7 @@ function initBidangSearchable() {
       }
     });
 
-    // Pindahkan panel ke body agar position:fixed tidak terpotong stacking context modal
+    
     document.body.appendChild(panel);
 
     const rect = trigger.getBoundingClientRect();
@@ -160,7 +158,7 @@ function initBidangSearchable() {
   function closePanel() {
     panel.style.display = 'none';
     trigger.classList.remove('open');
-    // Kembalikan panel ke wrap supaya tidak numpuk di body
+    
     if (panel.parentElement === document.body) wrap.appendChild(panel);
   }
 
@@ -178,18 +176,18 @@ function initBidangSearchable() {
 
   panel.addEventListener('click', e => e.stopPropagation());
 
-  // Tutup panel saat scroll di luar panel, atau resize
+  
   window.addEventListener('scroll', (e) => {
     if (!panel.contains(e.target)) closePanel();
   }, true);
   window.addEventListener('resize', closePanel, true);
 
-  // Close on outside click - jangan tutup kalau klik di dalam panel atau trigger
+  
   const outsideHandler = (e) => {
     if (!panel.contains(e.target) && !trigger.contains(e.target)) closePanel();
   };
   document.addEventListener('click', outsideHandler, { once: false });
-  // Store ref to remove later if needed
+  
   wrap._bselOutside = outsideHandler;
 
   wrap.classList.add('csel-ready');
@@ -262,7 +260,6 @@ function renderUsersTable() {
 
 window.goUserPage = (p) => { _userPage = p; renderUsersTable(); };
 
-// ── URUTAN LAPORAN (admin atur urutan manual pegawai buat Laporan Absensi) ──
 function openUrutanLaporanModal() {
   const list = _users
     .filter(u => !u.is_admin)
@@ -306,8 +303,8 @@ function _initUrutanLaporanDrag() {
     });
   });
 
-  // Listener di container cukup di-attach sekali (innerHTML re-render item-nya,
-  // tapi container-nya sendiri tetap sama elemen tiap modal dibuka)
+  
+  
   if (!container._dragInit) {
     container.addEventListener('dragover', (e) => {
       e.preventDefault();
@@ -443,7 +440,6 @@ async function deleteUser(id) {
   toast('Pengguna berhasil dihapus'); loadUsers();
 }
 
-// ── PAKSA LOGOUT (admin) ─────────────────────────────────────────────────
 async function forceLogoutUser(id, nama) {
   const ok = await showConfirm({
     title: 'Paksa Logout',
@@ -461,7 +457,6 @@ async function forceLogoutUser(id, nama) {
   } catch { toast('Gagal memaksa logout', 'error'); }
 }
 
-// ── RESET PASSWORD (admin) ───────────────────────────────────────────────
 async function resetUserPassword(id, nama) {
   const ok = await showConfirm({
     title: 'Reset Password',
@@ -479,7 +474,6 @@ async function resetUserPassword(id, nama) {
   } catch { toast('Gagal mereset password', 'error'); }
 }
 
-// ── PERMISSIONS ──────────────────────────────────────────────────────────
 const PERM_DEFS = [
   { key: 'dashboard',           name: 'Dashboard Utama',          desc: 'Lihat halaman dashboard' },
   { key: 'superlink.shortlink', name: 'Superlink › Shortlink',    desc: 'Kelola link pendek' },
@@ -540,15 +534,15 @@ function togglePerm(key, el) {
   } else {
     _selectedPerms.add(key);
     el.classList.add('selected');
-    // Shortlink/Bundle butuh superlink.link untuk write operation
+    
     if (key === 'superlink.shortlink' || key === 'superlink.bundle') {
       _selectedPerms.add('superlink.link');
     }
-    // Admin Penuh surat butuh akses menu surat dasarnya juga
+    
     if (key === 'surat.masuk.full') _selectedPerms.add('surat.masuk');
     if (key === 'surat.keluar.full') _selectedPerms.add('surat.keluar');
   }
-  // Re-render supaya state checkbox semua sinkron
+  
   renderPermsGrid();
 }
 
@@ -566,9 +560,6 @@ async function savePerms() {
   } catch { toast('Gagal menyimpan', 'error'); }
 }
 
-// ═══════════════════════════════════════════
-// MASTER BIDANG
-// ═══════════════════════════════════════════
 let _bidangList     = [];
 let _bidangPage     = 1;
 const _bidangPageSize = 10;
@@ -680,11 +671,8 @@ async function deleteBidang(id) {
   toast('Bidang berhasil dihapus'); loadBidangPage();
 }
 
-// ═══════════════════════════════════════════
-// ASSIGN INDIKATOR per USER
-// ═══════════════════════════════════════════
 let _assignIndikatorUserId = null;
-let _assignIndikatorList   = [];   // semua indikator dari API
+let _assignIndikatorList   = [];   
 let _assignSelectedIds     = new Set();
 let _assignSearch          = '';
 
@@ -696,7 +684,7 @@ async function openAssignIndikatorModal(userId) {
   document.getElementById('assignIndikatorUserInfo').textContent =
     `${u?.nama || ''} (${u?.email || ''})`;
 
-  // Load semua indikator dan assignment user secara paralel
+  
   try {
     const [ri, ra] = await Promise.all([
       fetch('/api/kinerja/indikator', { headers: authHeaders() }),

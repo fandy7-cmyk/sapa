@@ -1,14 +1,11 @@
-// js/dokumen_publik_frontend.js
-// Kelola Dokumen Publik - admin only
+
 
 'use strict';
 
-/* ── State ────────────────────────────────────────────────────── */
 let _dokumenAll  = [];
 let _dokumenPage = 1;
 const _dokumenPerPage = 15;
 
-/* ── Load & render ────────────────────────────────────────────── */
 async function loadDokumenPublik() {
   const tb0 = document.getElementById('dokumenTableBody');
   if (tb0) tb0.innerHTML = `<tr class="empty-row"><td colspan="5"><span class="btn-spin" style="width:11px;height:11px;vertical-align:-1px;margin-right:6px"></span>Memuat data...</td></tr>`;
@@ -116,7 +113,6 @@ function renderDokumenTable() {
   });
 }
 
-/* ── Modal ────────────────────────────────────────────────────── */
 function openDokumenModal(id = null) {
   document.getElementById('dokumenId').value         = '';
   document.getElementById('dokumenJudul').value      = '';
@@ -185,10 +181,10 @@ async function toggleDokumen(id, currentAktif) {
     const data = await r.json();
     if (!r.ok) throw new Error();
     toast(!currentAktif ? 'Dokumen diaktifkan' : 'Dokumen dinonaktifkan', 'success');
-    // Update state lokal langsung dari hasil PUT (RETURNING * -> udah pasti data
-    // paling baru). JANGAN fetch ulang via loadDokumenPublik() sesudah ini -
-    // itu race dengan write barusan dan kadang balikin data lama, nimpa balik
-    // state yang udah bener jadi keliatan "gak berhasil" sampai reload manual.
+    
+    
+    
+    
     const idx = _dokumenAll.findIndex(d => d.id === id);
     if (idx !== -1 && data?.dokumen) _dokumenAll[idx] = data.dokumen;
     renderDokumenTable();
@@ -213,7 +209,6 @@ async function deleteDokumen(id) {
   }
 }
 
-/* ── Helper ───────────────────────────────────────────────────── */
 function formatTanggalDok(str) {
   if (!str) return '-';
   const d = new Date(str);
@@ -224,7 +219,6 @@ function formatTanggalDok(str) {
   return `${tgl}, ${hh}:${mm} WITA`;
 }
 
-/* ── Kategori select helpers ─────────────────────────────────── */
 const _KATEGORI_DEFAULT = ['SK','SOP','Laporan','Regulasi','Pedoman','Formulir'];
 
 function _onDokumenKategoriChange(sel) {
@@ -270,7 +264,7 @@ function buildDokumenKategoriFilter() {
   if (!sel) return;
   const katSet = [...new Set(_dokumenAll.map(d => d.kategori).filter(Boolean))].sort();
   const current = sel.value;
-  // "Semua Kategori" cuma ditampilkan kalau kategorinya lebih dari 1 macam
+  
   let opts = katSet.length > 1 ? `<option value="">Semua Kategori</option>` : '';
   opts += katSet.map(k => `<option value="${esc(k)}" ${current === k ? 'selected' : ''}>${esc(k)}</option>`).join('');
   sel.innerHTML = opts || `<option value="">Semua Kategori</option>`;
@@ -279,8 +273,6 @@ function buildDokumenKategoriFilter() {
   if (typeof syncCustomSelect === 'function') syncCustomSelect('dokumenFilterKategori');
 }
 
-/* ── Helper: build status filter options dari data ─────────────
-   "Semua Status" cuma ditampilkan kalau statusnya lebih dari 1 macam ── */
 function buildDokumenStatusFilter() {
   const sel = document.getElementById('dokumenFilterStatus');
   if (!sel) return;

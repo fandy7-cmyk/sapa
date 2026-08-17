@@ -1,4 +1,4 @@
-// ── Inject CSS untuk Month Picker Laporan ────────────────────────────────
+
 (function() {
   if (document.getElementById('lap-mp-style')) return;
   const s = document.createElement('style');
@@ -44,12 +44,6 @@
   document.head.appendChild(s);
 })();
 
-// laporan.js - Fungsi Laporan Surat & Laporan Kinerja
-
-// ══════════════════════════════════════════════════════
-//  LAPORAN ABSENSI
-// ══════════════════════════════════════════════════════
-
 let _lapAbsPage = 1;
 let _lapAbsFilterBidang = '';
 let _lapAbsFilterStatus = '';
@@ -81,9 +75,9 @@ async function _populateLapAbsFilters() {
     await _populateLapAbsPegawai();
   }
 
-  // Dropdown bulan cuma di-rebuild sekali per kunjungan halaman - perubahan
-  // filter Unit Kerja/Pegawai/Tahun setelahnya masing-masing manggil ulang
-  // _rebuildLapAbsFilterBulan() lewat handler-nya sendiri.
+  
+  
+  
   if (bulanSel && !bulanSel.dataset.rebuilt) {
     bulanSel.dataset.rebuilt = '1';
     await _rebuildLapAbsFilterBulan();
@@ -96,8 +90,6 @@ async function _populateLapAbsFilters() {
   }
 }
 
-// Dropdown Tahun menyesuaikan data yg ADA (& pegawai yg sedang difilter) -
-// bukan 4 tahun statis. Sama seperti di halaman Absensi.
 async function _rebuildLapAbsFilterTahun() {
   const sel = document.getElementById('lapAbsTahun');
   if (!sel) return;
@@ -127,9 +119,6 @@ async function _rebuildLapAbsFilterTahun() {
   syncCustomSelect?.('lapAbsTahun');
 }
 
-// Dropdown Unit Kerja menyesuaikan data yg ADA utk tahun (& pegawai yg sedang
-// difilter) terpilih - sama kayak dropdown bulan, bukan daftar statis semua
-// unit kerja di master data.
 async function _rebuildLapAbsFilterBidang() {
   const sel = document.getElementById('lapAbsBidang');
   if (!sel) return;
@@ -376,9 +365,9 @@ async function downloadLaporanAbsensiPDF(btnEl) {
       return;
     }
 
-    // ── Jam Kerja per pegawai (kolom rekap tambahan) - cuma dihitung kalau BUKAN
-    // mode rentang tanggal custom, krn endpoint /api/absensi/jam-kerja cuma
-    // terima bulan+tahun (bukan rentang tanggal bebas). Mode rentang tampil "-".
+    
+    
+    
     let jamKerjaMap = new Map();
     if (!rangeMode) {
       const hasilJK = await Promise.all(pegawaiList.map(async (peg) => {
@@ -391,12 +380,12 @@ async function downloadLaporanAbsensiPDF(btnEl) {
       jamKerjaMap = new Map(hasilJK);
     }
 
-    // ── Ambil semua baris absensi periode ini (server dipaginasi 10/hal) ──
-    // Dulu: loop semua halaman BERURUTAN (satu-satu nunggu round-trip
-    // sebelumnya) - buat laporan sebulan penuh × banyak pegawai bisa jadi
-    // puluhan request berantai. Sekarang: halaman 1 diambil dulu (buat tau
-    // totalPages), sisanya (2..N) ditembak PARALEL (dibatasi 6 bareng biar
-    // gak nge-flood function/DB).
+    
+    
+    
+    
+    
+    
     const _lapAbsQS = (page) => {
       const qs = rangeMode
         ? new URLSearchParams({ dari, sampai, page })
@@ -411,7 +400,7 @@ async function downloadLaporanAbsensiPDF(btnEl) {
     const totalPages = Math.max(1, Math.ceil((d1.total || 0) / 10));
 
     if (totalPages > 1) {
-      const restPages = Array.from({ length: totalPages - 1 }, (_, i) => i + 2); // halaman 2..totalPages
+      const restPages = Array.from({ length: totalPages - 1 }, (_, i) => i + 2); 
       const pageResults = new Array(restPages.length);
       let idx = 0;
       async function _lapAbsWorker() {
@@ -428,7 +417,7 @@ async function downloadLaporanAbsensiPDF(btnEl) {
       pageResults.forEach(rows => { allRows = allRows.concat(rows); });
     }
 
-    // ── Hari libur periode ini (tetap ditampilkan, tapi dikasih warna khusus) ──
+    
     let liburMap = new Map();
     try {
       if (rangeMode) {
@@ -449,7 +438,7 @@ async function downloadLaporanAbsensiPDF(btnEl) {
       }
     } catch { liburMap = new Map(); }
 
-    // ── Kolom tanggal: SEMUA tanggal dalam periode ini (termasuk weekend & libur) ──
+    
     const DOW_NAMA = ['Min', 'Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab'];
     const kolomTanggal = [];
     if (rangeMode) {
@@ -607,7 +596,7 @@ async function downloadLaporanAbsensiPDF(btnEl) {
         </tr>
       </thead>`;
 
-    // ── Keterangan pakai ikon SVG kecil, bukan huruf ──
+    
     const svgHadir = `<svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="${KODE.hadir_ontime.color}" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M9 12l2 2 4-4"/><circle cx="12" cy="12" r="10"/></svg>`;
     const svgTerlambat = `<svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="${KODE.terlambat.color}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 16 14"/></svg>`;
     const svgTidakLengkap = `<svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="${KODE.tidak_lengkap.color}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect width="8" height="4" x="8" y="2" rx="1" ry="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="m15 11-6 6"/><path d="m9 11 6 6"/></svg>`;
@@ -653,10 +642,6 @@ async function downloadLaporanAbsensiPDF(btnEl) {
   }
 }
 
-// Kartu ke-7 "Jam Kerja" di Laporan - style & skala warna sama persis kayak
-// _absJamKerjaCard() di absensi_frontend.js, tapi pakai filter lapAbsBulan/
-// lapAbsTahun/lapAbsPegawai/lapAbsBidang milik halaman Laporan sendiri (bukan
-// filter halaman Absensi) supaya konsisten sama apa yg lagi ditampilin di sini.
 async function _lapAbsJamKerjaCardHtml(bulan, tahun, pegawaiId, bidangId, full) {
   try {
     const params = new URLSearchParams({ bulan, tahun });
@@ -667,15 +652,15 @@ async function _lapAbsJamKerjaCardHtml(bulan, tahun, pegawaiId, bidangId, full) 
     if (!r.ok) throw new Error(`HTTP ${r.status}`);
     const d = await r.json();
     const pctAsli = Math.max(0, d.persentase || 0);
-    const pct = Math.min(100, pctAsli); // buat teks & lebar bar (bar mentok 100%)
+    const pct = Math.min(100, pctAsli); 
     const iconJam = `<svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="10" x2="14" y1="2" y2="2"/><line x1="12" x2="15" y1="14" y2="11"/><circle cx="12" cy="14" r="8"/></svg>`;
     const periodeLabel = d.bulan ? ABS_BULAN_NAMA[d.bulan] : `Tahun ${d.tahun}`;
     const label = d.agregat ? `Total Jam Kerja ${periodeLabel}` : `Jam Kerja ${periodeLabel}`;
     const sub = d.agregat
       ? `${pct}% dari target ${_absFmtJam(d.target_menit)} · ${d.hari_kerja_total} hari kerja · total dari ${d.jumlah_pegawai} pegawai`
       : `${pct}% dari target ${_absFmtJam(d.target_menit)} · ${d.hari_kerja_total} hari kerja ${d.bulan ? 'bulan ini' : 'tahun ini'}`;
-    // Satu warna aja utk seluruh kartu (border, angka, ikon, progress bar) -
-    // ngikutin Skala Nilai Peringkat Kinerja (sama kayak _absJamKerjaCard()).
+    
+    
     const { warna } = _kinerjaSkalaWarna(pctAsli);
     const kartu = `
       <div class="dash-kpi-card" style="border-left-color:${warna}">
@@ -913,7 +898,7 @@ async function loadLaporanSurat() {
     console.error('[loadLaporanSurat]', err);
   }
 
-  // ── Bangun dropdown tahun dari data nyata ──
+  
   await _initLaporanSuratFilter(smRows, skRows);
 
   const tahunRaw = document.getElementById('laporanSuratTahun')?.value || '';
@@ -972,20 +957,20 @@ async function loadLaporanSurat() {
     });
   }
 
-  // Urutkan terbaru dulu
+  
   allRows.sort((a, b) => new Date(b.tanggal || 0) - new Date(a.tanggal || 0));
 
-  // ── Filter status ──
+  
   let filteredRows = allRows;
   if (status === 'belum')          filteredRows = allRows.filter(r => r._jenis === 'masuk' && !r.selesai);
   else if (status === 'selesai')   filteredRows = allRows.filter(r => r.selesai);
   else if (status === 'terlambat') filteredRows = allRows.filter(r => r.terlambat);
 
-  // ── Tabel detail (dengan pagination) ──
+  
   _lapSuratPage = 1;
   _lapRenderSuratTbody(filteredRows);
 
-  // Simpan data (rekap bulanan tetap untuk PDF)
+  
   const rekap = Array.from({ length: 12 }, (_, idx) => ({
     bulan: idx + 1, masuk: 0, selesai: 0, belum: 0, keluar: 0,
   }));
@@ -995,14 +980,12 @@ async function loadLaporanSurat() {
     if (r._jenis === 'masuk') { rekap[b].masuk++; r.selesai ? rekap[b].selesai++ : rekap[b].belum++; }
     else { rekap[b].keluar++; }
   });
-  // ── Rebuild opsi filter status sesuai data yang ada ──
+  
   _rebuildSuratStatusOptions(allRows, status);
 
   window._laporanSuratData = { rekap, allRows, filteredRows, tahun, jenis, status };
 }
 
-
-// Render tbody Laporan Surat dengan pagination (10 baris/halaman)
 function _lapRenderSuratTbody(rows) {
   const tbody = document.getElementById('laporanSuratTableBody');
   if (!tbody) return;
@@ -1055,7 +1038,6 @@ function _lapRenderSuratTbody(rows) {
   if (typeof renderPagination === 'function') renderPagination('laporanSuratPagination', total, _lapSuratPage, _LAP_SURAT_PER_PAGE, '_lapSuratGoPage');
 }
 
-// Pindah halaman tabel Laporan Surat (tanpa fetch ulang)
 function _lapSuratGoPage(p) {
   _lapSuratPage = p;
   const data = window._laporanSuratData;
@@ -1083,7 +1065,7 @@ function _renderSuratChart(rekap, jenis) {
     bars += `<text x="${x+barW/2}" y="${H-padB+14}" text-anchor="middle" font-size="9" fill="currentColor" opacity=".6">${BULAN_NAMA[i].slice(0,3)}</text>`;
   });
 
-  // Y axis labels
+  
   let yLabels = '';
   for (let v = 0; v <= maxVal; v += Math.ceil(maxVal / 4)) {
     const y = scale(v);
@@ -1103,19 +1085,12 @@ function _renderSuratChart(rekap, jenis) {
   el.innerHTML = `<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" style="width:100%;min-width:380px;max-height:200px">${yLabels}${bars}${legend}</svg>`;
 }
 
-
-
-// ══════════════════════════════════════════════════════
-//  LAPORAN KINERJA
-// ══════════════════════════════════════════════════════
-
 let _laporanKinerjaFilterReady = false;
 let _lapKinerjaTahunList = [];
-// State range bulan: { bulan:1..12, tahun:YYYY, key:'YYYY-MM' }
+
 let _lapRangeFrom = null;
 let _lapRangeTo   = null;
 
-// ── State pagination tabel Laporan Kinerja ───────────────────────────────
 let _lapKinerjaPage = 1;
 const _LAP_KINERJA_PER_PAGE = 15;
 let _lapKinerjaBulanTampil = [];
@@ -1123,8 +1098,6 @@ let _lapKinerjaColspan = 12;
 
 const _LAP_ROMAWI = ['I', 'II', 'III', 'IV'];
 
-// Render satu baris tabel Laporan Kinerja
-// Escape karakter HTML biar isian user (mis. ada "<" atau "&") gak bikin tabel laporan rusak.
 function _lapEscHtml(s) {
   return String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
@@ -1500,7 +1473,7 @@ async function loadLaporanKinerja() {
     } catch { return []; }
   };
 
-  // Kumpulkan data per indikator: { key: { ...info, realisasiPerBulan: {1:val,...}, ... } }
+  
   const allBulanData = {};
 
   const jenisParams = [];
@@ -1513,8 +1486,8 @@ async function loadLaporanKinerja() {
     results.forEach((bulanRows, idx) => {
       const b = bulanList[idx];
       bulanRows.forEach(row => {
-        // Gunakan id indikator saja sebagai key agar tidak duplikat
-        // ketika satu indikator memiliki jenis_monev=true DAN jenis_ikk=true
+        
+        
         const key = `${row.id}`;
         if (!allBulanData[key]) {
           allBulanData[key] = {
@@ -1538,12 +1511,12 @@ async function loadLaporanKinerja() {
 
   let rows = Object.values(allBulanData);
 
-  // Non-admin: hasil fetch di atas (scope=bidang) sudah berisi SEMUA indikator IKK/SPM
-  // di bidang yang sama dengan tanggung jawab user (dari backend), plus semua IKU.
-  // Dropdown "Indikator Saya" vs "Semua Indikator Bidang" tinggal milih mau ditampilin
-  // full (bidang) atau dipersempit ke yang eksplisit di-assign ke akunnya (mine).
+  
+  
+  
+  
   if (!_user?.is_admin) {
-    const bidangRows = rows; // superset dari backend (scope=bidang)
+    const bidangRows = rows; 
     const myRows = (_userIndikatorIds && _userIndikatorIds.size > 0)
       ? bidangRows.filter(row => _userIndikatorIds.has(Number(row.id)))
       : [];
@@ -1552,9 +1525,9 @@ async function loadLaporanKinerja() {
     const scope = scopeSel?.value || 'mine';
     rows = scope === 'bidang' ? bidangRows : myRows;
 
-    // Dropdown scope cuma relevan kalau bidang si-user beranggotakan indikator
-    // lain di luar miliknya sendiri - kalau enggak, "Semua Indikator Bidang" bakal
-    // sama persis hasilnya dgn "Indikator Saya", jadi disembunyikan aja.
+    
+    
+    
     const scopeWrap = document.getElementById('laporanKinerjaScopeWrap');
     if (scopeWrap) {
       const showScope = bidangRows.length > myRows.length;
@@ -1566,7 +1539,7 @@ async function loadLaporanKinerja() {
     if (scopeWrap) scopeWrap.style.display = 'none';
   }
 
-  // Hitung realisasi & capaian s.d bulan pelaporan (bulan terakhir yang ada data)
+  
   const fmtNum = v => {
     if (v === null || v === undefined || v === '') return null;
     const n = parseFloat(v);
@@ -1634,7 +1607,7 @@ async function loadLaporanKinerja() {
   const BULAN_PANJANG = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
   const bulanTampil   = bulanList.filter(b => b >= bulanDari && b <= bulanSampai);
 
-  // Hitung colspan per TW sesuai bulan yang tampil
+  
   const twRanges = [[1,3],[4,6],[7,9],[10,12]];
   const twHeaders = twRanges.map(([s, e], twIdx) => {
     const cols = bulanTampil.filter(b => b >= s && b <= e).length;
@@ -1665,7 +1638,7 @@ async function loadLaporanKinerja() {
         <th rowspan="2" style="min-width:100px">Rencana Tindak Lanjut</th>
       </tr>
       <tr class="lap-th-row2" style="background:var(--hijau)">${bulanSubHeaders}</tr>`;
-    // Fix gap putih di pojok thead: set teal di table, reset di tbody
+    
     const teal = getComputedStyle(document.documentElement).getPropertyValue('--hijau').trim() || '#0d9488';
     thead.style.background = teal;
     thead.style.backgroundColor = teal;
@@ -1676,11 +1649,11 @@ async function loadLaporanKinerja() {
       const tb = tbl.querySelector('tbody');
       if (tb) { tb.style.background = '#fff'; tb.style.backgroundColor = '#fff'; }
     }
-    // Baris 2 (nama bulan) harus sticky NEMPEL DI BAWAH baris 1 (TW), bukan
-    // top:0 juga - kalau top:0 dua-duanya, pas discroll baris bulan numpuk
-    // balik ke atas nabrak baris TW alih-alih nempel di bawahnya.
-    // Tinggi baris 1 diukur dinamis (bukan hardcode) karena tergantung
-    // konten (mis. "Indikator Kinerja" bisa wrap 2 baris di layar sempit).
+    
+    
+    
+    
+    
     const row1 = thead.querySelector('tr.lap-th-row1');
     const row2 = thead.querySelector('tr.lap-th-row2');
     if (row1 && row2) {
@@ -1691,9 +1664,9 @@ async function loadLaporanKinerja() {
     }
   }
 
-  // ── Sesuaikan dropdown Jenis untuk user non-admin: hanya tampilkan jenis
-  //    (IKU/IKK/SPM) yang benar-benar menjadi tanggung jawab user, berdasarkan
-  //    hasil fetch "Semua Jenis" (baseline lengkap sebelum difilter jenis tertentu) ──
+  
+  
+  
   if (!_user?.is_admin && jenis === 'semua') {
     const jenisSel = document.getElementById('laporanKinerjaJenis');
     if (jenisSel) {
@@ -1707,8 +1680,8 @@ async function loadLaporanKinerja() {
         jenisSel.innerHTML = optsHtml;
         jenisSel.value = [...jenisSel.options].some(o => o.value === cur) ? cur : (relevant[0]?.[0] || 'semua');
       }
-      // Kalau cuma 1 jenis, kunci dropdown-nya (tetap kelihatan nilainya) alih-alih disembunyikan,
-      // biar user tetap tau laporan yang sedang ditampilkan itu jenis apa.
+      
+      
       jenisSel.disabled = relevant.length <= 1;
       if (typeof syncCustomSelect === 'function') syncCustomSelect('laporanKinerjaJenis');
     }
@@ -1717,12 +1690,12 @@ async function loadLaporanKinerja() {
     if (jenisSel) jenisSel.disabled = false;
   }
 
-  // ── Populate dropdown Bidang. Untuk non-admin: opsi cuma bidang yang ada di
-  //    antara indikator yang di-assign ke dia (rows sudah di-scope di atas).
-  //    Kalau cuma 1 bidang, langsung ke-select otomatis & dropdown dikunci (disabled) ──
+  
+  
+  
   const bidangSel = document.getElementById('laporanKinerjaBidang');
-  // Dropdown Bidang tetap tampil, tapi cuma untuk admin; non-admin sudah digantikan
-  // dropdown scope "Tanggung Jawab Saya" / "Semua di Bidang Saya".
+  
+  
   const bidangWrapEl = bidangSel?.closest('.select-wrap');
   if (!_user?.is_admin) {
     if (bidangWrapEl) bidangWrapEl.style.display = 'none';
@@ -1776,7 +1749,6 @@ function _renderKinerjaEmpty(tahun) {
   if (tbody) tbody.innerHTML = `<tr class="empty-row"><td colspan="21">Tidak ada data untuk tahun ${tahun}</td></tr>`;
 }
 
-
 function _statusBadge(capaian) {
   if (capaian === null || capaian === undefined || capaian === '')
     return `<span style="background:#e5e7eb;color:#6b7280;padding:2px 8px;border-radius:99px;font-size:.7rem">Belum</span>`;
@@ -1786,8 +1758,6 @@ function _statusBadge(capaian) {
   if (c >= 60)  return `<span style="background:#fef3c7;color:#92400e;padding:2px 8px;border-radius:99px;font-size:.7rem">Cukup</span>`;
   return `<span style="background:#fee2e2;color:#991b1b;padding:2px 8px;border-radius:99px;font-size:.7rem">Rendah</span>`;
 }
-
-
 
 // ══════════════════════════════════════════════════════
 //  SHARED - PDF HELPER (kop surat + print window)
@@ -1812,7 +1782,6 @@ function _kopSuratHtml() {
     </div>`;
 }
 
-// Buka tab preview - user bisa lihat, lalu Ctrl+P / Save as PDF
 function _bukaPreviewPDF(htmlBody, judulDokumen, orientation) {
   const ori = orientation || 'landscape';
   const fullHtml = `<!DOCTYPE html>
@@ -1898,11 +1867,6 @@ function _bukaPreviewPDF(htmlBody, judulDokumen, orientation) {
   previewWin.document.close();
 }
 
-
-// ══════════════════════════════════════════════════════
-//  DOWNLOAD / PREVIEW LAPORAN SURAT - PDF
-// ══════════════════════════════════════════════════════
-
 function downloadLaporanSuratPDF(btnEl) {
   const data = window._laporanSuratData;
   if (!data) { toast('Muat data laporan terlebih dahulu', 'error'); return; }
@@ -1910,7 +1874,7 @@ function downloadLaporanSuratPDF(btnEl) {
   const { rekap, allRows, tahun, jenis, status } = data;
   const tahunLabel = tahun ? 'Tahun ' + tahun : 'Semua Tahun';
 
-  // Subtitle fleksibel sesuai filter aktif
+  
   const jenisLabel  = jenis === 'masuk' ? 'Surat Masuk' : jenis === 'keluar' ? 'Surat Keluar' : 'Surat Masuk & Keluar';
   const statusLabel = status === 'selesai' ? ' · Selesai' : status === 'belum' ? ' · Belum Selesai' : status === 'terlambat' ? ' · Terlambat' : '';
   const subtitleLabel = `${jenisLabel}${statusLabel} - ${tahunLabel}`;
@@ -1983,22 +1947,17 @@ function downloadLaporanSuratPDF(btnEl) {
   _bukaPreviewPDF(bodyHtml, judulDoc, 'landscape');
 }
 
-
-// ══════════════════════════════════════════════════════
-//  HELPER - Rebuild filter status dinamis
-// ══════════════════════════════════════════════════════
-
 function _rebuildSuratStatusOptions(allRows, currentVal) {
   const sel = document.getElementById('laporanSuratStatus');
   if (!sel) return;
 
-  // Deteksi status yang benar-benar ada di data
+  
   const adaBelum     = allRows.some(r => r._jenis === 'masuk' && !r.selesai && !r.terlambat);
   const adaSelesai   = allRows.some(r => r.selesai);
   const adaTerlambat = allRows.some(r => r.terlambat);
   const jumlahStatus = [adaBelum, adaSelesai, adaTerlambat].filter(Boolean).length;
 
-  // "Semua Status" cuma ditampilkan kalau statusnya lebih dari 1 macam
+  
   const opts = [];
   if (jumlahStatus > 1) opts.push({ val: '', label: 'Semua Status' });
   if (adaBelum)     opts.push({ val: 'belum',     label: 'Belum Selesai' });
@@ -2006,7 +1965,7 @@ function _rebuildSuratStatusOptions(allRows, currentVal) {
   if (adaTerlambat) opts.push({ val: 'terlambat', label: 'Terlambat' });
   if (!opts.length) opts.push({ val: '', label: 'Semua Status' });
 
-  // Jika nilai terpilih sudah tidak relevan, jatuh ke opsi pertama yang tersedia
+  
   const validVals = opts.map(o => o.val);
   const safeVal = validVals.includes(currentVal) ? currentVal : opts[0].val;
 
@@ -2048,7 +2007,6 @@ function _rebuildKinerjaStatusOptions(allRows, currentVal) {
   ).join('');
 }
 
-
 function _statCard(label, value, color, iconPath) {
   return `<div class="stat-card" style="border-left-color:${color}">
     <div class="stat-card-body">
@@ -2079,13 +2037,12 @@ function _ttdHtml(pegawai, tanggalStr, marginTop = 24, fontSize = 10) {
     </div>`;
 }
 
-// ── Fetch kepala dinas (root pegawai, urutan terkecil / parent_id null) ───
 async function _fetchKepalaDinas() {
   try {
     const r = await fetch('/api/pegawai', { headers: authHeaders() });
     if (!r.ok) return null;
     const { pegawai } = await r.json();
-    // Kepala = parent_id null, urutan terkecil
+    
     const roots = (pegawai || []).filter(p => !p.parent_id && p.aktif);
     if (!roots.length) return null;
     roots.sort((a, b) => (a.urutan ?? 999) - (b.urutan ?? 999));
@@ -2093,12 +2050,10 @@ async function _fetchKepalaDinas() {
   } catch { return null; }
 }
 
-// Dipanggil saat dropdown Bidang berubah: refresh tabel.
 function _filterLaporanKinerjaByBidang() {
   _renderLaporanKinerjaFiltered();
 }
 
-// Terapkan filter Bidang yang sedang aktif ke rows lengkap, lalu render ulang tabel.
 function _renderLaporanKinerjaFiltered() {
   const data = window._laporanKinerjaData;
   if (!data) return;
@@ -2112,7 +2067,6 @@ function _renderLaporanKinerjaFiltered() {
   _lapRenderKinerjaTbody(filtered, bulanTampil, colspanTotal, 'Tidak ada data untuk filter ini');
 }
 
-// Filter rows berdasarkan pilihan dropdown Bidang yang sedang aktif.
 function _applyLaporanKinerjaFilters(rows) {
   const bidangValue = document.getElementById('laporanKinerjaBidang')?.value || '';
   return bidangValue ? rows.filter(r => r.penanggung_jawab === bidangValue) : rows;
@@ -2139,16 +2093,12 @@ const _LAP_TIPE_PERHITUNGAN_INFO = {
 function _lapPillHtml(label, info) {
   return `<span style="display:inline-block;font-size:8px;font-weight:700;color:${info.teks};background:${info.bg};border:1px solid ${info.border};padding:2px 7px;border-radius:8px;white-space:nowrap">${label}</span>`;
 }
-// Baris badge di bawah nama indikator: pill tipe perhitungan
+
 function _lapIndikatorBadgeRowHtml(r) {
   const tipeInfo = _LAP_TIPE_PERHITUNGAN_INFO[r?.tipe_perhitungan] || _LAP_TIPE_PERHITUNGAN_INFO.non_kumulatif;
   return `<div style="display:flex;gap:4px;margin-top:4px;flex-wrap:wrap">${_lapPillHtml(tipeInfo.label, tipeInfo)}</div>`;
 }
 
-
-// Render baris <tr> untuk satu indikator pada tabel PDF Capaian/Monev Kinerja.
-// Dipakai baik di mode ter-grouping (per Urusan/TSP, untuk admin) maupun mode
-// flat langsung dari data.rows (untuk non-admin, tanpa perlu template).
 function _lapKinerjaPdfRowHtml(r, no, displayCols, namaIndikatorOverride) {
   const bulanCells = displayCols.map(c => {
     const v = c.type === 'tw' ? r.realisasiPerBulan?.[c.lastBulan] : r.realisasiPerBulan?.[c.bulan];
@@ -2222,9 +2172,9 @@ async function downloadLaporanByUrusan(btnEl) {
 
     const _twDef = [{tw:'I',s:1,e:3},{tw:'II',s:4,e:6},{tw:'III',s:7,e:9},{tw:'IV',s:10,e:12}];
     const _twPdfAktif = _twDef.filter(tw => bulanList.some(b => b >= tw.s && b <= tw.e));
-    // TW dianggap "lengkap" jika ketiga bulannya masuk dalam bulanList (range filter)
+    
     const _twLengkap = (tw) => [tw.s, tw.s+1, tw.s+2].every(b => bulanList.includes(b));
-    // Kolom yang benar2 ditampilkan: TW lengkap = 1 kolom gabungan, TW belum lengkap = pecah per bulan
+    
     const displayCols = _twPdfAktif.flatMap(tw => {
       if (_twLengkap(tw)) {
         return [{ type: 'tw', tw: tw.tw, lastBulan: tw.e }];
@@ -2310,22 +2260,17 @@ async function downloadLaporanByUrusan(btnEl) {
   }
 }
 
-// ══════════════════════════════════════════════════════
-//  DOWNLOAD LAPORAN PER TSP - PDF
-//  Struktur: NO | SASARAN STRATEGIS/PROGRAM/KEGIATAN | INDIKATOR | SATUAN | TARGET TAHUN
-// ══════════════════════════════════════════════════════
-
 async function downloadLaporanByTSP(btnEl) {
   const data = window._laporanKinerjaData;
   if (!data || !data.rows) { toast('Muat data laporan terlebih dahulu', 'error'); return; }
 
   if (btnEl) { btnEl.disabled = true; btnEl.innerHTML = `<span class="btn-spin" style="width:12px;height:12px"></span> Memuat data...`; }
   try {
-    // Non-admin: langsung tampilkan indikator tanggung jawabnya sendiri (flat),
-    // gak perlu template TSP (Tujuan/Sasaran/Program/Kegiatan) yang notabene struktur instansi.
+    
+    
     let orderedTpl = null;
     if (_user?.is_admin) {
-      // Ambil SEMUA template kecuali urusan (tujuan + sasaran + program + kegiatan)
+      
       const res = await fetch('/api/kinerja/laporan-template', { headers: authHeaders() });
       const tplData = await res.json();
       const allTemplates = (tplData.templates || []).filter(t => t.jenis !== 'urusan');
@@ -2337,7 +2282,7 @@ async function downloadLaporanByTSP(btnEl) {
         return { ...t, indikator: d.indikator || [] };
       }));
 
-      // Urutkan hierarkis: build tree dari parent_id, lalu DFS
+      
       const tplMap = {};
       tplWithIndikator.forEach(t => { tplMap[t.id] = { ...t, _children: [] }; });
       const roots = [];
@@ -2396,14 +2341,14 @@ async function downloadLaporanByTSP(btnEl) {
 
     const kepalaDinas = await _fetchKepalaDinas();
 
-    // Buat lookup map: indikator id (number) → row
+    
     const rowById = {};
     data.rows.forEach(row => {
-      // row.id bisa string (key dari object) atau number, normalisasi ke number
+      
       rowById[parseInt(row.id)] = row;
     });
 
-    // Config label per jenis (tanpa fill warna)
+    
     const JENIS_CFG = {
       tujuan:   { label: 'TUJUAN' },
       sasaran:  { label: 'SASARAN STRATEGIS' },
@@ -2411,9 +2356,9 @@ async function downloadLaporanByTSP(btnEl) {
       kegiatan: { label: 'KEGIATAN' },
     };
 
-    // Counter per jenis untuk penomoran
+    
     const jenisCounter = { tujuan: 0, sasaran: 0, program: 0, kegiatan: 0 };
-    let kegiatanInGroup = 0; // reset tiap ganti program/sasaran
+    let kegiatanInGroup = 0; 
     let lastParentJenis = null;
 
     const rowsHtml = !orderedTpl ? _lapKinerjaFlatRowsHtml(data.rows, displayCols) : orderedTpl.map((tpl, tplIdx) => {
@@ -2424,9 +2369,9 @@ async function downloadLaporanByTSP(btnEl) {
         ? `${cfg.label} ${jenisNo}`
         : cfg.label;
 
-      // Untuk kegiatan: reset counter saat parent berubah
+      
       if (tpl.jenis === 'kegiatan') {
-        // Cek apakah ini kegiatan pertama setelah parent baru
+        
         const prevNonKegiatan = orderedTpl.slice(0, tplIdx).filter(t => t.jenis !== 'kegiatan').pop();
         if (prevNonKegiatan !== lastParentJenis) {
           lastParentJenis = prevNonKegiatan;

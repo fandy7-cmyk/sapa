@@ -1,15 +1,11 @@
-// js/struktur_frontend.js
-// Kelola Pegawai & Struktur Organisasi - admin only
+
 
 'use strict';
 
-/* ── State ────────────────────────────────────────────────────── */
 let _pegawaiAll  = [];
 let _pegawaiPage = 1;
 const _pegawaiPerPage = 15;
 
-// Suntik transformasi Cloudinary (resize + auto quality/format) biar foto
-// pegawai yang cuma ditampilin kecil (thumbnail/preview) gak download full-res.
 function _cldThumb(url, w, h) {
   if (!url || !url.includes('/upload/')) return url;
   if (url.includes('cloudinary.com') && !/\/upload\/[a-z]_/i.test(url.split('/upload/')[1] || '')) {
@@ -114,7 +110,6 @@ function renderPegawaiTable() {
   });
 }
 
-/* ── Modal ────────────────────────────────────────────────────── */
 function openPegawaiModal(id = null) {
   document.getElementById('pegawaiId').value         = '';
   document.getElementById('pegawaiNama').value       = '';
@@ -129,7 +124,7 @@ function openPegawaiModal(id = null) {
   document.getElementById('pegawaiFotoProgress').style.display = 'none';
   document.getElementById('modalPegawaiTitle').textContent = id ? 'Edit Pegawai' : 'Tambah Pegawai';
 
-  // Build atasan dropdown
+  
   _buildAtatanDropdown(id);
 
   if (id) {
@@ -159,11 +154,11 @@ function openPegawaiModal(id = null) {
 function _buildAtatanDropdown(excludeId = null) {
   const sel = document.getElementById('pegawaiAtasan');
   if (!sel) return;
-  // Exclude diri sendiri dan semua descendant-nya agar tidak circular
+  
   const excluded = new Set();
   if (excludeId) {
     excluded.add(excludeId);
-    // BFS untuk temukan semua descendant
+    
     const queue = [excludeId];
     while (queue.length) {
       const cur = queue.shift();
@@ -182,7 +177,6 @@ function _buildAtatanDropdown(excludeId = null) {
   if (typeof initCustomSelects === 'function') initCustomSelects();
 }
 
-/* ── Upload foto ──────────────────────────────────────────────── */
 async function onPegawaiFotoFileChange(input) {
   const file = input.files?.[0];
   if (!file) return;
@@ -311,7 +305,6 @@ async function deletePegawai(id) {
   }
 }
 
-/* ── Helper: build jabatan filter options dari data ─────────── */
 function buildPegawaiJabatanFilter() {
   const sel = document.getElementById('pegawaiFilterJabatan');
   if (!sel) return;
@@ -322,8 +315,6 @@ function buildPegawaiJabatanFilter() {
   if (typeof initCustomSelects === 'function') initCustomSelects();
 }
 
-/* ── Helper: build status filter options dari data ─────────────
-   "Semua Status" cuma ditampilkan kalau statusnya lebih dari 1 macam ── */
 function buildPegawaiStatusFilter() {
   const sel = document.getElementById('pegawaiFilterStatus');
   if (!sel) return;

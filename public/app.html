@@ -5,7 +5,7 @@
   <script>history.replaceState(null, '', location.origin);</script>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>SAPA Perencanaan</title>
-  <meta name="app-version" content="1.3.2" />
+  <meta name="app-version" content="1.3.3" />
   <link rel="icon" type="image/png" href="/favicon.png" />
   <link rel="manifest" href="/manifest.json" />
   <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
@@ -16,9 +16,9 @@
   <meta name="apple-mobile-web-app-title" content="SAPA" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="css/styles.css?v=1.3.2" />
+  <link rel="stylesheet" href="css/styles.css?v=1.3.3" />
   <style>
-    /* ── LOGIN OVERLAY ── */
+    
     #loginOverlay {
       position: fixed; inset: 0; z-index: 9999;
       background: linear-gradient(135deg, #ffffff 0%, #e0f7f5 35%, #99e6df 65%, #0d9488 100%);
@@ -29,23 +29,21 @@
     #loginOverlay.hidden {
       opacity: 0; visibility: hidden; pointer-events: none;
     }
-    /* ── Kunci scroll saat login overlay tampil ──
-       Gunakan 3 layer: html, body, dan :has() modern CSS.
-       html + body keduanya harus overflow:hidden agar scrollbar benar-benar hilang. */
+    
     html.login-mode,
     body.login-mode {
       overflow: hidden !important;
       height: 100% !important;
       max-height: 100vh !important;
     }
-    /* Modern CSS fallback - Chrome 105+, Firefox 121+ */
+    
     html:has(#loginOverlay:not(.hidden)),
     body:has(#loginOverlay:not(.hidden)) {
       overflow: hidden !important;
       height: 100% !important;
       max-height: 100vh !important;
     }
-    /* appShell saat tersembunyi: jangan berkontribusi ke scroll height */
+    
     #appShell[style*="visibility:hidden"],
     #appShell[style*="visibility: hidden"] {
       position: fixed !important;
@@ -71,7 +69,7 @@
     #loginOverlay .btn-login   { margin-top: 4px; }
     #loginOverlay .info-banner { margin-top: 14px; }
 
-    /* ── Mobile: sembunyikan panel kiri, card mengambang di atas bg ── */
+    
     @media (max-width: 640px) {
       #loginOverlay .panel-left { display: none !important; }
       #loginOverlay .card.login-card {
@@ -89,7 +87,7 @@
       }
     }
 
-    /* ── FILTER BAR ── */
+    
     .filter-bar {
       display: flex;
       align-items: center;
@@ -140,12 +138,12 @@
       margin-top: 2px;
     }
 
-    /* ── Jarak baris Skala Nilai ke baris Tahun/Bulan di atasnya ── */
+    
     .skala-nilai-row {
       margin-top: 18px !important;
     }
 
-    /* ── Skala Nilai Peringkat Kinerja: rapikan di mobile ── */
+    
     @media (max-width: 640px) {
       .skala-nilai-row {
         display: grid !important;
@@ -176,13 +174,11 @@
     }
   
 
-
-
 </style>
-  <!-- Quill rich text editor -->
+  
   <link href="https://cdnjs.cloudflare.com/ajax/libs/quill/1.3.7/quill.snow.min.css" rel="stylesheet">
   <style>
-    /* Quill override: match SAPA design system */
+    
     #pengumumanEditorWrap .ql-toolbar {
       border: 1.5px solid var(--border);
       border-bottom: none;
@@ -220,33 +216,27 @@
 </head>
 <body class="login-mode">
 
-<!-- ══ LOGIN OVERLAY ══════════════════════════════════════════════════════ -->
 <div id="loginOverlay">
 <div class="lp-aurora" id="lpAurora" aria-hidden="true"></div>
 <script>
-// ── Generate partikel aurora login secara dinamis ──
-// Sekarang berotasi mengelilingi titik pusat layar (pola sama seperti
-// .portal-particle di landing.html), bukan lurus dari bawah ke atas.
-// Tetap ringan: hanya animasi CSS (transform+opacity, GPU-accelerated),
-// JS cuma dipakai sekali untuk membuat elemennya saja (tidak ada loop
-// per-frame / requestAnimationFrame).
+
 (function() {
   var aurora = document.getElementById('lpAurora');
   if (!aurora) return;
   var count = window.innerWidth < 640 ? 90 : 200;
-  var minR = 6, maxR = 55; // radius orbit dalam vmin, biar proporsional ke layar
+  var minR = 6, maxR = 55; 
   var frag = document.createDocumentFragment();
   for (var i = 0; i < count; i++) {
     var s = document.createElement('span');
     s.className = 'lp-aurora-spark';
     var r = minR + Math.random() * (maxR - minR);
-    // Durasi orbit proporsional radius - orbit besar berputar lebih lambat,
-    // mirip Hukum Kepler, biar terasa natural (bukan seragam & kaku).
-    var orbitDur   = (8 + (r - minR) / (maxR - minR) * 22).toFixed(1);   // 8s - 30s
+    
+    
+    var orbitDur   = (8 + (r - minR) / (maxR - minR) * 22).toFixed(1);   
     var orbitDelay = (-(Math.random() * orbitDur)).toFixed(1);
-    var twinkleDur   = (Math.random() * 2 + 1.5).toFixed(1);            // 1.5s - 3.5s
+    var twinkleDur   = (Math.random() * 2 + 1.5).toFixed(1);            
     var twinkleDelay = (-(Math.random() * twinkleDur)).toFixed(1);
-    var size = (Math.random() * 0.8 + 0.6).toFixed(2); // 0.6vmin - 1.4vmin (~6-14px di layar biasa), unit disamakan dgn --r biar scale konsisten
+    var size = (Math.random() * 0.8 + 0.6).toFixed(2); 
     s.style.cssText = '--r:' + r.toFixed(1) + 'vmin;width:' + size + 'vmin;height:' + size + 'vmin;' +
       'animation-duration:' + orbitDur + 's,' + twinkleDur + 's;' +
       'animation-delay:' + orbitDelay + 's,' + twinkleDelay + 's;';
@@ -257,7 +247,7 @@
 </script>
 <div class="card login-card">
 
-  <!-- LEFT PANEL -->
+  
   <div class="panel-left">
     <div class="dot-grid"></div>
     <div class="left-logos">
@@ -284,7 +274,7 @@
     </div>
   </div>
 
-  <!-- RIGHT PANEL -->
+  
   <div class="panel-right">
     <div class="welcome-icon">
       <img src="/favicon.png" alt="SAPA" style="width:48px;height:48px;object-fit:contain;" />
@@ -338,45 +328,37 @@
 
 </div>
 </div>
-<!-- ══ END LOGIN OVERLAY ══════════════════════════════════════════════════ -->
 
-
-
-<!-- ══ EARLY AUTH GUARD ═══════════════════════════════════════════════════
-     Dieksekusi SEGERA setelah loginOverlay ada di DOM, jauh sebelum app.js
-     dimuat. Jika token & user ada di localStorage, langsung sembunyikan
-     overlay - mencegah flash halaman login saat token masih valid. -->
 <script>
 (function() {
   try {
-    // Bersihkan token lama di localStorage (migrasi ke sessionStorage)
-    // Juga pastikan tidak ada sesi lama yang masih terbaca dari localStorage
+    
+    
     localStorage.removeItem('sapa_token');
     localStorage.removeItem('sapa_user');
     var token = sessionStorage.getItem('sapa_token');
     var user  = sessionStorage.getItem('sapa_user');
-    if (!token || !user) return; // tidak ada sesi → biarkan login tampil normal
-    // Validasi minimal: pastikan user bisa di-parse
+    if (!token || !user) return; 
+    
     JSON.parse(user);
-    // Sembunyikan login overlay segera
+    
     var overlay = document.getElementById('loginOverlay');
     if (overlay) overlay.classList.add('hidden');
     document.documentElement.classList.remove('login-mode');
     document.body.classList.remove('login-mode');
-    // appShell tetap visibility:hidden - initAuth() di app.js yang akan
-    // melepasnya setelah validasi token penuh (termasuk cek expired).
+    
+    
   } catch(e) {
-    // Parse error → localStorage korup → biarkan login overlay tampil
+    
     sessionStorage.removeItem('sapa_token');
     sessionStorage.removeItem('sapa_user');
   }
 })();
 </script>
-<!-- ══ END EARLY AUTH GUARD ═══════════════════════════════════════════════ -->
 
 <div class="app-shell" id="appShell" style="visibility:hidden">
 
-  <!-- SIDEBAR -->
+  
   <aside class="sidebar" id="sidebar">
     <div class="sidebar-header">
       <div class="sidebar-brand">
@@ -415,13 +397,13 @@
     </div>
 
     <nav class="sidebar-nav" id="sidebarNav">
-      <!-- diisi JS berdasarkan permissions -->
+      
     </nav>
 
   </aside>
   <div class="sidebar-overlay" id="sidebarOverlay" onclick="closeSidebar()"></div>
 
-  <!-- MAIN -->
+  
   <main class="main">
     <div class="topbar" id="topbar">
       <button class="btn-hamburger" onclick="openSidebar()">
@@ -432,7 +414,7 @@
       <div class="topbar-constellation" id="topbarConstellation" aria-hidden="true">
         <canvas id="topbarConstellationCanvas"></canvas>
       </div>
-      <script src="js/topbar_constellation.js?v=1.3.2"></script>
+      <script src="js/topbar_constellation.js?v=1.3.3"></script>
 
       <div class="topbar-profile">
         <div class="topbar-user-info">
@@ -471,31 +453,31 @@
 
     <div class="content">
 
-      <!-- ══ DASHBOARD ══ -->
+      
       <div class="page active" id="page-dashboard">
         <div id="dashStats"></div>
       </div>
 
-      <!-- ══ SUPERLINK › DASHBOARD ══ -->
+      
       <div class="page" id="page-dashboard-superlink">
         <div id="dashSuperlinkStats"></div>
       </div>
 
-      <!-- ══ SURAT › DASHBOARD ══ -->
+      
       <div class="page" id="page-dashboard-surat">
         <div id="dashSuratStats"></div>
       </div>
 
-      <!-- ══ KINERJA › DASHBOARD ══ -->
+      
       <div class="page" id="page-dashboard-kinerja">
         <div id="dashKinerjaStats"></div>
       </div>
 
-      <!-- ══ SUPERLINK › SHORTLINK (unified: semua link + shortlink) ══ -->
+      
       <div class="page" id="page-shortlink">
         <div class="page-title" style="display:flex;align-items:center;gap:10px"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor" style="flex-shrink:0;opacity:.85"><path d="M10 6V8H5V19H16V14H18V20C18 20.5523 17.5523 21 17 21H4C3.44772 21 3 20.5523 3 20V7C3 6.44772 3.44772 6 4 6H10ZM21 3V12L17.206 8.207L11.2071 14.2071L9.79289 12.7929L15.792 6.793L12 3H21Z"/></svg>Shortlink</div>
         <div class="page-subtitle">Kelola semua link, baik link biasa maupun shortlink</div>
-        <!-- Filter + Toolbar sejajar -->
+        
         <div class="toolbar">
           <div class="select-wrap" style="min-width:150px">
             <select id="slFilterStatus" onchange="filterShortlinks()">
@@ -517,11 +499,11 @@
         <div id="slPagination"></div>
       </div>
 
-      <!-- ══ SUPERLINK › BUNDLE ══ -->
+      
       <div class="page" id="page-bundle">
         <div class="page-title" style="display:flex;align-items:center;gap:10px"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor" style="flex-shrink:0;opacity:.85"><path d="M20.0833 10.4999L21.2854 11.2212C21.5221 11.3633 21.5989 11.6704 21.4569 11.9072C21.4146 11.9776 21.3557 12.0365 21.2854 12.0787L11.9999 17.6499L2.71451 12.0787C2.47772 11.9366 2.40093 11.6295 2.54301 11.3927C2.58523 11.3223 2.64413 11.2634 2.71451 11.2212L3.9166 10.4999L11.9999 15.3499L20.0833 10.4999ZM20.0833 15.1999L21.2854 15.9212C21.5221 16.0633 21.5989 16.3704 21.4569 16.6072C21.4146 16.6776 21.3557 16.7365 21.2854 16.7787L12.5144 22.0412C12.1977 22.2313 11.8021 22.2313 11.4854 22.0412L2.71451 16.7787C2.47772 16.6366 2.40093 16.3295 2.54301 16.0927C2.58523 16.0223 2.64413 15.9634 2.71451 15.9212L3.9166 15.1999L11.9999 20.0499L20.0833 15.1999ZM12.5144 1.30864L21.2854 6.5712C21.5221 6.71327 21.5989 7.0204 21.4569 7.25719C21.4146 7.32757 21.3557 7.38647 21.2854 7.42869L11.9999 12.9999L2.71451 7.42869C2.47772 7.28662 2.40093 6.97949 2.54301 6.7427C2.58523 6.67232 2.64413 6.61343 2.71451 6.5712L11.4854 1.30864C11.8021 1.11864 12.1977 1.11864 12.5144 1.30864Z"/></svg>Bundle</div>
         <div class="page-subtitle">Kumpulan link dalam satu halaman</div>
-        <!-- Filter + Toolbar sejajar -->
+        
         <div class="toolbar">
           <div class="select-wrap" style="min-width:160px">
             <select id="bundleFilterStatus" onchange="filterBundles()">
@@ -543,7 +525,7 @@
         <div id="bundlePagination"></div>
       </div>
 
-      <!-- ══ SUPERLINK › PENGUMUMAN (admin only) ══ -->
+      
       <div class="page" id="page-pengumuman">
         <div class="page-title" style="display:flex;align-items:center;gap:10px"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor" style="flex-shrink:0;opacity:.85"><path d="M21 10.063V4C21 3.44772 20.5523 3 20 3H19C17.0214 4.97864 13.3027 6.08728 11 6.61281V17.3872C13.3027 17.9127 17.0214 19.0214 19 21H20C20.5523 21 21 20.5523 21 20V13.937C21.8626 13.715 22.5 12.9319 22.5 12 22.5 11.0681 21.8626 10.285 21 10.063ZM5 7C3.89543 7 3 7.89543 3 9V15C3 16.1046 3.89543 17 5 17H6L7 22H9V7H5Z"/></svg>Pengumuman</div>
         <div class="page-subtitle">Kelola pengumuman yang tampil di landing page</div>
@@ -577,7 +559,7 @@
         </div>
         <div id="pengumumanPagination"></div>
 
-        <!-- ── Kelola Ticker ── -->
+        
         <div style="margin-top:28px">
           <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px;flex-wrap:wrap">
             <div>
@@ -611,11 +593,11 @@
         </div>
       </div>
 
-      <!-- ══ SURAT MASUK ══ -->
+      
       <div class="page" id="page-surat-masuk">
         <div class="page-title" style="display:flex;align-items:center;gap:10px"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor" style="flex-shrink:0;opacity:.85"><path d="M3 3H21C21.5523 3 22 3.44772 22 4V20C22 20.5523 21.5523 21 21 21H3C2.44772 21 2 20.5523 2 20V4C2 3.44772 2.44772 3 3 3ZM9 12C9 13.6569 10.3431 15 12 15C13.6569 15 15 13.6569 15 12H20V5H4V12H9Z"/></svg>Surat Masuk</div>
         <div class="page-subtitle">Manajemen surat masuk</div>
-        <!-- Filter Bar -->
+        
         <div class="toolbar">
           <div class="select-wrap" style="flex:1">
             <select id="smFilterTahun" onchange="loadSuratMasuk(1)">
@@ -652,11 +634,11 @@
         <div id="smPagination"></div>
       </div>
 
-      <!-- ══ SURAT KELUAR ══ -->
+      
       <div class="page" id="page-surat-keluar">
         <div class="page-title" style="display:flex;align-items:center;gap:10px"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor" style="flex-shrink:0;opacity:.85"><path d="M1.94607 9.31543C1.42353 9.14125 1.4194 8.86022 1.95682 8.68108L21.043 2.31901C21.5715 2.14285 21.8746 2.43866 21.7265 2.95694L16.2733 22.0432C16.1223 22.5716 15.8177 22.59 15.5944 22.0876L11.9999 14L17.9999 6.00005L9.99992 12L1.94607 9.31543Z"/></svg>Surat Keluar</div>
         <div class="page-subtitle">Manajemen surat keluar</div>
-        <!-- Filter Bar -->
+        
         <div class="toolbar">
           <div class="select-wrap" style="flex:1">
             <select id="skFilterTahun" onchange="loadSuratKeluar(1)">
@@ -688,7 +670,7 @@
         <div id="skPagination"></div>
       </div>
 
-      <!-- ══ E-PLANNING: USULAN ANGGARAN ══ -->
+      
       <div class="page" id="page-eplanning">
         <div class="page-title" style="display:flex;align-items:center;gap:10px"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor" style="flex-shrink:0;opacity:.85"><path d="M6 4V8H18V4H20.0066C20.5552 4 21 4.44495 21 4.9934V21.0066C21 21.5552 20.5551 22 20.0066 22H3.9934C3.44476 22 3 21.5551 3 21.0066V4.9934C3 4.44476 3.44495 4 3.9934 4H6ZM9 17H7V19H9V17ZM9 14H7V16H9V14ZM9 11H7V13H9V11ZM16 2V6H8V2H16Z"/></svg>Usulanku</div>
         <div class="page-subtitle">Usulan anggaran & alur persetujuan</div>
@@ -735,7 +717,7 @@
         <div id="epPagination"></div>
       </div>
 
-      <!-- ══ E-PLANNING: RINCIAN ANGGARAN ══ -->
+      
       <div class="page" id="page-eplanning-rincian">
         <div class="page-title" style="display:flex;align-items:center;gap:10px"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor" style="flex-shrink:0;opacity:.85"><path d="M19 22H5C3.34315 22 2 20.6569 2 19V3C2 2.44772 2.44772 2 3 2H17C17.5523 2 18 2.44772 18 3V15H22V19C22 20.6569 20.6569 22 19 22ZM18 17V19C18 19.5523 18.4477 20 19 20C19.5523 20 20 19.5523 20 19V17H18ZM16 20V4H4V19C4 19.5523 4.44772 20 5 20H16ZM6 7H14V9H6V7ZM6 11H14V13H6V11ZM6 15H11V17H6V15Z"/></svg>Rincian Anggaran</div>
         <div class="page-subtitle" id="epRincianJudul">-</div>
@@ -753,7 +735,7 @@
         <div style="text-align:right;margin-top:10px;font-size:16px;font-weight:700">Total: <span id="epRincianTotal">Rp 0</span></div>
       </div>
 
-      <!-- ══ E-PLANNING: SUB KEGIATAN (admin) ══ -->
+      
       <div class="page" id="page-eplanning-subkegiatan">
         <div class="page-title" style="display:flex;align-items:center;gap:10px"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor" style="flex-shrink:0;opacity:.85"><path d="M21 3V21.0082C21 21.556 20.5551 22 20.0066 22H3.9934C3.44476 22 3 21.5447 3 21.0082V2.9918C3 2.44405 3.44495 2 3.9934 2H20C20.5523 2 21 2.44772 21 3ZM11.2929 13.1213L8.81802 10.6464L7.40381 12.0607L11.2929 15.9497L16.9497 10.2929L15.5355 8.87868L11.2929 13.1213Z"/></svg>Sub Kegiatan</div>
         <div class="page-subtitle">Master sub kegiatan untuk usulan anggaran e-Planning</div>
@@ -780,7 +762,7 @@
         <div id="epSubkegiatanPagination"></div>
       </div>
 
-      <!-- ══ E-PLANNING: SUMBER DANA (admin) ══ -->
+      
       <div class="page" id="page-eplanning-sumberdana">
         <div class="page-title" style="display:flex;align-items:center;gap:10px"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor" style="flex-shrink:0;opacity:.85"><path d="M22.0049 5.99979H15.0049C11.6912 5.99979 9.00488 8.68608 9.00488 11.9998C9.00488 15.3135 11.6912 17.9998 15.0049 17.9998H22.0049V19.9998C22.0049 20.5521 21.5572 20.9998 21.0049 20.9998H3.00488C2.4526 20.9998 2.00488 20.5521 2.00488 19.9998V3.99979C2.00488 3.4475 2.4526 2.99979 3.00488 2.99979H21.0049C21.5572 2.99979 22.0049 3.4475 22.0049 3.99979V5.99979ZM15.0049 7.99979H23.0049V15.9998H15.0049C12.7957 15.9998 11.0049 14.2089 11.0049 11.9998C11.0049 9.79065 12.7957 7.99979 15.0049 7.99979ZM15.0049 10.9998V12.9998H18.0049V10.9998H15.0049Z"/></svg>Sumber Dana</div>
         <div class="page-subtitle">Master sumber dana untuk rincian anggaran e-Planning</div>
@@ -807,7 +789,7 @@
         <div id="epSumberDanaPagination"></div>
       </div>
 
-      <!-- ══ E-PLANNING: SATUAN (admin) ══ -->
+      
       <div class="page" id="page-eplanning-satuan">
         <div class="page-title" style="display:flex;align-items:center;gap:10px"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor" style="flex-shrink:0;opacity:.85"><path d="M4.92901 13.3138L7.05033 15.4351L8.46455 14.0209L6.34323 11.8996L8.46455 9.77828L11.293 12.6067L12.7072 11.1925L9.87876 8.36407L12.0001 6.24275L14.1214 8.36407L15.5356 6.94986L13.4143 4.82853L16.2427 2.00011C16.6332 1.60958 17.2664 1.60958 17.6569 2.00011L22.6067 6.94986C22.9972 7.34038 22.9972 7.97354 22.6067 8.36407L7.75744 23.2133C7.36692 23.6038 6.73375 23.6038 6.34323 23.2133L1.39348 18.2636C1.00295 17.873 1.00295 17.2399 1.39348 16.8494L4.92901 13.3138Z"/></svg>Satuan</div>
         <div class="page-subtitle">Master satuan untuk rincian anggaran e-Planning</div>
@@ -834,7 +816,7 @@
         <div id="epSatuanPagination"></div>
       </div>
 
-      <!-- ══ E-PLANNING: REKENING (admin) ══ -->
+      
       <div class="page" id="page-eplanning-rekening">
         <div class="page-title" style="display:flex;align-items:center;gap:10px"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor" style="flex-shrink:0;opacity:.85"><path d="M2 20H22V22H2V20ZM4 12H6V19H4V12ZM9 12H11V19H9V12ZM13 12H15V19H13V12ZM18 12H20V19H18V12ZM2 7L12 2L22 7V11H2V7ZM12 8C12.5523 8 13 7.55228 13 7C13 6.44772 12.5523 6 12 6C11.4477 6 11 6.44772 11 7C11 7.55228 11.4477 8 12 8Z"/></svg>Rekening</div>
         <div class="page-subtitle">Master kode rekening (COA) untuk rincian anggaran e-Planning</div>
@@ -857,7 +839,7 @@
         <div id="epRekeningPagination"></div>
       </div>
 
-      <!-- ══ E-PLANNING: STANDAR HARGA SATUAN (SSH/HSPK/ASB/SBU) (admin) ══ -->
+      
       <div class="page" id="page-eplanning-standarharga">
         <div class="page-title" style="display:flex;align-items:center;gap:10px"><svg id="epShPageIcon" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor" style="flex-shrink:0;opacity:.85"><path d="M2.00488 3.99979C2.00488 3.4475 2.4526 2.99979 3.00488 2.99979H21.0049C21.5572 2.99979 22.0049 3.4475 22.0049 3.99979V9.49979C20.6242 9.49979 19.5049 10.6191 19.5049 11.9998C19.5049 13.3805 20.6242 14.4998 22.0049 14.4998V19.9998C22.0049 20.5521 21.5572 20.9998 21.0049 20.9998H3.00488C2.4526 20.9998 2.00488 20.5521 2.00488 19.9998V3.99979ZM8.09024 18.9998C8.29615 18.4172 8.85177 17.9998 9.50488 17.9998C10.158 17.9998 10.7136 18.4172 10.9195 18.9998H20.0049V16.032C18.5232 15.2957 17.5049 13.7666 17.5049 11.9998C17.5049 10.2329 18.5232 8.7039 20.0049 7.96755V4.99979H10.9195C10.7136 5.58238 10.158 5.99979 9.50488 5.99979C8.85177 5.99979 8.29615 5.58238 8.09024 4.99979H4.00488V18.9998H8.09024ZM9.50488 10.9998C8.67646 10.9998 8.00488 10.3282 8.00488 9.49979C8.00488 8.67136 8.67646 7.99979 9.50488 7.99979C10.3333 7.99979 11.0049 8.67136 11.0049 9.49979C11.0049 10.3282 10.3333 10.9998 9.50488 10.9998ZM9.50488 15.9998C8.67646 15.9998 8.00488 15.3282 8.00488 14.4998C8.00488 13.6714 8.67646 12.9998 9.50488 12.9998C10.3333 12.9998 11.0049 13.6714 11.0049 14.4998C11.0049 15.3282 10.3333 15.9998 9.50488 15.9998Z"/></svg><span id="epShPageTitle">SSH - Standar Satuan Harga</span></div>
         <div class="page-subtitle" id="epShPageSubtitle">Referensi harga (SSH - Standar Satuan Harga) hasil export SIPD - dipakai buat auto-isi form Rincian Anggaran</div>
@@ -892,7 +874,7 @@
         <div id="epStandarHargaPagination"></div>
       </div>
 
-      <!-- ══ E-PLANNING: REFERENSI (Prioritas Provinsi/Kab-Kota, Bidang Urusan, Tag Belanja) - admin ══ -->
+      
       <div class="page" id="page-eplanning-referensi">
         <div class="page-title" style="display:flex;align-items:center;gap:10px"><span id="epRefPageIcon" style="display:flex;align-items:center;flex-shrink:0;opacity:.85"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M5.75 1a.75.75 0 0 1 .75.75V3.6l1.72-.344a8.677 8.677 0 0 1 4.925.452l.204.081a7.999 7.999 0 0 0 4.91.334 1.2 1.2 0 0 1 1.491 1.164v7.367c0 .644-.439 1.206-1.064 1.362l-.214.053a8.677 8.677 0 0 1-5.327-.361 8.676 8.676 0 0 0-4.924-.452L6.5 13.6v8.15a.75.75 0 0 1-1.5 0v-20A.75.75 0 0 1 5.75 1Z"/></svg></span><span id="epRefPageTitle">Prioritas Pembangunan Provinsi</span></div>
         <div class="page-subtitle" id="epRefPageSubtitle">Master Prioritas Pembangunan Provinsi untuk form Usulan e-Planning</div>
@@ -915,8 +897,8 @@
         <div id="epRefPagination"></div>
       </div>
 
-      <!-- ══ ABSENSI ══ -->
-      <!-- ══ ABSENSI › DASHBOARD ══ -->
+      
+      
       <div class="page" id="page-dashboard-absensi">
         <div id="dashAbsensiStats"></div>
       </div>
@@ -925,7 +907,7 @@
         <div class="page-title" style="display:flex;align-items:center;gap:10px"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor" style="flex-shrink:0;opacity:.85"><path d="M17.0003 13V14C17.0003 16.7696 16.3364 19.445 15.0853 21.8455L14.8585 22.2663L13.1116 21.2924C14.2716 19.2115 14.9211 16.8817 14.9935 14.4559L15.0003 14V13H17.0003ZM11.0003 10H13.0003V14L12.9948 14.3787C12.9153 17.1495 11.9645 19.7731 10.3038 21.928L10.073 22.2189L8.52406 20.9536C10.0408 19.0969 10.9145 16.8017 10.9943 14.3663L11.0003 14V10ZM12.0003 6C14.7617 6 17.0003 8.23858 17.0003 11H15.0003C15.0003 9.34315 13.6571 8 12.0003 8C10.3434 8 9.00025 9.34315 9.00025 11V14C9.00025 16.2354 8.1806 18.3444 6.72928 19.9768L6.51767 20.2067L5.06955 18.8273C6.23328 17.6056 6.92099 16.0118 6.99381 14.3027L7.00025 14V11C7.00025 8.23858 9.23883 6 12.0003 6ZM12.0003 2C16.9708 2 21.0003 6.02944 21.0003 11V14C21.0003 15.6979 20.7985 17.3699 20.4035 18.9903L20.2647 19.5285L18.3349 19.0032C18.726 17.5662 18.9475 16.0808 18.9919 14.5684L19.0003 14V11C19.0003 7.13401 15.8662 4 12.0003 4C10.4279 4 8.97663 4.51841 7.80805 5.39364L6.38308 3.96769C7.92267 2.73631 9.87547 2 12.0003 2ZM4.96794 5.38282L6.39389 6.8078C5.5635 7.91652 5.0543 9.27971 5.00431 10.7593L4.99961 10.999L5.00378 13C5.00378 14.1195 4.73991 15.2026 4.24263 16.1772L4.08648 16.4663L2.34961 15.4747C2.72889 14.8103 2.95077 14.0681 2.99539 13.2924L3.00378 13L3.00361 11C3.00025 8.87522 3.73656 6.92242 4.96794 5.38282Z"/></svg>Absensi</div>
         <div class="page-subtitle">Rekapan kehadiran harian pegawai</div>
 
-        <!-- Kartu Hari Ini + Ringkasan -->
+        
         <div class="abs-hariini-flex-wrap">
           <div class="card abs-hariini-card" id="absHariIniBox">
             <div class="skeleton" style="width:170px;height:19px;margin-bottom:16px"></div>
@@ -960,13 +942,13 @@
           </div>
         </div>
 
-        <!-- Pengajuan Tugas Luar/Cuti milik sendiri (non-admin) -->
+        
         <div class="card abs-pengajuan-saya-card" id="absPengajuanSayaBox" style="display:none;margin-bottom:20px">
           <div style="font-weight:700;font-size:.85rem;margin-bottom:10px;display:flex;align-items:center;gap:7px"><svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="var(--aksen,#0d9488)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="m9 15 2 2 4-4"/></svg>Pengajuan Tugas Luar / Cuti Saya</div>
           <div id="absPengajuanSayaList"></div>
         </div>
 
-        <!-- Filter + Toolbar Admin sejajar -->
+        
         <div class="toolbar">
           <div class="select-wrap" id="absBidangFilterWrap" style="flex:1;display:none">
             <select id="absFilterBidang" data-searchable="1" data-search-placeholder="Cari unit kerja…" onchange="setAbsFilterBidang()"><option value="">Semua Unit Kerja</option></select>
@@ -992,14 +974,14 @@
             <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:6px;vertical-align:-2px"><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/><path d="M8 2v4"/><path d="M16 2v4"/><path d="M12 14v4"/><path d="M10 16h4"/></svg>
             Ajukan Tugas Luar / Cuti
           </button>
-          <!-- Toolbar Admin (hanya tampil untuk admin / user setara admin) -->
+          
           <div id="absAdminBar" style="display:none;gap:10px;flex-shrink:0">
             <button class="btn btn-approval btn-sm" onclick="openPersetujuanModal()" style="position:relative"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1" ry="1"/><path stroke-linecap="round" stroke-linejoin="round" d="m9 14 2 2 4-4"/></svg>Persetujuan Pengajuan<span class="badge badge-merah" id="absPengajuanPendingBadge" style="display:none;margin-left:6px"></span></button>
             <button class="btn btn-primary btn-sm" onclick="openAbsModal()"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>Input Absensi</button>
           </div>
         </div>
 
-        <!-- Tabel Riwayat -->
+        
         <div class="card" style="padding:0;overflow:auto;-webkit-overflow-scrolling:touch;max-height:70vh">
           <table class="surat-table">
             <thead><tr><th>No</th><th id="absThNama" style="display:none">Nama</th><th>Tanggal</th><th>Absensi Masuk</th><th>Absensi Keluar</th><th>Status</th><th id="absThAksi" style="display:none">Aksi</th></tr></thead>
@@ -1009,7 +991,7 @@
         <div id="absTablePagination"></div>
       </div>
 
-      <!-- ══ ABSENSI - PENGATURAN ══ -->
+      
       <div class="page" id="page-absensi-pengaturan">
         <div class="page-title" style="display:flex;align-items:center;gap:10px"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor" style="flex-shrink:0;opacity:.85"><path d="M9.95401 2.2106C11.2876 1.93144 12.6807 1.92263 14.0449 2.20785C14.2219 3.3674 14.9048 4.43892 15.9997 5.07103C17.0945 5.70313 18.364 5.75884 19.4566 5.3323C20.3858 6.37118 21.0747 7.58203 21.4997 8.87652C20.5852 9.60958 19.9997 10.736 19.9997 11.9992C19.9997 13.2632 20.5859 14.3902 21.5013 15.1232C21.29 15.7636 21.0104 16.3922 20.6599 16.9992C20.3094 17.6063 19.9049 18.1627 19.4559 18.6659C18.3634 18.2396 17.0943 18.2955 15.9997 18.9274C14.9057 19.559 14.223 20.6294 14.0453 21.7879C12.7118 22.067 11.3187 22.0758 9.95443 21.7906C9.77748 20.6311 9.09451 19.5595 7.99967 18.9274C6.90484 18.2953 5.63539 18.2396 4.54272 18.6662C3.61357 17.6273 2.92466 16.4164 2.49964 15.1219C3.41412 14.3889 3.99968 13.2624 3.99968 11.9992C3.99968 10.7353 3.41344 9.60827 2.49805 8.87524C2.70933 8.23482 2.98894 7.60629 3.33942 6.99923C3.68991 6.39217 4.09443 5.83576 4.54341 5.33257C5.63593 5.75881 6.90507 5.703 7.99967 5.07103C9.09364 4.43942 9.7764 3.3691 9.95401 2.2106ZM11.9997 14.9992C13.6565 14.9992 14.9997 13.6561 14.9997 11.9992C14.9997 10.3424 13.6565 8.99923 11.9997 8.99923C10.3428 8.99923 8.99967 10.3424 8.99967 11.9992C8.99967 13.6561 10.3428 14.9992 11.9997 14.9992Z"/></svg>Pengaturan Absensi</div>
         <div class="page-subtitle">Jam kerja &amp; hari libur untuk perhitungan kehadiran</div>
@@ -1040,12 +1022,12 @@
         </div>
       </div>
 
-      <!-- ══ KINERJA ══ -->
+      
       <div class="page" id="page-kinerja">
         <div class="page-title" style="display:flex;align-items:center;gap:10px"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" style="flex-shrink:0;opacity:.85"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="3"/><circle cx="12" cy="12" r="4.5" fill="currentColor"/></svg>IKU (Indikator Kinerja Utama)</div>
         <div class="page-subtitle">Capaian Indikator Kinerja Perangkat Daerah</div>
 
-        <!-- Periode aktif info + Selector Bulan -->
+        
         <div id="kinerjaBulanWrapper" style="display:flex;flex-direction:column;gap:18px;margin-bottom:16px">
           <div style="display:flex;align-items:center;gap:18px;flex-wrap:wrap;row-gap:12px">
             <div id="kinerjaActivePeriodeInfo" class="periode-info-bar" style="display:none;margin-bottom:0;align-self:center">
@@ -1056,19 +1038,19 @@
               <div class="select-wrap tahun-select-wrap" style="min-width:88px">
                 <select id="kinerjaTahunSelect"></select>
               </div>
-              <!-- Selector Bulan (sejajar dengan Tahun) -->
+              
               <span style="font-size:.72rem;font-weight:600;color:var(--text-secondary,#64748b);white-space:nowrap;letter-spacing:.01em;margin-right:2px">Bulan</span>
               <div class="select-wrap bulan-select-wrap" style="min-width:118px">
                 <select id="bulanSelector"></select>
               </div>
-              <!-- Cari indikator (sejajar dengan Tahun/Bulan) -->
+              
               <div class="search-wrap" style="min-width:220px;flex:1;max-width:320px">
                 <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-4.35-4.35"/></svg>
                 <input type="text" placeholder="Cari indikator…" id="kinerjaSearch" oninput="debounceInput('kinerjaSearch', () => filterKinerjaTable(), 180)" />
               </div>
             </div>
           </div>
-          <!-- Skala Nilai Permendagri 86/2017 -->
+          
           <div class="skala-nilai-row" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;row-gap:8px">
             <span class="skala-label" style="font-size:.65rem;font-weight:700;color:var(--teks);white-space:nowrap;margin-right:6px">Skala Nilai Peringkat Kinerja:</span>
             <span class="skala-badge" style="display:flex;align-items:center;gap:5px;padding:4px 10px;border-radius:20px;background:#4ade80;border:1px solid #22c55e;font-size:.65rem;font-weight:700;color:#14532d;white-space:nowrap"><span style="width:8px;height:8px;border-radius:50%;background:currentColor;opacity:.5;display:inline-block;flex-shrink:0"></span>91–100% Sangat Tinggi</span>
@@ -1078,10 +1060,10 @@
             <span class="skala-badge" style="display:flex;align-items:center;gap:5px;padding:4px 10px;border-radius:20px;background:#fee2e2;border:1px solid #fca5a5;font-size:.65rem;font-weight:700;color:#991b1b;white-space:nowrap"><span style="width:8px;height:8px;border-radius:50%;background:currentColor;opacity:.5;display:inline-block;flex-shrink:0"></span>≤50% Sangat Rendah</span>
             <span class="skala-sumber" style="font-size:.68rem;color:var(--teks-muted);font-style:italic;white-space:nowrap;padding-left:10px;margin-left:4px;border-left:1px solid var(--abu-2, #e2e8f0)">Sumber: Lampiran Permendagri No. 86 Tahun 2017</span>
           </div>
-          <!-- Countdown timer periode input Monev -->
+          
           <div id="kinerjaCountdownBar" style="display:none"></div>
-        </div><!-- /periode+bulan wrapper -->
-        <!-- Tabel rekap -->
+        </div>
+        
         <div class="kinerja-table-wrap card" style="padding:0">
           <table class="kinerja-table">
             <thead>
@@ -1109,12 +1091,12 @@
         <div id="ikuPagination"></div>
       </div>
 
-      <!-- ══ REALISASI IKK ══ -->
+      
       <div class="page" id="page-realisasi-ikk">
         <div class="page-title" style="display:flex;align-items:center;gap:10px"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor" style="flex-shrink:0;opacity:.85"><path fill-rule="evenodd" clip-rule="evenodd" d="M7.2,11.5 L7.2,8.3 A4.8,4.8 0 0 1 16.8,8.3 L16.8,11.5 L14.9,11.5 L14.9,8.3 A2.9,2.9 0 0 0 9.1,8.3 L9.1,11.5 Z M4.5,10.8 A1.6,1.6 0 0,1 6.1,9.2 H17.9 A1.6,1.6 0 0,1 19.5,10.8 V20.4 A1.6,1.6 0 0,1 17.9,22 H6.1 A1.6,1.6 0 0,1 4.5,20.4 Z M13.4,14.6 A1.4,1.4 0 1,0 10.6,14.6 A1.4,1.4 0 1,0 13.4,14.6 Z M11.3,15.7 H12.7 L13.2,19 H10.8 Z"/></svg>IKK (Indikator Kinerja Kunci)</div>
         <div class="page-subtitle">Capaian Indikator Kinerja Kunci (IKK) Perangkat Daerah</div>
 
-        <!-- Periode aktif info + Selector Bulan IKK -->
+        
         <div id="ikkBulanWrapper" style="display:flex;flex-direction:column;gap:18px;margin-bottom:16px">
           <div style="display:flex;align-items:center;gap:18px;flex-wrap:wrap;row-gap:12px">
             <div id="ikkActivePeriodeInfo" class="periode-info-bar" style="display:none;margin-bottom:0;align-self:center">
@@ -1125,19 +1107,19 @@
               <div class="select-wrap tahun-select-wrap" style="min-width:88px">
                 <select id="ikkTahunSelect"></select>
               </div>
-              <!-- Selector Bulan IKK (sejajar dengan Tahun) -->
+              
               <span style="font-size:.72rem;font-weight:600;color:var(--text-secondary,#64748b);white-space:nowrap;letter-spacing:.01em;margin-right:2px">Bulan</span>
               <div class="select-wrap bulan-select-wrap" style="min-width:118px">
                 <select id="ikkBulanSelector"></select>
               </div>
-              <!-- Cari indikator IKK (sejajar dengan Tahun/Bulan) -->
+              
               <div class="search-wrap" style="min-width:220px;flex:1;max-width:320px">
                 <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-4.35-4.35"/></svg>
                 <input type="text" placeholder="Cari indikator…" id="ikkSearch" oninput="debounceInput('ikkSearch', () => filterIkkTable(), 180)" />
               </div>
             </div>
           </div>
-          <!-- Skala Nilai Permendagri 86/2017 -->
+          
           <div class="skala-nilai-row" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;row-gap:8px">
             <span class="skala-label" style="font-size:.65rem;font-weight:700;color:var(--teks);white-space:nowrap;margin-right:6px">Skala Nilai Peringkat Kinerja:</span>
             <span class="skala-badge" style="display:flex;align-items:center;gap:5px;padding:4px 10px;border-radius:20px;background:#4ade80;border:1px solid #22c55e;font-size:.65rem;font-weight:700;color:#14532d;white-space:nowrap"><span style="width:8px;height:8px;border-radius:50%;background:currentColor;opacity:.5;display:inline-block;flex-shrink:0"></span>91–100% Sangat Tinggi</span>
@@ -1147,10 +1129,10 @@
             <span class="skala-badge" style="display:flex;align-items:center;gap:5px;padding:4px 10px;border-radius:20px;background:#fee2e2;border:1px solid #fca5a5;font-size:.65rem;font-weight:700;color:#991b1b;white-space:nowrap"><span style="width:8px;height:8px;border-radius:50%;background:currentColor;opacity:.5;display:inline-block;flex-shrink:0"></span>≤50% Sangat Rendah</span>
             <span class="skala-sumber" style="font-size:.68rem;color:var(--teks-muted);font-style:italic;white-space:nowrap;padding-left:10px;margin-left:4px;border-left:1px solid var(--abu-2, #e2e8f0)">Sumber: Lampiran Permendagri No. 86 Tahun 2017</span>
           </div>
-          <!-- Countdown timer periode input IKK -->
+          
           <div id="ikkCountdownBar" style="display:none"></div>
-        </div><!-- /periode+bulan wrapper -->
-        <!-- Tabel rekap IKK -->
+        </div>
+        
         <div class="kinerja-table-wrap card" style="padding:0">
           <table class="kinerja-table">
             <thead>
@@ -1178,12 +1160,12 @@
         <div id="ikkPagination"></div>
       </div>
 
-      <!-- ══ SPM ══ -->
+      
       <div class="page" id="page-spm">
         <div class="page-title" style="display:flex;align-items:center;gap:10px"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor" style="flex-shrink:0;opacity:.85"><path d="M12 2L4 5V11C4 16.5 7.5 21.26 12 22.5C16.5 21.26 20 16.5 20 11V5L12 2ZM16.2071 10.2071L11.4571 14.9571C11.0666 15.3476 10.4334 15.3476 10.0429 14.9571L7.79289 12.7071C7.40237 12.3166 7.40237 11.6834 7.79289 11.2929C8.18342 10.9024 8.81658 10.9024 9.20711 11.2929L10.75 12.8358L14.7929 8.79289C15.1834 8.40237 15.8166 8.40237 16.2071 8.79289C16.5976 9.18342 16.5976 9.81658 16.2071 10.2071Z"/></svg>Indikator SPM (Standar Pelayanan Minimal)</div>
         <div class="page-subtitle">Capaian Standar Pelayanan Minimal Perangkat Daerah</div>
 
-        <!-- Periode aktif info + Selector Bulan SPM -->
+        
         <div id="spmBulanWrapper" style="display:flex;flex-direction:column;gap:18px;margin-bottom:16px">
           <div style="display:flex;align-items:center;gap:18px;flex-wrap:wrap;row-gap:12px">
             <div id="spmActivePeriodeInfo" class="periode-info-bar" style="display:none;margin-bottom:0;align-self:center">
@@ -1194,19 +1176,19 @@
               <div class="select-wrap tahun-select-wrap" style="min-width:88px">
                 <select id="spmTahunSelect"></select>
               </div>
-              <!-- Selector Bulan SPM (sejajar dengan Tahun) -->
+              
               <span style="font-size:.72rem;font-weight:600;color:var(--text-secondary,#64748b);white-space:nowrap;letter-spacing:.01em;margin-right:2px">Bulan</span>
               <div class="select-wrap bulan-select-wrap" style="min-width:118px">
                 <select id="spmBulanSelector"></select>
               </div>
-              <!-- Cari indikator SPM (sejajar dengan Tahun/Bulan) -->
+              
               <div class="search-wrap" style="min-width:220px;flex:1;max-width:320px">
                 <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-4.35-4.35"/></svg>
                 <input type="text" placeholder="Cari indikator…" id="spmSearch" oninput="debounceInput('spmSearch', () => filterSpmTable(), 180)" />
               </div>
             </div>
           </div>
-          <!-- Skala Nilai Permendagri 86/2017 -->
+          
           <div class="skala-nilai-row" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;row-gap:8px">
             <span class="skala-label" style="font-size:.65rem;font-weight:700;color:var(--teks);white-space:nowrap;margin-right:6px">Skala Nilai Peringkat Kinerja:</span>
             <span class="skala-badge" style="display:flex;align-items:center;gap:5px;padding:4px 10px;border-radius:20px;background:#4ade80;border:1px solid #22c55e;font-size:.65rem;font-weight:700;color:#14532d;white-space:nowrap"><span style="width:8px;height:8px;border-radius:50%;background:currentColor;opacity:.5;display:inline-block;flex-shrink:0"></span>91–100% Sangat Tinggi</span>
@@ -1216,10 +1198,10 @@
             <span class="skala-badge" style="display:flex;align-items:center;gap:5px;padding:4px 10px;border-radius:20px;background:#fee2e2;border:1px solid #fca5a5;font-size:.65rem;font-weight:700;color:#991b1b;white-space:nowrap"><span style="width:8px;height:8px;border-radius:50%;background:currentColor;opacity:.5;display:inline-block;flex-shrink:0"></span>≤50% Sangat Rendah</span>
             <span class="skala-sumber" style="font-size:.68rem;color:var(--teks-muted);font-style:italic;white-space:nowrap;padding-left:10px;margin-left:4px;border-left:1px solid var(--abu-2, #e2e8f0)">Sumber: Lampiran Permendagri No. 86 Tahun 2017</span>
           </div>
-          <!-- Countdown timer periode input SPM -->
+          
           <div id="spmCountdownBar" style="display:none"></div>
-        </div><!-- /periode+bulan wrapper -->
-        <!-- Tabel rekap SPM -->
+        </div>
+        
         <div class="kinerja-table-wrap card" style="padding:0">
           <table class="kinerja-table">
             <thead>
@@ -1247,7 +1229,7 @@
         <div id="spmPagination"></div>
       </div>
 
-      <!-- ══ KINERJA ADMIN (Kelola Indikator) ══ -->
+      
       <div class="page" id="page-kinerja-admin">
         <div class="page-title" style="display:flex;align-items:center;gap:10px"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor" style="flex-shrink:0;opacity:.85"><path d="M6.17071 18C6.58254 16.8348 7.69378 16 9 16C10.3062 16 11.4175 16.8348 11.8293 18H22V20H11.8293C11.4175 21.1652 10.3062 22 9 22C7.69378 22 6.58254 21.1652 6.17071 20H2V18H6.17071ZM12.1707 11C12.5825 9.83481 13.6938 9 15 9C16.3062 9 17.4175 9.83481 17.8293 11H22V13H17.8293C17.4175 14.1652 16.3062 15 15 15C13.6938 15 12.5825 14.1652 12.1707 13H2V11H12.1707ZM6.17071 4C6.58254 2.83481 7.69378 2 9 2C10.3062 2 11.4175 2.83481 11.8293 4H22V6H11.8293C11.4175 7.16519 10.3062 8 9 8C7.69378 8 6.58254 7.16519 6.17071 6H2V4H6.17071Z"/></svg>Kelola Indikator Kinerja</div>
         <div class="page-subtitle">Setting group, indikator, target, dan jenis pengukuran</div>
@@ -1324,17 +1306,17 @@
           <div id="indikatorPagination"></div>
       </div>
 
-      <!-- ══ KELOLA JENIS KINERJA (Admin Only) ══ -->
+      
       <div class="page" id="page-kelola-jenis">
         <div id="kelolJenisSection"></div>
       </div>
 
-      <!-- ══ KELOLA LAPORAN (Admin Only) ══ -->
+      
       <div class="page" id="page-kelola-laporan">
         <div class="page-title" style="display:flex;align-items:center;gap:10px"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor" style="flex-shrink:0;opacity:.85"><path d="M16 2L21 7V21.0082C21 21.556 20.5551 22 20.0066 22H3.9934C3.44476 22 3 21.5447 3 21.0082V2.9918C3 2.44405 3.44495 2 3.9934 2H16ZM11 7V17H13V7H11ZM15 11V17H17V11H15ZM7 13V17H9V13H7Z"/></svg>Kelola Laporan</div>
         <div class="page-subtitle">Setting template laporan, urusan, dan hierarki TSP</div>
 
-        <!-- Toggle: Urusan vs Hierarki TSP -->
+        
         <div style="display:flex;align-items:center;gap:10px;margin-top:14px;margin-bottom:16px;flex-wrap:wrap">
           <div role="tablist" style="display:flex;gap:0;background:#f0fdf9;border:1.5px solid #99f6e4;border-radius:10px;padding:4px;box-shadow:0 1px 3px rgba(13,148,136,.08)">
             <button id="lapModeUrusan" class="lap-jenis-btn active" onclick="switchLapMode('urusan')">
@@ -1348,7 +1330,7 @@
           </div>
         </div>
 
-        <!-- Panel Urusan (tabel lama) -->
+        
         <div id="lapPanelUrusan">
           <div style="display:flex;justify-content:flex-end;margin-bottom:12px">
             <button class="btn btn-primary btn-sm" onclick="openLapTemplateModal()">
@@ -1374,7 +1356,7 @@
           </div>
         </div>
 
-        <!-- Panel Hierarki TSP - Cascade Waterfall -->
+        
         <div id="lapPanelTSP" style="display:none">
           <div style="overflow-x:auto;-webkit-overflow-scrolling:touch;padding-bottom:8px">
             <div id="lapCascadeWrap" style="display:flex;gap:0;min-width:900px;align-items:flex-start"></div>
@@ -1382,7 +1364,7 @@
         </div>
       </div>
 
-      <!-- ══ KELOLA TARGET (Admin Only) ══ -->
+      
       <div class="page" id="page-kelola-target">
         <div class="page-title" style="display:flex;align-items:center;gap:10px">
           <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor" style="flex-shrink:0;opacity:.85"><path d="M13 1L13.001 4.06201C16.6192 4.51365 19.4869 7.38163 19.9381 11L23 11V13L19.938 13.001C19.4864 16.6189 16.6189 19.4864 13.001 19.938L13 23H11L11 19.9381C7.38163 19.4869 4.51365 16.6192 4.06201 13.001L1 13V11L4.06189 11C4.51312 7.38129 7.38129 4.51312 11 4.06189L11 1H13ZM12 6C8.68629 6 6 8.68629 6 12C6 15.3137 8.68629 18 12 18C15.3137 18 18 15.3137 18 12C18 8.68629 15.3137 6 12 6ZM12 10C13.1046 10 14 10.8954 14 12C14 13.1046 13.1046 14 12 14C10.8954 14 10 13.1046 10 12C10 10.8954 10.8954 10 12 10Z"/></svg>
@@ -1419,14 +1401,14 @@
           </div>
         </div>
 
-        <!-- Card grid: satu card per indikator, tahun berjajar horizontal -->
+        
         <div id="ktCardContainer" class="kinerja-table-wrap card" style="margin-top:14px;padding:0">
           <div style="text-align:center;padding:32px;color:var(--teks-muted)">Memuat data…</div>
         </div>
         <div id="ktPagination"></div>
       </div>
 
-      <!-- ══ MONITORING PENGISIAN KINERJA (Admin Only) ══ -->
+      
       <div class="page" id="page-monitoring-kinerja">
         <div class="page-title" style="display:flex;align-items:center;gap:10px">
           <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor" style="flex-shrink:0;opacity:.85"><path d="M12.5065 3.62326L11.4835 5.39501C8.57378 4.51629 5.96968 4.94531 5.07207 6.50001C3.89477 8.53915 5.86239 12.1524 9.75027 14.3971C13.6382 16.6418 17.7512 16.5392 18.9285 14.5C19.8261 12.9453 18.8956 10.4756 16.6797 8.39501L17.7026 6.62326C20.7847 9.33196 22.1654 12.8934 20.6605 15.5C18.8003 18.7221 13.4717 18.8551 8.75027 16.1292C4.0289 13.4033 1.47976 8.72208 3.34002 5.50001C4.84492 2.89344 8.61964 2.30849 12.5065 3.62326ZM15.8842 1.77277L17.6163 2.77277L12.6163 11.433L10.8842 10.433L15.8842 1.77277ZM6.73233 20H17.0003V22H5.01761C4.94008 22.0014 4.86194 21.9938 4.78481 21.9768C4.77025 21.9735 4.7558 21.97 4.74147 21.9662C4.6589 21.944 4.57784 21.9108 4.50028 21.866C4.47106 21.8492 4.44301 21.831 4.41616 21.8118C4.30161 21.7292 4.20524 21.623 4.1342 21.5003C4.06328 21.3772 4.01939 21.2404 4.00518 21.0997C4.00446 21.0924 4.00381 21.085 4.00325 21.0777C3.98786 20.883 4.02924 20.6819 4.13425 20.5L6.38425 16.6029L8.1163 17.6029L6.73233 20Z"/></svg>
@@ -1434,13 +1416,13 @@
         </div>
         <div class="page-subtitle">Pantau indikator mana yang belum diisi dan siapa yang menginput</div>
 
-        <!-- Toolbar filter -->
+        
         <div class="toolbar">
-          <!-- Tahun -->
+          
           <div class="select-wrap" style="flex:1">
             <select id="monTahunSelect" onchange="setMonTahun(this.value)"></select>
           </div>
-          <!-- Bulan -->
+          
           <div id="monBulanSelector" class="select-wrap" style="flex:1">
             <select id="monBulanSelect" onchange="setMonBulan(this.value)">
               <option value="">Semua Bulan</option>
@@ -1458,7 +1440,7 @@
               <option value="12">Desember</option>
             </select>
           </div>
-          <!-- Filter Status -->
+          
           <div class="select-wrap" style="flex:1">
             <select id="monStatusSelect" onchange="setMonFilterStatus(this.value)">
               <option value="">Semua Status</option>
@@ -1466,7 +1448,7 @@
               <option value="terisi">Terinput</option>
             </select>
           </div>
-          <!-- Filter Jenis -->
+          
           <div class="select-wrap" style="flex:1">
             <select id="monJenisSelect" onchange="setMonFilterJenis(this.value)">
               <option value="">Semua Jenis Kinerja</option>
@@ -1475,27 +1457,27 @@
               <option value="spm">SPM</option>
             </select>
           </div>
-          <!-- Filter User (PIC) -->
+          
           <div class="select-wrap" style="flex:1">
             <select id="monUserSelect" data-searchable="1" onchange="setMonUser(this.value)">
               <option value="">Semua User</option>
             </select>
           </div>
-          <!-- Search -->
+          
           <div class="search-wrap" style="flex:1">
             <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-4.35-4.35"/></svg>
             <input type="text" id="monSearchInput" placeholder="Cari indikator, PJ, atau user…" oninput="debounceInput('monSearchInput', () => setMonSearch(this.value), 180)"/>
           </div>
         </div>
 
-        <!-- Summary cards + progress -->
+        
         <div id="monSummaryCards"></div>
-        <!-- Progress per PJ -->
+        
         <div id="monPJCards"></div>
-        <!-- Progress per User (muncul saat Bidang dipilih) -->
+        
         <div id="monUserCards"></div>
 
-        <!-- Tabel detail -->
+        
         <div class="kinerja-table-wrap card" style="padding:0">
           <table class="kinerja-table" style="min-width:900px">
             <thead>
@@ -1516,9 +1498,9 @@
         </div>
         <div id="monPagination"></div>
       </div>
-      <!-- /page-monitoring-kinerja -->
+      
 
-      <!-- ══ MASTER DATA › PENGGUNA ══ -->
+      
       <div class="page" id="page-pengguna">
         <div class="page-title" style="display:flex;align-items:center;gap:10px"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor" style="flex-shrink:0;opacity:.85"><path d="M2 22C2 17.5817 5.58172 14 10 14C14.4183 14 18 17.5817 18 22H2ZM10 13C6.685 13 4 10.315 4 7C4 3.685 6.685 1 10 1C13.315 1 16 3.685 16 7C16 10.315 13.315 13 10 13ZM17.3628 15.2332C20.4482 16.0217 22.7679 18.7235 22.9836 22H20C20 19.3902 19.0002 17.0139 17.3628 15.2332ZM15.3401 12.9569C16.9728 11.4922 18 9.36607 18 7C18 5.58266 17.6314 4.25141 16.9849 3.09687C19.2753 3.55397 21 5.57465 21 8C21 10.7625 18.7625 13 16 13C15.7763 13 15.556 12.9853 15.3401 12.9569Z"/></svg>Pengguna</div>
         <div class="page-subtitle">Kelola akun pengguna sistem</div>
@@ -1544,7 +1526,7 @@
         <div id="userPagination"></div>
       </div>
 
-      <!-- ══ MASTER DATA › BIDANG ══ -->
+      
       <div class="page" id="page-bidang">
         <div class="page-title" style="display:flex;align-items:center;gap:10px"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor" style="flex-shrink:0;opacity:.85"><path d="M21 20H23V22H1V20H3V3C3 2.44772 3.44772 2 4 2H20C20.5523 2 21 2.44772 21 3V20ZM8 11V13H11V11H8ZM8 7V9H11V7H8ZM8 15V17H11V15H8ZM13 15V17H16V15H13ZM13 11V13H16V11H13ZM13 7V9H16V7H13Z"/></svg>Unit Kerja</div>
         <div class="page-subtitle">Kelola unit kerja untuk pengelompokan pengguna</div>
@@ -1595,15 +1577,15 @@
         <div id="periodePagination"></div>
       </div>
 
-      <!-- ══ LAPORAN SURAT ══ -->
-      <!-- ══ ABSENSI › LAPORAN ══ -->
+      
+      
       <div class="page" id="page-laporan-absensi">
         <div class="page-title" style="display:flex;align-items:center;gap:10px"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor" style="flex-shrink:0;opacity:.85"><path d="M16 2L21 7V21.0082C21 21.556 20.5551 22 20.0066 22H3.9934C3.44476 22 3 21.5447 3 21.0082V2.9918C3 2.44405 3.44495 2 3.9934 2H16ZM11 7V17H13V7H11ZM15 11V17H17V11H15ZM7 13V17H9V13H7Z"/></svg>Laporan Absensi</div>
         <div class="page-subtitle">Rekap kehadiran per bulan</div>
 
         <div id="lapAbsRekapBox" class="dash-kpi-row"></div>
 
-        <!-- Filter Bar -->
+        
         <div class="toolbar" style="flex-wrap:wrap;gap:8px;align-items:center">
           <div class="select-wrap" id="lapAbsBidangWrap" style="flex:1;display:none">
             <select id="lapAbsBidang" data-searchable="1" data-search-placeholder="Cari unit kerja…" onchange="setLapAbsFilterBidang()">
@@ -1640,7 +1622,7 @@
           </button>
         </div>
 
-        <!-- Tabel Detail Absensi -->
+        
         <div class="card" style="padding:0;overflow:auto;-webkit-overflow-scrolling:touch;max-height:70vh">
           <table id="lapAbsTable" class="surat-table">
             <thead>
@@ -1665,7 +1647,7 @@
         <div class="page-title" style="display:flex;align-items:center;gap:10px"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor" style="flex-shrink:0;opacity:.85"><path d="M16 2L21 7V21.0082C21 21.556 20.5551 22 20.0066 22H3.9934C3.44476 22 3 21.5447 3 21.0082V2.9918C3 2.44405 3.44495 2 3.9934 2H16ZM11 7V17H13V7H11ZM15 11V17H17V11H15ZM7 13V17H9V13H7Z"/></svg>Laporan Surat</div>
         <div class="page-subtitle">Rekap dan statistik surat masuk & keluar</div>
 
-        <!-- Filter Bar + Tombol Download sejajar -->
+        
         <div class="toolbar" style="flex-wrap:wrap;gap:8px;align-items:center">
           <div class="select-wrap" style="flex:1;min-width:140px">
             <select id="laporanSuratTahun" onchange="loadLaporanSurat()">
@@ -1692,7 +1674,7 @@
           </button>
         </div>
 
-        <!-- Tabel Detail Surat -->
+        
         <div class="card" style="padding:0;overflow:auto;-webkit-overflow-scrolling:touch;max-height:70vh">
           <table id="laporanSuratDetailTable" class="surat-table">
             <thead>
@@ -1715,16 +1697,16 @@
         <div id="laporanSuratPagination"></div>
       </div>
 
-      <!-- ══ LAPORAN KINERJA ══ -->
+      
       <div class="page" id="page-laporan-kinerja">
         <div class="page-title" style="display:flex;align-items:center;gap:10px"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor" style="flex-shrink:0;opacity:.85"><path d="M16 2L21 7V21.0082C21 21.556 20.5551 22 20.0066 22H3.9934C3.44476 22 3 21.5447 3 21.0082V2.9918C3 2.44405 3.44495 2 3.9934 2H16ZM11 7V17H13V7H11ZM15 11V17H17V11H15ZM7 13V17H9V13H7Z"/></svg>Laporan Kinerja</div>
         <div class="page-subtitle">Rekap capaian indikator kinerja per triwulan</div>
 
-        <!-- Filter Bar -->
+        
         <div class="toolbar lap-kinerja-toolbar" style="margin-bottom:1rem;gap:8px;flex-wrap:wrap;align-items:center">
-          <!-- Month picker range - diisi oleh laporan.js -->
+          
           <div id="lapKinerjaRangeFilter" class="lap-kinerja-range"></div>
-          <!-- Hidden select tahun - dipakai laporan.js untuk kompatibilitas -->
+          
           <select id="laporanKinerjaTahun" style="display:none"></select>
           <div class="select-wrap lap-kinerja-jenis" style="white-space:nowrap">
             <select id="laporanKinerjaJenis" onchange="loadLaporanKinerja()" style="white-space:nowrap">
@@ -1755,12 +1737,12 @@
           </button>
         </div>
 
-        <!-- Tabel Rekap Indikator -->
+        
         <div class="card" style="padding:0;overflow:hidden">
           <div style="overflow:auto;-webkit-overflow-scrolling:touch;max-height:70vh">
           <table class="kinerja-table" style="min-width:1400px">
             <thead id="laporanKinerjaThead" style="background:var(--hijau)">
-              <!-- dirender dinamis oleh loadLaporanKinerja() -->
+              
             </thead>
             <tbody id="laporanKinerjaTableBody">
               <tr><td colspan="20"><div class="lap-loading-wrap"><div class="lap-spinner"></div><div style="margin-top:.75rem;color:#64748b;font-size:.85rem">Memuat data...</div></div></td></tr>
@@ -1771,7 +1753,7 @@
         <div id="laporanKinerjaPagination"></div>
       </div>
 
-      <!-- PAGE: Pegawai / Struktur Organisasi -->
+      
       <div class="page" id="page-pegawai">
         <div class="page-title" style="display:flex;align-items:center;gap:10px">
           <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor" style="flex-shrink:0;opacity:.85"><path d="M6 7C6 3.68629 8.68629 1 12 1C15.3137 1 18 3.68629 18 7C18 7.26214 17.9831 7.5207 17.9504 7.77457C19.77 8.80413 21 10.7575 21 13C21 16.3137 18.3137 19 15 19H13V22H11V19H8.5C5.46243 19 3 16.5376 3 13.5C3 11.2863 4.30712 9.37966 6.19098 8.50704C6.06635 8.02551 6 7.52039 6 7ZM7.00964 10.3319C5.82176 10.8918 5 12.1008 5 13.5C5 15.433 6.567 17 8.5 17H15C17.2091 17 19 15.2091 19 13C19 11.3056 17.9461 9.85488 16.4544 9.27234L15.6129 8.94372C15.7907 8.30337 16 7.67183 16 7C16 4.79086 14.2091 3 12 3C9.79086 3 8 4.79086 8 7C8 8.30783 8.6266 9.46903 9.60019 10.2005L8.39884 11.7995C7.85767 11.3929 7.38716 10.8963 7.00964 10.3319Z"/></svg>
@@ -1779,8 +1761,7 @@
         </div>
         <div class="page-subtitle">Kelola data pegawai yang tampil di halaman publik</div>
 
-
-        <!-- Panel: Daftar -->
+        
         <div id="strukturPanelTabel">
           <div class="toolbar">
             <div class="select-wrap" style="min-width:200px">
@@ -1827,7 +1808,7 @@
 
       </div>
 
-      <!-- PAGE: Audit Trail -->
+      
       <div class="page" id="page-audit-trail">
         <div class="page-title" style="display:flex;align-items:center;gap:10px">
           <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor" style="flex-shrink:0;opacity:.85"><path d="M12 1L20.2169 2.82598C20.6745 2.92766 21 3.33347 21 3.80217V13.7889C21 15.795 19.9974 17.6684 18.3282 18.7812L12 23L5.6718 18.7812C4.00261 17.6684 3 15.795 3 13.7889V3.80217C3 3.33347 3.32553 2.92766 3.78307 2.82598L12 1ZM12 3.04879L5 4.60434V13.7889C5 15.1263 5.6684 16.3752 6.7812 17.1171L12 20.5963L17.2188 17.1171C18.3316 16.3752 19 15.1263 19 13.7889V4.60434L12 3.04879ZM16.4524 8.22183L17.8666 9.63604L11.5026 16L7.25999 11.7574L8.67421 10.3431L11.5019 13.1709L16.4524 8.22183Z"/></svg>
@@ -1886,7 +1867,7 @@
         <div id="auditPagination"></div>
       </div>
 
-      <!-- PAGE: Dokumen Publik -->
+      
       <div class="page" id="page-dokumen-publik">
         <div class="page-title" style="display:flex;align-items:center;gap:10px">
           <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor" style="flex-shrink:0;opacity:.85"><path d="M20 22H4C3.44772 22 3 21.5523 3 21V3C3 2.44772 3.44772 2 4 2H20C20.5523 2 21 2.44772 21 3V21C21 21.5523 20.5523 22 20 22ZM19 20V4H5V20H19ZM7 6H11V10H7V6ZM7 12H17V14H7V12ZM7 16H17V18H7V16ZM13 7H17V9H13V7Z"/></svg>
@@ -1934,7 +1915,7 @@
         <div id="dokumenPagination"></div>
       </div>
 
-      <!-- PAGE: Profil Instansi -->
+      
       <div class="page" id="page-profil">
         <div class="page-title" style="display:flex;align-items:center;gap:10px">
           <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor" style="flex-shrink:0;opacity:.85"><path d="M20 6H23V8H22V19H23V21H1V19H2V8H1V6H4V4C4 3.44772 4.44772 3 5 3H19C19.5523 3 20 3.44772 20 4V6ZM20 8H4V19H7V12H9V19H11V12H13V19H15V12H17V19H20V8ZM6 5V6H18V5H6Z"/></svg>
@@ -1994,11 +1975,10 @@
         </div>
       </div>
 
-    </div><!-- /content -->
+    </div>
   </main>
-</div><!-- /app-shell -->
+</div>
 
-<!-- Modal Periode -->
 <div class="modal-overlay" id="modalPeriode">
   <div class="modal modal-lg" style="max-width:620px">
     <div class="modal-header">
@@ -2049,7 +2029,7 @@
         <div style="font-size:.8rem;font-weight:600;color:var(--teks-muted);margin-bottom:.5rem;text-transform:uppercase;letter-spacing:.04em">
           🕐 Jendela Waktu Input
         </div>
-        <!-- Dua picker disusun vertikal agar panel kalender punya ruang cukup -->
+        
         <div class="field">
           <label>Dibuka mulai <span style="color:var(--merah)">*</span></label>
           <input type="hidden" id="periodeOpenAt">
@@ -2073,10 +2053,8 @@
   </div>
 </div>
 
-<!-- TOAST -->
 <div id="toastContainer"></div>
 
-<!-- CONFIRM DIALOG -->
 <div id="confirmOverlay">
   <div id="confirmBox">
     <div id="confirmHeader">
@@ -2097,9 +2075,6 @@
   </div>
 </div>
 
-<!-- ════════════════ MODALS ════════════════ -->
-
-<!-- Modal: Pengumuman -->
 <div class="modal-overlay" id="modalPengumuman">
   <div class="modal" style="max-width:560px">
     <div class="modal-header">
@@ -2134,7 +2109,7 @@
           <label for="pengumumanAktif" style="cursor:pointer;margin:0">Aktif (tampil di landing page)</label>
         </div>
       </div>
-      <!-- Aksi / Tombol -->
+      
       <div class="field">
         <label style="display:flex;align-items:center;justify-content:space-between">
           <span>Tombol Aksi <span style="font-weight:400;color:var(--teks-muted);font-size:.78rem">(opsional)</span></span>
@@ -2153,7 +2128,6 @@
   </div>
 </div>
 
-<!-- Modal: Ticker -->
 <div class="modal-overlay" id="modalTicker">
   <div class="modal" style="max-width:480px">
     <div class="modal-header">
@@ -2203,7 +2177,6 @@
   </div>
 </div>
 
-<!-- Modal: Sub Kegiatan (e-Planning) -->
 <div class="modal-overlay" id="modalSubkegiatan">
   <div class="modal" style="max-width:480px">
     <div class="modal-header">
@@ -2242,7 +2215,6 @@
   </div>
 </div>
 
-<!-- Modal: Sumber Dana (e-Planning) -->
 <div class="modal-overlay" id="modalSumberDana">
   <div class="modal" style="max-width:420px">
     <div class="modal-header">
@@ -2273,7 +2245,6 @@
   </div>
 </div>
 
-<!-- Modal: Referensi generik (Prioritas Provinsi/Kab-Kota, Bidang Urusan, Tag Belanja) -->
 <div class="modal-overlay" id="modalReferensi">
   <div class="modal" style="max-width:420px">
     <div class="modal-header">
@@ -2300,7 +2271,6 @@
   </div>
 </div>
 
-<!-- Modal: Pilih Tag Belanja (multi-select buat form Usulan) -->
 <div class="modal-overlay" id="modalTagPicker">
   <div class="modal" style="max-width:420px">
     <div class="modal-header">
@@ -2324,7 +2294,6 @@
   </div>
 </div>
 
-<!-- Modal: Satuan (e-Planning) -->
 <div class="modal-overlay" id="modalSatuan">
   <div class="modal" style="max-width:420px">
     <div class="modal-header">
@@ -2351,7 +2320,6 @@
   </div>
 </div>
 
-<!-- Modal: Rekening (e-Planning) -->
 <div class="modal-overlay" id="modalRekening">
   <div class="modal" style="max-width:460px">
     <div class="modal-header">
@@ -2381,7 +2349,6 @@
   </div>
 </div>
 
-<!-- Modal: Standar Harga Satuan (e-Planning) - tambah/edit manual 1 item -->
 <div class="modal-overlay" id="modalStandarHarga">
   <div class="modal modal-lg">
     <div class="modal-header">
@@ -2440,7 +2407,6 @@
   </div>
 </div>
 
-<!-- Modal: Impor Excel Standar Harga (e-Planning) - upload export SIPD apa adanya -->
 <div class="modal-overlay" id="modalImporSumberDana">
   <div class="modal">
     <div class="modal-header">
@@ -2572,7 +2538,6 @@
   </div>
 </div>
 
-<!-- Modal: Rekening Penyusun - muncul waktu Komponen dari Standar Harga dipilih & punya >1 kode rekening -->
 <div class="modal-overlay" id="modalEpRekeningPenyusun">
   <div class="modal">
     <div class="modal-header">
@@ -2593,7 +2558,6 @@
   </div>
 </div>
 
-<!-- Modal: Tampilkan Rekening - dipanggil dari kolom Aksi tabel Standar Harga Satuan (view-only, dengan pencarian & paging) -->
 <div class="modal-overlay" id="modalEpTampilkanRekening">
   <div class="modal modal-lg">
     <div class="modal-header">
@@ -2623,7 +2587,6 @@
   </div>
 </div>
 
-<!-- Modal: Link -->
 <div class="modal-overlay" id="modalLink">
   <div class="modal">
     <div class="modal-header">
@@ -2663,7 +2626,6 @@
   </div>
 </div>
 
-<!-- Modal: Bundle (unified - info + items in one modal) -->
 <div class="modal-overlay" id="modalBundle">
   <div class="modal modal-lg">
     <div class="modal-header">
@@ -2673,7 +2635,7 @@
     <div class="modal-body">
       <input type="hidden" id="bundleId" />
 
-      <!-- Info Bundle -->
+      
       <div id="bundleInfoSection">
         <div class="field"><label>Judul Bundle *</label><input type="text" id="bundleJudul" placeholder="Nama bundle" /></div>
         <div class="field"><label>Slug (URL)</label><input type="text" id="bundleSlug" placeholder="auto-generate dari judul" />
@@ -2705,14 +2667,14 @@
         </div>
       </div>
 
-      <!-- Items section - selalu tampil -->
+      
       <div style="margin-top:16px;border-top:1.5px solid var(--abu-2);padding-top:16px">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
           <div style="font-size:.85rem;font-weight:700;color:var(--teks)">Item Bundle <span id="bundleItemCount" style="font-weight:400;color:var(--teks-muted);font-size:.78rem"></span></div>
           <button class="btn btn-primary btn-sm" id="btnTambahItem" onclick="showInlineItemForm()"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>Tambah Item</button>
         </div>
 
-        <!-- Inline form tambah/edit item -->
+        
         <div id="bundleInlineItemForm" style="display:none;background:var(--abu-1);border-radius:10px;padding:12px;margin-bottom:10px;border:1.5px solid var(--abu-2)">
           <input type="hidden" id="bundleItemId" />
           <div class="field"><label>Judul *</label><input type="text" id="biJudul" placeholder="Nama item" /></div>
@@ -2733,7 +2695,6 @@
   </div>
 </div>
 
-<!-- Modal: Share (Link & Bundle) - mirip s.id: QR code + copy + WA share -->
 <div class="modal-overlay" id="modalShare">
   <div class="modal" style="max-width:400px">
     <div class="modal-header">
@@ -2755,7 +2716,6 @@
   </div>
 </div>
 
-<!-- Modal: Link Detail -->
 <div class="modal-overlay" id="modalLinkDetail">
   <div class="modal" style="max-width:480px">
     <div class="modal-header">
@@ -2824,7 +2784,6 @@
   </div>
 </div>
 
-<!-- Modal: Surat Masuk -->
 <div class="modal-overlay" id="modalSM">
   <div class="modal modal-lg">
     <div class="modal-header">
@@ -2874,7 +2833,6 @@
   </div>
 </div>
 
-<!-- Modal: Surat Keluar -->
 <div class="modal-overlay" id="modalSK">
   <div class="modal modal-lg">
     <div class="modal-header">
@@ -2914,7 +2872,6 @@
   </div>
 </div>
 
-<!-- Modal: e-Planning - Usulan -->
 <div class="modal-overlay" id="modalEpUsulan">
   <div class="modal modal-lg">
     <div class="modal-header">
@@ -3044,7 +3001,6 @@
   </div>
 </div>
 
-<!-- Modal: e-Planning - Approve Kabid -->
 <div class="modal-overlay" id="modalEpApproveKabid">
   <div class="modal">
     <div class="modal-header">
@@ -3067,7 +3023,6 @@
   </div>
 </div>
 
-<!-- Modal: e-Planning - Approve Sekretaris Dinas (khusus usulan Sub Bagian) -->
 <div class="modal-overlay" id="modalEpApproveSekretaris">
   <div class="modal">
     <div class="modal-header">
@@ -3090,7 +3045,6 @@
   </div>
 </div>
 
-<!-- Modal: e-Planning - Approve Admin (sahkan Kadis) -->
 <div class="modal-overlay" id="modalEpApproveAdmin">
   <div class="modal">
     <div class="modal-header">
@@ -3113,7 +3067,6 @@
   </div>
 </div>
 
-<!-- Modal: e-Planning - Rincian Item -->
 <div class="modal-overlay" id="modalEpRincian">
   <div class="modal modal-lg">
     <div class="modal-header">
@@ -3178,7 +3131,6 @@
   </div>
 </div>
 
-<!-- Modal: Reminder Absensi Masuk/Keluar (muncul otomatis begitu waktunya) -->
 <div class="modal-overlay" id="modalAbsReminder">
   <div class="modal modal--danger">
     <div class="modal-header">
@@ -3194,7 +3146,6 @@
   </div>
 </div>
 
-<!-- Modal: Input/Edit Absensi (admin/full) -->
 <div class="modal-overlay" id="modalAbs">
   <div class="modal modal-lg">
     <div class="modal-header">
@@ -3255,7 +3206,6 @@
   </div>
 </div>
 
-<!-- Modal: Ajukan Tugas Luar/Cuti (self-service, semua pegawai) -->
 <div class="modal-overlay" id="modalPengajuanAbsen">
   <div class="modal modal-lg">
     <div class="modal-header">
@@ -3305,7 +3255,6 @@
   </div>
 </div>
 
-<!-- Modal: Persetujuan Pengajuan (admin/full) -->
 <div class="modal-overlay" id="modalPersetujuanAbsen">
   <div class="modal modal-lg modal--warning">
     <div class="modal-header">
@@ -3326,7 +3275,6 @@
   </div>
 </div>
 
-<!-- Modal: Alasan Tolak Pengajuan (admin/full) -->
 <div class="modal-overlay" id="modalTolakPengajuan">
   <div class="modal">
     <div class="modal-header">
@@ -3344,7 +3292,6 @@
   </div>
 </div>
 
-<!-- Modal: Pengaturan Jam Kerja (admin/full) -->
 <div class="modal-overlay" id="modalAbsSettings">
   <div class="modal modal-lg">
     <div class="modal-header">
@@ -3386,7 +3333,6 @@
   </div>
 </div>
 
-<!-- Modal: Hari Libur (admin/full) -->
 <div class="modal-overlay" id="modalAbsLibur">
   <div class="modal modal-lg">
     <div class="modal-header">
@@ -3425,7 +3371,6 @@
   </div>
 </div>
 
-<!-- Modal: User -->
 <div class="modal-overlay" id="modalUser">
   <div class="modal modal-lg">
     <div class="modal-header">
@@ -3447,7 +3392,6 @@
   </div>
 </div>
 
-<!-- Modal: Urutan Laporan Absensi (drag & drop) -->
 <div class="modal-overlay" id="modalUrutanLaporan">
   <div class="modal" style="max-width:460px">
     <div class="modal-header">
@@ -3465,7 +3409,6 @@
   </div>
 </div>
 
-<!-- Modal: Permissions -->
 <div class="modal-overlay" id="modalPerms">
   <div class="modal">
     <div class="modal-header">
@@ -3485,8 +3428,6 @@
   </div>
 </div>
 
-
-<!-- Modal: Assign Indikator per User -->
 <div class="modal-overlay" id="modalAssignIndikator">
   <div class="modal" style="max-width:560px;width:95%">
     <div class="modal-header">
@@ -3516,8 +3457,6 @@
   </div>
 </div>
 
-
-<!-- Modal: Ganti Password (user sendiri) -->
 <div class="modal-overlay" id="modalAvatarUpload">
   <div class="modal">
     <div class="modal-header">
@@ -3599,7 +3538,6 @@
   </div>
 </div>
 
-<!-- Modal: Bidang -->
 <div class="modal-overlay" id="modalBidang">
   <div class="modal">
     <div class="modal-header">
@@ -3628,8 +3566,6 @@
   </div>
 </div>
 
-
-<!-- Modal: Tambah / Edit Indikator Kinerja -->
 <div class="modal-overlay" id="modalIndikator">
   <div class="modal modal-xl">
     <div class="modal-header">
@@ -3678,7 +3614,7 @@
         <div class="field" style="flex:0 0 auto;min-width:220px">
           <label>Jenis Kinerja <span style="color:var(--merah)">*</span></label>
           <div id="indikatorJenisWrap" style="display:flex;flex-wrap:wrap;gap:8px;margin-top:8px">
-            <!-- Diisi dinamis oleh openIndikatorModal() -->
+            
             <span style="color:var(--teks-muted);font-size:.82rem">Memuat data...</span>
           </div>
         </div>
@@ -3726,7 +3662,6 @@
   </div>
 </div>
 
-<!-- Modal: Tambah / Edit Jenis Kinerja -->
 <div class="modal-overlay" id="modalJenis">
   <div class="modal" style="max-width:480px">
     <div class="modal-header">
@@ -3738,14 +3673,14 @@
     </div>
     <div class="modal-body" style="display:flex;flex-direction:column;gap:14px">
 
-      <!-- Kode (readonly, hanya tampil saat edit) -->
+      
       <div class="field" id="jenisKodeRow" style="display:none">
         <label>Kode Sistem</label>
         <div style="padding:7px 10px;background:#f1f5f9;border-radius:8px;border:1px solid #e2e8f0;font-size:.82rem;font-family:monospace;color:var(--teks-muted)" id="jenisKodeDisplay"></div>
         <div style="font-size:.72rem;color:var(--teks-muted);margin-top:3px">Kode dibuat otomatis dari label dan tidak bisa diubah.</div>
       </div>
 
-      <!-- Label -->
+      
       <div class="field">
         <label>Label <span style="color:var(--merah)">*</span></label>
         <input type="text" id="jenisLabel" class="input" placeholder="Contoh: IKU, IKK, SPM, IKD..."
@@ -3753,13 +3688,13 @@
         <div style="font-size:.72rem;color:var(--teks-muted);margin-top:3px">Label ditampilkan di checkbox indikator. Kode dibuat otomatis dari label saat pertama kali disimpan.</div>
       </div>
 
-      <!-- Deskripsi -->
+      
       <div class="field">
         <label>Deskripsi <span style="color:var(--teks-muted);font-weight:400">(opsional)</span></label>
         <input type="text" id="jenisDeskripsi" class="input" placeholder="Contoh: Indikator Kinerja Utama" maxlength="100">
       </div>
 
-      <!-- Warna -->
+      
       <div style="display:flex;gap:14px;flex-wrap:wrap">
         <div class="field" style="flex:1;min-width:140px">
           <label>Warna Latar Badge</label>
@@ -3779,7 +3714,7 @@
         </div>
       </div>
 
-      <!-- Preview badge -->
+      
       <div style="display:flex;align-items:center;gap:10px">
         <span style="font-size:.78rem;color:var(--teks-muted)">Tampilan badge:</span>
         <span id="jenisBadgePreview"
@@ -3788,7 +3723,7 @@
                      transition:background .2s,color .2s">Label</span>
       </div>
 
-      <!-- Urutan & Aktif -->
+      
       <div style="display:flex;gap:14px;flex-wrap:wrap">
         <div class="field" style="flex:1;min-width:100px">
           <label>Urutan</label>
@@ -3845,7 +3780,6 @@
   </div>
 </div>
 
-<!-- Modal: Hapus Target (pilih tahun) -->
 <div class="modal-overlay" id="modalKtDeleteTarget">
   <div class="modal" style="max-width:400px">
     <div class="modal-header">
@@ -3873,7 +3807,6 @@
   </div>
 </div>
 
-<!-- Modal: Tambah / Edit Group Kinerja -->
 <div class="modal-overlay" id="modalGroup">
   <div class="modal">
     <div class="modal-header">
@@ -3905,7 +3838,6 @@
   </div>
 </div>
 
-<!-- Modal: Tambah / Edit Laporan Template -->
 <div class="modal-overlay" id="modalLapTemplate">
   <div class="modal" style="max-width:460px">
     <div class="modal-header">
@@ -3929,7 +3861,7 @@
           <label>Nama Template <span style="color:var(--merah)">*</span></label>
           <input type="text" id="lapTemplateNama" placeholder="Contoh: Urusan Kesehatan">
         </div>
-        <!-- Field Urutan hanya muncul untuk mode Urusan -->
+        
         <div class="field" id="lapTemplateUrutanWrap" style="display:none">
           <label>Urutan</label>
           <input type="number" id="lapTemplateUrutanInput" value="0" min="0" style="width:100px">
@@ -3945,7 +3877,6 @@
   </div>
 </div>
 
-<!-- Modal: Pilih Indikator untuk Laporan Template -->
 <div class="modal-overlay" id="modalLapTemplateIndikator">
   <div class="modal" style="max-width:680px;max-height:90vh;display:flex;flex-direction:column">
     <div class="modal-header" style="flex-shrink:0">
@@ -3956,7 +3887,7 @@
       <button class="btn-close" onclick="closeModal('modalLapTemplateIndikator')"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg></button>
     </div>
     <div class="modal-body" style="flex:1;overflow:auto;padding-top:10px">
-      <!-- Search + filter jenis -->
+      
       <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap">
         <div class="search-wrap" style="flex:1;min-width:180px">
           <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-4.35-4.35"/></svg>
@@ -3973,9 +3904,9 @@
         <button class="btn btn-sm" onclick="_lapTplSelectAll()" style="white-space:nowrap;font-size:.78rem"><svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><rect x="3" y="3" width="18" height="18" rx="3"/><path stroke-linecap="round" stroke-linejoin="round" d="M8 12l3 3 5-6"/></svg>Pilih Semua</button>
         <button class="btn btn-sm" onclick="_lapTplClearAll()" style="white-space:nowrap;font-size:.78rem;color:#dc2626"><svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path stroke-linecap="round" stroke-linejoin="round" d="M19 6l-1 14H6L5 6"/><path stroke-linecap="round" stroke-linejoin="round" d="M10 11v6m4-6v6"/><path stroke-linecap="round" stroke-linejoin="round" d="M9 6V4h6v2"/></svg>Hapus Semua</button>
       </div>
-      <!-- Info terpilih -->
+      
       <div id="lapTplIndSelectedInfo" style="font-size:.78rem;color:#0d9488;font-weight:600;margin-bottom:8px"></div>
-      <!-- List checkbox -->
+      
       <div id="lapTplIndList" style="display:flex;flex-direction:column;gap:4px;max-height:360px;overflow-y:auto;border:1px solid #e2e8f0;border-radius:8px;padding:8px"></div>
     </div>
     <div class="modal-footer" style="flex-shrink:0">
@@ -3987,7 +3918,6 @@
   </div>
 </div>
 
-<!-- ════════════════ MODAL: DATA DUKUNG KINERJA ════════════════ -->
 <div class="modal-overlay" id="modalDukung">
   <div class="modal" style="max-width:480px">
     <div class="modal-header">
@@ -4004,7 +3934,7 @@
         <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="var(--hijau)" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
         <span id="dukungTwLabel" style="font-size:.75rem;font-weight:600;color:var(--hijau)"></span>
       </div>
-      <!-- Upload area -->
+      
       <div class="upload-area" id="dukungUploadArea"
            ondragover="handleDukungDragOver(event)"
            ondragleave="handleDukungDragLeave(event)"
@@ -4031,12 +3961,10 @@
   </div>
 </div>
 
-<!-- ════════════════ PANEL: PREVIEW DOKUMEN (fullscreen gallery style) ════════════════ -->
 <style>
   #docPreviewPanel { user-select:none; }
   @keyframes spin { from { transform:rotate(0deg); } to { transform:rotate(360deg); } }
-  /* Non-admin cuma butuh laporan flat per-indikator (Capaian Indikator);
-     Monev Kinerja (grouping Tujuan/Sasaran/Program/Kegiatan) khusus admin. */
+  
   body:not(.is-admin) #btnDownloadLaporanTSP { display:none !important; }
   .dp-topbtn {
     display:flex;align-items:center;justify-content:center;
@@ -4069,7 +3997,7 @@
   #docPreviewZoomLabel {
     font-size:.7rem;font-weight:700;color:#94a3b8;min-width:36px;text-align:center;
   }
-  /* ── Jenis Kinerja Chip (checkbox IKU/IKK/SPM) ── */
+  
   @keyframes jenisChipPop {
     0%   { transform: scale(1); }
     45%  { transform: scale(1.12); }
@@ -4120,7 +4048,7 @@
   top:var(--topbar-h,55px);left:var(--sidebar-w,233px);right:0;bottom:0;
   z-index:600;background:#0d1626;flex-direction:column;
 ">
-  <!-- ── Top bar ── -->
+  
   <div style="
     position:absolute;top:0;left:0;right:0;z-index:20;
     display:flex;align-items:center;gap:8px;
@@ -4128,7 +4056,7 @@
     background:linear-gradient(180deg,rgba(5,10,20,.95) 0%,rgba(5,10,20,0) 100%);
     pointer-events:none;
   ">
-    <!-- Kiri: ikon + label konteks + counter + nama file -->
+    
     <div style="display:flex;align-items:center;gap:8px;flex:1;min-width:0;pointer-events:auto">
       <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="#64748b" stroke-width="2" style="flex-shrink:0"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
       <span id="docPreviewLabel" style="font-size:.75rem;font-weight:700;color:#64748b;white-space:nowrap;flex-shrink:0"></span>
@@ -4137,59 +4065,59 @@
       <span id="docPreviewTitle" style="font-size:.78rem;font-weight:600;color:#cbd5e1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Dokumen</span>
     </div>
 
-    <!-- Kanan: toolbar tombol -->
+    
     <div style="display:flex;align-items:center;gap:5px;flex-shrink:0;pointer-events:auto">
-      <!-- Zoom out -->
+      
       <button class="dp-topbtn" id="dpZoomOut" onclick="dpZoom(-0.25)" data-tip="Perkecil (-)">
         <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-4.35-4.35M8 11h6"/></svg>
       </button>
-      <!-- Zoom label -->
+      
       <span id="docPreviewZoomLabel">100%</span>
-      <!-- Zoom in -->
+      
       <button class="dp-topbtn" id="dpZoomIn" onclick="dpZoom(0.25)" data-tip="Perbesar (+)">
         <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-4.35-4.35M11 8v6M8 11h6"/></svg>
       </button>
-      <!-- Reset zoom -->
+      
       <button class="dp-topbtn" id="dpZoomReset" onclick="dpZoom(0)" data-tip="Reset zoom" style="display:none">
         <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
       </button>
-      <!-- Separator -->
+      
       <div style="width:1px;height:20px;background:rgba(255,255,255,.12);margin:0 2px"></div>
-      <!-- Google Docs btn (muncul jika PDF gagal) -->
+      
       <button id="docPreviewGdocsBtn" class="dp-topbtn" onclick="docPreviewUseGdocs()" data-tip="Coba Google Viewer" style="display:none">
         <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
       </button>
-      <!-- Download -->
+      
       <a id="docPreviewOpenLink" href="#" download target="_blank" rel="noopener" class="dp-topbtn" data-tip="Download">
         <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
       </a>
-      <!-- Delete (hanya tampil jika ada handler delete) -->
+      
       <button id="docPreviewDeleteBtn" class="dp-topbtn danger" onclick="dpDeleteCurrent()" data-tip="Hapus file ini" style="display:none">
         <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><polyline points="3 6 5 6 21 6"/><path stroke-linecap="round" stroke-linejoin="round" d="M19 6l-1 14H6L5 6"/><path stroke-linecap="round" stroke-linejoin="round" d="M10 11v6m4-6v6"/><path stroke-linecap="round" stroke-linejoin="round" d="M9 6V4h6v2"/></svg>
       </button>
-      <!-- Tutup -->
+      
       <button class="dp-topbtn" onclick="closeDocPreview()" data-tip="Tutup (Esc)">
         <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
       </button>
     </div>
   </div>
 
-  <!-- ── Area konten + side nav overlay ── -->
+  
   <div style="position:relative;flex:1;overflow:hidden;display:flex;flex-direction:column">
-    <!-- Prev -->
+    
     <button id="dpNavPrev" class="dp-sidenav left" onclick="navDocPreview(-1)" data-tip="Sebelumnya" style="display:none">
       <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/></svg>
     </button>
-    <!-- Next -->
+    
     <button id="dpNavNext" class="dp-sidenav right" onclick="navDocPreview(1)" data-tip="Berikutnya" style="display:none">
       <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
     </button>
 
-    <!-- Konten dokumen -->
+    
     <div id="docPreviewBody" style="flex:1;overflow:hidden;display:flex;flex-direction:column;align-items:center;justify-content:center;position:relative;"></div>
   </div>
 
-  <!-- ── Dot indicator bawah ── -->
+  
   <div id="dpDots" style="
     display:none;position:absolute;bottom:14px;left:50%;transform:translateX(-50%);
     display:none;align-items:center;gap:6px;z-index:20;
@@ -4197,13 +4125,8 @@
 </div>
 
 <script>
-// ══ LOGIN OVERLAY LOGIC ══════════════════════════════════════════════════
 
-// ── Lock state persisten (survive ganti-ganti email / reload halaman) ──────
-// Disimpan di sessionStorage supaya kalau user ganti ke email lain lalu balik
-// lagi ke email yang masih terkunci, tombol Login tetap disabled sampai
-// waktu unlock-nya (15 menit) benar-benar lewat.
-const LOGIN_LOCK_KEY = 'sapa_login_lock'; // { nip, until }
+const LOGIN_LOCK_KEY = 'sapa_login_lock'; 
 
 function _getLoginLock() {
   try {
@@ -4224,8 +4147,6 @@ function _clearLoginLock() {
   try { sessionStorage.removeItem(LOGIN_LOCK_KEY); } catch {}
 }
 
-// Sinkronkan tombol Login + pesan error dengan lock state saat ini,
-// berdasarkan NIP yang sedang diketik di form.
 function _syncLoginLockUI() {
   const nipEl = document.getElementById('loginNip');
   const btn   = document.getElementById('loginBtn');
@@ -4242,11 +4163,6 @@ function _syncLoginLockUI() {
   }
 }
 
-// Cek ulang tiap beberapa detik juga, supaya begitu 15 menit lewat sambil
-// user diam di form, tombol otomatis enabled tanpa perlu ngetik apa-apa.
-// Cek ulang tiap beberapa saat juga - browser autofill kadang tidak memicu
-// event 'input' secara konsisten, jadi polling ini jadi jaring pengaman supaya
-// NIP hasil autofill tetap kedeteksi locked walau tanpa event apa pun.
 setInterval(_syncLoginLockUI, 1000);
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -4259,9 +4175,6 @@ document.addEventListener('DOMContentLoaded', () => {
   _syncLoginLockUI();
 });
 
-// NIP standar (BKN) selalu 18 digit - kasih indikator warna real-time biar
-// user langsung tahu kalau ketikannya masih kurang/kelebihan karakter,
-// tanpa harus nunggu submit & dapat error dari server.
 const NIP_LEN = 18;
 function _checkNipLen() {
   const nipEl = document.getElementById('loginNip');
@@ -4283,12 +4196,11 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 });
 
-
 function showLoginOverlay(msg) {
   const overlay = document.getElementById('loginOverlay');
   overlay.classList.remove('hidden');
-  document.documentElement.classList.add('login-mode'); // html
-  document.body.classList.add('login-mode');             // body
+  document.documentElement.classList.add('login-mode'); 
+  document.body.classList.add('login-mode');             
   const shell = document.getElementById('appShell');
   if (shell) shell.style.visibility = 'hidden';
   document.getElementById('loginNip').value    = '';
@@ -4302,8 +4214,8 @@ function showLoginOverlay(msg) {
 
 function hideLoginOverlay() {
   document.getElementById('loginOverlay').classList.add('hidden');
-  document.documentElement.classList.remove('login-mode'); // html
-  document.body.classList.remove('login-mode');             // body
+  document.documentElement.classList.remove('login-mode'); 
+  document.body.classList.remove('login-mode');             
 }
 
 function loginToggleInfo() {
@@ -4321,14 +4233,6 @@ function loginTogglePw() {
     : `<path stroke-linecap="round" stroke-linejoin="round" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21"/>`;
 }
 
-// Ambil lokasi presisi dari browser (GPS/WiFi via Geolocation API), lalu reverse-geocode
-// jadi alamat detail (jalan, kelurahan, kecamatan, kota, provinsi) pakai Nominatim/OpenStreetMap
-// (gratis, tanpa API key, CORS-enabled utk browser).
-// Kalau user menolak izin lokasi / browser tidak mendukung / timeout → return null,
-// backend akan fallback otomatis ke IP-based lookup (cuma level kota).
-// Tambahkan label (mis. "Kec.") di depan nama wilayah, kecuali nama itu
-// sendiri sudah mengandung kata itu (mis. Nominatim kadang sudah kasih
-// "Kecamatan Luwuk" langsung dari sumbernya).
 function _labelWilayah(raw, label, fullWord) {
   if (!raw) return null;
   const lower = raw.toLowerCase();
@@ -4353,13 +4257,13 @@ function _formatAlamatNominatim(addr) {
     parts.push(_labelWilayah(kecamatan, 'Kecamatan', 'kecamatan'));
   }
 
-  // Kabupaten / Kota (hindari duplikat kalau sama dgn kecamatan)
+  
   const kabKota = addr.county || addr.regency || addr.city || addr.state_district;
   if (kabKota && kabKota !== kecamatan) {
     parts.push(/kota/i.test(kabKota) ? kabKota : _labelWilayah(kabKota, 'Kabupaten', 'kabupaten'));
   }
 
-  // Provinsi
+  
   if (addr.state) {
     parts.push(_labelWilayah(addr.state, 'Provinsi', 'provinsi'));
   }
@@ -4367,9 +4271,6 @@ function _formatAlamatNominatim(addr) {
   return parts.length ? parts.join(', ') : null;
 }
 
-// Coba TomTom dulu (via backend, API key disimpan aman di env var) - datanya
-// proprietary (bukan OSM), jadi coverage kecamatan di daerah terpencil bisa
-// lebih lengkap drpd Nominatim. Kalau gagal/kosong, fallback ke Nominatim.
 async function _getLokasiTomTom(latitude, longitude) {
   try {
     const r = await fetch('/api/reverse-geocode', {
@@ -4394,9 +4295,9 @@ async function _getLokasiNominatim(latitude, longitude) {
     });
     if (!r.ok) return null;
     const d = await r.json();
-    // Utamakan alamat detail hasil susunan sendiri; kalau field structured-nya kosong
-    // (mis. area terpencil yg datanya minim di OSM), fallback ke display_name mentah
-    // dari Nominatim, baru kalau itu juga kosong return null (backend akan fallback IP).
+    
+    
+    
     return _formatAlamatNominatim(d.address) || d.display_name || null;
   } catch {
     return null;
@@ -4435,8 +4336,8 @@ async function doLogin() {
     return;
   }
 
-  // Kalau NIP ini masih dalam status lock (dari percobaan sebelumnya), jangan
-  // tembak API lagi - cukup sinkronkan UI (tombol disabled + pesan sisa waktu).
+  
+  
   const _existingLock = _getLoginLock();
   if (_existingLock && _existingLock.nip === nip) {
     _syncLoginLockUI();
@@ -4477,7 +4378,7 @@ async function doLogin() {
     sessionStorage.setItem('sapa_refresh_token', data.refresh_token);
     sessionStorage.setItem('sapa_user', JSON.stringify(data.user));
 
-    // Set flag agar app.js boot IIFE tidak double-init
+    
     window._authBootDone = true;
     hideLoginOverlay();
     document.getElementById('appShell').style.visibility = '';
@@ -4488,9 +4389,9 @@ async function doLogin() {
         const el = (id) => document.getElementById(id);
         el('topbarAvatarInner').textContent = initial;
         el('topbarName').textContent   = _u.nama;
-        // Refresh avatar foto profil dari server - biar gak nyangkut foto
-        // user sebelumnya (login itu SPA, gak reload, jadi boot IIFE app.js
-        // gak kepanggil ulang; _bootRefreshFoto scope global sekarang).
+        
+        
+        
         if (typeof _bootRefreshFoto === 'function') _bootRefreshFoto();
         el('topbarRole').textContent   = _u.is_admin ? 'Super Admin' : (_u.bidang_nama || '');
         el('ddName').textContent       = _u.nama;
@@ -4512,20 +4413,20 @@ async function doLogin() {
             if (typeof _cekKinerjaIndikator === 'function') await _cekKinerjaIndikator();
           } catch(e) { console.warn('[doLogin boot]', e); }
           buildSidebar();
-          // Reminder absensi masuk/keluar - sama kayak di app.js (_domReady),
-          // biar muncul juga pas login pertama, gak perlu nunggu reload.
+          
+          
           if (typeof _cekAbsensiReminder === 'function') _cekAbsensiReminder();
-          // Reminder pengajuan tugas luar/cuti pending (admin/full) - sama
-          // kayak di app.js (_domReady), biar modal Persetujuan langsung
-          // kebuka pas login pertama juga, bukan cuma pas reload.
+          
+          
+          
           if (typeof _cekPengajuanPendingReminder === 'function') _cekPengajuanPendingReminder();
 
-          // ── Samakan dengan logic landing page di app.js (_domReady) ──────────
-          // Aturan: kalau user (admin atau non-admin) punya akses ke Dashboard
-          // Utama → selalu ke situ dulu. Baru kalau non-admin SAMA SEKALI gak
-          // punya akses ke Dashboard Utama, langsung ke menu pertama yang bisa
-          // dia akses - diutamakan Kinerja kalau itu satu-satunya modul yang
-          // dia punya (biar gak nyasar ke child menu grup lain).
+          
+          
+          
+          
+          
+          
           const _firstAccessibleChild = (onlyGroupId) => {
             for (const g of MENUS) {
               if (onlyGroupId && g.id !== onlyGroupId) continue;
@@ -4568,7 +4469,7 @@ async function doLogin() {
         })();
       }
     } else {
-      // app.js belum selesai dimuat saat doLogin() dipanggil - tunggu sebentar
+      
       setTimeout(() => location.reload(), 150);
     }
   } catch {
@@ -4579,8 +4480,8 @@ async function doLogin() {
   }
 }
 
-let _loginErrTimerId = null;   // supaya pesan lama gak nimpa pesan baru pas auto-hide
-let _loginErrToken   = 0;      // penanda "pesan keberapa" - lebih pasti drpd compare innerHTML string
+let _loginErrTimerId = null;   
+let _loginErrToken   = 0;      
 
 function _loginShowErr(msg, type = 'warn') {
   const icons = {
@@ -4593,8 +4494,8 @@ function _loginShowErr(msg, type = 'warn') {
 
   clearTimeout(_loginErrTimerId);
   const _myToken = ++_loginErrToken;
-  // Pesan lock (akun terkunci) tetap tampil - statusnya masih relevan selama masa lock.
-  // Pesan warn (NIP salah, akun tidak terdaftar, dll) hilang otomatis stlh 5 detik.
+  
+  
   if (type !== 'lock') {
     _loginErrTimerId = setTimeout(() => {
       if (_myToken === _loginErrToken) el.innerHTML = '';
@@ -4622,17 +4523,12 @@ function _loginShowErr(msg, type = 'warn') {
 })();
 </script>
 
-<!-- ════════════════ SCRIPTS ════════════════ -->
-<script src="js/periode_frontend.js?v=1.3.2"></script>
+<script src="js/periode_frontend.js?v=1.3.3"></script>
 <script>
-/* ── CDTP Teleport: pindahkan panel kalender ke <body> saat dibuka ──────────
-   Ini satu-satunya cara yang benar-benar reliable agar panel tidak terpotong
-   oleh overflow, backdrop-filter, atau stacking context apapun di modal.
-   ─────────────────────────────────────────────────────────────────────────── */
 (function() {
   'use strict';
 
-  // Posisikan panel fixed mengikuti trigger
+  
   function positionPanel(trigger, panel) {
     var rect = trigger.getBoundingClientRect();
     var vw = window.innerWidth;
@@ -4642,14 +4538,14 @@ function _loginShowErr(msg, type = 'warn') {
     panel.style.zIndex   = '99999';
     panel.style.minWidth = Math.max(rect.width, 300) + 'px';
 
-    // Horizontal: mulai dari kiri trigger, tapi jangan keluar layar
+    
     var left = rect.left;
     var panelW = panel.offsetWidth || 300;
     if (left + panelW > vw - 8) left = vw - panelW - 8;
     if (left < 8) left = 8;
     panel.style.left = left + 'px';
 
-    // Vertikal: buka ke bawah atau ke atas
+    
     var spaceBelow = vh - rect.bottom - 8;
     var panelH = panel.offsetHeight || 380;
     if (spaceBelow >= panelH || spaceBelow >= rect.top - 8) {
@@ -4661,11 +4557,11 @@ function _loginShowErr(msg, type = 'warn') {
     }
   }
 
-  // Map: panel → {originalParent, nextSibling} untuk restore saat tutup
+  
   var teleported = new WeakMap();
 
   function teleportPanel(trigger, panel) {
-    if (teleported.has(panel)) return; // sudah di-teleport
+    if (teleported.has(panel)) return; 
     var info = {
       parent: panel.parentNode,
       next:   panel.nextSibling
@@ -4680,7 +4576,7 @@ function _loginShowErr(msg, type = 'warn') {
     var info = teleported.get(panel);
     if (!info) return;
     panel.classList.remove('cdtp-panel-teleport');
-    // Reset inline positioning
+    
     panel.style.position = '';
     panel.style.zIndex   = '';
     panel.style.left     = '';
@@ -4704,19 +4600,19 @@ function _loginShowErr(msg, type = 'warn') {
     var wrap  = trigger.closest('.cdtp-wrap, [data-cdtp], [data-ctp]');
     if (!wrap) return;
 
-    // Cari panel - bisa di wrap asli atau sudah di body (teleport)
+    
     var panel = wrap.querySelector('.cdtp-panel')
              || document.querySelector('.cdtp-panel-teleport');
 
     if (!panel) return;
 
-    // Tunggu sebentar agar periode_frontend.js toggle display dulu
+    
     requestAnimationFrame(function() {
       requestAnimationFrame(function() {
         var isOpen = (panel.style.display !== 'none' && panel.offsetHeight > 0);
         if (isOpen) {
           teleportPanel(trigger, panel);
-          // Reposisi ulang setelah render lengkap
+          
           requestAnimationFrame(function() {
             positionPanel(trigger, panel);
           });
@@ -4725,12 +4621,12 @@ function _loginShowErr(msg, type = 'warn') {
         }
       });
     });
-  }, true); // capture phase agar berjalan sebelum handler lain
+  }, true); 
 
-  // Reposisi saat scroll atau resize
+  
   window.addEventListener('scroll', function() {
     document.querySelectorAll('.cdtp-panel-teleport').forEach(function(panel) {
-      // Cari trigger pasangannya
+      
       var wrap = document.querySelector('[data-cdtp]');
       if (!wrap) return;
       var trigger = wrap.querySelector('.cdtp-trigger');
@@ -4747,8 +4643,8 @@ function _loginShowErr(msg, type = 'warn') {
     });
   });
 
-  // Saat panel ditutup oleh periode_frontend.js (klik "Pilih", "Hapus", dll)
-  // - pantau via MutationObserver perubahan display:none
+  
+  
   var mo = new MutationObserver(function(mutations) {
     mutations.forEach(function(m) {
       if (m.target.classList && m.target.classList.contains('cdtp-panel')) {
@@ -4770,64 +4666,59 @@ function _loginShowErr(msg, type = 'warn') {
 })();
 </script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/quill/1.3.7/quill.min.js"></script>
-  <script src="js/app.js?v=1.3.2"></script>
-<script src="js/dashboard.js?v=1.3.2"></script>
+  <script src="js/app.js?v=1.3.3"></script>
+<script src="js/dashboard.js?v=1.3.3"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-<script src="js/superlink.js?v=1.3.2"></script>
-<script src="js/pengumuman_frontend.js?v=1.3.2"></script>
-<script src="js/surat.js?v=1.3.2"></script>
-<script src="js/eplanning_frontend.js?v=1.3.2"></script>
-<script src="js/absensi_frontend.js?v=1.3.2"></script>
-<script src="js/users_frontend.js?v=1.3.2"></script>
-<script src="js/kinerja.js?v=1.3.2"></script>
-<script src="js/laporan.js?v=1.3.2"></script>
-<script src="js/struktur_frontend.js?v=1.3.2"></script>
-<script src="js/audit_frontend.js?v=1.3.2"></script>
-<script src="js/dokumen_publik_frontend.js?v=1.3.2"></script>
-<script src="js/profil_frontend.js?v=1.3.2"></script>
+<script src="js/superlink.js?v=1.3.3"></script>
+<script src="js/pengumuman_frontend.js?v=1.3.3"></script>
+<script src="js/surat.js?v=1.3.3"></script>
+<script src="js/eplanning_frontend.js?v=1.3.3"></script>
+<script src="js/absensi_frontend.js?v=1.3.3"></script>
+<script src="js/users_frontend.js?v=1.3.3"></script>
+<script src="js/kinerja.js?v=1.3.3"></script>
+<script src="js/laporan.js?v=1.3.3"></script>
+<script src="js/struktur_frontend.js?v=1.3.3"></script>
+<script src="js/audit_frontend.js?v=1.3.3"></script>
+<script src="js/dokumen_publik_frontend.js?v=1.3.3"></script>
+<script src="js/profil_frontend.js?v=1.3.3"></script>
 
 <script>
-/* ═══════════════════════════════════════════════════════════════════════════
-   CUSTOM SELECT - replaces all .select-wrap native <select> with
-   a styled div-based dropdown. The native <select> stays in DOM (hidden)
-   so all existing JS (.value, .innerHTML, onChange, etc.) still works.
-   ═══════════════════════════════════════════════════════════════════════════ */
 (function () {
 
   const SVG_CHECK  = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>`;
   const SVG_CHEV   = `<svg class="csel-chevron" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>`;
 
-  let _openPanel = null; // track currently open panel
+  let _openPanel = null; 
 
   function buildCustomSelect(wrap) {
     const sel = wrap.querySelector('select');
-    if (!sel || wrap.querySelector('.csel-trigger')) return; // already built
+    if (!sel || wrap.querySelector('.csel-trigger')) return; 
 
     const searchable = sel.dataset.searchable === '1';
 
-    // ── Trigger ────────────────────────────────────────────────────────────
+    
     const trigger = document.createElement('button');
     trigger.type = 'button';
     trigger.className = 'csel-trigger';
     trigger.innerHTML = `<span class="csel-trigger-text placeholder">${_getLabel(sel)}</span>${SVG_CHEV}`;
     wrap.appendChild(trigger);
 
-    // ── Panel - dirender floating position:fixed di document.body, bukan nested
-    // di dalam wrap, biar gak ke-clip overflow:hidden container manapun (mis.
-    // .kinerja-table-wrap.card). Posisi dihitung di positionPanel() saat dibuka. ──
+    
+    
+    
     const panel = document.createElement('div');
     panel.className = 'csel-panel csel-panel-fixed' + (searchable ? ' csel-panel-searchable' : '');
     panel.style.display = 'none';
     document.body.appendChild(panel);
-    wrap._cselPanel   = panel;   // referensi buat syncCustomSelect() & cleanup
-    panel._cselTrigger = trigger; // referensi balik buat closePanel lintas-closure
+    wrap._cselPanel   = panel;   
+    panel._cselTrigger = trigger; 
 
-    // Klik di dalam panel (termasuk search box) jangan dianggap "klik di luar"
-    // yang nutup panel - closePanel tetap dipicu eksplisit lewat listener opsi.
+    
+    
     panel.addEventListener('click', e => e.stopPropagation());
 
-    // ── Search box (opsional, dipakai select dgn banyak opsi seperti Filter User) ──
+    
     let searchInput = null;
     let optsContainer = panel;
     if (searchable) {
@@ -4865,10 +4756,10 @@ function _loginShowErr(msg, type = 'warn') {
         div.innerHTML = `<span class="csel-option-check">${SVG_CHECK}</span>${optIcon ? `<span style="display:inline-flex;align-items:center;gap:6px">${optIcon}<span>${opt.text}</span></span>` : `<span>${opt.text}</span>`}`;
         div.addEventListener('click', () => {
           sel.selectedIndex = i;
-          // User baru aktif MEMILIH sesuatu (termasuk opsi kosong/"-") - ini beda
-          // dari kondisi awal "belum pernah diisi sama sekali". Begitu ada pilihan
-          // eksplisit, buang data-placeholder supaya trigger nampilin label opsi
-          // asli (mis. "-"), bukan placeholder netral lagi.
+          
+          
+          
+          
           if (sel.dataset.placeholder) delete sel.dataset.placeholder;
           sel.dispatchEvent(new Event('change', { bubbles: true }));
           updateTrigger();
@@ -4896,15 +4787,15 @@ function _loginShowErr(msg, type = 'warn') {
         }
         textEl.classList.remove('placeholder');
       }
-      // update selected highlight in panel - sama aturan kayak renderOptions():
-      // jangan highlight apapun selagi placeholder masih aktif (belum pernah dipilih)
+      
+      
       panel.querySelectorAll('.csel-option').forEach((el, i) => {
         el.classList.toggle('selected', i === sel.selectedIndex && !sel.dataset.placeholder);
       });
     }
 
-    // Hitung posisi panel relatif viewport (sama pola dgn toggleFormulaPanel di
-    // kinerja.js) - lebar ngikut trigger, flip ke atas kalau kepentok bawah layar.
+    
+    
     function positionPanel() {
       const r = trigger.getBoundingClientRect();
       panel.style.width = r.width + 'px';
@@ -4932,7 +4823,7 @@ function _loginShowErr(msg, type = 'warn') {
       trigger.classList.add('open');
       _openPanel = panel;
 
-      // scroll selected option into view
+      
       const selected = panel.querySelector('.csel-option.selected');
       if (selected) setTimeout(() => selected.scrollIntoView({ block: 'nearest' }), 30);
       if (searchInput) setTimeout(() => searchInput.focus(), 30);
@@ -4948,18 +4839,18 @@ function _loginShowErr(msg, type = 'warn') {
 
     trigger.addEventListener('click', e => {
       e.stopPropagation();
-      if (sel.disabled) return; // hormati <select disabled> - jangan buka panel kalau lagi terkunci
+      if (sel.disabled) return; 
       panel.style.display === 'none' ? openPanel() : closePanel();
     });
 
-    // Sinkronkan tampilan trigger (cursor/opacity) tiap kali sel.disabled berubah
-    // (mis. toggle Edit/Save pada baris predikat kinerja).
+    
+    
     function syncDisabledLook() {
       trigger.classList.toggle('csel-disabled', sel.disabled);
     }
     syncDisabledLook();
 
-    // ── Mutation observer: re-render when options change (innerHTML = ...) ─
+    
     const observer = new MutationObserver(() => {
       updateTrigger();
       syncDisabledLook();
@@ -4967,7 +4858,7 @@ function _loginShowErr(msg, type = 'warn') {
     });
     observer.observe(sel, { childList: true, subtree: true, attributes: true });
 
-    // Initial render
+    
     updateTrigger();
     wrap.classList.add('csel-ready');
   }
@@ -4984,7 +4875,7 @@ function _loginShowErr(msg, type = 'warn') {
     const q = (query || '').trim().toLowerCase();
     let anyMatch = false;
     Array.from(optsContainer.children).forEach(el => {
-      if (!el.classList.contains('csel-option')) return; // skip pesan "tidak ditemukan"
+      if (!el.classList.contains('csel-option')) return; 
       const isPlaceholder = el.classList.contains('placeholder-opt');
       const match = isPlaceholder || !q || el.textContent.toLowerCase().includes(q);
       el.style.display = match ? '' : 'none';
@@ -5001,7 +4892,7 @@ function _loginShowErr(msg, type = 'warn') {
     }
   }
 
-  // ── Close panel yang lagi terbuka (dipakai outside-click, scroll, resize) ──
+  
   function _closeOpenPanel() {
     if (!_openPanel) return;
     _openPanel.style.display = 'none';
@@ -5010,27 +4901,27 @@ function _loginShowErr(msg, type = 'warn') {
     _openPanel = null;
   }
 
-  // ── Close on outside click ─────────────────────────────────────────────
+  
   document.addEventListener('click', _closeOpenPanel);
 
-  // Panel dirender position:fixed berdasar getBoundingClientRect() saat dibuka;
-  // kalau ada scroll DI LUAR panel (mis. scroll horizontal .kinerja-table-wrap.card
-  // atau scroll body) posisinya jadi basi - tutup aja, sama seperti pola .fx-float-panel.
-  // PENTING: 'scroll' event gak bubble tapi tetap lewat capture phase di window, jadi
-  // scroll DI DALAM panel sendiri (list opsi yg overflow-y:auto) juga ikut ke-capture di
-  // sini - kalau gak dicek e.target, panel bakal langsung ke-close tiap kali user coba
-  // scroll listnya (kesannya "gak bisa discroll"). Makanya di-skip kalau target-nya
-  // masih di dalam panel yang lagi terbuka.
+  
+  
+  
+  
+  
+  
+  
+  
   window.addEventListener('scroll', (e) => {
     if (_openPanel && _openPanel.contains(e.target)) return;
     _closeOpenPanel();
   }, true);
-  // 'resize' juga kepicu pas keyboard HP muncul/ilang (viewport height berubah),
-  // BUKAN cuma pas rotate/ubah ukuran layar beneran - kalau gak dibedain, panel
-  // yang baru dibuka langsung ke-close sendiri pas search box-nya auto-focus
-  // (keyboard muncul → resize → nutup). Lebar (innerWidth) gak berubah pas
-  // keyboard muncul (cuma tinggi), jadi dipakai buat bedain: cuma tutup panel
-  // kalau lebar beneran berubah (rotate / resize window asli).
+  
+  
+  
+  
+  
+  
   let _cselLastW = window.innerWidth;
   window.addEventListener('resize', () => {
     if (window.innerWidth === _cselLastW) return;
@@ -5038,23 +4929,23 @@ function _loginShowErr(msg, type = 'warn') {
     _closeOpenPanel();
   });
 
-  // ── Init all existing .select-wrap ────────────────────────────────────
+  
   function initAll() {
     document.querySelectorAll('.select-wrap').forEach(buildCustomSelect);
   }
 
-  // ── Public: call after dynamic HTML injected ──────────────────────────
+  
   window.initCustomSelects = initAll;
 
-  // ── Public: sync tampilan custom select setelah set .value via JS ──────
-  // Panggil syncCustomSelect('selectId') setelah set select.value dari kode.
+  
+  
   window.syncCustomSelect = function(id) {
     const sel = document.getElementById(id);
     if (!sel) return;
     const wrap = sel.closest('.select-wrap');
     if (!wrap) return;
     const trigger = wrap.querySelector('.csel-trigger');
-    const panel   = wrap._cselPanel; // panel dirender di document.body, bukan child wrap
+    const panel   = wrap._cselPanel; 
     if (!trigger) return;
     const opt = sel.options[sel.selectedIndex];
     const textEl = trigger.querySelector('.csel-trigger-text');
@@ -5073,14 +4964,14 @@ function _loginShowErr(msg, type = 'warn') {
     }
   };
 
-  // Run on DOM ready
+  
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', initAll);
   } else {
     initAll();
   }
 
-  // Re-init after modal opens so dynamic options (innerHTML=...) get picked up
+  
   document.addEventListener('DOMContentLoaded', () => {
     if (typeof window.openModal === 'function') {
       const _orig = window.openModal;
@@ -5091,9 +4982,6 @@ function _loginShowErr(msg, type = 'warn') {
 })();
 </script>
 
-
-
-<!-- ── Modal Peringatan Sesi Idle ──────────────────────────────────────── -->
 <div id="modalIdleWarning" style="
   display:none;position:fixed;inset:0;z-index:99999;
   background:rgba(15,23,42,.7);backdrop-filter:blur(4px);
@@ -5125,7 +5013,6 @@ function _loginShowErr(msg, type = 'warn') {
   </div>
 </div>
 
-<!-- Modal: Pegawai -->
 <div class="modal-overlay" id="modalPegawai">
   <div class="modal" style="max-width:540px">
     <div class="modal-header">
@@ -5170,7 +5057,7 @@ function _loginShowErr(msg, type = 'warn') {
       <div class="field">
         <label>Foto <span style="font-weight:400;color:var(--teks-muted)">(opsional)</span></label>
         <div style="display:flex;flex-direction:column;gap:8px">
-          <!-- Upload file - label wraps input, no double-trigger -->
+          
           <div style="display:flex;align-items:center;gap:10px">
             <input type="file" id="pegawaiFotoFile" accept="image/jpeg,image/png,image/webp" style="display:none" onchange="onPegawaiFotoFileChange(this)" />
             <button type="button" class="btn btn-ghost btn-sm" onclick="document.getElementById('pegawaiFotoFile').click()">
@@ -5182,13 +5069,13 @@ function _loginShowErr(msg, type = 'warn') {
               <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/></svg>
             </button>
           </div>
-          <!-- Progress bar -->
+          
           <div id="pegawaiFotoProgress" style="display:none;height:4px;background:var(--abu-2);border-radius:4px;overflow:hidden;width:100%">
             <div id="pegawaiFotoProgressBar" style="height:100%;width:0%;background:var(--hijau);transition:width .3s"></div>
           </div>
-          <!-- Hidden URL field (disimpan hasil upload) -->
+          
           <input type="hidden" id="pegawaiFotoUrl" />
-          <!-- Preview -->
+          
           <img id="pegawaiFotoPreview" src="" alt="Foto Preview"
             style="display:none;width:64px;height:64px;border-radius:50%;object-fit:cover;border:2px solid var(--hijau)" />
         </div>
@@ -5205,7 +5092,6 @@ function _loginShowErr(msg, type = 'warn') {
   </div>
 </div>
 
-<!-- Modal: Dokumen Publik -->
 <div class="modal-overlay" id="modalDokumen">
   <div class="modal" style="max-width:520px">
     <div class="modal-header">
@@ -5254,15 +5140,15 @@ function _loginShowErr(msg, type = 'warn') {
     </div>
   </div>
 </div>
-<!-- ===== Version checker: auto-detect update tanpa perlu hard reset ===== -->
+
 <script>
 (function () {
   var CURRENT_VERSION = document.querySelector('meta[name="app-version"]').content;
-  var CHECK_INTERVAL_MS = 5 * 60 * 1000; // cek tiap 5 menit
+  var CHECK_INTERVAL_MS = 5 * 60 * 1000; 
   var banner = null;
 
   function showUpdateBanner() {
-    if (banner) return; // sudah tampil
+    if (banner) return; 
     banner = document.createElement('div');
     banner.setAttribute('role', 'status');
     banner.style.cssText = [
@@ -5292,8 +5178,8 @@ function _loginShowErr(msg, type = 'warn') {
       .catch(function () {});
   }
 
-  // Sengaja gak auto-reload paksa karena app.html banyak form aktif -
-  // biar user yang milih kapan reload-nya.
+  
+  
   setTimeout(checkVersion, 3000);
   document.addEventListener('visibilitychange', function () {
     if (document.visibilityState === 'visible') checkVersion();

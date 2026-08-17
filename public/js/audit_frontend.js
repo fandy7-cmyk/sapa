@@ -1,5 +1,4 @@
-// js/audit_frontend.js
-// Audit Trail - log login & aksi sistem - admin only
+
 
 'use strict';
 
@@ -69,8 +68,6 @@ function _initAuditFilters() {
   _auditFiltersBound = true;
 }
 
-// Rebuild dropdown "Semua Aksi" - hanya tampilkan aksi yang benar-benar ada di data.
-// "Semua Aksi" sendiri cuma ditampilkan kalau aksinya lebih dari 1 macam.
 async function buildAuditAksiFilter() {
   const sel = document.getElementById('auditFilterAksi');
   if (!sel) return;
@@ -86,14 +83,13 @@ async function buildAuditAksiFilter() {
     const options = [...sel.options];
     if (!options.some(o => o.value === current)) sel.value = options[0]?.value ?? '';
     if (typeof syncCustomSelect === 'function') syncCustomSelect('auditFilterAksi');
-    // Kalau nilai auto berubah (bukan pilihan user), reload data biar sinkron dgn filter
+    
     if (sel.value !== current) filterAuditTrail();
   } catch (err) {
     console.error('[buildAuditAksiFilter]', err);
   }
 }
 
-// Ambil bagian tanggal saja (YYYY-MM-DD) dari nilai hidden CDTP (YYYY-MM-DDTHH:mm)
 function _auditDateOnly(val) {
   return val ? val.split('T')[0] : '';
 }
@@ -155,12 +151,6 @@ function _auditDetailText(aksi, detail) {
   }
 }
 
-// Ikon penanda sumber/akurasi lokasi, dideteksi dari FORMAT TEKSNYA sendiri
-// (tanpa kolom DB tambahan): lokasi dari GPS browser (reverse-geocode.js)
-// selalu diawali level Kecamatan; fallback IP (_audit.js → ip-api.com) cuma
-// sampai level Kabupaten/Kota, gak pernah ada kata "Kecamatan".
-// true (ada "Kecamatan") → check-circle hijau, "Lokasi akurat (GPS perangkat)"
-// false (gak ada)        → alert-triangle kuning, "Lokasi perkiraan dari IP, bisa kurang akurat"
 function _lokasiIsAkurat(lokasi) {
   return /\bkecamatan\b/i.test(lokasi || '');
 }

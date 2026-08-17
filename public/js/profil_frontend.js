@@ -1,12 +1,10 @@
-// js/profil_frontend.js
-// Kelola Profil Instansi - Tugas & Fungsi + Kontak/Lokasi - admin only
+
 
 'use strict';
 
 let _profilData = null;
 let _quillProfil = null;
 
-/* ── Init Quill untuk Tugas & Fungsi ─────────────────────────── */
 function _initQuillProfil() {
   if (_quillProfil) return;
   _quillProfil = new Quill('#profilTugasFungsiEditor', {
@@ -24,7 +22,6 @@ function _initQuillProfil() {
   });
 }
 
-/* ── Load ──────────────────────────────────────────────────────── */
 async function loadProfil() {
   const card = document.querySelector('#page-profil .card');
   let loadingEl = null;
@@ -100,7 +97,6 @@ async function saveProfil() {
   }
 }
 
-/* ── Helper ───────────────────────────────────────────────────── */
 function _setVal(id, val) {
   const el = document.getElementById(id);
   if (el) el.value = val;

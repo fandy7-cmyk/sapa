@@ -1,5 +1,4 @@
-// public/js/eplanning_frontend.js
-// Modul e-Planning (usulan anggaran) - list, detail rincian, approval workflow, master data.
+
 
 const EP_ICON_EDIT = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>`;
 const EP_ICON_TRASH = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path stroke-linecap="round" stroke-linejoin="round" d="M19 6l-1 14H6L5 6"/><path stroke-linecap="round" stroke-linejoin="round" d="M10 11v6m4-6v6"/><path stroke-linecap="round" stroke-linejoin="round" d="M9 6V4h6v2"/></svg>`;
@@ -16,8 +15,6 @@ function epFmtRupiah(n) {
   return 'Rp ' + v.toLocaleString('id-ID');
 }
 
-// Rekap read-only Sumber Dana di form Sub Kegiatan Belanja - dihitung backend (recalcTotal)
-// dari tiap baris Rincian Anggaran, bukan diisi manual di sini (lihat hint di app.html).
 function epRenderSumberDanaRingkasan(summary) {
   const el = document.getElementById('epSumberDanaRingkasan');
   if (!el) return;
@@ -60,7 +57,7 @@ function epStatusBadge(status) {
     const [cls, label] = FIXED[status];
     return `<span class="badge ${cls}">${label}</span>`;
   }
-  // Status dinamis 'MENUNGGU KEPALA PUSKESMAS/BIDANG/SUB BAGIAN' → Title Case
+  
   if (typeof status === 'string' && status.startsWith('MENUNGGU KEPALA')) {
     const label = status.toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase());
     return `<span class="badge badge-blue">${label}</span>`;
@@ -68,9 +65,6 @@ function epStatusBadge(status) {
   return `<span class="badge badge-yellow">${status || '-'}</span>`;
 }
 
-// Urutan alur status yang logis (dipakai buat susun opsi dropdown filter).
-// 3 varian "Menunggu Kepala" + "Menunggu Sekretaris" (khusus Sub Bagian) masuk semua -
-// yang gak ada datanya otomatis ke-filter di _rebuildEpFilterStatus.
 const EP_STATUS_ORDER = [
   ['DRAFT',                       'Draft'],
   ['MENUNGGU KEPALA PUSKESMAS',   'Menunggu Kepala Puskesmas'],
@@ -82,7 +76,6 @@ const EP_STATUS_ORDER = [
   ['SELESAI',                     'Selesai'],
 ];
 
-// ── LIST USULAN ─────────────────────────────────────────────────────────
 let _epUsulanList = [];
 let _epFilterStatus = '';
 let _epFilterBidang = '';   // '' | bidang_id (string, dari <option value>)
@@ -130,8 +123,6 @@ function _renderEpTahunDropdowns() {
   });
 }
 
-// Dipanggil dari onchange kedua <select> tahun - update state, sinkronin dropdown yg
-// satunya (kalau lagi ada di DOM juga), lalu reload data halaman yg lagi kebuka.
 function setEpTahunAktif(val) {
   _epTahunAktif = parseInt(val);
   localStorage.setItem('ep_tahun_aktif', String(_epTahunAktif));
@@ -143,26 +134,26 @@ function setEpTahunAktif(val) {
 }
 
 async function loadEplanning() {
-  // Tambah Usulan itu tugas Operator (pengusul) - Admin approve final, Kabid cuma approval tingkat bidang.
-  // Jadi tombolnya cuma nongol buat Operator, DAN cuma kalau periode pengusulan tahun ini lagi buka
-  // (biar user gak bisa asal bikin usulan pas periode belum/udah gak aktif).
+  
+  
+  
   const btnTambah = document.getElementById('btnTambahEpUsulan');
   const tbody = document.getElementById('epTableBody');
   if (tbody) tbody.innerHTML = `<tr class="empty-row"><td colspan="7">Memuat data...</td></tr>`;
 
-  // Dulu: periode-aktif → tahun-list BERURUTAN (2 round-trip nunggu satu-satu),
-  // baru abis itu fetch usulan. Sekarang periode-aktif & tahun-list ditembak
-  // BARENGAN (independen di server), filter periode-nya baru dijalankan
-  // setelah _epTahunAktif final dari tahun-list. Usulan tetap nunggu tahun-list
-  // kelar karena query-nya butuh _epTahunAktif yg valid.
+  
+  
+  
+  
+  
   const [periodeList] = await Promise.all([_epFetchPeriodeAktif(), epEnsureTahunList()]);
   _epApplyPeriodeAktif(periodeList);
   if (btnTambah) btnTambah.style.display = (epRole().isOperator && _epPeriodeAktif) ? '' : 'none';
   renderEpPeriodeBanner();
 
   try {
-    // Selalu ambil dataset dasar (role-scoped dari backend), filter status/unit kerja/pencarian
-    // dikerjakan di client - tahun difilter server-side lewat dropdown tahun global.
+    
+    
     const qs = new URLSearchParams(_epTahunAktif ? { tahun: _epTahunAktif } : {});
     const r = await fetch(`/api/eplanning/usulan?${qs}`, { headers: authHeaders() });
     const d = await r.json();
@@ -177,16 +168,12 @@ async function loadEplanning() {
   }
 }
 
-// Isi dropdown "Unit Kerja" dari daftar bidang yang benar-benar ada di data usulan saat ini,
-// biar pilihannya relevan (gak nampilin bidang yang gak punya usulan sama sekali).
-// Dropdown-nya selalu ditampilkan (gak lagi disembunyikan) - kalau cuma ada 1 unit kerja
-// di data, langsung ke-select otomatis ke unit itu (sama kayak pola di _rebuildEpFilterStatus).
 function _rebuildEpFilterBidang() {
   const sel = document.getElementById('epFilterBidang');
   if (!sel) return;
   const wrap = sel.closest('.select-wrap') || sel;
   const current = _epFilterBidang;
-  const map = new Map(); // bidang_id → bidang_nama
+  const map = new Map(); 
   _epUsulanList.forEach(u => { if (u.bidang_id != null) map.set(String(u.bidang_id), u.bidang_nama || '-'); });
 
   wrap.style.display = '';
@@ -288,7 +275,7 @@ function renderEpPeriodeBanner() {
       </div>
     </div>`;
 
-  if (!closeMs) return; // tidak ada batas waktu → tampil statis tanpa countdown
+  if (!closeMs) return; 
 
   function _tick() {
     const now  = Date.now();
@@ -318,8 +305,8 @@ function renderEpPeriodeBanner() {
     const total   = openMs && closeMs > openMs ? (closeMs - openMs) : null;
     const sisaPct = total ? (diff / total) * 100 : 100;
     let urgency = 'ok';
-    if (diff < 86400000 * 3 || sisaPct <= 10) urgency = 'urgent';      // sisa < 3 hari ATAU < 10% durasi
-    else if (diff < 86400000 * 14 || sisaPct <= 25) urgency = 'warn';  // sisa < 14 hari ATAU < 25% durasi
+    if (diff < 86400000 * 3 || sisaPct <= 10) urgency = 'urgent';      
+    else if (diff < 86400000 * 14 || sisaPct <= 25) urgency = 'warn';  
 
     timerEl.textContent = hari > 0
       ? `${hari}h ${pad(jam)}:${pad(menit)}:${pad(detik)}`
@@ -389,8 +376,8 @@ function renderEplanningTable() {
   tbody.innerHTML = list.map((u, i) => {
     const canEdit = ['DRAFT', 'DITOLAK'].includes(u.status) &&
       (role.isAdmin || (role.isOperator && u.pembuat_user_id === _user.id));
-    // Superadmin SAPA boleh hapus usulan apapun statusnya (backend udah izinin ini utk role.isAdmin,
-    // di sini sengaja dibatasin ke superadmin asli `_user.is_admin`, bukan semua pemegang eplanning.admin).
+    
+    
     const canDelete = _user.is_admin || canEdit;
     const canSubmit = u.status === 'DRAFT' &&
       (role.isAdmin || (role.isOperator && u.pembuat_user_id === _user.id));
@@ -427,10 +414,6 @@ function renderEplanningTable() {
 
 window.goEpPage = (p) => { _epPage = p; renderEplanningTable(); };
 
-// ── MODAL USULAN (create/edit) ──────────────────────────────────────────
-// `target` disimpan di DB sbg satu string gabungan "angka satuan" (mis. "2 Paket") -
-// biar user cukup isi angkanya doang, dipecah jadi 2 field di form: epTarget (angka)
-// & epSatuan (otomatis kefilling dari master Sub Kegiatan pas dipilih).
 function _epParseTarget(target) {
   const m = String(target || '').trim().match(/^(-?\d+(?:[.,]\d+)?)\s*(.*)$/);
   if (m) return { angka: m[1].replace(',', '.'), satuan: m[2].trim() };
@@ -477,8 +460,8 @@ async function openUsulanModal(id = null) {
     if (u) {
       const skSel = document.getElementById('epSubKegiatan');
       if (u.sub_kegiatan && ![...skSel.options].some(o => o.value === u.sub_kegiatan)) {
-        // Sub kegiatan tersimpan tapi udah gak ada/nonaktif di master saat ini -
-        // tetap tambahkan sbg opsi biar datanya kelihatan & gak ke-reset pas disimpan ulang.
+        
+        
         skSel.insertAdjacentHTML('beforeend', `<option value="${esc(u.sub_kegiatan)}">${esc(u.sub_kegiatan)}</option>`);
       }
       skSel.value = u.sub_kegiatan || '';
@@ -600,8 +583,6 @@ function epRincianLokasiRowHtml(idx) {
 
 let _epRincianLokasiIdx = 0;
 
-// existing: { kabkota_id, kecamatan_id, kecamatan_nama, desa_id, desa_nama } - dipanggil kosong
-// (tombol "+ Lokasi Kegiatan") atau terisi (waktu buka modal Edit buat rekonstruksi baris lama).
 async function epAddRincianLokasiRow(existing) {
   await epLoadKabkotaOptions();
   const list = document.getElementById('epRincianLokasiList');
@@ -616,7 +597,7 @@ async function epAddRincianLokasiRow(existing) {
   await epOnRincianLokasiKabkotaChange(kabkotaSel, existing.kecamatan_id, existing.kecamatan_nama);
   if (existing.kecamatan_id !== undefined) {
     const kecSel = row.querySelector('.ep-rl-kecamatan');
-    // 'SEMUA' dipakai buat opsi "Semua Kecamatan" (id null tapi nama tersimpan dari snapshot).
+    
     kecSel.value = existing.kecamatan_id === null ? 'SEMUA' : existing.kecamatan_id;
     await epOnRincianLokasiKecamatanChange(kecSel, existing.desa_id);
     if (existing.desa_id !== undefined) {
@@ -658,7 +639,7 @@ async function epOnRincianLokasiKecamatanChange(selectEl, presetDesaId) {
     return;
   }
   if (kecamatanId === 'SEMUA') {
-    // Pilih "Semua Kecamatan" → level Desa/Kelurahan ikut otomatis "Semua", gak perlu dipilih 1-1.
+    
     desaSel.innerHTML = '<option value="SEMUA" selected>Semua Desa/Kelurahan</option>';
     desaSel.disabled = true;
     return;
@@ -677,7 +658,6 @@ function epRemoveRincianLokasiRow(btn) {
   btn.closest('.ep-rl-row')?.remove();
 }
 
-// Kumpulin isi semua baris Rincian Lokasi jadi array snapshot buat disimpan (dipanggil pas saveUsulan).
 function epCollectRincianLokasi() {
   const rows = [...document.querySelectorAll('#epRincianLokasiList .ep-rl-row')];
   return rows.map(row => {
@@ -697,11 +677,10 @@ function epCollectRincianLokasi() {
       kecamatan_id: kecId, kecamatan_nama: kecNama,
       desa_id: desaId, desa_nama: desaNama,
     };
-  }).filter(r => r.kabkota_id); // baris yang belum pilih kab/kota gak usah disimpen
+  }).filter(r => r.kabkota_id); 
 }
 
-// ── Prioritas Pembangunan Provinsi/Kab-Kota & Bidang Urusan (dropdown single-select di modal Usulan) ──
-const _epRefCache = {}; // { prioritasprov: [...], prioritaskabkota: [...], bidangurusan: [...], tagbelanja: [...] }
+const _epRefCache = {}; 
 
 async function _epFetchRef(kategori) {
   if (_epRefCache[kategori]) return _epRefCache[kategori];
@@ -712,8 +691,7 @@ async function _epFetchRef(kategori) {
   } catch { _epRefCache[kategori] = []; }
   return _epRefCache[kategori];
 }
-// Master-nya jarang berubah tapi bisa nambah lewat halaman admin di tab lain - bersihkan cache
-// tiap buka modal Usulan biar dropdown selalu ngikutin data terbaru tanpa perlu reload halaman.
+
 function _epClearRefCache() { for (const k of Object.keys(_epRefCache)) delete _epRefCache[k]; }
 
 async function epRenderRefSelects({ prioritasProvId, prioritasKabkotaId, bidangUrusanId }) {
@@ -798,16 +776,13 @@ function epApplyTagPicker() {
   closeModal('modalTagPicker');
 }
 
-// ── Halaman Master Data: Referensi (Prioritas Provinsi/Kab-Kota, Bidang Urusan, Tag Belanja) ──
-// 4 kategori beda tapi bentuk tabelnya sama persis (id, nama, aktif) → 1 set fungsi generik
-// dipakai bareng, dibedain lewat _epRefKategori yang di-set pas pindah tab di sidebar.
 const EP_REF_LABELS = {
   prioritasprov: { judul: 'Prioritas Pembangunan Provinsi', kolom: 'Nama Prioritas', subtitle: 'Master Prioritas Pembangunan Provinsi untuk form Usulan e-Planning' },
   prioritaskabkota: { judul: 'Prioritas Pembangunan Kota/Kabupaten', kolom: 'Nama Prioritas', subtitle: 'Master Prioritas Pembangunan Kota/Kabupaten untuk form Usulan e-Planning' },
   bidangurusan: { judul: 'Bidang Urusan', kolom: 'Nama Bidang Urusan', subtitle: 'Master Bidang Urusan (kodefikasi urusan pemerintahan) untuk form Usulan e-Planning' },
   tagbelanja: { judul: 'Label (Tag) Sub Kegiatan', kolom: 'Nama Tag', subtitle: 'Master Label (Tag) Sub Kegiatan untuk form Usulan e-Planning' },
 };
-// Icon per kategori - sama persis dengan icon submenu di sidebar (varian solid/bold), biar konsisten
+
 const EP_REF_ICONS = {
   prioritasprov: '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M5.75 1a.75.75 0 0 1 .75.75V3.6l1.72-.344a8.677 8.677 0 0 1 4.925.452l.204.081a7.999 7.999 0 0 0 4.91.334 1.2 1.2 0 0 1 1.491 1.164v7.367c0 .644-.439 1.206-1.064 1.362l-.214.053a8.677 8.677 0 0 1-5.327-.361 8.676 8.676 0 0 0-4.924-.452L6.5 13.6v8.15a.75.75 0 0 1-1.5 0v-20A.75.75 0 0 1 5.75 1Z"/></svg>',
   prioritaskabkota: '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path fill-rule="evenodd" clip-rule="evenodd" d="M12 2c-4.418 0-8 4.003-8 8.5 0 4.462 2.553 9.312 6.537 11.174a3.45 3.45 0 0 0 2.926 0C17.447 19.812 20 14.962 20 10.5 20 6.003 16.418 2 12 2Zm0 10a2 2 0 1 0 0-4 2 2 0 0 0 0 4Z"/></svg>',
@@ -1157,7 +1132,6 @@ async function epProcessFile(field, file) {
   }
 }
 
-
 async function epRemoveFile(field, index) {
   const f = _epFileState[field][index];
   if (!f) return;
@@ -1176,7 +1150,6 @@ async function epRemoveFile(field, index) {
   }
 }
 
-// Tombol mata di badge "Uploaded" gabungan → preview file (kalau lebih dari 1, buka yang terbaru).
 function epPreviewFiles(field) {
   const files = (_epFileState[field] || []).filter(f => !f._loading);
   if (!files.length) return;
@@ -1184,7 +1157,6 @@ function epPreviewFiles(field) {
   viewDoc(f.url, f.name);
 }
 
-// Tombol sampah di badge "Uploaded" gabungan → hapus semua file field ini sekaligus.
 async function epRemoveAllFiles(field) {
   const files = (_epFileState[field] || []).filter(f => !f._loading);
   if (!files.length) return;
@@ -1198,7 +1170,6 @@ async function epRemoveAllFiles(field) {
   toast(results.every(Boolean) ? 'File berhasil dihapus dari server' : 'File dihapus dari daftar (sebagian gagal dihapus dari server)', results.every(Boolean) ? 'success' : 'error');
 }
 
-// ── FILE UPLOAD lama (dipakai untuk TTD Kabid/Kadis, input file polos) ──
 async function epUploadFile(inputEl, hiddenId) {
   const file = inputEl.files[0];
   if (!file) return;
@@ -1246,7 +1217,6 @@ async function submitApproveKabid() {
   } catch (err) { toast(err.message, 'error'); }
 }
 
-// ── APPROVAL: SEKRETARIS DINAS (khusus usulan Sub Bagian) ─────────────────
 function openApproveSekretarisModal(id) {
   _epApproveId = id;
   document.getElementById('epSekretarisNama').value = _user.nama || '';
@@ -1272,7 +1242,6 @@ async function submitApproveSekretaris() {
   } catch (err) { toast(err.message, 'error'); }
 }
 
-// ── APPROVAL: ADMIN/KADIS ────────────────────────────────────────────────
 function openApproveAdminModal(id) {
   _epApproveId = id;
   document.getElementById('epKadisNama').value = '';
@@ -1298,7 +1267,6 @@ async function submitApproveAdmin() {
   } catch (err) { toast(err.message, 'error'); }
 }
 
-// ── SUBMIT (operator ajukan Draft/Ditolak ke tahap Menunggu Kepala) ────────
 async function epSubmitUsulan(id) {
   const ok = await showConfirm({
     title: 'Submit Usulan',
@@ -1333,7 +1301,6 @@ async function epKirimBalik(id) {
   } catch (err) { toast(err.message, 'error'); }
 }
 
-// ── RINCIAN ANGGARAN (halaman detail per usulan) ─────────────────────────
 let _epCurrentUsulan = null;
 let _epRincianList = [];
 
@@ -1416,9 +1383,6 @@ async function openRincianItemModal(id = null) {
   openModal('modalEpRincian');
 }
 
-// Cache opsi Sumber Dana & Satuan buat combobox di modal Rincian. Beda sama
-// datalist browser lama - sekarang dirender pake panel .csel-* sendiri biar
-// bisa dikustom style-nya (lihat _epMakeLocalCombobox di bawah).
 let _epRincSumberDanaOptions = [];
 let _epRincSatuanOptions = [];
 
@@ -1444,15 +1408,6 @@ function epUpdateRincianSubtotal(volId = 'epRincVolume', hargaId = 'epRincHarga'
   document.getElementById(outId).textContent = epFmtRupiah(v * h);
 }
 
-// ── Kode Rekening - combobox async-searchable custom (BUKAN buildCustomSelect
-// generik di app.html) karena datanya ~13rb baris, gak bisa dimuat sekaligus ke
-// <select>. Panel & option-nya numpang style .csel-* yang sama (biar tema teal/
-// medical-green nyambung) tapi datanya nge-fetch live per ketikan, bukan filter
-// dari opsi yang udah ada di DOM. Native <datalist> browser sengaja dibuang -
-// itu gak bisa dikustom CSS sama sekali (lihat catatan sesi sebelumnya).
-// Factory (bukan hardcoded ke 1 input lagi) biar bisa dipakai buat modal Rincian
-// (epRincKodeRekening) MAUPUN buat rincian pertama di modal Usulan gabungan
-// (epNewRincKodeRekening) tanpa panel/state saling tabrakan.
 function _epMakeRekeningCombobox(inputId) {
   let panel = null;
 
@@ -1464,15 +1419,15 @@ function _epMakeRekeningCombobox(inputId) {
     panel.addEventListener('click', e => e.stopPropagation());
     document.body.appendChild(panel);
 
-    // Tutup panel kalau klik di luar input & panel
+    
     document.addEventListener('click', (e) => {
       const input = document.getElementById(inputId);
       if (panel.style.display === 'none') return;
       if (e.target === input || panel.contains(e.target)) return;
       close();
     });
-    // Reposisi/tutup pola sama kayak buildCustomSelect - scroll di luar panel /
-    // resize beneran (bukan keyboard HP muncul) nutup panel biar gak basi posisinya.
+    
+    
     window.addEventListener('scroll', (e) => {
       if (panel.style.display === 'none') return;
       if (panel.contains(e.target)) return;
@@ -1540,14 +1495,14 @@ function _epMakeRekeningCombobox(inputId) {
   async function search() {
     const input = document.getElementById(inputId);
     const q = input.value.trim();
-    delete input.dataset.kode; // ketik ulang → kode terpilih sebelumnya gak berlaku lagi sampai pilih opsi baru
+    delete input.dataset.kode; 
     if (q.length === 1) { renderState('Ketik minimal 2 huruf…'); return; }
     renderState(q.length === 0 ? 'Memuat rekening yang sering dipakai…' : 'Mencari…');
     try {
       const r = await fetch(`/api/eplanning/rekening?q=${encodeURIComponent(q)}`, { headers: authHeaders() });
       const d = await r.json();
-      // Kalau user udah lanjut ngetik/berubah value sebelum fetch ini selesai, hasil
-      // basi ini jangan ditampilkan (race condition tipikal search-as-you-type).
+      
+      
       if (input.value.trim() !== q) return;
       renderList(d.rekening || []);
     } catch { renderList([]); }
@@ -1562,12 +1517,9 @@ function epSearchRekening() { _epRekeningCombo.search(); }
 const _epRekeningComboNew = _epMakeRekeningCombobox('epNewRincKodeRekening');
 function epSearchRekeningNew() { _epRekeningComboNew.search(); }
 
-// ── Kode Rekening Terkait (modal Standar Harga) - multi-select chip, sumbernya
-// tetap master eplanning_rekening (endpoint yang sama kayak combobox di atas),
-// bedanya di sini bisa pilih lebih dari satu kode sekaligus jadi "chip".
 function _epMakeRekeningMultiCombobox(inputId, wrapId) {
   let panel = null;
-  let selected = []; // [{kode, nama}]
+  let selected = []; 
 
   function ensurePanel() {
     if (panel) return panel;
@@ -2119,7 +2071,6 @@ async function epSubmitImporSubkegiatan() {
   }
 }
 
-// ── SUMBER DANA (table + search + pagination) ──────────────────────────
 let _epSumberDanaFull = [];
 let _epSumberDanaSearch = '';
 let _epSumberDanaPage = 1;
@@ -2351,7 +2302,6 @@ async function epSubmitImporSumberDana() {
   }
 }
 
-// ── SATUAN (table + search + pagination) ────────────────────────────────
 let _epSatuanFull = [];
 let _epSatuanSearchQ = '';
 let _epSatuanPage = 1;
@@ -2473,12 +2423,9 @@ async function epSyncSatuanDariStandarHarga() {
   } catch (err) { toast(err.message, 'error'); }
 }
 
-
-// Rekening isinya ribuan baris (COA) - beda dari Satuan/SubKegiatan/SumberDana,
-// jadi search & pagination dikerjain di server (bukan load semua lalu filter di client).
 let _epRekeningPage = 1;
 const _epRekeningPageSize = 10;
-let _epRekeningCache = {}; // kode_rekening -> row, buat isi modal edit/hapus tanpa fetch ulang
+let _epRekeningCache = {}; 
 
 async function epLoadMasterRekening(page = 1) {
   _epRekeningPage = page;
@@ -2748,7 +2695,7 @@ const _epStandarHargaCombo = _epMakeStandarHargaCombobox('epRincKomponen', 'epRi
         // Cuma 1 kode rekening → langsung isi otomatis, gak perlu buka modal pilihan.
         const kodeInput = document.getElementById('epRincKodeRekening');
         kodeInput.dataset.kode = kodeList[0];
-        // Nama rekeningnya dicari dari master (kalau ketemu) biar yang tampil bukan cuma kode.
+        
         fetch(`/api/eplanning/rekening?q=${encodeURIComponent(kodeList[0])}`, { headers: authHeaders() })
           .then(r => r.json())
           .then(d => {
@@ -2762,8 +2709,8 @@ const _epStandarHargaCombo = _epMakeStandarHargaCombobox('epRincKomponen', 'epRi
     }
   },
   onTyping: () => {
-    // Ketik ulang manual → anggap komponen master sebelumnya udah gak relevan lagi,
-    // sampai user pilih ulang dari daftar.
+    
+    
     _epPickedStandarHarga = null;
     document.getElementById('btnRekPenyusun').style.display = 'none';
   },
@@ -2803,7 +2750,6 @@ function epPickRekeningPenyusun(kode) {
   closeModal('modalEpRekeningPenyusun');
 }
 
-// ── Modal "Tampilkan Rekening" - kolom Aksi tabel Standar Harga Satuan (view-only, ada pencarian & paging) ──
 let _epTampilRekList = [];
 let _epTampilRekPage = 1;
 const _epTampilRekPageSize = 5;
@@ -2822,7 +2768,7 @@ function epOpenTampilkanRekening(id) {
   _epRenderTampilRekening();
   openModal('modalEpTampilkanRekening');
 
-  // Resolve nama rekening per kode (best-effort, biar user tau ini rekening apa)
+  
   Promise.all(kodeList.map(async kode => {
     try {
       const r = await fetch(`/api/eplanning/rekening?q=${encodeURIComponent(kode)}`, { headers: authHeaders() });
@@ -2993,8 +2939,6 @@ const EP_SH_KATEGORI_LABEL = {
   SBU: 'SBU - Standar Biaya Umum',
 };
 
-// Path ikon per kategori - disamain sama ikon "ic-fill" milik masing-masing
-// item submenu SSH/HSPK/ASB/SBU di sidebar (lihat NAV_ITEMS di app.js).
 const EP_SH_KATEGORI_ICON_PATH = {
   SSH: 'M11.0049 20.9997C11.0049 20.1712 10.3333 19.4997 9.50488 19.4997C8.67646 19.4997 8.00488 20.1712 8.00488 20.9997H3.00488C2.4526 20.9997 2.00488 20.5519 2.00488 19.9997V3.99966C2.00488 3.44738 2.4526 2.99966 3.00488 2.99966H8.00488C8.00488 3.82809 8.67646 4.49966 9.50488 4.49966C10.3333 4.49966 11.0049 3.82809 11.0049 2.99966H21.0049C21.5572 2.99966 22.0049 3.44738 22.0049 3.99966V9.49966C20.6242 9.49966 19.5049 10.619 19.5049 11.9997C19.5049 13.3804 20.6242 14.4997 22.0049 14.4997V19.9997C22.0049 20.5519 21.5572 20.9997 21.0049 20.9997H11.0049ZM9.50488 10.4997C10.3333 10.4997 11.0049 9.82809 11.0049 8.99966C11.0049 8.17124 10.3333 7.49966 9.50488 7.49966C8.67646 7.49966 8.00488 8.17124 8.00488 8.99966C8.00488 9.82809 8.67646 10.4997 9.50488 10.4997ZM9.50488 16.4997C10.3333 16.4997 11.0049 15.8281 11.0049 14.9997C11.0049 14.1712 10.3333 13.4997 9.50488 13.4997C8.67646 13.4997 8.00488 14.1712 8.00488 14.9997C8.00488 15.8281 8.67646 16.4997 9.50488 16.4997Z',
   HSPK: 'M15 21H9V10H15V21ZM17 21V10H22V20C22 20.5523 21.5523 21 21 21H17ZM7 21H3C2.44772 21 2 20.5523 2 20V10H7V21ZM22 8H2V4C2 3.44772 2.44772 3 3 3H21C21.5523 3 22 3.44772 22 4V8Z',
@@ -3099,11 +3043,11 @@ function renderShPagination(total) {
   // dropdown biar stylenya konsisten (bukan tampilan <select> bawaan browser),
   // sama pola kayak dropdown lain di seluruh app (lihat buildCustomSelect di app.html).
   if (typeof window.initCustomSelects === 'function') window.initCustomSelects();
-  // Panel opsinya dirender floating position:fixed nempel ke <body>, BUKAN
-  // nested di dalam .ep-sh-pagesize-select - jadi selector CSS ".ep-sh-pagesize-select
-  // .csel-option" gak pernah match. Tempel class penanda langsung ke elemen
-  // panel-nya (referensi disimpan di wrap._cselPanel oleh buildCustomSelect)
-  // supaya CSS-nya beneran kena.
+  
+  
+  
+  
+  
   const psWrap = c.querySelector('.ep-sh-pagesize-select');
   if (psWrap && psWrap._cselPanel) psWrap._cselPanel.classList.add('ep-sh-pagesize-panel');
 }
@@ -3126,8 +3070,8 @@ async function epLoadStandarHarga(page = 1) {
     _epShCache = {};
     rows.forEach(x => { _epShCache[x.id] = x; });
     if (tb) {
-      // Data sudah disortir backend per Kode Rekening - di sini tinggal disisipin baris judul
-      // grup tiap kali kode_rekening-nya ganti dari baris sebelumnya (mirip tampilan SIPD).
+      
+      
       let lastRek = undefined;
       tb.innerHTML = rows.length ? rows.map(x => {
         const rekKey = x.kode_rekening || '';
@@ -3426,7 +3370,7 @@ async function epSubmitImporStandarHarga() {
     }
     toast(`Impor selesai - ${inserted} baris ${kategori} tahun ${tahun} tersimpan${satuanAdded ? `, ${satuanAdded} satuan baru ditambahkan ke master` : ''}`, 'success');
     closeModal('modalImporStandarHarga');
-    _epTahunLoaded = false; // list tahun mungkin nambah entri baru
+    _epTahunLoaded = false; 
     if (_epShKategori === kategori) epLoadStandarHarga(1); else epShTabSwitch(kategori);
   } catch (err) {
     toast(err.message, 'error');

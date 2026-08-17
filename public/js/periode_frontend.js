@@ -1,13 +1,11 @@
-// ═══════════════════════════════════════════════════════════════════════════
-// PERIODE - state & helpers  (versi per-bulan + window buka/tutup)
-// ═══════════════════════════════════════════════════════════════════════════
-let _periodeList  = [];
-let _periodeAktif = null;   // cache { id, tahun, bulan, label, open_at, close_at, ... }
 
-// ── Pagination state ──
+
+let _periodeList  = [];
+let _periodeAktif = null;   
+
 let _periodePage     = 1;
 const _periodePageSize = 10;
-const _periodeCardPageSize = 6; // per-group (bukan per-row), card lebih tinggi dari baris tabel
+const _periodeCardPageSize = 6; 
 let _periodeSearch   = '';
 let _periodeFilterStatus = '';   // '' | 'aktif' | 'ditutup' | 'belum'
 let _periodeFilterTahun  = '';   // '' | '2026' | '2027' dst
@@ -16,17 +14,15 @@ const BULAN_FULL_P  = ['','Januari','Februari','Maret','April','Mei','Juni',
                         'Juli','Agustus','September','Oktober','November','Desember'];
 const BULAN_SHORT_P = ['','Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];
 
-// Dipanggil sekali saat app boot (setelah login) - hasilnya di-cache global
-// Returns array of periods currently open (now BETWEEN open_at AND close_at)
 async function loadPeriodeAktif() {
   try {
     const r = await fetch('/api/periode/aktif');
     if (!r.ok) { _periodeAktif = null; return null; }
     const d = await r.json();
-    // API kini return array; ambil elemen pertama sebagai "utama" untuk kompatibilitas
+    
     const list = d.periode || [];
     _periodeAktif = list.length ? list[0] : null;
-    // Sync ke _periodeListTerbuka agar timer di topbar bisa membaca data periode
+    
     if (typeof _periodeListTerbuka !== 'undefined') _periodeListTerbuka = list;
     return _periodeAktif;
   } catch {
@@ -38,7 +34,6 @@ async function loadPeriodeAktif() {
 
 function getPeriodeAktif() { return _periodeAktif; }
 
-// Ambil semua periode yang window-nya sedang terbuka sekarang
 async function getPeriodeTerbuka() {
   try {
     const r = await fetch('/api/periode/aktif');
@@ -48,12 +43,10 @@ async function getPeriodeTerbuka() {
   } catch { return []; }
 }
 
-// Helper: apakah saat ini dalam window input yang dibuka?
-// Toleransi 60 detik untuk mengatasi perbedaan jam kecil antara browser dan server.
 function isPeriodeInputOpen(p) {
   if (!p) return false;
   const now   = Date.now();
-  const SLACK = 60_000; // 60 detik toleransi clock skew
+  const SLACK = 60_000; 
   const open  = p.open_at  ? new Date(p.open_at).getTime()  : null;
   const close = p.close_at ? new Date(p.close_at).getTime() : null;
   if (open  && now < open  - SLACK) return false;
@@ -61,10 +54,9 @@ function isPeriodeInputOpen(p) {
   return true;
 }
 
-// Format datetime → tampilan singkat dalam WITA (UTC+8)
 function _fmtDT(iso) {
   if (!iso) return '-';
-  // Konversi ke WITA (UTC+8)
+  
   const utcMs = new Date(iso).getTime();
   const witaMs = utcMs + (8 * 60 * 60 * 1000);
   const d = new Date(witaMs);
@@ -74,9 +66,6 @@ function _fmtDT(iso) {
   return `${tgl}, ${jam}`;
 }
 
-// ═══════════════════════════════════════════════════════════════════════════
-// HALAMAN KELOLA PERIODE (admin only)
-// ═══════════════════════════════════════════════════════════════════════════
 async function loadPeriodePage() {
   const wrap0 = document.getElementById('periodeCardsWrap');
   if (wrap0) wrap0.innerHTML = `<div style="text-align:center;padding:32px;color:var(--teks-muted)"><span class="btn-spin" style="width:11px;height:11px;vertical-align:-1px;margin-right:6px"></span>Memuat data...</div>`;
@@ -150,7 +139,6 @@ function _jenisMeta(jenis) {
 const _iconUnlock = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 9.9-1"/></svg>`;
 const _iconLock   = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>`;
 
-// Tick 1 baris jenis (dipanggil pertama kali + tiap detik via setInterval)
 function _tickPeriodeJenisRow(p) {
   const countdownEl = document.getElementById(`periodeCountdown_${p.id}`);
   const fillEl       = document.getElementById(`periodeFill_${p.id}`);
@@ -170,13 +158,13 @@ function _tickPeriodeJenisRow(p) {
   }
 
   if (now < open) {
-    // Belum dibuka
+    
     countdownEl.textContent = `Dibuka ${_fmtSisaWaktu(open - now)} lagi`;
     countdownEl.className = 'periode-countdown pending';
     fillEl.style.width = '0%';
     fillEl.className = 'periode-progress-fill pending';
   } else if (now > close) {
-    // Sudah ditutup
+    
     countdownEl.textContent = 'Ditutup';
     countdownEl.className = 'periode-countdown expired';
     fillEl.style.width = '100%';
@@ -184,19 +172,19 @@ function _tickPeriodeJenisRow(p) {
     clearInterval(_periodeCardTimers[p.id]);
     _periodeCardTimers[p.id] = null;
   } else {
-    // Sedang berjalan
+    
     const diff  = close - now;
     const total = close - open;
     const pct   = Math.min(100, Math.max(0, ((now - open) / total) * 100));
     const sisaPct = total > 0 ? (diff / total) * 100 : 100;
 
-    // Urgency relatif terhadap panjang periode (bukan patokan jam absolut),
-    // supaya periode pendek & panjang sama-sama dapet warning yang proporsional.
-    // Tetep ada lantai absolut biar periode yang sangat panjang nggak nunggu
-    // ketinggalan terlalu jauh, dan periode yang sangat pendek tetep kebagian warna.
+    
+    
+    
+    
     let urgency = 'ok';
-    if (diff < 3600000 || sisaPct <= 10) urgency = 'urgent';       // sisa < 1 jam ATAU < 10% durasi
-    else if (diff < 86400000 || sisaPct <= 25) urgency = 'warn';   // sisa < 1 hari ATAU < 25% durasi
+    if (diff < 3600000 || sisaPct <= 10) urgency = 'urgent';       
+    else if (diff < 86400000 || sisaPct <= 25) urgency = 'warn';   
 
     countdownEl.textContent = `${_fmtSisaWaktu(diff)} lagi`;
     countdownEl.className = `periode-countdown ${urgency}`;
@@ -235,9 +223,9 @@ function renderPeriodeCards() {
     return;
   }
 
-  // Group per tahun+bulan. Periode tahunan (bulan null, mis. e-Planning)
-  // dikelompokkan per tahun sendiri dengan key khusus 'Y' biar gak numpuk
-  // sama grup Januari (yang key bulannya juga bisa falsy-looking kalau salah tulis).
+  
+  
+  
   const groups = {};
   filtered.forEach(p => {
     const bulanKey = p.bulan == null ? 'Y' : p.bulan;
@@ -247,7 +235,7 @@ function renderPeriodeCards() {
   });
   const groupList = Object.values(groups).sort((a, b) => {
     if (a.tahun !== b.tahun) return a.tahun - b.tahun;
-    // Grup tahunan (bulan null) ditaruh duluan sebelum grup bulanan di tahun yang sama
+    
     if (a.bulan == null && b.bulan == null) return 0;
     if (a.bulan == null) return -1;
     if (b.bulan == null) return 1;
@@ -326,34 +314,25 @@ function renderPeriodeCards() {
 
 window.goPeriodePage = (p) => { _periodePage = p; renderPeriodeCards(); };
 
-// Helper: ubah ISO string → format datetime-local (YYYY-MM-DDTHH:mm) dalam WITA (UTC+8)
-// Harus konsisten dengan _fmtDT() yang juga pakai UTC+8 manual,
-// dan konsisten dengan _cdtp.set() yang pakai getHours() (local time browser).
-// Karena browser user berada di WITA (UTC+8), getHours() sudah menghasilkan WITA - tidak perlu offset manual.
 function _isoToLocal(iso) {
   if (!iso) return '';
   const d = new Date(iso);
   const pad = n => String(n).padStart(2, '0');
-  // Gunakan local time browser (WITA) agar konsisten dengan _cdtp.set()
+  
   return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
-// ═══════════════════════════════════════════════════════════════════════════
-// CUSTOM DATETIME PICKER - inline, no dependency
-// Dipasang ke elemen <div> pengganti input[type=datetime-local].
-// Hidden input asli tetap diupdate agar savePeriode() tidak perlu diubah.
-// ═══════════════════════════════════════════════════════════════════════════
 (function () {
   const PAD   = n => String(n).padStart(2, '0');
   const BULAN = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];
   const BULAN_FULL = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
   const DOW   = ['Min','Sen','Sel','Rab','Kam','Jum','Sab'];
 
-  // Server balikin `tanggal` sbg timestamp yg sudah di-convert ke UTC (kolom DATE
-  // di-parse jadi Date object lalu di-JSON-stringify) - potong string mentah
-  // (slice) bisa salah baca tanggal krn hasil convert-nya bisa mundur 1 hari
-  // dari tanggal aslinya. Selalu re-parse via `new Date()` lalu ambil komponen
-  // LOKAL (bukan UTC), sama seperti _absLiburLocalYMD di absensi_frontend.js.
+  
+  
+  
+  
+  
   function _cdtpLocalYMD(tanggal) {
     const d = new Date(tanggal);
     const y = d.getFullYear();
@@ -362,17 +341,17 @@ function _isoToLocal(iso) {
     return `${y}-${m}-${day}`;
   }
 
-  // Baca nilai dari hidden input → object {y,mo,d,h,mi} atau null
+  
   function _parseHidden(hiddenEl) {
-    const v = hiddenEl?.value; // YYYY-MM-DDTHH:mm
+    const v = hiddenEl?.value; 
     if (!v) return null;
     const [date, time] = v.split('T');
     const [y, mo, d]   = date.split('-').map(Number);
     const [h, mi]      = (time || '00:00').split(':').map(Number);
-    return { y, mo: mo - 1, d, h, mi }; // mo 0-indexed
+    return { y, mo: mo - 1, d, h, mi }; 
   }
 
-  // Tulis ke hidden input → format YYYY-MM-DDTHH:mm (atau YYYY-MM-DD kalau dateOnly)
+  
   function _writeHidden(hiddenEl, s, dateOnly) {
     if (!s) { hiddenEl.value = ''; return; }
     hiddenEl.value = dateOnly
@@ -391,19 +370,19 @@ function _isoToLocal(iso) {
   function buildPicker(mountEl, hiddenEl, label) {
     // data-cdtp-date="1" pada mount = mode tanggal saja (tanpa jam/menit)
     const dateOnly = mountEl.dataset.cdtpDate === '1';
-    // data-cdtp-libur="1" pada mount = tandai akhir pekan & hari libur nasional
-    // warna merah di grid kalender (dipakai khusus picker tanggal Absensi)
+    
+    
     const showLibur = mountEl.dataset.cdtpLibur === '1';
-    // State
-    let sel   = _parseHidden(hiddenEl); // currently selected dt {y,mo,d,h,mi}
+    
+    let sel   = _parseHidden(hiddenEl); 
     let view  = sel ? { y: sel.y, mo: sel.mo } : { y: new Date().getFullYear(), mo: new Date().getMonth() };
-    let mode  = 'cal'; // 'cal' | 'month' | 'year'
+    let mode  = 'cal'; 
     let open  = false;
-    let liburSet = new Set(); // tanggal (YYYY-MM-DD) libur nasional utk bulan yg sedang ditampilkan
-    let liburKey = null;      // "y-mo" yang datanya sudah di-fetch, cegah fetch ulang tiap render
+    let liburSet = new Set(); 
+    let liburKey = null;      
 
-    // Ambil daftar hari libur nasional utk bulan yg sedang di-view (hanya jika showLibur aktif).
-    // Fetch async lalu render ulang kalau hasilnya datang & user masih di bulan yg sama.
+    
+    
     async function _loadLiburBulan() {
       if (!showLibur) return;
       const key = `${view.y}-${view.mo}`;
@@ -417,7 +396,7 @@ function _isoToLocal(iso) {
       if (mode === 'cal' && liburKey === key) renderCal();
     }
 
-    // ── DOM skeleton ──────────────────────────────────────────────────────
+    
     mountEl.innerHTML = `
       <button type="button" class="cdtp-trigger" id="${hiddenEl.id}_trigger">
         <svg class="cdtp-trigger-icon" xmlns="http://www.w3.org/2000/svg" width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
@@ -461,7 +440,7 @@ function _isoToLocal(iso) {
       hiddenEl.dispatchEvent(new Event('change', { bubbles: true }));
     });
 
-    // ── Render panel ──────────────────────────────────────────────────────
+    
     function render() {
       if (mode === 'month') { renderMonthGrid(); return; }
       if (mode === 'year')  { renderYearGrid();  return; }
@@ -469,9 +448,9 @@ function _isoToLocal(iso) {
     }
 
     function renderCal() {
-      _loadLiburBulan(); // no-op kalau showLibur=false atau bulan ini sudah pernah di-fetch
+      _loadLiburBulan(); 
       const today = new Date();
-      const firstDay = new Date(view.y, view.mo, 1).getDay(); // 0=Sun
+      const firstDay = new Date(view.y, view.mo, 1).getDay(); 
       const daysInMonth = new Date(view.y, view.mo + 1, 0).getDate();
       const daysInPrev  = new Date(view.y, view.mo, 0).getDate();
 
@@ -495,14 +474,14 @@ function _isoToLocal(iso) {
         if (isSelected) cls += ' cdtp-day-selected';
         cells += `<button type="button" class="${cls}" data-d="${d}"${isLibur ? ` data-tip="Hari libur"` : ''}>${d}</button>`;
       }
-      // cells berikutnya
+      
       const total = firstDay + daysInMonth;
       const trail = total % 7 === 0 ? 0 : 7 - (total % 7);
       for (let i = 1; i <= trail; i++) {
         cells += `<button class="cdtp-day cdtp-day-other" disabled>${i}</button>`;
       }
 
-      // time
+      
       const h  = sel ? sel.h  : 0;
       const mi = sel ? sel.mi : 0;
 
@@ -600,9 +579,9 @@ function _isoToLocal(iso) {
       bindYMEvents();
     }
 
-    // ── Event binding ──────────────────────────────────────────────────────
+    
     function bindCalEvents() {
-      // nav bulan
+      
       panel.querySelectorAll('[data-nav]').forEach(btn => {
         btn.addEventListener('click', e => {
           e.stopPropagation();
@@ -612,11 +591,11 @@ function _isoToLocal(iso) {
           render();
         });
       });
-      // mode switch
+      
       panel.querySelectorAll('[data-mode]').forEach(el => {
         el.addEventListener('click', e => { e.stopPropagation(); mode = el.dataset.mode; render(); });
       });
-      // pilih hari - langsung terpilih & tersimpan
+      
       panel.querySelectorAll('[data-d]').forEach(btn => {
         btn.addEventListener('click', e => {
           e.stopPropagation();
@@ -633,10 +612,10 @@ function _isoToLocal(iso) {
           updateTrigger();
           hiddenEl.dispatchEvent(new Event('change', { bubbles: true }));
           if (dateOnly) { closePanel(); }
-          else { render(); } // tetap terbuka biar bisa atur jam
+          else { render(); } 
         });
       });
-      // spin jam/menit - langsung tersimpan
+      
       panel.querySelectorAll('[data-spin]').forEach(btn => {
         btn.addEventListener('click', e => {
           e.stopPropagation();
@@ -656,7 +635,7 @@ function _isoToLocal(iso) {
           }
         });
       });
-      // ketik langsung jam/menit - langsung tersimpan
+      
       panel.querySelectorAll('[data-time]').forEach(inp => {
         inp.addEventListener('input', e => {
           e.stopPropagation();
@@ -717,9 +696,9 @@ function _isoToLocal(iso) {
       });
     }
 
-    // ── Open / close ──────────────────────────────────────────────────────
+    
     function openPanel() {
-      // tutup picker lain yang mungkin terbuka
+      
       document.querySelectorAll('.cdtp-panel').forEach(p => {
         if (p !== panel) p.style.display = 'none';
       });
@@ -727,7 +706,7 @@ function _isoToLocal(iso) {
         if (t !== trigger) t.classList.remove('open');
       });
       mode = 'cal';
-      // sync state dari hidden input (mungkin di-set dari luar)
+      
       sel  = _parseHidden(hiddenEl);
       if (sel) view = { y: sel.y, mo: sel.mo };
       render();
@@ -747,11 +726,11 @@ function _isoToLocal(iso) {
     });
     panel.addEventListener('click', e => e.stopPropagation());
 
-    // Expose: reset picker dari luar (dipanggil saat modal dibuka)
+    
     mountEl._cdtp = {
       set(v) {
         if (!v) { sel = null; updateTrigger(); return; }
-        // string "YYYY-MM-DD" diparse manual biar gak kena geser timezone
+        
         if (dateOnly && typeof v === 'string' && /^\d{4}-\d{2}-\d{2}/.test(v)) {
           const [y, mo, d] = v.slice(0, 10).split('-').map(Number);
           sel = { y, mo: mo - 1, d, h: 0, mi: 0 };
@@ -763,7 +742,7 @@ function _isoToLocal(iso) {
         updateTrigger();
       },
       clear() { sel = null; _writeHidden(hiddenEl, null, dateOnly); updateTrigger(); },
-      // Commit nilai sel saat ini ke hidden input (tanpa perlu klik "Pilih")
+      
       commit() {
         if (!sel) return;
         if (!dateOnly) {
@@ -791,10 +770,10 @@ function _isoToLocal(iso) {
     updateTrigger();
   }
 
-  // ── Init semua mount point yang sudah ada di DOM ──────────────────────
+  
   window.initCdtp = function () {
     document.querySelectorAll('[data-cdtp]').forEach(mount => {
-      if (mount._cdtp) return; // sudah di-init
+      if (mount._cdtp) return; 
       const targetId = mount.dataset.cdtp;
       const hidden   = document.getElementById(targetId);
       const label    = mount.dataset.placeholder || 'Pilih tanggal & waktu...';
@@ -804,14 +783,11 @@ function _isoToLocal(iso) {
   };
 })();
 
-// ── Tutup semua picker saat klik di luar ──────────────────────────────────
 document.addEventListener('click', () => {
   document.querySelectorAll('.cdtp-panel').forEach(p => p.style.display = 'none');
   document.querySelectorAll('.cdtp-trigger').forEach(t => t.classList.remove('open'));
 });
 
-// Toggle field Bulan tampil/sembunyi tergantung jenis periode yang dipilih.
-// Jenis tahunan (saat ini cuma 'eplanning') tidak butuh bulan.
 const PERIODE_JENIS_TAHUNAN = ['eplanning'];
 function onPeriodeJenisChange() {
   const jenis = document.getElementById('periodeJenis').value;
@@ -830,18 +806,18 @@ function openPeriodeModal(id) {
   document.getElementById('periodeId').value    = p?.id || '';
   document.getElementById('periodeTahun').value = p?.tahun || new Date().getFullYear();
 
-  // Set bulan lalu sync tampilan custom select (.select-wrap)
+  
   const _bulanEl = document.getElementById('periodeBulan');
   _bulanEl.value = p?.bulan || (new Date().getMonth() + 1);
   if (typeof syncCustomSelect === 'function') syncCustomSelect('periodeBulan');
 
-  // Set jenis
+  
   const _jenisEl = document.getElementById('periodeJenis');
   _jenisEl.value = p?.jenis || 'monev';
   if (typeof syncCustomSelect === 'function') syncCustomSelect('periodeJenis');
   onPeriodeJenisChange();
 
-  // Set nilai hidden input terlebih dahulu
+  
   document.getElementById('periodeOpenAt').value  = _isoToLocal(p?.open_at);
   document.getElementById('periodeCloseAt').value = _isoToLocal(p?.close_at);
 
@@ -849,7 +825,7 @@ function openPeriodeModal(id) {
 
   openModal('modalPeriode');
 
-  // Init picker (pertama kali) lalu sync nilai
+  
   setTimeout(() => {
     initCdtp();
     const mOpen  = document.getElementById('cdtp_open');
@@ -860,7 +836,7 @@ function openPeriodeModal(id) {
 }
 
 async function savePeriode() {
-  // Auto-commit picker yang masih terbuka (user belum klik "Pilih")
+  
   const mOpen  = document.getElementById('cdtp_open');
   const mClose = document.getElementById('cdtp_close');
   if (mOpen?._cdtp?.commit)  mOpen._cdtp.commit();
@@ -871,7 +847,7 @@ async function savePeriode() {
   const jenis   = document.getElementById('periodeJenis').value;
   const isTahunan = PERIODE_JENIS_TAHUNAN.includes(jenis);
   const bulan   = isTahunan ? null : parseInt(document.getElementById('periodeBulan').value);
-  const openAt  = document.getElementById('periodeOpenAt').value;   // YYYY-MM-DDTHH:mm
+  const openAt  = document.getElementById('periodeOpenAt').value;   
   const closeAt = document.getElementById('periodeCloseAt').value;
 
   if (!tahun)              { toast('Tahun wajib diisi', 'error'); return; }
@@ -883,8 +859,8 @@ async function savePeriode() {
     toast('Waktu tutup harus setelah waktu buka', 'error'); return;
   }
 
-  // Jika 'all', buat tiga periode sekaligus (monev + ikk + spm) - hanya untuk mode tambah baru
-  // Mode edit (id ada) tidak mendukung 'all' karena periode existing punya jenis spesifik
+  
+  
   const jenisList = (jenis === 'all' && !id) ? ['monev', 'ikk', 'spm'] : [jenis === 'all' ? 'monev' : jenis];
 
   try {
@@ -932,16 +908,12 @@ async function deletePeriode(id) {
   toast('Periode berhasil dihapus');
   loadPeriodePage();
 }
-// ═══════════════════════════════════════════════════════════════════════════
-// CUSTOM TIME PICKER (CTP) - inline, no dependency
-// Ganti input[type="time"] bawaan browser. Mount: <div data-ctp="hiddenId">
-// Hidden input asli tetap diupdate, format "HH:mm", agar kode lain tidak perlu diubah.
-// ═══════════════════════════════════════════════════════════════════════════
+
 (function () {
   const PAD = n => String(n).padStart(2, '0');
 
   function _parseHiddenTime(hiddenEl) {
-    const v = hiddenEl?.value; // HH:mm
+    const v = hiddenEl?.value; 
     if (!v) return null;
     const [h, mi] = v.split(':').map(Number);
     if (isNaN(h) || isNaN(mi)) return null;
@@ -979,7 +951,7 @@ async function deletePeriode(id) {
           <button type="button" class="cdtp-spin-btn" data-spin="mi" data-dir="-1">${DOWN_ICON}</button>
         </div>
         <span class="ctp-inline-clear" data-tip="Hapus" style="display:${sel ? 'flex' : 'none'}">
-          <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+          <svg xmlns="http:
         </span>
       </div>
     `;
@@ -1036,9 +1008,9 @@ async function deletePeriode(id) {
 
     [hInp, miInp].forEach(inp => {
       inp.addEventListener('click', e => e.stopPropagation());
-      // Field udah keisi "00" bawaan - tanpa ini, ngetik baru nambah di depan/belakang
-      // angka lama (jadi mis. "200") bukan gantiin. Select-all pas fokus biar ketikan
-      // baru langsung nimpa isi lama.
+      
+      
+      
       inp.addEventListener('focus', () => setTimeout(() => inp.select(), 0));
       inp.addEventListener('input', () => {
         if (inp.value.length > 2) inp.value = inp.value.slice(-2);
@@ -1047,7 +1019,7 @@ async function deletePeriode(id) {
       inp.addEventListener('keydown', e => { if (e.key === 'Enter') inp.blur(); });
     });
 
-    // Expose API - konsisten dengan _cdtp (set/clear/commit/disable/enable)
+    
     mountEl._ctp = {
       set(v) {
         if (!v) { sel = null; reflect(); return; }
@@ -1068,10 +1040,10 @@ async function deletePeriode(id) {
     reflect();
   }
 
-  // ── Init semua mount point [data-ctp] yang sudah ada di DOM ────────────
+  
   window.initCtp = function () {
     document.querySelectorAll('[data-ctp]').forEach(mount => {
-      if (mount._ctp) return; // sudah di-init
+      if (mount._ctp) return; 
       const targetId = mount.dataset.ctp;
       const hidden   = document.getElementById(targetId);
       const label    = mount.dataset.placeholder || 'Pilih jam';

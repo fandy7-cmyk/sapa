@@ -1,14 +1,8 @@
-// ═══════════════════════════════════════════════════════════════════════
-// MODUL ABSENSI - frontend
-// Bergantung pada helper global yang sudah ada di app.js / users_frontend.js:
-//   authHeaders(), toast(), showConfirm(), openModal(), closeModal(), esc()
-//   _user  (objek user login: { id, nama, is_admin, ... })
-//   hasAccess(key)  →  cek permission menu_key
-// ═══════════════════════════════════════════════════════════════════════
+
 
 const ABS_BULAN_NAMA = ['', 'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
   'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
-const STATUS_LABEL = { hadir: 'Tepat Waktu', tugas_luar: 'Tugas Luar', cuti: 'Cuti', alpa: 'Alpa', izin: 'Tugas Luar', sakit: 'Tugas Luar' }; // izin/sakit: fallback data lama (status sudah dihapus, digabung ke Tugas Luar)
+const STATUS_LABEL = { hadir: 'Tepat Waktu', tugas_luar: 'Tugas Luar', cuti: 'Cuti', alpa: 'Alpa', izin: 'Tugas Luar', sakit: 'Tugas Luar' }; 
 const STATUS_FILTER_LABEL = { hadir: 'Tepat Waktu', terlambat: 'Terlambat', tidak_lengkap: 'Tidak Lengkap', pending: 'Menunggu Absensi Keluar', tugas_luar: 'Tugas Luar', cuti: 'Cuti', alpa: 'Alpa' };
 const STATUS_FILTER_ORDER = ['hadir', 'terlambat', 'tidak_lengkap', 'pending', 'tugas_luar', 'cuti', 'alpa'];
 const STATUS_BADGE = { hadir: 'badge-hijau', tugas_luar: 'badge-biru', cuti: 'badge-fuchsia', alpa: 'badge-merah', izin: 'badge-biru', sakit: 'badge-biru' };
@@ -28,10 +22,6 @@ function isAbsensiFull() {
   return !!(_user?.is_admin || hasAccess('absensi.full'));
 }
 
-// Pengajuan Tugas Luar/Cuti yang masih "Menunggu Persetujuan" belum kesimpan
-// di tabel `absensi` (baru keisi pas admin approve) - jadi kartu Hari Ini &
-// reminder absensi wajib dicek terpisah ke sini, gak cukup andelin todayRow aja,
-// biar tombol Absensi Masuk/Keluar gak keliru aktif/nge-reminder selagi nunggu approve.
 async function _absCekPengajuanPendingHariIni() {
   try {
     const r = await fetch(`/api/absensi/pengajuan?user_id=${_user.id}&status_persetujuan=pending`, { headers: authHeaders() });
@@ -86,11 +76,6 @@ async function loadAbsensi() {
   if (isAbsensiFull()) await refreshPengajuanPendingBadge();
 }
 
-// Dropdown Tahun menyesuaikan data yg ADA (& pegawai/unit kerja yg sedang
-// difilter) - bukan 4 tahun statis (tahun berjalan s/d 3 tahun ke belakang):
-// - data cuma di 1 tahun → langsung ke-select tahun itu (opsi cuma tahun itu sendiri)
-// - data di >1 tahun     → tampilkan semua tahun yg ada datanya
-// - gak ada data sama sekali → fallback ke tahun berjalan (biar dropdown gak kosong)
 async function rebuildAbsFilterTahun() {
   const sel = document.getElementById('absFilterTahun');
   if (!sel) return;
@@ -119,11 +104,6 @@ async function rebuildAbsFilterTahun() {
   syncCustomSelect?.('absFilterTahun');
 }
 
-// Dropdown bulan menyesuaikan data yg ADA utk tahun (& pegawai, jika filter full-access
-// lagi milih pegawai tertentu) yg sedang dipilih - bukan 12 bulan statis:
-// - data cuma di 1 bulan → langsung ke-select bulan itu (opsi cuma bulan itu sendiri)
-// - data di >1 bulan     → tampilkan semua bulan yg ada datanya, biar bisa dipilih
-// - gak ada data sama sekali → fallback ke bulan berjalan (biar dropdown gak kosong)
 async function rebuildAbsFilterBulan() {
   const bulanSel = document.getElementById('absFilterBulan');
   if (!bulanSel) return;
@@ -153,8 +133,6 @@ async function rebuildAbsFilterBulan() {
   syncCustomSelect?.('absFilterBulan');
 }
 
-// Sama kayak rebuildAbsFilterBulan - cuma tampilin opsi status yg beneran ada
-// datanya di bulan/tahun (& pegawai/unit kerja) yg lagi difilter
 async function rebuildAbsFilterStatus() {
   const sel = document.getElementById('absFilterStatus');
   if (!sel) return;
@@ -180,8 +158,6 @@ async function rebuildAbsFilterStatus() {
   syncCustomSelect?.('absFilterStatus');
 }
 
-// Fetch semua pegawai sekali (di-cache di _absAllPegawai), lalu render opsi
-// dropdown - di-narrow ke pegawai dalam Unit Kerja terpilih kalau ada.
 async function populateAbsPegawaiFilter() {
   const sel = document.getElementById('absFilterPegawai');
   if (!sel) return;
@@ -204,8 +180,8 @@ function renderAbsPegawaiFilterOptions() {
   const list = _absFilterBidang
     ? _absAllPegawai.filter(u => String(u.bidang_id) === String(_absFilterBidang))
     : _absAllPegawai;
-  // Pegawai yg lagi kepilih bisa jadi gak ada lagi di list setelah ganti Unit
-  // Kerja (beda bidang) - reset ke "Semua Pegawai" biar gak nyangkut filter usang.
+  
+  
   if (_absFilterPegawai && !list.some(u => String(u.id) === String(_absFilterPegawai))) {
     _absFilterPegawai = '';
   }
@@ -218,8 +194,7 @@ function renderAbsPegawaiFilterOptions() {
 // Dropdown Unit Kerja menyesuaikan data yg ADA utk tahun (& pegawai) yg sedang
 // dipilih - sama kayak rebuildAbsFilterBulan, bukan daftar seluruh master data bidang:
 // - data cuma di 1 unit kerja → langsung ke-select unit itu (gak perlu opsi "Semua Unit Kerja")
-// - data di >1 unit kerja     → opsi "Semua Unit Kerja" + daftar unit, default "Semua Unit Kerja"
-// - gak ada data sama sekali  → cuma opsi "Semua Unit Kerja"
+
 async function rebuildAbsFilterBidang() {
   const sel = document.getElementById('absFilterBidang');
   if (!sel) return;
@@ -250,7 +225,6 @@ async function rebuildAbsFilterBidang() {
   syncCustomSelect?.('absFilterBidang');
 }
 
-// Ganti bulan langsung (opsi yg ditampilkan sudah pasti ada datanya) - gak perlu rebuild dropdown
 async function setAbsFilterBulan() {
   const v = document.getElementById('absFilterBulan').value;
   _absFilterBulan = v ? parseInt(v) : '';
@@ -306,7 +280,6 @@ async function loadAbsPengaturan() {
   }
 }
 
-// ── PENGATURAN JAM KERJA ────────────────────────────────────────────────
 async function loadAbsSettings() {
   try {
     const r = await fetch('/api/absensi/settings', { headers: authHeaders() });
@@ -315,14 +288,13 @@ async function loadAbsSettings() {
   } catch { _absSettings = null; }
 }
 
-// ── KARTU "HARI INI" (checkin / checkout) ───────────────────────────────
 async function renderAbsHariIni() {
   const box = document.getElementById('absHariIniBox');
   if (!box) return;
 
-  // Super Admin dikecualikan dari absensi mandiri - beda sama user yang cuma
-  // dikasih akses "full" (absensi.full) tapi bukan Super Admin, yang tetap
-  // wajib absensi kayak pegawai biasa.
+  
+  
+  
   if (_user.is_admin) {
     box.style.display = 'none';
     return;
@@ -334,9 +306,9 @@ async function renderAbsHariIni() {
   const dowNames = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
   const tanggalLabel = `${dowNames[w.day]}, ${w.date} ${ABS_BULAN_NAMA[w.month]} ${w.year}`;
 
-  // 3 fetch independen (absensi hari ini, pengajuan pending, libur hari ini) -
-  // dulu berurutan, sekarang paralel. Widget ini muncul di dashboard tiap user
-  // non-admin buka halaman, jadi lumayan sering ke-hit.
+  
+  
+  
   const [todayRes, pengajuanPendingHariIni, liburRes] = await Promise.all([
     fetch(`/api/absensi?user_id=${_user.id}&dari=${todayISO()}&sampai=${todayISO()}`, { headers: authHeaders() })
       .then(r => r.json()).catch(() => null),
@@ -346,10 +318,10 @@ async function renderAbsHariIni() {
   ]);
   const todayRow = (todayRes?.absensi || [])[0] || null;
 
-  // Cek hari libur nasional HARI INI + ambil keterangannya (mis. "Hari Kemerdekaan
-  // RI"), biar konsisten sama notice "libur" di Dashboard (bukan cuma teks generik
-  // "Hari Libur"). Fetch mandiri di sini - jangan andelin _absLiburBulanIni, soalnya
-  // itu cuma keisi kalau modal Pengaturan > Hari Libur udah pernah dibuka.
+  
+  
+  
+  
   let liburKeteranganHariIni = null;
   const liburHariIni = (liburRes?.libur || []).find(l => _absLiburLocalYMD(l.tanggal) === todayISO());
   if (liburHariIni) liburKeteranganHariIni = liburHariIni.keterangan || null;
@@ -358,13 +330,13 @@ async function renderAbsHariIni() {
   const isLibur = liburKeteranganHariIni !== null;
   const isJumat = w.day === 5;
   const isCutiOrTugas = todayRow?.status === 'cuti' || todayRow?.status === 'tugas_luar';
-  // Pending ikut nonaktifin tombol absensi (sama kayak cuti/tugas luar yg udah
-  // disetujui), tapi labelnya beda ("Menunggu Persetujuan", bukan langsung Cuti/Tugas Luar)
+  
+  
   const skipAbsenHariIni = isCutiOrTugas || !!pengajuanPendingHariIni;
 
-  // Jendela waktu absensi: tombol nonaktif kalau BELUM masuk jam mulai, ATAU
-  // udah lewat batas akhir (kalau diatur admin) - di luar itu, tombol
-  // di-disable dan pegawai harus minta admin input manual.
+  
+  
+  
   const nowHHMM = w.hhmm;
   const masukAwal = _absSettings ? (isJumat ? _absSettings.jam_masuk_awal_jumat : _absSettings.jam_masuk_awal_senin_kamis)?.slice(0, 5) : null;
   const pulangAwal = _absSettings ? (isJumat ? _absSettings.jam_pulang_jumat : _absSettings.jam_pulang_senin_kamis)?.slice(0, 5) : null;
@@ -375,16 +347,16 @@ async function renderAbsHariIni() {
   const lewatWaktuMasuk = masukAkhir && nowHHMM > masukAkhir;
   const lewatWaktuPulang = pulangAkhir && nowHHMM > pulangAkhir;
 
-  // Status warna kartu - ngikutin persis cabang countdown di bawah, biar
-  // warna cardnya (bukan cuma badge/icon kecil di panel kanan) selalu
-  // nyocok sama status jendela absensi yang lagi aktif:
-  //   libur    → akhir pekan / hari libur (beda dari netral biar keliatan jelas "tanggal merah")
-  //   netral   → belum waktunya / cuti / tugas luar / pending
-  //   merah    → jendela absensi masuk terbuka, belum absensi masuk (perlu aksi)
-  //   terlewat → jendela (masuk ATAU keluar) udah tertutup, belum sempat absensi (bermasalah → butuh admin)
-  //   oranye   → udah absensi masuk, jendela absensi keluar belum terbuka (nunggu)
-  //   kuning   → udah absensi masuk, jendela absensi keluar udah terbuka, belum absensi keluar (perlu aksi)
-  //   hijau    → absensi masuk & keluar lengkap
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
   let cardState = 'netral';
   if (isWeekend || isLibur) {
     cardState = 'libur';
@@ -407,8 +379,8 @@ async function renderAbsHariIni() {
   );
   box.classList.add(`abs-hariini-card--${cardState}`);
 
-  // Jadwal jam kerja hari ini (bukan jendela absensi - jam kerja standar) buat
-  // ditampilin di panel kanan sebagai konteks + basis progress bar.
+  
+  
   const jamMasukHariIni = _absSettings ? (isJumat ? _absSettings.jam_masuk_jumat : _absSettings.jam_masuk_senin_kamis)?.slice(0, 5) : null;
   const jamPulangHariIni = _absSettings ? (isJumat ? _absSettings.jam_pulang_jumat : _absSettings.jam_pulang_senin_kamis)?.slice(0, 5) : null;
 
@@ -418,8 +390,8 @@ async function renderAbsHariIni() {
   const jamMasukStdDate = hhmmDate(jamMasukHariIni);
   const jamPulangStdDate = hhmmDate(jamPulangHariIni);
 
-  // Countdown ke event absensi berikutnya (buka jendela masuk/pulang), atau
-  // status "sudah bisa" / "selesai" kalau nggak ada yang perlu ditunggu.
+  
+  
   let countdownLabel = null, countdownTargetMs = null, countdownDoneText = null, countdownExpired = false;
   if (!isWeekend && !isLibur && !skipAbsenHariIni) {
     if (!todayRow?.jam_masuk) {
@@ -435,7 +407,7 @@ async function renderAbsHariIni() {
     }
   }
 
-  // Progress bar hari kerja, dari jam masuk s/d jam pulang standar.
+  
   let progressPct = 0;
   if (jamMasukStdDate && jamPulangStdDate) {
     const total = jamPulangStdDate.getTime() - jamMasukStdDate.getTime();
@@ -567,15 +539,14 @@ async function renderAbsHariIni() {
 
   // Init time-picker (kalau ada elemen ctp-mount baru di kartu ini)
   if (typeof initCtp === 'function') initCtp();
-  // Picker-nya sendiri juga harus nonaktif kalau belum waktunya - sebelumnya
-  // cuma tombol "Simpan" yg di-disable, jamnya masih bisa dipilih duluan.
+  
+  
   document.getElementById('ctp_absHariMasuk')?._ctp?.[(belumWaktuMasuk || lewatWaktuMasuk) ? 'disable' : 'enable']();
   document.getElementById('ctp_absHariKeluar')?._ctp?.[(belumWaktuPulang || lewatWaktuPulang) ? 'disable' : 'enable']();
 
   _startAbsHariIniTicker();
 }
 
-// ── TICKER panel kanan kartu "Hari Ini": countdown + progress bar ──────
 let _absHariIniTickerInterval = null;
 function _startAbsHariIniTicker() {
   if (_absHariIniTickerInterval) clearInterval(_absHariIniTickerInterval);
@@ -590,7 +561,7 @@ function _startAbsHariIniTicker() {
       if (diff <= 0) {
         clearInterval(_absHariIniTickerInterval);
         _absHariIniTickerInterval = null;
-        renderAbsHariIni(); // waktu tunggu abis → refresh kartu ke state berikutnya
+        renderAbsHariIni(); 
         return;
       }
       const h = Math.floor(diff / 3600000);
@@ -615,13 +586,6 @@ function todayISO() {
   return `${w.year}-${String(w.month).padStart(2, '0')}-${String(w.date).padStart(2, '0')}`;
 }
 
-// ── WITA-aware time helpers ──────────────────────────────────────────────
-// Semua perhitungan jam absensi (jendela masuk/pulang, reminder, dsb) harus
-// berbasis WITA (Asia/Makassar, UTC+8), BUKAN timezone lokal device user.
-// Kalau device usernya di-set ke zona lain (WIB, atau bahkan salah setting),
-// pakai `new Date().getHours()` mentah bakal salah baca "jam sekarang" dan
-// bikin notif/tombol absensi aktif keliru (kejadian: notif Absensi Keluar
-// muncul sebelum jam 16:00 WITA beneran).
 const ABS_TZ = 'Asia/Makassar';
 function _witaNow() {
   const parts = new Intl.DateTimeFormat('en-GB', {
@@ -638,9 +602,7 @@ function _witaNow() {
   const mm = get('minute');
   return { year, month, date, day: dowMap[get('weekday')], hh, mm, hhmm: `${hh}:${mm}` };
 }
-// Konversi "HH:MM" (jam standar/absensi, dianggap WITA) + tanggal YYYY-MM-DD →
-// epoch ms yang benar, dengan eksplisit offset +08:00 - supaya perbandingan/
-// countdown tetap akurat walau device usernya bukan di WITA.
+
 function _hhmmWitaToDate(hhmm, ymd) {
   if (!hhmm) return null;
   const [h, m] = hhmm.split(':').map(Number);
@@ -682,28 +644,24 @@ async function doAbsCheckout() {
   } catch { toast('Gagal menyimpan absensi keluar', 'error'); }
 }
 
-// ── REMINDER ABSENSI OTOMATIS ──────────────────────────────────────────────
-// Dipanggil sekali di boot chain app.js (setelah initAuth sukses). Kalau pas
-// dicek sudah masuk jendela absensi masuk/keluar tapi belum diisi hari ini,
-// langsung munculin modal form-nya - user gak perlu buka menu Absensi dulu.
 async function _cekAbsensiReminder() {
   if (!_user) return;
-  if (_user.is_admin) return; // Super Admin tidak wajib absensi - lihat catatan di renderAbsHariIni()
+  if (_user.is_admin) return; 
   try {
     await loadAbsSettings();
     if (!_absSettings) return;
 
     const w = _witaNow();
-    if (w.day === 0 || w.day === 6) return; // akhir pekan
+    if (w.day === 0 || w.day === 6) return; 
     const isJumat = w.day === 5;
 
-    // Cek hari libur
+    
     try {
       const rl = await fetch(`/api/absensi/libur?tahun=${w.year}&bulan=${w.month}`, { headers: authHeaders() });
       const dl = await rl.json();
       const liburSet = new Set((dl.libur || []).map(l => _absLiburLocalYMD(l.tanggal)));
       if (liburSet.has(todayISO())) return;
-    } catch { /* gagal fetch libur → anggap bukan libur, lanjut */ }
+    } catch {  }
 
     let todayRow = null;
     try {
@@ -711,8 +669,8 @@ async function _cekAbsensiReminder() {
       const d = await r.json();
       todayRow = (d.absensi || [])[0] || null;
     } catch { return; }
-    if (todayRow?.status === 'cuti' || todayRow?.status === 'tugas_luar') return; // gak wajib absensi masuk/keluar
-    if (await _absCekPengajuanPendingHariIni()) return; // lagi nunggu persetujuan pengajuan → absensi ditahan sementara
+    if (todayRow?.status === 'cuti' || todayRow?.status === 'tugas_luar') return; 
+    if (await _absCekPengajuanPendingHariIni()) return; 
 
     const nowHHMM = w.hhmm;
     const masukAwal = (isJumat ? _absSettings.jam_masuk_awal_jumat : _absSettings.jam_masuk_awal_senin_kamis)?.slice(0, 5);
@@ -725,7 +683,7 @@ async function _cekAbsensiReminder() {
     } else if (todayRow?.jam_masuk && !todayRow?.jam_keluar && pulangAwal && nowHHMM >= pulangAwal && !(pulangAkhir && nowHHMM > pulangAkhir)) {
       _openAbsReminder('keluar');
     }
-  } catch { /* reminder gak boleh sampai ganggu boot app kalau error */ }
+  } catch {  }
 }
 
 function _openAbsReminder(tipe) {
@@ -768,7 +726,6 @@ async function _submitAbsReminder(tipe) {
   } catch { toast('Gagal menyimpan absensi', 'error'); }
 }
 
-// ── RINGKASAN BULANAN ────────────────────────────────────────────────────
 async function loadAbsRekap() {
   const box = document.getElementById('absRekapBox');
   if (!box) return;
@@ -798,10 +755,10 @@ async function loadAbsRekap() {
       _kpiCard({ icon: iconCuti, label: 'Cuti', value: rk.cuti, color: 'fuchsia' }) +
       _kpiCard({ icon: iconWarn, label: 'Alpa', value: rk.alpa, color: 'red' });
 
-    // Kartu ke-7: Jam Kerja Bulan Ini vs Target. Kalau admin lagi liat rekap
-    // 1 pegawai spesifik (filter pegawai aktif) → tampil sama kayak view
-    // personal. Kalau admin liat rekap gabungan (semua pegawai / per unit
-    // kerja) → tampil versi rata-rata (lihat _absJamKerjaCard & backend).
+    
+    
+    
+    
     html += await _absJamKerjaCard();
 
     box.innerHTML = html;
@@ -818,10 +775,6 @@ function _absFmtJam(menit) {
   return `${jam.toLocaleString('id-ID')}j ${sisaMenit}m`;
 }
 
-// Skala Nilai Peringkat Kinerja (Permendagri No. 86/2017) - sama persis dgn
-// skala di modul Kinerja (_kwCapaianColor, dashboard.js): 91-100 Sangat Tinggi,
-// 76-90 Tinggi, 66-75 Sedang, 51-65 Rendah, ≤50 Sangat Rendah. Persentase yang
-// dipakai TIDAK dibatasi ke 100 biar capaian di atas target tetap "Sangat Tinggi".
 function _kinerjaSkalaWarna(pctAsli) {
   const c = Number(pctAsli) || 0;
   if (c >= 91) return { warna: '#16a34a', label: 'Sangat Tinggi' };
@@ -842,18 +795,18 @@ async function _absJamKerjaCard() {
     if (!r.ok) throw new Error(`HTTP ${r.status}`);
     const d = await r.json();
     const pctAsli = Math.max(0, d.persentase || 0);
-    const pct = Math.min(100, pctAsli); // buat teks & lebar bar (bar mentok 100%)
+    const pct = Math.min(100, pctAsli); 
     const iconJam = `<svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="10" x2="14" y1="2" y2="2"/><line x1="12" x2="15" y1="14" y2="11"/><circle cx="12" cy="14" r="8"/></svg>`;
-    // Teks disamain dgn _absensiJamKerjaPanel (dashboard.js) - cuma tampilan
-    // kartunya tetap gaya asli absensi (_kpiCard + progress bar dot).
+    
+    
     const periodeLabel = d.bulan ? ABS_BULAN_NAMA[d.bulan] : `Tahun ${d.tahun}`;
     const label = d.agregat ? `Total Jam Kerja ${periodeLabel}` : `Jam Kerja ${periodeLabel}`;
     const sub = d.agregat
       ? `${pct}% dari target ${_absFmtJam(d.target_menit)} · ${d.hari_kerja_total} hari kerja · total dari ${d.jumlah_pegawai} pegawai`
       : `${pct}% dari target ${_absFmtJam(d.target_menit)} · ${d.hari_kerja_total} hari kerja ${d.bulan ? 'bulan ini' : 'tahun ini'}`;
-    // Satu warna aja utk seluruh kartu (border, angka, ikon, progress bar) -
-    // ngikutin Skala Nilai Peringkat Kinerja, sama kayak legend di modul Kinerja
-    // (bukan lagi biner tercapai/gak tercapai spt sebelumnya).
+    
+    
+    
     const { warna } = _kinerjaSkalaWarna(pctAsli);
     const kartu = `
       <div class="dash-kpi-card" style="border-left-color:${warna}">
@@ -864,8 +817,8 @@ async function _absJamKerjaCard() {
         </div>
         <div class="dash-kpi-icon" style="color:${warna}">${iconJam}</div>
       </div>`;
-    // Progress bar capaian, warna ngikutin Skala Nilai Peringkat Kinerja -
-    // ditempel visual di bawah kartu (tanpa ubah struktur internal _kpiCard).
+    
+    
     return `<div class="abs-jamkerja-wrap" style="--jk-warna:${warna}">
       ${kartu}
       <div class="abs-jamkerja-progress">
@@ -953,11 +906,6 @@ async function loadAbsTable(page = 1) {
 }
 window.goAbsPage = (p) => loadAbsTable(p);
 
-// Opsi 'Alpa' bukan pilihan manual (hasil otomatis cron tiap hari kerja yg
-// gak ada absensi masuk/pulang) - cuma boleh nongol di dropdown kalau baris
-// yg lagi diedit emang udah berstatus alpa, biar admin bisa lihat/ubah dari
-// situ. Di luar itu (Tambah baru / edit status lain) opsi ini disingkirkan
-// dari <select> supaya gak bisa dipilih manual.
 function _absSyncAlpaOption(show) {
   const sel = document.getElementById('absStatus');
   if (!sel) return;
@@ -972,11 +920,6 @@ function _absSyncAlpaOption(show) {
   }
 }
 
-// Opsi 'Alpa' bukan pilihan manual (hasil otomatis cron tiap hari kerja yg
-// gak ada absensi masuk/pulang) - cuma boleh nongol di dropdown kalau baris
-// yg lagi diedit emang udah berstatus alpa, biar admin bisa lihat/ubah dari
-// situ. Di luar itu (Tambah baru / edit status lain) opsi ini disingkirkan
-// dari <select> supaya gak bisa dipilih manual.
 function _absSyncAlpaOption(show) {
   const sel = document.getElementById('absStatus');
   if (!sel) return;
@@ -991,13 +934,8 @@ function _absSyncAlpaOption(show) {
   }
 }
 
-let _absDukung = null; // { url, name } | { name, _loading: true } | null
+let _absDukung = null; 
 
-// Tugas Luar/Cuti gak butuh jam masuk/keluar (gak ada absensi fisik) - begitu
-// status ini dipilih, field jam disembunyikan. Khusus pas Tambah baru (bukan
-// edit satu baris yg udah ada), muncul juga field "Sampai Tanggal" + upload
-// Data Dukung, karena rentang tsb bakal di-generate otomatis jadi satu baris
-// absensi per hari (lihat saveAbs()) tanpa pegawai perlu absensi tiap hari.
 function onAbsStatusChange() {
   const status = document.getElementById('absStatus').value;
   const isCutiOrTugas = status === 'tugas_luar' || status === 'cuti';
@@ -1005,8 +943,8 @@ function onAbsStatusChange() {
 
   document.getElementById('absJamRow').style.display = status ? 'none' : '';
   document.getElementById('absDurasiRow').style.display = isRentang ? '' : 'none';
-  // Data Dukung ditampilkan baik pas input rentang baru MAUPUN pas edit baris
-  // tunggal yg statusnya Cuti/Tugas Luar (biar bisa lihat/ganti file yg sudah ada)
+  
+  
   document.getElementById('absDukungWrap').style.display = isCutiOrTugas ? '' : 'none';
 
   if (!isCutiOrTugas) {
@@ -1019,12 +957,6 @@ function onAbsStatusChange() {
   }
 }
 
-// Tugas Luar/Cuti (input rentang baru) mewajibkan Data Dukung - tombol Simpan
-// di-disable sampai file selesai keupload (bukan cuma dipilih; harus sampai
-// _absDukung.url keisi, biar gak kekirim payload tanpa data_dukung_url).
-// Saat edit, file lama gak wajib diisi ulang (biar gak kunci data lama yg
-// dibuat sebelum aturan ini ada) - tapi tombol tetap dikunci selama upload
-// file baru masih berjalan.
 function _absUpdateSaveBtnState() {
   const btn = document.getElementById('btnSimpanAbs');
   if (!btn) return;
@@ -1076,7 +1008,7 @@ function _renderAbsDukungPreview() {
         </div>
       </div>
     </div>`;
-  // Sembunyikan drop-area begitu ada 1 file (data dukung absensi cuma 1 file)
+  
   const area = document.getElementById('absDukungUploadArea');
   if (area) area.style.display = f._loading || f.url ? 'none' : '';
 }
@@ -1095,10 +1027,6 @@ function handleAbsDukungDrop(e) {
   if (file) _processAbsDukungFile(file);
 }
 
-// Upload via XHR (bukan fetch) supaya dapat progress asli dari browser -
-// pola sama persis kayak _uploadFileWithProgress di kinerja.js. JANGAN pakai
-// authHeaders() penuh (nyelipin Content-Type: application/json yg nabrak
-// boundary multipart) - ambil cuma header Authorization-nya.
 function _absUploadFileWithProgress(file, onProgress) {
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
@@ -1147,16 +1075,15 @@ async function _processAbsDukungFile(file) {
   }
 }
 
-// ── MODAL INPUT / EDIT (admin/full) ─────────────────────────────────────
 async function openAbsModal(id = null) {
   _absEditingId = id;
   document.getElementById('modalAbsTitle').textContent = id ? 'Edit Absensi' : 'Tambah Absensi';
   document.getElementById('absPegawaiWrap').style.display = id ? 'none' : '';
   document.getElementById('absTanggal').disabled = !!id;
 
-  // Dua fetch ini independen (dropdown pegawai vs data baris yg diedit) - kalau
-  // kebetulan dua-duanya perlu jalan (edit sebelum dropdown pernah ke-cache),
-  // ditembak PARALEL, bukan satu nunggu yg lain.
+  
+  
+  
   const needPegawaiFill = !document.getElementById('absPegawai').dataset.filled;
   const pegawaiPromise = needPegawaiFill
     ? fetch('/api/users', { headers: authHeaders() }).then(r => r.json()).catch(() => null)
@@ -1180,8 +1107,8 @@ async function openAbsModal(id = null) {
 
   let row = null;
   if (id) {
-    // ambil dari baris tabel yg sudah dimuat (hindari endpoint detail tambahan) -
-    // data-nya udah difetch paralel di atas (absensiData), gak fetch ulang di sini
+    
+    
     row = ((absensiData && absensiData.absensi) || []).find(x => x.id === id);
     if (!row) { toast('Data tidak ditemukan', 'error'); return; }
     document.getElementById('absId').value = row.id;
@@ -1189,7 +1116,7 @@ async function openAbsModal(id = null) {
     document.getElementById('absJamMasuk').value = row.jam_masuk ? row.jam_masuk.slice(0, 5) : '';
     document.getElementById('absJamKeluar').value = row.jam_keluar ? row.jam_keluar.slice(0, 5) : '';
     // 'hadir' udah gak punya opsi manual di dropdown (otomatis dari jam_masuk) -
-    // map ke '' biar csel nampilin placeholder "Otomatis (Hadir/Terlambat)"
+    
     _absSyncAlpaOption(row.status === 'alpa');
     document.getElementById('absStatus').value = row.status === 'hadir' ? '' : row.status;
     document.getElementById('absKeterangan').value = row.keterangan || '';
@@ -1215,7 +1142,7 @@ async function openAbsModal(id = null) {
   onAbsStatusChange();
   openModal('modalAbs');
 
-  // Init CDTP/CTP (sekali) lalu sync nilai & status enable/disable
+  
   setTimeout(() => {
     if (typeof initCdtp === 'function') initCdtp();
     if (typeof initCtp  === 'function') initCtp();
@@ -1259,8 +1186,8 @@ async function saveAbs() {
       payload.data_dukung_nama = _absDukung.name;
     }
   } else if (id && (status === 'tugas_luar' || status === 'cuti')) {
-    // Edit baris tunggal yg statusnya Cuti/Tugas Luar - ikut kirim data dukung
-    // (baik ganti file baru maupun tetap pakai yg lama), atau clear kalau dihapus.
+    
+    
     if (_absDukung?.url) {
       payload.data_dukung_url = _absDukung.url;
       payload.data_dukung_nama = _absDukung.name;
@@ -1301,7 +1228,6 @@ async function deleteAbs(id) {
   await loadAbsTable(_absPage);
 }
 
-// ── PENGATURAN JAM KERJA (modal, admin/full) ─────────────────────────────
 const ABS_SET_FIELD_IDS = [
   'absSetMasukAwalSK', 'absSetMasukAwalJumat',
   'absSetMasukSK', 'absSetMasukJumat',
@@ -1366,8 +1292,7 @@ async function saveAbsSettings() {
   } catch { toast('Gagal menyimpan pengaturan', 'error'); }
 }
 
-// ── HARI LIBUR (modal, admin/full) ───────────────────────────────────────
-let _absLiburAll   = [];   // seluruh data hari libur tahun berjalan (hasil fetch)
+let _absLiburAll   = [];   
 let _absLiburPage  = 1;
 const _absLiburLimit = 5;
 let _absLiburFilterTahun = new Date().getFullYear();
@@ -1378,11 +1303,6 @@ const ABS_LIBUR_BULAN_LABEL = {
   '09': 'September', '10': 'Oktober', '11': 'November', '12': 'Desember',
 };
 
-// Server balikin `tanggal` sbg timestamp yg sudah di-convert ke UTC (kolom DATE
-// di-parse jadi Date object lalu di-JSON-stringify) - potong string mentah
-// (slice) bisa salah baca bulan/tanggal krn hasil convert-nya bisa mundur 1 hari
-// dari tanggal aslinya. Selalu re-parse via `new Date()` lalu ambil komponen
-// LOKAL (bukan UTC) biar konsisten sama tampilan tabel yg pakai toLocaleDateString.
 function _absLiburLocalYMD(tanggal) {
   const d = new Date(tanggal);
   const y = d.getFullYear();
@@ -1391,14 +1311,11 @@ function _absLiburLocalYMD(tanggal) {
   return `${y}-${m}-${day}`;
 }
 
-// ── Dropdown custom (csel) ringan buat filter Hari Libur ──────────────────
-// Pola sama kayak _buildLapParentCsel di app.js, versi sederhana (1 level,
-// tanpa cascade) supaya tampilannya konsisten, bukan <select> bawaan browser.
 function _buildAbsLiburCsel(wrapId, hiddenId, opts, selectedVal, onChange) {
   const wrap = document.getElementById(wrapId);
   if (!wrap) return;
 
-  // Bersihkan instance sebelumnya (fungsi ini dipanggil ulang tiap modal dibuka)
+  
   if (wrap._cselPanel) { wrap._cselPanel.remove(); wrap._cselPanel = null; }
   if (wrap._cselOutside) document.removeEventListener('click', wrap._cselOutside);
   if (wrap._cselScroll)  window.removeEventListener('scroll', wrap._cselScroll, true);
@@ -1511,10 +1428,6 @@ function populateAbsLiburTahunFilter() {
   });
 }
 
-// Dropdown bulan menyesuaikan data yg ADA di tahun terpilih (bukan 12 bulan statis):
-// - gak ada data sama sekali → cuma opsi "Semua Bulan"
-// - data cuma di 1 bulan     → langsung ke-select bulan itu (gak perlu opsi "Semua Bulan")
-// - data di >1 bulan         → opsi "Semua Bulan" + bulan-bulan yg ada data, default "Semua Bulan"
 function rebuildAbsLiburBulanFilter() {
   const bulanPresent = [...new Set(_absLiburAll.map(l => _absLiburLocalYMD(l.tanggal).slice(5, 7)))].sort();
 
@@ -1828,7 +1741,7 @@ async function savePengajuan() {
   if (_pengDukung?._loading) { toast('Tunggu sampai file selesai diupload', 'error'); return; }
   if (!_pengDukung?.url) { toast('Data dukung wajib diisi', 'error'); return; }
 
-  // Jaga-jaga terakhir sebelum kirim (kalau cek pas ganti tanggal kelewat)
+  
   const bentrok = await _pengCekBentrokAbsensi(tanggal, tanggal_selesai);
   if (bentrok && bentrok.length) {
     const daftar = bentrok.map(a => fmtTglSingkat(a.tanggal)).join(', ');
@@ -1857,7 +1770,6 @@ async function savePengajuan() {
   finally { btn.disabled = false; }
 }
 
-// ── Daftar pengajuan milik sendiri (kartu di bawah toolbar) ─────────────
 async function loadPengajuanSaya() {
   const box = document.getElementById('absPengajuanSayaBox');
   const list = document.getElementById('absPengajuanSayaList');
@@ -1923,9 +1835,6 @@ function fmtTglSingkat(s) {
   return d.toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric', timeZone: 'UTC' });
 }
 
-// ═══════════════════════════════════════════════════════════════════════
-// PERSETUJUAN PENGAJUAN - admin/full
-// ═══════════════════════════════════════════════════════════════════════
 async function refreshPengajuanPendingBadge() {
   const badge = document.getElementById('absPengajuanPendingBadge');
   if (!badge) return;
@@ -1938,11 +1847,6 @@ async function refreshPengajuanPendingBadge() {
   } catch { badge.style.display = 'none'; }
 }
 
-// ── NOTIF PENGAJUAN PENDING OTOMATIS (admin/full) ────────────────────────
-// Dipanggil sekali di boot chain app.js (setelah initAuth sukses), sama
-// pola kayak _cekAbsensiReminder() di sisi user - begitu admin login,
-// modal Persetujuan Pengajuan langsung kebuka kalau ada yang pending, jadi
-// admin bisa langsung Setujui/Tolak tanpa perlu buka menu Absensi dulu.
 async function _cekPengajuanPendingReminder() {
   if (!isAbsensiFull()) return;
   try {
@@ -1952,12 +1856,12 @@ async function _cekPengajuanPendingReminder() {
     const badge = document.getElementById('absPengajuanPendingBadge');
     if (badge) { if (n > 0) { badge.textContent = n; badge.style.display = ''; } else { badge.style.display = 'none'; } }
     if (n > 0) await openPersetujuanModal();
-  } catch { /* notif gak boleh sampai ganggu boot app kalau error */ }
+  } catch {  }
 }
 
 async function openPersetujuanModal() {
   openModal('modalPersetujuanAbsen');
-  // silent:false → klik manual, kalau kosong kasih empty state, jangan nutup modal diam-diam
+  
   await loadPersetujuanList({ silent: false });
 }
 
@@ -1971,13 +1875,13 @@ async function loadPersetujuanList({ silent = true } = {}) {
     const rows = d.pengajuan || [];
     if (!rows.length) {
       if (silent) {
-        // Auto-reminder / abis approve-tolak sampai habis → modal ikutan
-        // ditutup diam-diam, gak perlu nampilin empty state.
+        
+        
         closeModal('modalPersetujuanAbsen');
         return;
       }
-      // Klik manual tombol Persetujuan Pengajuan → tetap kasih feedback,
-      // jangan nutup modal tiba-tiba tanpa penjelasan.
+      
+      
       container.innerHTML = `<div style="text-align:center;padding:24px;color:var(--teks-muted);font-size:.85rem">Tidak ada pengajuan yang perlu disetujui saat ini.</div>`;
       return;
     }

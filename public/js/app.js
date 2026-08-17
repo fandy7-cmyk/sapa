@@ -1,21 +1,16 @@
 'use strict';
 
-// ── Debounce global untuk semua kotak search di sistem ───────────────────
-// Dipakai lewat oninput="debounceInput('key', fn, delay)" di app.html.
-// 'key' harus unik per search box biar timer-nya gak saling tabrak.
 const _searchDebounceTimers = {};
 function debounceInput(key, fn, delay = 300) {
   clearTimeout(_searchDebounceTimers[key]);
   _searchDebounceTimers[key] = setTimeout(fn, delay);
 }
 
-// ── AUTH ────────────────────────────────────────────────────────────────
 let _token = null;
 let _refreshToken = null;
 let _user  = null;
-let _refreshInFlight = null; // promise tunggal supaya tidak ada refresh dobel paralel
+let _refreshInFlight = null; 
 
-// ── Decode JWT payload (tanpa verifikasi signature - hanya baca exp) ─────
 function _decodeJwtPayload(token) {
   try {
     if (!token || typeof token !== 'string') return null;
@@ -23,11 +18,11 @@ function _decodeJwtPayload(token) {
     if (parts.length !== 3) return null;
     const part = parts[1];
     if (!part) return null;
-    // Normalize base64url → base64
+    
     const b64 = part.replace(/-/g, '+').replace(/_/g, '/');
     const pad = b64 + '='.repeat((4 - b64.length % 4) % 4);
     const decoded = atob(pad);
-    // Handle unicode characters safely
+    
     const json = decodeURIComponent(decoded.split('').map(c =>
       '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2)
     ).join(''));
@@ -60,7 +55,7 @@ function _handleSessionExpired() {
   sessionStorage.removeItem('sapa_refresh_token');
   sessionStorage.removeItem('sapa_user');
   try { sessionStorage.removeItem('sapa_nav'); } catch(e) {}
-  // Tampilkan notifikasi sebelum redirect (jika fungsi toast tersedia)
+  
   if (typeof toast === 'function') {
     toast('Sesi Anda telah berakhir. Silakan login kembali.', 'warning');
     setTimeout(() => location.reload(), 1500);
@@ -71,7 +66,7 @@ function _handleSessionExpired() {
 }
 
 function initAuth() {
-  _clearExpiryTimer(); // batalkan timer lama sebelum cek token baru
+  _clearExpiryTimer(); 
   try {
     _token = sessionStorage.getItem('sapa_token');
     _refreshToken = sessionStorage.getItem('sapa_refresh_token');
@@ -89,7 +84,7 @@ function initAuth() {
   if (!_token || !_user) { showLoginOverlay(); return false; }
   document.body.classList.toggle('is-admin', !!_user.is_admin);
 
-  // Cek token expired saat halaman dimuat
+  
   if (_isTokenExpired(_token)) {
     sessionStorage.removeItem('sapa_token');
     sessionStorage.removeItem('sapa_refresh_token');
@@ -98,16 +93,16 @@ function initAuth() {
     return false;
   }
 
-  // Pasang timer untuk auto-logout saat token akan expired
+  
   _scheduleTokenExpiry();
-  // Mulai idle monitoring
+  
   if (typeof _idleStart === 'function') _idleStart();
   const _dbgPayload = _decodeJwtPayload(_token);
   if (_dbgPayload?.exp) {
     const _dbgLeft = Math.round((_dbgPayload.exp * 1000 - Date.now()) / 60000);
     console.debug('[Auth] Login berhasil, token valid ~', _dbgLeft, 'menit lagi');
   }
-  // Tampilkan app shell (satu-satunya tempat yang set visibility saat refresh)
+  
   const shell = document.getElementById('appShell');
   if (shell) shell.style.visibility = '';
   return true;
@@ -143,9 +138,6 @@ function _scheduleTokenExpiry() {
   console.debug('[Auth] Refresh token dijadwalkan dalam', Math.round(msUntilRefresh / 60000), 'menit');
 }
 
-// ── Tukar refresh token dengan access token baru ──────────────────────────
-// Pakai _refreshInFlight supaya kalau beberapa request kena 401 bersamaan,
-// hanya satu request /api/auth/refresh yang jalan (yang lain numpang nunggu).
 async function _doRefreshToken() {
   if (!_refreshToken) return false;
   if (_refreshInFlight) return _refreshInFlight;
@@ -178,26 +170,21 @@ async function _doRefreshToken() {
   return result;
 }
 
-
-// ═══════════════════════════════════════════════════════════════════════════
-// IDLE TIMEOUT - 4m30s tidak aktif → warning modal, 5m → auto logout
-// ═══════════════════════════════════════════════════════════════════════════
-const _IDLE_WARNING_MS  = 4.5 * 60 * 1000;  // 4 menit 30 detik
-const _IDLE_LOGOUT_MS   = 5.0 * 60 * 1000;  // 5 menit
-const _IDLE_COUNTDOWN_S = 30;                // detik countdown di modal
+const _IDLE_WARNING_MS  = 4.5 * 60 * 1000;  
+const _IDLE_LOGOUT_MS   = 5.0 * 60 * 1000;  
+const _IDLE_COUNTDOWN_S = 30;                
 
 let _idleWarningTimer   = null;
 let _idleLogoutTimer    = null;
 let _idleCountdownTimer = null;
-let _idleActive         = false;  // apakah sistem idle monitoring sedang aktif
+let _idleActive         = false;  
 
-// Event yang dianggap sebagai aktivitas user
 const _IDLE_EVENTS = ['mousemove', 'mousedown', 'keydown', 'touchstart', 'scroll', 'click'];
 
 function _idleResetTimers() {
-  // Hanya reset kalau monitoring aktif (user sudah login)
+  
   if (!_idleActive) return;
-  // Jika modal warning sedang tampil, aktivitas user = tutup modal & reset timer
+  
   const modal = document.getElementById('modalIdleWarning');
   if (modal && modal.style.display === 'flex') {
     modal.style.display = 'none';
@@ -215,9 +202,9 @@ function _idleClearAll() {
 function _idleShowWarning() {
   const modal = document.getElementById('modalIdleWarning');
   if (!modal) return;
-  // Tampilkan modal
+  
   modal.style.display = 'flex';
-  // Mulai countdown 30 detik
+  
   let sisa = _IDLE_COUNTDOWN_S;
   const numEl = document.getElementById('idleCountdownNum');
   if (numEl) numEl.textContent = sisa;
@@ -229,7 +216,7 @@ function _idleShowWarning() {
       _idleLogoutNow();
     }
   }, 1000);
-  // Backup: paksa logout setelah 30 detik persis
+  
   _idleLogoutTimer = setTimeout(_idleLogoutNow, _IDLE_COUNTDOWN_S * 1000);
 }
 
@@ -237,7 +224,7 @@ function _idleStayLoggedIn() {
   const modal = document.getElementById('modalIdleWarning');
   if (modal) modal.style.display = 'none';
   _idleClearAll();
-  // Reset timer dari awal
+  
   _idleWarningTimer = setTimeout(_idleShowWarning, _IDLE_WARNING_MS);
 }
 
@@ -248,14 +235,12 @@ function _idleLogoutNow() {
   _handleSessionExpired();
 }
 
-// Mulai monitoring - dipanggil setelah login berhasil
 function _idleStart() {
   _idleActive = true;
   _IDLE_EVENTS.forEach(ev => window.addEventListener(ev, _idleResetTimers, { passive: true }));
-  _idleResetTimers(); // mulai timer pertama
+  _idleResetTimers(); 
 }
 
-// Hentikan monitoring - dipanggil saat logout
 function _idleStop() {
   _idleActive = false;
   _idleClearAll();
@@ -263,19 +248,15 @@ function _idleStop() {
 }
 
 function authHeaders() {
-  // Catatan: JANGAN panggil _handleSessionExpired() di sini.
-  // authHeaders() dipanggil sync sebagai argumen fetch() - memanggil logout di sini
-  // menyebabkan race condition yang meng-interrupt boot flow secara prematur.
-  // Biarkan server return 401 jika token expired; apiFetch() atau handler response
-  // yang bertanggung jawab memanggil _handleSessionExpired().
+  
+  
+  
+  
+  
   if (!_token) return { 'Content-Type': 'application/json' };
   return { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + _token };
 }
 
-// ── apiFetch: wrapper fetch yang auto-handle 401 ───────────────────────────
-// Kalau kena 401 (access token expired - bisa terjadi kalau timer refresh
-// terlambat, mis. tab browser sempat di-suspend), coba refresh sekali lalu
-// ulangi request asli sebelum benar-benar memaksa logout.
 async function apiFetch(url, opts = {}) {
   let resp = await fetch(url, opts);
   if (resp.status === 401) {
@@ -288,7 +269,7 @@ async function apiFetch(url, opts = {}) {
       resp = await fetch(url, retryOpts);
       if (resp.status !== 401) return resp;
     }
-    // Refresh gagal atau retry masih 401 → token/sesi memang sudah tidak valid
+    
     _handleSessionExpired();
     throw new Error('Sesi berakhir');
   }
@@ -300,9 +281,8 @@ function hasAccess(key) {
   return Array.isArray(_user.permissions) && _user.permissions.includes(key);
 }
 
-const hasPermission = hasAccess;  // alias
+const hasPermission = hasAccess;  
 
-// Flag otomatis: muncul kalau bidang user punya indikator terkait (tanpa set permission manual)
 let _hasMonevIndikator = false;
 let _hasIkkIndikator   = false;
 let _hasSpmIndikator   = false;
@@ -310,7 +290,7 @@ let _hasSpmIndikator   = false;
 async function _cekKinerjaIndikator() {
   if (_user && _user.is_admin) { _hasMonevIndikator = true; _hasIkkIndikator = true; _hasSpmIndikator = true; return; }
   try {
-    // Fetch indikator yang di-assign ke user ini
+    
     const [rAssign, rAll] = await Promise.all([
       fetch(`/api/users/${_user.id}/indikator`, { headers: authHeaders() }).catch(() => null),
       fetch('/api/kinerja/indikator',            { headers: authHeaders() }).catch(() => null),
@@ -331,7 +311,6 @@ async function _cekKinerjaIndikator() {
   }
 }
 
-// ── GANTI FOTO PROFIL (user sendiri) ─────────────────────────────────────
 function openAvatarUpload() {
   const current = _user.foto_url || null;
   document.getElementById('avatarUploadUrl').value = current || '';
@@ -425,7 +404,6 @@ async function saveAvatarUpload() {
   }
 }
 
-// ── GANTI PASSWORD (user sendiri) ────────────────────────────────────────
 function openChangePassword() {
   document.getElementById('cpOld').value = '';
   document.getElementById('cpNew').value = '';
@@ -466,11 +444,11 @@ async function saveChangePassword() {
 }
 
 async function doLogout() {
-  // Tutup dropdown dulu
+  
   document.getElementById('topbarDropdown')?.classList.remove('open');
   const ok = await showConfirm({ title: 'Keluar dari Sistem', msg: 'Yakin ingin keluar? Sesi Anda akan diakhiri dan perlu login ulang untuk melanjutkan.', okText: 'Keluar', type: 'danger', icon: 'wave' });
   if (!ok) return;
-  // Revoke refresh token di server supaya tidak bisa dipakai lagi (best-effort, jangan blokir logout kalau gagal)
+  
   if (_refreshToken) {
     fetch('/api/auth/logout', {
       method: 'POST',
@@ -485,12 +463,11 @@ async function doLogout() {
   location.reload();
 }
 
-// ── PERIODE COUNTDOWN TIMER ──────────────────────────────────────────────
 let _periodeTimerInterval = null;
-let _periodeTimerNotifFired = {};   // { periodeId: { h1: bool, closed: bool } }
+let _periodeTimerNotifFired = {};   
 
 function _startPeriodeTimer() {
-  // Admin tidak perlu timer (mereka bisa input kapan saja)
+  
   if (_user?.is_admin) return;
 
   if (_periodeTimerInterval) clearInterval(_periodeTimerInterval);
@@ -499,14 +476,14 @@ function _startPeriodeTimer() {
     const bar = document.getElementById('periodeTimerBar');
     if (!bar) return;
 
-    // Ambil semua periode terbuka dari cache kinerja
+    
     const periodeList = _periodeListTerbuka?.length
       ? _periodeListTerbuka
       : (_periodeAktif ? [_periodeAktif] : []);
 
     if (!periodeList.length) { bar.style.display = 'none'; return; }
 
-    // Ambil periode yang paling dekat tutupnya
+    
     const now = Date.now();
     const aktif = periodeList
       .filter(p => p.close_at && new Date(p.close_at).getTime() > now)
@@ -520,14 +497,14 @@ function _startPeriodeTimer() {
 
     if (diff <= 0) {
       bar.style.display = 'none';
-      // Periode baru saja tutup → kunci tombol input tanpa perlu reload halaman
+      
       clearInterval(_periodeTimerInterval);
       _periodeTimerInterval = null;
       if (typeof initKinerjaControls === 'function') initKinerjaControls();
       return;
     }
 
-    // Format sisa waktu
+    
     const totalSec = Math.floor(diff / 1000);
     const d  = Math.floor(totalSec / 86400);
     const h  = Math.floor((totalSec % 86400) / 3600);
@@ -582,7 +559,7 @@ function _startPeriodeTimer() {
       _periodeTimerNotifFired[key].h1 = true;
       toast(`⏰ Sisa 1 jam! Input periode ${bulanLabel} ${p.tahun || ''} ditutup pukul ${_fmtDT(p.close_at)}.`, 'warning');
     }
-    // H-10 menit
+    
     if (!_periodeTimerNotifFired[key].m10 && diff <= 600_000 && diff > 540_000) {
       _periodeTimerNotifFired[key].m10 = true;
       toast(`⚠️ Sisa 10 menit! Segera selesaikan input periode ${bulanLabel} ${p.tahun || ''}.`, 'warning');
@@ -593,7 +570,6 @@ function _startPeriodeTimer() {
   _periodeTimerInterval = setInterval(_tick, 1000);
 }
 
-// ── MENU DEFINITIONS ────────────────────────────────────────────────────
 const MENUS = [
   {
     id: 'superlink', label: 'Superlink', icon: `<svg class="ic-line" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M13.0607 8.11097L14.4749 9.52518C17.2086 12.2589 17.2086 16.691 14.4749 19.4247L14.1214 19.7782C11.3877 22.5119 6.95555 22.5119 4.22188 19.7782C1.48821 17.0446 1.48821 12.6124 4.22188 9.87874L5.6361 11.293C3.68348 13.2456 3.68348 16.4114 5.6361 18.364C7.58872 20.3166 10.7545 20.3166 12.7072 18.364L13.0607 18.0105C15.0133 16.0578 15.0133 12.892 13.0607 10.9394L11.6465 9.52518L13.0607 8.11097ZM19.7782 14.1214L18.364 12.7072C20.3166 10.7545 20.3166 7.58872 18.364 5.6361C16.4114 3.68348 13.2456 3.68348 11.293 5.6361L10.9394 5.98965C8.98678 7.94227 8.98678 11.1081 10.9394 13.0607L12.3536 14.4749L10.9394 15.8891L9.52518 14.4749C6.79151 11.7413 6.79151 7.30911 9.52518 4.57544L9.87874 4.22188C12.6124 1.48821 17.0446 1.48821 19.7782 4.22188C22.5119 6.95555 22.5119 11.3877 19.7782 14.1214Z"/></svg><svg class="ic-fill" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M13.0607 8.11097L14.4749 9.52518C17.2086 12.2589 17.2086 16.691 14.4749 19.4247L14.1214 19.7782C11.3877 22.5119 6.95555 22.5119 4.22188 19.7782C1.48821 17.0446 1.48821 12.6124 4.22188 9.87874L5.6361 11.293C3.68348 13.2456 3.68348 16.4114 5.6361 18.364C7.58872 20.3166 10.7545 20.3166 12.7072 18.364L13.0607 18.0105C15.0133 16.0578 15.0133 12.892 13.0607 10.9394L11.6465 9.52518L13.0607 8.11097ZM19.7782 14.1214L18.364 12.7072C20.3166 10.7545 20.3166 7.58872 18.364 5.6361C16.4114 3.68348 13.2456 3.68348 11.293 5.6361L10.9394 5.98965C8.98678 7.94227 8.98678 11.1081 10.9394 13.0607L12.3536 14.4749L10.9394 15.8891L9.52518 14.4749C6.79151 11.7413 6.79151 7.30911 9.52518 4.57544L9.87874 4.22188C12.6124 1.48821 17.0446 1.48821 19.7782 4.22188C22.5119 6.95555 22.5119 11.3877 19.7782 14.1214Z"/></svg>`,
@@ -700,9 +676,9 @@ function buildSidebar() {
 
     const visibleChildren = group.children.filter(c => {
       if (c.children) {
-        // Branch (sub-group level ke-3, mis. "Standar Harga Satuan") - visible kalau
-        // minimal 1 item di dalamnya accessible. Hasil filter-nya di-stash di c._visibleChildren
-        // biar gak perlu difilter ulang pas render.
+        
+        
+        
         if (c.adminOnly && !_user.is_admin) return false;
         const visibleGrand = c.children.filter(gc => {
           if (gc.adminOnly && !_user.is_admin) return false;
@@ -750,10 +726,10 @@ function buildSidebar() {
     };
     const _closeHover = () => {
       if (_sidebarCollapsed) return;
-      // Hanya block autohide kalau group ini memang di-klik/pin terbuka
-      // DAN ada child yang sedang aktif. Kalau hanya hover-open, tetap hide.
-      // Cek real-time dari DOM (bukan closure groupHasActive yg beku pas buildSidebar) -
-      // supaya kalau user navigasi ke child setelah sidebar dibangun, status ini ikut update
+      
+      
+      
+      
       const stillHasActive = sub.querySelector('.nav-sub-item.active, .nav-sub-sub-item.active');
       if (_openGroups[group.id] && stillHasActive) return;
       _hoverTimer = setTimeout(() => {
@@ -769,7 +745,7 @@ function buildSidebar() {
 
     for (const child of visibleChildren) {
       if (child.children) {
-        // Branch/sub-group level ke-3 - header expandable + list item di dalamnya.
+        
         const branchHasActive = child._visibleChildren.some(gc => gc.id === _activeSubId);
         const branchItem = document.createElement('div');
         branchItem.className = 'nav-sub-item nav-sub-group' + (branchHasActive ? ' has-active' : '');
@@ -850,12 +826,12 @@ function setSidebarActiveState() {
   const nav = document.getElementById('sidebarNav');
   if (!nav) return;
 
-  // Dashboard & item submenu (termasuk level ke-3): toggle .active sesuai _activeSubId
+  
   nav.querySelectorAll('.nav-item[data-sub], .nav-sub-item[data-sub], .nav-sub-sub-item[data-sub]').forEach(el => {
     el.classList.toggle('active', el.dataset.sub === _activeSubId);
   });
 
-  // Group level 1: toggle .has-active sesuai apakah ada child/grandchild yang aktif
+  
   nav.querySelectorAll('.nav-item[data-group]').forEach(groupEl => {
     const gid = groupEl.dataset.group;
     const sub = document.getElementById('sub-' + gid);
@@ -863,7 +839,7 @@ function setSidebarActiveState() {
     groupEl.classList.toggle('has-active', hasActive);
   });
 
-  // Sub-group level 2 (mis. "Standar Harga Satuan"): toggle .has-active sesuai item di dalamnya
+  
   nav.querySelectorAll('.nav-sub-item[data-subgroup]').forEach(branchEl => {
     const bid = branchEl.dataset.subgroup;
     const subsub = document.getElementById('sub-' + bid);
@@ -871,8 +847,8 @@ function setSidebarActiveState() {
     branchEl.classList.toggle('has-active', hasActive);
   });
 
-  // Buka/tutup nav-sub & nav-sub-sub sesuai _openGroups - DOM lama dipertahankan,
-  // jadi transisi max-height jalan mulus.
+  
+  
   nav.querySelectorAll('.nav-sub, .nav-sub-sub').forEach(subEl => {
     const gid = subEl.id.replace('sub-', '');
     const shouldOpen = !!_openGroups[gid];
@@ -884,15 +860,13 @@ function setSidebarActiveState() {
 
 function toggleGroup(id) {
   const isOpen = _openGroups[id];
-  // tutup semua group dulu
+  
   _openGroups = {};
-  // kalau sebelumnya tutup, buka yang diklik; kalau sudah buka, toggle tutup
+  
   if (!isOpen) _openGroups[id] = true;
   setSidebarActiveState();
 }
 
-// Toggle sub-group (level ke-3, mis. "Standar Harga Satuan" di dalam menu e-Planning) -
-// beda dari toggleGroup(): TIDAK menutup group induk, cuma toggle sub-group ini sendiri.
 function toggleSubGroup(id) {
   _openGroups[id] = !_openGroups[id];
   setSidebarActiveState();
@@ -905,31 +879,29 @@ function navigateTo(subId, label, loader, groupId, pageId, subGroupId) {
   if (groupId) { _openGroups = {}; _openGroups[groupId] = true; }
   if (subGroupId) { _openGroups[subGroupId] = true; }
 
-  // Simpan posisi navigasi ke sessionStorage agar bisa di-restore saat refresh
+  
   try {
     sessionStorage.setItem('sapa_nav', JSON.stringify({
       subId, label, groupId: groupId || null, pageId: pageId || null, subGroupId: subGroupId || null
     }));
   } catch(e) {}
 
-  // hide semua page, show yang dituju
+  
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   const targetPage = pageId || 'page-dashboard';
   const el = document.getElementById(targetPage);
   if (el) el.classList.add('active');
 
-  // Topbar tidak lagi menampilkan judul teks (sudah ada di page-title masing-masing halaman)
+  
   setSidebarActiveState();
   closeSidebar();
 
   if (loader) { _currentLoader = loader; loader(); }
 }
 
-// ── SIDEBAR MOBILE ───────────────────────────────────────────────────────
 function openSidebar()  { document.getElementById('sidebar').classList.add('open'); document.getElementById('sidebarOverlay').classList.add('open'); }
 function closeSidebar() { document.getElementById('sidebar').classList.remove('open'); document.getElementById('sidebarOverlay').classList.remove('open'); }
 
-// ── SIDEBAR COLLAPSE (desktop) ───────────────────────────────────────────
 let _sidebarCollapsed = false;
 try { _sidebarCollapsed = localStorage.getItem('sapa_sidebar_collapsed') === '1'; } catch(e) {}
 
@@ -990,7 +962,6 @@ function toggleSidebarCollapse() {
   _applySidebarCollapse();
 }
 
-// ── Tooltip sidebar collapsed (pakai position:fixed agar tidak ke-clip overflow-y sidebar-nav) ──
 let _navTooltipEl = null;
 function _ensureNavTooltipEl() {
   if (_navTooltipEl) return _navTooltipEl;
@@ -1022,17 +993,14 @@ function _bindNavTooltips() {
     if (target.contains(e.relatedTarget)) return;
     if (_navTooltipEl) _navTooltipEl.classList.remove('show');
   });
-  // Sama seperti qtip: klik item nav collapsed (navigateTo/toggleGroup) memicu
-  // buildSidebar() yang mengosongkan nav.innerHTML sebelum mouseout sempat
-  // terjadi, jadi tooltip nyangkut. Tutup di klik sebagai jaring pengaman.
+  
+  
+  
   nav.addEventListener('click', () => {
     if (_navTooltipEl) _navTooltipEl.classList.remove('show');
   });
 }
 
-// ── Tooltip custom generik (pengganti native `title`) ───────────────────────
-// Cara pakai: kasih attribute data-tip="teks tooltip" ke elemen manapun.
-// Posisi fixed + auto-flip (atas/bawah) + auto-clamp biar gak kepotong layar.
 let _qtipEl = null;
 function _ensureQtipEl() {
   if (_qtipEl) return _qtipEl;
@@ -1059,7 +1027,7 @@ function _qtipPosition(target) {
   tip.style.left = left + 'px';
   tip.style.top  = top + 'px';
 
-  // arrow tetap nunjuk ke tengah target, bukan ke tengah box tooltip
+  
   const arrowLeft = Math.max(10, Math.min(r.left + r.width / 2 - left, tipRect.width - 10));
   tip.style.setProperty('--qtip-arrow-left', arrowLeft + 'px');
 }
@@ -1085,16 +1053,15 @@ function _bindQtips() {
   document.body.addEventListener('scroll', () => {
     if (_qtipEl) _qtipEl.classList.remove('show');
   }, true);
-  // Klik pada elemen ber-data-tip sering memicu re-render (elemen lama dihapus
-  // dari DOM) sebelum mouseout sempat terjadi, jadi tooltip nyangkut nempel.
-  // Tutup tooltip di setiap klik apapun sebagai jaring pengaman.
+  
+  
+  
   document.body.addEventListener('click', () => {
     if (_qtipEl) _qtipEl.classList.remove('show');
   }, true);
 }
 _bindQtips();
 
-// ── TOAST ────────────────────────────────────────────────────────────────
 const TOAST_ICONS = {
   success: `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>`,
   error:   `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>`,
@@ -1123,7 +1090,6 @@ function toast(msg, type = 'success') {
   }, 3500);
 }
 
-// ── CUSTOM CONFIRM ────────────────────────────────────────────────────────
 let _confirmResolve = null;
 const CONFIRM_ICONS = {
   trash: `<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path stroke-linecap="round" stroke-linejoin="round" d="M19 6l-1 14H6L5 6"/><path stroke-linecap="round" stroke-linejoin="round" d="M10 11v6m4-6v6"/><path stroke-linecap="round" stroke-linejoin="round" d="M9 6V4h6v2"/></svg>`,
@@ -1135,7 +1101,7 @@ function showConfirm({ title = 'Konfirmasi', msg = 'Apakah Anda yakin?', okText 
     _confirmResolve = resolve;
     document.getElementById('confirmTitle').textContent = title;
     document.getElementById('confirmMsg').innerHTML = msg;
-    // Tombol OK: tetap sertakan icon centang + teks
+    
     const okIconSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>`;
     document.getElementById('confirmOk').innerHTML = okIconSvg + ' ' + okText;
     document.getElementById('confirmOk').className = type === 'warning' ? 'warning-btn' : '';
@@ -1154,13 +1120,11 @@ document.getElementById('confirmOverlay').addEventListener('click', e => {
   if (e.target === document.getElementById('confirmOverlay')) closeConfirm();
 });
 
-// ── MODAL ────────────────────────────────────────────────────────────────
 function openModal(id)  { document.getElementById(id).classList.add('open'); }
 function closeModal(id) { document.getElementById(id).classList.remove('open'); }
 function esc(s) { return String(s||'').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 function fmtDate(s) { if (!s) return '-'; const d = new Date(s); const tgl = d.toLocaleDateString('id-ID', {day:'2-digit',month:'short',year:'numeric',timeZone:'Asia/Makassar'}); const opt = {timeZone:'Asia/Makassar'}; const wita = new Date(d.toLocaleString('en-US', opt)); const hh = String(wita.getHours()).padStart(2,'0'); const mm = String(wita.getMinutes()).padStart(2,'0'); return `${tgl}, ${hh}:${mm} WITA`; }
 
-// ── PAGINATION ───────────────────────────────────────────────────────────
 function renderPagination(containerId, total, page, limit, onPageChange) {
   const pages = Math.ceil(total / limit);
   const c = document.getElementById(containerId);
@@ -1196,16 +1160,11 @@ function renderPagination(containerId, total, page, limit, onPageChange) {
   html += '</div>';
   c.innerHTML = `<div class="pagination-wrap">${info}${html}</div>`;
 }
-// helper for function-callback pagination (stores cb by containerId)
+
 const _pgCallbacks = {};
 function _pgRegister(containerId, cb) { _pgCallbacks[containerId] = cb; }
 function _pgCall(containerId, page) { _pgCallbacks[containerId] && _pgCallbacks[containerId](page); }
 
-
-// ── INIT ─────────────────────────────────────────────────────────────────
-// Avatar: pakai foto profil (upload sendiri atau data Pegawai) kalau ada,
-// fallback ke inisial huruf. Dipasang di 2 tempat: tombol avatar topbar &
-// header dropdown. Scope global (dipakai juga oleh saveAvatarUpload()).
 function _renderAvatarInto(el, fotoUrl) {
   if (!el) return;
   const initial = (_user?.nama || 'U')[0].toUpperCase();
@@ -1224,12 +1183,6 @@ function _applyTopbarAvatar(fotoUrl) {
   _renderAvatarInto(document.getElementById('ddAvatar'), fotoUrl);
 }
 
-// Ambil foto profil (join users.nip → pegawai.foto_url) dari server, cache
-// ringan di sessionStorage biar avatar nggak "kedip" balik ke inisial tiap
-// pindah halaman dalam sesi yang sama. Scope global (sama kayak
-// _applyTopbarAvatar) supaya bisa dipanggil juga dari doLogin() di app.html -
-// karena login itu SPA, gak reload halaman, jadi kode boot di dalam IIFE
-// app.js gak pernah kepanggil ulang.
 async function _bootRefreshFoto() {
   try {
     const cacheKey = `sapa_user_foto_${_user.id}`;
@@ -1248,12 +1201,12 @@ async function _bootRefreshFoto() {
 (function _domReady(fn) { if (document.readyState === 'loading') { window.addEventListener('DOMContentLoaded', fn); } else { fn(); } })(function() {
   if (!initAuth()) return;
 
-  // Set info user di topbar
+  
   _applyTopbarAvatar(_user.foto_url || null);
   document.getElementById('topbarName').textContent = _user.nama;
   document.getElementById('topbarRole').textContent = _user.is_admin ? 'Super Admin' : (_user.bidang_nama || '');
   document.getElementById('ddName').textContent = _user.nama;
-  // ddRole: hanya tampil untuk Super Admin
+  
   const _ddRoleEl = document.getElementById('ddRole');
   if (_ddRoleEl) { _ddRoleEl.textContent = 'Super Admin'; _ddRoleEl.style.display = _user.is_admin ? '' : 'none'; }
   (function() {
@@ -1283,7 +1236,7 @@ async function _bootRefreshFoto() {
           _user.bidang_id        = d.user.bidang_id;
           _user.bidang_singkatan = d.user.bidang_singkatan;
           sessionStorage.setItem('sapa_user', JSON.stringify(_user));
-          // update topbar role & dropdown bidang
+          
           const trEl = document.getElementById('topbarRole');
           if (trEl) trEl.textContent = _user.bidang_nama;
           const ddBidang = document.getElementById('ddBidang');
@@ -1303,16 +1256,16 @@ async function _bootRefreshFoto() {
       // Reminder absensi masuk/keluar - muncul otomatis kalau udah waktunya
       // dan belum diisi, tanpa user perlu buka menu Absensi.
       if (typeof _cekAbsensiReminder === 'function') _cekAbsensiReminder();
-      // Notif pengajuan tugas luar/cuti pending - muncul otomatis buat
-      // admin/full begitu login, tanpa perlu buka menu Absensi dulu.
+      
+      
       if (typeof _cekPengajuanPendingReminder === 'function') _cekPengajuanPendingReminder();
 
-      // ── Restore halaman terakhir sebelum refresh ───────────────────────
-      // sessionStorage hilang saat tab ditutup (bukan saat refresh),
-      // sehingga aman: sesi baru selalu mulai dari dashboard.
+      
+      
+      
       let _restored = false;
 
-      // Helper: cari child menu pertama yang bisa diakses user, opsional dibatasi ke 1 grup
+      
       const _firstAccessibleChild = (onlyGroupId) => {
         for (const g of MENUS) {
           if (onlyGroupId && g.id !== onlyGroupId) continue;
@@ -1337,11 +1290,11 @@ async function _bootRefreshFoto() {
         return null;
       };
 
-      // Non-admin yang satu-satunya modul accessible-nya cuma "Kinerja" (nggak ada akses
-      // Surat/Superlink/dll) → dipakai SEBAGAI FALLBACK doang kalau user memang nggak
-      // punya akses ke Dashboard Utama. Kalau dia punya akses dashboard, dashboard tetap
-      // yang diutamakan - biar konsisten sama aturan "kalau ada akses dashboard, ke situ
-      // dulu; baru kalau nggak ada, ke menu yang di-assign."
+      
+      
+      
+      
+      
       const _onlyKinerjaAvailable = !_user.is_admin && (() => {
         const hasOtherModule = MENUS.some(g => {
           if (g.id === 'kinerja' || g.adminOnly) return false;
@@ -1359,13 +1312,13 @@ async function _bootRefreshFoto() {
         const _saved = sessionStorage.getItem('sapa_nav');
         if (_saved) {
           const nav = JSON.parse(_saved);
-          // Cari loader dari MENUS berdasarkan subId yang tersimpan
+          
           if (nav.subId === 'dashboard' && (_user.is_admin || hasAccess('dashboard'))) {
             loadDashboard();
             _restored = true;
           } else if (nav.subId === 'dashboard') {
-            // Sesi lama simpan dashboard tapi user sekarang tidak punya akses ke situ
-            // → biarkan fallback handler jalan
+            
+            
             _restored = false;
           } else if (nav.subId && nav.subId !== 'dashboard') {
             let _found = false;
@@ -1406,13 +1359,13 @@ async function _bootRefreshFoto() {
 
       if (!_restored) {
         if (!_user.is_admin && !hasAccess('dashboard')) {
-          // Non-admin tanpa permission dashboard → buka menu pertama yang accessible,
-          // diutamakan Kinerja kalau itu satu-satunya modul yang dia punya
+          
+          
           const found = _onlyKinerjaAvailable ? _firstAccessibleChild('kinerja') : _firstAccessibleChild(null);
           if (found) {
             navigateTo(found.child.id, found.child.label, found.child.loader, found.group.id, found.child.page, found.subGroup ? found.subGroup.id : null);
           } else {
-            // Tidak ada menu apapun - tampilkan pesan
+            
             document.getElementById('mainContent').innerHTML =
               '<div style="padding:2rem;text-align:center;color:#6b7280;">Belum ada menu yang dapat diakses. Hubungi administrator.</div>';
           }
@@ -1423,17 +1376,14 @@ async function _bootRefreshFoto() {
     });
 });
 
-// Close modal saat klik overlay
 document.querySelectorAll('.modal-overlay, .modal-overlay-main').forEach(overlay => {
   overlay.addEventListener('click', e => { if (e.target === overlay) overlay.classList.remove('open'); });
 });
 
-// ── Tab switcher (kinerja admin) ────────────────────────────────────────
-// Profile dropdown toggle
 function toggleProfileDD() {
   document.getElementById('topbarDropdown').classList.toggle('open');
 }
-// Close dropdown saat klik di luar
+
 document.addEventListener('click', e => {
   const dd = document.getElementById('topbarDropdown');
   const btn = document.getElementById('topbarAvatar');
@@ -1442,9 +1392,6 @@ document.addEventListener('click', e => {
   }
 });
 
-// ══════════════════════════════════════════════════════
-// CUSTOM DATEPICKER
-// ══════════════════════════════════════════════════════
 const BULAN_ID = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
 const HARI_ID  = ['Min','Sen','Sel','Rab','Kam','Jum','Sab'];
 
@@ -1453,10 +1400,10 @@ class DatePicker {
     this.containerId = containerId;
     this.placeholder = placeholder;
     this.alignRight  = alignRight;
-    this.value       = null;   // 'YYYY-MM-DD' string atau null
+    this.value       = null;   
     this.viewYear    = null;
     this.viewMonth   = null;
-    this.mode        = 'days'; // 'days' | 'months' | 'years'
+    this.mode        = 'days'; 
     this._open       = false;
     this._render();
   }
@@ -1478,7 +1425,7 @@ class DatePicker {
       }
       ${this._open ? this._renderPopup() : ''}
     `;
-    // Events
+    
     wrap.querySelector(`#${this.containerId}-btn`).addEventListener('click', e => { e.stopPropagation(); this._toggle(); });
     const clr = wrap.querySelector(`#${this.containerId}-clear`);
     if (clr) clr.addEventListener('click', e => { e.stopPropagation(); this.setValue(null); });
@@ -1568,7 +1515,7 @@ class DatePicker {
     if (!popup) return;
     popup.addEventListener('click', e => e.stopPropagation());
 
-    // Prev/Next
+    
     const prev = wrap.querySelector(`#${this.containerId}-prev`);
     const next = wrap.querySelector(`#${this.containerId}-next`);
     if (prev) prev.addEventListener('click', () => {
@@ -1584,7 +1531,7 @@ class DatePicker {
       this._render();
     });
 
-    // Klik "Bulan" → langsung ke mode pilih bulan; klik "Tahun" → langsung ke mode pilih tahun
+    
     wrap.querySelectorAll('[data-switch]').forEach(el => {
       el.addEventListener('click', () => {
         this.mode = el.dataset.switch;
@@ -1592,21 +1539,21 @@ class DatePicker {
       });
     });
 
-    // Day pick
+    
     if (this.mode === 'days') {
       wrap.querySelectorAll(`[data-pick]`).forEach(btn => {
         btn.addEventListener('click', () => { this.setValue(btn.dataset.pick); this._close(); });
       });
     }
 
-    // Month pick
+    
     if (this.mode === 'months') {
       wrap.querySelectorAll('[data-m]').forEach(btn => {
         btn.addEventListener('click', () => { this.viewMonth = parseInt(btn.dataset.m); this.mode = 'days'; this._render(); });
       });
     }
 
-    // Year pick
+    
     if (this.mode === 'years') {
       wrap.querySelectorAll('[data-y]').forEach(btn => {
         btn.addEventListener('click', () => { this.viewYear = parseInt(btn.dataset.y); this.mode = 'months'; this._render(); });
@@ -1618,7 +1565,7 @@ class DatePicker {
     this._open ? this._close() : this._open_();
   }
   _open_() {
-    // Close all other pickers first
+    
     Object.values(_datepickers).forEach(dp => { if (dp !== this && dp._open) dp._close(); });
     this._open = true;
     this.mode = 'days';
@@ -1637,7 +1584,7 @@ class DatePicker {
   setValue(dateStr) {
     this.value = dateStr || null;
     this._render();
-    // Sync ke hidden input jika ada
+    
     const hidden = document.getElementById(this.containerId.replace('dp-',''));
     if (hidden) hidden.value = this.value || '';
   }
@@ -1675,12 +1622,10 @@ function dpGetValue(id) {
   return dp ? dp.getValue() : null;
 }
 
-// Close datepicker saat klik di luar
 document.addEventListener('click', () => {
   Object.values(_datepickers).forEach(dp => { if (dp._open) dp._close(); });
 });
 
-// Init datepickers setelah DOM ready
 (function _domReady(fn) { if (document.readyState === 'loading') { window.addEventListener('DOMContentLoaded', fn); } else { fn(); } })(function() {
   initDatePicker('smTglSurat',  { placeholder: 'Pilih tanggal' });
   initDatePicker('smTglTerima', { placeholder: 'Pilih tanggal' });
@@ -1688,20 +1633,9 @@ document.addEventListener('click', () => {
   initDatePicker('skTglSurat',  { placeholder: 'Pilih tanggal' });
 });
 
-// ═══════════════════════════════════════════════════════════════════════════
-// DOC PREVIEW PANEL - viewDoc / viewDocMulti
-// Menggunakan #docPreviewPanel yang sudah ada di app.html.
-// File PDF    → PDF.js (render canvas lokal, tidak via iframe)
-// File Word   → mammoth.js (ArrayBuffer → HTML)
-// File Excel  → SheetJS (ArrayBuffer → tabel HTML, tab per sheet)
-// File PPT    → fallback download (tidak bisa dirender lokal)
-// File gambar → <img> langsung via proxy
-// ═══════════════════════════════════════════════════════════════════════════
-
 const _OFFICE_EXTS = new Set(['doc','docx','xls','xlsx','ppt','pptx']);
 const _IMG_EXTS    = new Set(['jpg','jpeg','png','gif','webp','svg']);
 
-// CDN library lazy-load
 const _PDFJS_CDN    = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
 const _PDFJS_WORKER = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 const _MAMMOTH_CDN  = 'https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js';
@@ -1716,14 +1650,11 @@ function _dpLoadScript(src) {
   });
 }
 
-// ── Koreksi resource_type URL Cloudinary di frontend ─────────────────────
-// File PDF/doc/xlsx yang di-upload sebelum fix resource_type di upload.js
-// mungkin tersimpan dengan /image/upload/ → koreksi ke /raw/upload/ di sini.
 const _RAW_EXTS_FE = new Set(['pdf','doc','docx','xls','xlsx','ppt','pptx','zip','txt','csv']);
 function _fixCloudinaryUrl(url, hintExt = '') {
   try {
     if (!url || !url.includes('cloudinary.com')) return url;
-    if (url.includes('/raw/upload/')) return url; // sudah benar
+    if (url.includes('/raw/upload/')) return url; 
     if (url.includes('/image/upload/')) {
       const filename = url.split('/').pop().split('?')[0];
       const extFromUrl  = filename.includes('.') ? filename.split('.').pop().toLowerCase() : '';
@@ -1773,14 +1704,14 @@ async function _dpCheckProxy(resp) {
       console.error('[sign-url 401 debug]', JSON.stringify(debug));
       // Jika reason=token_expired atau invalid_token → sesi memang berakhir
       if (debug.reason === 'token_expired' || debug.reason === 'invalid_token') {
-        // Tampilkan pesan lalu redirect login
+        
         throw new Error('Sesi Anda telah berakhir. Silakan login kembali.');
       }
-      // Selain itu (misal Cloudinary 401 diteruskan) → tampilkan pesan biasa
+      
       const hint = debug.hint ? ` (${debug.hint})` : '';
       throw new Error((debug.error || 'Gagal mengakses file') + hint);
     } catch (jsonErr) {
-      // Jika bukan JSON atau sudah re-throw dari atas
+      
       if (jsonErr.message && !jsonErr.message.includes('JSON')) throw jsonErr;
     }
     throw new Error('Gagal mengakses file - link mungkin sudah kedaluwarsa. Coba download langsung.');
@@ -1788,8 +1719,7 @@ async function _dpCheckProxy(resp) {
   return resp;
 }
 
-// State panel
-let _dpFiles   = [];   // array { url, name }
+let _dpFiles   = [];   
 let _dpIdx     = 0;
 let _dpZoom    = 1;
 let _dpLabel   = '';
@@ -1833,7 +1763,7 @@ function viewDocMulti(files, startIdx = 0, label = '', onDelete = null) {
   _dpOnDelete = typeof onDelete === 'function' ? onDelete : null;
   _dpZoom     = 1;
 
-  // Tampilkan delete btn hanya jika ada callback
+  
   const delBtn = document.getElementById('docPreviewDeleteBtn');
   if (delBtn) delBtn.style.display = _dpOnDelete ? '' : 'none';
 
@@ -1847,7 +1777,7 @@ function closeDocPreview() {
   document.getElementById('docPreviewPanel').style.display = 'none';
   _setSidebarDisabled(false);
   document.removeEventListener('keydown', _dpKeyHandler);
-  // Bersihkan iframe/img agar tidak terus loading di background
+  
   const body = document.getElementById('docPreviewBody');
   if (body) body.innerHTML = '';
   _dpFiles    = [];
@@ -1884,21 +1814,17 @@ function dpZoom(delta) {
   if (label)    label.textContent = Math.round(_dpZoom * 100) + '%';
   if (resetBtn) resetBtn.style.display = _dpZoom !== 1 ? '' : 'none';
 
-  // Terapkan zoom ke konten
+  
   const body    = document.getElementById('docPreviewBody');
   const content = body?.querySelector('.dp-content');
   if (content) content.style.transform = `scale(${_dpZoom})`;
 }
-
-// ── Delete ─────────────────────────────────────────────────────────────────
 
 function dpDeleteCurrent() {
   if (!_dpOnDelete) return;
   const file = _dpFiles[_dpIdx];
   _dpOnDelete(_dpIdx, file);
 }
-
-// ── Keyboard handler ───────────────────────────────────────────────────────
 
 function _dpKeyHandler(e) {
   if (e.key === 'Escape')      closeDocPreview();
@@ -1908,8 +1834,6 @@ function _dpKeyHandler(e) {
   if (e.key === '-')           dpZoom(-0.25);
   if (e.key === '0')           dpZoom(0);
 }
-
-// ── Core renderer ──────────────────────────────────────────────────────────
 
 function _dpRender() {
   const file = _dpFiles[_dpIdx];
@@ -1935,11 +1859,11 @@ function _dpRender() {
   if (resetBtn)  resetBtn.style.display = 'none';
   if (gdocsBtn)  gdocsBtn.style.display = 'none';
 
-  // Download link → via sign-url mode=download agar nama file benar
+  
   const dlUrl = _dpProxyUrl(file.url, 'download', file.name);
   if (dlLink) { dlLink.href = dlUrl; dlLink.download = file.name || 'dokumen'; }
 
-  // Nav arrows & dots
+  
   const prevBtn = document.getElementById('dpNavPrev');
   const nextBtn = document.getElementById('dpNavNext');
   const dotsEl  = document.getElementById('dpDots');
@@ -1948,7 +1872,7 @@ function _dpRender() {
   if (prevBtn) prevBtn.disabled = _dpIdx === 0;
   if (nextBtn) nextBtn.disabled = _dpIdx === _dpFiles.length - 1;
 
-  // Dots indicator
+  
   if (dotsEl) {
     if (_dpFiles.length > 1) {
       dotsEl.style.display = 'flex';
@@ -1960,7 +1884,7 @@ function _dpRender() {
     }
   }
 
-  // Render konten berdasarkan tipe file
+  
   const body = document.getElementById('docPreviewBody');
   if (!body) return;
   body.innerHTML = _dpLoadingHtml();
@@ -1976,7 +1900,7 @@ function _dpRender() {
   } else if (['ppt','pptx'].includes(ext)) {
     _dpRenderPptFallback(_dpProxyUrl(file.url, 'download', file.name), file.name);
   } else {
-    // Tipe tidak dikenal → tampilkan pesan dengan opsi download
+    
     body.innerHTML = `
       <div style="text-align:center;color:#94a3b8;padding:40px 20px">
         <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" fill="none" viewBox="0 0 24 24" stroke="#475569" stroke-width="1.5" style="margin-bottom:16px"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
@@ -1985,8 +1909,6 @@ function _dpRender() {
       </div>`;
   }
 }
-
-// ── Sub-renderers ──────────────────────────────────────────────────────────
 
 function _dpRenderImage(url, name) {
   const body = document.getElementById('docPreviewBody');
@@ -2029,7 +1951,7 @@ async function _dpRenderPdf(proxyUrl, name, originalUrl) {
     pdfjsLib.GlobalWorkerOptions.workerSrc = _PDFJS_WORKER;
   }
 
-  // ── Helper: render ArrayBuffer ke canvas ──────────────────────────────
+  
   async function renderPdfBuffer(buf) {
     if (!buf || buf.byteLength === 0) throw new Error('Buffer kosong');
     const magic = new Uint8Array(buf, 0, 4);
@@ -2055,9 +1977,9 @@ async function _dpRenderPdf(proxyUrl, name, originalUrl) {
     }
   }
 
-  // ── S1: Fetch langsung dari Cloudinary URL (bypass proxy, tidak ada limit size) ──
-  // Koreksi resource_type dulu: file lama mungkin tersimpan dengan /image/upload/
-  // padahal harusnya /raw/upload/ → Cloudinary return 401 jika salah resource_type.
+  
+  
+  
   if (originalUrl) {
     try {
       body.innerHTML = _dpLoadingHtml('Mengambil PDF…');
@@ -2077,7 +1999,7 @@ async function _dpRenderPdf(proxyUrl, name, originalUrl) {
     }
   }
 
-  // ── S2: Fetch via proxy /api/sign-url (untuk file yang butuh auth/signed URL) ──
+  
   try {
     body.innerHTML = _dpLoadingHtml('Mengambil PDF via proxy…');
     const fetchHeaders = {};
@@ -2087,7 +2009,7 @@ async function _dpRenderPdf(proxyUrl, name, originalUrl) {
     const r2 = await _dpCheckProxy(await fetch(proxyUrl, { headers: fetchHeaders, redirect: 'follow' }));
     if (!r2.ok) throw new Error(`Proxy HTTP ${r2.status}`);
 
-    // Jika proxy redirect ke Cloudinary (file > 4MB), fetch dari sana
+    
     const redirectUrl = r2._redirectUrl || (r2.redirected ? r2.url : null);
     if (redirectUrl && redirectUrl.includes('cloudinary.com')) {
       const r2b = await fetch(redirectUrl, { headers: { 'Accept': '*/*' } });
@@ -2106,7 +2028,7 @@ async function _dpRenderPdf(proxyUrl, name, originalUrl) {
     console.warn('[PDF S2] Gagal via proxy:', e.message, '- coba iframe blob…');
   }
 
-  // ── S3: Iframe blob - fetch proxy → Blob URL → iframe native viewer ──────
+  
   try {
     body.innerHTML = _dpLoadingHtml('Memuat PDF (mode native)…');
     const r3 = await fetch(proxyUrl, { redirect: 'follow' });
@@ -2127,10 +2049,10 @@ async function _dpRenderPdf(proxyUrl, name, originalUrl) {
     console.warn('[PDF S3] Gagal:', e.message);
   }
 
-  // Semua strategi gagal
+  
   _dpRenderError('PDF tidak dapat ditampilkan. Coba download file.', originalUrl, name);
 }
-// ── Renderer: Word (.doc/.docx) via mammoth.js ────────────────────────────
+
 async function _dpRenderWord(proxyUrl, name) {
   const body = document.getElementById('docPreviewBody');
   body.style.background = '';
@@ -2157,7 +2079,6 @@ async function _dpRenderWord(proxyUrl, name) {
   body.appendChild(wrapper);
 }
 
-// ── Renderer: Excel (.xls/.xlsx) via SheetJS ─────────────────────────────
 async function _dpRenderExcel(proxyUrl, name) {
   const body = document.getElementById('docPreviewBody');
   body.style.background = '';
@@ -2213,7 +2134,6 @@ function _dpShowSheet(container, workbook, sheetName) {
   </div>`;
 }
 
-// ── Renderer: PPT/PPTX - tidak bisa lokal, tampilkan download ─────────────
 function _dpRenderPptFallback(downloadUrl, fileName) {
   const body = document.getElementById('docPreviewBody');
   body.style.background = '';
@@ -2245,7 +2165,6 @@ function _dpRenderError(msg, originalUrl, name) {
   </div>`;
 }
 
-// ── Google Docs Viewer fallback (dipertahankan untuk tombol di header) ─────
 function docPreviewUseGdocs() {
   const file = _dpFiles[_dpIdx];
   if (!file) return;
@@ -2286,18 +2205,14 @@ function _dpLoadingHtml(msg = 'Memuat dokumen...') {
       <span style="font-size:.82rem">${msg}</span>
     </div>`;
 }
-// ══════════════════════════════════════════════════════
-// KELOLA LAPORAN TEMPLATE (Tab di Kelola Indikator)
-// ══════════════════════════════════════════════════════
 
-let _lapMode = 'urusan'; // 'urusan' | 'tsp'
+let _lapMode = 'urusan'; 
 let _lapTemplateList  = [];
 let _lapTemplateEditId = null;
 let _lapTplCurrentTemplateId = null;
 let _lapTplAllIndikator = [];
 let _lapTplSelectedIds  = new Set();
 
-// State cascade TSP
 const LAP_CASCADE_LEVELS = ['tujuan', 'sasaran', 'program', 'kegiatan'];
 const LAP_JENIS_LABEL    = { urusan:'Urusan', tujuan:'Tujuan', sasaran:'Sasaran Strategis', program:'Program', kegiatan:'Kegiatan' };
 const LAP_JENIS_COLOR    = {
@@ -2306,12 +2221,11 @@ const LAP_JENIS_COLOR    = {
   program:  { bg:'#fef3c7', col:'#92400e', hdr:'#d97706', light:'#fffbeb' },
   kegiatan: { bg:'#fee2e2', col:'#991b1b', hdr:'#dc2626', light:'#fff5f5' },
 };
-// selectedId per level [tujuanId, sasaranId, programId] - null jika belum dipilih
+
 let _lapCascadeSel = [null, null, null];
-// cache data per level: Map<parentId|'root', items[]>
+
 let _lapCascadeCache = {};
 
-// ── _syncSelectTrigger (tetap dipakai untuk select lain di app) ────────────
 function _syncSelectTrigger(selectEl) {
   if (!selectEl) return;
   const wrap = selectEl.closest('.select-wrap');
@@ -2334,9 +2248,8 @@ function switchLapMode(mode) {
   else _initLapCascade();
 }
 
-// ── Entry point (dipanggil saat tab Laporan dibuka) ───────────────────────
 async function loadLapTemplateAdmin() {
-  // Mode urusan - tabel sederhana
+  
   const tbody = document.getElementById('lapTemplateBody');
   if (!tbody) return;
   tbody.innerHTML = `<tr class="empty-row"><td colspan="5"><span class="btn-spin" style="width:11px;height:11px;vertical-align:-1px;margin-right:6px"></span>Memuat data...</td></tr>`;
@@ -2531,7 +2444,6 @@ function _getCascadeParentNama(level) {
   return items.find(t => t.id === parentId)?.nama || null;
 }
 
-// ── Buka modal Edit dari cascade ──────────────────────────────────────────
 function _openCascadeEdit(level, id) {
   const jenis = LAP_CASCADE_LEVELS[level];
   const grandParentId = level > 0 ? _lapCascadeSel[level - 1] : null;
@@ -2542,18 +2454,12 @@ function _openCascadeEdit(level, id) {
   openLapTemplateModal(id, jenis, tpl.parent_id || null, null, tpl.nama);
 }
 
-// ── Modal Tambah/Edit universal ───────────────────────────────────────────
-// ── Custom select untuk field Induk di modal TSP ──────────────────────────
-// Panel dirender floating position:fixed di document.body saat dibuka (bukan
-// position:absolute nested di wrap), biar gak ke-clip overflow-y:auto pada
-// .modal-body - sama pola dgn initIndikatorPJSearchable() di kinerja.js &
-// buildCustomSelect() di app.html.
 function _buildLapParentCsel(wrapperId, opts, selectedVal, placeholder, jenisLabel) {
   const wrap = document.getElementById(wrapperId);
   if (!wrap) return;
 
-  // Buang panel + listener dari instance sebelumnya (fungsi ini dipanggil ulang
-  // tiap modal dibuka) biar gak numpuk/orphan di document.body.
+  
+  
   if (wrap._lapCselPanel) { wrap._lapCselPanel.remove(); wrap._lapCselPanel = null; }
   if (wrap._lapCselOutside) document.removeEventListener('click', wrap._lapCselOutside);
   if (wrap._lapCselScroll)  window.removeEventListener('scroll', wrap._lapCselScroll, true);
@@ -2915,8 +2821,8 @@ async function saveLapTemplateIndikator() {
     toast(`${ids.length} indikator berhasil disimpan`, 'success');
     closeModal('modalLapTemplateIndikator');
 
-    // Reload cascade level yang bersangkutan supaya jumlah_indikator update
-    // Cari level dari item yang sedang diedit
+    
+    
     let reloaded = false;
     for (let level = 0; level < LAP_CASCADE_LEVELS.length; level++) {
       const cached = _lapCascadeCache[`${level}_${level === 0 ? 'root' : (_lapCascadeSel[level - 1] ?? 'root')}`] || [];
