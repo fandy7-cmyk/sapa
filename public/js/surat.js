@@ -306,7 +306,10 @@ async function loadSuratMasuk(page = 1) {
     // Populate dropdown tahun hanya saat page=1 tanpa filter tahun (supaya tetap lengkap)
     if (page === 1 && !tahun && !bulan) {
       try {
-        const rAll = await fetch('/api/surat-masuk?limit=9999&q=', { headers: authHeaders() });
+        // Dulu fetch SEMUA baris (limit=9999, SELECT *) cuma buat nurunin
+        // pilihan dropdown. Sekarang endpoint ringan yg cuma kirim kolom
+        // yg kepake (tanggal_surat/tanggal_terima/pegawai/selesai/batas_waktu).
+        const rAll = await fetch('/api/surat-masuk/filter-meta', { headers: authHeaders() });
         const dAll = await rAll.json();
         _populateSuratTahun(dAll.surat || [], 'smFilterTahun');
         _populateSuratBulan(dAll.surat || [], 'smFilterBulan', 'tanggal_terima');
@@ -472,7 +475,8 @@ async function loadSuratKeluar(page = 1) {
     // Populate dropdown tahun surat keluar
     if (page === 1 && !tahun && !bulan) {
       try {
-        const rAll = await fetch('/api/surat-keluar?limit=9999&q=', { headers: authHeaders() });
+        // Sama kayak surat masuk - endpoint ringan, bukan fetch semua baris
+        const rAll = await fetch('/api/surat-keluar/filter-meta', { headers: authHeaders() });
         const dAll = await rAll.json();
         _populateSuratTahun(dAll.surat || [], 'skFilterTahun');
         _populateSuratBulan(dAll.surat || [], 'skFilterBulan', 'tanggal_surat');

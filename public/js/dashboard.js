@@ -2409,20 +2409,23 @@ async function _initKinerjaWatch() {
   el.innerHTML = `<div class="kw-wrap"><div class="skeleton" style="height:280px;border-radius:14px"></div></div>`;
 
   try {
-    // Fetch semua 12 bulan sekaligus untuk tahun aktif
-    await _kwFetchTahun(tahun);
+    // _kwFetchTahun / periode-list / indikator-list independen satu sama lain -
+    // dulu berurutan (3 round-trip nunggu satu-satu), sekarang paralel.
+    const [, rAllResult, rIndResult] = await Promise.all([
+      _kwFetchTahun(tahun),
+      fetch('/api/periode', { headers: authHeaders() })
+        .then(r => r.ok ? r.json() : null).catch(() => null),
+      fetch('/api/kinerja/indikator', { headers: authHeaders() })
+        .then(r => r.ok ? r.json() : null).catch(() => null),
+    ]);
 
     // ── Bangun tahunList dari SEMUA periode di DB (bukan hanya yang window-nya aktif) ──
     // Penting: data tahun lama (misal 2026) tetap muncul meski window input sudah ditutup
     let tahunDariPeriode = [];
-    try {
-      const rAll = await fetch('/api/periode', { headers: authHeaders() });
-      if (rAll.ok) {
-        const dAll = await rAll.json();
-        tahunDariPeriode = [...new Set((dAll.periode || []).map(p => p.tahun))]
-          .filter(Boolean).sort((a, b) => a - b);
-      }
-    } catch {}
+    if (rAllResult) {
+      tahunDariPeriode = [...new Set((rAllResult.periode || []).map(p => p.tahun))]
+        .filter(Boolean).sort((a, b) => a - b);
+    }
 
     // Fallback ke variabel global jika fetch gagal
     if (!tahunDariPeriode.length) {
@@ -2451,26 +2454,20 @@ async function _initKinerjaWatch() {
         .then(() => _renderKinerjaWatch()).catch(() => {});
     }
 
-    // Fetch semua indikator aktif sebagai sumber dropdown (bukan dari rekap)
-    try {
-      const rInd = await fetch('/api/kinerja/indikator', { headers: authHeaders() });
-      if (rInd.ok) {
-        const dInd = await rInd.json();
-        _kwAllIndikator = (dInd.indikator || [])
-          .filter(r => r.aktif !== false)
-          .map(r => ({
-            id:                r.id,
-            indikator_kinerja: r.indikator_kinerja,
-            satuan:            r.satuan,
-            target_tahun:      r.target_tahun,
-            target_display:    r.target_display,
-            penanggung_jawab:  r.penanggung_jawab,
-            group_nama:        r.group_nama,
-            bermakna_negatif:  r.bermakna_negatif,
-            tipe_nilai:        r.tipe_nilai,
-          }));
-      }
-    } catch { _kwAllIndikator = []; }
+    // Semua indikator aktif sebagai sumber dropdown (bukan dari rekap)
+    _kwAllIndikator = ((rIndResult?.indikator) || [])
+      .filter(r => r.aktif !== false)
+      .map(r => ({
+        id:                r.id,
+        indikator_kinerja: r.indikator_kinerja,
+        satuan:            r.satuan,
+        target_tahun:      r.target_tahun,
+        target_display:    r.target_display,
+        penanggung_jawab:  r.penanggung_jawab,
+        group_nama:        r.group_nama,
+        bermakna_negatif:  r.bermakna_negatif,
+        tipe_nilai:        r.tipe_nilai,
+      }));
   } catch {
     _kwAllIndikator = [];
   }
@@ -2500,36 +2497,94 @@ async function _initKinerjaWatch() {
 const _KW_JENIS_LIST = ['monev', 'ikk', 'spm'];
 const _KW_MAX_CONCURRENT = 4;
 
-async function _kwFetchTahun(tahun) {
-  if (_kwAllRekap[tahun]) return; // already fetched
-  _kwAllRekap[tahun] = {};
+// ── Cache localStorage utk rekap tahunan (stale-while-revalidate) ─────────
+// Tujuan: pas login/reload berikutnya, chart "Tren Per Bulan"/IKU langsung
+// muncul pakai data lama (dari localStorage) TANPA nunggu network sama
+// sekali, sambil data fresh tetap di-fetch di background lalu nimpa +
+// re-render kalau ternyata ada yang berubah. Cache per user per tahun.
+const KW_REKAP_CACHE_KEY = (tahun) => `kw_rekap_${_user?.id || 'guest'}_${tahun}`;
+const KW_REKAP_CACHE_TTL = 24 * 3600 * 1000; // di atas ini dianggap kadaluarsa total (fallback ke fetch blocking)
+const _kwBgRefreshing = new Set(); // tahun yg lagi direfresh di background, cegah dobel fetch
 
-  const tasks = [];
-  for (let b = 1; b <= 12; b++) {
-    for (const jenis of _KW_JENIS_LIST) tasks.push({ b, jenis });
-  }
+function _kwReadRekapCache(tahun) {
+  try {
+    const raw = localStorage.getItem(KW_REKAP_CACHE_KEY(tahun));
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (!parsed || !parsed.data || !parsed.ts) return null;
+    return parsed;
+  } catch { return null; }
+}
+
+function _kwWriteRekapCache(tahun, data) {
+  try {
+    localStorage.setItem(KW_REKAP_CACHE_KEY(tahun), JSON.stringify({ ts: Date.now(), data }));
+  } catch {} // localStorage penuh/disabled - gak fatal, cuma berarti gak ada cache
+}
+
+function _kwClearRekapCache(tahun) {
+  try { localStorage.removeItem(KW_REKAP_CACHE_KEY(tahun)); } catch {}
+}
+
+// Fetch fresh dari server (1 query per jenis via /api/kinerja/rekap/tahun,
+// gantiin 12x panggil rekap per-bulan yg lama - dari 36 request jadi 3).
+async function _kwFetchTahunFresh(tahun) {
   const hasilPerBulan = new Map();
   for (let b = 1; b <= 12; b++) hasilPerBulan.set(b, []);
 
-  let idx = 0;
-  async function worker() {
-    while (idx < tasks.length) {
-      const { b, jenis } = tasks[idx++];
-      const d = await fetch(`/api/kinerja/rekap?bulan=${b}&tahun=${tahun}&jenis=${jenis}`, { headers: authHeaders() })
+  const hasilPerJenis = await Promise.all(
+    _KW_JENIS_LIST.map(jenis =>
+      fetch(`/api/kinerja/rekap/tahun?tahun=${tahun}&jenis=${jenis}`, { headers: authHeaders() })
         .then(r => r.ok ? r.json() : { rekap: [] })
-        .catch(() => ({ rekap: [] }));
-      hasilPerBulan.get(b).push(d);
-    }
-  }
-  await Promise.all(Array.from({ length: _KW_MAX_CONCURRENT }, () => worker()));
+        .catch(() => ({ rekap: [] }))
+    )
+  );
+  hasilPerJenis.forEach(d => {
+    (d.rekap || []).forEach(r => {
+      if (!hasilPerBulan.has(r.bulan)) return;
+      hasilPerBulan.get(r.bulan).push(r);
+    });
+  });
 
+  const result = {};
   for (let b = 1; b <= 12; b++) {
     const merged = new Map();
-    hasilPerBulan.get(b).forEach(d => {
-      (d.rekap || []).forEach(r => { if (!merged.has(r.id)) merged.set(r.id, { ...r, bulan: b }); });
-    });
-    _kwAllRekap[tahun]['b' + b] = Array.from(merged.values());
+    hasilPerBulan.get(b).forEach(r => { if (!merged.has(r.id)) merged.set(r.id, r); });
+    result['b' + b] = Array.from(merged.values());
   }
+  return result;
+}
+
+// Re-render widget yg pakai _kwAllRekap, dipanggil setelah refresh background selesai
+function _kwRerenderAfterBgRefresh() {
+  if (document.getElementById('kinerjaWatchWidget') && typeof _renderKinerjaWatch === 'function') _renderKinerjaWatch();
+  if (document.getElementById('ikuChartSection') && typeof _ikuRenderChartSection === 'function') _ikuRenderChartSection();
+}
+
+async function _kwFetchTahun(tahun) {
+  if (_kwAllRekap[tahun]) return; // already fetched (fresh atau dari cache sesi ini)
+
+  const cached = _kwReadRekapCache(tahun);
+  if (cached && (Date.now() - cached.ts) < KW_REKAP_CACHE_TTL) {
+    // Tampilin data cache dulu biar instan (resolve cepat, gak nunggu network)
+    _kwAllRekap[tahun] = cached.data;
+
+    if (!_kwBgRefreshing.has(tahun)) {
+      _kwBgRefreshing.add(tahun);
+      _kwFetchTahunFresh(tahun).then(fresh => {
+        _kwAllRekap[tahun] = fresh;
+        _kwWriteRekapCache(tahun, fresh);
+        _kwBgRefreshing.delete(tahun);
+        _kwRerenderAfterBgRefresh();
+      }).catch(() => { _kwBgRefreshing.delete(tahun); });
+    }
+    return;
+  }
+
+  // Gak ada cache (valid) - fetch blocking spt biasa (mis. kunjungan pertama)
+  const fresh = await _kwFetchTahunFresh(tahun);
+  _kwAllRekap[tahun] = fresh;
+  _kwWriteRekapCache(tahun, fresh);
 }
 
 // ── Invalidate cache rekap kinerja (dipanggil dari kinerja.js setelah simpan
@@ -2537,7 +2592,9 @@ async function _kwFetchTahun(tahun) {
 //    di kunjungan dashboard berikutnya, tanpa perlu reload halaman) ─────────
 function _invalidateKinerjaDashboardCache(tahun) {
   if (typeof _kwAllRekap !== 'undefined' && tahun) delete _kwAllRekap[tahun];
+  if (tahun) _kwClearRekapCache(tahun);
 }
+
 
 // ── Data tahunan: ambil realisasi bulan terakhir per tahun ────────────────
 function _kwYearlyChartData(indId) {

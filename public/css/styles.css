@@ -3074,7 +3074,7 @@ body.login-page::before {
   grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
   gap: 16px;
   margin-bottom: 22px;
-  align-items: start;
+  align-items: stretch;
 }
 .dash-panel {
   background: var(--permukaan, #fff);
@@ -4891,6 +4891,11 @@ td.col-perihal {
     flex: 1 1 auto;
     text-align: center;
     justify-content: center;
+  }
+
+  /* ── Kalau cuma ada 1 dropdown, gabung sebaris sama search (jangan sendirian) ── */
+  .toolbar:has(> .select-wrap):not(:has(> .select-wrap ~ .select-wrap)) > .search-wrap {
+    grid-column: auto;
   }
 }
 
@@ -8747,9 +8752,12 @@ tr:hover td:not(.td-sticky-no):not(.td-sticky-name) { background: var(--abu-1); 
     display: grid !important;
     grid-template-columns: 1fr 1fr;
   }
+  /* Dropdown status + search sejajar 1 baris (bukan search full-width sendirian) */
   #page-link .toolbar .search-wrap,
   #page-shortlink .toolbar .search-wrap,
-  #page-bundle .toolbar .search-wrap,
+  #page-bundle .toolbar .search-wrap {
+    grid-column: auto;
+  }
   #page-link .toolbar .btn-primary,
   #page-shortlink .toolbar .btn-primary,
   #page-bundle .toolbar .btn-primary {
@@ -9354,7 +9362,14 @@ tr:hover td:not(.td-sticky-no):not(.td-sticky-name) { background: var(--abu-1); 
   .dash-kpi-card { padding: 12px 12px 11px; }
   .dash-kpi-val { font-size: 1.25rem; }
   .dash-kpi-lbl { font-size: .66rem; }
+  /* Kartu terakhir yg nyendiri (jumlah kartu ganjil) - lebar penuh aja, jangan
+     nyempil sendirian, tapi layout internalnya (label atas/angka bawah/ikon
+     kanan-atas, padding, tinggi) tetap sama persis kayak kartu lain. */
+  .dash-kpi-row > .dash-kpi-card:last-child:nth-child(odd) {
+    grid-column: 1 / -1;
+  }
 }
+
 /* Statcard rekap Absensi (admin) - selalu 1 baris, gak wrap ke baris 2
    kayak dash-kpi-row default (auto-fit minmax 160px).
    #absRekapBox cuma dipaksa N kolom pas Super Admin (body.is-admin), karena
@@ -9389,14 +9404,27 @@ body.is-admin #absRekapBox { grid-template-columns: repeat(6, 0.85fr) 1.5fr; }
 }
 
 /* ── Toolbar filter Laporan Absensi di HP: select & date-picker dipasangin
-   2 per baris yang konsisten (bukan ngandelin flex:1 auto-wrap yang bikin
-   urutan acak), separator "|" disembunyiin karena gak perlu di layout kolom. ── */
+   2 per baris yang konsisten. Grid, BUKAN flex - sama alasannya kayak fix
+   #page-absensi: tiap .select-wrap di sini punya inline style="flex:1"
+   bawaan yang bakal selalu menang lawan flex-basis eksternal tanpa
+   !important (rule versi lama di sini gak pernah efektif kepakai karena
+   itu), sedangkan grid item ngabaikan flex:* sama sekali jadi aman.
+   Separator "|" disembunyiin karena gak perlu di layout kolom. ── */
 @media (max-width: 640px) {
-  #page-laporan-absensi .toolbar { gap: 8px; }
-  #page-laporan-absensi .toolbar > .select-wrap { flex: 1 1 calc(50% - 4px); min-width: 0; }
+  #page-laporan-absensi .toolbar { display: grid !important; grid-template-columns: 1fr 1fr; gap: 8px; align-items: center; }
+  #page-laporan-absensi .toolbar > .select-wrap { width: 100% !important; min-width: 0 !important; max-width: none !important; }
   #page-laporan-absensi .toolbar > span { display: none; }
-  #page-laporan-absensi .toolbar > .cdtp-mount { flex: 1 1 calc(50% - 4px); min-width: 0 !important; }
-  #page-laporan-absensi .toolbar > .btn { flex: 1 1 100%; justify-content: center; }
+  #page-laporan-absensi .toolbar > .cdtp-mount { width: 100% !important; min-width: 0 !important; }
+  #page-laporan-absensi .toolbar > .btn { grid-column: 1 / -1; width: 100%; justify-content: center; }
+}
+
+/* ── Toolbar Laporan Surat di HP: bug sama persis (inline style="flex:1"
+   di tiap .select-wrap, gak ada override sama sekali sebelumnya) - dicek
+   pas nyisir seluruh sistem cari pola serupa kasus Absensi di atas. ── */
+@media (max-width: 640px) {
+  #page-laporan-surat .toolbar { display: grid !important; grid-template-columns: 1fr 1fr; gap: 8px; align-items: center; }
+  #page-laporan-surat .toolbar .select-wrap { width: 100% !important; min-width: 0 !important; max-width: none !important; }
+  #page-laporan-surat .toolbar .btn { grid-column: 1 / -1; width: 100%; justify-content: center; }
 }
 /* ═══════════════════════════════════════════════════════════════════════
    KELOLA PERIODE - card style (gantiin tabel lama, ala "Periode Aktif")
@@ -9405,7 +9433,7 @@ body.is-admin #absRekapBox { grid-template-columns: repeat(6, 0.85fr) 1.5fr; }
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
   gap: var(--sp-4);
-  align-items: start;
+  align-items: stretch;
 }
 .periode-group-card {
   background: rgba(255,255,255,.92);
@@ -9617,6 +9645,34 @@ body:not(.is-admin) .abs-hariini-flex-wrap .dash-kpi-row .abs-jamkerja-wrap:nth-
 }
 @media (max-width: 560px) {
   .abs-hariini-flex-wrap .dash-kpi-row { grid-template-columns: repeat(2, 1fr); }
+}
+
+/* ── Toolbar filter Absensi di HP: sama kayak fix #page-laporan-absensi -
+   rule generik ".toolbar" grid 2-kolom (@480px) bikin trigger custom-select
+   yang textnya gak bisa wrap (.csel-trigger-text: white-space:nowrap +
+   overflow:hidden) collapse ke lebar minimal (cuma nyisa 1 huruf +
+   chevron), soalnya overflow:hidden bikin kontribusi min-size elemen itu
+   ke grid track jadi 0 - track sebelahnya (yg kontennya kebetulan lebih
+   pendek/beda) jadi "menang" ambil sisa lebar. Flexbox eksplisit dgn
+   flex-basis 50% + min-width:0 gak kena masalah itu, jadi 2 select selalu
+   sama lebar & teks yang kepanjangan di-ellipsis dgn wajar. ── */
+@media (max-width: 640px) {
+  /* Grid 2-kolom, BUKAN flex - tiap .select-wrap di markup absensi punya
+     inline style="flex:1" bawaan (buat layout desktop), yang bakal selalu
+     menang lawan flex-basis dari CSS eksternal manapun (inline style gak
+     bisa dikalahin tanpa !important, dan itu jelek buat dimaintain). Grid
+     item otomatis ngabaikan properti flex:* sama sekali, jadi override-nya
+     tinggal set width:100% - gak ada perang spesifisitas. Pola ini sama
+     persis kayak yang udah kepake & kebukti jalan di #page-kinerja-admin /
+     #page-surat-masuk / #page-monitoring-kinerja. */
+  #page-absensi .toolbar { display: grid !important; grid-template-columns: 1fr 1fr; gap: 8px; align-items: center; }
+  #page-absensi .toolbar .select-wrap { width: 100% !important; min-width: 0 !important; max-width: none !important; }
+  #page-absensi .toolbar .btn-primary,
+  #page-absensi .toolbar > .btn.btn-primary { grid-column: 1 / -1; width: 100%; justify-content: center; }
+  /* Toolbar Admin (Persetujuan Pengajuan + Input Absensi) - span full row,
+     tumpuk masing-masing tombol selebar penuh (bukan sejajar berdesakan). */
+  #page-absensi .toolbar #absAdminBar { grid-column: 1 / -1; flex-direction: column; gap: 8px; }
+  #page-absensi .toolbar #absAdminBar .btn { width: 100%; justify-content: center; }
 }
 
 .abs-hariini-card { position: relative; margin-bottom: 16px; display: inline-block; width: fit-content; max-width: 100%; }
@@ -9871,3 +9927,36 @@ body:not(.is-admin) .abs-hariini-flex-wrap .dash-kpi-row .abs-jamkerja-wrap:nth-
    lawan rule .search-wrap input / .csel-trigger yang lain (spesifisitas sama). */
 .search-wrap input,
 .csel-trigger { font-size: var(--fs-sm); }
+
+/* ── Kinerja IKU/IKK/SPM: baris Tahun/Bulan/Cari indikator - responsive mobile ──
+   #kinerjaTahunWrap/#ikkTahunWrap/#spmTahunWrap awalnya display:none diubah JS
+   ke flex, tapi gak ada flex-wrap → di layar sempit numpuk ke samping & kepotong
+   (search-wrap punya min-width:220px inline yang bikin gak muat & gak wrap). */
+#kinerjaTahunWrap,
+#ikkTahunWrap,
+#spmTahunWrap {
+  flex-wrap: wrap;
+  row-gap: 10px;
+}
+@media (max-width: 560px) {
+  #kinerjaTahunWrap .search-wrap,
+  #ikkTahunWrap .search-wrap,
+  #spmTahunWrap .search-wrap {
+    min-width: 0 !important;
+    max-width: none !important;
+    width: 100% !important;
+    flex: 1 1 100% !important;
+  }
+}
+
+/* ── Monitoring Kinerja: card "Progress per Unit Kerja" - full-width di mobile ──
+   Card dari _monRenderPJCards() (kinerja.js) inline style flex:1;min-width:210px;
+   max-width:280px - di layar sempit malah nyisa gap di kanan krn ke-cap 280px,
+   kelihatan "setengah". Full-width aja di bawah 600px. */
+@media (max-width: 600px) {
+  .mon-pj-card {
+    max-width: none !important;
+    min-width: 0 !important;
+    flex-basis: 100% !important;
+  }
+}

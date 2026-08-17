@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>SAPA Perencanaan</title>
-  <meta name="app-version" content="1.3.1" />
+  <meta name="app-version" content="1.3.2" />
   <meta property="og:type"         content="website" />
   <meta property="og:site_name"    content="SAPA Perencanaan" />
   <meta property="og:title"        content="SAPA Perencanaan" />
@@ -2815,10 +2815,45 @@ loadInfo();
 // loadInfo()/loadDokumenLanding() tetap jalan buat render list-nya,
 // tapi angka di stat-bar diisi lebih awal lewat endpoint /api/landing/stats
 // supaya gak numpang di proses berat (fetch full rows + render + badge notif).
-(async function loadStatBar() {
+//
+// Stale-while-revalidate via localStorage: pengunjung yang pernah buka landing
+// ini sebelumnya langsung lihat angka lama (instan, gak nunggu network sama
+// sekali), sambil angka fresh tetap di-fetch di belakang layar dan nimpa kalau
+// ternyata beda. Nolongin kasus cold-start function/Neon di request pertama -
+// endpoint /api/landing/stats sendiri udah seringan mungkin (1 request, 3
+// COUNT paralel, di-cache edge 60dtk), jadi sisa lambatnya emang dari situ.
+const STAT_CACHE_KEY = 'sapa_landing_stats_cache';
+const STAT_CACHE_TTL = 24 * 3600 * 1000; // di atas ini dianggap basi total, gak dipakai
+
+function _readStatCache() {
+  try {
+    const raw = localStorage.getItem(STAT_CACHE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed.pengumuman !== 'number' || !parsed.ts) return null;
+    return parsed;
+  } catch { return null; }
+}
+
+function _writeStatCache(d) {
+  try { localStorage.setItem(STAT_CACHE_KEY, JSON.stringify({ ...d, ts: Date.now() })); } catch {}
+}
+
+function _applyStatBar(d) {
   const elP = document.getElementById('statPengumuman');
   const elD = document.getElementById('statDokumen');
   const elG = document.getElementById('statPegawai');
+  if (elP && typeof d.pengumuman === 'number') { elP.textContent = d.pengumuman; elP.classList.remove('loading'); }
+  if (elD && typeof d.dokumen === 'number')     { elD.textContent = d.dokumen;     elD.classList.remove('loading'); }
+  if (elG && typeof d.pegawai === 'number')     { elG.textContent = d.pegawai;     elG.classList.remove('loading'); }
+}
+
+(async function loadStatBar() {
+  // Tampilin cache dulu (kalau ada & belum basi) biar angka langsung muncul,
+  // gak nunggu network - fresh fetch di bawah tetap jalan buat nimpa/koreksi.
+  const cached = _readStatCache();
+  if (cached && (Date.now() - cached.ts) < STAT_CACHE_TTL) _applyStatBar(cached);
+
   try {
     // Endpoint ini sekarang boleh di-cache singkat di edge (lihat landing.js) -
     // makanya TIDAK pakai cache:'no-store' atau timestamp cache-busting lagi,
@@ -2826,12 +2861,13 @@ loadInfo();
     const r = await fetch('/api/landing/stats');
     if (!r.ok) throw new Error();
     const d = await r.json();
-    if (elP && typeof d.pengumuman === 'number') { elP.textContent = d.pengumuman; elP.classList.remove('loading'); }
-    if (elD && typeof d.dokumen === 'number')     { elD.textContent = d.dokumen;     elD.classList.remove('loading'); }
-    if (elG && typeof d.pegawai === 'number')     { elG.textContent = d.pegawai;     elG.classList.remove('loading'); }
+    _applyStatBar(d);
+    _writeStatCache(d);
   } catch {
+    if (cached) return; // udah kepajang dari cache meski fresh fetch gagal, cukup
     // Fallback: biarin loadInfo()/loadDokumenLanding() yang isi statPengumuman/statDokumen,
     // dan fallback khusus buat pegawai di bawah ini.
+    const elG = document.getElementById('statPegawai');
     try {
       const r = await fetch('/api/landing/pegawai');
       if (!r.ok) throw new Error();

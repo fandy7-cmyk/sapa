@@ -45,6 +45,24 @@ export const handler = async (event) => {
     } catch (err) { return errorResponse('Gagal mengambil statistik'); }
   }
 
+  const isMeta = seg0 === 'filter-meta';
+
+  // ── Metadata ringan buat isi dropdown filter (tahun/bulan/pegawai) - lihat
+  // catatan yang sama di surat-masuk.js ──
+  if (event.httpMethod === 'GET' && isMeta) {
+    try {
+      const isAdmin = !!auth.is_admin;
+      const isFull  = await checkFullAccess(auth, sql);
+      const rows = await sql`
+        SELECT tanggal_surat, pegawai
+        FROM surat_keluar
+        WHERE (${isAdmin} = TRUE OR ${isFull} = TRUE OR pegawai = ${auth.nama})`;
+      return jsonResponse({ surat: rows });
+    } catch (err) {
+      return errorResponse('Gagal mengambil metadata: ' + err.message);
+    }
+  }
+
   if (event.httpMethod === 'GET' && !numId) {
     const { page = 1, limit = 20, q = '', pegawai: pf = '', tahun: tf = '', bulan: bf = '', sort = '' } = event.queryStringParameters || {};
     const offset   = (parseInt(page) - 1) * parseInt(limit);

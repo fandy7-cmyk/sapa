@@ -411,29 +411,23 @@ function _renderKinerjaCountdown(containerId, jenis) {
 
 // ── Year selector - diisi dari daftar periode di DB ──────────────────────
 async function initKinerjaControls() {
-  // Ambil semua periode yang window-nya terbuka sekarang
-  try {
-    const r = await fetch('/api/periode/aktif');
-    if (r.ok) {
-      const d = await r.json();
-      _periodeListTerbuka = d.periode || [];
-    }
-  } catch { _periodeListTerbuka = []; }
-
-  // Non-admin: load assigned indikator IDs
-  await _ensureUserIndikatorIds();
-
-  // Admin: fetch semua periode untuk year selector
-  if (_user?.is_admin) {
-    try {
-      const r = await fetch('/api/periode', { headers: authHeaders() });
-      if (r.ok) {
-        const d = await r.json();
-        _allPeriodeList = d.periode || [];
-      }
-    } catch { _allPeriodeList = []; }
-    _populateTahunSelector('kinerjaTahunSelect', _kinerja_tahun, setKinerjaTahun);
-  }
+  const isAdmin = _user?.is_admin;
+  // Dulu: periode/aktif -> user-indikator -> (admin) periode BERURUTAN (3 round-trip
+  // nunggu satu-satu). Ketiganya independen satu sama lain, jadi ditembak paralel.
+  await Promise.all([
+    fetch('/api/periode/aktif')
+      .then(r => r.ok ? r.json() : null)
+      .then(d => { _periodeListTerbuka = d?.periode || []; })
+      .catch(() => { _periodeListTerbuka = []; }),
+    _ensureUserIndikatorIds(),
+    isAdmin
+      ? fetch('/api/periode', { headers: authHeaders() })
+          .then(r => r.ok ? r.json() : null)
+          .then(d => { if (d) _allPeriodeList = d.periode || []; })
+          .catch(() => {})
+      : Promise.resolve(),
+  ]);
+  if (isAdmin) _populateTahunSelector('kinerjaTahunSelect', _kinerja_tahun, setKinerjaTahun);
 
   // Jika ada periode monev terbuka, set tahun & bulan dari periode monev (terlama dulu)
   const _monevTerbuka = _periodeListTerbuka.filter(p => p.jenis === 'monev')
@@ -2691,7 +2685,7 @@ function renderKelolJenisSection(allJenis) {
 
   wrap.innerHTML = `
     <div class="page-title" style="display:flex;align-items:center;gap:10px">
-      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;opacity:.85"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/><rect width="6" height="4" x="9" y="3" rx="1"/><path d="M9 12h6"/><path d="M9 16h4"/></svg>
+      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor" style="flex-shrink:0;opacity:.85"><path d="M12.4142 5H21C21.5523 5 22 5.44772 22 6V20C22 20.5523 21.5523 21 21 21H3C2.44772 21 2 20.5523 2 20V4C2 3.44772 2.44772 3 3 3H10.4142L12.4142 5ZM8.59114 13.8089L7.59998 14.3812L8.59954 16.1124L9.59141 15.5397C9.98434 15.9114 10.4634 16.1929 10.9955 16.3513V17.4956H12.9945V16.3512C13.5266 16.1928 14.0057 15.9113 14.3986 15.5396L15.3905 16.1123L16.39 14.3811L15.3987 13.8088C15.4605 13.5485 15.4932 13.277 15.4932 12.9978C15.4932 12.7186 15.4605 12.447 15.3987 12.1867L16.39 11.6145L15.3904 9.88325L14.3985 10.4559C14.0056 10.0843 13.5265 9.80274 12.9944 9.64438V8.5H10.9954V9.64438C10.4633 9.80275 9.98424 10.0843 9.59133 10.456L8.59949 9.88335L7.59998 11.6146L8.59112 12.1868C8.52933 12.4471 8.49663 12.7186 8.49663 12.9978C8.49663 13.277 8.52934 13.5486 8.59114 13.8089ZM11.9949 14.4971C11.1669 14.4971 10.4957 13.8258 10.4957 12.9978C10.4957 12.1698 11.1669 11.4985 11.9949 11.4985C12.8229 11.4985 13.4942 12.1698 13.4942 12.9978C13.4942 13.8258 12.8229 14.4971 11.9949 14.4971Z"/></svg>
       Kelola Jenis Kinerja
     </div>
     <div class="page-subtitle">Tambah atau ubah jenis kinerja yang tersedia di checkbox indikator</div>
@@ -3683,27 +3677,24 @@ async function saveDukung() {
 // REALISASI IKK - halaman terpisah, logika mirip Monev Kinerja
 // ═══════════════════════════════════════════════════════════════════════════
 async function initIkkControls() {
-  // Pastikan _periodeListTerbuka sudah terisi (bisa jadi initKinerjaControls belum dipanggil)
-  if (!_periodeListTerbuka.length) {
-    try {
-      const r = await fetch('/api/periode/aktif');
-      if (r.ok) {
-        const d = await r.json();
-        _periodeListTerbuka = d.periode || [];
-      }
-    } catch { _periodeListTerbuka = []; }
-  }
-  await _ensureUserIndikatorIds();
-  // Admin: pastikan _allPeriodeList sudah terisi
-  if (_user?.is_admin && !_allPeriodeList.length) {
-    try {
-      const r = await fetch('/api/periode', { headers: authHeaders() });
-      if (r.ok) {
-        const d = await r.json();
-        _allPeriodeList = d.periode || [];
-      }
-    } catch {}
-  }
+  const isAdmin = _user?.is_admin;
+  // Dulu 3 fetch berurutan (periode/aktif -> user-indikator -> periode admin),
+  // sekarang paralel - masing2 tetap dilewatin kalau udah ke-cache sebelumnya.
+  await Promise.all([
+    !_periodeListTerbuka.length
+      ? fetch('/api/periode/aktif')
+          .then(r => r.ok ? r.json() : null)
+          .then(d => { if (d) _periodeListTerbuka = d.periode || []; })
+          .catch(() => { _periodeListTerbuka = []; })
+      : Promise.resolve(),
+    _ensureUserIndikatorIds(),
+    (isAdmin && !_allPeriodeList.length)
+      ? fetch('/api/periode', { headers: authHeaders() })
+          .then(r => r.ok ? r.json() : null)
+          .then(d => { if (d) _allPeriodeList = d.periode || []; })
+          .catch(() => {})
+      : Promise.resolve(),
+  ]);
   // Set bulan & tahun IKK ke periode pertama yang terbuka (jika ada)
   const _ikkTerbuka = _periodeListTerbuka.filter(p => p.jenis === 'ikk')
     .sort((a, b) => a.tahun !== b.tahun ? a.tahun - b.tahun : a.bulan - b.bulan);
@@ -5273,7 +5264,7 @@ function _monRenderPJCards() {
         <text x="26" y="30.5" text-anchor="middle" font-size="10.5" font-weight="800" fill="${tone.c}" font-family="inherit">${pct}%</text>
       </svg>`;
 
-    return `<div onclick='setMonPJ(${_jsAttr(pj.penanggung_jawab)})' data-tip="Klik untuk filter"
+    return `<div class="mon-pj-card" onclick='setMonPJ(${_jsAttr(pj.penanggung_jawab)})' data-tip="Klik untuk filter"
          style="cursor:pointer;position:relative;overflow:hidden;background:${isActive ? 'linear-gradient(135deg,rgba(15,118,110,.07),rgba(255,255,255,.95))' : '#fff'};
                 border:1.5px solid ${isActive ? 'var(--hijau)' : 'var(--abu-2)'};
                 border-radius:var(--r-md);flex:1;min-width:210px;max-width:280px;
@@ -5596,25 +5587,23 @@ function _monSyncStatusBtn() {
 // ═══════════════════════════════════════════════════════════════════════════
 
 async function initSpmControls() {
-  if (!_periodeListTerbuka.length) {
-    try {
-      const r = await fetch('/api/periode/aktif');
-      if (r.ok) {
-        const d = await r.json();
-        _periodeListTerbuka = d.periode || [];
-      }
-    } catch { _periodeListTerbuka = []; }
-  }
-  await _ensureUserIndikatorIds();
-  if (_user?.is_admin && !_allPeriodeList.length) {
-    try {
-      const r = await fetch('/api/periode', { headers: authHeaders() });
-      if (r.ok) {
-        const d = await r.json();
-        _allPeriodeList = d.periode || [];
-      }
-    } catch {}
-  }
+  const isAdmin = _user?.is_admin;
+  // Sama kayak initIkkControls - 3 fetch independen ditembak paralel, bukan berurutan
+  await Promise.all([
+    !_periodeListTerbuka.length
+      ? fetch('/api/periode/aktif')
+          .then(r => r.ok ? r.json() : null)
+          .then(d => { if (d) _periodeListTerbuka = d.periode || []; })
+          .catch(() => { _periodeListTerbuka = []; })
+      : Promise.resolve(),
+    _ensureUserIndikatorIds(),
+    (isAdmin && !_allPeriodeList.length)
+      ? fetch('/api/periode', { headers: authHeaders() })
+          .then(r => r.ok ? r.json() : null)
+          .then(d => { if (d) _allPeriodeList = d.periode || []; })
+          .catch(() => {})
+      : Promise.resolve(),
+  ]);
   const _spmTerbuka = _periodeListTerbuka.filter(p => p.jenis === 'spm')
     .sort((a, b) => a.tahun !== b.tahun ? a.tahun - b.tahun : a.bulan - b.bulan);
   if (_spmTerbuka.length) {

@@ -147,13 +147,19 @@ async function loadEplanning() {
   // Jadi tombolnya cuma nongol buat Operator, DAN cuma kalau periode pengusulan tahun ini lagi buka
   // (biar user gak bisa asal bikin usulan pas periode belum/udah gak aktif).
   const btnTambah = document.getElementById('btnTambahEpUsulan');
-  await epLoadPeriodeAktif();
+  const tbody = document.getElementById('epTableBody');
+  if (tbody) tbody.innerHTML = `<tr class="empty-row"><td colspan="7">Memuat data...</td></tr>`;
+
+  // Dulu: periode-aktif → tahun-list BERURUTAN (2 round-trip nunggu satu-satu),
+  // baru abis itu fetch usulan. Sekarang periode-aktif & tahun-list ditembak
+  // BARENGAN (independen di server), filter periode-nya baru dijalankan
+  // setelah _epTahunAktif final dari tahun-list. Usulan tetap nunggu tahun-list
+  // kelar karena query-nya butuh _epTahunAktif yg valid.
+  const [periodeList] = await Promise.all([_epFetchPeriodeAktif(), epEnsureTahunList()]);
+  _epApplyPeriodeAktif(periodeList);
   if (btnTambah) btnTambah.style.display = (epRole().isOperator && _epPeriodeAktif) ? '' : 'none';
   renderEpPeriodeBanner();
 
-  const tbody = document.getElementById('epTableBody');
-  if (tbody) tbody.innerHTML = `<tr class="empty-row"><td colspan="7">Memuat data...</td></tr>`;
-  await epEnsureTahunList();
   try {
     // Selalu ambil dataset dasar (role-scoped dari backend), filter status/unit kerja/pencarian
     // dikerjakan di client - tahun difilter server-side lewat dropdown tahun global.
@@ -2580,20 +2586,32 @@ async function epDeleteRekening(kode) {
 // Master Data → Periode. Helper ini cuma baca window aktifnya untuk dipakai
 // sebagai default tahun anggaran di form usulan + info banner di halaman usulan.
 let _epPeriodeAktif = null; // { id, tahun, open_at, close_at, label } | null
-async function epLoadPeriodeAktif() {
+// Dipecah jadi fetch (network) + apply (filter pakai _epTahunAktif) supaya
+// loadEplanning() bisa nembak request ini BARENGAN dgn epEnsureTahunList(),
+// baru filter-nya dijalankan setelah _epTahunAktif final (hindari race kalau
+// _epTahunAktif ternyata dikoreksi sama epEnsureTahunList).
+async function _epFetchPeriodeAktif() {
   try {
     const r = await fetch('/api/periode/aktif', { headers: authHeaders() });
     const d = await r.json();
-    const list = d.periode || [];
-    // Cocokin ke Tahun Anggaran yang lagi dipilih di switcher - /api/periode/aktif
-    // ngembaliin SEMUA periode yg window-nya lagi kebuka lintas tahun, jadi tanpa
-    // filter ini bisa numpang nampilin periode tahun lain (mis. milih 2027 tapi
-    // yg ketampil periode 2026 karena itu yg kebetulan lagi buka). Kalau tahun
-    // belum ke-set (_epTahunAktif null, kondisi awal sebelum switcher ke-load),
-    // fallback ke perilaku lama (ambil yg pertama ketemu).
-    _epPeriodeAktif = list.find(p => p.jenis === 'eplanning' && (!_epTahunAktif || p.tahun === _epTahunAktif)) || null;
-    return _epPeriodeAktif;
-  } catch { _epPeriodeAktif = null; return null; }
+    return d.periode || [];
+  } catch { return []; }
+}
+
+function _epApplyPeriodeAktif(list) {
+  // Cocokin ke Tahun Anggaran yang lagi dipilih di switcher - /api/periode/aktif
+  // ngembaliin SEMUA periode yg window-nya lagi kebuka lintas tahun, jadi tanpa
+  // filter ini bisa numpang nampilin periode tahun lain (mis. milih 2027 tapi
+  // yg ketampil periode 2026 karena itu yg kebetulan lagi buka). Kalau tahun
+  // belum ke-set (_epTahunAktif null, kondisi awal sebelum switcher ke-load),
+  // fallback ke perilaku lama (ambil yg pertama ketemu).
+  _epPeriodeAktif = (list || []).find(p => p.jenis === 'eplanning' && (!_epTahunAktif || p.tahun === _epTahunAktif)) || null;
+  return _epPeriodeAktif;
+}
+
+async function epLoadPeriodeAktif() {
+  const list = await _epFetchPeriodeAktif();
+  return _epApplyPeriodeAktif(list);
 }
 // ═══════════════════════════════════════════════════════════════════════
 // STANDAR HARGA SATUAN (SSH/HSPK/ASB/SBU) - referensi harga hasil export
@@ -2765,7 +2783,7 @@ function epOpenRekeningPenyusun() {
       <b>${esc(kode)}</b><br><span style="font-size:12px;color:var(--text-secondary,#64748b)" data-nama-rekening="${esc(kode)}">Memuat nama rekening…</span>
     </div>`).join('');
   // Resolve nama rekening per kode (best-effort, biar user tau ini rekening apa)
-  kodeList.forEach(async kode => {
+  Promise.all(kodeList.map(async kode => {
     try {
       const r = await fetch(`/api/eplanning/rekening?q=${encodeURIComponent(kode)}`, { headers: authHeaders() });
       const d = await r.json();
@@ -2773,7 +2791,7 @@ function epOpenRekeningPenyusun() {
       const el = listEl.querySelector(`[data-nama-rekening="${CSS.escape(kode)}"]`);
       if (el) el.textContent = match ? match.nama_rekening : '(tidak ada di master rekening)';
     } catch {}
-  });
+  }));
   openModal('modalEpRekeningPenyusun');
 }
 
@@ -2805,7 +2823,7 @@ function epOpenTampilkanRekening(id) {
   openModal('modalEpTampilkanRekening');
 
   // Resolve nama rekening per kode (best-effort, biar user tau ini rekening apa)
-  kodeList.forEach(async kode => {
+  Promise.all(kodeList.map(async kode => {
     try {
       const r = await fetch(`/api/eplanning/rekening?q=${encodeURIComponent(kode)}`, { headers: authHeaders() });
       const d = await r.json();
@@ -2814,7 +2832,7 @@ function epOpenTampilkanRekening(id) {
       if (item) item.nama = match ? match.nama_rekening : '(tidak ada di master rekening)';
       _epRenderTampilRekening();
     } catch {}
-  });
+  }));
 }
 
 function _epTampilRekFiltered() {
@@ -2873,17 +2891,32 @@ async function epDownloadStandarHargaPDF(btnEl) {
     const status = document.getElementById('epShFilterStatus')?.value || '';
     const satuan = document.getElementById('epShFilterSatuan')?.value || '';
     const pageSize = 100;
-    let page = 1, total = Infinity;
-    const allRows = [];
-    while (allRows.length < total) {
-      const qs = new URLSearchParams({ page, pageSize, search, kategori: _epShKategori, status, satuan, ...(_epTahunAktif ? { tahun: _epTahunAktif } : {}) });
-      const r = await fetch(`/api/eplanning/standarharga?${qs}`, { headers: authHeaders() });
-      const d = await r.json();
-      if (!r.ok) throw new Error(d.error || 'Gagal memuat data');
-      total = d.total || 0;
-      allRows.push(...(d.standarharga || []));
-      if (!d.standarharga || !d.standarharga.length) break;
-      page++;
+    // Halaman 1 dulu (buat tau total & totalPages), sisanya ditembak PARALEL
+    // (dibatasi 6 bareng) - dulu semua halaman diambil satu-satu berurutan.
+    const _epShQS = (page) => new URLSearchParams({ page, pageSize, search, kategori: _epShKategori, status, satuan, ...(_epTahunAktif ? { tahun: _epTahunAktif } : {}) });
+    const r1 = await fetch(`/api/eplanning/standarharga?${_epShQS(1)}`, { headers: authHeaders() });
+    const d1 = await r1.json();
+    if (!r1.ok) throw new Error(d1.error || 'Gagal memuat data');
+    const allRows = [...(d1.standarharga || [])];
+    const total = d1.total || 0;
+    const totalPages = Math.max(1, Math.ceil(total / pageSize));
+
+    if (totalPages > 1) {
+      const restPages = Array.from({ length: totalPages - 1 }, (_, i) => i + 2); // halaman 2..totalPages
+      const pageResults = new Array(restPages.length);
+      let idx = 0;
+      async function _epShWorker() {
+        while (idx < restPages.length) {
+          const myIdx = idx++;
+          try {
+            const r = await fetch(`/api/eplanning/standarharga?${_epShQS(restPages[myIdx])}`, { headers: authHeaders() });
+            const d = await r.json();
+            pageResults[myIdx] = d.standarharga || [];
+          } catch { pageResults[myIdx] = []; }
+        }
+      }
+      await Promise.all(Array.from({ length: Math.min(6, restPages.length) }, () => _epShWorker()));
+      pageResults.forEach(rows => allRows.push(...rows));
     }
     if (!allRows.length) { toast('Tidak ada data untuk diunduh sesuai filter saat ini.', 'error'); return; }
 

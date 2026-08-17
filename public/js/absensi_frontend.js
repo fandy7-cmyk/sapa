@@ -334,25 +334,25 @@ async function renderAbsHariIni() {
   const dowNames = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
   const tanggalLabel = `${dowNames[w.day]}, ${w.date} ${ABS_BULAN_NAMA[w.month]} ${w.year}`;
 
-  let todayRow = null;
-  try {
-    const r = await fetch(`/api/absensi?user_id=${_user.id}&dari=${todayISO()}&sampai=${todayISO()}`, { headers: authHeaders() });
-    const d = await r.json();
-    todayRow = (d.absensi || [])[0] || null;
-  } catch { /* noop */ }
-  const pengajuanPendingHariIni = await _absCekPengajuanPendingHariIni();
+  // 3 fetch independen (absensi hari ini, pengajuan pending, libur hari ini) -
+  // dulu berurutan, sekarang paralel. Widget ini muncul di dashboard tiap user
+  // non-admin buka halaman, jadi lumayan sering ke-hit.
+  const [todayRes, pengajuanPendingHariIni, liburRes] = await Promise.all([
+    fetch(`/api/absensi?user_id=${_user.id}&dari=${todayISO()}&sampai=${todayISO()}`, { headers: authHeaders() })
+      .then(r => r.json()).catch(() => null),
+    _absCekPengajuanPendingHariIni(),
+    fetch(`/api/absensi/libur?tahun=${w.year}&bulan=${w.month}`, { headers: authHeaders() })
+      .then(r => r.json()).catch(() => null),
+  ]);
+  const todayRow = (todayRes?.absensi || [])[0] || null;
 
   // Cek hari libur nasional HARI INI + ambil keterangannya (mis. "Hari Kemerdekaan
   // RI"), biar konsisten sama notice "libur" di Dashboard (bukan cuma teks generik
   // "Hari Libur"). Fetch mandiri di sini - jangan andelin _absLiburBulanIni, soalnya
   // itu cuma keisi kalau modal Pengaturan > Hari Libur udah pernah dibuka.
   let liburKeteranganHariIni = null;
-  try {
-    const rl = await fetch(`/api/absensi/libur?tahun=${w.year}&bulan=${w.month}`, { headers: authHeaders() });
-    const dl = await rl.json();
-    const liburHariIni = (dl.libur || []).find(l => _absLiburLocalYMD(l.tanggal) === todayISO());
-    if (liburHariIni) liburKeteranganHariIni = liburHariIni.keterangan || null;
-  } catch { /* gagal fetch libur → anggap bukan libur, lanjut pakai isWeekend aja */ }
+  const liburHariIni = (liburRes?.libur || []).find(l => _absLiburLocalYMD(l.tanggal) === todayISO());
+  if (liburHariIni) liburKeteranganHariIni = liburHariIni.keterangan || null;
 
   const isWeekend = w.day === 0 || w.day === 6;
   const isLibur = liburKeteranganHariIni !== null;
@@ -1154,26 +1154,35 @@ async function openAbsModal(id = null) {
   document.getElementById('absPegawaiWrap').style.display = id ? 'none' : '';
   document.getElementById('absTanggal').disabled = !!id;
 
-  if (!document.getElementById('absPegawai').dataset.filled) {
-    try {
-      const r = await fetch('/api/users', { headers: authHeaders() });
-      const d = await r.json();
-      document.getElementById('absPegawai').innerHTML = '<option value="">- Pilih Pegawai -</option>' +
-        (d.users || [])
-          .filter(u => !u.is_admin && Array.isArray(u.permissions) && (u.permissions.includes('absensi') || u.permissions.includes('absensi.full')))
-          .map(u => `<option value="${u.id}">${esc(u.nama)}</option>`).join('');
-      document.getElementById('absPegawai').dataset.filled = '1';
-    } catch { /* noop */ }
+  // Dua fetch ini independen (dropdown pegawai vs data baris yg diedit) - kalau
+  // kebetulan dua-duanya perlu jalan (edit sebelum dropdown pernah ke-cache),
+  // ditembak PARALEL, bukan satu nunggu yg lain.
+  const needPegawaiFill = !document.getElementById('absPegawai').dataset.filled;
+  const pegawaiPromise = needPegawaiFill
+    ? fetch('/api/users', { headers: authHeaders() }).then(r => r.json()).catch(() => null)
+    : Promise.resolve(null);
+  const absensiPromise = id
+    ? (() => {
+        const params = new URLSearchParams({ bulan: _absFilterBulan, tahun: _absFilterTahun });
+        if (_absFilterPegawai) params.set('user_id', _absFilterPegawai);
+        return fetch(`/api/absensi?${params}`, { headers: authHeaders() }).then(r => r.json()).catch(() => null);
+      })()
+    : Promise.resolve(null);
+  const [pegawaiData, absensiData] = await Promise.all([pegawaiPromise, absensiPromise]);
+
+  if (needPegawaiFill && pegawaiData) {
+    document.getElementById('absPegawai').innerHTML = '<option value="">- Pilih Pegawai -</option>' +
+      (pegawaiData.users || [])
+        .filter(u => !u.is_admin && Array.isArray(u.permissions) && (u.permissions.includes('absensi') || u.permissions.includes('absensi.full')))
+        .map(u => `<option value="${u.id}">${esc(u.nama)}</option>`).join('');
+    document.getElementById('absPegawai').dataset.filled = '1';
   }
 
   let row = null;
   if (id) {
-    // ambil dari baris tabel yg sudah dimuat (hindari endpoint detail tambahan)
-    const params = new URLSearchParams({ bulan: _absFilterBulan, tahun: _absFilterTahun });
-    if (_absFilterPegawai) params.set('user_id', _absFilterPegawai);
-    const r = await fetch(`/api/absensi?${params}`, { headers: authHeaders() });
-    const d = await r.json();
-    row = (d.absensi || []).find(x => x.id === id);
+    // ambil dari baris tabel yg sudah dimuat (hindari endpoint detail tambahan) -
+    // data-nya udah difetch paralel di atas (absensiData), gak fetch ulang di sini
+    row = ((absensiData && absensiData.absensi) || []).find(x => x.id === id);
     if (!row) { toast('Data tidak ditemukan', 'error'); return; }
     document.getElementById('absId').value = row.id;
     document.getElementById('absTanggal').value = row.tanggal.slice(0, 10);

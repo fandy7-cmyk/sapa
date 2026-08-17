@@ -391,21 +391,42 @@ async function downloadLaporanAbsensiPDF(btnEl) {
       jamKerjaMap = new Map(hasilJK);
     }
 
-    // ── Ambil semua baris absensi periode ini (server dipaginasi 15/hal) - loop semua halaman ──
-    let allRows = [];
-    let page = 1, totalPages = 1;
-    do {
+    // ── Ambil semua baris absensi periode ini (server dipaginasi 10/hal) ──
+    // Dulu: loop semua halaman BERURUTAN (satu-satu nunggu round-trip
+    // sebelumnya) - buat laporan sebulan penuh × banyak pegawai bisa jadi
+    // puluhan request berantai. Sekarang: halaman 1 diambil dulu (buat tau
+    // totalPages), sisanya (2..N) ditembak PARALEL (dibatasi 6 bareng biar
+    // gak nge-flood function/DB).
+    const _lapAbsQS = (page) => {
       const qs = rangeMode
         ? new URLSearchParams({ dari, sampai, page })
         : new URLSearchParams({ bulan, tahun, page });
       if (bidangId) qs.set('bidang_id', bidangId);
       if (pegawaiId) qs.set('user_id', pegawaiId);
-      const r = await fetch(`/api/absensi?${qs}`, { headers: authHeaders() });
-      const d = await r.json();
-      allRows = allRows.concat(d.absensi || []);
-      totalPages = Math.max(1, Math.ceil((d.total || 0) / 10));
-      page++;
-    } while (page <= totalPages);
+      return qs;
+    };
+    const r1 = await fetch(`/api/absensi?${_lapAbsQS(1)}`, { headers: authHeaders() });
+    const d1 = await r1.json();
+    let allRows = d1.absensi || [];
+    const totalPages = Math.max(1, Math.ceil((d1.total || 0) / 10));
+
+    if (totalPages > 1) {
+      const restPages = Array.from({ length: totalPages - 1 }, (_, i) => i + 2); // halaman 2..totalPages
+      const pageResults = new Array(restPages.length);
+      let idx = 0;
+      async function _lapAbsWorker() {
+        while (idx < restPages.length) {
+          const myIdx = idx++;
+          try {
+            const r = await fetch(`/api/absensi?${_lapAbsQS(restPages[myIdx])}`, { headers: authHeaders() });
+            const d = await r.json();
+            pageResults[myIdx] = d.absensi || [];
+          } catch { pageResults[myIdx] = []; }
+        }
+      }
+      await Promise.all(Array.from({ length: Math.min(6, restPages.length) }, () => _lapAbsWorker()));
+      pageResults.forEach(rows => { allRows = allRows.concat(rows); });
+    }
 
     // ── Hari libur periode ini (tetap ditampilkan, tapi dikasih warna khusus) ──
     let liburMap = new Map();

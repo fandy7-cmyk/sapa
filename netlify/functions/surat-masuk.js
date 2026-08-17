@@ -48,6 +48,26 @@ export const handler = async (event) => {
     } catch (err) { console.error('[STATS surat-masuk]', err); return errorResponse('Gagal mengambil statistik: ' + err.message); }
   }
 
+  const isMeta = seg0 === 'filter-meta';
+
+  // ── Metadata ringan buat isi dropdown filter (tahun/bulan/status/pegawai) ──
+  // Dulu frontend fetch SEMUA baris (SELECT * limit=9999) cuma buat nurunin
+  // distinct value-nya di JS. Sekarang cukup kolom yg kepake, scope akses sama
+  // persis kayak list endpoint di atas.
+  if (event.httpMethod === 'GET' && isMeta) {
+    try {
+      const isAdmin = !!auth.is_admin;
+      const isFull  = await checkFullAccess(auth, sql);
+      const rows = await sql`
+        SELECT tanggal_surat, tanggal_terima, pegawai, selesai, batas_waktu
+        FROM surat_masuk
+        WHERE (${isAdmin} = TRUE OR ${isFull} = TRUE OR pegawai = ${auth.nama})`;
+      return jsonResponse({ surat: rows });
+    } catch (err) {
+      return errorResponse('Gagal mengambil metadata: ' + err.message);
+    }
+  }
+
   if (event.httpMethod === 'GET' && !numId && !isStats) {
     const { page = 1, limit = 20, q = '', selesai: sf = '', terlambat: tlf = '', pegawai: pf = '', tahun: tf = '', bulan: bf = '', sort = '' } = event.queryStringParameters || {};
     const offset = (parseInt(page) - 1) * parseInt(limit);

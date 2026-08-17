@@ -728,6 +728,1116 @@ export const handler = async (event) => {
   }
 
   // ─────────────────────────────────────────────────────────────────────────────
+  // REKAP TAHUN - versi 1-query-ambil-semua-12-bulan (dipakai widget dashboard
+  // IKU/Pantau Indikator, gantiin 12x panggil rekap per-bulan yg lama)
+  // ─────────────────────────────────────────────────────────────────────────────
+  if (sub === 'rekap' && segments[1] === 'tahun') {
+    const auth = requireAuth(event);
+    if (!auth) return errorResponse('Unauthorized', 401);
+
+    const tahun = parseInt(qs.tahun || new Date().getFullYear());
+    const jenis = qs.jenis || 'monev'; // 'monev' | 'ikk' | 'spm'
+    const scope = qs.scope === 'bidang' ? 'bidang' : 'mine'; // 'mine' = punya sendiri, 'bidang' = semua indikator di bidang yg sama
+
+    // Untuk non-admin:
+    // - IKU (jenis=monev): tampilkan SEMUA indikator IKU (indikator utama kadis, semua user boleh lihat)
+    // - IKK / SPM:
+    //     scope=mine   → hanya indikator yang di-assign via user_indikator ke akun ini
+    //     scope=bidang → SEMUA indikator (aktif, jenis sama) yang bidangnya (penanggung_jawab)
+    //                    sama dengan bidang dari indikator-indikator yang jadi tanggung jawab user,
+    //                    meskipun indikator tsb tidak eksplisit di-assign ke user ini
+    let bidangNama = null;
+    let userIndikatorIds = null; // null = tampil semua; array = filter per id
+    if (!auth.is_admin && jenis !== 'monev') {
+      try {
+        const assignRows = await sql`
+          SELECT indikator_id FROM user_indikator WHERE user_id = ${auth.id}
+        `;
+        if (assignRows.length === 0) {
+          // Tidak ada assignment → return kosong, tidak ada fallback
+          return jsonResponse({ rekap: [], tahun, jenis, no_assignment: true });
+        }
+
+        const myIds = assignRows.map(r => r.indikator_id);
+
+        if (scope === 'bidang') {
+          const bidangRows = await sql`
+            SELECT DISTINCT penanggung_jawab FROM kinerja_indikator
+            WHERE id = ANY(${myIds}) AND penanggung_jawab IS NOT NULL
+          `;
+          const bidangList = bidangRows.map(r => r.penanggung_jawab).filter(Boolean);
+
+          if (bidangList.length === 0) {
+            // Indikator user nggak punya info bidang → fallback ke punya dia sendiri aja
+            userIndikatorIds = myIds;
+          } else {
+            const jenisIndikRows = jenis === 'ikk'
+              ? await sql`
+                  SELECT id FROM kinerja_indikator
+                  WHERE aktif = TRUE AND jenis_ikk = TRUE AND penanggung_jawab = ANY(${bidangList})
+                `
+              : await sql`
+                  SELECT id FROM kinerja_indikator
+                  WHERE aktif = TRUE AND jenis_spm = TRUE AND penanggung_jawab = ANY(${bidangList})
+                `;
+            userIndikatorIds = jenisIndikRows.map(r => r.id);
+            if (userIndikatorIds.length === 0) userIndikatorIds = myIds; // safety net
+          }
+        } else {
+          userIndikatorIds = myIds;
+        }
+      } catch (_) {
+        return jsonResponse({ rekap: [], tahun, jenis, no_assignment: true });
+      }
+    }
+
+    try {
+      const rows = jenis === 'ikk'
+        ? auth.is_admin
+          ? await sql`
+            SELECT
+              ki.id,
+              gs.bulan,
+              ki.group_id,
+              kg.nama       AS group_nama,
+              kg.jenis      AS group_jenis,
+              kg.urutan     AS group_urutan,
+              ki.sasaran,
+              ki.indikator_kinerja,
+              ki.satuan,
+              kt.target        AS target_tahun,
+              kt.target_display AS target_display,
+              ki.penanggung_jawab,
+              ki.bermakna_negatif,
+              ki.urutan,
+              ki.jenis_monev,
+              ki.jenis_ikk,
+              ki.jenis_spm,
+              ki.formula,
+              ki.tipe_perhitungan,
+              ki.tipe_nilai,
+              (SELECT COUNT(*) FROM kinerja_realisasi krc
+               WHERE krc.indikator_id = ki.id AND krc.tahun = ${tahun}
+                 AND krc.bulan <= gs.bulan AND krc.realisasi IS NOT NULL) AS bulan_terisi_count,
+              kr.id         AS realisasi_id,
+              kr.realisasi,
+              kr.realisasi_display,
+              kr.f_penghambat,
+              kr.solusi,
+              kr.f_pendukung,
+              kr.rencana_tl,
+              kr.data_dukung_url,
+              kr.data_dukung_nama,
+              kr.diisi_oleh,
+              kr.updated_at AS realisasi_updated_at,
+              CASE
+                WHEN COALESCE(
+                       CASE WHEN ki.tipe_perhitungan = 'kumulatif'
+                             THEN (SELECT SUM(krc.realisasi) FROM kinerja_realisasi krc
+                                   WHERE krc.indikator_id = ki.id
+                                     AND krc.tahun = ${tahun}
+                                     AND krc.bulan <= gs.bulan)
+                             WHEN ki.tipe_perhitungan = 'rata_rata'
+                             THEN (SELECT AVG(krc.realisasi) FROM kinerja_realisasi krc
+                                   WHERE krc.indikator_id = ki.id
+                                     AND krc.tahun = ${tahun}
+                                     AND krc.bulan <= gs.bulan)
+                             ELSE kr.realisasi END,
+                       kr.realisasi
+                     ) IS NULL OR kt.target IS NULL OR kt.target = 0
+                  THEN NULL
+                WHEN ki.bermakna_negatif = TRUE
+                  THEN ROUND(
+                    (kt.target::NUMERIC - (
+                      COALESCE(
+                        CASE WHEN ki.tipe_perhitungan = 'kumulatif'
+                             THEN (SELECT SUM(krc.realisasi) FROM kinerja_realisasi krc
+                                   WHERE krc.indikator_id = ki.id
+                                     AND krc.tahun = ${tahun}
+                                     AND krc.bulan <= gs.bulan)::NUMERIC
+                             WHEN ki.tipe_perhitungan = 'rata_rata'
+                             THEN (SELECT AVG(krc.realisasi) FROM kinerja_realisasi krc
+                                   WHERE krc.indikator_id = ki.id
+                                     AND krc.tahun = ${tahun}
+                                     AND krc.bulan <= gs.bulan)::NUMERIC
+                             ELSE kr.realisasi::NUMERIC END,
+                        kr.realisasi::NUMERIC
+                      ) - kt.target::NUMERIC
+                    ))
+                    / kt.target::NUMERIC * 100, 2
+                  )
+                ELSE
+                  ROUND(
+                    COALESCE(
+                      CASE WHEN ki.tipe_perhitungan = 'kumulatif'
+                             THEN (SELECT SUM(krc.realisasi) FROM kinerja_realisasi krc
+                                   WHERE krc.indikator_id = ki.id
+                                     AND krc.tahun = ${tahun}
+                                     AND krc.bulan <= gs.bulan)::NUMERIC
+                             WHEN ki.tipe_perhitungan = 'rata_rata'
+                             THEN (SELECT AVG(krc.realisasi) FROM kinerja_realisasi krc
+                                   WHERE krc.indikator_id = ki.id
+                                     AND krc.tahun = ${tahun}
+                                     AND krc.bulan <= gs.bulan)::NUMERIC
+                             ELSE kr.realisasi::NUMERIC END,
+                      kr.realisasi::NUMERIC
+                    ) / kt.target::NUMERIC * 100, 2
+                  )
+              END AS capaian_persen
+            FROM kinerja_indikator ki
+            CROSS JOIN generate_series(1,12) AS gs(bulan)
+            LEFT JOIN kinerja_group kg ON kg.id = ki.group_id
+            LEFT JOIN kinerja_realisasi kr
+              ON kr.indikator_id = ki.id
+             AND kr.bulan  = gs.bulan
+             AND kr.tahun  = ${tahun}
+            LEFT JOIN (
+            SELECT id, indikator_id, tahun, target_display,
+                   COALESCE(
+                     target,
+                     CASE UPPER(TRIM(target_display))
+                       WHEN 'D'  THEN 1 WHEN 'C'  THEN 2 WHEN 'CC' THEN 3 WHEN 'B'  THEN 4
+                       WHEN 'BB' THEN 5 WHEN 'A'  THEN 6 WHEN 'AA' THEN 7
+                     END
+                   ) AS target
+            FROM kinerja_target
+          ) kt
+              ON kt.indikator_id = ki.id
+             AND kt.tahun        = ${tahun}
+            WHERE ki.aktif = TRUE
+              AND ki.jenis_ikk = TRUE
+            ORDER BY gs.bulan ASC, kg.urutan ASC NULLS LAST, ki.urutan ASC, ki.id ASC
+          `
+          : userIndikatorIds !== null
+          ? await sql`
+            SELECT
+              ki.id,
+              gs.bulan,
+              ki.group_id,
+              kg.nama       AS group_nama,
+              kg.jenis      AS group_jenis,
+              kg.urutan     AS group_urutan,
+              ki.sasaran,
+              ki.indikator_kinerja,
+              ki.satuan,
+              kt.target        AS target_tahun,
+              kt.target_display AS target_display,
+              ki.penanggung_jawab,
+              ki.bermakna_negatif,
+              ki.urutan,
+              ki.jenis_monev,
+              ki.jenis_ikk,
+              ki.jenis_spm,
+              ki.formula,
+              ki.tipe_perhitungan,
+              ki.tipe_nilai,
+              (SELECT COUNT(*) FROM kinerja_realisasi krc
+               WHERE krc.indikator_id = ki.id AND krc.tahun = ${tahun}
+                 AND krc.bulan <= gs.bulan AND krc.realisasi IS NOT NULL) AS bulan_terisi_count,
+              kr.id         AS realisasi_id,
+              kr.realisasi,
+              kr.realisasi_display,
+              kr.f_penghambat,
+              kr.solusi,
+              kr.f_pendukung,
+              kr.rencana_tl,
+              kr.data_dukung_url,
+              kr.data_dukung_nama,
+              kr.diisi_oleh,
+              kr.updated_at AS realisasi_updated_at,
+              CASE
+                WHEN COALESCE(
+                       CASE WHEN ki.tipe_perhitungan = 'kumulatif'
+                             THEN (SELECT SUM(krc.realisasi) FROM kinerja_realisasi krc
+                                   WHERE krc.indikator_id = ki.id
+                                     AND krc.tahun = ${tahun}
+                                     AND krc.bulan <= gs.bulan)
+                             WHEN ki.tipe_perhitungan = 'rata_rata'
+                             THEN (SELECT AVG(krc.realisasi) FROM kinerja_realisasi krc
+                                   WHERE krc.indikator_id = ki.id
+                                     AND krc.tahun = ${tahun}
+                                     AND krc.bulan <= gs.bulan)
+                             ELSE kr.realisasi END,
+                       kr.realisasi
+                     ) IS NULL OR kt.target IS NULL OR kt.target = 0
+                  THEN NULL
+                WHEN ki.bermakna_negatif = TRUE
+                  THEN ROUND(
+                    (kt.target::NUMERIC - (
+                      COALESCE(
+                        CASE WHEN ki.tipe_perhitungan = 'kumulatif'
+                             THEN (SELECT SUM(krc.realisasi) FROM kinerja_realisasi krc
+                                   WHERE krc.indikator_id = ki.id
+                                     AND krc.tahun = ${tahun}
+                                     AND krc.bulan <= gs.bulan)::NUMERIC
+                             WHEN ki.tipe_perhitungan = 'rata_rata'
+                             THEN (SELECT AVG(krc.realisasi) FROM kinerja_realisasi krc
+                                   WHERE krc.indikator_id = ki.id
+                                     AND krc.tahun = ${tahun}
+                                     AND krc.bulan <= gs.bulan)::NUMERIC
+                             ELSE kr.realisasi::NUMERIC END,
+                        kr.realisasi::NUMERIC
+                      ) - kt.target::NUMERIC
+                    ))
+                    / kt.target::NUMERIC * 100, 2
+                  )
+                ELSE
+                  ROUND(
+                    COALESCE(
+                      CASE WHEN ki.tipe_perhitungan = 'kumulatif'
+                             THEN (SELECT SUM(krc.realisasi) FROM kinerja_realisasi krc
+                                   WHERE krc.indikator_id = ki.id
+                                     AND krc.tahun = ${tahun}
+                                     AND krc.bulan <= gs.bulan)::NUMERIC
+                             WHEN ki.tipe_perhitungan = 'rata_rata'
+                             THEN (SELECT AVG(krc.realisasi) FROM kinerja_realisasi krc
+                                   WHERE krc.indikator_id = ki.id
+                                     AND krc.tahun = ${tahun}
+                                     AND krc.bulan <= gs.bulan)::NUMERIC
+                             ELSE kr.realisasi::NUMERIC END,
+                      kr.realisasi::NUMERIC
+                    ) / kt.target::NUMERIC * 100, 2
+                  )
+              END AS capaian_persen
+            FROM kinerja_indikator ki
+            CROSS JOIN generate_series(1,12) AS gs(bulan)
+            LEFT JOIN kinerja_group kg ON kg.id = ki.group_id
+            LEFT JOIN kinerja_realisasi kr
+              ON kr.indikator_id = ki.id
+             AND kr.bulan  = gs.bulan
+             AND kr.tahun  = ${tahun}
+            LEFT JOIN (
+            SELECT id, indikator_id, tahun, target_display,
+                   COALESCE(
+                     target,
+                     CASE UPPER(TRIM(target_display))
+                       WHEN 'D'  THEN 1 WHEN 'C'  THEN 2 WHEN 'CC' THEN 3 WHEN 'B'  THEN 4
+                       WHEN 'BB' THEN 5 WHEN 'A'  THEN 6 WHEN 'AA' THEN 7
+                     END
+                   ) AS target
+            FROM kinerja_target
+          ) kt
+              ON kt.indikator_id = ki.id
+             AND kt.tahun        = ${tahun}
+            WHERE ki.aktif = TRUE
+              AND ki.jenis_ikk = TRUE
+              AND ki.id = ANY(${userIndikatorIds})
+            ORDER BY gs.bulan ASC, kg.urutan ASC NULLS LAST, ki.urutan ASC, ki.id ASC
+          `
+          : await sql`
+            SELECT
+              ki.id,
+              gs.bulan,
+              ki.group_id,
+              kg.nama       AS group_nama,
+              kg.jenis      AS group_jenis,
+              kg.urutan     AS group_urutan,
+              ki.sasaran,
+              ki.indikator_kinerja,
+              ki.satuan,
+              kt.target        AS target_tahun,
+              kt.target_display AS target_display,
+              ki.penanggung_jawab,
+              ki.bermakna_negatif,
+              ki.urutan,
+              ki.jenis_monev,
+              ki.jenis_ikk,
+              ki.jenis_spm,
+              ki.formula,
+              ki.tipe_perhitungan,
+              ki.tipe_nilai,
+              (SELECT COUNT(*) FROM kinerja_realisasi krc
+               WHERE krc.indikator_id = ki.id AND krc.tahun = ${tahun}
+                 AND krc.bulan <= gs.bulan AND krc.realisasi IS NOT NULL) AS bulan_terisi_count,
+              kr.id         AS realisasi_id,
+              kr.realisasi,
+              kr.realisasi_display,
+              kr.f_penghambat,
+              kr.solusi,
+              kr.f_pendukung,
+              kr.rencana_tl,
+              kr.data_dukung_url,
+              kr.data_dukung_nama,
+              kr.diisi_oleh,
+              kr.updated_at AS realisasi_updated_at,
+              CASE
+                WHEN COALESCE(
+                       CASE WHEN ki.tipe_perhitungan = 'kumulatif'
+                             THEN (SELECT SUM(krc.realisasi) FROM kinerja_realisasi krc
+                                   WHERE krc.indikator_id = ki.id
+                                     AND krc.tahun = ${tahun}
+                                     AND krc.bulan <= gs.bulan)
+                             WHEN ki.tipe_perhitungan = 'rata_rata'
+                             THEN (SELECT AVG(krc.realisasi) FROM kinerja_realisasi krc
+                                   WHERE krc.indikator_id = ki.id
+                                     AND krc.tahun = ${tahun}
+                                     AND krc.bulan <= gs.bulan)
+                             ELSE kr.realisasi END,
+                       kr.realisasi
+                     ) IS NULL OR kt.target IS NULL OR kt.target = 0
+                  THEN NULL
+                WHEN ki.bermakna_negatif = TRUE
+                  THEN ROUND(
+                    (kt.target::NUMERIC - (
+                      COALESCE(
+                        CASE WHEN ki.tipe_perhitungan = 'kumulatif'
+                             THEN (SELECT SUM(krc.realisasi) FROM kinerja_realisasi krc
+                                   WHERE krc.indikator_id = ki.id
+                                     AND krc.tahun = ${tahun}
+                                     AND krc.bulan <= gs.bulan)::NUMERIC
+                             WHEN ki.tipe_perhitungan = 'rata_rata'
+                             THEN (SELECT AVG(krc.realisasi) FROM kinerja_realisasi krc
+                                   WHERE krc.indikator_id = ki.id
+                                     AND krc.tahun = ${tahun}
+                                     AND krc.bulan <= gs.bulan)::NUMERIC
+                             ELSE kr.realisasi::NUMERIC END,
+                        kr.realisasi::NUMERIC
+                      ) - kt.target::NUMERIC
+                    ))
+                    / kt.target::NUMERIC * 100, 2
+                  )
+                ELSE
+                  ROUND(
+                    COALESCE(
+                      CASE WHEN ki.tipe_perhitungan = 'kumulatif'
+                             THEN (SELECT SUM(krc.realisasi) FROM kinerja_realisasi krc
+                                   WHERE krc.indikator_id = ki.id
+                                     AND krc.tahun = ${tahun}
+                                     AND krc.bulan <= gs.bulan)::NUMERIC
+                             WHEN ki.tipe_perhitungan = 'rata_rata'
+                             THEN (SELECT AVG(krc.realisasi) FROM kinerja_realisasi krc
+                                   WHERE krc.indikator_id = ki.id
+                                     AND krc.tahun = ${tahun}
+                                     AND krc.bulan <= gs.bulan)::NUMERIC
+                             ELSE kr.realisasi::NUMERIC END,
+                      kr.realisasi::NUMERIC
+                    ) / kt.target::NUMERIC * 100, 2
+                  )
+              END AS capaian_persen
+            FROM kinerja_indikator ki
+            CROSS JOIN generate_series(1,12) AS gs(bulan)
+            LEFT JOIN kinerja_group kg ON kg.id = ki.group_id
+            LEFT JOIN kinerja_realisasi kr
+              ON kr.indikator_id = ki.id
+             AND kr.bulan  = gs.bulan
+             AND kr.tahun  = ${tahun}
+            LEFT JOIN (
+            SELECT id, indikator_id, tahun, target_display,
+                   COALESCE(
+                     target,
+                     CASE UPPER(TRIM(target_display))
+                       WHEN 'D'  THEN 1 WHEN 'C'  THEN 2 WHEN 'CC' THEN 3 WHEN 'B'  THEN 4
+                       WHEN 'BB' THEN 5 WHEN 'A'  THEN 6 WHEN 'AA' THEN 7
+                     END
+                   ) AS target
+            FROM kinerja_target
+          ) kt
+              ON kt.indikator_id = ki.id
+             AND kt.tahun        = ${tahun}
+            WHERE ki.aktif = TRUE
+              AND ki.jenis_ikk = TRUE
+              AND ki.penanggung_jawab = ${bidangNama}
+            ORDER BY gs.bulan ASC, kg.urutan ASC NULLS LAST, ki.urutan ASC, ki.id ASC
+          `
+        : jenis === 'spm'
+        ? auth.is_admin
+          ? await sql`
+            SELECT
+              ki.id,
+              gs.bulan,
+              ki.group_id,
+              kg.nama       AS group_nama,
+              kg.jenis      AS group_jenis,
+              kg.urutan     AS group_urutan,
+              ki.sasaran,
+              ki.indikator_kinerja,
+              ki.satuan,
+              kt.target        AS target_tahun,
+              kt.target_display AS target_display,
+              ki.penanggung_jawab,
+              ki.bermakna_negatif,
+              ki.urutan,
+              ki.jenis_monev,
+              ki.jenis_ikk,
+              ki.jenis_spm,
+              ki.formula,
+              ki.tipe_perhitungan,
+              ki.tipe_nilai,
+              (SELECT COUNT(*) FROM kinerja_realisasi krc
+               WHERE krc.indikator_id = ki.id AND krc.tahun = ${tahun}
+                 AND krc.bulan <= gs.bulan AND krc.realisasi IS NOT NULL) AS bulan_terisi_count,
+              kr.id         AS realisasi_id,
+              kr.realisasi,
+              kr.realisasi_display,
+              kr.f_penghambat,
+              kr.solusi,
+              kr.f_pendukung,
+              kr.rencana_tl,
+              kr.data_dukung_url,
+              kr.data_dukung_nama,
+              kr.diisi_oleh,
+              kr.updated_at AS realisasi_updated_at,
+              CASE
+                WHEN COALESCE(
+                       CASE WHEN ki.tipe_perhitungan = 'kumulatif'
+                             THEN (SELECT SUM(krc.realisasi) FROM kinerja_realisasi krc
+                                   WHERE krc.indikator_id = ki.id
+                                     AND krc.tahun = ${tahun}
+                                     AND krc.bulan <= gs.bulan)
+                             WHEN ki.tipe_perhitungan = 'rata_rata'
+                             THEN (SELECT AVG(krc.realisasi) FROM kinerja_realisasi krc
+                                   WHERE krc.indikator_id = ki.id
+                                     AND krc.tahun = ${tahun}
+                                     AND krc.bulan <= gs.bulan)
+                             ELSE kr.realisasi END,
+                       kr.realisasi
+                     ) IS NULL OR kt.target IS NULL OR kt.target = 0
+                  THEN NULL
+                WHEN ki.bermakna_negatif = TRUE
+                  THEN ROUND(
+                    (kt.target::NUMERIC - (
+                      COALESCE(
+                        CASE WHEN ki.tipe_perhitungan = 'kumulatif'
+                             THEN (SELECT SUM(krc.realisasi) FROM kinerja_realisasi krc
+                                   WHERE krc.indikator_id = ki.id
+                                     AND krc.tahun = ${tahun}
+                                     AND krc.bulan <= gs.bulan)::NUMERIC
+                             WHEN ki.tipe_perhitungan = 'rata_rata'
+                             THEN (SELECT AVG(krc.realisasi) FROM kinerja_realisasi krc
+                                   WHERE krc.indikator_id = ki.id
+                                     AND krc.tahun = ${tahun}
+                                     AND krc.bulan <= gs.bulan)::NUMERIC
+                             ELSE kr.realisasi::NUMERIC END,
+                        kr.realisasi::NUMERIC
+                      ) - kt.target::NUMERIC
+                    ))
+                    / kt.target::NUMERIC * 100, 2
+                  )
+                ELSE
+                  ROUND(
+                    COALESCE(
+                      CASE WHEN ki.tipe_perhitungan = 'kumulatif'
+                             THEN (SELECT SUM(krc.realisasi) FROM kinerja_realisasi krc
+                                   WHERE krc.indikator_id = ki.id
+                                     AND krc.tahun = ${tahun}
+                                     AND krc.bulan <= gs.bulan)::NUMERIC
+                             WHEN ki.tipe_perhitungan = 'rata_rata'
+                             THEN (SELECT AVG(krc.realisasi) FROM kinerja_realisasi krc
+                                   WHERE krc.indikator_id = ki.id
+                                     AND krc.tahun = ${tahun}
+                                     AND krc.bulan <= gs.bulan)::NUMERIC
+                             ELSE kr.realisasi::NUMERIC END,
+                      kr.realisasi::NUMERIC
+                    ) / kt.target::NUMERIC * 100, 2
+                  )
+              END AS capaian_persen
+            FROM kinerja_indikator ki
+            CROSS JOIN generate_series(1,12) AS gs(bulan)
+            LEFT JOIN kinerja_group kg ON kg.id = ki.group_id
+            LEFT JOIN kinerja_realisasi kr
+              ON kr.indikator_id = ki.id
+             AND kr.bulan  = gs.bulan
+             AND kr.tahun  = ${tahun}
+            LEFT JOIN (
+            SELECT id, indikator_id, tahun, target_display,
+                   COALESCE(
+                     target,
+                     CASE UPPER(TRIM(target_display))
+                       WHEN 'D'  THEN 1 WHEN 'C'  THEN 2 WHEN 'CC' THEN 3 WHEN 'B'  THEN 4
+                       WHEN 'BB' THEN 5 WHEN 'A'  THEN 6 WHEN 'AA' THEN 7
+                     END
+                   ) AS target
+            FROM kinerja_target
+          ) kt
+              ON kt.indikator_id = ki.id
+             AND kt.tahun        = ${tahun}
+            WHERE ki.aktif = TRUE
+              AND ki.jenis_spm = TRUE
+            ORDER BY gs.bulan ASC, kg.urutan ASC NULLS LAST, ki.urutan ASC, ki.id ASC
+          `
+          : userIndikatorIds !== null
+          ? await sql`
+            SELECT
+              ki.id,
+              gs.bulan,
+              ki.group_id,
+              kg.nama       AS group_nama,
+              kg.jenis      AS group_jenis,
+              kg.urutan     AS group_urutan,
+              ki.sasaran,
+              ki.indikator_kinerja,
+              ki.satuan,
+              kt.target        AS target_tahun,
+              kt.target_display AS target_display,
+              ki.penanggung_jawab,
+              ki.bermakna_negatif,
+              ki.urutan,
+              ki.jenis_monev,
+              ki.jenis_ikk,
+              ki.jenis_spm,
+              ki.formula,
+              ki.tipe_perhitungan,
+              ki.tipe_nilai,
+              (SELECT COUNT(*) FROM kinerja_realisasi krc
+               WHERE krc.indikator_id = ki.id AND krc.tahun = ${tahun}
+                 AND krc.bulan <= gs.bulan AND krc.realisasi IS NOT NULL) AS bulan_terisi_count,
+              kr.id         AS realisasi_id,
+              kr.realisasi,
+              kr.realisasi_display,
+              kr.f_penghambat,
+              kr.solusi,
+              kr.f_pendukung,
+              kr.rencana_tl,
+              kr.data_dukung_url,
+              kr.data_dukung_nama,
+              kr.diisi_oleh,
+              kr.updated_at AS realisasi_updated_at,
+              CASE
+                WHEN COALESCE(
+                       CASE WHEN ki.tipe_perhitungan = 'kumulatif'
+                             THEN (SELECT SUM(krc.realisasi) FROM kinerja_realisasi krc
+                                   WHERE krc.indikator_id = ki.id
+                                     AND krc.tahun = ${tahun}
+                                     AND krc.bulan <= gs.bulan)
+                             WHEN ki.tipe_perhitungan = 'rata_rata'
+                             THEN (SELECT AVG(krc.realisasi) FROM kinerja_realisasi krc
+                                   WHERE krc.indikator_id = ki.id
+                                     AND krc.tahun = ${tahun}
+                                     AND krc.bulan <= gs.bulan)
+                             ELSE kr.realisasi END,
+                       kr.realisasi
+                     ) IS NULL OR kt.target IS NULL OR kt.target = 0
+                  THEN NULL
+                WHEN ki.bermakna_negatif = TRUE
+                  THEN ROUND(
+                    (kt.target::NUMERIC - (
+                      COALESCE(
+                        CASE WHEN ki.tipe_perhitungan = 'kumulatif'
+                             THEN (SELECT SUM(krc.realisasi) FROM kinerja_realisasi krc
+                                   WHERE krc.indikator_id = ki.id
+                                     AND krc.tahun = ${tahun}
+                                     AND krc.bulan <= gs.bulan)::NUMERIC
+                             WHEN ki.tipe_perhitungan = 'rata_rata'
+                             THEN (SELECT AVG(krc.realisasi) FROM kinerja_realisasi krc
+                                   WHERE krc.indikator_id = ki.id
+                                     AND krc.tahun = ${tahun}
+                                     AND krc.bulan <= gs.bulan)::NUMERIC
+                             ELSE kr.realisasi::NUMERIC END,
+                        kr.realisasi::NUMERIC
+                      ) - kt.target::NUMERIC
+                    ))
+                    / kt.target::NUMERIC * 100, 2
+                  )
+                ELSE
+                  ROUND(
+                    COALESCE(
+                      CASE WHEN ki.tipe_perhitungan = 'kumulatif'
+                             THEN (SELECT SUM(krc.realisasi) FROM kinerja_realisasi krc
+                                   WHERE krc.indikator_id = ki.id
+                                     AND krc.tahun = ${tahun}
+                                     AND krc.bulan <= gs.bulan)::NUMERIC
+                             WHEN ki.tipe_perhitungan = 'rata_rata'
+                             THEN (SELECT AVG(krc.realisasi) FROM kinerja_realisasi krc
+                                   WHERE krc.indikator_id = ki.id
+                                     AND krc.tahun = ${tahun}
+                                     AND krc.bulan <= gs.bulan)::NUMERIC
+                             ELSE kr.realisasi::NUMERIC END,
+                      kr.realisasi::NUMERIC
+                    ) / kt.target::NUMERIC * 100, 2
+                  )
+              END AS capaian_persen
+            FROM kinerja_indikator ki
+            CROSS JOIN generate_series(1,12) AS gs(bulan)
+            LEFT JOIN kinerja_group kg ON kg.id = ki.group_id
+            LEFT JOIN kinerja_realisasi kr
+              ON kr.indikator_id = ki.id
+             AND kr.bulan  = gs.bulan
+             AND kr.tahun  = ${tahun}
+            LEFT JOIN (
+            SELECT id, indikator_id, tahun, target_display,
+                   COALESCE(
+                     target,
+                     CASE UPPER(TRIM(target_display))
+                       WHEN 'D'  THEN 1 WHEN 'C'  THEN 2 WHEN 'CC' THEN 3 WHEN 'B'  THEN 4
+                       WHEN 'BB' THEN 5 WHEN 'A'  THEN 6 WHEN 'AA' THEN 7
+                     END
+                   ) AS target
+            FROM kinerja_target
+          ) kt
+              ON kt.indikator_id = ki.id
+             AND kt.tahun        = ${tahun}
+            WHERE ki.aktif = TRUE
+              AND ki.jenis_spm = TRUE
+              AND ki.id = ANY(${userIndikatorIds !== null ? userIndikatorIds : [-1]})
+            ORDER BY gs.bulan ASC, kg.urutan ASC NULLS LAST, ki.urutan ASC, ki.id ASC
+          `
+          : await sql`
+            SELECT
+              ki.id,
+              gs.bulan,
+              ki.group_id,
+              kg.nama       AS group_nama,
+              kg.jenis      AS group_jenis,
+              kg.urutan     AS group_urutan,
+              ki.sasaran,
+              ki.indikator_kinerja,
+              ki.satuan,
+              kt.target        AS target_tahun,
+              kt.target_display AS target_display,
+              ki.penanggung_jawab,
+              ki.bermakna_negatif,
+              ki.urutan,
+              ki.jenis_monev,
+              ki.jenis_ikk,
+              ki.jenis_spm,
+              ki.formula,
+              ki.tipe_perhitungan,
+              ki.tipe_nilai,
+              (SELECT COUNT(*) FROM kinerja_realisasi krc
+               WHERE krc.indikator_id = ki.id AND krc.tahun = ${tahun}
+                 AND krc.bulan <= gs.bulan AND krc.realisasi IS NOT NULL) AS bulan_terisi_count,
+              kr.id         AS realisasi_id,
+              kr.realisasi,
+              kr.realisasi_display,
+              kr.f_penghambat,
+              kr.solusi,
+              kr.f_pendukung,
+              kr.rencana_tl,
+              kr.data_dukung_url,
+              kr.data_dukung_nama,
+              kr.diisi_oleh,
+              kr.updated_at AS realisasi_updated_at,
+              CASE
+                WHEN COALESCE(
+                       CASE WHEN ki.tipe_perhitungan = 'kumulatif'
+                             THEN (SELECT SUM(krc.realisasi) FROM kinerja_realisasi krc
+                                   WHERE krc.indikator_id = ki.id
+                                     AND krc.tahun = ${tahun}
+                                     AND krc.bulan <= gs.bulan)
+                             WHEN ki.tipe_perhitungan = 'rata_rata'
+                             THEN (SELECT AVG(krc.realisasi) FROM kinerja_realisasi krc
+                                   WHERE krc.indikator_id = ki.id
+                                     AND krc.tahun = ${tahun}
+                                     AND krc.bulan <= gs.bulan)
+                             ELSE kr.realisasi END,
+                       kr.realisasi
+                     ) IS NULL OR kt.target IS NULL OR kt.target = 0
+                  THEN NULL
+                WHEN ki.bermakna_negatif = TRUE
+                  THEN ROUND(
+                    (kt.target::NUMERIC - (
+                      COALESCE(
+                        CASE WHEN ki.tipe_perhitungan = 'kumulatif'
+                             THEN (SELECT SUM(krc.realisasi) FROM kinerja_realisasi krc
+                                   WHERE krc.indikator_id = ki.id
+                                     AND krc.tahun = ${tahun}
+                                     AND krc.bulan <= gs.bulan)::NUMERIC
+                             WHEN ki.tipe_perhitungan = 'rata_rata'
+                             THEN (SELECT AVG(krc.realisasi) FROM kinerja_realisasi krc
+                                   WHERE krc.indikator_id = ki.id
+                                     AND krc.tahun = ${tahun}
+                                     AND krc.bulan <= gs.bulan)::NUMERIC
+                             ELSE kr.realisasi::NUMERIC END,
+                        kr.realisasi::NUMERIC
+                      ) - kt.target::NUMERIC
+                    ))
+                    / kt.target::NUMERIC * 100, 2
+                  )
+                ELSE
+                  ROUND(
+                    COALESCE(
+                      CASE WHEN ki.tipe_perhitungan = 'kumulatif'
+                             THEN (SELECT SUM(krc.realisasi) FROM kinerja_realisasi krc
+                                   WHERE krc.indikator_id = ki.id
+                                     AND krc.tahun = ${tahun}
+                                     AND krc.bulan <= gs.bulan)::NUMERIC
+                             WHEN ki.tipe_perhitungan = 'rata_rata'
+                             THEN (SELECT AVG(krc.realisasi) FROM kinerja_realisasi krc
+                                   WHERE krc.indikator_id = ki.id
+                                     AND krc.tahun = ${tahun}
+                                     AND krc.bulan <= gs.bulan)::NUMERIC
+                             ELSE kr.realisasi::NUMERIC END,
+                      kr.realisasi::NUMERIC
+                    ) / kt.target::NUMERIC * 100, 2
+                  )
+              END AS capaian_persen
+            FROM kinerja_indikator ki
+            CROSS JOIN generate_series(1,12) AS gs(bulan)
+            LEFT JOIN kinerja_group kg ON kg.id = ki.group_id
+            LEFT JOIN kinerja_realisasi kr
+              ON kr.indikator_id = ki.id
+             AND kr.bulan  = gs.bulan
+             AND kr.tahun  = ${tahun}
+            LEFT JOIN (
+            SELECT id, indikator_id, tahun, target_display,
+                   COALESCE(
+                     target,
+                     CASE UPPER(TRIM(target_display))
+                       WHEN 'D'  THEN 1 WHEN 'C'  THEN 2 WHEN 'CC' THEN 3 WHEN 'B'  THEN 4
+                       WHEN 'BB' THEN 5 WHEN 'A'  THEN 6 WHEN 'AA' THEN 7
+                     END
+                   ) AS target
+            FROM kinerja_target
+          ) kt
+              ON kt.indikator_id = ki.id
+             AND kt.tahun        = ${tahun}
+            WHERE ki.aktif = TRUE
+              AND ki.jenis_spm = TRUE
+              AND ki.penanggung_jawab = ${bidangNama}
+            ORDER BY gs.bulan ASC, kg.urutan ASC NULLS LAST, ki.urutan ASC, ki.id ASC
+          `
+        : auth.is_admin
+          ? await sql`
+            SELECT
+              ki.id,
+              gs.bulan,
+              ki.group_id,
+              kg.nama       AS group_nama,
+              kg.jenis      AS group_jenis,
+              kg.urutan     AS group_urutan,
+              ki.sasaran,
+              ki.indikator_kinerja,
+              ki.satuan,
+              kt.target        AS target_tahun,
+              kt.target_display AS target_display,
+              ki.penanggung_jawab,
+              ki.bermakna_negatif,
+              ki.urutan,
+              ki.jenis_monev,
+              ki.jenis_ikk,
+              ki.jenis_spm,
+              ki.formula,
+              ki.tipe_perhitungan,
+              ki.tipe_nilai,
+              (SELECT COUNT(*) FROM kinerja_realisasi krc
+               WHERE krc.indikator_id = ki.id AND krc.tahun = ${tahun}
+                 AND krc.bulan <= gs.bulan AND krc.realisasi IS NOT NULL) AS bulan_terisi_count,
+              kr.id         AS realisasi_id,
+              kr.realisasi,
+              kr.realisasi_display,
+              kr.f_penghambat,
+              kr.solusi,
+              kr.f_pendukung,
+              kr.rencana_tl,
+              kr.data_dukung_url,
+              kr.data_dukung_nama,
+              kr.diisi_oleh,
+              kr.updated_at AS realisasi_updated_at,
+              CASE
+                WHEN COALESCE(
+                       CASE WHEN ki.tipe_perhitungan = 'kumulatif'
+                             THEN (SELECT SUM(krc.realisasi) FROM kinerja_realisasi krc
+                                   WHERE krc.indikator_id = ki.id
+                                     AND krc.tahun = ${tahun}
+                                     AND krc.bulan <= gs.bulan)
+                             WHEN ki.tipe_perhitungan = 'rata_rata'
+                             THEN (SELECT AVG(krc.realisasi) FROM kinerja_realisasi krc
+                                   WHERE krc.indikator_id = ki.id
+                                     AND krc.tahun = ${tahun}
+                                     AND krc.bulan <= gs.bulan)
+                             ELSE kr.realisasi END,
+                       kr.realisasi
+                     ) IS NULL OR kt.target IS NULL OR kt.target = 0
+                  THEN NULL
+                WHEN ki.bermakna_negatif = TRUE
+                  THEN ROUND(
+                    (kt.target::NUMERIC - (
+                      COALESCE(
+                        CASE WHEN ki.tipe_perhitungan = 'kumulatif'
+                             THEN (SELECT SUM(krc.realisasi) FROM kinerja_realisasi krc
+                                   WHERE krc.indikator_id = ki.id
+                                     AND krc.tahun = ${tahun}
+                                     AND krc.bulan <= gs.bulan)::NUMERIC
+                             WHEN ki.tipe_perhitungan = 'rata_rata'
+                             THEN (SELECT AVG(krc.realisasi) FROM kinerja_realisasi krc
+                                   WHERE krc.indikator_id = ki.id
+                                     AND krc.tahun = ${tahun}
+                                     AND krc.bulan <= gs.bulan)::NUMERIC
+                             ELSE kr.realisasi::NUMERIC END,
+                        kr.realisasi::NUMERIC
+                      ) - kt.target::NUMERIC
+                    ))
+                    / kt.target::NUMERIC * 100, 2
+                  )
+                ELSE
+                  ROUND(
+                    COALESCE(
+                      CASE WHEN ki.tipe_perhitungan = 'kumulatif'
+                             THEN (SELECT SUM(krc.realisasi) FROM kinerja_realisasi krc
+                                   WHERE krc.indikator_id = ki.id
+                                     AND krc.tahun = ${tahun}
+                                     AND krc.bulan <= gs.bulan)::NUMERIC
+                             WHEN ki.tipe_perhitungan = 'rata_rata'
+                             THEN (SELECT AVG(krc.realisasi) FROM kinerja_realisasi krc
+                                   WHERE krc.indikator_id = ki.id
+                                     AND krc.tahun = ${tahun}
+                                     AND krc.bulan <= gs.bulan)::NUMERIC
+                             ELSE kr.realisasi::NUMERIC END,
+                      kr.realisasi::NUMERIC
+                    ) / kt.target::NUMERIC * 100, 2
+                  )
+              END AS capaian_persen
+            FROM kinerja_indikator ki
+            CROSS JOIN generate_series(1,12) AS gs(bulan)
+            LEFT JOIN kinerja_group kg ON kg.id = ki.group_id
+            LEFT JOIN kinerja_realisasi kr
+              ON kr.indikator_id = ki.id
+             AND kr.bulan  = gs.bulan
+             AND kr.tahun  = ${tahun}
+            LEFT JOIN (
+            SELECT id, indikator_id, tahun, target_display,
+                   COALESCE(
+                     target,
+                     CASE UPPER(TRIM(target_display))
+                       WHEN 'D'  THEN 1 WHEN 'C'  THEN 2 WHEN 'CC' THEN 3 WHEN 'B'  THEN 4
+                       WHEN 'BB' THEN 5 WHEN 'A'  THEN 6 WHEN 'AA' THEN 7
+                     END
+                   ) AS target
+            FROM kinerja_target
+          ) kt
+              ON kt.indikator_id = ki.id
+             AND kt.tahun        = ${tahun}
+            WHERE ki.aktif = TRUE
+              AND ki.jenis_monev = TRUE
+            ORDER BY gs.bulan ASC, kg.urutan ASC NULLS LAST, ki.urutan ASC, ki.id ASC
+          `
+          : userIndikatorIds !== null
+          ? await sql`
+            SELECT
+              ki.id,
+              gs.bulan,
+              ki.group_id,
+              kg.nama       AS group_nama,
+              kg.jenis      AS group_jenis,
+              kg.urutan     AS group_urutan,
+              ki.sasaran,
+              ki.indikator_kinerja,
+              ki.satuan,
+              kt.target        AS target_tahun,
+              kt.target_display AS target_display,
+              ki.penanggung_jawab,
+              ki.bermakna_negatif,
+              ki.urutan,
+              ki.jenis_monev,
+              ki.jenis_ikk,
+              ki.jenis_spm,
+              ki.formula,
+              ki.tipe_perhitungan,
+              ki.tipe_nilai,
+              (SELECT COUNT(*) FROM kinerja_realisasi krc
+               WHERE krc.indikator_id = ki.id AND krc.tahun = ${tahun}
+                 AND krc.bulan <= gs.bulan AND krc.realisasi IS NOT NULL) AS bulan_terisi_count,
+              kr.id         AS realisasi_id,
+              kr.realisasi,
+              kr.realisasi_display,
+              kr.f_penghambat,
+              kr.solusi,
+              kr.f_pendukung,
+              kr.rencana_tl,
+              kr.data_dukung_url,
+              kr.data_dukung_nama,
+              kr.diisi_oleh,
+              kr.updated_at AS realisasi_updated_at,
+              CASE
+                WHEN COALESCE(
+                       CASE WHEN ki.tipe_perhitungan = 'kumulatif'
+                             THEN (SELECT SUM(krc.realisasi) FROM kinerja_realisasi krc
+                                   WHERE krc.indikator_id = ki.id
+                                     AND krc.tahun = ${tahun}
+                                     AND krc.bulan <= gs.bulan)
+                             WHEN ki.tipe_perhitungan = 'rata_rata'
+                             THEN (SELECT AVG(krc.realisasi) FROM kinerja_realisasi krc
+                                   WHERE krc.indikator_id = ki.id
+                                     AND krc.tahun = ${tahun}
+                                     AND krc.bulan <= gs.bulan)
+                             ELSE kr.realisasi END,
+                       kr.realisasi
+                     ) IS NULL OR kt.target IS NULL OR kt.target = 0
+                  THEN NULL
+                WHEN ki.bermakna_negatif = TRUE
+                  THEN ROUND(
+                    (kt.target::NUMERIC - (
+                      COALESCE(
+                        CASE WHEN ki.tipe_perhitungan = 'kumulatif'
+                             THEN (SELECT SUM(krc.realisasi) FROM kinerja_realisasi krc
+                                   WHERE krc.indikator_id = ki.id
+                                     AND krc.tahun = ${tahun}
+                                     AND krc.bulan <= gs.bulan)::NUMERIC
+                             WHEN ki.tipe_perhitungan = 'rata_rata'
+                             THEN (SELECT AVG(krc.realisasi) FROM kinerja_realisasi krc
+                                   WHERE krc.indikator_id = ki.id
+                                     AND krc.tahun = ${tahun}
+                                     AND krc.bulan <= gs.bulan)::NUMERIC
+                             ELSE kr.realisasi::NUMERIC END,
+                        kr.realisasi::NUMERIC
+                      ) - kt.target::NUMERIC
+                    ))
+                    / kt.target::NUMERIC * 100, 2
+                  )
+                ELSE
+                  ROUND(
+                    COALESCE(
+                      CASE WHEN ki.tipe_perhitungan = 'kumulatif'
+                             THEN (SELECT SUM(krc.realisasi) FROM kinerja_realisasi krc
+                                   WHERE krc.indikator_id = ki.id
+                                     AND krc.tahun = ${tahun}
+                                     AND krc.bulan <= gs.bulan)::NUMERIC
+                             WHEN ki.tipe_perhitungan = 'rata_rata'
+                             THEN (SELECT AVG(krc.realisasi) FROM kinerja_realisasi krc
+                                   WHERE krc.indikator_id = ki.id
+                                     AND krc.tahun = ${tahun}
+                                     AND krc.bulan <= gs.bulan)::NUMERIC
+                             ELSE kr.realisasi::NUMERIC END,
+                      kr.realisasi::NUMERIC
+                    ) / kt.target::NUMERIC * 100, 2
+                  )
+              END AS capaian_persen
+            FROM kinerja_indikator ki
+            CROSS JOIN generate_series(1,12) AS gs(bulan)
+            LEFT JOIN kinerja_group kg ON kg.id = ki.group_id
+            LEFT JOIN kinerja_realisasi kr
+              ON kr.indikator_id = ki.id
+             AND kr.bulan  = gs.bulan
+             AND kr.tahun  = ${tahun}
+            LEFT JOIN (
+            SELECT id, indikator_id, tahun, target_display,
+                   COALESCE(
+                     target,
+                     CASE UPPER(TRIM(target_display))
+                       WHEN 'D'  THEN 1 WHEN 'C'  THEN 2 WHEN 'CC' THEN 3 WHEN 'B'  THEN 4
+                       WHEN 'BB' THEN 5 WHEN 'A'  THEN 6 WHEN 'AA' THEN 7
+                     END
+                   ) AS target
+            FROM kinerja_target
+          ) kt
+              ON kt.indikator_id = ki.id
+             AND kt.tahun        = ${tahun}
+            WHERE ki.aktif = TRUE
+              AND ki.jenis_monev = TRUE
+              AND ki.id = ANY(${userIndikatorIds !== null ? userIndikatorIds : [-1]})
+            ORDER BY gs.bulan ASC, kg.urutan ASC NULLS LAST, ki.urutan ASC, ki.id ASC
+          `
+          : await sql`
+            SELECT
+              ki.id,
+              gs.bulan,
+              ki.group_id,
+              kg.nama       AS group_nama,
+              kg.jenis      AS group_jenis,
+              kg.urutan     AS group_urutan,
+              ki.sasaran,
+              ki.indikator_kinerja,
+              ki.satuan,
+              kt.target        AS target_tahun,
+              kt.target_display AS target_display,
+              ki.penanggung_jawab,
+              ki.bermakna_negatif,
+              ki.urutan,
+              ki.jenis_monev,
+              ki.jenis_ikk,
+              ki.jenis_spm,
+              ki.formula,
+              ki.tipe_perhitungan,
+              ki.tipe_nilai,
+              (SELECT COUNT(*) FROM kinerja_realisasi krc
+               WHERE krc.indikator_id = ki.id AND krc.tahun = ${tahun}
+                 AND krc.bulan <= gs.bulan AND krc.realisasi IS NOT NULL) AS bulan_terisi_count,
+              kr.id         AS realisasi_id,
+              kr.realisasi,
+              kr.realisasi_display,
+              kr.f_penghambat,
+              kr.solusi,
+              kr.f_pendukung,
+              kr.rencana_tl,
+              kr.data_dukung_url,
+              kr.data_dukung_nama,
+              kr.diisi_oleh,
+              kr.updated_at AS realisasi_updated_at,
+              CASE
+                WHEN COALESCE(
+                       CASE WHEN ki.tipe_perhitungan = 'kumulatif'
+                             THEN (SELECT SUM(krc.realisasi) FROM kinerja_realisasi krc
+                                   WHERE krc.indikator_id = ki.id
+                                     AND krc.tahun = ${tahun}
+                                     AND krc.bulan <= gs.bulan)
+                             WHEN ki.tipe_perhitungan = 'rata_rata'
+                             THEN (SELECT AVG(krc.realisasi) FROM kinerja_realisasi krc
+                                   WHERE krc.indikator_id = ki.id
+                                     AND krc.tahun = ${tahun}
+                                     AND krc.bulan <= gs.bulan)
+                             ELSE kr.realisasi END,
+                       kr.realisasi
+                     ) IS NULL OR kt.target IS NULL OR kt.target = 0
+                  THEN NULL
+                WHEN ki.bermakna_negatif = TRUE
+                  THEN ROUND(
+                    (kt.target::NUMERIC - (
+                      COALESCE(
+                        CASE WHEN ki.tipe_perhitungan = 'kumulatif'
+                             THEN (SELECT SUM(krc.realisasi) FROM kinerja_realisasi krc
+                                   WHERE krc.indikator_id = ki.id
+                                     AND krc.tahun = ${tahun}
+                                     AND krc.bulan <= gs.bulan)::NUMERIC
+                             WHEN ki.tipe_perhitungan = 'rata_rata'
+                             THEN (SELECT AVG(krc.realisasi) FROM kinerja_realisasi krc
+                                   WHERE krc.indikator_id = ki.id
+                                     AND krc.tahun = ${tahun}
+                                     AND krc.bulan <= gs.bulan)::NUMERIC
+                             ELSE kr.realisasi::NUMERIC END,
+                        kr.realisasi::NUMERIC
+                      ) - kt.target::NUMERIC
+                    ))
+                    / kt.target::NUMERIC * 100, 2
+                  )
+                ELSE
+                  ROUND(
+                    COALESCE(
+                      CASE WHEN ki.tipe_perhitungan = 'kumulatif'
+                             THEN (SELECT SUM(krc.realisasi) FROM kinerja_realisasi krc
+                                   WHERE krc.indikator_id = ki.id
+                                     AND krc.tahun = ${tahun}
+                                     AND krc.bulan <= gs.bulan)::NUMERIC
+                             WHEN ki.tipe_perhitungan = 'rata_rata'
+                             THEN (SELECT AVG(krc.realisasi) FROM kinerja_realisasi krc
+                                   WHERE krc.indikator_id = ki.id
+                                     AND krc.tahun = ${tahun}
+                                     AND krc.bulan <= gs.bulan)::NUMERIC
+                             ELSE kr.realisasi::NUMERIC END,
+                      kr.realisasi::NUMERIC
+                    ) / kt.target::NUMERIC * 100, 2
+                  )
+              END AS capaian_persen
+            FROM kinerja_indikator ki
+            CROSS JOIN generate_series(1,12) AS gs(bulan)
+            LEFT JOIN kinerja_group kg ON kg.id = ki.group_id
+            LEFT JOIN kinerja_realisasi kr
+              ON kr.indikator_id = ki.id
+             AND kr.bulan  = gs.bulan
+             AND kr.tahun  = ${tahun}
+            LEFT JOIN (
+            SELECT id, indikator_id, tahun, target_display,
+                   COALESCE(
+                     target,
+                     CASE UPPER(TRIM(target_display))
+                       WHEN 'D'  THEN 1 WHEN 'C'  THEN 2 WHEN 'CC' THEN 3 WHEN 'B'  THEN 4
+                       WHEN 'BB' THEN 5 WHEN 'A'  THEN 6 WHEN 'AA' THEN 7
+                     END
+                   ) AS target
+            FROM kinerja_target
+          ) kt
+              ON kt.indikator_id = ki.id
+             AND kt.tahun        = ${tahun}
+            WHERE ki.aktif = TRUE
+              AND ki.jenis_monev = TRUE
+            ORDER BY gs.bulan ASC, kg.urutan ASC NULLS LAST, ki.urutan ASC, ki.id ASC
+          `;
+      return jsonResponse({ rekap: rows.map(normTarget), tahun, jenis });    } catch (err) {
+      console.error('[GET kinerja/rekap/tahun]', err);
+      return errorResponse('Gagal mengambil rekap tahunan: ' + err.message);
+    }
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────────
   // REKAP - join group + indikator + realisasi
   // ─────────────────────────────────────────────────────────────────────────────
   if (sub === 'rekap') {
