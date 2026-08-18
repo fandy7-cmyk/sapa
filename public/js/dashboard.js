@@ -589,7 +589,7 @@ async function loadDashboardAbsensi() {
     : `<div class="dash-panels">${trendPanelHtml}</div>`;
 
   
-  html += `<div class="dash-panels dash-panels--kalender-row">${perbandinganPanel}${_absensiHeatmapPanel(ringkasanPrev.harian, prevBulan, prevTahun, full, false, liburSet)}${_absensiHeatmapPanel(ringkasan.harian, bulan, tahun, full, false, liburSet)}</div>`;
+  html += `<div class="dash-panels dash-panels--kalender-row">${perbandinganPanel}${_absensiHeatmapPanel(ringkasanPrev.harian, prevBulan, prevTahun, full, false, liburSet, liburMap)}${_absensiHeatmapPanel(ringkasan.harian, bulan, tahun, full, false, liburSet, liburMap)}</div>`;
 
   wrap.innerHTML = html;
 }
@@ -773,7 +773,7 @@ function _absensiTrendPanel(harian, bulan, tahun, full, spanFull = true) {
 
 // Kalender heatmap kehadiran - admin/full: warna berdasar rate kehadiran tim per hari;
 // non-admin: warna berdasar status pribadi hari itu.
-function _absensiHeatmapPanel(harian, bulan, tahun, full, spanFull = true, liburSet = new Set()) {
+function _absensiHeatmapPanel(harian, bulan, tahun, full, spanFull = true, liburSet = new Set(), liburMap = new Map()) {
   const daysInMonth = new Date(tahun, bulan, 0).getDate();
   const today = new Date();
   const todayKey = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
@@ -803,12 +803,17 @@ function _absensiHeatmapPanel(harian, bulan, tahun, full, spanFull = true, libur
     // biar tanggal libur ke depan (mis. cuti bersama bulan depan) langsung
     // keliatan di kalender, gak nunggu tanggalnya lewat dulu.
     if (isWeekend || isLiburTanggal) {
-      const liburTip = isWeekend && isLiburTanggal ? 'akhir pekan & hari libur' : isLiburTanggal ? 'hari libur' : 'akhir pekan';
+      if (isWeekend && !isLiburTanggal) {
+        cells.push(`<div class="dash-heatmap-cell is-libur" data-tip="Akhir Pekan">${label}</div>`);
+        continue;
+      }
+      const namaLibur = liburMap.get(key) || 'hari libur';
+      const liburTip = isWeekend ? `akhir pekan & ${namaLibur}` : namaLibur;
       cells.push(`<div class="dash-heatmap-cell is-libur" data-tip="Tgl ${day}: ${liburTip}">${label}</div>`);
       continue;
     }
     if (isFuture) {
-      cells.push(`<div class="dash-heatmap-cell is-future" data-tip="Tgl ${day}: belum terjadi">${label}</div>`);
+      cells.push(`<div class="dash-heatmap-cell is-future">${label}</div>`);
       continue;
     }
     if (!c || !c.total) {

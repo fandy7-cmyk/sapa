@@ -171,6 +171,56 @@ export const handler = async (event) => {
       return jsonResponse(rows[0] || {});
     }
 
+    // ── GET /api/landing/tema-aktif ───────────────────────────
+    // Endpoint publik (tanpa auth) buat cek tema musiman yang lagi aktif
+    // hari ini (mis. Ramadhan, HUT RI). Dipakai di landing.html (sebelum
+    // login) maupun app.html (setelah login) lewat theme-engine.js.
+    // Tema disimpan admin di tabel `settings` (key='tema_musiman', value
+    // berupa JSON array) lewat /api/settings (settings.js, admin only).
+    if (sub === 'tema-aktif') {
+      let rows = [];
+      try {
+        rows = await sql`SELECT value FROM settings WHERE key = 'tema_musiman' LIMIT 1`;
+      } catch (e) {
+        // Tabel settings belum ada / query gagal → anggap gak ada tema aktif,
+        // jangan sampai landing page ikut error gara-gara fitur opsional ini.
+        console.warn('[landing.js] tema-aktif: gagal query settings, skip:', e.message);
+        return jsonResponse({ theme: null });
+      }
+
+      if (!rows.length) return jsonResponse({ theme: null }, 200, { 'Cache-Control': 'public, max-age=60' });
+
+      let list = [];
+      try {
+        const raw = rows[0].value;
+        list = typeof raw === 'string' ? JSON.parse(raw) : (raw || []);
+        if (!Array.isArray(list)) list = [];
+      } catch { list = []; }
+
+      // Tanggal hari ini dalam WITA (zona kerja Kab. Banggai Laut), format
+      // YYYY-MM-DD supaya bisa dibanding string langsung dengan tanggal_mulai/selesai.
+      const todayStr = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Makassar' });
+
+      const active = list.find(t =>
+        t && t.aktif !== false &&
+        t.tanggal_mulai && t.tanggal_selesai &&
+        todayStr >= t.tanggal_mulai && todayStr <= t.tanggal_selesai
+      ) || null;
+
+      // Cuma expose field yang perlu ditampilkan publik, bukan seluruh objek.
+      const theme = active ? {
+        id: active.id,
+        nama: active.nama || '',
+        gambar_url: active.gambar_url || null,
+        posisi: active.posisi || 'pill-atas',
+        efek: active.efek || 'none',
+        partikel: active.partikel || 'none',
+        partikel_densitas: active.partikel_densitas || 'sedang',
+      } : null;
+
+      return jsonResponse({ theme }, 200, { 'Cache-Control': 'public, max-age=60' });
+    }
+
     // ── Sub-path tidak dikenal ────────────────────────────────
     return errorResponse('Not found', 404);
 

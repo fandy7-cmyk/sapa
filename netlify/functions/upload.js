@@ -35,6 +35,7 @@ const FOLDER_MAP = {
   absensi:      'SAPA/Absensi',
   foto_profil:  'SAPA/Foto Profil',
   eplanning:    'SAPA/E-Planning',
+  tema_musiman: 'SAPA/Tema Musiman',
 };
 const DEFAULT_FOLDER = 'SAPA';
 

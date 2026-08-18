@@ -5,7 +5,7 @@
   <script>history.replaceState(null, '', location.origin);</script>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>SAPA Perencanaan</title>
-  <meta name="app-version" content="1.3.3" />
+  <meta name="app-version" content="1.3.4" />
   <link rel="icon" type="image/png" href="/favicon.png" />
   <link rel="manifest" href="/manifest.json" />
   <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
@@ -16,7 +16,7 @@
   <meta name="apple-mobile-web-app-title" content="SAPA" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="css/styles.css?v=1.3.3" />
+  <link rel="stylesheet" href="css/styles.css?v=1.3.4" />
   <style>
     
     #loginOverlay {
@@ -63,6 +63,14 @@
     }
     #loginOverlay .panel-left {
       overflow: hidden;
+      transition: background-image .4s ease;
+      background-size: cover !important;
+      background-position: center !important;
+    }
+    #loginOverlay .panel-left.has-tema-bg::before {
+      /* redupkan gambar tema biar teks putih tetap kebaca */
+      background:
+        linear-gradient(180deg, rgba(4,15,14,.55) 0%, rgba(4,15,14,.72) 55%, rgba(4,15,14,.88) 100%);
     }
     #loginOverlay .panel-right { background: #f8fafa !important; }
     #loginOverlay .forgot-row  { margin-bottom: 20px !important; }
@@ -248,7 +256,7 @@
 <div class="card login-card">
 
   
-  <div class="panel-left">
+  <div class="panel-left" id="panelLeft">
     <div class="dot-grid"></div>
     <div class="left-logos">
       <img src="/logokemenkes.png" alt="Kemenkes" />
@@ -414,7 +422,7 @@
       <div class="topbar-constellation" id="topbarConstellation" aria-hidden="true">
         <canvas id="topbarConstellationCanvas"></canvas>
       </div>
-      <script src="js/topbar_constellation.js?v=1.3.3"></script>
+      <script src="js/topbar_constellation.js?v=1.3.4"></script>
 
       <div class="topbar-profile">
         <div class="topbar-user-info">
@@ -1544,6 +1552,20 @@
           </table>
         </div>
         <div id="bidangPagination"></div>
+      </div>
+
+      <div class="page" id="page-tema-musiman">
+        <div class="page-title" style="display:flex;align-items:center;gap:10px"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor" style="flex-shrink:0;opacity:.85"><path d="M12,3C7.03,3 3,7.03 3,12s4.03,9 9,9c0.83,0 1.5,-0.67 1.5,-1.5c0,-0.39 -0.15,-0.74 -0.39,-1.01c-0.23,-0.26 -0.38,-0.61 -0.38,-0.99c0,-0.83 0.67,-1.5 1.5,-1.5H16c2.76,0 5,-2.24 5,-5C21,6.48 16.97,3 12,3zM6.5,12C5.67,12 5,11.33 5,10.5S5.67,9 6.5,9S8,9.67 8,10.5S7.33,12 6.5,12zM9.5,8C8.67,8 8,7.33 8,6.5S8.67,5 9.5,5S11,5.67 11,6.5S10.33,8 9.5,8zM14.5,8C13.67,8 13,7.33 13,6.5S13.67,5 14.5,5S16,5.67 16,6.5S15.33,8 14.5,8zM17.5,12c-0.83,0 -1.5,-0.67 -1.5,-1.5S16.67,9 17.5,9S19,9.67 19,10.5S18.33,12 17.5,12z"/></svg>Tema</div>
+        <div class="page-subtitle">Kelola tema custom (mis. Ramadhan, HUT RI) yang otomatis tampil di landing page & aplikasi sesuai rentang tanggal</div>
+        <div class="toolbar">
+          <button class="btn btn-primary btn-sm" onclick="openTemaMusimanModal()"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>Tambah Tema</button>
+        </div>
+        <div class="card" style="padding:0;overflow:auto;-webkit-overflow-scrolling:touch">
+          <table>
+            <thead><tr><th>Tema</th><th>Rentang Tanggal</th><th>Status</th><th>Aksi</th></tr></thead>
+            <tbody id="temaMusimanTableBody"><tr class="empty-row"><td colspan="4">Memuat data...</td></tr></tbody>
+          </table>
+        </div>
       </div>
 
       <div id="page-periode" class="page">
@@ -3566,6 +3588,146 @@
   </div>
 </div>
 
+<div class="modal-overlay" id="modalTemaMusiman">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title" id="modalTemaMusimanTitle">Tambah Tema</div>
+      <button class="btn-close" onclick="closeModal('modalTemaMusiman')"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg></button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="temaId" />
+      <div class="field"><label>Nama Tema *</label><input type="text" id="temaNama" placeholder="cth. Ramadhan 1447 H" /></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+        <div class="field"><label>Tanggal Mulai *</label><div class="dp-wrap" id="dp-temaTanggalMulai"></div></div>
+        <div class="field"><label>Tanggal Selesai *</label><div class="dp-wrap" id="dp-temaTanggalSelesai"></div></div>
+      </div>
+      <div class="field">
+        <label>Gambar Banner *</label>
+        <div class="upload-area" id="temaGambarUploadArea"
+             ondragover="handleTemaGambarDragOver(event)"
+             ondragleave="handleTemaGambarDragLeave(event)"
+             ondrop="handleTemaGambarDrop(event)">
+          <input type="file" id="temaGambarFile" accept="image/png,image/jpeg,image/webp" onchange="onTemaGambarChange(this)" />
+          <div class="upload-area-icon"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg></div>
+          <div class="upload-area-text"><strong>Klik atau drag &amp; drop</strong> gambar di sini</div>
+          <div class="upload-area-hint">Rekomendasi rasio lebar, maks. 2 MB (JPG/PNG/WebP)</div>
+        </div>
+        <input type="hidden" id="temaGambarUrl" />
+        <div class="upload-progress-wrap" id="temaGambarProgress" style="display:none">
+          <div class="upload-progress-bar" id="temaGambarProgressBar" style="width:0%"></div>
+        </div>
+        <div id="temaGambarPreviewWrap" style="display:none;position:relative;margin-top:8px;width:fit-content">
+          <img id="temaGambarPreview" style="display:block;max-width:100%;max-height:120px;border-radius:8px;object-fit:cover" />
+          <button type="button" class="btn-close" onclick="removeTemaGambar()" title="Hapus gambar"
+                  style="position:absolute;top:-8px;right:-8px;background:#ef4444;color:#fff;border-radius:50%;width:22px;height:22px;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 6px rgba(0,0,0,.25)">
+            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+          </button>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+        <div class="field">
+          <label>Posisi Tampilan</label>
+          <div class="select-wrap">
+            <select id="temaPosisi">
+              <option value="pill-atas">Pill mengambang (atas)</option>
+              <option value="pill-bawah">Pill mengambang (bawah)</option>
+              <option value="banner-atas">Banner penuh (atas)</option>
+              <option value="ribbon-pojok">Ribbon pojok kanan atas</option>
+              <option value="panel-login-saja">Hanya background panel login</option>
+            </select>
+          </div>
+        </div>
+        <div class="field">
+          <label>Animasi</label>
+          <div class="select-wrap">
+            <select id="temaAnimasi">
+              <option value="none">Tanpa animasi</option>
+              <option value="fade">Fade in</option>
+              <option value="slide-turun">Slide dari atas</option>
+              <option value="slide-samping">Slide dari samping</option>
+              <option value="bounce">Bounce</option>
+              <option value="pulse">Pulse / berdenyut</option>
+              <option value="kibas">Kibas (seperti bendera)</option>
+              <option value="kerlip">Kerlip (twinkle)</option>
+            </select>
+          </div>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+        <div class="field">
+          <label>Efek Partikel</label>
+          <div class="select-wrap">
+            <select id="temaPartikel">
+              <option value="none">Tanpa partikel</option>
+              <optgroup label="Kemerdekaan RI">
+                <option value="konfeti-merah-putih">Konfeti Merah-Putih</option>
+                <option value="kembang-api">Kembang Api</option>
+                <option value="balon">Balon Melayang</option>
+                <option value="pita-bendera">Pita Bendera Jatuh</option>
+              </optgroup>
+              <optgroup label="Ramadhan &amp; Lebaran">
+                <option value="lentera">Lentera Melayang</option>
+                <option value="kerlip-bintang">Kerlip Bintang</option>
+                <option value="ketupat">Ketupat Jatuh</option>
+                <option value="bulan-bintang">Bulan &amp; Bintang</option>
+              </optgroup>
+              <optgroup label="Natal &amp; Tahun Baru">
+                <option value="salju">Salju Turun</option>
+                <option value="lonceng-bintang">Lonceng &amp; Bintang Jatuh</option>
+                <option value="konfeti-emas-perak">Konfeti Emas-Perak</option>
+              </optgroup>
+              <optgroup label="Nyepi">
+                <option value="kelopak-kamboja">Kelopak Kamboja Jatuh</option>
+                <option value="asap-dupa">Asap Dupa</option>
+                <option value="kunang-kunang">Kunang-kunang</option>
+                <option value="riak-air">Riak Air</option>
+              </optgroup>
+              <optgroup label="Waisak">
+                <option value="lampion-terbang">Lampion Terbang</option>
+                <option value="kelopak-teratai">Kelopak Teratai</option>
+                <option value="cahaya-keemasan">Cahaya Keemasan</option>
+              </optgroup>
+              <optgroup label="Imlek">
+                <option value="konfeti-merah-emas">Konfeti Merah-Emas</option>
+                <option value="koin-angpao">Koin Angpao</option>
+                <option value="kelopak-sakura">Kelopak Sakura</option>
+              </optgroup>
+              <optgroup label="Paskah">
+                <option value="kelopak-pastel">Kelopak Pastel</option>
+                <option value="kupu-kupu">Kupu-kupu</option>
+              </optgroup>
+              <optgroup label="Umum">
+                <option value="kerlip-generik">Kerlip Generik</option>
+                <option value="gelembung">Gelembung</option>
+                <option value="daun-jatuh">Daun Jatuh</option>
+                <option value="kelopak-bunga">Kelopak Bunga</option>
+              </optgroup>
+            </select>
+          </div>
+        </div>
+        <div class="field">
+          <label>Kepadatan Partikel</label>
+          <div class="select-wrap">
+            <select id="temaPartikelDensitas">
+              <option value="rendah">Rendah</option>
+              <option value="sedang" selected>Sedang</option>
+              <option value="tinggi">Tinggi</option>
+            </select>
+          </div>
+        </div>
+      </div>
+      <div class="field" style="display:flex;align-items:center;gap:8px">
+        <input type="checkbox" id="temaAktif" checked style="width:auto" />
+        <label style="margin:0" for="temaAktif">Aktifkan tema ini</label>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('modalTemaMusiman')"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>Batal</button>
+      <button class="btn btn-primary" onclick="saveTemaMusiman()"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>Simpan</button>
+    </div>
+  </div>
+</div>
+
 <div class="modal-overlay" id="modalIndikator">
   <div class="modal modal-xl">
     <div class="modal-header">
@@ -4523,7 +4685,7 @@ function _loginShowErr(msg, type = 'warn') {
 })();
 </script>
 
-<script src="js/periode_frontend.js?v=1.3.3"></script>
+<script src="js/periode_frontend.js?v=1.3.4"></script>
 <script>
 (function() {
   'use strict';
@@ -4666,22 +4828,24 @@ function _loginShowErr(msg, type = 'warn') {
 })();
 </script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/quill/1.3.7/quill.min.js"></script>
-  <script src="js/app.js?v=1.3.3"></script>
-<script src="js/dashboard.js?v=1.3.3"></script>
+  <script src="js/app.js?v=1.3.4"></script>
+<script src="js/dashboard.js?v=1.3.4"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-<script src="js/superlink.js?v=1.3.3"></script>
-<script src="js/pengumuman_frontend.js?v=1.3.3"></script>
-<script src="js/surat.js?v=1.3.3"></script>
-<script src="js/eplanning_frontend.js?v=1.3.3"></script>
-<script src="js/absensi_frontend.js?v=1.3.3"></script>
-<script src="js/users_frontend.js?v=1.3.3"></script>
-<script src="js/kinerja.js?v=1.3.3"></script>
-<script src="js/laporan.js?v=1.3.3"></script>
-<script src="js/struktur_frontend.js?v=1.3.3"></script>
-<script src="js/audit_frontend.js?v=1.3.3"></script>
-<script src="js/dokumen_publik_frontend.js?v=1.3.3"></script>
-<script src="js/profil_frontend.js?v=1.3.3"></script>
+<script src="js/superlink.js?v=1.3.4"></script>
+<script src="js/pengumuman_frontend.js?v=1.3.4"></script>
+<script src="js/surat.js?v=1.3.4"></script>
+<script src="js/eplanning_frontend.js?v=1.3.4"></script>
+<script src="js/absensi_frontend.js?v=1.3.4"></script>
+<script src="js/users_frontend.js?v=1.3.4"></script>
+<script src="js/kinerja.js?v=1.3.4"></script>
+<script src="js/laporan.js?v=1.3.4"></script>
+<script src="js/struktur_frontend.js?v=1.3.4"></script>
+<script src="js/audit_frontend.js?v=1.3.4"></script>
+<script src="js/dokumen_publik_frontend.js?v=1.3.4"></script>
+<script src="js/profil_frontend.js?v=1.3.4"></script>
+<script src="js/tema_musiman_frontend.js?v=1.3.4"></script>
+<script src="js/theme-engine.js?v=1.3.4"></script>
 
 <script>
 (function () {
