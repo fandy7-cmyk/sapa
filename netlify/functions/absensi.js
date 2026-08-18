@@ -622,15 +622,18 @@ export const handler = async (event) => {
               WHERE u.is_admin = false
                 AND EXISTS (SELECT 1 FROM user_permissions up WHERE up.user_id = u.id AND up.menu_key IN ('absensi','absensi.full'))
             `;
+        // Sama kayak sudah_absen_user_ids di /ringkasan-bulan: dihitung "sudah absen"
+        // begitu ada baris absensi hari ini, gak dibatasi status = 'hadir' aja - biar
+        // Tugas Luar/Cuti/Izin/Sakit ikut kehitung sudah absen, bukan nyantol di Belum.
         const sudahRows = bidangId
           ? await sql`
               SELECT COUNT(*)::int AS c FROM absensi a JOIN users u ON u.id = a.user_id
-              WHERE a.tanggal = ${todayStr()} AND a.status = 'hadir' AND u.bidang_id = ${bidangId}
+              WHERE a.tanggal = ${todayStr()} AND u.bidang_id = ${bidangId}
                 AND EXISTS (SELECT 1 FROM user_permissions up WHERE up.user_id = u.id AND up.menu_key IN ('absensi','absensi.full'))
             `
           : await sql`
               SELECT COUNT(*)::int AS c FROM absensi a JOIN users u ON u.id = a.user_id
-              WHERE a.tanggal = ${todayStr()} AND a.status = 'hadir'
+              WHERE a.tanggal = ${todayStr()}
                 AND EXISTS (SELECT 1 FROM user_permissions up WHERE up.user_id = u.id AND up.menu_key IN ('absensi','absensi.full'))
             `;
         hariIni = { total_pegawai: totalRows[0].c, sudah_absen: sudahRows[0].c };
@@ -708,13 +711,18 @@ export const handler = async (event) => {
         `;
         ranking_terlambat = rankRows;
 
+        // Dianggap "sudah absen hari ini" kalau udah ada baris absensi buat hari ini,
+        // gak peduli jam_masuk keisi apa nggak - soalnya Tugas Luar/Cuti/Izin/Sakit yang
+        // diinput admin emang jam_masuk-nya NULL (bukan checkin), tapi statusnya udah
+        // tercatat. Aman dari alpa cron krn cron itu cuma nandain "kemarin", gak pernah
+        // bikin baris tanggal = hari ini (lihat absensi-cron-alpa.js).
         const todayRows = bidangId
           ? await sql`
               SELECT a.user_id FROM absensi a JOIN users u ON u.id = a.user_id
-              WHERE a.tanggal = ${todayStr()} AND a.jam_masuk IS NOT NULL AND u.bidang_id = ${bidangId}
+              WHERE a.tanggal = ${todayStr()} AND u.bidang_id = ${bidangId}
             `
           : await sql`
-              SELECT user_id FROM absensi WHERE tanggal = ${todayStr()} AND jam_masuk IS NOT NULL
+              SELECT user_id FROM absensi WHERE tanggal = ${todayStr()}
             `;
         sudah_absen_user_ids = todayRows.map(r => r.user_id);
       }
