@@ -3,9 +3,37 @@
 <head>
   <meta charset="UTF-8" />
   <script>history.replaceState(null, '', location.origin);</script>
+  <script>
+  // Prefetch tema musiman SEDINI MUNGKIN (paling atas <head>), jalan
+  // paralel sambil browser masih parsing sisa HTML/CSS/JS di bawah -
+  // theme-engine.js (dimuat di akhir body, setelah 15+ script lain)
+  // tinggal pakai hasilnya lewat window.__sapaTemaPromise, gak fetch
+  // ulang dari nol. Ini yang bikin tema kerasa "lambat muncul" sebelumnya:
+  // fetch-nya baru mulai setelah SEMUA script lain selesai load+eksekusi.
+  window.__sapaTemaPromise = fetch('/api/landing/tema-aktif?_=' + Date.now(), { cache: 'no-store' })
+    .then(function (r) { return r.ok ? r.json() : { theme: null }; })
+    .then(function (d) {
+      var t = d && d.theme;
+      // Preload gambar tema begitu data dapat, biar download gambar
+      // jalan paralel dari sekarang juga - bukan nunggu theme-engine.js
+      // di bawah baru mulai request gambarnya.
+      if (t && t.gambar_url) {
+        var link = document.createElement('link');
+        link.rel = 'preload';
+        link.as = 'image';
+        link.href = t.gambar_url;
+        document.head.appendChild(link);
+      }
+      return d;
+    })
+    .catch(function (e) {
+      console.warn('[theme-engine] prefetch awal gagal:', e);
+      return { theme: null };
+    });
+  </script>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>SAPA Perencanaan</title>
-  <meta name="app-version" content="1.3.4" />
+  <meta name="app-version" content="1.3.5" />
   <link rel="icon" type="image/png" href="/favicon.png" />
   <link rel="manifest" href="/manifest.json" />
   <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
@@ -16,7 +44,7 @@
   <meta name="apple-mobile-web-app-title" content="SAPA" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="css/styles.css?v=1.3.4" />
+  <link rel="stylesheet" href="css/styles.css?v=1.3.5" />
   <style>
     
     #loginOverlay {
@@ -422,7 +450,7 @@
       <div class="topbar-constellation" id="topbarConstellation" aria-hidden="true">
         <canvas id="topbarConstellationCanvas"></canvas>
       </div>
-      <script src="js/topbar_constellation.js?v=1.3.4"></script>
+      <script src="js/topbar_constellation.js?v=1.3.5"></script>
 
       <div class="topbar-profile">
         <div class="topbar-user-info">
@@ -4685,7 +4713,7 @@ function _loginShowErr(msg, type = 'warn') {
 })();
 </script>
 
-<script src="js/periode_frontend.js?v=1.3.4"></script>
+<script src="js/periode_frontend.js?v=1.3.5"></script>
 <script>
 (function() {
   'use strict';
@@ -4828,24 +4856,24 @@ function _loginShowErr(msg, type = 'warn') {
 })();
 </script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/quill/1.3.7/quill.min.js"></script>
-  <script src="js/app.js?v=1.3.4"></script>
-<script src="js/dashboard.js?v=1.3.4"></script>
+  <script src="js/app.js?v=1.3.5"></script>
+<script src="js/dashboard.js?v=1.3.5"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-<script src="js/superlink.js?v=1.3.4"></script>
-<script src="js/pengumuman_frontend.js?v=1.3.4"></script>
-<script src="js/surat.js?v=1.3.4"></script>
-<script src="js/eplanning_frontend.js?v=1.3.4"></script>
-<script src="js/absensi_frontend.js?v=1.3.4"></script>
-<script src="js/users_frontend.js?v=1.3.4"></script>
-<script src="js/kinerja.js?v=1.3.4"></script>
-<script src="js/laporan.js?v=1.3.4"></script>
-<script src="js/struktur_frontend.js?v=1.3.4"></script>
-<script src="js/audit_frontend.js?v=1.3.4"></script>
-<script src="js/dokumen_publik_frontend.js?v=1.3.4"></script>
-<script src="js/profil_frontend.js?v=1.3.4"></script>
-<script src="js/tema_musiman_frontend.js?v=1.3.4"></script>
-<script src="js/theme-engine.js?v=1.3.4"></script>
+<script src="js/superlink.js?v=1.3.5"></script>
+<script src="js/pengumuman_frontend.js?v=1.3.5"></script>
+<script src="js/surat.js?v=1.3.5"></script>
+<script src="js/eplanning_frontend.js?v=1.3.5"></script>
+<script src="js/absensi_frontend.js?v=1.3.5"></script>
+<script src="js/users_frontend.js?v=1.3.5"></script>
+<script src="js/kinerja.js?v=1.3.5"></script>
+<script src="js/laporan.js?v=1.3.5"></script>
+<script src="js/struktur_frontend.js?v=1.3.5"></script>
+<script src="js/audit_frontend.js?v=1.3.5"></script>
+<script src="js/dokumen_publik_frontend.js?v=1.3.5"></script>
+<script src="js/profil_frontend.js?v=1.3.5"></script>
+<script src="js/tema_musiman_frontend.js?v=1.3.5"></script>
+<script src="js/theme-engine.js?v=1.3.5"></script>
 
 <script>
 (function () {

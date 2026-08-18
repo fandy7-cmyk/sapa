@@ -2,9 +2,31 @@
 <html lang="id">
 <head>
   <meta charset="UTF-8" />
+  <script>
+  // Prefetch tema musiman SEDINI MUNGKIN (paling atas <head>) - sama
+  // kayak app.html, lihat komentar di sana. theme-engine.js (dimuat di
+  // akhir body) pakai window.__sapaTemaPromise ini kalau ada.
+  window.__sapaTemaPromise = fetch('/api/landing/tema-aktif?_=' + Date.now(), { cache: 'no-store' })
+    .then(function (r) { return r.ok ? r.json() : { theme: null }; })
+    .then(function (d) {
+      var t = d && d.theme;
+      if (t && t.gambar_url) {
+        var link = document.createElement('link');
+        link.rel = 'preload';
+        link.as = 'image';
+        link.href = t.gambar_url;
+        document.head.appendChild(link);
+      }
+      return d;
+    })
+    .catch(function (e) {
+      console.warn('[theme-engine] prefetch awal gagal:', e);
+      return { theme: null };
+    });
+  </script>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>SAPA Perencanaan</title>
-  <meta name="app-version" content="1.3.4" />
+  <meta name="app-version" content="1.3.5" />
   <meta property="og:type"         content="website" />
   <meta property="og:site_name"    content="SAPA Perencanaan" />
   <meta property="og:title"        content="SAPA Perencanaan" />
@@ -3159,6 +3181,6 @@ loadTicker();
 })();
 </script>
 <script>window.SAPA_TEMA_PARTIKEL_ONLY = true;</script>
-<script src="js/theme-engine.js?v=1.3.4"></script>
+<script src="js/theme-engine.js?v=1.3.5"></script>
 </body>
 </html>

@@ -252,9 +252,20 @@
   }
 
   function init() {
-    fetch('/api/landing/tema-aktif?_=' + Date.now(), { cache: 'no-store' })
-      .then(function (r) { return r.ok ? r.json() : { theme: null }; })
-      .then(function (d) { applyTheme(d && d.theme); })
+    // app.html & landing.html udah mulai fetch tema ini SEDINI MUNGKIN di
+    // <head> (lihat inline <script> paling atas), jauh sebelum script ini
+    // sendiri sempat dimuat (dia ditaruh di akhir body, setelah 15+ script
+    // lain). Pakai hasil prefetch itu kalau ada - biar gak fetch dobel dan
+    // biar tema kelihatan lebih cepat (data udah/hampir siap saat sampai
+    // sini). Fallback fetch langsung tetap ada buat halaman yang belum
+    // sempat dikasih prefetch itu.
+    var pre = window.__sapaTemaPromise;
+    var p = (pre && typeof pre.then === 'function')
+      ? pre
+      : fetch('/api/landing/tema-aktif?_=' + Date.now(), { cache: 'no-store' })
+          .then(function (r) { return r.ok ? r.json() : { theme: null }; });
+
+    p.then(function (d) { applyTheme(d && d.theme); })
       .catch(function (e) {
         // Dulu diem-diam skip total (susah didebug kalau ada error beneran).
         // Sekarang tetap gak ganggu user, tapi errornya kelihatan di console.
