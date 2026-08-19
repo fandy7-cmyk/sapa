@@ -33,21 +33,15 @@ function _decodeJwtPayload(token) {
   }
 }
 
-// ── Cek apakah token sudah expired ───────────────────────────────────────
 function _isTokenExpired(token) {
   const payload = _decodeJwtPayload(token);
-  if (!payload || !payload.exp) return false; // tidak ada exp → anggap valid
-  // Grace period 5 menit (300 detik) untuk toleransi clock skew browser ↔ server.
-  // Token JWT di sistem ini berlaku 8 jam, jadi 5 menit sangat aman.
-  // Artinya: token dianggap expired 5 menit SETELAH waktu exp server.
+  if (!payload || !payload.exp) return false;
   return payload.exp < (Math.floor(Date.now() / 1000) - 300);
 }
 
-// ── Auto-logout saat sesi habis ───────────────────────────────────────────
-// Dipanggil saat 401 diterima dari API manapun, atau saat token expired terdeteksi.
 function _handleSessionExpired() {
   console.error('[Auth] _handleSessionExpired dipanggil dari:', new Error().stack);
-  _clearExpiryTimer(); // batalkan timer yang mungkin masih berjalan
+  _clearExpiryTimer();
   _token = null;
   _refreshToken = null;
   _user  = null;
@@ -108,12 +102,8 @@ function initAuth() {
   return true;
 }
 
-// ── Jadwalkan refresh token diam-diam sebelum access token expired ────────
-// Access token sekarang berumur pendek (1 jam, lihat _auth.js). Daripada
-// langsung logout user yang masih aktif, kita coba tukar dengan access
-// token baru lewat refresh token beberapa menit sebelum kedaluwarsa.
-let _expiryTimerId = null; // simpan ID agar bisa dibatalkan saat re-login
-const _REFRESH_MARGIN_MS = 2 * 60 * 1000; // refresh 2 menit sebelum access token exp
+let _expiryTimerId = null;
+const _REFRESH_MARGIN_MS = 2 * 60 * 1000;
 
 function _clearExpiryTimer() {
   if (_expiryTimerId !== null) {
@@ -123,7 +113,7 @@ function _clearExpiryTimer() {
 }
 
 function _scheduleTokenExpiry() {
-  _clearExpiryTimer(); // batalkan timer lama sebelum set yang baru
+  _clearExpiryTimer();
   if (!_token) return;
   const payload = _decodeJwtPayload(_token);
   if (!payload?.exp) return;
@@ -408,7 +398,6 @@ function openChangePassword() {
   document.getElementById('cpOld').value = '';
   document.getElementById('cpNew').value = '';
   document.getElementById('cpConfirm').value = '';
-  // Tutup dropdown dulu
   document.getElementById('topbarDropdown')?.classList.remove('open');
   openModal('modalChangePassword');
 }
@@ -550,11 +539,9 @@ function _startPeriodeTimer() {
       bar.style.animation = '';
     }
 
-    // ── Notifikasi toast (sekali per sesi per periode) ──
     const key = p.id ?? (p.bulan + '-' + p.close_at);
     if (!_periodeTimerNotifFired[key]) _periodeTimerNotifFired[key] = {};
 
-    // H-1 jam
     if (!_periodeTimerNotifFired[key].h1 && diff <= 3600_000 && diff > 3540_000) {
       _periodeTimerNotifFired[key].h1 = true;
       toast(`⏰ Sisa 1 jam! Input periode ${bulanLabel} ${p.tahun || ''} ditutup pukul ${_fmtDT(p.close_at)}.`, 'warning');
@@ -661,7 +648,6 @@ function buildSidebar() {
   const collapsed = _sidebarCollapsed;
   _bindNavTooltips();
 
-  // Dashboard
   if (_user.is_admin || hasAccess('dashboard')) {
     const dashEl = document.createElement('div');
     dashEl.className = 'nav-item' + (_activeSubId === 'dashboard' ? ' active' : '');
@@ -716,7 +702,6 @@ function buildSidebar() {
     sub.className = 'nav-sub' + (_openGroups[group.id] ? ' open' : '');
     sub.id = 'sub-' + group.id;
 
-    // Hover autohide/autoshow (only when not collapsed)
     let _hoverTimer = null;
     const _openHover = () => {
       if (_sidebarCollapsed) return;
@@ -770,8 +755,6 @@ function buildSidebar() {
         subsub.className = 'nav-sub-sub' + (_openGroups[child.id] ? ' open' : '');
         subsub.id = 'sub-' + child.id;
 
-        // Hover autohide/autoshow buat sub-group level ke-3 - sama pola-nya kayak
-        // group level 1 di atas, cuma scoped ke child.id (bukan group.id)
         let _hoverTimerSub = null;
         const _openHoverSub = () => {
           if (_sidebarCollapsed) return;
@@ -819,10 +802,6 @@ function buildSidebar() {
   }
 }
 
-// Update highlight aktif & buka/tutup nav-sub TANPA rebuild DOM,
-// supaya transisi CSS (.nav-sub max-height, dsb) tetap kepakai halus -
-// sebelumnya buildSidebar() dipanggil di sini yang bikin elemen baru
-// dengan class 'open' sudah nempel dari awal, jadi transisinya "kasar"/instan.
 function setSidebarActiveState() {
   const nav = document.getElementById('sidebarNav');
   if (!nav) return;
@@ -928,7 +907,6 @@ function _applySidebarCollapse() {
   buildSidebar();
 }
 
-// ── Tooltip untuk tombol toggle sidebar ─────────────────────────────────────
 let _toggleTooltipEl = null;
 function _ensureToggleTooltipEl() {
   if (_toggleTooltipEl) return _toggleTooltipEl;
@@ -1218,16 +1196,13 @@ async function _bootRefreshFoto() {
     }
   })();
 
-  // Semua group tertutup saat pertama load (akan terbuka saat navigasi atau hover)
   _openGroups = {};
 
-  // Landing page: akan di-set saat navigasi pertama terjadi
   _activeSubId = '';
 
-  // Refresh bidang_nama dari server untuk user non-admin (cache localStorage bisa stale)
   const _bootRefreshUser = async () => {
     if (!_user || _user.is_admin) return;
-    if (_user.bidang_nama) return; // sudah ada, skip
+    if (_user.bidang_nama) return;
     try {
       const r = await fetch('/api/auth/me', { headers: authHeaders() });
       if (r.ok) {
@@ -1254,8 +1229,6 @@ async function _bootRefreshFoto() {
       buildSidebar();
       _applySidebarCollapse();
       _startPeriodeTimer();
-      // Reminder absensi masuk/keluar - muncul otomatis kalau udah waktunya
-      // dan belum diisi, tanpa user perlu buka menu Absensi.
       if (typeof _cekAbsensiReminder === 'function') _cekAbsensiReminder();
       
       
@@ -1599,11 +1572,9 @@ class DatePicker {
   }
 }
 
-// Registry datepicker
 const _datepickers = {};
 
 function initDatePicker(id, opts = {}) {
-  // Buat hidden input sebagai backing store jika belum ada
   let hidden = document.getElementById(id);
   if (!hidden) {
     hidden = document.createElement('input');
@@ -1670,42 +1641,26 @@ function _fixCloudinaryUrl(url, hintExt = '') {
   } catch { return url; }
 }
 
-// Proxy semua request file melalui /api/sign-url - menyertakan token di query string
-// agar iframe dan img src yang tidak bisa kirim header Authorization tetap terautentikasi.
-// FIX: terima fileName sebagai parameter ke-3 agar ekstensi file tidak hilang.
-// Cloudinary menyimpan file non-gambar tanpa ekstensi di URL (public_id),
-// sehingga mengambil nama dari URL akan menghasilkan nama tanpa ekstensi.
 function _dpProxyUrl(rawUrl, mode = 'preview', fileName = '') {
   if (!rawUrl || !rawUrl.startsWith('http')) return rawUrl;
   const token = (_token || '').trim();
   const tokenParam = token ? `&token=${encodeURIComponent(token)}` : '';
   let nameParam = '';
   try {
-    // Utamakan fileName yang dikirim (mengandung ekstensi asli dari DB),
-    // fallback ke nama dari URL hanya jika fileName tidak tersedia.
     const useName = (fileName || '').trim() || decodeURIComponent(rawUrl.split('/').pop().split('?')[0]);
     if (useName) nameParam = `&name=${encodeURIComponent(useName)}`;
   } catch {}
   return `/api/sign-url?url=${encodeURIComponent(rawUrl)}&mode=${mode}${tokenParam}${nameParam}`;
 }
 
-// Handle error dari proxy - jangan logout, cukup tampilkan pesan error di preview
-// (401 di sini dari sign-url/storage, bukan sesi app user)
 async function _dpCheckProxy(resp) {
-  // Handle redirect 302 dari sign-url (file terlalu besar untuk di-proxy → Cloudinary langsung)
-  // fetch() dengan mode default akan follow redirect otomatis, tapi jika opaque → tidak.
-  // Karena kita fetch ke same-origin (/api/sign-url), redirect akan di-follow → resp.ok = true.
-  // Jika entah bagaimana masuk sini dengan status 302, tangkap Location-nya.
   if (resp.status === 302 || resp.redirected) {
-    // resp.url berisi URL final setelah redirect - kembalikan sebagai resp palsu
     return { ok: true, status: 200, _redirectUrl: resp.url, arrayBuffer: async () => null, headers: resp.headers };
   }
   if (resp.status === 401) {
-    // FIX: baca body 401 dari sign-url untuk debug - lihat console browser
     try {
       const debug = await resp.clone().json();
       console.error('[sign-url 401 debug]', JSON.stringify(debug));
-      // Jika reason=token_expired atau invalid_token → sesi memang berakhir
       if (debug.reason === 'token_expired' || debug.reason === 'invalid_token') {
         
         throw new Error('Sesi Anda telah berakhir. Silakan login kembali.');
@@ -1726,15 +1681,11 @@ let _dpFiles   = [];
 let _dpIdx     = 0;
 let _dpZoom    = 1;
 let _dpLabel   = '';
-let _dpOnDelete = null; // callback(idx, file) opsional
+let _dpOnDelete = null;
 
-// ── Entry points ───────────────────────────────────────────────────────────
 
-// Buka single file
 
-// ── Disable/enable sidebar saat preview terbuka ────────────────────────────
 function _setSidebarDisabled(disabled) {
-  // Seluruh sidebar (termasuk header logo) + topbar
   const sidebar = document.getElementById('sidebar');
   const topbar  = document.getElementById('topbar');
   const els = [sidebar, topbar].filter(Boolean);
@@ -1757,7 +1708,6 @@ function viewDoc(url, fileName) {
   viewDocMulti([{ url, name }], 0, '');
 }
 
-// Buka multi file dengan navigasi (dipakai oleh openDukungPreview)
 function viewDocMulti(files, startIdx = 0, label = '', onDelete = null) {
   if (!files || !files.length) return;
   _dpFiles    = files.filter(f => f && f.url);
@@ -1787,7 +1737,6 @@ function closeDocPreview() {
   _dpOnDelete = null;
 }
 
-// ── Navigasi ───────────────────────────────────────────────────────────────
 
 function navDocPreview(dir) {
   const next = _dpIdx + dir;
@@ -1804,11 +1753,10 @@ function navDocPreviewTo(idx) {
   _dpRender();
 }
 
-// ── Zoom ───────────────────────────────────────────────────────────────────
 
 function dpZoom(delta) {
   if (delta === 0) {
-    _dpZoom = 1; // reset
+    _dpZoom = 1;
   } else {
     _dpZoom = Math.max(0.5, Math.min(3, _dpZoom + delta));
   }
@@ -1844,7 +1792,6 @@ function _dpRender() {
 
   const ext = (file.name || '').split('.').pop().toLowerCase();
 
-  // Update top bar
   const labelEl   = document.getElementById('docPreviewLabel');
   const counterEl = document.getElementById('docPreviewCounter');
   const titleEl   = document.getElementById('docPreviewTitle');
@@ -1933,7 +1880,6 @@ function _dpRenderImage(url, name) {
   img.src = url;
 }
 
-// ── Renderer: PDF - S1: PDF.js canvas | S2: blob+iframe | S3: iframe langsung
 async function _dpRenderPdf(proxyUrl, name, originalUrl) {
   const body     = document.getElementById('docPreviewBody');
   const gdocsBtn = document.getElementById('docPreviewGdocsBtn');
@@ -1941,12 +1887,10 @@ async function _dpRenderPdf(proxyUrl, name, originalUrl) {
   body.style.background = '';
   body.innerHTML = _dpLoadingHtml('Memuat PDF…');
 
-  // Pastikan token selalu ada di proxyUrl
   if (_token && !proxyUrl.includes('token=')) {
     proxyUrl = proxyUrl + '&token=' + encodeURIComponent(_token);
   }
 
-  // ── Load PDF.js sekali ─────────────────────────────────────────────────
   await _dpLoadScript(_PDFJS_CDN);
   const pdfjsLib = window['pdfjs-dist/build/pdf'];
   if (!pdfjsLib) { _dpRenderError('PDF.js gagal dimuat dari CDN.', originalUrl, name); return; }
@@ -2152,10 +2096,8 @@ function _dpRenderPptFallback(downloadUrl, fileName) {
   </div>`;
 }
 
-// ── Error renderer ────────────────────────────────────────────────────────
 function _dpRenderError(msg, originalUrl, name) {
   const body = document.getElementById('docPreviewBody');
-  // FIX: pass name agar ekstensi file tidak hilang di Cloudinary URL
   const dlUrl = _dpProxyUrl(originalUrl, 'download', name || '');
   body.innerHTML = `<div style="color:#f87171;text-align:center;padding:2rem">
     <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5" style="margin-bottom:.5rem"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z"/></svg>
@@ -2240,7 +2182,6 @@ function _syncSelectTrigger(selectEl) {
   textEl.classList.toggle('placeholder', !opt || opt.value === '');
 }
 
-// ── Mode switch: Urusan vs TSP ─────────────────────────────────────────────
 function switchLapMode(mode) {
   _lapMode = mode;
   document.getElementById('lapModeUrusan').classList.toggle('active', mode === 'urusan');
@@ -2302,9 +2243,6 @@ function _renderUrusanTable() {
     </tr>`).join('');
 }
 
-// ═══════════════════════════════════════════════════════════════════════════
-// CASCADE WATERFALL - Tujuan → Sasaran → Program → Kegiatan
-// ═══════════════════════════════════════════════════════════════════════════
 
 async function _initLapCascade() {
   _lapCascadeCache = {};
@@ -2313,7 +2251,6 @@ async function _initLapCascade() {
   await _loadCascadeLevel(0, null);
 }
 
-// level: 0=Tujuan, 1=Sasaran, 2=Program, 3=Kegiatan
 async function _loadCascadeLevel(level, parentId) {
   const jenis = LAP_CASCADE_LEVELS[level];
   const cacheKey = parentId ?? 'root';
@@ -2360,7 +2297,7 @@ function _renderCascadeLevel(level, items) {
   if (!list) return;
   const jenis = LAP_CASCADE_LEVELS[level];
   const c = LAP_JENIS_COLOR[jenis];
-  const selId = _lapCascadeSel[level - 1]; // parent yang dipilih (untuk level > 0)
+  const selId = _lapCascadeSel[level - 1];
 
   if (!items.length) {
     list.innerHTML = `<div class="lap-col-empty">Belum ada ${LAP_JENIS_LABEL[jenis]}</div>`;
@@ -2394,21 +2331,17 @@ function _renderCascadeLevel(level, items) {
 }
 
 async function _selectCascadeItem(level, id) {
-  // Toggle: klik item aktif = deselect
   const wasSelected = _lapCascadeSel[level] === id;
   _lapCascadeSel[level] = wasSelected ? null : id;
 
-  // Reset seleksi semua level di bawahnya
   for (let l = level + 1; l < LAP_CASCADE_LEVELS.length; l++) {
     _lapCascadeSel[l] = null;
   }
 
-  // Re-render kolom ini (update active style)
   const cacheKey = level === 0 ? 'root' : (_lapCascadeSel[level - 1] ?? 'root');
   const cached = _lapCascadeCache[`${level}_${cacheKey}`] || [];
   _renderCascadeLevel(level, cached);
 
-  // Clear & reload kolom di bawahnya
   for (let l = level + 1; l < LAP_CASCADE_LEVELS.length; l++) {
     const parentId = _lapCascadeSel[l - 1];
     const childList = document.getElementById(`lapColList_${l}`);
@@ -2424,7 +2357,6 @@ async function _selectCascadeItem(level, id) {
   }
 }
 
-// ── Buka modal Tambah dari cascade ────────────────────────────────────────
 function _openCascadeAdd(level) {
   const jenis = LAP_CASCADE_LEVELS[level];
   const parentId   = level > 0 ? _lapCascadeSel[level - 1] : null;
@@ -2469,7 +2401,6 @@ function _buildLapParentCsel(wrapperId, opts, selectedVal, placeholder, jenisLab
   if (wrap._lapCselResize)  window.removeEventListener('resize', wrap._lapCselResize, true);
   wrap.innerHTML = '';
 
-  // Hidden input untuk nilai
   const hidden = document.createElement('input');
   hidden.type  = 'hidden';
   hidden.id    = 'lapTemplateParent';
@@ -2478,7 +2409,6 @@ function _buildLapParentCsel(wrapperId, opts, selectedVal, placeholder, jenisLab
 
   const selectedOpt = opts.find(o => o.value === String(selectedVal || ''));
 
-  // Trigger button
   const trigger = document.createElement('button');
   trigger.type      = 'button';
   trigger.className = 'csel-trigger' + (opts.length === 0 ? ' disabled' : '');
@@ -2488,7 +2418,6 @@ function _buildLapParentCsel(wrapperId, opts, selectedVal, placeholder, jenisLab
   `;
   wrap.appendChild(trigger);
 
-  // Panel - dibuat sekarang tapi baru di-append ke document.body saat dibuka
   const panel = document.createElement('div');
   panel.className = 'csel-panel csel-panel-fixed';
   panel.style.display = 'none';
@@ -2502,7 +2431,6 @@ function _buildLapParentCsel(wrapperId, opts, selectedVal, placeholder, jenisLab
     closePanel();
   }
 
-  // Placeholder option
   const phDiv = document.createElement('div');
   phDiv.className = 'csel-option placeholder-opt';
   phDiv.dataset.value = '';
@@ -2532,7 +2460,6 @@ function _buildLapParentCsel(wrapperId, opts, selectedVal, placeholder, jenisLab
   }
 
   function openPanel() {
-    // Tutup csel panel lain yang lagi kebuka (termasuk punya engine lain)
     document.querySelectorAll('.csel-panel').forEach(p => {
       if (p !== panel) {
         p.style.display = 'none';
@@ -2566,9 +2493,6 @@ function _buildLapParentCsel(wrapperId, opts, selectedVal, placeholder, jenisLab
     if (panel.style.display === 'none') return;
     if (!panel.contains(e.target) && !trigger.contains(e.target)) closePanel();
   };
-  // Cek e.target: scroll DI DALAM panel sendiri (list opsi overflow-y:auto)
-  // gak boleh nutup panel - 'scroll' event gak bubble tapi tetap lewat capture
-  // phase, jadi kalau gak dicek target-nya bakal ke-capture juga di sini.
   const scrollHandler = (e) => {
     if (panel.style.display === 'none') return;
     if (panel.contains(e.target)) return;
@@ -2592,19 +2516,16 @@ function openLapTemplateModal(id = null, jenis = null, parentId = null, parentNa
   document.getElementById('lapTemplateJenis').value  = resolvedJenis;
   document.getElementById('lapTemplateNama').value   = nama || '';
 
-  // Badge jenis
   const badge = document.getElementById('lapTemplateJenisBadge');
   const c = LAP_JENIS_COLOR[resolvedJenis] || {};
   badge.style.background = c.bg || '#f1f5f9';
   badge.style.color      = c.col || '#475569';
   badge.textContent      = LAP_JENIS_LABEL[resolvedJenis] || resolvedJenis;
 
-  // Tampilkan badge jenis hanya di cascade (bukan urusan)
   document.getElementById('lapTemplateJenisDisplay').style.display = !isUrusan ? '' : 'none';
 
-  // Tampilkan dropdown induk hanya di cascade (bukan urusan, bukan tujuan)
   const parentDisplay = document.getElementById('lapTemplateParentDisplay');
-  const level = LAP_CASCADE_LEVELS.indexOf(resolvedJenis); // 0=tujuan,1=sasaran,2=program,3=kegiatan
+  const level = LAP_CASCADE_LEVELS.indexOf(resolvedJenis);
   if (!isUrusan && level > 0) {
     parentDisplay.style.display = '';
     const parentJenis = LAP_CASCADE_LEVELS[level - 1];
@@ -2625,10 +2546,8 @@ function openLapTemplateModal(id = null, jenis = null, parentId = null, parentNa
     parentDisplay.style.display = 'none';
   }
 
-  // Urutan manual hanya untuk Urusan
   document.getElementById('lapTemplateUrutanWrap').style.display = isUrusan ? '' : 'none';
   if (isUrusan) {
-    // Auto-suggest urutan berikutnya
     const nextUrutan = _lapTemplateList.length ? Math.max(..._lapTemplateList.map(t => t.urutan || 0)) + 1 : 1;
     document.getElementById('lapTemplateUrutanInput').value = id
       ? (_lapTemplateList.find(t => t.id === id)?.urutan ?? 0)
@@ -2647,7 +2566,7 @@ async function saveLapTemplate() {
   const isUrusan = jenis === 'urusan';
   const urutan   = isUrusan
     ? (parseInt(document.getElementById('lapTemplateUrutanInput').value) || 0)
-    : 0; // urutan cascade = auto (server pakai MAX+1 atau kita kirim 0)
+    : 0;
 
   if (!nama) { toast('Nama template wajib diisi', 'error'); return; }
 
@@ -2673,18 +2592,14 @@ async function saveLapTemplate() {
       const parentChanged = level > 0 && newParentId !== oldParentId;
 
       if (parentChanged && level > 0) {
-        // Clear state parent lama biar toggle logic tidak deselect
         _lapCascadeSel[level - 1] = null;
-        // Pastikan cache kolom parent sudah ada sebelum _selectCascadeItem render
         const parentLevel   = level - 1;
         const grandParentId = parentLevel > 0 ? _lapCascadeSel[parentLevel - 1] : null;
         if (!_lapCascadeCache[`${parentLevel}_${grandParentId ?? 'root'}`]) {
           await _loadCascadeLevel(parentLevel, grandParentId);
         }
-        // Simulasikan klik parent baru - otomatis handle highlight + reload child
         await _selectCascadeItem(level - 1, newParentId);
       } else {
-        // Parent sama, reload kolom ini saja
         await _loadCascadeLevel(level, newParentId);
       }
     }
@@ -2702,7 +2617,6 @@ async function deleteLapTemplate(id, nama, mode = 'urusan', cascadeLevel = null)
     toast('Template dihapus', 'success');
 
     if (mode === 'cascade' && cascadeLevel !== null) {
-      // Jika item yang dihapus sedang aktif, reset seleksi level itu & bawahnya
       if (_lapCascadeSel[cascadeLevel] === id) {
         _lapCascadeSel[cascadeLevel] = null;
         for (let l = cascadeLevel + 1; l < LAP_CASCADE_LEVELS.length; l++) {
@@ -2720,7 +2634,6 @@ async function deleteLapTemplate(id, nama, mode = 'urusan', cascadeLevel = null)
   }
 }
 
-// ── Modal Pilih Indikator ──────────────────────────────────
 async function openLapTemplateIndikatorModal(templateId, templateNama, templateJenis) {
   _lapTplCurrentTemplateId = templateId;
   _lapTplSelectedIds = new Set();
@@ -2731,7 +2644,6 @@ async function openLapTemplateIndikatorModal(templateId, templateNama, templateJ
   document.getElementById('lapTplIndList').innerHTML = '<div style="text-align:center;padding:20px;color:#94a3b8"><span class="btn-spin" style="width:11px;height:11px;vertical-align:-1px;margin-right:6px"></span>Memuat data...</div>';
   openModal('modalLapTemplateIndikator');
 
-  // Fetch semua indikator + yang sudah terpilih secara paralel
   try {
     const [allRes, selRes] = await Promise.all([
       fetch('/api/kinerja/indikator', { headers: authHeaders() }),

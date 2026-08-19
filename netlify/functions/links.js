@@ -1,8 +1,3 @@
-// netlify/functions/links.js
-// GET    /api/links          → auth required (user dengan permission superlink.link)
-// POST   /api/links          → auth required
-// PUT    /api/links/:id      → auth required
-// DELETE /api/links/:id      → auth required
 
 import { getDb, jsonResponse, errorResponse, parseBody } from './_db.js';
 import { requireAuth } from './_auth.js';
@@ -12,7 +7,6 @@ function hashPassword(pw) {
   return crypto.createHash('sha256').update(String(pw)).digest('hex');
 }
 
-// Buang password_hash mentah dari response, ganti jadi flag is_protected
 function stripPassword(row) {
   if (!row) return row;
   const { password_hash, ...rest } = row;
@@ -37,8 +31,6 @@ export const handler = async (event) => {
   const id = segments[0] && !isNaN(segments[0]) ? parseInt(segments[0]) : null;
   const isAnalytics = segments[1] === 'analytics';
 
-  // ── GET /api/links/check-slug?slug=xxx&excludeId=xxx (PUBLIK) ──
-  // Real-time check ketersediaan slug_pendek, dipakai form Tambah/Edit Link
   if (event.httpMethod === 'GET' && segments[0] === 'check-slug') {
     const qs = event.queryStringParameters || {};
     const raw = (qs.slug || '').trim();
@@ -55,15 +47,11 @@ export const handler = async (event) => {
     }
   }
 
-  // ── GET /api/links (PUBLIK untuk aktif, auth untuk semua) ──
   if (event.httpMethod === 'GET' && !id) {
     const auth = requireAuth(event);
     try {
       let rows;
       if (auth) {
-        // Login: return link + total_klik
-        // Admin lihat semua. User non-admin hanya lihat link yang dia buat sendiri
-        // (link buatan admin/lama dengan created_by NULL tidak ditampilkan ke user).
         if (auth.is_admin) {
           rows = await sql`
             SELECT l.*, u.nama AS created_by_nama,
@@ -84,7 +72,6 @@ export const handler = async (event) => {
         }
         rows = rows.map(stripPassword);
       } else {
-        // Publik: hanya yang aktif, tanpa stats klik
         rows = await sql`
           SELECT id, judul, url, deskripsi, ikon, warna_ikon, kategori_id, slug_pendek
           FROM links
@@ -99,11 +86,9 @@ export const handler = async (event) => {
     }
   }
 
-  // Auth required untuk POST/PUT/DELETE
   const auth = requireAuth(event);
   if (!auth) return errorResponse('Unauthorized', 401);
 
-  // Ambil permissions untuk non-admin
   let user = auth;
   if (!auth.is_admin) {
     try {
@@ -115,7 +100,6 @@ export const handler = async (event) => {
 
   if (!canAccess(user)) return errorResponse('Akses ditolak', 403);
 
-  // ── GET /api/links/:id/analytics?dari=YYYY-MM-DD&sampai=YYYY-MM-DD ──
   if (event.httpMethod === 'GET' && id && isAnalytics) {
     const linkRows = await sql`SELECT id, created_by FROM links WHERE id = ${id} LIMIT 1`;
     if (!linkRows.length) return errorResponse('Link tidak ditemukan', 404);
@@ -154,7 +138,6 @@ export const handler = async (event) => {
     }
   }
 
-  // ── POST /api/links ────────────────────────────────────────
   if (event.httpMethod === 'POST' && !id) {
     const body = parseBody(event);
     const { judul, url, deskripsi, ikon, warna_ikon, aktif, slug_pendek, expired_at, password } = body;
@@ -185,7 +168,6 @@ export const handler = async (event) => {
     }
   }
 
-  // ── PUT /api/links/:id ─────────────────────────────────────
   if (event.httpMethod === 'PUT' && id) {
     if (!user.is_admin) {
       const owner = await sql`SELECT created_by FROM links WHERE id = ${id} LIMIT 1`;
@@ -203,12 +185,10 @@ export const handler = async (event) => {
       if (exist.length) return errorResponse('Slug pendek sudah digunakan', 409);
     }
 
-    // expired_at: undefined = jangan diubah, null/'' = hapus masa berlaku, isi = set baru
     const expiredExpr = expired_at !== undefined
       ? (expired_at ? new Date(expired_at) : null)
       : sql`expired_at`;
 
-    // password_hash: clear_password = hapus proteksi, password terisi = ganti, selain itu jangan diubah
     const passwordExpr = clear_password
       ? null
       : (password ? hashPassword(password) : sql`password_hash`);
@@ -236,7 +216,6 @@ export const handler = async (event) => {
     }
   }
 
-  // ── DELETE /api/links/:id ──────────────────────────────────
   if (event.httpMethod === 'DELETE' && id) {
     if (!user.is_admin) {
       const owner = await sql`SELECT created_by FROM links WHERE id = ${id} LIMIT 1`;

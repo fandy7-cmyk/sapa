@@ -1,4 +1,3 @@
-// netlify/functions/surat-masuk.js
 import { getDb, jsonResponse, errorResponse, parseBody } from './_db.js';
 import { requireAuth } from './_auth.js';
 import { logAudit } from './_audit.js';
@@ -10,8 +9,6 @@ async function checkAccess(auth, sql) {
   return perms.length > 0;
 }
 
-// User dengan menu_key 'surat.masuk.full' setara admin khusus surat masuk:
-// boleh edit/hapus/ubah status surat siapapun, bukan cuma miliknya sendiri.
 async function checkFullAccess(auth, sql) {
   if (auth.is_admin) return true;
   const perms = await sql`SELECT menu_key FROM user_permissions WHERE user_id = ${auth.id} AND menu_key = 'surat.masuk.full' LIMIT 1`;
@@ -50,10 +47,6 @@ export const handler = async (event) => {
 
   const isMeta = seg0 === 'filter-meta';
 
-  // ── Metadata ringan buat isi dropdown filter (tahun/bulan/status/pegawai) ──
-  // Dulu frontend fetch SEMUA baris (SELECT * limit=9999) cuma buat nurunin
-  // distinct value-nya di JS. Sekarang cukup kolom yg kepake, scope akses sama
-  // persis kayak list endpoint di atas.
   if (event.httpMethod === 'GET' && isMeta) {
     try {
       const isAdmin = !!auth.is_admin;
@@ -76,14 +69,9 @@ export const handler = async (event) => {
     const tahunVal = tf ? tf : null;
     const bulanVal = bf ? parseInt(bf) : null;
     const onlyTerlambat = tlf === '1' || tlf === 'true';
-    // sort=terbaru → dipakai panel "Surat Masuk Terbaru" di dashboard, urut
-    // berdasarkan input terbaru (created_at/id DESC). Default tetap ASC
-    // berdasarkan tanggal_terima, mengikuti urutan buku agenda (lama → baru).
     const isTerbaru = sort === 'terbaru';
     try {
       let rows, countRows;
-      // Karena neon() tidak support sql fragment, kita pakai pendekatan:
-      // filter selesai via boolean, pegawai/tahun/bulan via COALESCE trick
       const selesaiBool = sf === 'true' ? true : sf === 'false' ? false : null;
 
       const isAdmin = !!auth.is_admin;
@@ -126,9 +114,6 @@ export const handler = async (event) => {
     } catch (err) { console.error('[GET surat-masuk]', err); return errorResponse('Gagal mengambil data surat masuk: ' + err.message); }
   }
 
-  // ── POST - hanya admin & user "surat.masuk.full" yang boleh input surat baru ──
-  // No. agenda di-generate OTOMATIS oleh sistem (reset ke 1 tiap ganti tahun, berdasarkan tahun tanggal_terima),
-  // supaya nggak bentrok antar user yang input manual.
   if (event.httpMethod === 'POST' && !numId) {
     const fullAccess = await checkFullAccess(auth, sql);
     if (!fullAccess) return errorResponse('Akses ditolak', 403);
@@ -158,7 +143,6 @@ export const handler = async (event) => {
     } catch (err) { console.error('[POST surat-masuk]', err); return errorResponse('Gagal menyimpan surat masuk: ' + err.message); }
   }
 
-  // ── PUT - admin/full-access bebas; user biasa hanya boleh edit surat yang dia input sendiri ──
   if (event.httpMethod === 'PUT' && numId && !isSelesai) {
     const fullAccess = await checkFullAccess(auth, sql);
     if (!fullAccess) {
@@ -194,7 +178,6 @@ export const handler = async (event) => {
     } catch (err) { console.error('[PUT surat-masuk]', err); return errorResponse('Gagal mengupdate surat masuk: ' + err.message); }
   }
 
-  // ── PATCH selesai - boleh oleh admin/full-access, penginput (created_by), atau pegawai yang didisposisikan ──
   if (event.httpMethod === 'PATCH' && isSelesai) {
     const fullAccess = await checkFullAccess(auth, sql);
     if (!fullAccess) {
@@ -216,7 +199,6 @@ export const handler = async (event) => {
     } catch (err) { return errorResponse('Gagal mengupdate status: ' + err.message); }
   }
 
-  // ── DELETE - admin/full-access bebas; user biasa hanya boleh hapus surat yang dia input sendiri ──
   if (event.httpMethod === 'DELETE' && numId) {
     const fullAccess = await checkFullAccess(auth, sql);
     if (!fullAccess) {
@@ -226,11 +208,6 @@ export const handler = async (event) => {
     try {
       const before = await sql`SELECT no_agenda, perihal, asal_surat, file_url FROM surat_masuk WHERE id = ${numId}`;
       await sql`DELETE FROM surat_masuk WHERE id = ${numId}`;
-      // Best-effort: ikut hapus file lampiran di Cloudinary supaya tidak numpuk.
-      // WAJIB di-await - kalau fire-and-forget, Netlify Function bisa freeze
-      // begitu response dikirim, dan request destroy ke Cloudinary keputus
-      // di tengah jalan sebelum sempat selesai (file jadi tetap nyangkut).
-      // Kegagalannya sendiri tetap tidak boleh menggagalkan penghapusan record.
       if (before[0]?.file_url) {
         await deleteFromCloudinary(before[0].file_url).catch(() => {});
       }

@@ -27,10 +27,6 @@ function epRenderSumberDanaRingkasan(summary) {
   </div>`).join('');
 }
 
-// Samain persis sama getRole() di netlify/functions/eplanning.js - superadmin SAPA
-// otomatis isAdmin penuh, TAPI bukan isKabid/isOperator (hasAccess() bypass semua
-// key buat admin, jadi gak bisa dipakai langsung di sini atau superadmin ikut
-// keanggap Kabid & Operator sekaligus, padahal cuma admin doang).
 function epRole() {
   if (_user.is_admin) return { isAdmin: true, isKabid: false, isOperator: false, isSekretaris: false };
   return {
@@ -78,16 +74,11 @@ const EP_STATUS_ORDER = [
 
 let _epUsulanList = [];
 let _epFilterStatus = '';
-let _epFilterBidang = '';   // '' | bidang_id (string, dari <option value>)
-let _epSearchText   = '';   // pencarian sub kegiatan (client-side)
+let _epFilterBidang = '';
+let _epSearchText   = '';
 let _epPage         = 1;
 const _epPageSize   = 10;
 
-// ── Dropdown Tahun global (e-Planning) - 1 filter yg ngefek ke Usulan + Standar Harga
-// sekaligus (niru dropdown Tahun di SIPD). State-nya disimpen di localStorage biar
-// tetap sama pas pindah antar sub-halaman (Usulan ⇄ Standar Harga), 2 <select> yg beda
-// DOM (epTahunAktif di halaman Usulan, epShTahunAktif di halaman Standar Harga) tapi
-// selalu disinkronin ke 1 variabel yg sama.
 let _epTahunList = [];
 let _epTahunAktif = parseInt(localStorage.getItem('ep_tahun_aktif')) || null;
 let _epTahunLoaded = false;
@@ -184,10 +175,8 @@ function _rebuildEpFilterBidang() {
   sel.innerHTML = `<option value="">Semua Unit Kerja</option>` + opts;
 
   if (map.size === 1) {
-    // Cuma ada 1 unit kerja di data → langsung ke-select otomatis ke unit itu
     _epFilterBidang = [...map.keys()][0];
   } else if (current && !map.has(current)) {
-    // Bidang yang lagi dipilih ternyata udah gak ada di data baru → reset ke "Semua"
     _epFilterBidang = '';
   } else {
     _epFilterBidang = current;
@@ -195,10 +184,6 @@ function _rebuildEpFilterBidang() {
   sel.value = _epFilterBidang;
 }
 
-// Isi dropdown "Status" cuma dengan status yang benar-benar ada di data usulan saat ini,
-// urutannya ngikutin alur proses (Draft → Diajukan → Perlu Koreksi → Disetujui → Ditolak).
-// - Kalau cuma ada 1 status di data → langsung ke-select otomatis ke status itu.
-// - Kalau lebih dari 1 status → default balik ke "Semua Status".
 function _rebuildEpFilterStatus() {
   const sel = document.getElementById('epFilterStatus');
   if (!sel) return;
@@ -218,8 +203,6 @@ function _rebuildEpFilterStatus() {
   sel.value = _epFilterStatus;
 }
 
-// ── Kartu periode "Pengusulan e-Planning" - versi card + countdown + progress bar
-//    (dipakai style-nya sama seperti kartu periode di modul Kinerja: .kperiode-*)
 let _epCountdownTimer = null;
 
 function renderEpPeriodeBanner() {
@@ -421,8 +404,6 @@ function _epParseTarget(target) {
 }
 
 async function openUsulanModal(id = null) {
-  // id null = mode Tambah (bikin usulan baru) - cuma boleh kalau periode pengusulan lagi buka.
-  // Edit usulan yang sudah ada (id terisi) tetap boleh walau periode udah tutup.
   if (!id) {
     if (!_epPeriodeAktif) await epLoadPeriodeAktif();
     if (!_epPeriodeAktif) { toast('Periode pengusulan e-Planning belum/sudah tidak aktif.', 'error'); return; }
@@ -518,9 +499,6 @@ function epOnSubKegiatanChange() {
   }
 }
 
-// ── Lokasi Pelaksanaan Kegiatan & Rincian Lokasi (cascading Kab/Kota → Kecamatan → Desa/Kelurahan) ──
-// Cache biar gak fetch ulang kabkota tiap buka modal; kecamatan & desa di-cache per parent_id
-// karena satu usulan bisa punya beberapa baris Rincian Lokasi yang mungkin pilih kabkota/kecamatan sama.
 let _epKabkotaList = null;
 const _epKecamatanCache = {};
 const _epDesaCache = {};
@@ -712,7 +690,6 @@ async function epRenderRefSelects({ prioritasProvId, prioritasKabkotaId, bidangU
       .map(p => `<option value="${p.id}" ${String(p.id) === String(bidangUrusanId) ? 'selected' : ''}>${esc(p.nama)}</option>`).join('');
 }
 
-// ── Label (Tag) Sub Kegiatan - bisa pilih lebih dari 1, disimpan sbg array snapshot {id, nama} ──
 let _epSelectedTags = [];
 
 function epRenderTagChips() {
@@ -730,7 +707,7 @@ function epRemoveTag(id) {
 }
 
 async function epOpenTagPicker() {
-  delete _epRefCache.tagbelanja; // biar tag baru yang ditambah dari picker langsung kelihatan
+  delete _epRefCache.tagbelanja;
   const list = await _epFetchRef('tagbelanja');
   const body = document.getElementById('epTagPickerBody');
   body.innerHTML = list.filter(t => t.aktif).map(t => {
@@ -763,7 +740,7 @@ async function epAddNewTagInline() {
     const d = await r.json();
     if (!r.ok) throw new Error(d.error || 'Gagal menambah tag');
     input.value = '';
-    await epOpenTagPicker(); // reload daftar checkbox biar tag baru langsung muncul & otomatis ke-cek
+    await epOpenTagPicker();
     if (d.tagbelanja) {
       _epSelectedTags.push({ id: String(d.tagbelanja.id), nama: d.tagbelanja.nama });
       const cb = document.querySelector(`#epTagPickerBody input[value="${d.tagbelanja.id}"]`);
@@ -797,7 +774,7 @@ const _epRefPageSize = 10;
 
 function epRefTabSwitch(kategori) {
   _epRefKategori = kategori;
-  delete _epRefCache[kategori]; // biar konsisten sama data yang barusan diedit dari halaman ini
+  delete _epRefCache[kategori];
   const meta = EP_REF_LABELS[kategori];
   document.getElementById('epRefPageTitle').textContent = meta.judul;
   document.getElementById('epRefPageSubtitle').textContent = meta.subtitle;
@@ -958,7 +935,6 @@ async function saveUsulan() {
     closeModal('modalEpUsulan');
 
     if (isNew) {
-      // Usulan baru → langsung arahkan ke halaman Rincian Anggaran biar lanjut isi rinciannya.
       openRincianPage(d.usulan.id);
     } else {
       loadEplanning();
@@ -988,7 +964,6 @@ async function deleteUsulan(id) {
   } catch (err) { toast(err.message, 'error'); }
 }
 
-// ── Validasi tombol Simpan: disabled sampai Target keisi & ketiga file keupload ──
 function epUpdateSaveButtonState() {
   const btn = document.getElementById('btnSimpanUsulan');
   if (!btn) return;
@@ -997,11 +972,6 @@ function epUpdateSaveButtonState() {
   btn.disabled = !(targetOk && filesOk);
 }
 
-// ── FILE UPLOAD custom (Surat Usulan / KAK / Data Dukung) - tombol Upload → Uploaded, mirip pola Data Dukung Kinerja ──
-// Beda sama epUploadFile (input file polos, masih dipakai buat TTD Kabid/Kadis):
-// di sini pakai upload-area + preview card, konsisten sama modul Surat/Kinerja.
-// NB: ketiga field (Surat/Kak/DataDukung) boleh lebih dari 1 file (array), makanya link_*
-// disimpan sbg beberapa URL digabung koma.
 const _epFileState = { Surat: [], Kak: [], DataDukung: [] };
 
 function _epFileNameFromUrl(url) {
@@ -1043,8 +1013,6 @@ function _epRenderFilePreview(field) {
   const loadingCount = files.filter(f => f._loading).length;
   const doneFiles = files.filter(f => !f._loading);
 
-  // Cuma 1 chip yang tampil di satu waktu: kalau masih ada yang lagi diupload, tampilin
-  // chip "Mengupload…" itu aja (gak bareng sama badge "Uploaded") - biar gak dobel.
   const uploadedBadge = (!loadingCount && doneFiles.length) ? `
     <span style="display:inline-flex;align-items:center;gap:5px;padding:4px 8px 4px 10px;border-radius:6px;background:#d1fae5;color:#065f46;font-size:.75rem;font-weight:600">
       <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
@@ -1063,9 +1031,6 @@ function _epRenderFilePreview(field) {
     <span style="display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:6px;border:1.5px dashed #fca5a5;font-size:.75rem;font-weight:600;background:#fee2e2;color:#991b1b;opacity:.75">
       <span class="btn-spin" style="width:12px;height:12px"></span>Mengupload…${_epUploadBatch[field]?.total > 1 ? ` (${_epUploadBatch[field].current}/${_epUploadBatch[field].total})` : ''}</span>` : '';
 
-  // Tombol Upload cuma nongol kalau belum ada file yang ke-upload - mau ganti/tambah file
-  // harus hapus dulu yang lama (tombol sampah di badge "Uploaded"), baru Upload nongol lagi.
-  // Sama polanya kayak Data Dukung di modul Kinerja.
   const uploadBtn = (doneFiles.length || loadingCount) ? '' : `
     <button type="button" class="dukung-upload-btn" onclick="epTriggerUpload('${field}')" data-tip="Upload file"
       style="display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:6px;border:1.5px dashed #fca5a5;cursor:pointer;font-size:.75rem;font-weight:600;font-family:inherit;background:#fee2e2;color:#991b1b">
@@ -1077,9 +1042,6 @@ function _epRenderFilePreview(field) {
     <span style="font-size:.72rem;color:var(--teks-muted,#94a3b8)">PDF, Word, JPG, PNG - maks. 2 MB</span>`;
 }
 
-// Upload jalan berurutan (1 file diproses dulu sebelum lanjut ke berikutnya), jadi
-// _loading cuma true buat 1 file di satu waktu - makanya progress "sedang ke-berapa
-// dari total" dilacak terpisah di sini, biar chip "Mengupload…" bisa nunjukin (2/3) dst.
 const _epUploadBatch = { Surat: null, Kak: null, DataDukung: null };
 
 async function epHandleFileSelect(e, field) {
@@ -1087,13 +1049,12 @@ async function epHandleFileSelect(e, field) {
   e.target.value = '';
   let okCount = 0, failMsgs = [];
   _epUploadBatch[field] = { current: 0, total: files.length };
-  for (const file of files) { // upload berurutan, boleh pilih banyak sekaligus
+  for (const file of files) {
     _epUploadBatch[field].current++;
     const err = await epProcessFile(field, file);
     if (err) failMsgs.push(err); else okCount++;
   }
   _epUploadBatch[field] = null;
-  // Toast diringkas jadi 1x aja per batch, gak per-file.
   if (failMsgs.length && okCount) {
     toast(`${okCount} file berhasil diunggah, ${failMsgs.length} gagal (${failMsgs[0]})`, 'error');
   } else if (failMsgs.length) {
@@ -1190,7 +1151,6 @@ async function epUploadFile(inputEl, hiddenId) {
   inputEl.value = '';
 }
 
-// ── APPROVAL: KABID ──────────────────────────────────────────────────────
 let _epApproveId = null;
 function openApproveKabidModal(id) {
   _epApproveId = id;
@@ -1635,8 +1595,6 @@ function _epMakeRekeningMultiCombobox(inputId, wrapId) {
 
   function getValue() { return selected.map(s => s.kode).join(','); }
 
-  // Set dari string "kode1,kode2,…" - nama-nya belum tentu ada (data lama dari
-  // import/isi manual), jadi chip cukup tampilin kode-nya aja dulu.
   function setValue(str) {
     selected = (str || '').split(',').map(s => s.trim()).filter(Boolean).map(kode => ({ kode, nama: '' }));
     renderChips();
@@ -1652,13 +1610,6 @@ function epShKodeRekeningKeydown(e) {
   if (e.key === 'Escape') _epShRekeningMulti.close();
 }
 
-// ── Sumber Dana & Koefisien(Satuan) - combobox lokal, "sesuai dengan rekening":
-// panel & interaksi (.csel-*, klik-luar, scroll, resize, Esc, posisi fixed)
-// sama persis kayak Kode Rekening di atas. Bedanya cuma sumber datanya -
-// Sumber Dana & Satuan sudah dimuat sekaligus ke memory pas modal dibuka
-// (epLoadSumberDanaOptions/epLoadSatuanOptions), jadi difilter di client,
-// gak perlu fetch live per ketikan kayak Rekening yang ~13rb baris. Tetap
-// free-text (gak wajib pilih dari master), sama kayak field Sumber Dana.
 function _epMakeLocalCombobox({ inputId, getOptions, matchText, renderOption, onPick }) {
   let panel = null;
   let bound = false;
@@ -1760,7 +1711,6 @@ const _epKoefisienCombo = _epMakeLocalCombobox({
 });
 function epSearchKoefisienSatuan() { _epKoefisienCombo.search(); }
 
-// Instance kedua buat field rincian pertama di modal Usulan gabungan.
 const _epSumberDanaComboNew = _epMakeLocalCombobox({
   inputId: 'epNewRincSumberDana',
   getOptions: () => _epRincSumberDanaOptions,
@@ -1821,11 +1771,7 @@ async function deleteRincianItem(id) {
   } catch (err) { toast(err.message, 'error'); }
 }
 
-// ── MASTER DATA (admin only): Sub Kegiatan, Sumber Dana, Satuan, Pengaturan ──
-// Catatan: sekarang masing-masing punya halaman & submenu sendiri (dipisah
-// karena Satuan isinya ratusan baris, numpuk kalau digabung 1 halaman).
 
-// ── SUB KEGIATAN (table + search + pagination) ──────────────────────────
 let _epSubkegiatanFull = [];
 let _epSubkegiatanSearch = '';
 let _epSubkegiatanPage = 1;
@@ -1951,7 +1897,6 @@ async function epDeleteSubkegiatan(kode) {
   epLoadMasterSubkegiatan();
 }
 
-// ── Impor Excel Sub Kegiatan ─────────────────────────────────────────────
 const EP_SUBKEG_COLMAP = {
   'KODE': 'kode_subkegiatan',
   'KODE SUB KEGIATAN': 'kode_subkegiatan',
@@ -2015,7 +1960,7 @@ function _epParseSubkegiatanSheet(arrayBuffer) {
     if (!r || !r.length) continue;
     const kode = idxMap.kode_subkegiatan != null ? String(r[idxMap.kode_subkegiatan] ?? '').trim() : '';
     const nama = idxMap.nama_subkegiatan != null ? String(r[idxMap.nama_subkegiatan] ?? '').trim() : '';
-    if (!kode || !nama) continue; // baris kosong / tanpa kode-nama, skip
+    if (!kode || !nama) continue;
     rows.push({
       kode_subkegiatan: kode,
       nama_subkegiatan: nama,
@@ -2183,7 +2128,6 @@ async function epDeleteSumberDana(id) {
   epLoadMasterSumberDana();
 }
 
-// ── Impor Excel Sumber Dana ──────────────────────────────────────────────
 const EP_SUMBERDANA_COLMAP = {
   'NAMA': 'nama',
   'SUMBER DANA': 'nama',
@@ -2240,7 +2184,6 @@ function _epParseSumberDanaSheet(arrayBuffer) {
   let kodeIdx = headerRow.findIndex(h => EP_SUMBERDANA_COLMAP[h] === 'kode');
   let startRow = 1;
   if (namaIdx === -1) {
-    // Gak ada header yang cocok - anggap file cuma 1 kolom nama tanpa header, baca dari baris pertama
     namaIdx = 0;
     kodeIdx = -1;
     startRow = 0;
@@ -2410,9 +2353,6 @@ async function epDeleteSatuan(id) {
   epLoadMasterSatuan();
 }
 
-// Tarik manual semua satuan yang UDAH ada di data Standar Harga (SSH/HSPK/ASB/SBU)
-// yang sudah terupload - termasuk yang diimpor SEBELUM fitur auto-sync-saat-impor
-// ditambahkan. Yang belum ada di master langsung ditambahin.
 async function epSyncSatuanDariStandarHarga() {
   try {
     const r = await fetch('/api/eplanning/satuan/sync-dari-standarharga', { method: 'POST', headers: authHeaders() });
@@ -2471,7 +2411,7 @@ function openRekeningModal(kode = null) {
     const x = _epRekeningCache[kode];
     if (x) {
       document.getElementById('epRekeningKode').value = x.kode_rekening;
-      document.getElementById('epRekeningKode').disabled = true; // kode = primary key, gak bisa diubah pas edit
+      document.getElementById('epRekeningKode').disabled = true;
       document.getElementById('epRekeningNama').value = x.nama_rekening;
       document.getElementById('epRekeningAktif').checked = !!x.aktif;
       document.getElementById('epRekeningAktifLabel').textContent = x.aktif ? 'Aktif' : 'Nonaktif';
@@ -2529,14 +2469,7 @@ async function epDeleteRekening(kode) {
   epLoadMasterRekening(_epRekeningPage);
 }
 
-// Periode e-Planning (jenis='eplanning', tahunan) kini dikelola lewat
-// Master Data → Periode. Helper ini cuma baca window aktifnya untuk dipakai
-// sebagai default tahun anggaran di form usulan + info banner di halaman usulan.
-let _epPeriodeAktif = null; // { id, tahun, open_at, close_at, label } | null
-// Dipecah jadi fetch (network) + apply (filter pakai _epTahunAktif) supaya
-// loadEplanning() bisa nembak request ini BARENGAN dgn epEnsureTahunList(),
-// baru filter-nya dijalankan setelah _epTahunAktif final (hindari race kalau
-// _epTahunAktif ternyata dikoreksi sama epEnsureTahunList).
+let _epPeriodeAktif = null;
 async function _epFetchPeriodeAktif() {
   try {
     const r = await fetch('/api/periode/aktif', { headers: authHeaders() });
@@ -2546,12 +2479,6 @@ async function _epFetchPeriodeAktif() {
 }
 
 function _epApplyPeriodeAktif(list) {
-  // Cocokin ke Tahun Anggaran yang lagi dipilih di switcher - /api/periode/aktif
-  // ngembaliin SEMUA periode yg window-nya lagi kebuka lintas tahun, jadi tanpa
-  // filter ini bisa numpang nampilin periode tahun lain (mis. milih 2027 tapi
-  // yg ketampil periode 2026 karena itu yg kebetulan lagi buka). Kalau tahun
-  // belum ke-set (_epTahunAktif null, kondisi awal sebelum switcher ke-load),
-  // fallback ke perilaku lama (ambil yg pertama ketemu).
   _epPeriodeAktif = (list || []).find(p => p.jenis === 'eplanning' && (!_epTahunAktif || p.tahun === _epTahunAktif)) || null;
   return _epPeriodeAktif;
 }
@@ -2560,17 +2487,8 @@ async function epLoadPeriodeAktif() {
   const list = await _epFetchPeriodeAktif();
   return _epApplyPeriodeAktif(list);
 }
-// ═══════════════════════════════════════════════════════════════════════
-// STANDAR HARGA SATUAN (SSH/HSPK/ASB/SBU) - referensi harga hasil export
-// SIPD. Dipakai di 2 tempat:
-//  1) Combobox "Komponen" di form Tambah/Edit Rincian (search-as-you-type,
-//     server-side, mirip pola Kode Rekening - datanya bisa ribuan baris).
-//  2) Halaman Master Data → Standar Harga Satuan (admin: tambah/edit/hapus/impor,
-//     role lain: lihat-lihat aja buat referensi).
-// ═══════════════════════════════════════════════════════════════════════
 
-// ── Combobox Komponen (di modal Rincian) ────────────────────────────────
-let _epPickedStandarHarga = null; // item terakhir yg dipilih dari daftar (buat tombol "Rekening Penyusun")
+let _epPickedStandarHarga = null;
 
 function _epMakeStandarHargaCombobox(inputId, kategoriSelectId, opts = {}) {
   let panel = null;
@@ -2658,9 +2576,6 @@ function _epMakeStandarHargaCombobox(inputId, kategoriSelectId, opts = {}) {
     const input = document.getElementById(inputId);
     const q = input.value.trim();
     const kategori = kategoriSelectId ? (document.getElementById(kategoriSelectId)?.value || '') : '';
-    // Scope ke tahun anggaran usulan yg lagi diisi rinciannya (bukan dropdown tahun global -
-    // rincian usulan tahun 2027 tetap harus nyari dari Standar Harga tahun 2027 walaupun user
-    // lagi browsing tahun lain). Fallback ke dropdown global kalau _epCurrentUsulan belum keisi.
     const tahun = (typeof _epCurrentUsulan !== 'undefined' && _epCurrentUsulan?.tahun_anggaran)
       ? _epCurrentUsulan.tahun_anggaran
       : (typeof _epTahunAktif !== 'undefined' ? _epTahunAktif : '');
@@ -2671,7 +2586,7 @@ function _epMakeStandarHargaCombobox(inputId, kategoriSelectId, opts = {}) {
       const qs = new URLSearchParams({ q, kategori, ...(tahun ? { tahun } : {}) });
       const r = await fetch(`/api/eplanning/standarharga?${qs}`, { headers: authHeaders() });
       const d = await r.json();
-      if (input.value.trim() !== q) return; // hasil basi, user udah lanjut ngetik
+      if (input.value.trim() !== q) return;
       renderList(d.standarharga || []);
     } catch { renderList([]); }
   }
@@ -2692,7 +2607,6 @@ const _epStandarHargaCombo = _epMakeStandarHargaCombobox('epRincKomponen', 'epRi
     if (kodeList.length) {
       btn.style.display = '';
       if (kodeList.length === 1) {
-        // Cuma 1 kode rekening → langsung isi otomatis, gak perlu buka modal pilihan.
         const kodeInput = document.getElementById('epRincKodeRekening');
         kodeInput.dataset.kode = kodeList[0];
         
@@ -2729,7 +2643,6 @@ function epOpenRekeningPenyusun() {
     <div class="csel-option" style="border:1px solid var(--border,#e2e8f0);border-radius:8px;margin-bottom:6px;padding:10px" onclick="epPickRekeningPenyusun('${esc(kode)}', this)">
       <b>${esc(kode)}</b><br><span style="font-size:12px;color:var(--text-secondary,#64748b)" data-nama-rekening="${esc(kode)}">Memuat nama rekening…</span>
     </div>`).join('');
-  // Resolve nama rekening per kode (best-effort, biar user tau ini rekening apa)
   Promise.all(kodeList.map(async kode => {
     try {
       const r = await fetch(`/api/eplanning/rekening?q=${encodeURIComponent(kode)}`, { headers: authHeaders() });
@@ -2818,17 +2731,11 @@ function epCopyKodeRekening(kode) {
   navigator.clipboard?.writeText(kode).then(() => toast('Kode rekening disalin', 'success')).catch(() => {});
 }
 
-// ── Halaman Master Data: Standar Harga Satuan (tab SSH/HSPK/ASB/SBU) ───
 let _epShKategori = 'SSH';
 let _epShPage = 1;
 let _epShPageSize = 20;
-let _epShCache = {}; // id -> row, buat modal edit tanpa fetch ulang
+let _epShCache = {};
 
-// Unduh daftar Standar Harga Satuan (sesuai filter yg lagi aktif: kategori/tahun/
-// search/status/satuan) sebagai PDF (kop surat + tabel, lewat print-preview window,
-// pola yg sama dgn Laporan Surat/Kinerja) - biar user bisa lihat2 referensi harga
-// tanpa perlu buka aplikasi. Data dipaginasi di backend (max 100 baris/request),
-// jadi di sini di-loop ambil semua halaman dulu baru digabung jadi satu tabel.
 async function epDownloadStandarHargaPDF(btnEl) {
   const originalHtml = btnEl ? btnEl.innerHTML : null;
   if (btnEl) { btnEl.disabled = true; btnEl.innerHTML = `<span class="btn-spin" style="width:12px;height:12px"></span> Menyiapkan...`; }
@@ -2837,8 +2744,6 @@ async function epDownloadStandarHargaPDF(btnEl) {
     const status = document.getElementById('epShFilterStatus')?.value || '';
     const satuan = document.getElementById('epShFilterSatuan')?.value || '';
     const pageSize = 100;
-    // Halaman 1 dulu (buat tau total & totalPages), sisanya ditembak PARALEL
-    // (dibatasi 6 bareng) - dulu semua halaman diambil satu-satu berurutan.
     const _epShQS = (page) => new URLSearchParams({ page, pageSize, search, kategori: _epShKategori, status, satuan, ...(_epTahunAktif ? { tahun: _epTahunAktif } : {}) });
     const r1 = await fetch(`/api/eplanning/standarharga?${_epShQS(1)}`, { headers: authHeaders() });
     const d1 = await r1.json();
@@ -2848,7 +2753,7 @@ async function epDownloadStandarHargaPDF(btnEl) {
     const totalPages = Math.max(1, Math.ceil(total / pageSize));
 
     if (totalPages > 1) {
-      const restPages = Array.from({ length: totalPages - 1 }, (_, i) => i + 2); // halaman 2..totalPages
+      const restPages = Array.from({ length: totalPages - 1 }, (_, i) => i + 2);
       const pageResults = new Array(restPages.length);
       let idx = 0;
       async function _epShWorker() {
@@ -2966,9 +2871,6 @@ function epShTabSwitch(kategori) {
   });
 }
 
-// Isi dropdown Status & Satuan sesuai data yang benar-benar ada di kategori aktif.
-// Kalau nilainya cuma 1 macam, langsung terselect ke nilai itu; kalau lebih dari 1,
-// default-nya "Semua Status" / "Semua Satuan" yang terselect.
 async function epLoadStandarHargaMeta() {
   const selStatus = document.getElementById('epShFilterStatus');
   const selSatuan = document.getElementById('epShFilterSatuan');
@@ -2994,9 +2896,6 @@ async function epLoadStandarHargaMeta() {
   } catch {}
 }
 
-// Pagination khusus Standar Harga Satuan - sama pola tombolnya kayak
-// renderPagination() global, tapi nambahin dropdown "Item per halaman"
-// (10/20/50/100) di sisi kiri, dan tetap tampil walau cuma 1 halaman.
 function epShChangePageSize(val) {
   _epShPageSize = parseInt(val, 10) || 20;
   epLoadStandarHarga(1);
@@ -3039,9 +2938,6 @@ function renderShPagination(total) {
   nav += '</div>';
 
   c.innerHTML = `<div class="pagination-wrap">${sizeSelect}${info}${nav}</div>`;
-  // Select item-per-halaman dirender ulang tiap load - build ulang jadi custom
-  // dropdown biar stylenya konsisten (bukan tampilan <select> bawaan browser),
-  // sama pola kayak dropdown lain di seluruh app (lihat buildCustomSelect di app.html).
   if (typeof window.initCustomSelects === 'function') window.initCustomSelects();
   
   
@@ -3113,7 +3009,6 @@ async function epLoadStandarHarga(page = 1) {
     toast(err.message, 'error');
   }
   epLoadStandarHargaCounts();
-  // Sembunyikan aksi kelola (Tambah/Impor) buat non-admin, biar jelas ini cuma buat lihat referensi.
   const isAdminNow = _user.is_admin || (typeof hasAccess === 'function' && hasAccess('eplanning.admin'));
   const btnImp = document.getElementById('btnImporStandarHarga');
   const btnAdd = document.getElementById('btnTambahStandarHarga');
@@ -3221,11 +3116,6 @@ async function epDeleteStandarHarga(id) {
   epLoadStandarHarga(_epShPage);
 }
 
-// ── Impor Excel (export SIPD apa adanya) ────────────────────────────────
-// Header kolom export SIPD (urutan tetap, tapi kita cocokkan by nama biar aman
-// kalau suatu saat urutannya beda): KODE KELOMPOK BARANG, URAIAN KELOMPOK BARANG,
-// ID STANDAR HARGA, KODE BARANG, URAIAN BARANG, SPESIFIKASI, SATUAN, HARGA SATUAN,
-// KODE REKENING.
 const EP_SH_COLMAP = {
   'KODE KELOMPOK BARANG': 'kode_kelompok_barang',
   'URAIAN KELOMPOK BARANG': 'uraian_kelompok_barang',
@@ -3294,7 +3184,7 @@ function _epParseStandarHargaSheet(arrayBuffer) {
     const r = raw[i];
     if (!r || !r.length) continue;
     const uraian = idxMap.uraian_barang != null ? String(r[idxMap.uraian_barang] ?? '').trim() : '';
-    if (!uraian) continue; // baris kosong / header kelompok tanpa item, skip
+    if (!uraian) continue;
     rows.push({
       kode_kelompok_barang: idxMap.kode_kelompok_barang != null ? String(r[idxMap.kode_kelompok_barang] ?? '').trim() : '',
       uraian_kelompok_barang: idxMap.uraian_kelompok_barang != null ? String(r[idxMap.uraian_kelompok_barang] ?? '').trim() : '',
@@ -3305,8 +3195,6 @@ function _epParseStandarHargaSheet(arrayBuffer) {
       satuan: idxMap.satuan != null ? String(r[idxMap.satuan] ?? '').trim() : '',
       harga_satuan: idxMap.harga_satuan != null ? (Number(r[idxMap.harga_satuan]) || 0) : 0,
       kode_rekening: idxMap.kode_rekening != null ? String(r[idxMap.kode_rekening] ?? '').trim() : '',
-      // TKDN di export SIPD biasa ditulis kayak "0%" / "35%" - kita bersihin simbol %-nya,
-      // atau kalau sel-nya format persen bawaan Excel, angkanya udah desimal (0.35) jadi dikali 100.
       tkdn: (() => {
         if (idxMap.tkdn == null) return null;
         let v = r[idxMap.tkdn];
@@ -3314,7 +3202,7 @@ function _epParseStandarHargaSheet(arrayBuffer) {
         if (typeof v === 'string') v = v.replace('%', '').trim();
         let n = Number(v);
         if (!isFinite(n)) return null;
-        if (n > 0 && n <= 1) n = n * 100; // sel format persen Excel (0.35 = 35%)
+        if (n > 0 && n <= 1) n = n * 100;
         return n;
       })(),
     });

@@ -1,51 +1,20 @@
-// public/js/theme-engine.js
-// Engine tema musiman SAPA (mis. Ramadhan, HUT RI, dll).
-// Dipasang di landing.html (publik, sebelum login) DAN app.html (setelah
-// login) - keduanya cukup include script ini, gak perlu setup apa-apa lagi.
-//
-// Cara kerja:
-//   1. Fetch GET /api/landing/tema-aktif (endpoint publik, tanpa auth).
-//   2. Kalau ada tema aktif hari ini:
-//      - Di app.html (ada panel kiri halaman login, DAN kelihatan - layar
-//        lebar) → gambar tema jadi background panel kiri (menggantikan
-//        gradient hijau default), animasi (`efek`) diterapkan langsung
-//        ke panel itu — gak ada banner/pill teks tambahan.
-//      - Di app.html mobile (panel kiri disembunyikan CSS, layar ≤640px)
-//        → gambar tema jadi background panel KANAN (form login, satu-
-//        satunya panel yang kelihatan di mobile) - overlay terang biar
-//        teks gelapnya tetap kebaca.
-//      - Di halaman lain (landing.html, atau app.html setelah login
-//        dimana panel kiri gak kelihatan lagi) → tampil sesuai `posisi`
-//        yang diatur admin (pill mengambang, banner penuh, ribbon pojok),
-//        kecuali posisi = 'panel-login-saja' → gak ada elemen tambahan
-//        sama sekali di halaman ini.
-//      - Animasi diatur lewat `efek` (fade, slide, bounce, pulse, kibas,
-//        kerlip) - SEMUANYA loop terus-menerus selama tema aktif, bukan
-//        cuma sekali muncul (lihat CSS_ANIM di bawah).
-//   3. Admin atur tema (gambar, tanggal mulai/selesai, posisi, efek) lewat
-//      halaman admin "Tema Musiman" → tersimpan di tabel settings, dibaca
-//      ulang tiap kali halaman ini dimuat.
-//
-// Pill/banner (kalau dipakai) bisa ditutup sementara oleh pengunjung
-// (tersimpan di sessionStorage per id tema, muncul lagi kalau buka tab
-// baru).
 
 (function () {
   'use strict';
 
   var CSS_ANIM = '' +
-    '@keyframes sapaTemaFadeLoop{0%,100%{opacity:1}50%{opacity:.55}}' +
+    '@keyframes sapaTemaFadeLoop{0%,100%{opacity:1}50%{opacity:.65}}' +
     '@keyframes sapaTemaFloatLoop{0%,100%{transform:translate(-50%,0)}50%{transform:translate(-50%,-8px)}}' +
     '@keyframes sapaTemaFloatLoopPlain{0%,100%{transform:translateY(0)}50%{transform:translateY(-8px)}}' +
     '@keyframes sapaTemaSwayLoop{0%,100%{transform:translate(-50%,0)}25%{transform:translate(calc(-50% + 6px),0)}75%{transform:translate(calc(-50% - 6px),0)}}' +
     '@keyframes sapaTemaSwayLoopPlain{0%,100%{transform:translateX(0)}25%{transform:translateX(6px)}75%{transform:translateX(-6px)}}' +
-    '@keyframes sapaTemaBounceLoop{0%,100%{transform:translate(-50%,0)}30%{transform:translate(-50%,-12px)}50%{transform:translate(-50%,0)}65%{transform:translate(-50%,-4px)}80%{transform:translate(-50%,0)}}' +
-    '@keyframes sapaTemaBounceLoopPlain{0%,100%{transform:translateY(0)}30%{transform:translateY(-12px)}50%{transform:translateY(0)}65%{transform:translateY(-4px)}80%{transform:translateY(0)}}' +
-    '@keyframes sapaTemaPulse{0%,100%{filter:brightness(1) saturate(1);transform:translateX(-50%) scale(1)}50%{filter:brightness(1.14) saturate(1.2);transform:translateX(-50%) scale(1.025)}}' +
-    '@keyframes sapaTemaPulsePlain{0%,100%{filter:brightness(1) saturate(1);transform:scale(1)}50%{filter:brightness(1.14) saturate(1.2);transform:scale(1.025)}}' +
-    '@keyframes sapaTemaKibas{0%,100%{transform:translateX(-50%) rotate(0deg) skewX(0deg)}25%{transform:translateX(-50%) rotate(.6deg) skewX(1.2deg)}75%{transform:translateX(-50%) rotate(-.6deg) skewX(-1.2deg)}}' +
-    '@keyframes sapaTemaKibasPlain{0%,100%{transform:rotate(0deg) skewX(0deg)}25%{transform:rotate(.6deg) skewX(1.2deg)}75%{transform:rotate(-.6deg) skewX(-1.2deg)}}' +
-    '@keyframes sapaTemaKerlip{0%,100%{filter:brightness(1) saturate(1)}50%{filter:brightness(1.35) saturate(1.25)}}';
+    '@keyframes sapaTemaBounceLoop{0%,100%{transform:translate(-50%,0)}30%{transform:translate(-50%,-8px)}50%{transform:translate(-50%,0)}65%{transform:translate(-50%,-3px)}80%{transform:translate(-50%,0)}}' +
+    '@keyframes sapaTemaBounceLoopPlain{0%,100%{transform:translateY(0)}30%{transform:translateY(-8px)}50%{transform:translateY(0)}65%{transform:translateY(-3px)}80%{transform:translateY(0)}}' +
+    '@keyframes sapaTemaPulse{0%,100%{filter:brightness(1) saturate(1);transform:translateX(-50%) scale(1)}50%{filter:brightness(1.1) saturate(1.12);transform:translateX(-50%) scale(1.018)}}' +
+    '@keyframes sapaTemaPulsePlain{0%,100%{filter:brightness(1) saturate(1);transform:scale(1)}50%{filter:brightness(1.1) saturate(1.12);transform:scale(1.018)}}' +
+    '@keyframes sapaTemaKibas{0%,100%{transform:translateX(-50%) rotate(0deg) skewX(0deg)}25%{transform:translateX(-50%) rotate(.5deg) skewX(1deg)}75%{transform:translateX(-50%) rotate(-.5deg) skewX(-1deg)}}' +
+    '@keyframes sapaTemaKibasPlain{0%,100%{transform:rotate(0deg) skewX(0deg)}25%{transform:rotate(.5deg) skewX(1deg)}75%{transform:rotate(-.5deg) skewX(-1deg)}}' +
+    '@keyframes sapaTemaKerlip{0%,100%{filter:brightness(1) saturate(1)}50%{filter:brightness(1.18) saturate(1.12)}}';
 
   function ensureAnimStyles() {
     if (document.getElementById('sapaTemaAnimStyles')) return;
@@ -55,50 +24,35 @@
     document.head.appendChild(st);
   }
 
-  // Terapkan animasi ke elemen - SEMUA animasi loop terus-menerus (biar
-  // "hidup", gak cuma nongol sekali terus diem). `centered` = true kalau
-  // elemen dipusatkan pakai translateX(-50%) (pill atas/bawah), supaya
-  // animasi gak menghapus transform posisinya.
   function applyEfek(el, efek, centered) {
     if (!efek || efek === 'none') return;
     ensureAnimStyles();
     switch (efek) {
       case 'fade':
-        el.style.animation = 'sapaTemaFadeLoop 2.4s ease-in-out infinite';
+        el.style.animation = 'sapaTemaFadeLoop 3s ease-in-out infinite';
         break;
       case 'slide-turun':
-        el.style.animation = (centered ? 'sapaTemaFloatLoop' : 'sapaTemaFloatLoopPlain') + ' 2.6s ease-in-out infinite';
+        el.style.animation = (centered ? 'sapaTemaFloatLoop' : 'sapaTemaFloatLoopPlain') + ' 2.8s ease-in-out infinite';
         break;
       case 'slide-samping':
-        el.style.animation = (centered ? 'sapaTemaSwayLoop' : 'sapaTemaSwayLoopPlain') + ' 3s ease-in-out infinite';
+        el.style.animation = (centered ? 'sapaTemaSwayLoop' : 'sapaTemaSwayLoopPlain') + ' 3.4s ease-in-out infinite';
         break;
       case 'bounce':
-        el.style.animation = (centered ? 'sapaTemaBounceLoop' : 'sapaTemaBounceLoopPlain') + ' 1.8s ease-in-out infinite';
+        el.style.animation = (centered ? 'sapaTemaBounceLoop' : 'sapaTemaBounceLoopPlain') + ' 2.4s ease-in-out infinite';
         break;
       case 'pulse':
-        el.style.animation = (centered ? 'sapaTemaPulse' : 'sapaTemaPulsePlain') + ' 2.2s ease-in-out infinite';
+        el.style.animation = (centered ? 'sapaTemaPulse' : 'sapaTemaPulsePlain') + ' 2.6s ease-in-out infinite';
         break;
       case 'kibas':
-        el.style.animation = (centered ? 'sapaTemaKibas' : 'sapaTemaKibasPlain') + ' 2.4s ease-in-out infinite';
+        el.style.animation = (centered ? 'sapaTemaKibas' : 'sapaTemaKibasPlain') + ' 2.8s ease-in-out infinite';
         el.style.transformOrigin = 'center';
         break;
       case 'kerlip':
-        el.style.animation = 'sapaTemaKerlip 1.6s ease-in-out infinite';
+        el.style.animation = 'sapaTemaKerlip 2.2s ease-in-out infinite';
         break;
     }
   }
 
-  // ── Efek Partikel ────────────────────────────────────────────────
-  // Beda sama `efek` (animasi) di atas: `efek` gerakin PANEL/GAMBAR itu
-  // sendiri, partikel ini nambahin lapisan hiasan kecil (konfeti, kembang
-  // api, kelopak, dll) yang MENGAMBANG DI ATAS gambar, independen dari
-  // animasi gambar - dua-duanya bisa jalan bareng atau salah satu aja.
-  //
-  // Tiap preset udah bundle bentuk+warna+arah gerak jadi satu, admin
-  // tinggal pilih nama (mis. "Kembang Api") tanpa perlu atur detail.
-  // arah: 'jatuh' (atas→bawah), 'naik' (bawah→atas), 'ambang' (diam di
-  // tempat, kerlap-kerlip/berdenyut), 'burst' (muncul-membesar-hilang di
-  // titik acak, buat kembang api).
   var PARTIKEL_CONFIG = {
     'konfeti-merah-putih': { arah: 'jatuh', tipe: 'rect', warna: ['#e11d2e', '#ffffff', '#e11d2e'] },
     'kembang-api': { arah: 'burst', tipe: 'emoji', isi: ['🎆', '🎇', '✨'] },
@@ -130,11 +84,11 @@
   };
 
   var CSS_PARTIKEL = '' +
-    '@keyframes sapaPtkJatuh{0%{top:-15%;opacity:0;transform:rotate(0deg)}10%{opacity:1}88%{opacity:1}100%{top:125%;opacity:0;transform:rotate(220deg)}}' +
+    '@keyframes sapaPtkJatuh{0%{top:-15%;opacity:0;transform:rotate(0deg)}10%{opacity:1}88%{opacity:1}100%{top:125%;opacity:0;transform:rotate(140deg)}}' +
     '@keyframes sapaPtkNaik{0%{top:120%;opacity:0;transform:scale(.9)}10%{opacity:1}88%{opacity:1}100%{top:-20%;opacity:0;transform:scale(1.05)}}' +
-    '@keyframes sapaPtkAmbang{0%,100%{opacity:.25;transform:scale(.85)}50%{opacity:1;transform:scale(1.15)}}' +
+    '@keyframes sapaPtkAmbang{0%,100%{opacity:.3;transform:scale(.92)}50%{opacity:.8;transform:scale(1.06)}}' +
     '@keyframes sapaPtkBurst{0%{opacity:0;transform:scale(.2)}18%{opacity:1;transform:scale(1)}40%{opacity:0;transform:scale(1.5)}100%{opacity:0;transform:scale(1.5)}}' +
-    '@keyframes sapaPtkSway{0%,100%{margin-left:0}50%{margin-left:14px}}' +
+    '@keyframes sapaPtkSway{0%,100%{margin-left:0}50%{margin-left:9px}}' +
     '.sapaPtkOuter{position:absolute;top:0;will-change:transform,opacity}' +
     '.sapaPtkInner{display:block}';
 
@@ -154,13 +108,10 @@
   function pick(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
   function rand(min, max) { return min + Math.random() * (max - min); }
 
-  // Isi visual satu partikel (emoji / div bentuk), tanpa animasi - animasi
-  // dipasang di elemen pembungkusnya (outer/inner), biar gak tabrakan
-  // sama transform lain (pola yang sama kayak `applyEfek` di atas).
   function makePartikelVisual(cfg) {
     var el = document.createElement('span');
     el.className = 'sapaPtkInner';
-    var size = rand(14, 26);
+    var size = rand(10, 18);
     switch (cfg.tipe) {
       case 'emoji':
         el.textContent = pick(cfg.isi);
@@ -197,21 +148,14 @@
     var dur, delay, anim;
 
     if (cfg.arah === 'ambang' || cfg.arah === 'burst') {
-      dur = cfg.arah === 'burst' ? rand(2.4, 4.2) : rand(1.6, 3.2);
+      dur = cfg.arah === 'burst' ? rand(2.4, 4.2) : rand(2.2, 4.4);
       delay = -rand(0, dur);
       anim = cfg.arah === 'burst' ? 'sapaPtkBurst' : 'sapaPtkAmbang';
       outer.style.cssText = 'left:' + leftPct + '%;top:' + topPct + '%;animation:' + anim + ' ' + dur + 's ease-in-out infinite;animation-delay:' + delay + 's';
       outer.appendChild(makePartikelVisual(cfg));
     } else {
-      // Durasi jatuh/naik di-skalain dari TINGGI CONTAINER, bukan angka
-      // fix - kalau dipatok fix (mis. 5-10s) bakal kelihatan natural di
-      // panel login yang tinggi ratusan px, tapi di topbar yang cuma
-      // ~55px jaraknya kependekan buat durasi segitu jadi kesannya
-      // hampir gak gerak/kaku. Dengan nyasar ke kecepatan (px/detik) yang
-      // konsisten, container pendek otomatis dapet durasi lebih cepat
-      // biar tetap kerasa "jatuh", bukan diem.
       var travelPx = (containerH || 240) * 1.4;
-      var speedPxPerSec = rand(16, 30);
+      var speedPxPerSec = rand(12, 24);
       dur = Math.max(1.6, Math.min(travelPx / speedPxPerSec, 14));
       delay = -rand(0, dur);
       anim = cfg.arah === 'naik' ? 'sapaPtkNaik' : 'sapaPtkJatuh';
@@ -224,12 +168,6 @@
     return outer;
   }
 
-  // Pasang lapisan partikel di atas `container` (panel login, bar pill/
-  // banner/ribbon, topbar). Di-skip kalau kontainernya kekecilan (partikel
-  // bakal keliatan norak di elemen mini kayak ribbon/pill) atau kalau OS
-  // user minta reduced motion.
-  // Ambang tinggi 48px: nyisihin pill/banner/ribbon (40-46px, sengaja gak
-  // dikasih partikel karena kekecilan) tapi tetap loloskan topbar (55px).
   function applyPartikel(container, jenis, densitas) {
     if (!jenis || jenis === 'none' || !container) return;
     var cfg = PARTIKEL_CONFIG[jenis];
@@ -246,19 +184,12 @@
     layer.className = 'sapaPartikelLayer';
     layer.style.cssText = 'position:absolute;inset:0;overflow:hidden;pointer-events:none;z-index:3;border-radius:inherit';
 
-    var count = densitas === 'rendah' ? 7 : densitas === 'tinggi' ? 22 : 13;
+    var count = densitas === 'rendah' ? 5 : densitas === 'tinggi' ? 14 : 9;
     for (var i = 0; i < count; i++) layer.appendChild(makePartikelEl(cfg, containerH));
     container.appendChild(layer);
   }
 
   function init() {
-    // app.html & landing.html udah mulai fetch tema ini SEDINI MUNGKIN di
-    // <head> (lihat inline <script> paling atas), jauh sebelum script ini
-    // sendiri sempat dimuat (dia ditaruh di akhir body, setelah 15+ script
-    // lain). Pakai hasil prefetch itu kalau ada - biar gak fetch dobel dan
-    // biar tema kelihatan lebih cepat (data udah/hampir siap saat sampai
-    // sini). Fallback fetch langsung tetap ada buat halaman yang belum
-    // sempat dikasih prefetch itu.
     var pre = window.__sapaTemaPromise;
     var p = (pre && typeof pre.then === 'function')
       ? pre
@@ -267,28 +198,128 @@
 
     p.then(function (d) { applyTheme(d && d.theme); })
       .catch(function (e) {
-        // Dulu diem-diam skip total (susah didebug kalau ada error beneran).
-        // Sekarang tetap gak ganggu user, tapi errornya kelihatan di console.
         console.warn('[theme-engine] gagal load/terapkan tema:', e);
       });
   }
 
-  // ── Topbar aplikasi (app.html setelah login) - dikasih lapisan partikel
-  // aja, gambar background & efek gerak dibiarin default (topbar udah ada
-  // logo, judul, profil, jangan sampe ketutupan). Dipanggil UNCONDITIONAL
-  // di applyTheme, gak peduli `posisi` yang dipilih admin buat pill/
-  // banner/ribbon - topbar selalu keliatan selama user login jadi tempat
-  // paling pas buat aksen tema, beda dari pill/banner yang bisa ditutup.
+  function removeActiveVisuals() {
+    var banner = document.getElementById('temaMusimanBanner');
+    if (banner) banner.remove();
+
+    var layers = document.querySelectorAll('.sapaPartikelLayer');
+    for (var i = 0; i < layers.length; i++) layers[i].remove();
+
+    var panelLeft = document.getElementById('panelLeft');
+    if (panelLeft) {
+      panelLeft.classList.remove('has-tema-bg');
+      panelLeft.style.backgroundImage = '';
+      panelLeft.style.animation = '';
+    }
+
+    var panelRight = document.querySelector('#loginOverlay .panel-right');
+    if (panelRight) {
+      panelRight.style.removeProperty('background-image');
+      panelRight.style.removeProperty('background-size');
+      panelRight.style.removeProperty('background-position');
+      panelRight.style.removeProperty('background-repeat');
+    }
+  }
+
+  function refreshTema() {
+    removeActiveVisuals();
+    fetch('/api/landing/tema-aktif?_=' + Date.now(), { cache: 'no-store' })
+      .then(function (r) { return r.ok ? r.json() : { theme: null }; })
+      .then(function (d) { applyTheme(d && d.theme); })
+      .catch(function (e) {
+        console.warn('[theme-engine] gagal refresh tema:', e);
+      });
+  }
+
+  // Dipanggil dari halaman admin (tema_musiman_frontend.js) tiap kali
+  // tema ditambah/diubah/dihapus/toggle, biar topbar/banner langsung
+  // sinkron tanpa perlu reload halaman.
+  window.sapaTemaRefresh = refreshTema;
+
+  // ── Preview modal admin ──────────────────────────────────────────
+  // Versi ringan dari renderPill/renderBannerAtas/renderRibbonPojok/
+  // renderLoginPanelTheme, tapi digambar position:absolute di dalam
+  // container preview (bukan position:fixed ke document.body) dan
+  // tanpa tombol close/dismiss. Efek animasi & partikel dipakai ulang
+  // apa adanya dari applyEfek()/applyPartikel() biar preview 1:1 sama
+  // kayak tampilan asli.
+  function buildPreviewBar(theme, posisi) {
+    var isBanner = posisi === 'banner-atas';
+    var isRibbon = posisi === 'ribbon-pojok';
+    var isBottom = posisi === 'pill-bawah';
+
+    var bar = document.createElement('div');
+    bar.style.cssText = [
+      'position:absolute',
+      isBanner ? 'left:0;right:0' : (isRibbon ? 'right:8px' : 'left:50%'),
+      isBottom ? 'bottom:8px' : 'top:8px',
+      (!isBanner && !isRibbon) ? 'transform:translateX(-50%)' : '',
+      'display:flex', 'align-items:center', 'gap:8px', 'max-width:85%',
+      'background:#0f172a', 'color:#fff',
+      isBanner ? 'border-radius:0' : (isRibbon ? 'border-radius:10px' : 'border-radius:999px'),
+      'box-shadow:0 6px 16px rgba(0,0,0,.28)',
+      isBanner ? 'padding:6px 14px' : 'padding:5px 12px 5px 5px',
+      'font-family:inherit', 'font-size:11px', 'z-index:2',
+    ].join(';');
+
+    if (theme.gambar_url) {
+      var img = document.createElement('img');
+      img.src = theme.gambar_url;
+      img.alt = '';
+      img.style.cssText = 'width:24px;height:24px;border-radius:50%;object-fit:cover;flex-shrink:0';
+      bar.appendChild(img);
+    }
+
+    if (theme.nama) {
+      var label = document.createElement('span');
+      label.textContent = theme.nama;
+      label.style.cssText = 'font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis';
+      bar.appendChild(label);
+    }
+
+    return bar;
+  }
+
+  function clearPreview(container) {
+    if (!container) return;
+    container.innerHTML = '';
+    container.style.backgroundImage = '';
+  }
+
+  function renderPreviewInto(container, theme) {
+    clearPreview(container);
+    if (!container || !theme) return;
+
+    var cs = window.getComputedStyle(container);
+    if (cs.position === 'static') container.style.position = 'relative';
+
+    var posisi = theme.posisi || 'pill-atas';
+
+    if (posisi === 'panel-login-saja') {
+      if (theme.gambar_url) {
+        container.style.backgroundImage = "url('" + theme.gambar_url + "')";
+        container.style.backgroundSize = 'cover';
+        container.style.backgroundPosition = 'center';
+        applyEfek(container, theme.efek, false);
+      }
+    } else if (theme.gambar_url || theme.nama) {
+      var bar = buildPreviewBar(theme, posisi);
+      container.appendChild(bar);
+      applyEfek(bar, theme.efek, posisi !== 'banner-atas' && posisi !== 'ribbon-pojok');
+    }
+
+    applyPartikel(container, theme.partikel, theme.partikel_densitas);
+  }
+
+  window.SapaTemaPreview = { render: renderPreviewInto, clear: clearPreview };
+
   function renderTopbarPartikel(theme) {
     var topbar = document.getElementById('topbar');
     if (!topbar) return;
-    // Sengaja gak dicek isPanelVisible(topbar) di sini: pas theme-engine
-    // jalan pertama kali (page load), topbar biasanya masih
-    // visibility:hidden (appShell) karena user belum login - tapi ukuran
-    // elemennya tetep kehitung normal (visibility:hidden ≠ display:none).
-    // Partikel yang dipasang sekarang bakal ikut kebawa "visible" pas
-    // appShell-nya di-toggle visible setelah login (visibility itu
-    // inherited), tanpa perlu re-run applyTheme lagi.
     applyPartikel(topbar, theme.partikel, theme.partikel_densitas);
   }
 
@@ -297,32 +328,16 @@
 
     renderTopbarPartikel(theme);
 
-    // Kalau ada panel login (app.html, panel kiri) → gambar tema jadi
-    // background panel itu (menggantikan gradient hijau default), dan
-    // animasi (`efek`) diterapkan LANGSUNG ke panel itu sendiri (bukan
-    // banner teks terpisah - di halaman login gak ada banner tambahan
-    // sama sekali, cukup panel gambarnya yang beranimasi).
     var panelLeft = document.getElementById('panelLeft');
     if (panelLeft) {
       if (isPanelVisible(panelLeft)) {
         renderLoginPanelTheme(theme, panelLeft);
       } else if (theme.posisi !== 'panel-login-saja') {
-        // Panel ada tapi disembunyikan CSS (mobile ≤640px) → panel kiri
-        // gak bisa jadi background, tapi panel KANAN (form login) itu
-        // yang kelihatan di mobile - jadi gambar tema dipasang di situ,
-        // sama prinsipnya kayak panel kiri di desktop (background), cuma
-        // pindah sisi karena di mobile sisi kanan yang tampil.
         renderLoginMobileBackground(theme);
       }
       return;
     }
 
-    // Halaman lain (gak ada panel login sama sekali, mis. landing.html
-    // atau app.html setelah login) → tampil sesuai posisi yang diatur
-    // admin (pill/banner/ribbon), kecuali 'panel-login-saja'.
-    // Landing.html set `window.SAPA_TEMA_PARTIKEL_ONLY = true` sebelum
-    // script ini dimuat - halaman itu cuma mau partikel di topbar
-    // (udah dipasang di atas), gak mau pill/banner/ribbon ngambang.
     if (window.SAPA_TEMA_PARTIKEL_ONLY) return;
     if (theme.posisi === 'panel-login-saja') return;
 
@@ -333,8 +348,6 @@
     if (theme.gambar_url && !dismissed) renderTheme(theme);
   }
 
-  // Cek apakah panel beneran kelihatan (bukan cuma ada di DOM) - CSS bisa
-  // display:none di layar sempit (mobile login), walau elemennya tetap ada.
   function isPanelVisible(el) {
     if (!el.offsetParent && el.offsetWidth === 0 && el.offsetHeight === 0) return false;
     try {
@@ -344,8 +357,6 @@
     return true;
   }
 
-  // ── Gambar tema jadi background panel kiri halaman login (app.html),
-  // animasi diterapkan ke panel itu sendiri (bukan banner terpisah) ──
   function renderLoginPanelTheme(theme, panelLeft) {
     if (theme.gambar_url) {
       panelLeft.style.backgroundImage = "url('" + theme.gambar_url + "')";
@@ -355,16 +366,6 @@
     }
   }
 
-  // ── Fallback mobile: panel kiri disembunyikan CSS (layar ≤640px), jadi
-  // panel KANAN (form login, satu-satunya yang kelihatan di mobile) yang
-  // dipasangin gambar tema sebagai background-nya - sama kayak perlakuan
-  // panel kiri di desktop, cuma pindah sisi. Overlay-nya dibikin TERANG
-  // (bukan gelap kayak panel kiri) karena teks di panel kanan warnanya
-  // gelap (Selamat Datang, label field, dll) - butuh dasar terang biar
-  // tetap kebaca, gambar temanya tetap kelihatan lewat transparansinya.
-  // Pakai setProperty(...,'important') karena ada rule
-  // `#loginOverlay .panel-right { background:#f8fafa !important }` yang
-  // kalau gak dilawan pakai important juga bakal menang lawan inline style.
   function renderLoginMobileBackground(theme) {
     if (!theme.gambar_url) return;
     var panelRight = document.querySelector('#loginOverlay .panel-right');
@@ -385,7 +386,7 @@
     if (posisi === 'banner-atas') return renderBannerAtas(theme);
     if (posisi === 'ribbon-pojok') return renderRibbonPojok(theme);
     if (posisi === 'pill-bawah') return renderPill(theme, false);
-    return renderPill(theme, true); // default: pill-atas
+    return renderPill(theme, true);
   }
 
   function dismiss(theme, el) {
@@ -406,7 +407,6 @@
     return closeBtn;
   }
 
-  // ── Posisi: pill mengambang (atas atau bawah) ───────────────────────
   function renderPill(theme, top) {
     var bar = document.createElement('div');
     bar.id = 'temaMusimanBanner';
@@ -440,7 +440,6 @@
     applyPartikel(bar, theme.partikel, theme.partikel_densitas);
   }
 
-  // ── Posisi: banner penuh di atas layar ──────────────────────────────
   function renderBannerAtas(theme) {
     var bar = document.createElement('div');
     bar.id = 'temaMusimanBanner';
@@ -473,7 +472,6 @@
     applyPartikel(bar, theme.partikel, theme.partikel_densitas);
   }
 
-  // ── Posisi: ribbon kecil di pojok kanan atas ────────────────────────
   function renderRibbonPojok(theme) {
     var bar = document.createElement('div');
     bar.id = 'temaMusimanBanner';

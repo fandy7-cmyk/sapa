@@ -33,7 +33,7 @@
   </script>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>SAPA Perencanaan</title>
-  <meta name="app-version" content="1.3.5" />
+  <meta name="app-version" content="1.4.0" />
   <link rel="icon" type="image/png" href="/favicon.png" />
   <link rel="manifest" href="/manifest.json" />
   <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
@@ -44,7 +44,7 @@
   <meta name="apple-mobile-web-app-title" content="SAPA" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="css/styles.css?v=1.3.5" />
+  <link rel="stylesheet" href="css/styles.css?v=1.4.0" />
   <style>
     
     #loginOverlay {
@@ -98,7 +98,13 @@
     #loginOverlay .panel-left.has-tema-bg::before {
       /* redupkan gambar tema biar teks putih tetap kebaca */
       background:
-        linear-gradient(180deg, rgba(4,15,14,.55) 0%, rgba(4,15,14,.72) 55%, rgba(4,15,14,.88) 100%);
+        linear-gradient(180deg, rgba(4,15,14,.6) 0%, rgba(4,15,14,.76) 55%, rgba(4,15,14,.9) 100%);
+    }
+    /* tagline (moto) ditampilkan tegas di depan gambar tema, gaya senada
+       dengan "Satu Pintu Akses" (brand-sub) tapi opacity dinaikkan biar
+       gak kalah sama gambar tema di belakangnya */
+    #loginOverlay .panel-left.has-tema-bg .moto-watermark-text::before {
+      display: none;
     }
     #loginOverlay .panel-right { background: #f8fafa !important; }
     #loginOverlay .forgot-row  { margin-bottom: 20px !important; }
@@ -450,7 +456,7 @@
       <div class="topbar-constellation" id="topbarConstellation" aria-hidden="true">
         <canvas id="topbarConstellationCanvas"></canvas>
       </div>
-      <script src="js/topbar_constellation.js?v=1.3.5"></script>
+      <script src="js/topbar_constellation.js?v=1.4.0"></script>
 
       <div class="topbar-profile">
         <div class="topbar-user-info">
@@ -3656,7 +3662,7 @@
         <div class="field">
           <label>Posisi Tampilan</label>
           <div class="select-wrap">
-            <select id="temaPosisi">
+            <select id="temaPosisi" onchange="_updateTemaPreview()">
               <option value="pill-atas">Pill mengambang (atas)</option>
               <option value="pill-bawah">Pill mengambang (bawah)</option>
               <option value="banner-atas">Banner penuh (atas)</option>
@@ -3668,7 +3674,7 @@
         <div class="field">
           <label>Animasi</label>
           <div class="select-wrap">
-            <select id="temaAnimasi">
+            <select id="temaAnimasi" onchange="_updateTemaPreview()">
               <option value="none">Tanpa animasi</option>
               <option value="fade">Fade in</option>
               <option value="slide-turun">Slide dari atas</option>
@@ -3685,7 +3691,7 @@
         <div class="field">
           <label>Efek Partikel</label>
           <div class="select-wrap">
-            <select id="temaPartikel">
+            <select id="temaPartikel" onchange="_updateTemaPreview()">
               <option value="none">Tanpa partikel</option>
               <optgroup label="Kemerdekaan RI">
                 <option value="konfeti-merah-putih">Konfeti Merah-Putih</option>
@@ -3736,7 +3742,7 @@
         <div class="field">
           <label>Kepadatan Partikel</label>
           <div class="select-wrap">
-            <select id="temaPartikelDensitas">
+            <select id="temaPartikelDensitas" onchange="_updateTemaPreview()">
               <option value="rendah">Rendah</option>
               <option value="sedang" selected>Sedang</option>
               <option value="tinggi">Tinggi</option>
@@ -3747,6 +3753,10 @@
       <div class="field" style="display:flex;align-items:center;gap:8px">
         <input type="checkbox" id="temaAktif" checked style="width:auto" />
         <label style="margin:0" for="temaAktif">Aktifkan tema ini</label>
+      </div>
+      <div class="field">
+        <label>Preview</label>
+        <div id="temaPreviewPanel" style="position:relative;overflow:hidden;height:110px;border-radius:10px;background:linear-gradient(135deg,var(--teal-50),#e2e8f0);border:1px solid var(--border)"></div>
       </div>
     </div>
     <div class="modal-footer">
@@ -4713,7 +4723,7 @@ function _loginShowErr(msg, type = 'warn') {
 })();
 </script>
 
-<script src="js/periode_frontend.js?v=1.3.5"></script>
+<script src="js/periode_frontend.js?v=1.4.0"></script>
 <script>
 (function() {
   'use strict';
@@ -4856,24 +4866,24 @@ function _loginShowErr(msg, type = 'warn') {
 })();
 </script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/quill/1.3.7/quill.min.js"></script>
-  <script src="js/app.js?v=1.3.5"></script>
-<script src="js/dashboard.js?v=1.3.5"></script>
+  <script src="js/app.js?v=1.4.0"></script>
+<script src="js/dashboard.js?v=1.4.0"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-<script src="js/superlink.js?v=1.3.5"></script>
-<script src="js/pengumuman_frontend.js?v=1.3.5"></script>
-<script src="js/surat.js?v=1.3.5"></script>
-<script src="js/eplanning_frontend.js?v=1.3.5"></script>
-<script src="js/absensi_frontend.js?v=1.3.5"></script>
-<script src="js/users_frontend.js?v=1.3.5"></script>
-<script src="js/kinerja.js?v=1.3.5"></script>
-<script src="js/laporan.js?v=1.3.5"></script>
-<script src="js/struktur_frontend.js?v=1.3.5"></script>
-<script src="js/audit_frontend.js?v=1.3.5"></script>
-<script src="js/dokumen_publik_frontend.js?v=1.3.5"></script>
-<script src="js/profil_frontend.js?v=1.3.5"></script>
-<script src="js/tema_musiman_frontend.js?v=1.3.5"></script>
-<script src="js/theme-engine.js?v=1.3.5"></script>
+<script src="js/superlink.js?v=1.4.0"></script>
+<script src="js/pengumuman_frontend.js?v=1.4.0"></script>
+<script src="js/surat.js?v=1.4.0"></script>
+<script src="js/eplanning_frontend.js?v=1.4.0"></script>
+<script src="js/absensi_frontend.js?v=1.4.0"></script>
+<script src="js/users_frontend.js?v=1.4.0"></script>
+<script src="js/kinerja.js?v=1.4.0"></script>
+<script src="js/laporan.js?v=1.4.0"></script>
+<script src="js/struktur_frontend.js?v=1.4.0"></script>
+<script src="js/audit_frontend.js?v=1.4.0"></script>
+<script src="js/dokumen_publik_frontend.js?v=1.4.0"></script>
+<script src="js/profil_frontend.js?v=1.4.0"></script>
+<script src="js/tema_musiman_frontend.js?v=1.4.0"></script>
+<script src="js/theme-engine.js?v=1.4.0"></script>
 
 <script>
 (function () {

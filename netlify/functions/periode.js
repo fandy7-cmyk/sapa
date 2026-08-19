@@ -1,38 +1,19 @@
-// netlify/functions/periode.js
-//
-// GET    /api/periode          → list semua periode (auth required)
-// GET    /api/periode/aktif    → periode yang window-nya sedang terbuka (now BETWEEN open_at AND close_at)
-// POST   /api/periode          → tambah periode (admin only)
-// PUT    /api/periode/:id      → edit periode (admin only)
-// DELETE /api/periode/:id      → hapus periode (admin only)
-//
-// Skema kolom:
-//   bulan     INTEGER (1–12), NULLABLE - NULL berarti periode tahunan (jenis 'eplanning')
-//   jenis     TEXT    - 'monev' | 'ikk' | 'spm' | 'eplanning'  (satu row per jenis, unique: tahun+bulan+jenis)
-//   open_at   TIMESTAMPTZ   - waktu input mulai dibuka
-//   close_at  TIMESTAMPTZ   - waktu input ditutup
-//   (kolom aktif & triwulan tetap ada di DB untuk kompatibilitas, tidak dipakai)
 
 import { getDb, jsonResponse, errorResponse, parseBody } from './_db.js';
 import { requireAuth, requireAdmin } from './_auth.js';
 
 const JENIS_VALID = ['monev', 'ikk', 'spm', 'eplanning'];
-// jenis yang periodenya tahunan (bulan NULL) - bukan bulanan
 const JENIS_TAHUNAN = ['eplanning'];
 
-// ── Auto-migrate: pastikan kolom bulan nullable + constraint jenis terkini ──
 let _migrated = false;
 async function ensureSchema(sql) {
   if (_migrated) return;
   try {
     await sql`ALTER TABLE periode ALTER COLUMN bulan DROP NOT NULL`;
   } catch (err) {
-    // Sudah nullable / kolom lain - abaikan, bukan fatal
     console.warn('[periode] ensureSchema (bulan nullable):', err.message);
   }
   try {
-    // Constraint lama (dibuat manual di Neon, tidak tercatat di kode) cuma
-    // mengizinkan 'monev'/'ikk'/'spm' - drop & buat ulang biar 'eplanning' lolos.
     await sql`ALTER TABLE periode DROP CONSTRAINT IF EXISTS periode_jenis_check`;
     await sql`ALTER TABLE periode ADD CONSTRAINT periode_jenis_check
                CHECK (jenis = ANY (ARRAY['monev','ikk','spm','eplanning']))`;
@@ -55,7 +36,6 @@ export const handler = async (event) => {
   const isAktif = seg0 === 'aktif';
   const numId   = seg0 && !isNaN(seg0) ? parseInt(seg0) : null;
 
-  // ── GET /api/periode/aktif - semua periode yang window-nya terbuka sekarang ──
   if (event.httpMethod === 'GET' && isAktif) {
     try {
       const rows = await sql`
@@ -69,7 +49,6 @@ export const handler = async (event) => {
     }
   }
 
-  // ── GET /api/periode (semua, auth required) ──────────────────────────────
   if (event.httpMethod === 'GET' && !seg0) {
     const auth = requireAuth(event);
     if (!auth) return errorResponse('Unauthorized', 401);
@@ -83,11 +62,9 @@ export const handler = async (event) => {
     }
   }
 
-  // ── Semua mutasi: admin only ─────────────────────────────────────────────
   const admin = requireAdmin(event);
   if (!admin) return errorResponse('Unauthorized', 401);
 
-  // ── POST /api/periode ────────────────────────────────────────────────────
   if (event.httpMethod === 'POST' && !seg0) {
     const { tahun, bulan, jenis, label, open_at, close_at } = parseBody(event);
     const isTahunan = JENIS_TAHUNAN.includes(jenis);
@@ -112,8 +89,6 @@ export const handler = async (event) => {
     const bulanVal = isTahunan ? null : parseInt(bulan);
 
     try {
-      // Constraint unique DB tidak berlaku untuk kombinasi bulan=NULL (Postgres:
-      // NULL selalu dianggap berbeda), jadi jenis tahunan dicek manual di sini.
       if (isTahunan) {
         const dup = await sql`
           SELECT id FROM periode WHERE tahun = ${parseInt(tahun)} AND jenis = ${jenis} AND bulan IS NULL LIMIT 1`;
@@ -140,7 +115,6 @@ export const handler = async (event) => {
     }
   }
 
-  // ── PUT /api/periode/:id ─────────────────────────────────────────────────
   if (event.httpMethod === 'PUT' && numId) {
     const { tahun, bulan, jenis, label, open_at, close_at } = parseBody(event);
 
@@ -152,7 +126,6 @@ export const handler = async (event) => {
     if (open_at && close_at && new Date(open_at) >= new Date(close_at))
       return errorResponse('Waktu tutup harus setelah waktu buka', 400);
 
-    // isTahunan null (jenis tidak diubah) → biarkan status "tahunan" apa adanya (kolom is_tahunan_now di CASE)
     try {
       const rows = await sql`
         UPDATE periode SET
@@ -178,7 +151,6 @@ export const handler = async (event) => {
     }
   }
 
-  // ── DELETE /api/periode/:id ──────────────────────────────────────────────
   if (event.httpMethod === 'DELETE' && numId) {
     try {
       const check = await sql`SELECT id FROM periode WHERE id = ${numId} LIMIT 1`;

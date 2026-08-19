@@ -1,8 +1,3 @@
-// netlify/functions/ticker.js
-// GET    /api/ticker        → publik (aktif saja)
-// POST   /api/ticker        → admin only
-// PUT    /api/ticker/:id    → admin only (toggle aktif / edit teks)
-// DELETE /api/ticker/:id    → admin only
 
 import { getDb, jsonResponse, errorResponse, parseBody } from './_db.js';
 import { requireAuth } from './_auth.js';
@@ -16,7 +11,6 @@ export const handler = async (event) => {
   const segments = rawPath.split('/').filter(Boolean);
   const id = segments[0] && !isNaN(segments[0]) ? parseInt(segments[0]) : null;
 
-  // ── GET /api/ticker ─────────────────────────────────────────
   if (event.httpMethod === 'GET' && !id) {
     const auth = requireAuth(event);
     try {
@@ -36,12 +30,10 @@ export const handler = async (event) => {
     }
   }
 
-  // Auth + admin required untuk POST/PUT/DELETE
   const auth = requireAuth(event);
   if (!auth) return errorResponse('Unauthorized', 401);
   if (!auth.is_admin) return errorResponse('Akses ditolak - hanya admin', 403);
 
-  // ── POST /api/ticker ─────────────────────────────────────────
   if (event.httpMethod === 'POST' && !id) {
     const { teks, urutan, aktif, warna_teks, warna_bg } = parseBody(event);
     if (!teks) return errorResponse('Teks wajib diisi', 400);
@@ -57,7 +49,6 @@ export const handler = async (event) => {
     }
   }
 
-  // ── PUT /api/ticker/:id ──────────────────────────────────────
   if (event.httpMethod === 'PUT' && id) {
     const { teks, urutan, aktif, warna_teks, warna_bg } = parseBody(event);
     const warnaBgVal = warna_bg === null ? null : (warna_bg ?? undefined);
@@ -80,7 +71,6 @@ export const handler = async (event) => {
     }
   }
 
-  // ── DELETE /api/ticker/:id ───────────────────────────────────
   if (event.httpMethod === 'DELETE' && id) {
     try {
       await sql`DELETE FROM ticker WHERE id = ${id}`;

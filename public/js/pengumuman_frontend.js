@@ -85,7 +85,6 @@ function renderPengumumanTable() {
       </tr>`).join('');
   }
 
-  // Pagination
   renderPagination('pengumumanPagination', total, _pengumumanPage, _pengumumanPerPage, 'goPengumumanPage');
 }
 
@@ -150,7 +149,6 @@ function _renderAksiList() {
 function addPengumumanAksi() {
   _aksiItems.push({ label: '', url: '' });
   _renderAksiList();
-  // focus ke input label terakhir
   setTimeout(() => {
     const inputs = document.querySelectorAll('#pengumumanAksiList input[type=text]');
     if (inputs.length) inputs[inputs.length - 2]?.focus();
@@ -164,7 +162,7 @@ function _removeAksi(i) {
 
 /* ── Modal ────────────────────────────────────────────────────── */
 function _initQuillPengumuman() {
-  if (_quillPengumuman) return; // sudah diinit
+  if (_quillPengumuman) return;
   _quillPengumuman = new Quill('#pengumumanEditor', {
     theme: 'snow',
     placeholder: 'Isi pengumuman...',
@@ -199,7 +197,6 @@ function openPengumumanModal(id = null) {
       document.getElementById('pengumumanTipe').value = p.tipe || 'info';
       document.getElementById('pengumumanAktif').checked = !!p.aktif;
       _quillPengumuman.clipboard.dangerouslyPasteHTML(p.isi || '');
-      // Load aksi
       try {
         _aksiItems = Array.isArray(p.aksi) ? p.aksi.map(a => ({ label: a.label || '', url: a.url || '' })) : [];
       } catch { _aksiItems = []; }

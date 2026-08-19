@@ -36,18 +36,17 @@ async function _absCekPengajuanPendingHariIni() {
 }
 
 let _absSettings = null;
-let _absLiburBulanIni = new Set();       // set tanggal (YYYY-MM-DD) yg libur, untuk bulan yg sedang dilihat
+let _absLiburBulanIni = new Set();
 let _absFilterBulan = new Date().getMonth() + 1;
 let _absFilterTahun = new Date().getFullYear();
 let _absFilterPegawai = '';
 let _absFilterBidang = '';
 let _absFilterStatus = '';
-let _absAllPegawai = [];   // cache semua pegawai (non-admin) beserta bidang_id, dipakai buat narrow-in filter Unit Kerja
+let _absAllPegawai = [];
 let _absPage = 1;
 const _absPageSize = 10;
 let _absEditingId = null;
 
-// ── ENTRY POINT (dipanggil dari loader menu, mis. loader: () => loadAbsensi()) ──
 async function loadAbsensi() {
   document.getElementById('absAdminBar').style.display = isAbsensiFull() ? 'flex' : 'none';
   document.getElementById('absBidangFilterWrap').style.display = isAbsensiFull() ? '' : 'none';
@@ -191,9 +190,6 @@ function renderAbsPegawaiFilterOptions() {
   syncCustomSelect?.('absFilterPegawai');
 }
 
-// Dropdown Unit Kerja menyesuaikan data yg ADA utk tahun (& pegawai) yg sedang
-// dipilih - sama kayak rebuildAbsFilterBulan, bukan daftar seluruh master data bidang:
-// - data cuma di 1 unit kerja → langsung ke-select unit itu (gak perlu opsi "Semua Unit Kerja")
 
 async function rebuildAbsFilterBidang() {
   const sel = document.getElementById('absFilterBidang');
@@ -233,15 +229,11 @@ async function setAbsFilterBulan() {
   loadAbsTable(1);
 }
 
-// Filter Status cuma mempersempit tabel riwayat - kartu rekap (KPI) di atas
-// tetap nunjukin total keseluruhan bulan itu, jadi gak perlu reload rekap
 function setAbsFilterStatus() {
   _absFilterStatus = document.getElementById('absFilterStatus')?.value || '';
   loadAbsTable(1);
 }
 
-// Ganti tahun atau pegawai → daftar bulan yg ada datanya bisa berubah, jadi dropdown
-// bulan perlu di-rebuild dulu sebelum reload rekap/tabel
 async function setAbsFilterTahunAtauPegawai() {
   _absFilterTahun = parseInt(document.getElementById('absFilterTahun').value);
   _absFilterPegawai = document.getElementById('absFilterPegawai')?.value || '';
@@ -256,8 +248,6 @@ async function setAbsFilterTahunAtauPegawai() {
   loadAbsTable(1);
 }
 
-// Ganti Unit Kerja → narrow-in dropdown Pegawai ke bidang terpilih, lalu
-// rebuild dropdown bulan (daftar bulan yg ada datanya bisa berubah juga)
 async function setAbsFilterBidang() {
   _absFilterBidang = document.getElementById('absFilterBidang')?.value || '';
   renderAbsPegawaiFilterOptions();
@@ -267,7 +257,6 @@ async function setAbsFilterBidang() {
   loadAbsTable(1);
 }
 
-// ── ENTRY POINT: HALAMAN PENGATURAN (sub menu Absensi > Pengaturan) ──────
 async function loadAbsPengaturan() {
   await loadAbsSettings();
   const box = document.getElementById('absPengaturanJamKerjaRingkasan');
@@ -444,7 +433,7 @@ async function renderAbsHariIni() {
             : `<div class="abs-jam-live abs-jam-live--done"><span class="abs-jam-live-done-badge"><svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path class="abs-jam-live-done-check" d="M4 12l5 5L20 6"/></svg></span></div>`}
         <div class="abs-jadwal-divider"></div>
         <div class="abs-progress-wrap">
-          <div class="abs-progress-track"><div class="abs-progress-fill" id="absProgressFill" data-start="${jamMasukStdDate?.getTime() || ''}" data-end="${jamPulangStdDate?.getTime() || ''}" style="width:${progressPct}%"></div></div>
+          <div class="abs-progress-track"><div class="abs-progress-fill" id="absProgressFill" data-start="${jamMasukStdDate?.getTime() || ''}" data-end="${jamPulangStdDate?.getTime() || ''}" style="width:${progressPct}%;background:${_absProgressColor(progressPct)}"></div></div>
           <div class="abs-progress-jam"><span>${jamMasukHariIni || '--:--'} WITA</span><span>${jamPulangHariIni || '--:--'} WITA</span></div>
         </div>
         <div class="abs-jadwal-label">Jadwal Hari Ini</div>
@@ -475,10 +464,6 @@ async function renderAbsHariIni() {
     ? `<div class="abs-hariini-danger-badge" data-tip="Sudah lewat batas waktu - hubungi admin"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg></div>`
     : '';
 
-  // Status "tidak diperlukan" (akhir pekan / hari libur / skip, TANPA pengajuan
-  // pending) disamain persis sama notice "libur" di Dashboard (_liburNoticePanel):
-  // satu blok tersusun rapi (badge > heading > caption), bukan dipecah kolom
-  // kiri-kanan kayak state absen biasa - biar teksnya konsisten di kedua halaman.
   const isLiburTanpaPengajuan = (isWeekend || isLibur || skipAbsenHariIni) && !pengajuanPendingHariIni;
 
   box.innerHTML = isLiburTanpaPengajuan ? `
@@ -537,7 +522,6 @@ async function renderAbsHariIni() {
     </div>
   `;
 
-  // Init time-picker (kalau ada elemen ctp-mount baru di kartu ini)
   if (typeof initCtp === 'function') initCtp();
   
   
@@ -575,10 +559,22 @@ function _startAbsHariIniTicker() {
       const total = end - start;
       const pct = total > 0 ? Math.max(0, Math.min(100, ((Date.now() - start) / total) * 100)) : 0;
       fill.style.width = pct + '%';
+      fill.style.background = _absProgressColor(pct);
     }
   }
   _tick();
   _absHariIniTickerInterval = setInterval(_tick, 1000);
+}
+
+// Warna progress bar disamain persis ke skala progress ring kinerja
+// (_monRenderPJCards di kinerja.js) — threshold (91/76/66/51) & arahnya
+// sama persis, gak dibalik.
+function _absProgressColor(pct) {
+  if (pct >= 91) return '#16a34a';
+  if (pct >= 76) return '#65a30d';
+  if (pct >= 66) return '#ca8a04';
+  if (pct >= 51) return '#ea580c';
+  return '#dc2626';
 }
 
 function todayISO() {
@@ -768,7 +764,6 @@ async function loadAbsRekap() {
   }
 }
 
-// ── KARTU KE-7: JAM KERJA BULAN INI vs TARGET (nempel di baris KPI di atas) ──
 function _absFmtJam(menit) {
   const jam = Math.floor(Math.abs(menit || 0) / 60);
   const sisaMenit = Math.abs(menit || 0) % 60;
@@ -833,7 +828,6 @@ async function _absJamKerjaCard() {
   }
 }
 
-// ── TABEL RIWAYAT ─────────────────────────────────────────────────────────
 async function loadAbsTable(page = 1) {
   _absPage = page;
   const tbody = document.getElementById('absTableBody');
@@ -1115,7 +1109,6 @@ async function openAbsModal(id = null) {
     document.getElementById('absTanggal').value = row.tanggal.slice(0, 10);
     document.getElementById('absJamMasuk').value = row.jam_masuk ? row.jam_masuk.slice(0, 5) : '';
     document.getElementById('absJamKeluar').value = row.jam_keluar ? row.jam_keluar.slice(0, 5) : '';
-    // 'hadir' udah gak punya opsi manual di dropdown (otomatis dari jam_masuk) -
     
     _absSyncAlpaOption(row.status === 'alpa');
     document.getElementById('absStatus').value = row.status === 'hadir' ? '' : row.status;
@@ -1560,9 +1553,6 @@ async function deleteAbsLibur(id) {
   toast('Hari libur berhasil dihapus', 'success');
   await loadAbsLiburList();
 }
-// ═══════════════════════════════════════════════════════════════════════
-// PENGAJUAN TUGAS LUAR/CUTI - self-service (semua pegawai, butuh approval)
-// ═══════════════════════════════════════════════════════════════════════
 const PENG_STATUS_LABEL = { pending: 'Menunggu Persetujuan', disetujui: 'Disetujui', ditolak: 'Ditolak' };
 const PENG_STATUS_BADGE = { pending: 'badge-yellow', disetujui: 'badge-hijau', ditolak: 'badge-merah' };
 const PENG_STATUS_ICON = {
@@ -1571,19 +1561,17 @@ const PENG_STATUS_ICON = {
   ditolak: '<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6L6 18M6 6l12 12"/></svg>',
 };
 
-let _pengDukung = null; // { url, name } | { name, _loading: true } | null
+let _pengDukung = null;
 
 function openPengajuanModal() {
   document.getElementById('pengStatus').value = 'tugas_luar';
   document.getElementById('pengTanggal').value = '';
   document.getElementById('pengTanggalSelesai').value = '';
   document.getElementById('pengKeterangan').value = '';
-  _resetPengDukung(); // ikut nge-disable tombol Ajukan krn data dukung wajib diisi
+  _resetPengDukung();
   syncCustomSelect?.('pengStatus');
   openModal('modalPengajuanAbsen');
 
-  // Init CDTP (sekali, elemennya baru ada di DOM setelah modal ini pernah dibuka)
-  // lalu reset nilainya - pola sama persis kayak openAbsModal().
   setTimeout(() => {
     if (typeof initCdtp === 'function') initCdtp();
     document.getElementById('cdtp_pengTanggal')?._cdtp?.set(null);
@@ -1592,16 +1580,11 @@ function openPengajuanModal() {
   }, 30);
 }
 
-// ── Cek bentrok absensi di sisi user, sebelum pengajuan dikirim ────────────
-// GET /api/absensi?dari=&sampai= otomatis kefilter ke absensi milik sendiri
-// kalau bukan admin/full (lihat backend). Dipanggil tiap tanggal berubah,
-// biar user langsung tau kalau tanggalnya udah ada absensinya - gak perlu
-// isi form dulu baru ketahuan pas submit.
 async function _pengCekBentrokAbsensi(tanggal, tanggal_selesai) {
   try {
     const params = new URLSearchParams({ dari: tanggal, sampai: tanggal_selesai });
     const r = await fetch(`/api/absensi?${params}`, { headers: authHeaders() });
-    if (!r.ok) return null; // gagal cek (mis. network) - jangan blokir user, backend tetap validasi ulang
+    if (!r.ok) return null;
     const d = await r.json();
     return d.absensi || [];
   } catch {
@@ -1634,8 +1617,6 @@ function _bindPengTanggalCekListeners() {
   _pengTanggalListenersBound = true;
 }
 
-// Tombol "Ajukan" cuma aktif kalau data dukung udah keupload sukses (ada url)
-// dan gak lagi dalam proses upload - cuti/tugas luar wajib ada bukti.
 function _updatePengAjukanBtnState() {
   const btn = document.getElementById('btnSimpanPengajuan');
   if (!btn) return;
@@ -1713,8 +1694,6 @@ async function _processPengDukungFile(file) {
   if (pb) pb.style.width = '0%';
 
   try {
-    // Reuse fungsi upload generik yg sama persis dgn milik modal admin
-    // (_absUploadFileWithProgress) - endpoint & payloadnya identik.
     const d = await _absUploadFileWithProgress(file, (pct) => { if (pb) pb.style.width = pct + '%'; });
     if (pb) { pb.style.width = '100%'; setTimeout(() => { if (pw) pw.style.display = 'none'; }, 600); }
     _pengDukung = { url: d.url, name: d.name || file.name };

@@ -1,92 +1,8 @@
-// netlify/functions/eplanning.js
-// Modul E-Planning (usulan anggaran) - porting dari Google Apps Script + Sheets
-// milik tim lain, diintegrasikan ke akun/role SAPA yang sudah ada.
-//
-// Permission keys (diatur via halaman Pengguna → Perizinan, sama seperti modul lain):
-//   eplanning.operator   → bikin/edit usulan milik sendiri (level "Program" di sistem lama)
-//   eplanning.kabid      → review & approve semua usulan di bidangnya (level "Bidang")
-//   eplanning.sekretaris → verifikasi tambahan khusus usulan dari unit kerja tipe Sub Bagian
-//                          (Sekretaris Dinas, cross-bidang, cuma keliatan usulan sub_bagian)
-//   eplanning.admin      → verifikasi lintas-bidang, sahkan final, kelola master data & pengaturan
-//   (is_admin SAPA otomatis setara eplanning.admin penuh)
-//
-// Alur status:
-//   DRAFT → (operator submit) → MENUNGGU KEPALA <PUSKESMAS/BIDANG/SUB BAGIAN>
-//   → (Kepala approve)
-//       • kalau bidang_tipe = sub_bagian  → MENUNGGU SEKRETARIS → (Sekretaris approve) → MENUNGGU ADMIN
-//       • selain itu                      → MENUNGGU ADMIN langsung
-//   → (Admin sahkan) → SELESAI
-//   Kepala/Sekretaris/Admin bisa nolak di tahapnya masing2 → DITOLAK
-//   (operator revisi, submit ulang balik ke tahap Kepala - bukan skip ke tahap yang nolak)
-//   Label "MENUNGGU KEPALA ..." mengikuti kolom tipe di tabel bidang punya unit kerja pengusul.
-//
-// GET    /api/eplanning/usulan                       → list usulan (filter sesuai role)
-// POST   /api/eplanning/usulan                        → buat/update usulan (operator, bidang sendiri)
-// GET    /api/eplanning/usulan/:id                    → detail 1 usulan
-// DELETE /api/eplanning/usulan/:id                    → hapus usulan (+ rincian) - pemilik draft atau admin
-// PUT    /api/eplanning/usulan/:id/submit              → operator submit Draft/Ditolak → MENUNGGU KEPALA <tipe>
-// PUT    /api/eplanning/usulan/:id/approve-kabid       → Kepala approve → MENUNGGU SEKRETARIS (sub_bagian) atau MENUNGGU ADMIN
-// PUT    /api/eplanning/usulan/:id/approve-sekretaris  → Sekretaris approve (khusus sub_bagian) → MENUNGGU ADMIN
-// PUT    /api/eplanning/usulan/:id/approve-admin        → admin sahkan final → SELESAI
-// PUT    /api/eplanning/usulan/:id/status               → tolak (mis. DITOLAK, wajib catatan_koreksi)
-//
-// GET    /api/eplanning/rincian?usulan_id=X         → list rincian 1 usulan
-// POST   /api/eplanning/rincian                     → buat/update rincian
-// DELETE /api/eplanning/rincian/:id?usulan_id=X      → hapus rincian
-//
-// GET    /api/eplanning/subkegiatan                 → master sub kegiatan (semua login)
-// POST   /api/eplanning/subkegiatan                 → admin only
-// PUT    /api/eplanning/subkegiatan/:kode            → admin only, { nama_subkegiatan?, indikator?, satuan?, aktif? }
-// DELETE /api/eplanning/subkegiatan/:kode            → admin only
-//
-// GET    /api/eplanning/rekening?q=kata               → cari kode rekening (autocomplete, max 30) - semua login
-// GET    /api/eplanning/rekening?page=1&pageSize=25&search=kata → list master rekening berpaginasi (admin only)
-// POST   /api/eplanning/rekening                     → admin only, { kode_rekening, nama_rekening }
-// PUT    /api/eplanning/rekening/:kode                → admin only, { nama_rekening?, aktif? }
-// DELETE /api/eplanning/rekening/:kode                → admin only
-//
-// GET    /api/eplanning/sumberdana | /satuan          → master list (semua login)
-// POST   /api/eplanning/sumberdana | /satuan          → admin only, { nama, kode? } (kode: sumberdana doang)
-// PUT    /api/eplanning/sumberdana/:id | /satuan/:id  → admin only, { nama?, kode?, aktif? }
-// DELETE /api/eplanning/sumberdana/:id | /satuan/:id  → admin only
-//
-// Wilayah administratif (Provinsi → Kab/Kota → Kecamatan → Desa/Kelurahan) - buat dropdown
-// "Lokasi Pelaksanaan Kegiatan" & "Rincian Lokasi" di form Sub Kegiatan Belanja. Seed awal:
-// Kab. Banggai Laut (7 kecamatan, 66 desa/kelurahan) - tambah kab/kota lain via endpoint admin.
-// GET    /api/eplanning/provinsi                                    → semua login
-// GET    /api/eplanning/kabkota?provinsi_id=X                       → semua login
-// GET    /api/eplanning/kecamatan?kabkota_id=X                      → semua login (kabkota_id wajib)
-// GET    /api/eplanning/desakelurahan?kecamatan_id=X                → semua login (kecamatan_id wajib)
-// POST/PUT/DELETE /api/eplanning/kabkota[/:id]                      → admin only, { provinsi_id, nama, tipe? }
-// POST/PUT/DELETE /api/eplanning/kecamatan[/:id]                    → admin only, { kabkota_id, nama }
-// POST/PUT/DELETE /api/eplanning/desakelurahan[/:id]                → admin only, { kecamatan_id, nama, tipe? }
-//
-// Referensi sederhana lain di form Sub Kegiatan Belanja - semua bentuknya sama (id, nama, aktif):
-// GET    /api/eplanning/prioritasprov | /prioritaskabkota | /bidangurusan | /tagbelanja  → semua login
-// POST   /api/eplanning/prioritasprov | /prioritaskabkota | /bidangurusan | /tagbelanja  → admin only, { nama }
-// PUT/DELETE .../:id                                                                     → admin only
-//
-// GET    /api/eplanning/standarharga?q=kata&kategori=SSH        → cari (autocomplete, max 30) - semua login modul ini
-// GET    /api/eplanning/standarharga?page=1&pageSize=25&kategori=SSH&search=kata → list berpaginasi - semua login (baca), admin (kelola)
-// GET    /api/eplanning/standarharga/count                       → jumlah baris per kategori (buat badge tab)
-// POST   /api/eplanning/standarharga                              → admin only, tambah 1 item manual
-// PUT    /api/eplanning/standarharga/:id                          → admin only, edit 1 item
-// DELETE /api/eplanning/standarharga/:id                          → admin only, hapus 1 item
-// DELETE /api/eplanning/standarharga?kategori=SSH                 → admin only, kosongkan 1 kategori (dipakai sebelum impor ulang)
-// POST   /api/eplanning/standarharga/import                       → admin only, { kategori, rows:[...] } bulk insert 1 batch (dipanggil berkali² dari FE per-chunk)
-//
-// (Pengaturan tahapan/tahun anggaran/batas waktu kini pakai tabel `periode` bersama
-//  (jenis='eplanning', periode tahunan) - dikelola lewat halaman Master Data → Periode)
-//
-// GET /api/eplanning/tahun → daftar tahun buat dropdown global (banner periode), dipakai buat
-// filter Usulan (?tahun= di GET usulan) & Standar Harga (?tahun= di GET/count/meta/import/delete
-// standarharga) sekaligus. Data lama tanpa tahun diperlakukan sebagai tahun 2027.
 
 import { getDb, jsonResponse, errorResponse, parseBody } from './_db.js';
 import { requireAuth, requireAdmin } from './_auth.js';
 import { logAudit } from './_audit.js';
 
-// ── Auto-migrate: bikin semua tabel kalau belum ada ────────────────────────
 let _migrated = false;
 async function ensureSchema(sql) {
   if (_migrated) return;
@@ -117,21 +33,14 @@ async function ensureSchema(sql) {
       updated_at        TIMESTAMPTZ DEFAULT NOW()
     )
   `;
-  // bidang_tipe: snapshot tipe unit kerja (puskesmas/bidang/sub_bagian) saat submit,
-  // dipakai buat label dinamis "Menunggu Kepala <tipe>".
-  // ditolak_oleh: 'KEPALA' | 'ADMIN' - buat riwayat/tampilan, bukan buat routing (resubmit selalu balik ke tier Kepala).
   await sql`ALTER TABLE eplanning_usulan ADD COLUMN IF NOT EXISTS bidang_tipe TEXT`;
   await sql`ALTER TABLE eplanning_usulan ADD COLUMN IF NOT EXISTS ditolak_oleh TEXT`;
   await sql`ALTER TABLE eplanning_usulan ADD COLUMN IF NOT EXISTS nama_sekretaris TEXT`;
   await sql`ALTER TABLE eplanning_usulan ADD COLUMN IF NOT EXISTS nip_sekretaris TEXT`;
   await sql`ALTER TABLE eplanning_usulan ADD COLUMN IF NOT EXISTS link_ttd_sekretaris TEXT`;
-  // Migrasi status lama → status baru (idempotent, no-op setelah baris lama abis dikonversi)
   await sql`UPDATE eplanning_usulan SET status = 'MENUNGGU ADMIN' WHERE status = 'DIAJUKAN KE ADMIN'`;
   await sql`UPDATE eplanning_usulan SET status = 'DITOLAK', ditolak_oleh = 'KEPALA' WHERE status = 'KOREKSI BIDANG'`;
   await sql`UPDATE eplanning_usulan SET status = 'SELESAI' WHERE status = 'DISETUJUI'`;
-  // 'DIAJUKAN KE BIDANG' - status yang lebih lama lagi (dari sebelum ada ALLOWED whitelist),
-  // artinya submitted & nunggu approval Kepala unit kerja → setara 'MENUNGGU KEPALA <tipe>' baru.
-  // Perlu join ke bidang buat tau tipe-nya masing2 (puskesmas/bidang/sub_bagian).
   await sql`
     UPDATE eplanning_usulan u SET
       status = CASE b.tipe
@@ -143,7 +52,6 @@ async function ensureSchema(sql) {
     FROM bidang b
     WHERE u.bidang_id = b.id AND u.status = 'DIAJUKAN KE BIDANG'
   `;
-  // Fallback kalau ada baris 'DIAJUKAN KE BIDANG' yang bidang_id-nya udah gak valid/kosong
   await sql`
     UPDATE eplanning_usulan SET status = 'MENUNGGU KEPALA BIDANG', bidang_tipe = 'bidang'
     WHERE status = 'DIAJUKAN KE BIDANG'
@@ -203,11 +111,6 @@ async function ensureSchema(sql) {
     )
   `;
   await sql`ALTER TABLE eplanning_satuan ADD COLUMN IF NOT EXISTS aktif BOOLEAN NOT NULL DEFAULT true`;
-  // ── Wilayah administratif (Provinsi → Kab/Kota → Kecamatan → Desa/Kelurahan) ──
-  // Dipakai buat dropdown "Lokasi Pelaksanaan Kegiatan" (level kab/kota) dan "Rincian Lokasi"
-  // (cascading kab/kota → kecamatan → desa/kelurahan) di form Tambah Sub Kegiatan Belanja,
-  // niru tampilan SIPD RI. Cakupan data yang di-seed baru Kab. Banggai Laut (lokasi SAPA
-  // dipakai) - tambah kab/kota lain lewat Master Data → Wilayah kalau perlu.
   await sql`
     CREATE TABLE IF NOT EXISTS eplanning_provinsi (
       id   SERIAL PRIMARY KEY,
@@ -240,7 +143,6 @@ async function ensureSchema(sql) {
       UNIQUE(kecamatan_id, nama)
     )
   `;
-  // Seed sekali doang - kalau eplanning_kabkota masih kosong, isi Kab. Banggai Laut lengkap.
   const [{ count: kabkotaCount }] = await sql`SELECT COUNT(*)::int AS count FROM eplanning_kabkota`;
   if (kabkotaCount === 0) {
     const [prov] = await sql`
@@ -269,21 +171,8 @@ async function ensureSchema(sql) {
       }
     }
   }
-  // Lokasi Pelaksanaan Kegiatan (level kab/kota) + Rincian Lokasi (cascading kab/kota →
-  // kecamatan → desa/kelurahan, boleh lebih dari 1 baris, boleh "Semua Kecamatan"/"Semua
-  // Desa/Kelurahan") di eplanning_usulan - niru form Tambah Sub Kegiatan Belanja di SIPD RI.
-  // Ditaruh di sini (setelah tabel wilayah dibuat) karena FK-nya nunjuk ke eplanning_kabkota.
-  // rincian_lokasi disimpan sbg array snapshot { kabkota_id, kabkota_nama, kecamatan_id,
-  // kecamatan_nama, desa_id, desa_nama } - id null berarti "Semua" di level itu, nama tetap
-  // disimpan biar gak perlu join ulang buat nampilin histori walau master wilayah berubah.
   await sql`ALTER TABLE eplanning_usulan ADD COLUMN IF NOT EXISTS lokasi_pelaksanaan_kabkota_id INT REFERENCES eplanning_kabkota(id)`;
   await sql`ALTER TABLE eplanning_usulan ADD COLUMN IF NOT EXISTS rincian_lokasi JSONB NOT NULL DEFAULT '[]'::jsonb`;
-  // ── Referensi perencanaan lain di form Sub Kegiatan Belanja (SIPD RI) ──
-  // Prioritas Pembangunan Provinsi/Kab-Kota & Bidang Urusan: dropdown pilih 1, disimpan sbg FK
-  // + snapshot nama (biar histori gak berubah kalau master-nya diedit/dihapus belakangan).
-  // Tag Belanja: bisa lebih dari 1 per usulan → disimpan array snapshot spt rincian_lokasi.
-  // Anggaran N+1/N+2: proyeksi 2 tahun ke depan, angka doang (beda sama Anggaran Sub Kegiatan
-  // tahun berjalan yang dihitung otomatis dari total rincian anggaran).
   await sql`
     CREATE TABLE IF NOT EXISTS eplanning_prioritasprov (
       id SERIAL PRIMARY KEY, nama TEXT UNIQUE NOT NULL, aktif BOOLEAN NOT NULL DEFAULT true
@@ -313,16 +202,9 @@ async function ensureSchema(sql) {
   await sql`ALTER TABLE eplanning_usulan ADD COLUMN IF NOT EXISTS tag_belanja JSONB NOT NULL DEFAULT '[]'::jsonb`;
   await sql`ALTER TABLE eplanning_usulan ADD COLUMN IF NOT EXISTS anggaran_n1 NUMERIC`;
   await sql`ALTER TABLE eplanning_usulan ADD COLUMN IF NOT EXISTS anggaran_n2 NUMERIC`;
-  // Waktu Pelaksanaan (bulan mulai s/d bulan selesai, 1-12) - field terakhir yang niru SIPD RI.
   await sql`ALTER TABLE eplanning_usulan ADD COLUMN IF NOT EXISTS waktu_mulai_bulan SMALLINT`;
   await sql`ALTER TABLE eplanning_usulan ADD COLUMN IF NOT EXISTS waktu_selesai_bulan SMALLINT`;
-  // Rekap read-only Sumber Dana + jumlah per sumber, dihitung otomatis di recalcTotal() tiap
-  // Rincian Anggaran berubah - bukan field yang diisi manual di form Sub Kegiatan Belanja.
   await sql`ALTER TABLE eplanning_usulan ADD COLUMN IF NOT EXISTS sumber_dana_summary JSONB NOT NULL DEFAULT '[]'::jsonb`;
-  // Standar Harga Satuan (SSH/HSPK/ASB/SBU) - hasil export dari aplikasi SIPD, dipakai sebagai
-  // referensi harga pas isi form Rincian Anggaran (autocomplete Komponen → auto-isi Spesifikasi/
-  // Satuan/Harga). Diimpor lewat halaman Master Data → Standar Harga Satuan (upload file Excel
-  // export SIPD apa adanya, kolom-kolomnya sudah tetap dari sononya).
   await sql`
     CREATE TABLE IF NOT EXISTS eplanning_standar_harga (
       id                     SERIAL PRIMARY KEY,
@@ -343,9 +225,6 @@ async function ensureSchema(sql) {
     )
   `;
   await sql`ALTER TABLE eplanning_standar_harga ADD COLUMN IF NOT EXISTS tkdn NUMERIC`;
-  // tahun: tahun anggaran dari standar harga ini (mengikuti tahun yg dipilih di dropdown SIPD
-  // pas eksport). Data lama (hasil impor sebelum kolom ini ada) belum punya tahun - diperlakukan
-  // sebagai data tahun 2027 (keputusan bang M, krn itu tahun yg lagi jalan pas kolom ini ditambahkan).
   await sql`ALTER TABLE eplanning_standar_harga ADD COLUMN IF NOT EXISTS tahun INT`;
   await sql`UPDATE eplanning_standar_harga SET tahun = 2027 WHERE tahun IS NULL`;
   await sql`CREATE INDEX IF NOT EXISTS idx_eplanning_usulan_bidang ON eplanning_usulan(bidang_id)`;
@@ -369,8 +248,6 @@ const TIPE_KEPALA_LABEL = {
   bidang:     'BIDANG',
   sub_bagian: 'SUB BAGIAN',
 };
-// Status "menunggu kepala" disimpan sudah termasuk jenis unit kerjanya langsung di DB
-// (mis. 'MENUNGGU KEPALA PUSKESMAS'), biar filter/badge status ga perlu join tambahan.
 function statusMenungguKepala(bidangTipe) {
   return `MENUNGGU KEPALA ${TIPE_KEPALA_LABEL[bidangTipe] || 'BIDANG'}`;
 }
@@ -378,7 +255,6 @@ function isStatusMenungguKepala(status) {
   return typeof status === 'string' && status.startsWith('MENUNGGU KEPALA');
 }
 
-// ── Helper: role efektif user di modul eplanning ──────────────────────────
 async function getRole(sql, auth) {
   if (auth.is_admin) return { isAdmin: true, isKabid: false, isOperator: false, isSekretaris: false, bidangId: null };
   const perms = await sql`SELECT menu_key FROM user_permissions WHERE user_id = ${auth.id}`;
@@ -397,9 +273,6 @@ async function recalcTotal(sql, usulanId) {
   const rows = await sql`
     SELECT COALESCE(SUM(sub_total), 0) AS total FROM eplanning_rincian WHERE usulan_id = ${usulanId}
   `;
-  // Rekap per Sumber Dana (dari master yang sama dipakai di tiap baris Rincian Anggaran) -
-  // ditampilkan read-only di form Sub Kegiatan Belanja, niru kolom "Sumber Dana" SIPD RI.
-  // Baris tanpa sumber_dana diisi (belum dipilih pas isi Rincian) dikumpulin di "Belum ditentukan".
   const perSumber = await sql`
     SELECT COALESCE(NULLIF(sumber_dana, ''), 'Belum ditentukan') AS nama, COALESCE(SUM(sub_total), 0) AS total
     FROM eplanning_rincian WHERE usulan_id = ${usulanId}
@@ -433,12 +306,6 @@ export const handler = async (event) => {
   const qs = event.queryStringParameters || {};
 
   try {
-    // ═══════════════════════════ USULAN ═══════════════════════════
-    // ═══════════════════════════ TAHUN (dropdown global e-Planning) ═══════════════════════════
-    // GET /api/eplanning/tahun → daftar tahun yg tersedia buat dropdown global (banner periode),
-    // gabungan dari: tahun periode e-Planning yg pernah diatur, tahun_anggaran usulan yg ada,
-    // dan tahun standar harga yg ada. Dipakai FE biar dropdown gak kosong walau salah satu tabel
-    // belum punya data tahun tsb.
     if (resource === 'tahun') {
       const rows = await sql`
         SELECT tahun FROM periode WHERE jenis = 'eplanning' AND tahun IS NOT NULL
@@ -454,7 +321,6 @@ export const handler = async (event) => {
       const id = segments[1] || null;
       const action = segments[2] || null;
 
-      // GET /usulan/:id → detail
       if (event.httpMethod === 'GET' && id) {
         const rows = await sql`SELECT * FROM eplanning_usulan WHERE id = ${id} LIMIT 1`;
         if (!rows.length) return errorResponse('Usulan tidak ditemukan', 404);
@@ -467,13 +333,8 @@ export const handler = async (event) => {
         return jsonResponse({ usulan: u });
       }
 
-      // GET /usulan → list (filter sesuai role, sama seperti logic sheet lama)
-      // ?tahun= → filter tambahan by tahun_anggaran (dropdown tahun global). Usulan lama yang
-      // tahun_anggaran-nya masih NULL tetap kelihatan pas tahun=2027 (data lama diperlakukan sbg 2027).
       if (event.httpMethod === 'GET' && !id) {
         const tahunFilter = qs.tahun && /^\d{4}$/.test(qs.tahun) ? parseInt(qs.tahun) : null;
-        // Usulan lama yang tahun_anggaran-nya masih NULL diperlakukan sbg tahun 2027 (samain
-        // sama keputusan buat data Standar Harga lama), jadi tetap kelihatan pas filter tahun=2027.
         let rows;
         if (role.isAdmin) {
           if (qs.status) {
@@ -484,7 +345,6 @@ export const handler = async (event) => {
                      OR (${tahunFilter}::int = 2027 AND tahun_anggaran IS NULL))
               ORDER BY updated_at DESC`;
           } else {
-            // Default: semua yang udah disubmit (bukan Draft mentah operator)
             rows = await sql`
               SELECT * FROM eplanning_usulan
               WHERE status != 'DRAFT'
@@ -500,7 +360,6 @@ export const handler = async (event) => {
                    OR (${tahunFilter}::int = 2027 AND tahun_anggaran IS NULL))
             ORDER BY updated_at DESC`;
         } else if (role.isSekretaris) {
-          // Sekretaris Dinas cross-bidang, tapi cuma relevan buat usulan dari unit kerja tipe Sub Bagian
           rows = await sql`
             SELECT * FROM eplanning_usulan
             WHERE bidang_tipe = 'sub_bagian'
@@ -518,7 +377,6 @@ export const handler = async (event) => {
         return jsonResponse({ usulan: rows });
       }
 
-      // PUT /usulan/:id/submit → operator ajukan usulan Draft/Ditolak ke tahap Kepala <tipe unit>
       if (event.httpMethod === 'PUT' && id && action === 'submit') {
         const cur = await sql`SELECT pembuat_user_id, bidang_id, status FROM eplanning_usulan WHERE id = ${id} LIMIT 1`;
         if (!cur.length) return errorResponse('Usulan tidak ditemukan', 404);
@@ -535,8 +393,6 @@ export const handler = async (event) => {
         return jsonResponse({ usulan: rows[0] });
       }
 
-      // PUT /usulan/:id/approve-kabid → Kepala <tipe unit> approve.
-      // Sub Bagian butuh 1 tahap tambahan (Sekretaris Dinas) sebelum ke Admin; tipe lain langsung ke Admin.
       if (event.httpMethod === 'PUT' && id && action === 'approve-kabid') {
         if (!role.isAdmin && !role.isKabid) return errorResponse('Unauthorized', 401);
         const cur = await sql`SELECT bidang_id, bidang_tipe, status FROM eplanning_usulan WHERE id = ${id} LIMIT 1`;
@@ -556,7 +412,6 @@ export const handler = async (event) => {
         return jsonResponse({ usulan: rows[0] });
       }
 
-      // PUT /usulan/:id/approve-sekretaris → Sekretaris Dinas approve (khusus usulan Sub Bagian), lanjut ke Admin
       if (event.httpMethod === 'PUT' && id && action === 'approve-sekretaris') {
         if (!role.isAdmin && !role.isSekretaris) return errorResponse('Unauthorized', 401);
         const cur = await sql`SELECT status, bidang_tipe FROM eplanning_usulan WHERE id = ${id} LIMIT 1`;
@@ -575,7 +430,6 @@ export const handler = async (event) => {
         return jsonResponse({ usulan: rows[0] });
       }
 
-      // PUT /usulan/:id/approve-admin → admin (verifikator) sahkan final
       if (event.httpMethod === 'PUT' && id && action === 'approve-admin') {
         if (!role.isAdmin) return errorResponse('Unauthorized', 401);
         const cur = await sql`SELECT status FROM eplanning_usulan WHERE id = ${id} LIMIT 1`;
@@ -594,7 +448,6 @@ export const handler = async (event) => {
         return jsonResponse({ usulan: rows[0] });
       }
 
-      // PUT /usulan/:id/status → kirim balik / tolak. Kepala/Sekretaris/Admin bisa nolak dari tahap masing2 → 'DITOLAK'.
       if (event.httpMethod === 'PUT' && id && action === 'status') {
         if (!role.isAdmin && !role.isKabid && !role.isSekretaris) return errorResponse('Unauthorized', 401);
         const { status, catatan_koreksi } = parseBody(event);
@@ -616,13 +469,10 @@ export const handler = async (event) => {
         return jsonResponse({ usulan: rows[0] });
       }
 
-      // POST /usulan → buat baru atau update draft/koreksi milik sendiri
-      // Kabid cuma approval (approve-kabid / kirim balik koreksi), bukan pembuat usulan - jadi gak diizinin di sini.
       if (event.httpMethod === 'POST' && !id) {
         if (!role.isAdmin && !role.isOperator) return errorResponse('Unauthorized', 401);
         const body = parseBody(event);
 
-        // ── Validasi window periode e-Planning (non-admin) ──────────────────
         if (!role.isAdmin) {
           try {
             const win = await sql`
@@ -719,7 +569,6 @@ export const handler = async (event) => {
         return jsonResponse({ usulan: rows[0] }, 201);
       }
 
-      // DELETE /usulan/:id
       if (event.httpMethod === 'DELETE' && id) {
         const existing = await sql`SELECT pembuat_user_id, status FROM eplanning_usulan WHERE id = ${id} LIMIT 1`;
         if (!existing.length) return errorResponse('Usulan tidak ditemukan', 404);
@@ -737,7 +586,6 @@ export const handler = async (event) => {
       return errorResponse('Not found', 404);
     }
 
-    // ═══════════════════════════ RINCIAN ═══════════════════════════
     if (resource === 'rincian') {
       const id = segments[1] || null;
 
@@ -825,7 +673,6 @@ export const handler = async (event) => {
       return errorResponse('Not found', 404);
     }
 
-    // ═══════════════════════════ SUB KEGIATAN ═══════════════════════════
     if (resource === 'subkegiatan') {
       const kode = segments[1] ? decodeURIComponent(segments[1]) : null;
 
@@ -835,7 +682,6 @@ export const handler = async (event) => {
       }
       if (!role.isAdmin) return errorResponse('Unauthorized', 401);
 
-      // Impor Excel massal - admin only. Upsert per kode_subkegiatan (sama kayak POST single).
       if (event.httpMethod === 'POST' && kode === 'import') {
         const body = parseBody(event);
         const rows = Array.isArray(body.rows) ? body.rows : [];
@@ -847,7 +693,6 @@ export const handler = async (event) => {
         const ind = rows.map(r => (r.indikator ?? '').toString().trim() || null);
         const sat = rows.map(r => (r.satuan ?? '').toString().trim() || null);
 
-        // Baris tanpa kode atau nama di-skip (biar gak nabrak NOT NULL / PK kosong)
         const valid = rows.map((_, i) => i).filter(i => kd[i] && nm[i]);
         if (!valid.length) return errorResponse('Tidak ada baris valid - kode & nama wajib diisi', 400);
         const vkd = valid.map(i => kd[i]);
@@ -882,7 +727,8 @@ export const handler = async (event) => {
         const rows = await sql`
           UPDATE eplanning_subkegiatan SET
             nama_subkegiatan = COALESCE(${nama_subkegiatan ?? null}, nama_subkegiatan),
-            indikator = ${indikator ?? null}, satuan = ${satuan ?? null},
+            indikator = COALESCE(${indikator ?? null}, indikator),
+            satuan = COALESCE(${satuan ?? null}, satuan),
             aktif = COALESCE(${aktif ?? null}, aktif)
           WHERE kode_subkegiatan = ${kode} RETURNING *`;
         if (!rows.length) return errorResponse('Sub kegiatan tidak ditemukan', 404);
@@ -895,18 +741,13 @@ export const handler = async (event) => {
       return errorResponse('Not found', 404);
     }
 
-    // ═══════════════════════════ REKENING ═══════════════════════════
     if (resource === 'rekening') {
       const kode = segments[1] ? decodeURIComponent(segments[1]) : null;
 
-      // Autocomplete (dipakai di form Rincian Usulan) - tetap terbuka utk semua role modul ini
       if (event.httpMethod === 'GET' && !kode && qs.page === undefined) {
         const q = (qs.q || '').trim();
         if (q.length === 1) return jsonResponse({ rekening: [] });
         if (q.length === 0) {
-          // Fokus tanpa ngetik → tampilkan 30 rekening yang paling sering dipakai
-          // (COUNT dari eplanning_rincian). Kalau belum ada histori pemakaian sama
-          // sekali, COUNT-nya 0 semua → otomatis fallback urutan abjad.
           const rows = await sql`
             SELECT er.kode_rekening, er.nama_rekening
             FROM eplanning_rekening er
@@ -924,7 +765,6 @@ export const handler = async (event) => {
         return jsonResponse({ rekening: rows });
       }
 
-      // Listing berpaginasi utk halaman Master Data (admin only - datanya ribuan baris)
       if (event.httpMethod === 'GET' && !kode) {
         if (!role.isAdmin) return errorResponse('Unauthorized', 401);
         const page = Math.max(1, parseInt(qs.page) || 1);
@@ -970,7 +810,6 @@ export const handler = async (event) => {
       return errorResponse('Not found', 404);
     }
 
-    // ═══════════════════════════ SUMBER DANA ═══════════════════════════
     if (resource === 'sumberdana') {
       const idRaw = segments[1] || null;
       const id = idRaw && /^\d+$/.test(idRaw) ? parseInt(idRaw) : null;
@@ -981,9 +820,6 @@ export const handler = async (event) => {
       }
       if (!role.isAdmin) return errorResponse('Unauthorized', 401);
 
-      // Impor Excel massal - admin only. Kolom kode (opsional) + nama, duplikat (nama sama) dilewati.
-      // Kalau nama udah ada, kode-nya di-update kalau baris impor bawa kode baru (biar bisa
-      // "lengkapi" master lama yang belum ada kode-nya tanpa bikin duplikat baris).
       if (event.httpMethod === 'POST' && idRaw === 'import') {
         const body = parseBody(event);
         const rows = Array.isArray(body.rows) ? body.rows : [];
@@ -1043,7 +879,6 @@ export const handler = async (event) => {
       return errorResponse('Not found', 404);
     }
 
-    // ═══════════════════════════ SATUAN ═══════════════════════════
     if (resource === 'satuan') {
       const id = segments[1] ? parseInt(segments[1]) : null;
 
@@ -1053,10 +888,6 @@ export const handler = async (event) => {
       }
       if (!role.isAdmin) return errorResponse('Unauthorized', 401);
 
-      // Sync manual - tarik semua nilai satuan yang UDAH ada di eplanning_standar_harga
-      // (termasuk yang diimpor SEBELUM fitur auto-sync-saat-impor ada) dan tambahin ke
-      // master yang belum kesitu. Beda sama sync otomatis di endpoint import (yang cuma
-      // proses baris baru per-batch) - ini nyisir SEMUA data standar harga yang ada.
       if (event.httpMethod === 'POST' && segments[1] === 'sync-dari-standarharga') {
         const added = await sql`
           INSERT INTO eplanning_satuan (nama)
@@ -1098,8 +929,6 @@ export const handler = async (event) => {
       return errorResponse('Not found', 404);
     }
 
-    // ═══════════════════════════ REFERENSI SEDERHANA (Prioritas Provinsi/Kab-Kota, Bidang Urusan, Tag Belanja) ═══════════════════════════
-    // 4 master list berbentuk sama (id, nama, aktif) - satu handler generik biar gak 4x copy-paste.
     const REFERENSI_TABLES = {
       prioritasprov: 'eplanning_prioritasprov',
       prioritaskabkota: 'eplanning_prioritaskabkota',
@@ -1147,7 +976,6 @@ export const handler = async (event) => {
       return errorResponse('Not found', 404);
     }
 
-    // ═══════════════════════════ WILAYAH (Provinsi/Kab-Kota/Kecamatan/Desa-Kelurahan) ═══════════════════════════
     if (resource === 'provinsi') {
       if (event.httpMethod === 'GET') {
         const rows = await sql`SELECT * FROM eplanning_provinsi ORDER BY nama ASC`;
@@ -1263,13 +1091,9 @@ export const handler = async (event) => {
       return errorResponse('Not found', 404);
     }
 
-    // ═══════════════════════════ STANDAR HARGA SATUAN (SSH/HSPK/ASB/SBU) ═══════════════════════════
     if (resource === 'standarharga') {
-      const sub = segments[1] || null; // bisa angka id, 'count', atau 'import'
+      const sub = segments[1] || null;
 
-      // Autocomplete (dipakai combobox Komponen di form Rincian) - terbuka utk semua role modul ini.
-      // ?tahun= → scope ke tahun anggaran usulan yg lagi diisi (dropdown tahun global / tahun_anggaran
-      // usulan). Data lama tanpa tahun (NULL) ikut nongol pas tahun=2027.
       if (event.httpMethod === 'GET' && !sub && qs.page === undefined) {
         const q = (qs.q || '').trim();
         const kategori = (qs.kategori || '').trim().toUpperCase();
@@ -1312,8 +1136,6 @@ export const handler = async (event) => {
         return jsonResponse({ standarharga: rows });
       }
 
-      // Jumlah baris per kategori (badge di tab SSH/HSPK/ASB/SBU) - semua login.
-      // ?tahun= → scope badge count-nya ke tahun yg lagi aktif di dropdown global.
       if (event.httpMethod === 'GET' && sub === 'count') {
         const tahunFilter = qs.tahun && /^\d{4}$/.test(qs.tahun) ? parseInt(qs.tahun) : null;
         const rows = await sql`
@@ -1324,8 +1146,6 @@ export const handler = async (event) => {
         return jsonResponse({ count: rows });
       }
 
-      // Daftar nilai Satuan & Status yang ada di 1 kategori - dipakai FE buat isi
-      // pilihan dropdown filter (Satuan/Status) di halaman Master Data.
       if (event.httpMethod === 'GET' && sub === 'meta') {
         const kategori = (qs.kategori || 'SSH').trim().toUpperCase();
         const tahunFilter = qs.tahun && /^\d{4}$/.test(qs.tahun) ? parseInt(qs.tahun) : null;
@@ -1346,9 +1166,6 @@ export const handler = async (event) => {
         });
       }
 
-      // Listing berpaginasi utk halaman Master Data - semua login modul ini boleh lihat (referensi harga),
-      // kelola (tambah/edit/hapus/impor) tetap admin only (dicek per-aksi di bawah).
-      // ?tahun= → scope ke tahun yg lagi aktif di dropdown global (banner periode).
       if (event.httpMethod === 'GET' && !sub) {
         const page = Math.max(1, parseInt(qs.page) || 1);
         const pageSize = Math.min(100, Math.max(1, parseInt(qs.pageSize) || 25));
@@ -1358,9 +1175,6 @@ export const handler = async (event) => {
         const satuanFilter = (qs.satuan || '').trim();
         const tahunFilter = qs.tahun && /^\d{4}$/.test(qs.tahun) ? parseInt(qs.tahun) : null;
         const offset = (page - 1) * pageSize;
-        // Disortir per Kode Rekening dulu (biar mirip tampilan SIPD - dikelompokkan per rekening),
-        // baru per Uraian Komponen di dalam grup yang sama. Yang belum ada kode rekeningnya
-        // ditaruh paling belakang.
         const rows = await sql`
           SELECT sh.*,
             (SELECT string_agg(
@@ -1400,11 +1214,6 @@ export const handler = async (event) => {
         return jsonResponse({ standarharga: rows, total: totalRows[0].total, page, pageSize });
       }
 
-      // Impor massal per kategori - dipanggil berkali² dari FE (per-chunk, mis. 500 baris/panggilan)
-      // biar gak timeout. FE wajib manggil DELETE ?kategori=X dulu sebelum chunk pertama kalau mau
-      // full-refresh (replace), atau langsung POST kalau mau nambah ke data yang udah ada.
-      // { kategori, tahun, rows } - tahun wajib diisi (per-tahun, mengikuti dropdown tahun yg dipilih
-      // pas export dari SIPD, biar data 1 tahun gak campur sama tahun lain).
       if (event.httpMethod === 'POST' && sub === 'import') {
         if (!role.isAdmin) return errorResponse('Unauthorized', 401);
         const body = parseBody(event);
@@ -1436,11 +1245,6 @@ export const handler = async (event) => {
             ${ub}::text[], ${spek}::text[], ${sat}::text[], ${hs}::numeric[], ${kr}::text[], ${tk}::numeric[]
           )`;
 
-        // Sinkronkan master Satuan (eplanning_satuan) - satuan yang muncul di baris
-        // yang baru diimpor tapi belum ada di master, otomatis ditambahin (biar auto-isi
-        // Rincian Anggaran nanti gak ketemu satuan "hilang"). Match persis apa adanya
-        // (case-sensitive) - "M2" & "M²" sengaja TETAP dianggap beda, biar admin yang
-        // nentuin sendiri mana yang perlu digabung manual dari menu Satuan.
         const satuanBaru = [...new Set(sat.map(s => (s || '').trim()).filter(Boolean))];
         let satuanAdded = 0;
         if (satuanBaru.length) {
@@ -1454,9 +1258,6 @@ export const handler = async (event) => {
         return jsonResponse({ ok: true, inserted: rows.length, satuanAdded }, 201);
       }
 
-      // Kosongkan 1 kategori (dipanggil FE sebelum impor ulang / full-refresh).
-      // ?tahun= → scope penghapusan ke 1 tahun aja (biar re-impor 1 tahun gak nge-wipe tahun lain
-      // di kategori yg sama). Tanpa ?tahun, tetap hapus semua tahun di kategori itu (back-compat).
       if (event.httpMethod === 'DELETE' && !sub && qs.kategori) {
         if (!role.isAdmin) return errorResponse('Unauthorized', 401);
         const kategori = qs.kategori.trim().toUpperCase();
@@ -1470,7 +1271,6 @@ export const handler = async (event) => {
         return jsonResponse({ ok: true, deleted: del.length });
       }
 
-      // Tambah/edit/hapus 1 item manual - admin only
       if (!role.isAdmin) return errorResponse('Unauthorized', 401);
       const id = sub && /^\d+$/.test(sub) ? parseInt(sub) : null;
 

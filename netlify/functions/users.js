@@ -1,11 +1,3 @@
-// netlify/functions/users.js
-// GET    /api/users                        → list semua user (admin only)
-// POST   /api/users                        → tambah user baru (admin only)
-// PUT    /api/users/:id                    → edit user (admin only)
-// DELETE /api/users/:id                    → hapus user (admin only)
-// GET    /api/users/:id/permissions        → lihat permissions user (admin only)
-// PUT    /api/users/:id/permissions        → set permissions user (admin only)
-// POST   /api/users/:id/reset-password     → reset password user ke default (admin only)
 
 import bcrypt from 'bcryptjs';
 import { getDb, jsonResponse, errorResponse, parseBody } from './_db.js';
@@ -17,7 +9,6 @@ const DEFAULT_PASSWORD = 'Balut2026';
 export const handler = async (event) => {
   if (event.httpMethod === 'OPTIONS') return jsonResponse({});
 
-  // Cek auth dasar - endpoint tertentu butuh admin
   const auth = requireAuth(event);
   if (!auth) return errorResponse('Unauthorized', 401);
 
@@ -25,14 +16,12 @@ export const handler = async (event) => {
   const rawPath = event.path.replace(/.*\/users/, '') || '/';
   const segments = rawPath.split('/').filter(Boolean);
 
-  // /api/users/:id/permissions
   const isPermissions = segments[1] === 'permissions';
   const isResetPassword = segments[1] === 'reset-password';
   const isForceLogout = segments[1] === 'force-logout';
   const isPerencanaan = segments[0] === 'perencanaan';
   const userId = segments[0] && !isNaN(segments[0]) ? parseInt(segments[0]) : null;
 
-  // ── GET /api/users/perencanaan - semua user terautentikasi boleh akses ──
   if (event.httpMethod === 'GET' && isPerencanaan) {
     try {
       const rows = await sql`
@@ -49,7 +38,6 @@ export const handler = async (event) => {
     }
   }
 
-  // ── GET /api/users/:id/indikator - user boleh fetch indikator miliknya sendiri ──
   if (event.httpMethod === 'GET' && userId && segments[1] === 'indikator') {
     if (auth.id !== userId && !auth.is_admin) return errorResponse('Unauthorized', 401);
     try {
@@ -63,9 +51,6 @@ export const handler = async (event) => {
     }
   }
 
-  // ── GET /api/users/:id/foto - user boleh fetch foto profil miliknya sendiri.
-  // Prioritas: avatar_url yang di-upload sendiri oleh user > foto_url resmi
-  // dari data Pegawai (join lewat NIP, dikelola admin di halaman Struktur).
   if (event.httpMethod === 'GET' && userId && segments[1] === 'foto') {
     if (auth.id !== userId && !auth.is_admin) return errorResponse('Unauthorized', 401);
     try {
@@ -85,8 +70,6 @@ export const handler = async (event) => {
     }
   }
 
-  // ── PUT /api/users/:id/avatar - user upload/hapus foto profil sendiri
-  // (kolom avatar_url terpisah dari pegawai.foto_url yang dikelola admin) ──
   if (event.httpMethod === 'PUT' && userId && segments[1] === 'avatar') {
     if (auth.id !== userId && !auth.is_admin) return errorResponse('Unauthorized', 401);
     const { avatar_url } = parseBody(event);
@@ -101,11 +84,9 @@ export const handler = async (event) => {
     }
   }
 
-  // Semua endpoint di bawah ini wajib admin
   const admin = requireAdmin(event);
   if (!admin) return errorResponse('Unauthorized', 401);
 
-  // ── GET /api/users ─────────────────────────────────────────────────────
   if (event.httpMethod === 'GET' && !userId) {
     try {
       await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS urutan_laporan INTEGER`;
@@ -131,8 +112,6 @@ export const handler = async (event) => {
     }
   }
 
-  // ── PUT /api/users/urutan-laporan - admin atur urutan manual pegawai
-  // buat Laporan Absensi (PDF), gantiin sortir A-Z default ──
   if (event.httpMethod === 'PUT' && !userId && segments[0] === 'urutan-laporan') {
     const { order } = parseBody(event);
     if (!Array.isArray(order)) return errorResponse('Format urutan tidak valid', 400);
@@ -153,7 +132,6 @@ export const handler = async (event) => {
     }
   }
 
-  // ── GET /api/users/:id/permissions ────────────────────────────────────
   if (event.httpMethod === 'GET' && userId && isPermissions) {
     try {
       const perms = await sql`
@@ -166,7 +144,6 @@ export const handler = async (event) => {
     }
   }
 
-  // ── POST /api/users ────────────────────────────────────────────────────
   if (event.httpMethod === 'POST' && !userId) {
     const { nama, nip, email, bidang_id } = parseBody(event);
     if (!nama || !nip || !email) {
@@ -198,7 +175,6 @@ export const handler = async (event) => {
     }
   }
 
-  // ── PUT /api/users/:id ─────────────────────────────────────────────────
   if (event.httpMethod === 'PUT' && userId && !isPermissions && segments[1] !== 'indikator') {
     const { nama, nip, email, bidang_id } = parseBody(event);
     try {
@@ -249,7 +225,6 @@ export const handler = async (event) => {
     }
   }
 
-  // ── PUT /api/users/:id/permissions ────────────────────────────────────
   if (event.httpMethod === 'PUT' && userId && isPermissions) {
     const { permissions } = parseBody(event);
     if (!Array.isArray(permissions)) return errorResponse('Format permissions tidak valid', 400);
@@ -276,7 +251,6 @@ export const handler = async (event) => {
     }
   }
 
-  // ── POST /api/users/:id/reset-password (admin reset pw user ke default) ──
   if (event.httpMethod === 'POST' && userId && isResetPassword) {
     try {
       const check = await sql`SELECT id, is_admin FROM users WHERE id = ${userId} LIMIT 1`;
@@ -296,7 +270,6 @@ export const handler = async (event) => {
     }
   }
 
-  // ── POST /api/users/:id/force-logout (admin paksa logout user) ────────
   if (event.httpMethod === 'POST' && userId && isForceLogout) {
     try {
       const check = await sql`SELECT id, nama, email FROM users WHERE id = ${userId} LIMIT 1`;
@@ -312,9 +285,6 @@ export const handler = async (event) => {
         aksi: 'force_logout', entitas: 'user', entitas_id: userId,
         detail: { target_nama: check[0].nama, target_email: check[0].email, sesi_dicabut: revoked.length }
       });
-      // Catatan: access token (JWT) yang sudah terlanjur terbit tetap valid
-      // sampai masa berlakunya habis (maks. 1 jam) - ini bukan revoke instan,
-      // tapi user tidak akan bisa memperpanjang sesi lewat refresh token lagi.
       return jsonResponse({ ok: true, sesi_dicabut: revoked.length });
     } catch (err) {
       console.error('[POST /api/users/:id/force-logout]', err);
@@ -322,7 +292,6 @@ export const handler = async (event) => {
     }
   }
 
-  // ── DELETE /api/users/:id ──────────────────────────────────────────────
   if (event.httpMethod === 'DELETE' && userId) {
     try {
       const check = await sql`SELECT is_admin FROM users WHERE id = ${userId} LIMIT 1`;
@@ -342,7 +311,6 @@ export const handler = async (event) => {
     }
   }
 
-  // ── PUT /api/users/:id/indikator ──────────────────────────────────────────
   if (event.httpMethod === 'PUT' && userId && segments[1] === 'indikator') {
     const { indikator_ids } = parseBody(event);
     if (!Array.isArray(indikator_ids)) return errorResponse('Format indikator_ids tidak valid', 400);

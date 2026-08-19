@@ -47,7 +47,7 @@
 let _lapAbsPage = 1;
 let _lapAbsFilterBidang = '';
 let _lapAbsFilterStatus = '';
-let _lapAbsAllPegawai = [];   // cache semua pegawai (non-admin) beserta bidang_id, buat narrow-in filter Unit Kerja
+let _lapAbsAllPegawai = [];
 
 async function _populateLapAbsFilters() {
   const bulanSel = document.getElementById('lapAbsBulan');
@@ -177,8 +177,6 @@ function _renderLapAbsPegawaiOptions() {
   syncCustomSelect?.('lapAbsPegawai');
 }
 
-// Dropdown bulan menyesuaikan data yg ADA utk tahun (& pegawai/unit kerja yg
-// sedang difilter) - bukan 12 bulan statis. Sama seperti di halaman Absensi.
 async function _rebuildLapAbsFilterBulan() {
   const bulanSel = document.getElementById('lapAbsBulan');
   if (!bulanSel) return;
@@ -211,8 +209,6 @@ async function _rebuildLapAbsFilterBulan() {
   syncCustomSelect?.('lapAbsBulan');
 }
 
-// Sama kayak _rebuildLapAbsFilterBulan - cuma tampilin opsi status yg beneran
-// ada datanya di bulan/tahun (& pegawai/unit kerja) yg lagi difilter
 async function _rebuildLapAbsFilterStatus() {
   const sel = document.getElementById('lapAbsStatus');
   if (!sel) return;
@@ -241,21 +237,16 @@ async function _rebuildLapAbsFilterStatus() {
   syncCustomSelect?.('lapAbsStatus');
 }
 
-// Ganti bulan langsung (opsi yg ditampilkan sudah pasti ada datanya) - gak perlu rebuild dropdown bulan,
-// tapi opsi Status yg tersedia bisa berubah
 async function setLapAbsFilterBulan() {
   await _rebuildLapAbsFilterStatus();
   loadLaporanAbsensi(1);
 }
 
-// Filter Status cuma mempersempit tabel detail - kartu rekap (KPI) di atas tetap
-// nunjukin total keseluruhan bulan itu
 function setLapAbsFilterStatus() {
   _lapAbsFilterStatus = document.getElementById('lapAbsStatus')?.value || '';
   loadLaporanAbsensi(1);
 }
 
-// Ganti tahun → daftar bulan & unit kerja yg ada datanya bisa berubah, rebuild dropdown dulu
 async function setLapAbsFilterTahun() {
   await _rebuildLapAbsFilterBidang();
   await _rebuildLapAbsFilterBulan();
@@ -263,7 +254,6 @@ async function setLapAbsFilterTahun() {
   loadLaporanAbsensi(1);
 }
 
-// Ganti Pegawai → daftar tahun & bulan yg ada datanya bisa berubah juga
 async function setLapAbsFilterPegawai() {
   await _rebuildLapAbsFilterTahun();
   await _rebuildLapAbsFilterBulan();
@@ -271,7 +261,6 @@ async function setLapAbsFilterPegawai() {
   loadLaporanAbsensi(1);
 }
 
-// Ganti Unit Kerja → narrow-in dropdown Pegawai ke bidang terpilih, lalu rebuild dropdown bulan
 async function setLapAbsFilterBidang() {
   _lapAbsFilterBidang = document.getElementById('lapAbsBidang')?.value || '';
   _renderLapAbsPegawaiOptions();
@@ -280,11 +269,7 @@ async function setLapAbsFilterBidang() {
   loadLaporanAbsensi(1);
 }
 
-// ══════════════════════════════════════════════════════
-//  DOWNLOAD / PREVIEW LAPORAN ABSENSI - PDF
-// ══════════════════════════════════════════════════════
 
-// ── Filter rentang tanggal (dari-sampai) - alternatif Bulan/Tahun ──
 function _rentangTanggalYMDLap(mulaiStr, selesaiStr) {
   const parse = (s) => { const [y, m, d] = s.split('-').map(Number); return Date.UTC(y, m - 1, d); };
   const fmt = (t) => {
@@ -340,8 +325,6 @@ async function downloadLaporanAbsensiPDF(btnEl) {
   if (btnEl) { btnEl.disabled = true; btnEl.innerHTML = `<span class="btn-spin" style="width:12px;height:12px"></span> Memuat data...`; }
 
   try {
-    // ── Daftar pegawai yg ditampilkan (baris) - semua pegawai dlm scope filter,
-    // bukan cuma yg kebetulan punya baris absensi bulan ini ──
     let pegawaiList;
     if (full) {
       pegawaiList = pegawaiId
@@ -350,8 +333,6 @@ async function downloadLaporanAbsensiPDF(btnEl) {
     } else {
       pegawaiList = [{ id: _user.id, nama: _user.nama }];
     }
-    // Urutan tampil: pegawai yang sudah diatur manual (urutan_laporan) tampil
-    // sesuai urutan itu duluan; sisanya yang belum diatur nyusul di-sort A-Z.
     pegawaiList = [...pegawaiList].sort((a, b) => {
       const ua = a.urutan_laporan, ub = b.urutan_laporan;
       if (ua != null && ub != null) return ua - ub;
@@ -460,15 +441,12 @@ async function downloadLaporanAbsensiPDF(btnEl) {
       }
     }
 
-    // ── Peta absensi: "user_id|YYYY-MM-DD" → baris ──
     const absMap = new Map();
     allRows.forEach(a => {
       const ymd = _absLiburLocalYMD(a.tanggal);
       absMap.set(`${a.user_id}|${ymd}`, a);
     });
 
-    // Warna per status: fill (background) + teks. Warna netral abu-abu utk
-    // hari yg emang bukan hari kerja (weekend/libur) & belum ada catatan.
     const KODE = {
       hadir_ontime: { txt: '✓', bg: '#d1fae5', color: '#059669' },
       terlambat:    { txt: 'T',  bg: '#fef3c7', color: '#b45309' },
@@ -514,17 +492,12 @@ async function downloadLaporanAbsensiPDF(btnEl) {
     const svgJamKerjaHdr    = `<svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="10" x2="14" y1="2" y2="2"/><line x1="12" x2="15" y1="14" y2="11"/><circle cx="12" cy="14" r="8"/></svg>`;
     const svgJamKerjaLegend = `<svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#0f766e" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="10" x2="14" y1="2" y2="2"/><line x1="12" x2="15" y1="14" y2="11"/><circle cx="12" cy="14" r="8"/></svg>`;
 
-    // ── Baris per pegawai ──
     const bodyRows = pegawaiList.map((peg, i) => {
       let cHadir = 0, cTerlambat = 0, cTidakLengkap = 0, cTugas = 0, cCuti = 0, cAlpa = 0;
       const cells = kolomTanggal.map(k => {
         const a = absMap.get(`${peg.id}|${k.ymd}`);
         if (a) {
           const isToday = k.ymd === todayISO();
-          // Hari ini + udah absensi masuk tapi belum absensi keluar → masih "Menunggu Absensi
-          // Keluar" (proses), BUKAN langsung Tepat Waktu - baru dihitung Tepat Waktu/
-          // Tidak Lengkap setelah absensi keluar tercatat (lihat isPending di tabel Laporan
-          // Absensi biasa, versi cetak PDF ini sempet ketinggalan nyontek logikanya).
           const isPending = isToday && a.status === 'hadir' && a.jam_masuk && !a.jam_keluar;
           const isTidakLengkap = !isPending && a.status === 'hadir' && (!a.jam_masuk || !a.jam_keluar) && !isToday;
           const isTerlambat = a.status === 'hadir' && a.terlambat;
@@ -535,11 +508,9 @@ async function downloadLaporanAbsensiPDF(btnEl) {
           else if (a.status === 'tugas_luar') cTugas++;
           else if (a.status === 'cuti') cCuti++;
           else if (a.status === 'alpa') cAlpa++;
-          // Pending → sel dikosongin aja, sama kayak hari yg belum ada catatan sama
-          // sekali; nunjukkin status "menunggu" di sini kurang informatif buat dibaca.
           if (isPending) return `<td style="border:1px solid #0f766e;text-align:center;font-size:8px;height:22px">&nbsp;</td>`;
           const kode = isTidakLengkap ? KODE.tidak_lengkap : isTerlambat ? KODE.terlambat : (a.status === 'tugas_luar' ? KODE.tugas_luar : a.status === 'cuti' ? KODE.cuti : a.status === 'alpa' ? KODE.alpa : KODE.hadir_ontime);
-          const adaJam = a.status === 'hadir'; // cuma status hadir yg punya jam_masuk/jam_keluar
+          const adaJam = a.status === 'hadir';
           const isiSel = kode.icon;
           return `<td style="border:1px solid #0f766e;text-align:center;background:${kode.bg};padding:1px 0;overflow:hidden;height:22px">${isiSel}</td>`;
         }
@@ -566,9 +537,6 @@ async function downloadLaporanAbsensiPDF(btnEl) {
       </tr>`;
     }).join('');
 
-    // ── Header 3 baris: judul bulan / "Tanggal" / no urut tanggal / hari ──
-    // Header dibuat seragam (gak dibedain warnanya per weekend/libur) - pembeda
-    // weekend/libur cukup di sel body pakai ikon + warna, biar header tetap bersih.
     const REKAP_KOLOM = [
       { icon: svgHadirHdr,     title: 'Tepat Waktu' },
       { icon: svgTerlambatHdr, title: 'Terlambat' },
@@ -709,10 +677,6 @@ async function loadLaporanAbsensi(page = 1) {
   const pegawaiId = full ? (document.getElementById('lapAbsPegawai')?.value || '') : _user.id;
   const bidangId = full ? (document.getElementById('lapAbsBidang')?.value || '') : '';
 
-  // Rekap kartu - fetch rekap (6 kartu) & jam-kerja (kartu ke-7) PARALEL, baru
-  // di-render bareng sekali innerHTML. Dulu jam-kerja nyusul via fetch terpisah
-  // stlh innerHTML 6 kartu di-set duluan → kartu ke-7 sempet hilang tiap ganti
-  // filter (ke-reset barengan overwrite, baru numpul lagi pas fetch-nya kelar).
   try {
     const rp = new URLSearchParams({ user_id: pegawaiId, bulan, tahun });
     if (bidangId) rp.set('bidang_id', bidangId);
@@ -738,7 +702,6 @@ async function loadLaporanAbsensi(page = 1) {
       jamKerjaHtml;
   } catch { if (rekapBox) rekapBox.innerHTML = ''; }
 
-  // Tabel detail
   try {
     const qs = new URLSearchParams({ bulan, tahun, page });
     if (pegawaiId) qs.set('user_id', pegawaiId);
@@ -791,9 +754,6 @@ async function loadLaporanAbsensi(page = 1) {
   }
 }
 
-// ══════════════════════════════════════════════════════
-//  LAPORAN SURAT
-// ══════════════════════════════════════════════════════
 
 const BULAN_NAMA = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
 
@@ -805,19 +765,15 @@ async function _initLaporanSuratFilter(smRows, skRows) {
   const sel = document.getElementById('laporanSuratTahun');
   if (!sel) return;
 
-  // Simpan pilihan user sebelum rebuild
   const currentVal = sel.value;
 
-  // Kumpulkan tahun dari data surat yang benar-benar ada
   const tahunSet = new Set();
   smRows.forEach(r => { if (r.tanggal_terima) tahunSet.add(new Date(r.tanggal_terima).getFullYear()); });
   skRows.forEach(r => { if (r.tanggal_surat)  tahunSet.add(new Date(r.tanggal_surat ).getFullYear()); });
   const tahunList = [...tahunSet].sort((a, b) => b - a);
 
-  // Rebuild options
   sel.innerHTML = '';
 
-  // "Semua Tahun" selalu di atas, dan jadi default
   const optSemua = document.createElement('option');
   optSemua.value = '';
   optSemua.textContent = 'Semua Tahun';
@@ -830,8 +786,6 @@ async function _initLaporanSuratFilter(smRows, skRows) {
     sel.appendChild(opt);
   });
 
-  // Pertahankan pilihan user jika masih valid, selainnya default ke "Semua Tahun"
-  // (kecuali cuma ada 1 tahun tersedia → langsung auto-select tahun itu)
   if (currentVal && tahunList.includes(parseInt(currentVal))) {
     sel.value = currentVal;
   } else if (tahunList.length === 1) {
@@ -843,8 +797,6 @@ async function _initLaporanSuratFilter(smRows, skRows) {
   _laporanSuratFilterReady = true;
 }
 
-// Rebuild dropdown Jenis (Semua/Masuk/Keluar) - opsi yang datanya kosong
-// (untuk tahun yang sedang dipilih) tidak ditampilkan.
 function _initLaporanSuratJenisFilter(smRows, skRows) {
   const sel = document.getElementById('laporanSuratJenis');
   if (!sel) return;
@@ -859,7 +811,6 @@ function _initLaporanSuratJenisFilter(smRows, skRows) {
   if (hasKeluar) opts += '<option value="keluar">Surat Keluar</option>';
   sel.innerHTML = opts || '<option value="">Semua Jenis</option>';
 
-  // Pertahankan pilihan user jika masih valid, selainnya jatuh ke opsi pertama yang tersedia
   if ([...sel.options].some(o => o.value === current)) {
     sel.value = current;
   } else {
@@ -867,7 +818,6 @@ function _initLaporanSuratJenisFilter(smRows, skRows) {
   }
 }
 
-// ── Spinner helper untuk Laporan Surat ────────────────────────────────────
 function _showLaporanSuratLoading() {
   const stats = document.getElementById('laporanSuratStats');
   const tbody = document.getElementById('laporanSuratTableBody');
@@ -885,7 +835,6 @@ function _showLaporanSuratLoading() {
 
 async function loadLaporanSurat() {
   _showLaporanSuratLoading();
-  // ── Fetch data dulu ──
   let smRows = [], skRows = [];
   try {
     const [smRes, skRes] = await Promise.all([
@@ -905,18 +854,15 @@ async function loadLaporanSurat() {
   const tahun  = tahunRaw ? parseInt(tahunRaw) : null;
   const status = document.getElementById('laporanSuratStatus')?.value || '';
 
-  // Filter tahun (null = Semua Tahun, tidak difilter)
   let smFiltered = smRows, skFiltered = skRows;
   if (tahun) {
     smFiltered = smRows.filter(r => r.tanggal_terima && new Date(r.tanggal_terima).getFullYear() === tahun);
     skFiltered = skRows.filter(r => r.tanggal_surat  && new Date(r.tanggal_surat ).getFullYear() === tahun);
   }
 
-  // ── Bangun dropdown jenis dari data yang benar-benar ada (setelah filter tahun) ──
   _initLaporanSuratJenisFilter(smFiltered, skFiltered);
   const jenis = document.getElementById('laporanSuratJenis')?.value || '';
 
-  // ── Summary cards (dari data lengkap sebelum filter status) ──
   const totalSM   = smFiltered.length;
   const selesaiSM = smFiltered.filter(r => r.selesai).length;
   const belumSM   = totalSM - selesaiSM;
@@ -924,7 +870,6 @@ async function loadLaporanSurat() {
   const now       = new Date();
   const terlambat = smFiltered.filter(r => !r.selesai && r.batas_waktu && new Date(r.batas_waktu) < now).length;
 
-  // ── Gabung & normalisasi semua baris ──
   let allRows = [];
 
   if (jenis !== 'keluar') {
@@ -1102,13 +1047,6 @@ function _lapEscHtml(s) {
   return String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
-// Render teks markdown-lite dari kolom Faktor Penghambat/Solusi/Faktor Pendukung/
-// Rencana Tindak Lanjut jadi HTML buat laporan (preview & PDF). Sebelumnya kolom-kolom
-// ini nampilin teks mentah apa adanya (termasuk newline-nya) di dalam <td> dengan
-// white-space:normal, jadi baris "1. ...\n2. ..." ke-collapse jadi satu baris nyambung
-// tanpa nomor kebaca sama sekali. Sekarang baris "1. " / "- " yang berurutan
-// dikelompokkan jadi <ol>/<ul><li> beneran (sama kayak _mdToHtmlDisplay di kinerja.js)
-// supaya rapi & hanging-indent pas wrap.
 function _lapMdToHtml(md) {
   if (!md) return '';
   const inlineFmt = (line) => {
@@ -1118,7 +1056,7 @@ function _lapMdToHtml(md) {
     return h;
   };
   let html = '';
-  let listType = null; // 'ol' | 'ul' | null
+  let listType = null;
   const closeList = () => { if (listType) { html += `</${listType}>`; listType = null; } };
   String(md).split('\n').forEach(line => {
     const numM = line.match(/^(\d+)\.\s+(.*)$/);
@@ -1178,7 +1116,6 @@ function _lapKinerjaRowHtml(r, no, bulanTampil) {
   </tr>`;
 }
 
-// Render tbody Laporan Kinerja dengan pagination
 function _lapRenderKinerjaTbody(rows, bulanTampil, colspanTotal, emptyMsg) {
   _lapKinerjaBulanTampil = bulanTampil;
   _lapKinerjaColspan     = colspanTotal;
@@ -1204,7 +1141,6 @@ function _lapRenderKinerjaTbody(rows, bulanTampil, colspanTotal, emptyMsg) {
   if (typeof renderPagination === 'function') renderPagination('laporanKinerjaPagination', total, _lapKinerjaPage, _LAP_KINERJA_PER_PAGE, '_lapKinerjaGoPage');
 }
 
-// Pindah halaman tabel Laporan Kinerja (tanpa fetch ulang)
 function _lapKinerjaGoPage(p) {
   _lapKinerjaPage = p;
   const data = window._laporanKinerjaData;
@@ -1214,7 +1150,6 @@ function _lapKinerjaGoPage(p) {
   _lapRenderKinerjaTbody(rows, _lapKinerjaBulanTampil, _lapKinerjaColspan);
 }
 
-// ── Month Picker (ported from dashboard) ─────────────────────────────────
 window._lapMpData = window._lapMpData || {};
 
 function _lapMonthPicker(id, tahunList, activeVal, onPickFn) {
@@ -1250,9 +1185,7 @@ function _lapMpRenderPanel(el) {
   const minYear   = tahunList[0] || viewYear;
   const maxYear   = tahunList[tahunList.length-1] || viewYear;
 
-  // Untuk picker "Sampai": disabled bulan < fromKey (jika id === lapMpTo)
   const fromKey = _lapRangeFrom ? _lapRangeFrom.tahun * 100 + _lapRangeFrom.bulan : 0;
-  // Untuk picker "Dari": disabled bulan > toKey (jika id === lapMpFrom)
   const toKey   = _lapRangeTo   ? _lapRangeTo.tahun   * 100 + _lapRangeTo.bulan   : 9999;
 
   let grid = '';
@@ -1313,10 +1246,8 @@ function _lapMpPick(id, key) {
 function _lapSetRangeFrom(key) {
   const [y, m] = key.split('-').map(Number);
   _lapRangeFrom = { bulan: m, tahun: y, key };
-  // Jika from > to, geser to ke from
   if (_lapRangeTo && y * 100 + m > _lapRangeTo.tahun * 100 + _lapRangeTo.bulan) {
     _lapRangeTo = { ..._lapRangeFrom };
-    // Update label & data picker To
     const toEl = document.getElementById('lapMpTo');
     if (toEl) {
       const _BL = ['','Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];
@@ -1325,7 +1256,6 @@ function _lapSetRangeFrom(key) {
       if (window._lapMpData['lapMpTo']) { window._lapMpData['lapMpTo'].activeVal = key; window._lapMpData['lapMpTo'].viewYear = y; }
     }
   }
-  // Re-render panel To agar disable state update
   const toEl = document.getElementById('lapMpTo');
   if (toEl?.classList.contains('open')) _lapMpRenderPanel(toEl);
   loadLaporanKinerja();
@@ -1334,7 +1264,6 @@ function _lapSetRangeFrom(key) {
 function _lapSetRangeTo(key) {
   const [y, m] = key.split('-').map(Number);
   _lapRangeTo = { bulan: m, tahun: y, key };
-  // Jika to < from, geser from ke to
   if (_lapRangeFrom && y * 100 + m < _lapRangeFrom.tahun * 100 + _lapRangeFrom.bulan) {
     _lapRangeFrom = { ..._lapRangeTo };
     const frEl = document.getElementById('lapMpFrom');
@@ -1350,7 +1279,6 @@ function _lapSetRangeTo(key) {
   loadLaporanKinerja();
 }
 
-// ── Render filter bar month picker ke dalam container ────────────────────
 function _lapRenderRangeFilter(tahunList) {
   const container = document.getElementById('lapKinerjaRangeFilter');
   if (!container) return;
@@ -1358,7 +1286,6 @@ function _lapRenderRangeFilter(tahunList) {
   const tahunAktif = aktif?.tahun ?? (tahunList[0] || new Date().getFullYear());
   const periodeAktifBulan = aktif?.bulan ?? 12;
 
-  // Default: snap ke awal TW dari bulan aktif (misal bulan 3 → Jan s.d Mar = TW I)
   const _twStart = bulan => bulan <= 3 ? 1 : bulan <= 6 ? 4 : bulan <= 9 ? 7 : 10;
   if (!_lapRangeFrom) {
     const from = _twStart(periodeAktifBulan);
@@ -1385,7 +1312,6 @@ function _lapRenderRangeFilter(tahunList) {
 async function _initLaporanKinerjaFilter() {
   if (_laporanKinerjaFilterReady && _lapKinerjaTahunList.length > 0) return;
 
-  // Ambil daftar tahun dari Periode
   let tahunList = [];
   try {
     const res  = await fetch('/.netlify/functions/periode', { headers: authHeaders() });
@@ -1397,7 +1323,6 @@ async function _initLaporanKinerjaFilter() {
 
   if (!tahunList.length) return;
 
-  // Isi dropdown tahun (jika ada, untuk kompatibilitas)
   const sel = document.getElementById('laporanKinerjaTahun');
   if (sel) {
     const aktif = (typeof getPeriodeAktif === 'function') ? getPeriodeAktif() : null;
@@ -1414,18 +1339,15 @@ async function _initLaporanKinerjaFilter() {
   _lapKinerjaTahunList = tahunList;
   _laporanKinerjaFilterReady = true;
 
-  // Render month picker range filter
   _lapRenderRangeFilter(tahunList);
 }
 
-// Tutup picker kalau klik di luar
 document.addEventListener('click', function(e) {
   document.querySelectorAll('.lap-mp.open').forEach(mp => {
     if (!mp.contains(e.target)) mp.classList.remove('open');
   });
 });
 
-// ── Spinner helper untuk Laporan Kinerja ─────────────────────────────────
 function _showLaporanLoading() {
   const stats = document.getElementById('laporanKinerjaStats');
   const tbody = document.getElementById('laporanKinerjaTableBody');
@@ -1450,20 +1372,14 @@ async function loadLaporanKinerja() {
   await _initLaporanKinerjaFilter();
   if (!_user?.is_admin && typeof _ensureUserIndikatorIds === 'function') await _ensureUserIndikatorIds();
 
-  // Ambil tahun dari range (gunakan tahun dari, atau fallback ke select)
   const bulanDari   = _lapRangeFrom?.bulan   ?? 1;
   const bulanSampai = _lapRangeTo?.bulan     ?? 12;
   const tahun       = _lapRangeFrom?.tahun   ?? parseInt(document.getElementById('laporanKinerjaTahun')?.value || new Date().getFullYear());
-  const bulanPelaporan = bulanSampai; // backward compat untuk PDF/label
+  const bulanPelaporan = bulanSampai;
   const jenis          = document.getElementById('laporanKinerjaJenis')?.value || 'semua';
 
-  // Fetch semua 12 bulan secara parallel untuk tiap jenis
   const bulanList = [1,2,3,4,5,6,7,8,9,10,11,12];
 
-  // Selalu minta scope=bidang ke backend (superset terluas yang boleh dilihat user utk jenis
-  // IKK/SPM: semua indikator di bidang yg sama, bukan cuma yg di-assign). Untuk non-admin, kita
-  // filter lagi ke "punya sendiri" di frontend kalau dropdown scope di-set ke 'mine' - jadi cukup
-  // satu kali fetch, nggak perlu round-trip dua kali tiap ganti dropdown.
   const fetchBulan = async (b, jenisParam) => {
     try {
       const r = await fetch(`/api/kinerja/rekap?bulan=${b}&tahun=${tahun}&jenis=${jenisParam}&scope=bidang`, { headers: authHeaders() });
@@ -1558,12 +1474,10 @@ async function loadLaporanKinerja() {
         lastFpendukung  = row.fpendukungPerBulan[b];
         lastRencanaTl   = row.rencanaTlPerBulan[b];
         if (!isJumlah) { lastVal = v; break; }
-        // Untuk indikator Jumlah: terus loop untuk ambil data teks dari bulan terakhir
-        if (lastVal === null) lastVal = v; // simpan bulan terakhir untuk fallback
+        if (lastVal === null) lastVal = v;
       }
     }
 
-    // Untuk indikator Jumlah: realisasi = SUM semua bulan dalam range
     if (isJumlah) {
       let sum = 0, hasVal = false;
       for (let b = bulanDari; b <= bulanSampai; b++) {
@@ -1593,7 +1507,6 @@ async function loadLaporanKinerja() {
     }
   });
 
-  // ── Summary ──
   const total      = rows.length;
   const sudahDiisi = rows.filter(r => r._realisasiSd !== null && r._realisasiSd !== undefined && r._realisasiSd !== '').length;
   const belumDiisi = total - sudahDiisi;
@@ -1602,7 +1515,6 @@ async function loadLaporanKinerja() {
     ? (capRows.reduce((s, r) => s + parseFloat(r._capaian), 0) / capRows.length).toFixed(1)
     : '-';
 
-  // ── Render tabel - kolom bulan dibatasi s.d bulanPelaporan ──
   const BULAN_PENDEK  = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];
   const BULAN_PANJANG = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
   const bulanTampil   = bulanList.filter(b => b >= bulanDari && b <= bulanSampai);
@@ -1618,7 +1530,7 @@ async function loadLaporanKinerja() {
     `<th style="width:45px;text-align:center;background:var(--hijau);color:#fff">${BULAN_PANJANG[b-1]}</th>`
   ).join('');
 
-  const colspanTotal = 5 + bulanTampil.length + 6; // No+Indikator+Target+Satuan+Bidang + bulan + Realisasi+Capaian+F.Penghambat+Solusi+F.Pendukung+RencanaTL
+  const colspanTotal = 5 + bulanTampil.length + 6;
 
   const thead = document.getElementById('laporanKinerjaThead');
   if (thead) {
@@ -1713,13 +1625,10 @@ async function loadLaporanKinerja() {
     }
     if (!_user?.is_admin) {
       if (bidangList.length <= 1) bidangSel.value = bidangList[0] || '';
-      // Kalau cuma 1 bidang, kunci dropdown-nya (tetap kelihatan nilainya) alih-alih disembunyikan.
       bidangSel.disabled = bidangList.length <= 1;
     } else {
       bidangSel.disabled = false;
     }
-    // Rebuild custom select widget dari nol (bukan cuma sync nilai terpilih) supaya
-    // daftar opsi Bidang yang baru ikut ter-render di panel dropdown-nya.
     const bidangWrap = bidangSel.closest('.select-wrap');
     if (bidangWrap) {
       bidangWrap.querySelector('.csel-trigger')?.remove();
@@ -1759,9 +1668,6 @@ function _statusBadge(capaian) {
   return `<span style="background:#fee2e2;color:#991b1b;padding:2px 8px;border-radius:99px;font-size:.7rem">Rendah</span>`;
 }
 
-// ══════════════════════════════════════════════════════
-//  SHARED - PDF HELPER (kop surat + print window)
-// ══════════════════════════════════════════════════════
 
 function _kopSuratHtml() {
   const logoSrc = (typeof window !== 'undefined' && window.location)
@@ -1880,11 +1786,9 @@ function downloadLaporanSuratPDF(btnEl) {
   const subtitleLabel = `${jenisLabel}${statusLabel} - ${tahunLabel}`;
   const judulDoc = `Laporan Surat - ${tahunLabel}`;
 
-  // ── Rekap bulanan (hanya untuk summary, tidak ditampilkan di PDF) ──
   let totalMasuk = 0, totalSelesai = 0, totalBelum = 0, totalKeluar = 0;
   rekap.forEach(r => { totalMasuk += r.masuk; totalSelesai += r.selesai; totalBelum += r.belum; totalKeluar += r.keluar; });
 
-  // ── Tabel detail surat ──
   const now = new Date();
   const detailRows = (allRows || []).map((r, i) => {
     const tgl   = r.tanggal   ? new Date(r.tanggal  ).toLocaleDateString('id-ID', { day:'2-digit', month:'short', year:'numeric' }) : '-';
@@ -1973,7 +1877,6 @@ function _rebuildSuratStatusOptions(allRows, currentVal) {
     `<option value="${o.val}"${o.val === safeVal ? ' selected' : ''}>${o.label}</option>`
   ).join('');
 
-  // Rebuild custom select supaya tampilan ikut update
   const wrap = sel.closest('.select-wrap');
   if (wrap) {
     wrap.querySelector('.csel-trigger')?.remove();
@@ -2018,7 +1921,6 @@ function _statCard(label, value, color, iconPath) {
     </div>
   </div>`;
 }
-// ── Helper TTD (tanda tangan kepala dinas) ────────────────────────────────
 function _ttdHtml(pegawai, tanggalStr, marginTop = 24, fontSize = 10) {
   const nama     = pegawai?.nama     || '';
   const nip      = pegawai?.nip      || '';
@@ -2072,14 +1974,7 @@ function _applyLaporanKinerjaFilters(rows) {
   return bidangValue ? rows.filter(r => r.penanggung_jawab === bidangValue) : rows;
 }
 
-// ══════════════════════════════════════════════════════
-//  DOWNLOAD LAPORAN PER URUSAN - PDF
-//  Struktur: header urusan + baris indikator (sama seperti laporan utama)
-// ══════════════════════════════════════════════════════
 
-// Badge inline "Makna Indikator" (circle panah) & "Tipe Perhitungan" + "Jenis" (pill) -
-// ditempel langsung di sel INDIKATOR KINERJA, gaya sama persis dengan tampilan di app
-// (bukan kolom terpisah), biar layout tabel PDF gak melebar.
 function _lapMaknaBadgeHtml(bermaknaNegatif) {
   return bermaknaNegatif
     ? `<span style="display:inline-flex;align-items:center;justify-content:center;width:15px;height:15px;background:#fee2e2;border-radius:50%;flex-shrink:0"><svg xmlns="http://www.w3.org/2000/svg" width="8" height="8" fill="none" viewBox="0 0 24 24" stroke="#991b1b" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M19 14l-7 7m0 0l-7-7m7 7V3"/></svg></span>`
@@ -2128,8 +2023,6 @@ function _lapKinerjaPdfRowHtml(r, no, displayCols, namaIndikatorOverride) {
   </tr>`;
 }
 
-// Baris flat langsung dari data.rows (tanpa grouping Urusan/TSP) - dipakai untuk non-admin,
-// yang laporannya cuma berisi indikator tanggung jawabnya sendiri jadi grouping gak diperlukan.
 function _lapKinerjaFlatRowsHtml(rows, displayCols) {
   let no = 0;
   return rows.map(r => _lapKinerjaPdfRowHtml(r, ++no, displayCols)).join('');
@@ -2141,17 +2034,13 @@ async function downloadLaporanByUrusan(btnEl) {
 
   if (btnEl) { btnEl.disabled = true; btnEl.innerHTML = `<span class="btn-spin" style="width:12px;height:12px"></span> Memuat data...`; }
   try {
-    // Non-admin: langsung tampilkan indikator tanggung jawabnya sendiri (flat),
-    // gak perlu template Urusan yang notabene struktur punya admin/instansi.
     let tplWithIndikator = null;
     if (_user?.is_admin) {
-      // Ambil semua template urusan + indikatornya
       const res = await fetch('/api/kinerja/laporan-template?jenis=urusan', { headers: authHeaders() });
       const tplData = await res.json();
       const templates = tplData.templates || [];
       if (!templates.length) { toast('Belum ada template Urusan. Buat dulu di Master Data → Kelola Indikator → Kelola Laporan.', 'error'); return; }
 
-      // Fetch indikator per template
       tplWithIndikator = await Promise.all(templates.map(async t => {
         const r = await fetch(`/api/kinerja/laporan-template/${t.id}/indikator`, { headers: authHeaders() });
         const d = await r.json();
@@ -2194,7 +2083,6 @@ async function downloadLaporanByUrusan(btnEl) {
 
     let rowsHtml;
     if (tplWithIndikator) {
-      // Admin: grouping per template Urusan
       let no = 0;
       rowsHtml = tplWithIndikator.map(tpl => {
         const headerRow = `<tr style="background:#99f6e4">
@@ -2213,7 +2101,6 @@ async function downloadLaporanByUrusan(btnEl) {
         return headerRow + indRows;
       }).join('');
     } else {
-      // Non-admin: flat langsung dari indikator tanggung jawabnya sendiri
       rowsHtml = _lapKinerjaFlatRowsHtml(data.rows, displayCols);
     }
 
@@ -2382,7 +2269,6 @@ async function downloadLaporanByTSP(btnEl) {
 
       if (!tpl.indikator.length) return '';
 
-      // Baris header "KEGIATAN :" untuk kegiatan pertama dalam grup
       const kegiatanHeaderRow = tpl.jenis === 'kegiatan' && kegiatanInGroup === 1
         ? `<tr><td colspan="${12 + displayCols.length}" style="padding:4px 8px;border:1px solid #000;font-size:10px;font-weight:700;color:#000;letter-spacing:.3px">KEGIATAN :</td></tr>`
         : '';
@@ -2445,9 +2331,6 @@ async function downloadLaporanByTSP(btnEl) {
       }).join('');
     }).join('');
 
-    // Non-admin gak punya hierarki Tujuan/Sasaran/Program/Kegiatan, jadi kolom
-    // grouping-nya di-skip - pakai header tabel yang sama sederhananya kayak
-    // laporan Capaian Indikator (flat per-indikator).
     const theadHtml = orderedTpl ? `
           <tr style="background:#0d9488">
             <th rowspan="3" style="color:white;padding:6px 4px;border:1px solid #000;text-align:center;font-size:10px;width:36px">NO</th>

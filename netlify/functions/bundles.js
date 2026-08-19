@@ -1,4 +1,3 @@
-// netlify/functions/bundles.js
 import { getDb, jsonResponse, errorResponse, parseBody } from './_db.js';
 import { requireAuth } from './_auth.js';
 import crypto from 'node:crypto';
@@ -15,7 +14,6 @@ function hashPassword(pw) {
   return crypto.createHash('sha256').update(String(pw)).digest('hex');
 }
 
-// Buang password_hash mentah dari response, ganti jadi flag is_protected
 function stripPassword(row) {
   if (!row) return row;
   const { password_hash, ...rest } = row;
@@ -37,8 +35,6 @@ export const handler = async (event) => {
   const isItems = seg1 === 'items';
   const itemId = seg2 && !isNaN(seg2) ? parseInt(seg2) : null;
 
-  // ── GET /api/bundles/check-slug?slug=xxx&excludeId=xxx (PUBLIK) ──
-  // Real-time check ketersediaan slug, dipakai form Buat/Edit Bundle
   if (event.httpMethod === 'GET' && seg0 === 'check-slug') {
     const qs = event.queryStringParameters || {};
     const raw = (qs.slug || '').trim();
@@ -55,12 +51,8 @@ export const handler = async (event) => {
     }
   }
 
-  // ── GET bundle by slug (PUBLIK) ────────────────────────────
-  // ?pw=xxx      → password kalau bundle diproteksi
-  // ?src=qr      → dipakai buat tandai kunjungan lewat QR code (analytics)
   if (event.httpMethod === 'GET' && isSlug) {
     try {
-      // Ambil bundle tanpa filter aktif agar bisa bedakan: tidak ada vs nonaktif
       const rows = await sql`SELECT * FROM bundles WHERE slug = ${seg0} LIMIT 1`;
       if (!rows.length) return errorResponse('Bundle tidak ditemukan', 404);
       const bd = rows[0];
@@ -82,7 +74,6 @@ export const handler = async (event) => {
 
       const items = await sql`SELECT * FROM bundle_items WHERE bundle_id = ${bd.id} ORDER BY id ASC`;
 
-      // Catat kunjungan (analytics), sama seperti klik link
       try {
         const ip  = event.headers['x-forwarded-for']?.split(',')[0]?.trim() || '';
         const ua  = event.headers['user-agent'] || '';
@@ -98,7 +89,6 @@ export const handler = async (event) => {
     } catch (err) { return errorResponse('Gagal mengambil bundle'); }
   }
 
-  // ── Auth required untuk semua selain publik ────────────────
   const auth = requireAuth(event);
   if (!auth) return errorResponse('Unauthorized', 401);
 
@@ -109,7 +99,6 @@ export const handler = async (event) => {
   }
   if (!canAccess(user)) return errorResponse('Akses ditolak', 403);
 
-  // ── GET /api/bundles/:id/analytics?dari=YYYY-MM-DD&sampai=YYYY-MM-DD ──
   if (event.httpMethod === 'GET' && bundleId && seg1 === 'analytics') {
     const bdRows = await sql`SELECT id, created_by FROM bundles WHERE id = ${bundleId} LIMIT 1`;
     if (!bdRows.length) return errorResponse('Bundle tidak ditemukan', 404);
@@ -148,11 +137,8 @@ export const handler = async (event) => {
     }
   }
 
-  // ── GET /api/bundles ───────────────────────────────────────
   if (event.httpMethod === 'GET' && !seg0) {
     try {
-      // Admin lihat semua bundle. User non-admin hanya lihat bundle buatannya sendiri
-      // (bundle buatan admin/lama dengan created_by NULL tidak ditampilkan ke user).
       const rows = user.is_admin
         ? await sql`
             SELECT b.*, u.nama AS created_by_nama, COUNT(bi.id)::INT AS jumlah_item
@@ -173,7 +159,6 @@ export const handler = async (event) => {
     } catch (err) { return errorResponse('Gagal mengambil data bundle'); }
   }
 
-  // ── GET /api/bundles/:id ───────────────────────────────────
   if (event.httpMethod === 'GET' && bundleId && !isItems) {
     try {
       const rows = await sql`SELECT * FROM bundles WHERE id = ${bundleId} LIMIT 1`;
@@ -184,7 +169,6 @@ export const handler = async (event) => {
     } catch (err) { return errorResponse('Gagal mengambil bundle'); }
   }
 
-  // ── POST /api/bundles ──────────────────────────────────────
   if (event.httpMethod === 'POST' && !seg0) {
     const { judul, deskripsi, slug: rawSlug, aktif, expired_at, password } = parseBody(event);
     if (!judul) return errorResponse('Judul wajib diisi', 400);
@@ -202,7 +186,6 @@ export const handler = async (event) => {
     } catch (err) { return errorResponse('Gagal membuat bundle'); }
   }
 
-  // ── PUT /api/bundles/:id ───────────────────────────────────
   if (event.httpMethod === 'PUT' && bundleId && !isItems) {
     if (!user.is_admin) {
       const owner = await sql`SELECT created_by FROM bundles WHERE id = ${bundleId} LIMIT 1`;
@@ -215,12 +198,10 @@ export const handler = async (event) => {
       if (exist.length) return errorResponse('Slug sudah digunakan', 409);
     }
 
-    // expired_at: undefined = jangan diubah, null/'' = hapus masa berlaku, isi = set baru
     const expiredExpr = expired_at !== undefined
       ? (expired_at ? new Date(expired_at) : null)
       : sql`expired_at`;
 
-    // password_hash: clear_password = hapus proteksi, password terisi = ganti, selain itu jangan diubah
     const passwordExpr = clear_password
       ? null
       : (password ? hashPassword(password) : sql`password_hash`);
@@ -242,7 +223,6 @@ export const handler = async (event) => {
     } catch (err) { return errorResponse('Gagal mengupdate bundle'); }
   }
 
-  // ── DELETE /api/bundles/:id ────────────────────────────────
   if (event.httpMethod === 'DELETE' && bundleId && !isItems) {
     if (!user.is_admin) {
       const owner = await sql`SELECT created_by FROM bundles WHERE id = ${bundleId} LIMIT 1`;
@@ -253,7 +233,6 @@ export const handler = async (event) => {
     return jsonResponse({ ok: true });
   }
 
-  // ── POST /api/bundles/:id/items ────────────────────────────
   if (event.httpMethod === 'POST' && bundleId && isItems && !itemId) {
     if (!user.is_admin) {
       const owner = await sql`SELECT created_by FROM bundles WHERE id = ${bundleId} LIMIT 1`;
@@ -270,7 +249,6 @@ export const handler = async (event) => {
     } catch (err) { return errorResponse('Gagal menambah item'); }
   }
 
-  // ── PUT /api/bundles/:id/items/:itemId ─────────────────────
   if (event.httpMethod === 'PUT' && bundleId && isItems && itemId) {
     if (!user.is_admin) {
       const owner = await sql`SELECT created_by FROM bundles WHERE id = ${bundleId} LIMIT 1`;
@@ -290,7 +268,6 @@ export const handler = async (event) => {
     } catch (err) { return errorResponse('Gagal mengupdate item'); }
   }
 
-  // ── DELETE /api/bundles/:id/items/:itemId ──────────────────
   if (event.httpMethod === 'DELETE' && bundleId && isItems && itemId) {
     if (!user.is_admin) {
       const owner = await sql`SELECT created_by FROM bundles WHERE id = ${bundleId} LIMIT 1`;

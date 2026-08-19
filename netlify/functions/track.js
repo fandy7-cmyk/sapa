@@ -1,5 +1,3 @@
-// netlify/functions/track.js
-// POST /api/track/:id  → publik, catat klik
 import { getDb, jsonResponse, errorResponse } from './_db.js';
 
 export const handler = async (event) => {

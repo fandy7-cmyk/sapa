@@ -1,20 +1,13 @@
-// netlify/functions/redirect.js
-// GET /:slug
-//   1. Cek tabel bundles → aktif: serve bundle.html | nonaktif: serve unavailable page
-//   2. Cek tabel links (slug_pendek) → aktif: redirect 302 + catat klik | nonaktif: serve unavailable page
-//   3. Tidak ketemu sama sekali → serve not-found page
 
 import { getDb, jsonResponse, errorResponse } from './_db.js';
 import crypto from 'node:crypto';
 
-// ── Escape HTML untuk cegah XSS dari input yang direfleksikan ke halaman ──
 function escHtml(str) {
   return String(str || '').replace(/[&<>"']/g, c => ({
     '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
   }[c]));
 }
 
-// ── bundle.html sebagai inline template (aman saat di-bundle esbuild) ─────────
 function getBundleHtml() {
   return `<!DOCTYPE html>
 <html lang="id">
@@ -299,7 +292,6 @@ async function loadBundle(slug, pw) {
 </html>`;
 }
 
-// ── HTML inline untuk slug nonaktif / tidak ditemukan ─────────
 function getStatusHtml({ icon, title, message }) {
   return `<!DOCTYPE html>
 <html lang="id">
@@ -421,7 +413,6 @@ function getStatusHtml({ icon, title, message }) {
 </html>`;
 }
 
-// ── Halaman prompt password untuk tautan yang diproteksi ─────
 function getPasswordPromptHtml({ slug, error, viaQr }) {
   return `<!DOCTYPE html>
 <html lang="id">
@@ -502,7 +493,6 @@ export const handler = async (event) => {
   }
 
   try {
-    // ── 1. Cek bundle (aktif maupun nonaktif) ─────────────
     const bundles = await sql`
       SELECT id, aktif, expired_at FROM bundles WHERE slug = ${slug} LIMIT 1
     `;
@@ -520,7 +510,6 @@ export const handler = async (event) => {
         };
       }
 
-      // ── Cek masa berlaku bundle (bundle berjangka) ──
       if (bundles[0].expired_at && new Date(bundles[0].expired_at) < new Date()) {
         return {
           statusCode: 200,
@@ -533,9 +522,6 @@ export const handler = async (event) => {
         };
       }
 
-      // Proteksi password (kalau ada) ditangani di sisi klien oleh
-      // bundle.html: halaman ini tetap di-serve, lalu fetch API bundle
-      // akan menolak dgn 401 kalau password belum/kurang tepat.
       return {
         statusCode: 200,
         headers: HTML_HEADERS,
@@ -543,7 +529,6 @@ export const handler = async (event) => {
       };
     }
 
-    // ── 2. Cek link pendek (aktif maupun nonaktif) ────────
     const links = await sql`
       SELECT id, url, aktif, expired_at, password_hash FROM links WHERE slug_pendek = ${slug} LIMIT 1
     `;
@@ -562,7 +547,6 @@ export const handler = async (event) => {
         };
       }
 
-      // ── Cek masa berlaku (tautan berjangka) ──
       if (link.expired_at && new Date(link.expired_at) < new Date()) {
         return {
           statusCode: 200,
@@ -575,7 +559,6 @@ export const handler = async (event) => {
         };
       }
 
-      // ── Cek proteksi password ──
       const qsAll = event.queryStringParameters || {};
       const viaQr = qsAll.src === 'qr';
       if (link.password_hash) {
@@ -604,7 +587,6 @@ export const handler = async (event) => {
       };
     }
 
-    // ── 3. Slug tidak ditemukan sama sekali ───────────────
     return {
       statusCode: 404,
       headers: HTML_HEADERS,

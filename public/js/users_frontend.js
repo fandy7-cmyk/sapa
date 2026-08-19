@@ -6,9 +6,8 @@ let _bidang = [];
 let _userPage     = 1;
 const _userPageSize = 10;
 let _userSearch   = '';
-let _userFilterBidang = '';   // '' | bidang_id (string)
+let _userFilterBidang = '';
 
-// Load master bidang untuk dropdown
 async function loadBidangList() {
   try {
     const r = await fetch('/api/bidang', { headers: authHeaders() });
@@ -31,9 +30,6 @@ function renderBidangOptions(selectedId) {
   return `<option value="">- Pilih Penanggung Jawab -</option>` + opts;
 }
 
-// ── Searchable Bidang Dropdown ────────────────────────────────────────────
-// Membangun custom searchable dropdown di atas <select id="userBidang">
-// Dipanggil setiap kali modal user dibuka (setelah options di-set).
 function initBidangSearchable() {
   const sel = document.getElementById('userBidang');
   if (!sel) return;
@@ -47,7 +43,6 @@ function initBidangSearchable() {
   const selectedOpt = sel.options[sel.selectedIndex];
   const selectedText = (selectedOpt && selectedOpt.value !== '') ? selectedOpt.text : null;
 
-  // ── Trigger button ──────────────────────────────────────────────────────
   const trigger = document.createElement('button');
   trigger.type = 'button';
   trigger.className = 'bsel-trigger csel-trigger';
@@ -88,7 +83,7 @@ function initBidangSearchable() {
     Array.from(sel.options).forEach((opt, i) => {
       const text = opt.text;
       const val  = opt.value;
-      if (q && val === '') return; // hide placeholder option when searching
+      if (q && val === '') return;
       if (q && !text.toLowerCase().includes(q)) return;
 
       hasResult = true;
@@ -730,7 +725,6 @@ function _renderAssignIndikatorList() {
     return;
   }
 
-  // Group by penanggung_jawab
   const groups = {};
   filtered.forEach(r => {
     const pj = r.penanggung_jawab || '- Tanpa PJ';
@@ -776,7 +770,6 @@ function _renderAssignIndikatorList() {
 
   container.innerHTML = html;
 
-  // Update counter
   const counter = document.getElementById('assignIndikatorCounter');
   if (counter) counter.textContent = `${_assignSelectedIds.size} dipilih`;
 }

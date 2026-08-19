@@ -1,14 +1,3 @@
-// netlify/functions/upload.js
-// Upload file dokumen surat → Cloudinary
-//
-// Setup (sekali saja):
-//   1. Daftar gratis di https://cloudinary.com (25 GB/bln)
-//   2. Dashboard → Settings → API Keys → copy Cloud Name, API Key, API Secret
-//   3. Di Netlify Dashboard → Site → Environment variables, tambahkan:
-//        CLOUDINARY_CLOUD_NAME = xxxxx
-//        CLOUDINARY_API_KEY    = xxxxx
-//        CLOUDINARY_API_SECRET = xxxxx
-//   4. npm install cloudinary  (sudah ditambahkan ke package.json)
 
 import { v2 as cloudinary }        from 'cloudinary';
 import { requireAuth }              from './_auth.js';
@@ -21,11 +10,6 @@ cloudinary.config({
   secure:     true,
 });
 
-// Struktur folder Cloudinary per kategori - sebelumnya semua upload (surat
-// maupun data dukung kinerja) numpuk jadi satu di folder 'surat-dinkes'.
-// Sekarang dipisah per modul supaya gampang di-audit di Media Library.
-// 'kategori' dikirim dari frontend (kinerja.js / surat.js); kalau tidak
-// dikenali atau tidak dikirim, fallback ke folder lama demi kompatibilitas.
 const FOLDER_MAP = {
   kinerja_iku:  'SAPA/Kinerja/IKU',
   kinerja_ikk:  'SAPA/Kinerja/IKK',
@@ -52,9 +36,6 @@ const ALLOWED_TYPES = {
   'image/webp':  'webp',
 };
 
-// JANGAN pakai resource_type:'auto' - Cloudinary kadang simpan PDF sebagai 'image'
-// sehingga URL jadi /image/upload/ dan fetch gagal 401.
-// Paksa eksplisit: non-gambar → 'raw', gambar → 'image'.
 const IMAGE_MIMES = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/gif']);
 function getResourceType(mimeType) {
   return IMAGE_MIMES.has(mimeType) ? 'image' : 'raw';
@@ -64,17 +45,14 @@ export const handler = async (event) => {
   if (event.httpMethod === 'OPTIONS') return jsonResponse({});
   if (event.httpMethod !== 'POST')    return errorResponse('Method not allowed', 405);
 
-  // ── Auth ────────────────────────────────────────────────────────────────
   const auth = requireAuth(event);
   if (!auth) return errorResponse('Unauthorized', 401);
 
-  // ── Cek env vars ────────────────────────────────────────────────────────
   if (!process.env.CLOUDINARY_CLOUD_NAME) {
     return errorResponse('Konfigurasi upload belum diatur. Hubungi administrator.', 503);
   }
 
   try {
-    // ── Parse multipart/form-data ──────────────────────────────────────────
     const contentType = event.headers['content-type'] || '';
     if (!contentType.includes('multipart/form-data')) {
       return errorResponse('Content-Type harus multipart/form-data', 400);
@@ -94,10 +72,6 @@ export const handler = async (event) => {
       return errorResponse('File tidak ditemukan dalam request', 400);
     }
 
-    // E-Planning dipecah lagi per Unit Kerja (bidang) masing-masing user, jadi
-    // foldernya SAPA/E-Planning/<Unit Kerja>, bukan numpuk semua bidang jadi satu.
-    // bidang_nama diambil dari DB pakai auth.id (bukan dari field yg dikirim
-    // client) supaya gak bisa dipalsukan/di-spoof lewat FormData.
     let folder = FOLDER_MAP[fields.kategori] || DEFAULT_FOLDER;
     if (fields.kategori === 'eplanning') {
       const sql = getDb();
@@ -111,7 +85,6 @@ export const handler = async (event) => {
       folder = `SAPA/E-Planning/${safeBidang}`;
     }
 
-    // ── Validasi ───────────────────────────────────────────────────────────
     if (fileBuffer.length > MAX_SIZE_MB * 1024 * 1024) {
       return errorResponse(`File terlalu besar. Maksimal ${MAX_SIZE_MB} MB.`, 400);
     }
@@ -120,19 +93,17 @@ export const handler = async (event) => {
       return errorResponse('Tipe file tidak diizinkan. Gunakan PDF, Word, Excel, atau gambar.', 400);
     }
 
-    // ── Upload ke Cloudinary ───────────────────────────────────────────────
-    // Cloudinary menerima Buffer via upload_stream
     const uploadResult = await new Promise((resolve, reject) => {
       const safeName = (fileName || 'dokumen')
-        .replace(/\.[^.]+$/, '')           // hapus ekstensi
-        .replace(/[^a-zA-Z0-9_-]/g, '_')  // sanitasi
+        .replace(/\.[^.]+$/, '')
+        .replace(/[^a-zA-Z0-9_-]/g, '_')
         .slice(0, 80);
 
       const stream = cloudinary.uploader.upload_stream(
         {
           folder:         folder,
           public_id:      `${Date.now()}_${auth.id}_${safeName}`,
-          resource_type:  getResourceType(mimeType), // 'raw' untuk PDF/doc/xlsx, 'image' untuk jpg/png
+          resource_type:  getResourceType(mimeType),
           use_filename:   false,
           overwrite:      false,
         },
@@ -156,9 +127,6 @@ export const handler = async (event) => {
   }
 };
 
-// ═══════════════════════════════════════════════════════════════════════════
-// MULTIPART PARSER - tanpa dependency tambahan
-// ═══════════════════════════════════════════════════════════════════════════
 function parseMultipart(buffer, boundary) {
   const result = { fileBuffer: null, fileName: 'file', mimeType: 'application/octet-stream', fields: {} };
 
@@ -186,9 +154,6 @@ function parseMultipart(buffer, boundary) {
     const typeMatch = headerStr.match(/Content-Type:\s*([^\r\n]+)/i);
 
     if (dispMatch) {
-      // Part file - JANGAN break di sini. Field lain (mis. 'kategori') bisa
-      // saja diletakkan setelah 'file' di FormData, jadi tetap lanjut scan
-      // supaya semua field kebaca terlepas dari urutannya.
       result.fileName   = dispMatch[1];
       result.mimeType   = typeMatch ? typeMatch[1].trim() : 'application/octet-stream';
       result.fileBuffer = bodyBuf;

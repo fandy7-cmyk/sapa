@@ -1,8 +1,3 @@
-// netlify/functions/pegawai.js
-// GET    /api/pegawai        → semua user login (dipakai juga utk ambil nama Kepala Dinas di laporan PDF non-admin)
-// POST   /api/pegawai        → admin only
-// PUT    /api/pegawai/:id    → admin only
-// DELETE /api/pegawai/:id    → admin only
 
 import { getDb, jsonResponse, errorResponse, parseBody } from './_db.js';
 import { requireAuth, requireAdmin } from './_auth.js';
@@ -15,8 +10,6 @@ export const handler = async (event) => {
   const segments = rawPath.split('/').filter(Boolean);
   const id = segments[0] && !isNaN(segments[0]) ? parseInt(segments[0]) : null;
 
-  // GET: cukup login (non-admin butuh ini buat nampilin nama Kepala Dinas di TTD PDF laporan)
-  // Selain GET (POST/PUT/DELETE): wajib admin
   if (event.httpMethod === 'GET') {
     const auth = requireAuth(event);
     if (!auth) return errorResponse('Unauthorized', 401);
@@ -25,7 +18,6 @@ export const handler = async (event) => {
     if (!admin) return errorResponse('Unauthorized', 401);
   }
 
-  // ── GET /api/pegawai ──────────────────────────────────────
   if (event.httpMethod === 'GET' && !id) {
     try {
       const rows = await sql`
@@ -42,7 +34,6 @@ export const handler = async (event) => {
     }
   }
 
-  // ── POST /api/pegawai ─────────────────────────────────────
   if (event.httpMethod === 'POST' && !id) {
     const { nama, nip, jabatan, golongan, urutan, foto_url, aktif, parent_id } = parseBody(event);
     if (!nama)    return errorResponse('Nama wajib diisi', 400);
@@ -69,7 +60,6 @@ export const handler = async (event) => {
     }
   }
 
-  // ── PUT /api/pegawai/:id ──────────────────────────────────
   if (event.httpMethod === 'PUT' && id) {
     const { nama, nip, jabatan, golongan, urutan, foto_url, aktif, parent_id } = parseBody(event);
     try {
@@ -95,7 +85,6 @@ export const handler = async (event) => {
     }
   }
 
-  // ── DELETE /api/pegawai/:id ───────────────────────────────
   if (event.httpMethod === 'DELETE' && id) {
     try {
       const rows = await sql`

@@ -3878,7 +3878,7 @@ function _renderIkkTable(tbody) {
         ${_user?.is_admin && row.realisasi_id ? `
           <button class="btn-reset-row" id="ikk_resetbtn_${row.id}" data-tip="Reset data realisasi baris ini (admin)"
             onclick="resetRealisasiRow(${row.id}, 'ikk')">
-            <svg xmlns="http:
+            <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
             Reset
           </button>
         ` : ''}
@@ -5690,7 +5690,7 @@ function _renderSpmTable(tbody) {
         ${_user?.is_admin && row.realisasi_id ? `
           <button class="btn-reset-row" id="spm_resetbtn_${row.id}" data-tip="Reset data realisasi baris ini (admin)"
             onclick="resetRealisasiRow(${row.id}, 'spm')">
-            <svg xmlns="http:
+            <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
             Reset
           </button>
         ` : ''}

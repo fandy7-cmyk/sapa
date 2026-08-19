@@ -3474,8 +3474,7 @@ function _renderKinerjaWatch() {
 
           ${gap !== null ? `
           <div style="margin-top:10px;padding:8px 12px;border-radius:10px;font-size:0.75rem;font-weight:600;display:flex;align-items:center;gap:7px;color:${gap > 0 ? '#ef4444' : '#10b981'};background:${gap > 0 ? '#fef2f2' : '#f0fdf4'};border:1px solid ${gap > 0 ? '#fecaca' : '#bbf7d0'}">
-            <svg xmlns="http:
-            </svg>${gapStr}
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>${gapStr}
           </div>` : ''}
         </div>
 
@@ -3691,7 +3690,7 @@ function _renderKinerjaWatch() {
                 ${item.secondary ? `
                 <div class="kw-detail-box kw-${item.secondaryCls}">
                   <div class="kw-detail-label" style="color:${item.tercapai ? '#6d28d9' : '#0f766e'}">
-                    <svg xmlns="http:
+                    <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${item.tercapai ? '<path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="m9 11 3 3L22 4"/>' : '<path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><line x1="12" x2="12" y1="9" y2="13"/><line x1="12" x2="12.01" y1="17" y2="17"/>'}</svg>
                     ${esc(item.secondaryLabel)}
                   </div>
                   <div class="kw-detail-text" style="color:${item.tercapai ? '#4c1d95' : '#134e4a'}">${esc(item.secondary)}</div>

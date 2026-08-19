@@ -1,16 +1,3 @@
-// netlify/functions/absensi-cron-alpa.js
-//
-// CRON: auto-tandai Alpa (dipicu scheduled invocation, lihat netlify.toml)
-// Dipisah dari absensi.js karena Netlify TIDAK MENGIZINKAN satu function
-// dipakai sekaligus sebagai "scheduled function" DAN endpoint HTTP biasa -
-// begitu sebuah function terdaftar dgn `schedule` di netlify.toml, request
-// HTTP normal ke function itu ditolak (dev: pesan "which is a scheduled
-// function"; production: function jadi gak bisa diakses via HTTP publik).
-// Sebelumnya absensi.js dipakai dobel (endpoint /api/absensi/* SEKALIGUS
-// cron), makanya SEMUA request ke /api/absensi/* ikut kena block.
-//
-// Cek isinya sama persis dgn jalankanCronAlpa() versi lama di absensi.js.
-
 import { getDb, jsonResponse, errorResponse } from './_db.js';
 
 const TZ = 'Asia/Makassar';

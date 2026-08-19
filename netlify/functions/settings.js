@@ -1,4 +1,3 @@
-// netlify/functions/settings.js
 import { getDb, jsonResponse, errorResponse, parseBody } from './_db.js';
 import { requireAdmin } from './_auth.js';
 
@@ -7,7 +6,6 @@ export const handler = async (event) => {
   const sql = getDb();
 
   if (event.httpMethod === 'GET') {
-    // Auth required (bukan publik lagi)
     const auth = requireAdmin(event);
     if (!auth) return errorResponse('Unauthorized', 401);
     try {

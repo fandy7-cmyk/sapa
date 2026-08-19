@@ -1,12 +1,9 @@
-// netlify/functions/_audit.js
 export function getReqMeta(event) {
   const ip = event.headers['x-forwarded-for']?.split(',')[0]?.trim() || '';
   const ua = event.headers['user-agent'] || '';
   return { ip, ua };
 }
 
-// Fetch kota/negara dari IP menggunakan ip-api.com (free, no key)
-// Localhost / private IP → return null (tidak di-lookup)
 async function fetchLokasi(ip) {
   if (!ip || ip === '::1' || ip.startsWith('127.') || ip.startsWith('192.168.') || ip.startsWith('10.')) return null;
   try {
@@ -16,10 +13,7 @@ async function fetchLokasi(ip) {
     if (!r.ok) return null;
     const d = await r.json();
     if (d.status !== 'success') return null;
-    // Catatan: IP-based geolocation cuma akurat sampai level kota/kabupaten -
-    // tidak mungkin dapat desa/kecamatan dari IP saja. Ini fallback kalau
-    // browser tidak kasih izin lokasi GPS (lihat _getBrowserLokasi di app.html).
-    // Label disamakan gaya dgn versi GPS (Kabupaten/Kota, Provinsi) biar konsisten.
+
     const kabKota = d.city ? (/kota/i.test(d.city) ? d.city : `Kabupaten/Kota ${d.city}`) : null;
     const prov = d.regionName ? `Provinsi ${d.regionName}` : null;
     return [kabKota, prov, d.country].filter(Boolean).join(', ') || null;
@@ -30,10 +24,6 @@ async function fetchLokasi(ip) {
 
 export async function logAudit(sql, event, { user_id = null, nama = null, email = null, aksi, entitas = null, entitas_id = null, detail = null, lokasi_client = null }) {
   const { ip } = getReqMeta(event);
-  // Prioritas: lokasi presisi dari browser (GPS/WiFi via Geolocation API, dikirim client)
-  // → jauh lebih akurat drpd IP geolocation, apalagi di daerah yg ISP-nya routing lewat
-  // kota lain (mis. Banggai Laut sering kebaca "Palu" kalau cuma andalin IP).
-  // Fallback ke IP-based lookup kalau user tidak mengizinkan/browser tidak mendukung.
   const lokasi = lokasi_client || await fetchLokasi(ip);
   try {
     await sql`
@@ -49,10 +39,6 @@ export async function logAudit(sql, event, { user_id = null, nama = null, email 
 export const MAX_LOGIN_ATTEMPTS   = 5;
 export const LOGIN_WINDOW_MINUTES = 15;
 
-// Catatan: kolom `email` di tabel `login_attempts` sekarang menampung NIP
-// (identifier login berubah dari email → NIP), bukan alamat email. Nama
-// kolom di DB sengaja tidak diubah supaya tidak perlu migrasi skema - cukup
-// diperlakukan sebagai "identifier" generik di sini.
 export async function checkLoginRateLimit(sql, identifier, ip, windowMinutes = LOGIN_WINDOW_MINUTES, maxAttempts = MAX_LOGIN_ATTEMPTS) {
   const rows = await sql`
     SELECT COUNT(*)::int AS cnt FROM login_attempts
@@ -69,8 +55,6 @@ export async function recordLoginAttempt(sql, identifier, ip) {
   } catch (e) { console.error('[recordLoginAttempt]', e); }
 }
 
-// Dipanggil setelah login sukses - bersihkan riwayat percobaan gagal
-// supaya hitungan "sisa percobaan" reset fresh untuk sesi berikutnya.
 export async function clearLoginAttempts(sql, identifier) {
   try {
     await sql`DELETE FROM login_attempts WHERE email = ${identifier}`;

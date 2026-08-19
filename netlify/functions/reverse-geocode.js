@@ -1,17 +1,5 @@
-// netlify/functions/reverse-geocode.js
-// POST /api/reverse-geocode { lat, lon } → { lokasi } | { lokasi: null }
-//
-// Reverse-geocode koordinat GPS ke alamat administratif (Kec/Kab/Prov) pakai
-// TomTom Reverse Geocoding API. Dipanggil dari app.html saat login, sebagai
-// alternatif Nominatim/OSM yang datanya sering bolong buat kecamatan di
-// daerah terpencil (mis. Banggai Laut). TomTom pakai data proprietary
-// sendiri, bukan OSM, jadi coverage-nya bisa beda.
-//
-// Butuh env var TOMTOM_API_KEY di Netlify (Site settings → Environment variables).
 import { jsonResponse, errorResponse, parseBody } from './_db.js';
 
-// Tambahkan label (mis. "Kec.") di depan nama wilayah, kecuali nama itu
-// sendiri sudah mengandung kata itu.
 function _labelWilayah(raw, label, fullWord) {
   if (!raw) return null;
   const lower = raw.toLowerCase();
@@ -21,11 +9,6 @@ function _labelWilayah(raw, label, fullWord) {
   return `${label} ${raw}`;
 }
 
-// Kabupaten Banggai Laut dimekarkan dari Kabupaten Banggai Kepulauan tahun
-// 2013. Data TomTom utk beberapa kecamatan di sini masih belum ter-update:
-// field countrySecondarySubdivision-nya kebaca "Banggai" polos (kabupaten
-// induk lama), padahal kecamatan-kecamatan ini sekarang masuk Kab. Banggai
-// Laut. Koreksi manual krn ini murni gap data provider, bukan salah mapping.
 const _KEC_BANGGAI_LAUT = new Set([
   'banggai', 'banggai tengah', 'banggai selatan', 'banggai utara',
   'bokan kepulauan', 'bangkurung', 'labobo',
@@ -35,21 +18,13 @@ function _formatAlamatTomTom(addr) {
   if (!addr) return null;
   const parts = [];
 
-  // Kecamatan - municipalitySubdivision biasanya level kecamatan/kelurahan.
-  // Kalau kosong, fallback ke municipality (di beberapa daerah TomTom cuma
-  // ngasih data sampai level ini, mis. kecamatan-kecamatan di Banggai Laut).
   const kecamatanRaw = addr.municipalitySubdivision || addr.municipality;
   if (kecamatanRaw) {
     parts.push(_labelWilayah(kecamatanRaw, 'Kecamatan', 'kecamatan'));
   }
 
-  // Kabupaten / Kota - countrySecondarySubdivision adalah level county/regency
-  // yang sesuai sama hierarki resmi TomTom (municipality itu setingkat kota/
-  // kecamatan, BUKAN kabupaten).
-  // municipality cuma dipakai sbg fallback kalau countrySecondarySubdivision kosong.
   let kabKota = addr.countrySecondarySubdivision || addr.municipality;
 
-  // Koreksi khusus Banggai Laut (lihat catatan _KEC_BANGGAI_LAUT di atas).
   if (kabKota && /^banggai$/i.test(kabKota.trim()) && _KEC_BANGGAI_LAUT.has((kecamatanRaw || '').trim().toLowerCase())) {
     kabKota = 'Banggai Laut';
   }
@@ -58,7 +33,6 @@ function _formatAlamatTomTom(addr) {
     parts.push(/kota/i.test(kabKota) ? kabKota : _labelWilayah(kabKota, 'Kabupaten', 'kabupaten'));
   }
 
-  // Provinsi
   const provinsi = addr.countrySubdivisionName || addr.countrySubdivision;
   if (provinsi) {
     parts.push(_labelWilayah(provinsi, 'Provinsi', 'provinsi'));

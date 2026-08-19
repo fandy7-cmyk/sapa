@@ -1,8 +1,3 @@
-// netlify/functions/profil.js
-// GET  /api/profil           → admin only - ambil profil instansi
-// PUT  /api/profil           → admin only - simpan profil instansi
-//
-// (Endpoint publik /api/landing/* ditangani oleh netlify/functions/landing.js)
 
 import { getDb, jsonResponse, errorResponse, parseBody } from './_db.js';
 import { requireAdmin } from './_auth.js';
@@ -12,7 +7,6 @@ export const handler = async (event) => {
 
   const sql = getDb();
 
-  // Pastikan kolom lat/lng tersedia (untuk DB lama yang belum punya kolom ini)
   try {
     await sql`
       ALTER TABLE profil_instansi
@@ -23,13 +17,9 @@ export const handler = async (event) => {
     console.error('[profil] migrate lat/lng', err);
   }
 
-  // ════════════════════════════════════════════════════════
-  // ADMIN: /api/profil
-  // ════════════════════════════════════════════════════════
   const admin = requireAdmin(event);
   if (!admin) return errorResponse('Unauthorized', 401);
 
-  // ── GET /api/profil ───────────────────────────────────────
   if (event.httpMethod === 'GET') {
     try {
       const rows = await sql`
@@ -42,7 +32,6 @@ export const handler = async (event) => {
     }
   }
 
-  // ── PUT /api/profil ───────────────────────────────────────
   if (event.httpMethod === 'PUT') {
     const { visi, tugas_fungsi, alamat, telepon, email, instagram, maps_embed, lat, lng } = parseBody(event);
     try {

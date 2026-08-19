@@ -1,4 +1,3 @@
-// netlify/functions/stats.js
 import { getDb, jsonResponse, errorResponse } from './_db.js';
 import { requireAuth } from './_auth.js';
 
@@ -20,9 +19,6 @@ export const handler = async (event) => {
           WHERE l.created_by = ${auth.id}
         `;
 
-    // NOTE: clicked_at bertipe timestamptz, tapi CURRENT_DATE/NOW() dievaluasi di UTC.
-    // Server jam 06:15 WITA = 22:15 UTC hari sebelumnya, jadi CURRENT_DATE polos salah hari.
-    // Dikonversi eksplisit ke WITA (Asia/Makassar) biar "hari ini" sesuai kalender lokal.
     const [{ klik_hari_ini }] = isAdmin
       ? await sql`
           SELECT COUNT(*)::INT AS klik_hari_ini
@@ -55,13 +51,6 @@ export const handler = async (event) => {
           GROUP BY l.id ORDER BY total_klik DESC LIMIT 5
         `;
 
-    // Grouping tanggal buat grafik 7 hari, dipaksa ke WITA.
-    // PENTING: pakai generate_series + LEFT JOIN supaya SELALU dapat 7 baris
-    // berurutan (hari tanpa klik tetap muncul dengan jumlah=0), bukan cuma
-    // tanggal yang kebetulan ada datanya. Ini krusial karena frontend
-    // (dashboard.js) mengandalkan array ini punya panjang & urutan tetap
-    // (termasuk buat hitung "vs kemarin") - kalau hari ini belum ada klik,
-    // GROUP BY biasa bakal skip baris hari ini dan bikin semua index geser.
     const klik_7hari = isAdmin
       ? await sql`
           SELECT gs::DATE::TEXT AS tanggal, COALESCE(c.jumlah, 0)::INT AS jumlah

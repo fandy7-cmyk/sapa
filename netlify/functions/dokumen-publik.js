@@ -1,8 +1,3 @@
-// netlify/functions/dokumen-publik.js
-// GET    /api/dokumen-publik        → admin only (semua)
-// POST   /api/dokumen-publik        → admin only
-// PUT    /api/dokumen-publik/:id    → admin only
-// DELETE /api/dokumen-publik/:id    → admin only
 
 import { getDb, jsonResponse, errorResponse, parseBody } from './_db.js';
 import { requireAdmin } from './_auth.js';
@@ -15,11 +10,9 @@ export const handler = async (event) => {
   const segments = rawPath.split('/').filter(Boolean);
   const id = segments[0] && !isNaN(segments[0]) ? parseInt(segments[0]) : null;
 
-  // Semua endpoint butuh admin
   const admin = requireAdmin(event);
   if (!admin) return errorResponse('Unauthorized', 401);
 
-  // ── GET /api/dokumen-publik ───────────────────────────────
   if (event.httpMethod === 'GET' && !id) {
     try {
       const rows = await sql`
@@ -34,7 +27,6 @@ export const handler = async (event) => {
     }
   }
 
-  // ── POST /api/dokumen-publik ──────────────────────────────
   if (event.httpMethod === 'POST' && !id) {
     const { judul, keterangan, kategori, file_url, aktif } = parseBody(event);
     if (!judul)    return errorResponse('Judul wajib diisi', 400);
@@ -58,17 +50,9 @@ export const handler = async (event) => {
     }
   }
 
-  // ── PUT /api/dokumen-publik/:id ───────────────────────────
   if (event.httpMethod === 'PUT' && id) {
     const body = parseBody(event);
     try {
-      // Ambil data existing dulu, baru merge field yang dikirim di JS.
-      // (sebelumnya pakai fallback nested sql`kategori`/sql`keterangan` di dalam
-      // template UPDATE buat "biarin nilai lama" - itu gak didukung driver
-      // @neondatabase/serverless: bukan jadi raw SQL fragment, malah nge-eksekusi
-      // query terpisah dan hasil object-nya ke-stringify jadi nilai kolom, makanya
-      // kategori/keterangan kesimpen jadi teks "{"parameterizedQuery":...}" tiap
-      // kali PUT partial kayak toggle aktif yang cuma ngirim {aktif:...}.)
       const existingRows = await sql`SELECT * FROM dokumen_publik WHERE id = ${id} AND deleted_at IS NULL`;
       if (!existingRows.length) return errorResponse('Dokumen tidak ditemukan', 404);
       const existing = existingRows[0];
@@ -97,7 +81,6 @@ export const handler = async (event) => {
     }
   }
 
-  // ── DELETE /api/dokumen-publik/:id ────────────────────────
   if (event.httpMethod === 'DELETE' && id) {
     try {
       const rows = await sql`

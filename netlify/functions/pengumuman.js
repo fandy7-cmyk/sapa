@@ -1,8 +1,3 @@
-// netlify/functions/pengumuman.js
-// GET    /api/pengumuman        → publik (aktif saja), auth → semua
-// POST   /api/pengumuman        → admin only
-// PUT    /api/pengumuman/:id    → admin only
-// DELETE /api/pengumuman/:id    → admin only
 
 import { getDb, jsonResponse, errorResponse, parseBody } from './_db.js';
 import { requireAuth } from './_auth.js';
@@ -12,25 +7,21 @@ export const handler = async (event) => {
 
   const sql = getDb();
 
-  // Parse id dari path
   const rawPath = event.path.replace(/^.*\/pengumuman\/?/, '') || '';
   const segments = rawPath.split('/').filter(Boolean);
   const id = segments[0] && !isNaN(segments[0]) ? parseInt(segments[0]) : null;
 
-  // ── GET /api/pengumuman ─────────────────────────────────────
   if (event.httpMethod === 'GET' && !id) {
     const auth = requireAuth(event);
     try {
       let rows;
       if (auth && auth.is_admin) {
-        // Admin: semua pengumuman yang belum dihapus
         rows = await sql`
           SELECT * FROM pengumuman
           WHERE deleted_at IS NULL
           ORDER BY created_at DESC
         `;
       } else {
-        // Publik: hanya yang aktif & belum dihapus, max 10
         rows = await sql`
           SELECT id, judul, isi, tipe, created_at
           FROM pengumuman
@@ -46,12 +37,10 @@ export const handler = async (event) => {
     }
   }
 
-  // Auth + admin required untuk POST/PUT/DELETE
   const auth = requireAuth(event);
   if (!auth) return errorResponse('Unauthorized', 401);
   if (!auth.is_admin) return errorResponse('Akses ditolak - hanya admin', 403);
 
-  // ── POST /api/pengumuman ────────────────────────────────────
   if (event.httpMethod === 'POST' && !id) {
     const body = parseBody(event);
     const { judul, isi, tipe, aktif, aksi } = body;
@@ -70,7 +59,6 @@ export const handler = async (event) => {
     }
   }
 
-  // ── PUT /api/pengumuman/:id ─────────────────────────────────
   if (event.httpMethod === 'PUT' && id) {
     const body = parseBody(event);
     const { judul, isi, tipe, aktif, aksi } = body;
@@ -95,7 +83,6 @@ export const handler = async (event) => {
     }
   }
 
-  // ── DELETE /api/pengumuman/:id ──────────────────────────────
   if (event.httpMethod === 'DELETE' && id) {
     try {
       const rows = await sql`

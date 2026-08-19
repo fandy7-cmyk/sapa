@@ -24,7 +24,6 @@ function _buildStatusOptions(data, getAktif = d => d.aktif, getExpired = () => f
   return opts || `<option value="">Semua Status</option>`;
 }
 
-// ── Debounce helper ──────────────────────────────────────
 function _debounce(fn, delay = 400) {
   let timer;
   return function (...args) {
@@ -33,7 +32,6 @@ function _debounce(fn, delay = 400) {
   };
 }
 
-// ── Format tanggal+jam WITA (dipakai list Link, mirip s.id) ──
 function _fmtWita(iso) {
   if (!iso) return '-';
   const d = new Date(iso);
@@ -60,7 +58,6 @@ async function _checkSlugAvailability(endpoint, rawSlug, excludeId, statusElId, 
   const slug = (rawSlug || '').trim();
 
   if (!slug) {
-    // Slug kosong = tidak masalah (khusus link, opsional). Selalu boleh simpan.
     if (statusEl) { statusEl.className = 'slug-status'; statusEl.innerHTML = ''; }
     if (btn) btn.disabled = false;
     onResult(true);
@@ -93,16 +90,12 @@ async function _checkSlugAvailability(endpoint, rawSlug, excludeId, statusElId, 
     if (btn) btn.disabled = available === false;
     onResult(available !== false);
   } catch {
-    // Gagal cek (mis. offline) - jangan blokir user, biarkan validasi final terjadi di server saat submit
     if (statusEl) { statusEl.className = 'slug-status'; statusEl.innerHTML = ''; }
     if (btn) btn.disabled = false;
     onResult(true);
   }
 }
 
-// ═══════════════════════════════════════════
-// LINKS (data source) - dipakai bareng oleh halaman Shortlink
-// ═══════════════════════════════════════════
 let _links = [];
 let _linkSlugAvailable = true;
 const _checkLinkSlugDebounced = _debounce(function () {
@@ -560,7 +553,6 @@ function renderBundleItems() {
 }
 
 async function saveBundle() {
-  // Auto-commit picker yang masih terbuka (user belum klik "Pilih")
   const mExp = document.getElementById('cdtp_bundleExpired');
   if (mExp?._cdtp?.commit) mExp._cdtp.commit();
 
@@ -679,9 +671,6 @@ async function deleteBundleItem(itemId) {
 
 let _shareUrl = '';
 
-// Helper reusable: render QR (dgn logo di tengah) ke dalam sebuah box.
-// url yg di-encode ke QR beda dari _shareUrl (ditambah ?src=qr) biar kunjungan lewat
-// scan QR bisa dibedakan dari klik link biasa di statistik "QR Code Visitor".
 function _renderQrCode(box, url, opts = {}) {
   const { size = 260, logoSize = 48, logoPad = 12, radius = 10 } = opts;
   box.innerHTML = '';
@@ -954,8 +943,6 @@ function _ldQrStyle() {
 
 function _ldDateOnly(v) {
   if (!v) return '';
-  // v adalah ISO timestamp UTC (dari toISOString()/CDTP). Geser +8 jam ke WITA
-  // dulu sebelum ambil tanggalnya - kalau langsung split('T')[0] dari ISO UTC,
   
   
   const d = new Date(v);

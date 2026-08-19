@@ -1,16 +1,3 @@
-// netlify/functions/visit.js
-// GET  /api/visit        → ambil total kunjungan
-// POST /api/visit        → increment kunjungan (dari landing page)
-//
-// Tabel DDL (jalankan sekali di Neon console):
-//   CREATE TABLE IF NOT EXISTS page_visits (
-//     id         SERIAL PRIMARY KEY,
-//     page       TEXT NOT NULL DEFAULT 'landing',
-//     visited_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-//     ip_address TEXT,
-//     user_agent TEXT
-//   );
-//   CREATE INDEX IF NOT EXISTS idx_page_visits_page ON page_visits(page);
 
 import { getDb, jsonResponse, errorResponse } from './_db.js';
 
@@ -19,7 +6,6 @@ export const handler = async (event) => {
 
   const sql = getDb();
 
-  // ── GET: kembalikan total kunjungan ───────────────────────
   if (event.httpMethod === 'GET') {
     try {
       const rows = await sql`
@@ -34,7 +20,6 @@ export const handler = async (event) => {
     }
   }
 
-  // ── POST: catat kunjungan baru ────────────────────────────
   if (event.httpMethod === 'POST') {
     try {
       const ip = event.headers['x-forwarded-for']?.split(',')[0]?.trim() || '';

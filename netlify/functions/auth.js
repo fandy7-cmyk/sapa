@@ -1,8 +1,3 @@
-// netlify/functions/auth.js
-// POST /api/auth/login
-// GET  /api/auth/me
-// POST /api/auth/change-password
-
 import bcrypt from 'bcryptjs';
 import { getDb, jsonResponse, errorResponse, parseBody } from './_db.js';
 import { signToken, requireAuth, generateRefreshToken, hashRefreshToken } from './_auth.js';
@@ -14,12 +9,10 @@ export const handler = async (event) => {
   const sql = getDb();
   const path = event.path.replace(/.*\/auth/, '');
 
-  // ── LOGIN ──────────────────────────────────────────────────
   if (event.httpMethod === 'POST' && path === '/login') {
     const { nip, password, lokasi } = parseBody(event);
     if (!nip || !password) return errorResponse('Username dan password wajib diisi', 400);
 
-    // NIP tetap string (bukan number) - bisa punya leading zero & panjangnya tetap (18 digit)
     const nipNorm = String(nip).trim();
     const { ip } = getReqMeta(event);
 
@@ -63,8 +56,6 @@ export const handler = async (event) => {
 
       const token = signToken({ id: user.id, email: user.email, nama: user.nama, is_admin: user.is_admin });
 
-      // Refresh token: opaque random string, hash-nya disimpan di DB supaya bisa
-      // di-revoke (logout / paksa logout admin / deteksi reuse) tanpa nunggu expired.
       const { token: refreshToken, hash, expires_at } = generateRefreshToken();
       await sql`
         INSERT INTO refresh_tokens (user_id, token_hash, expires_at, ip_address, user_agent)
@@ -86,7 +77,6 @@ export const handler = async (event) => {
     }
   }
 
-  // ── REFRESH - tukar refresh token dengan access token baru (rotasi) ──────
   if (event.httpMethod === 'POST' && path === '/refresh') {
     const { refresh_token } = parseBody(event);
     if (!refresh_token) return errorResponse('Refresh token wajib diisi', 400);
@@ -98,8 +88,6 @@ export const handler = async (event) => {
       if (!rows.length) return errorResponse('Refresh token tidak valid', 401);
       const rt = rows[0];
 
-      // Token yang sudah pernah dipakai/revoke tapi dicoba dipakai lagi →
-      // indikasi token dicuri/dipakai dobel. Revoke seluruh sesi user demi keamanan.
       if (rt.revoked_at) {
         await sql`UPDATE refresh_tokens SET revoked_at = NOW() WHERE user_id = ${rt.user_id} AND revoked_at IS NULL`;
         await logAudit(sql, event, { user_id: rt.user_id, aksi: 'refresh_token_reuse_detected', detail: { refresh_token_id: rt.id } });
@@ -128,7 +116,6 @@ export const handler = async (event) => {
     }
   }
 
-  // ── LOGOUT - revoke refresh token milik sesi ini saja ─────────────────
   if (event.httpMethod === 'POST' && path === '/logout') {
     const { refresh_token } = parseBody(event);
     if (refresh_token) {
@@ -140,7 +127,6 @@ export const handler = async (event) => {
     return jsonResponse({ ok: true });
   }
 
-  // ── LOGOUT-ALL - revoke semua refresh token milik user (semua device) ──
   if (event.httpMethod === 'POST' && path === '/logout-all') {
     const auth = requireAuth(event);
     if (!auth) return errorResponse('Unauthorized', 401);
@@ -154,7 +140,6 @@ export const handler = async (event) => {
     }
   }
 
-  // ── ME ────────────────────────────────────────────────────
   if (event.httpMethod === 'GET' && path === '/me') {
     const auth = requireAuth(event);
     if (!auth) return errorResponse('Unauthorized', 401);
@@ -179,7 +164,6 @@ export const handler = async (event) => {
     }
   }
 
-  // ── CHANGE PASSWORD ──────────────────────────────────────
   if (event.httpMethod === 'POST' && path === '/change-password') {
     const auth = requireAuth(event);
     if (!auth) return errorResponse('Unauthorized', 401);
@@ -193,7 +177,6 @@ export const handler = async (event) => {
       if (!valid) return errorResponse('Password lama tidak sesuai', 401);
       const hash = await bcrypt.hash(password_baru, 10);
       await sql`UPDATE users SET password_hash = ${hash} WHERE id = ${auth.id}`;
-      // Password berubah → anggap semua sesi lama tidak terpercaya, revoke semua refresh token.
       await sql`UPDATE refresh_tokens SET revoked_at = NOW() WHERE user_id = ${auth.id} AND revoked_at IS NULL`;
       await logAudit(sql, event, { user_id: auth.id, nama: auth.nama, email: auth.email, aksi: 'change_password' });
       return jsonResponse({ ok: true });

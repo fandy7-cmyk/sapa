@@ -1,9 +1,3 @@
-// netlify/functions/bidang.js
-// GET    /api/bidang          → publik (untuk dropdown)
-// POST   /api/bidang          → admin only
-// PUT    /api/bidang/:id      → admin only
-// DELETE /api/bidang/:id      → admin only
-
 import { getDb, jsonResponse, errorResponse, parseBody } from './_db.js';
 import { requireAdmin, requireAuth } from './_auth.js';
 
@@ -17,7 +11,6 @@ export const TIPE_BIDANG_LABEL = {
 let _migrated = false;
 async function ensureSchema(sql) {
   if (_migrated) return;
-  // tipe menentukan label approval tier di modul e-Planning (Menunggu Kepala <tipe>)
   await sql`ALTER TABLE bidang ADD COLUMN IF NOT EXISTS tipe TEXT NOT NULL DEFAULT 'bidang'`;
   _migrated = true;
 }
@@ -31,7 +24,6 @@ export const handler = async (event) => {
   const segments = rawPath.split('/').filter(Boolean);
   const id = segments[0] && !isNaN(segments[0]) ? parseInt(segments[0]) : null;
 
-  // ── GET /api/bidang ── (semua yang login bisa baca, untuk dropdown)
   if (event.httpMethod === 'GET') {
     const auth = requireAuth(event);
     if (!auth) return errorResponse('Unauthorized', 401);
@@ -47,11 +39,9 @@ export const handler = async (event) => {
     }
   }
 
-  // Mutasi → admin only
   const admin = requireAdmin(event);
   if (!admin) return errorResponse('Unauthorized', 401);
 
-  // ── POST /api/bidang ──
   if (event.httpMethod === 'POST' && !id) {
     const { nama, singkatan, urutan, aktif, tipe } = parseBody(event);
     if (!nama) return errorResponse('Nama bidang wajib diisi', 400);
@@ -68,7 +58,6 @@ export const handler = async (event) => {
     }
   }
 
-  // ── PUT /api/bidang/:id ──
   if (event.httpMethod === 'PUT' && id) {
     const { nama, singkatan, urutan, aktif, tipe } = parseBody(event);
     if (tipe && !TIPE_BIDANG.includes(tipe)) return errorResponse('Tipe unit kerja tidak valid', 400);
@@ -90,10 +79,8 @@ export const handler = async (event) => {
     }
   }
 
-  // ── DELETE /api/bidang/:id ──
   if (event.httpMethod === 'DELETE' && id) {
     try {
-      // Cek apakah ada user aktif yang menggunakan bidang ini
       const inUse = await sql`SELECT id FROM users WHERE bidang_id = ${id} LIMIT 1`;
       if (inUse.length) return errorResponse('Bidang masih digunakan oleh pengguna, tidak dapat dihapus', 409);
       const rows = await sql`

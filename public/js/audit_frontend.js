@@ -157,10 +157,8 @@ function _lokasiIsAkurat(lokasi) {
 
 function _lokasiAkuratIcon(akurat) {
   if (akurat) {
-    // setara gps_fixed (Material) - crosshair + titik tengah = lokasi terkunci dari GPS
     return `<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="#16a34a" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0" data-tip="Lokasi akurat (GPS perangkat)"><line x1="2" y1="12" x2="5" y2="12"/><line x1="19" y1="12" x2="22" y2="12"/><line x1="12" y1="2" y2="5" x2="12"/><line x1="12" y1="19" x2="12" y2="22"/><circle cx="12" cy="12" r="7"/><circle cx="12" cy="12" r="3"/></svg>`;
   }
-  // setara location_searching (Material) - crosshair tanpa titik tengah = masih mencari/perkiraan
   return `<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="#d97706" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0" data-tip="Lokasi perkiraan dari IP, bisa kurang akurat"><line x1="2" y1="12" x2="5" y2="12"/><line x1="19" y1="12" x2="22" y2="12"/><line x1="12" y1="2" y2="5" x2="12"/><line x1="12" y1="19" x2="12" y2="22"/><circle cx="12" cy="12" r="7"/></svg>`;
 }
 

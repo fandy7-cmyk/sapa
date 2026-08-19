@@ -1,5 +1,3 @@
-// netlify/functions/audit-trail.js
-// GET /api/audit-trail → admin only, paginated + filter
 import { getDb, jsonResponse, errorResponse } from './_db.js';
 import { requireAdmin } from './_auth.js';
 
@@ -12,8 +10,6 @@ export const handler = async (event) => {
 
   const sql = getDb();
 
-  // ── GET /api/audit-trail/aksi-list → daftar aksi yang benar-benar ada di data,
-  //    dipakai frontend buat filter dropdown "Semua Aksi" (sembunyikan yg gak ada datanya) ──
   const rawPath = event.path.replace(/.*\/audit-trail/, '') || '/';
   const segments = rawPath.split('/').filter(Boolean);
   if (event.httpMethod === 'GET' && segments[0] === 'aksi-list') {

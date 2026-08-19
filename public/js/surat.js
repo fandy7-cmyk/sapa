@@ -45,10 +45,7 @@ function renderDocsBadge(fileUrlRaw, label) {
     </span>`;
 }
 
-// Hapus dokumen langsung dari baris tabel (kolom Dokumen)
-// btn = elemen tombol (untuk cari tr parent), fileUrlRaw = nilai file_url saat ini
 async function deleteDocBadge(btn, fileUrlRaw) {
-  // Cari baris tr dan id record
   const tr = btn.closest('tr');
   if (!tr) return;
 
@@ -156,7 +153,6 @@ function toggleDocDD(id, event) {
 
 let _smFilter = '', _smPage = 1;
 
-// Populate dropdown tahun surat masuk/keluar dari data yang sudah ada
 function _populateSuratTahun(suratList, selectId) {
   const sel = document.getElementById(selectId);
   if (!sel) return;
@@ -166,8 +162,6 @@ function _populateSuratTahun(suratList, selectId) {
     .filter(Boolean)
     .map(d => d.slice(0, 4))
   )].sort((a, b) => b - a);
-  // Kalau cuma ada 1 tahun, langsung auto-select tahun itu (bukan "Semua Tahun").
-  // Kalau lebih dari 1, default tetap "Semua Tahun".
   const autoSelect = !current && years.length === 1;
   const selected = autoSelect ? years[0] : current;
   sel.innerHTML = '<option value="">Semua Tahun</option>' +
@@ -204,14 +198,12 @@ function _populateSuratStatus(suratList, selectId) {
   const hasSelesai   = suratList.some(s => s.selesai === true);
   const hasTerlambat = suratList.some(s => !s.selesai && s.batas_waktu && new Date(s.batas_waktu) < now);
   const jumlahStatus = [hasProses, hasTerlambat, hasSelesai].filter(Boolean).length;
-  // "Semua Status" cuma ditampilkan kalau statusnya lebih dari 1 macam
   let opts = jumlahStatus > 1 ? '<option value="">Semua Status</option>' : '';
   if (hasProses)    opts += '<option value="false">Belum Selesai</option>';
   if (hasTerlambat) opts += '<option value="terlambat">Terlambat</option>';
   if (hasSelesai)   opts += '<option value="true">Selesai</option>';
   if (!opts) opts = '<option value="">Semua Status</option>';
   sel.innerHTML = opts;
-  // Pertahankan nilai yang sedang dipilih jika masih relevan, selainnya jatuh ke opsi pertama
   const options = [...sel.options];
   if (options.some(o => o.value === current)) sel.value = current;
   else sel.value = options[0]?.value ?? '';
@@ -232,7 +224,6 @@ function _populateSuratPegawai(suratList, selectId) {
 
 function setSMFilter(v) {
   _smFilter = v; _smPage = 1;
-  // sync select
   const sel = document.getElementById('smFilterStatus');
   if (sel) { sel.value = v; if (typeof syncCustomSelect === 'function') syncCustomSelect('smFilterStatus'); }
   loadSuratMasuk(1);
@@ -241,7 +232,6 @@ function setSMFilter(v) {
 async function loadSuratMasuk(page = 1) {
   _smPage = page;
   const isAdmin = !!(_user && _user.is_admin);
-  // isFull = admin ATAU non-admin dengan hak akses "surat.masuk.full" (setara admin khusus surat masuk)
   const isFull  = isAdmin || (typeof hasAccess === 'function' && hasAccess('surat.masuk.full'));
   
   const pegawaiWrap = document.getElementById('smFilterPegawai')?.closest('.select-wrap');
@@ -682,7 +672,7 @@ function _showBatchUploadToast(results) {
 
 async function handleFileSelect(e, prefix) {
   const files = Array.from(e.target.files || []);
-  e.target.value = ''; // reset agar bisa pilih file yang sama lagi
+  e.target.value = '';
   if (!files.length) return;
   const results = await Promise.all(files.map(f => processFile(prefix, f)));
   _showBatchUploadToast(results);

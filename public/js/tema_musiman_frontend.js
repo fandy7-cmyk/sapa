@@ -1,8 +1,3 @@
-// public/js/tema_musiman_frontend.js
-// Halaman admin "Tema Musiman" - kelola tema custom (Ramadhan, HUT RI, dll)
-// yang auto aktif sesuai rentang tanggal, tampil di landing page & app
-// (lewat theme-engine.js). Disimpan di tabel settings (key='tema_musiman')
-// lewat endpoint generic /api/settings (admin only).
 
 let _temaList = [];
 
@@ -87,6 +82,7 @@ function openTemaMusimanModal() {
   openModal('modalTemaMusiman');
   if (typeof initCustomSelects === 'function') initCustomSelects();
   if (typeof syncCustomSelect === 'function') { syncCustomSelect('temaPosisi'); syncCustomSelect('temaAnimasi'); syncCustomSelect('temaPartikel'); syncCustomSelect('temaPartikelDensitas'); }
+  _updateTemaPreview();
 }
 
 function _setTemaPreview(url) {
@@ -97,9 +93,41 @@ function _setTemaPreview(url) {
   else { prev.src = ''; wrap.style.display = 'none'; }
 }
 
+function _updateTemaPreview() {
+  const panel = document.getElementById('temaPreviewPanel');
+  if (!panel || typeof SapaTemaPreview === 'undefined') return;
+  const posisi = document.getElementById('temaPosisi')?.value || 'pill-atas';
+
+  // "panel-login-saja" = background penuh panel kiri halaman login, yang
+  // bentuknya portrait (tinggi), beda sama pill/banner/ribbon yang landscape.
+  // Preview ikut nyesuain orientasi biar keliatan bener gambar bakal
+  // dipotong/di-cover kayak apa.
+  if (posisi === 'panel-login-saja') {
+    panel.style.height = '220px';
+    panel.style.width = '150px';
+    panel.style.margin = '0 auto';
+  } else {
+    panel.style.height = '110px';
+    panel.style.width = '100%';
+    panel.style.margin = '0';
+  }
+
+  const theme = {
+    nama: document.getElementById('temaNama')?.value.trim() || '',
+    gambar_url: document.getElementById('temaGambarUrl')?.value.trim() || '',
+    posisi,
+    efek: document.getElementById('temaAnimasi')?.value || 'none',
+    partikel: document.getElementById('temaPartikel')?.value || 'none',
+    partikel_densitas: document.getElementById('temaPartikelDensitas')?.value || 'sedang',
+  };
+  if (!theme.gambar_url) { SapaTemaPreview.clear(panel); return; }
+  SapaTemaPreview.render(panel, theme);
+}
+
 function removeTemaGambar() {
   document.getElementById('temaGambarUrl').value = '';
   _setTemaPreview('');
+  _updateTemaPreview();
 }
 
 function editTemaMusiman(id) {
@@ -120,6 +148,7 @@ function editTemaMusiman(id) {
   openModal('modalTemaMusiman');
   if (typeof initCustomSelects === 'function') initCustomSelects();
   if (typeof syncCustomSelect === 'function') { syncCustomSelect('temaPosisi'); syncCustomSelect('temaAnimasi'); syncCustomSelect('temaPartikel'); syncCustomSelect('temaPartikelDensitas'); }
+  _updateTemaPreview();
 }
 
 function onTemaGambarChange(input) {
@@ -168,6 +197,7 @@ async function _uploadTemaGambar(file) {
     if (bar) { bar.style.width = '100%'; setTimeout(() => { if (prog) prog.style.display = 'none'; }, 600); }
     document.getElementById('temaGambarUrl').value = d.url;
     _setTemaPreview(d.url);
+    _updateTemaPreview();
     toast('Gambar berhasil diupload', 'success');
   } catch (err) {
     if (prog) prog.style.display = 'none';
@@ -213,6 +243,7 @@ async function saveTemaMusiman() {
     toast(id ? 'Tema diperbarui' : 'Tema ditambahkan');
     closeModal('modalTemaMusiman');
     renderTemaMusimanTable();
+    if (typeof sapaTemaRefresh === 'function') sapaTemaRefresh();
   } catch (err) {
     toast('Gagal menyimpan tema: ' + err.message, 'error');
   }
@@ -235,6 +266,7 @@ async function toggleTemaMusiman(id, currentAktif) {
     _temaList = next;
     toast(!currentAktif ? 'Tema diaktifkan' : 'Tema dinonaktifkan');
     renderTemaMusimanTable();
+    if (typeof sapaTemaRefresh === 'function') sapaTemaRefresh();
   } catch (err) {
     toast('Gagal mengubah status tema: ' + err.message, 'error');
   }
@@ -261,6 +293,7 @@ async function deleteTemaMusiman(id) {
     _temaList = next;
     toast('Tema berhasil dihapus');
     renderTemaMusimanTable();
+    if (typeof sapaTemaRefresh === 'function') sapaTemaRefresh();
   } catch (err) {
     toast('Gagal menghapus tema: ' + err.message, 'error');
   }

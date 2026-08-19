@@ -2,9 +2,6 @@ import { getDb, jsonResponse, errorResponse, parseBody } from './_db.js';
 import { requireAuth, requireAdmin } from './_auth.js';
 import { deleteFromCloudinary } from './_cloudinary.js';
 
-// data_dukung_url bisa berisi satu URL polos, atau JSON array [{url,name}, ...]
-// untuk multi-file. Helper ini selalu mengembalikan array of URL string,
-// dipakai untuk diff file lama vs baru saat cleanup Cloudinary.
 function parseDukungUrls(raw) {
   if (!raw) return [];
   try {
@@ -14,11 +11,6 @@ function parseDukungUrls(raw) {
   } catch { return [raw]; }
 }
 
-// Best-effort: hapus file Cloudinary yang sudah tidak dipakai lagi (diganti/dihapus).
-// WAJIB di-await oleh caller - kalau fire-and-forget, Netlify Function bisa
-// freeze begitu response dikirim balik, dan request destroy ke Cloudinary
-// keputus di tengah jalan sebelum sempat selesai (file tetap nyangkut).
-// Tidak pernah throw - kegagalan Cloudinary tidak boleh menggagalkan operasi DB.
 async function cleanupOldDukungFiles(oldUrls, newUrls) {
   const keep = new Set(newUrls);
   const toDelete = oldUrls.filter(u => !keep.has(u));
@@ -29,7 +21,6 @@ function normTarget(r) {
   if (r.target_tahun != null) r.target_tahun = parseFloat(r.target_tahun);
   if (r.target_display == null && r.target_tahun != null) r.target_display = null;
   r.bermakna_negatif = r.bermakna_negatif === true || r.bermakna_negatif === 'true';
-  // Pastikan jenis_custom selalu array (Neon JSONB bisa datang sebagai string)
   if (typeof r.jenis_custom === 'string') {
     try { r.jenis_custom = JSON.parse(r.jenis_custom); } catch { r.jenis_custom = []; }
   }
@@ -44,7 +35,6 @@ function canInput(user, jenis) {
   if (jenis === 'monev') return perms.includes('kinerja.monev');
   if (jenis === 'ikk')   return perms.includes('kinerja.ikk');
   if (jenis === 'spm')   return perms.includes('kinerja.spm');
-  // fallback: boleh jika punya salah satu
   return perms.includes('kinerja.monev') || perms.includes('kinerja.ikk') || perms.includes('kinerja.spm');
 }
 
@@ -54,13 +44,10 @@ export const handler = async (event) => {
   const sql = getDb();
   const rawPath = event.path.replace(/.*\/kinerja/, '') || '/';
   const segments = rawPath.split('/').filter(Boolean);
-  const sub = segments[0] || null;  // 'group' | 'indikator' | 'jenis-kinerja' | 'realisasi' | 'rekap'
+  const sub = segments[0] || null;
   const id  = segments[1] && !isNaN(segments[1]) ? parseInt(segments[1]) : null;
   const qs  = event.queryStringParameters || {};
 
-  // Auto-migrate: kolom tipe_perhitungan di kinerja_indikator.
-  // Dijalankan di sini (top-level, sebelum routing) supaya SEMUA endpoint
-  // (rekap, realisasi, indikator, dll) aman memakai kolom ini - bukan cuma /jenis-kinerja.
   try {
     await sql`
       ALTER TABLE kinerja_indikator
@@ -70,14 +57,10 @@ export const handler = async (event) => {
     console.error('[migrate tipe_perhitungan]', migErr);
   }
 
-  // ─────────────────────────────────────────────────────────────────────────────
-  // GROUP
-  // ─────────────────────────────────────────────────────────────────────────────
   if (sub === 'group') {
     const auth = requireAuth(event);
     if (!auth) return errorResponse('Unauthorized', 401);
 
-    // GET - semua yang login bisa baca (untuk dropdown di modal indikator)
     if (event.httpMethod === 'GET') {
       try {
         const rows = await sql`
@@ -89,7 +72,6 @@ export const handler = async (event) => {
       }
     }
 
-    // Mutasi → admin only
     const admin = requireAdmin(event);
     if (!admin) return errorResponse('Unauthorized', 401);
 
@@ -134,7 +116,6 @@ export const handler = async (event) => {
     }
 
     if (event.httpMethod === 'DELETE' && id) {
-      // Set group_id = NULL di indikator yang pakai group ini (tidak hapus indikator)
       await sql`UPDATE kinerja_indikator SET group_id = NULL WHERE group_id = ${id}`;
       await sql`DELETE FROM kinerja_group WHERE id = ${id}`;
       return jsonResponse({ ok: true });
@@ -143,18 +124,10 @@ export const handler = async (event) => {
     return errorResponse('Not found', 404);
   }
 
-  // ─────────────────────────────────────────────────────────────────────────────
-  // JENIS KINERJA  -  /api/kinerja/jenis-kinerja
-  // GET    → semua yang login bisa baca
-  // POST   → admin only - tambah jenis baru
-  // PUT    /jenis-kinerja/:id → admin only - edit
-  // DELETE /jenis-kinerja/:id → admin only - hapus (cek dulu apakah masih dipakai)
-  // ─────────────────────────────────────────────────────────────────────────────
   if (sub === 'jenis-kinerja') {
     const auth = requireAuth(event);
     if (!auth) return errorResponse('Unauthorized', 401);
 
-    // Auto-migrate: buat tabel jika belum ada + kolom jenis_custom di kinerja_indikator
     try {
       await sql`
         CREATE TABLE IF NOT EXISTS kinerja_jenis (
@@ -171,7 +144,6 @@ export const handler = async (event) => {
           updated_at TIMESTAMPTZ DEFAULT NOW()
         )
       `;
-      // Seed 3 jenis bawaan jika tabel baru dibuat / belum ada seed
       await sql`
         INSERT INTO kinerja_jenis (kode, label, warna_bg, warna_teks, urutan, aktif, is_builtin)
         VALUES
@@ -180,7 +152,6 @@ export const handler = async (event) => {
           ('spm',   'SPM', '#fef3c7', '#b45309', 3, TRUE, TRUE)
         ON CONFLICT (kode) DO NOTHING
       `;
-      // Kolom jenis_custom (jsonb array of kode) untuk jenis di luar 3 builtin
       await sql`
         ALTER TABLE kinerja_indikator
           ADD COLUMN IF NOT EXISTS jenis_custom JSONB DEFAULT '[]'::jsonb
@@ -189,7 +160,6 @@ export const handler = async (event) => {
       console.error('[jenis-kinerja migrate]', migErr);
     }
 
-    // ── GET /api/kinerja/jenis-kinerja ─────────────────────────────────────
     if (event.httpMethod === 'GET') {
       try {
         const rows = await sql`
@@ -201,15 +171,12 @@ export const handler = async (event) => {
       }
     }
 
-    // Mutasi → admin only
     const admin = requireAdmin(event);
     if (!admin) return errorResponse('Unauthorized', 401);
 
-    // ── POST /api/kinerja/jenis-kinerja ────────────────────────────────────
     if (event.httpMethod === 'POST') {
       const { label, deskripsi, warna_bg, warna_teks, urutan } = parseBody(event);
       if (!label?.trim()) return errorResponse('Label wajib diisi', 400);
-      // Buat kode dari label: uppercase, alfanumerik, max 20 karakter
       const kode = label.trim().toUpperCase()
         .replace(/[^A-Z0-9]/g, '_').replace(/_+/g, '_').replace(/^_|_$/g, '')
         .substring(0, 20);
@@ -236,7 +203,6 @@ export const handler = async (event) => {
       }
     }
 
-    // ── PUT /api/kinerja/jenis-kinerja/:id ─────────────────────────────────
     if (event.httpMethod === 'PUT' && id) {
       const { label, deskripsi, warna_bg, warna_teks, urutan, aktif } = parseBody(event);
       try {
@@ -258,7 +224,6 @@ export const handler = async (event) => {
       }
     }
 
-    // ── DELETE /api/kinerja/jenis-kinerja/:id ──────────────────────────────
     if (event.httpMethod === 'DELETE' && id) {
       const force = qs.force === '1';
       try {
@@ -267,7 +232,6 @@ export const handler = async (event) => {
         if (jenis[0].is_builtin) return errorResponse('Jenis bawaan sistem tidak dapat dihapus', 403);
 
         const kode = jenis[0].kode;
-        // Hitung indikator yang pakai jenis ini (via jenis_custom jsonb)
         const usage = await sql`
           SELECT id, indikator_kinerja FROM kinerja_indikator
           WHERE jenis_custom @> ${JSON.stringify([kode])}::jsonb
@@ -279,7 +243,6 @@ export const handler = async (event) => {
             indikator: usage.map(r => ({ id: r.id, nama: r.indikator_kinerja })),
           }, 409);
         }
-        // force=1: bersihkan jenis dari semua indikator dulu
         if (usage.length > 0 && force) {
           for (const ind of usage) {
             await sql`
@@ -303,11 +266,7 @@ export const handler = async (event) => {
     return errorResponse('Not found', 404);
   }
 
-  // ─────────────────────────────────────────────────────────────────────────────
-  // INDIKATOR
-  // ─────────────────────────────────────────────────────────────────────────────
   if (sub === 'indikator') {
-    // GET - semua yang login bisa baca
     if (event.httpMethod === 'GET') {
       const auth = requireAuth(event);
       if (!auth) return errorResponse('Unauthorized', 401);
@@ -378,7 +337,6 @@ export const handler = async (event) => {
         penanggung_jawab, bermakna_negatif, urutan, aktif,
         jenis_monev, jenis_ikk, jenis_spm, jenis_custom, formula, tipe_perhitungan, tipe_nilai
       } = parseBody(event);
-      // jenis_custom selalu dikirim dari client (saveIndikator), normalize sama seperti POST
       const jenisCustomVal = Array.isArray(jenis_custom) ? JSON.stringify(jenis_custom) : '[]';
       const tipeVal = ['kumulatif', 'non_kumulatif', 'rata_rata'].includes(tipe_perhitungan)
         ? tipe_perhitungan : undefined;
@@ -423,19 +381,11 @@ export const handler = async (event) => {
     return errorResponse('Not found', 404);
   }
 
-  // ─────────────────────────────────────────────────────────────────────────────
-  // TARGET PER TAHUN
-  // GET    /api/kinerja/target?indikator_id=X  → list target untuk 1 indikator
-  // GET    /api/kinerja/target?all=1           → semua target (admin, untuk tabel kelola)
-  // POST   /api/kinerja/target                 → upsert target (admin)
-  // DELETE /api/kinerja/target/:id             → hapus 1 baris target (admin)
-  // ─────────────────────────────────────────────────────────────────────────────
   if (sub === 'target') {
     if (event.httpMethod === 'GET') {
       const auth = requireAuth(event);
       if (!auth) return errorResponse('Unauthorized', 401);
 
-      // GET semua target sekaligus (untuk tabel admin)
       if (qs.all === '1') {
         try {
           const rows = await sql`
@@ -462,7 +412,6 @@ export const handler = async (event) => {
     const admin = requireAdmin(event);
     if (!admin) return errorResponse('Unauthorized', 401);
 
-    // POST: upsert satu baris target (indikator_id + tahun → upsert)
     if (event.httpMethod === 'POST') {
       const { indikator_id, tahun, target, target_display } = parseBody(event);
       if (!indikator_id || !tahun) return errorResponse('indikator_id dan tahun wajib', 400);
@@ -485,7 +434,6 @@ export const handler = async (event) => {
       }
     }
 
-    // PUT /api/kinerja/target/:id  → update target_display & target untuk 1 baris
     if (event.httpMethod === 'PUT' && id) {
       const { target, target_display } = parseBody(event);
       const targetNum = target !== undefined && target !== '' && target !== null
@@ -505,7 +453,6 @@ export const handler = async (event) => {
       }
     }
 
-    // DELETE /api/kinerja/target/:id
     if (event.httpMethod === 'DELETE' && id) {
       try {
         await sql`DELETE FROM kinerja_target WHERE id = ${id}`;
@@ -518,9 +465,6 @@ export const handler = async (event) => {
     return errorResponse('Not found', 404);
   }
 
-  // ─────────────────────────────────────────────────────────────────────────────
-  // REALISASI
-  // ─────────────────────────────────────────────────────────────────────────────
   if (sub === 'realisasi') {
     const auth = requireAuth(event);
     if (!auth) return errorResponse('Unauthorized', 401);
@@ -561,11 +505,8 @@ export const handler = async (event) => {
         return errorResponse('indikator_id, bulan, dan tahun wajib diisi', 400);
       }
 
-      // ── Validasi window periode (non-admin) ────────────────────────────────
-      // Cek periode sesuai jenis indikator: jenis_monev → 'monev', jenis_ikk → 'ikk'
       if (!auth.is_admin) {
         try {
-          // Ambil jenis indikator yang diinput
           const indikRows = await sql`
             SELECT jenis_monev, jenis_ikk, jenis_spm FROM kinerja_indikator
             WHERE id = ${parseInt(indikator_id)} LIMIT 1
@@ -577,7 +518,6 @@ export const handler = async (event) => {
             if (jenis_ikk)   jenisList.push('ikk');
             if (jenis_spm)   jenisList.push('spm');
 
-            // Cek permission per jenis indikator
             for (const j of jenisList) {
               if (!canInput(user, j)) {
                 const label = j === 'monev' ? 'IKU' : j === 'ikk' ? 'IKK' : 'SPM';
@@ -585,7 +525,6 @@ export const handler = async (event) => {
               }
             }
 
-            // Hanya cek jika indikator punya jenis yang terdefinisi
             if (jenisList.length > 0) {
               const periodeRows = await sql`
                 SELECT open_at, close_at, jenis FROM periode
@@ -595,7 +534,6 @@ export const handler = async (event) => {
                 LIMIT 1
               `;
               if (!periodeRows.length) {
-                // Cari yang ada untuk pesan error lebih informatif
                 const anyPeriode = await sql`
                   SELECT open_at, close_at, jenis FROM periode
                   WHERE bulan = ${parseInt(bulan)} AND tahun = ${parseInt(tahun)}
@@ -614,18 +552,13 @@ export const handler = async (event) => {
                 if (close && now > close) return errorResponse(`Periode input ${jenisLabel} sudah ditutup. Data tidak dapat diubah.`, 403);
                 return errorResponse(`Window input ${jenisLabel} untuk bulan ini belum dibuka.`, 403);
               }
-              // periodeRows.length > 0 → window terbuka, boleh lanjut
             }
           }
         } catch (err) {
           console.warn('[kinerja/realisasi] Gagal cek window periode:', err.message);
         }
       }
-      // ─────────────────────────────────────────────────────────────────────
       try {
-        // Ambil data_dukung_url lama SEBELUM upsert, supaya bisa dibandingkan
-        // dan file yang sudah tidak dipakai (diganti/dihapus) ikut dibersihkan
-        // dari Cloudinary - sebelumnya file lama numpuk selamanya di sana.
         let oldDukungUrls = [];
         if (clear_data_dukung || data_dukung_url !== undefined) {
           const existing = await sql`
@@ -664,7 +597,6 @@ export const handler = async (event) => {
           RETURNING *
         `;
 
-        // Bandingkan url lama vs baru, hapus yang sudah tidak terpakai di Cloudinary.
         if (oldDukungUrls.length) {
           const newUrls = clear_data_dukung ? [] : parseDukungUrls(rows[0].data_dukung_url);
           await cleanupOldDukungFiles(oldDukungUrls, newUrls);
@@ -709,11 +641,6 @@ export const handler = async (event) => {
     return errorResponse('Not found', 404);
   }
 
-  // ─────────────────────────────────────────────────────────────────────────────
-  // REKAP/TAHUN-LIST - daftar distinct tahun yang punya data realisasi
-  // (harus dicek SEBELUM blok 'rekap' biasa, karena keduanya sama-sama
-  //  punya sub === 'rekap'; bedanya cuma di segments[1])
-  // ─────────────────────────────────────────────────────────────────────────────
   if (sub === 'rekap' && segments[1] === 'tahun-list') {
     const auth = requireAuth(event);
     if (!auth) return errorResponse('Unauthorized', 401);
@@ -727,34 +654,22 @@ export const handler = async (event) => {
     }
   }
 
-  // ─────────────────────────────────────────────────────────────────────────────
-  // REKAP TAHUN - versi 1-query-ambil-semua-12-bulan (dipakai widget dashboard
-  // IKU/Pantau Indikator, gantiin 12x panggil rekap per-bulan yg lama)
-  // ─────────────────────────────────────────────────────────────────────────────
   if (sub === 'rekap' && segments[1] === 'tahun') {
     const auth = requireAuth(event);
     if (!auth) return errorResponse('Unauthorized', 401);
 
     const tahun = parseInt(qs.tahun || new Date().getFullYear());
-    const jenis = qs.jenis || 'monev'; // 'monev' | 'ikk' | 'spm'
-    const scope = qs.scope === 'bidang' ? 'bidang' : 'mine'; // 'mine' = punya sendiri, 'bidang' = semua indikator di bidang yg sama
+    const jenis = qs.jenis || 'monev';
+    const scope = qs.scope === 'bidang' ? 'bidang' : 'mine';
 
-    // Untuk non-admin:
-    // - IKU (jenis=monev): tampilkan SEMUA indikator IKU (indikator utama kadis, semua user boleh lihat)
-    // - IKK / SPM:
-    //     scope=mine   → hanya indikator yang di-assign via user_indikator ke akun ini
-    //     scope=bidang → SEMUA indikator (aktif, jenis sama) yang bidangnya (penanggung_jawab)
-    //                    sama dengan bidang dari indikator-indikator yang jadi tanggung jawab user,
-    //                    meskipun indikator tsb tidak eksplisit di-assign ke user ini
     let bidangNama = null;
-    let userIndikatorIds = null; // null = tampil semua; array = filter per id
+    let userIndikatorIds = null;
     if (!auth.is_admin && jenis !== 'monev') {
       try {
         const assignRows = await sql`
           SELECT indikator_id FROM user_indikator WHERE user_id = ${auth.id}
         `;
         if (assignRows.length === 0) {
-          // Tidak ada assignment → return kosong, tidak ada fallback
           return jsonResponse({ rekap: [], tahun, jenis, no_assignment: true });
         }
 
@@ -768,7 +683,6 @@ export const handler = async (event) => {
           const bidangList = bidangRows.map(r => r.penanggung_jawab).filter(Boolean);
 
           if (bidangList.length === 0) {
-            // Indikator user nggak punya info bidang → fallback ke punya dia sendiri aja
             userIndikatorIds = myIds;
           } else {
             const jenisIndikRows = jenis === 'ikk'
@@ -781,7 +695,7 @@ export const handler = async (event) => {
                   WHERE aktif = TRUE AND jenis_spm = TRUE AND penanggung_jawab = ANY(${bidangList})
                 `;
             userIndikatorIds = jenisIndikRows.map(r => r.id);
-            if (userIndikatorIds.length === 0) userIndikatorIds = myIds; // safety net
+            if (userIndikatorIds.length === 0) userIndikatorIds = myIds;
           }
         } else {
           userIndikatorIds = myIds;
@@ -1837,34 +1751,23 @@ export const handler = async (event) => {
     }
   }
 
-  // ─────────────────────────────────────────────────────────────────────────────
-  // REKAP - join group + indikator + realisasi
-  // ─────────────────────────────────────────────────────────────────────────────
   if (sub === 'rekap') {
     const auth = requireAuth(event);
     if (!auth) return errorResponse('Unauthorized', 401);
 
     const bulan = parseInt(qs.bulan || new Date().getMonth() + 1);
     const tahun = parseInt(qs.tahun || new Date().getFullYear());
-    const jenis = qs.jenis || 'monev'; // 'monev' | 'ikk' | 'spm'
-    const scope = qs.scope === 'bidang' ? 'bidang' : 'mine'; // 'mine' = punya sendiri, 'bidang' = semua indikator di bidang yg sama
+    const jenis = qs.jenis || 'monev';
+    const scope = qs.scope === 'bidang' ? 'bidang' : 'mine';
 
-    // Untuk non-admin:
-    // - IKU (jenis=monev): tampilkan SEMUA indikator IKU (indikator utama kadis, semua user boleh lihat)
-    // - IKK / SPM:
-    //     scope=mine   → hanya indikator yang di-assign via user_indikator ke akun ini
-    //     scope=bidang → SEMUA indikator (aktif, jenis sama) yang bidangnya (penanggung_jawab)
-    //                    sama dengan bidang dari indikator-indikator yang jadi tanggung jawab user,
-    //                    meskipun indikator tsb tidak eksplisit di-assign ke user ini
     let bidangNama = null;
-    let userIndikatorIds = null; // null = tampil semua; array = filter per id
+    let userIndikatorIds = null;
     if (!auth.is_admin && jenis !== 'monev') {
       try {
         const assignRows = await sql`
           SELECT indikator_id FROM user_indikator WHERE user_id = ${auth.id}
         `;
         if (assignRows.length === 0) {
-          // Tidak ada assignment → return kosong, tidak ada fallback
           return jsonResponse({ rekap: [], bulan, tahun, no_assignment: true });
         }
 
@@ -1878,7 +1781,6 @@ export const handler = async (event) => {
           const bidangList = bidangRows.map(r => r.penanggung_jawab).filter(Boolean);
 
           if (bidangList.length === 0) {
-            // Indikator user nggak punya info bidang → fallback ke punya dia sendiri aja
             userIndikatorIds = myIds;
           } else {
             const jenisIndikRows = jenis === 'ikk'
@@ -1891,7 +1793,7 @@ export const handler = async (event) => {
                   WHERE aktif = TRUE AND jenis_spm = TRUE AND penanggung_jawab = ANY(${bidangList})
                 `;
             userIndikatorIds = jenisIndikRows.map(r => r.id);
-            if (userIndikatorIds.length === 0) userIndikatorIds = myIds; // safety net
+            if (userIndikatorIds.length === 0) userIndikatorIds = myIds;
           }
         } else {
           userIndikatorIds = myIds;
@@ -2930,10 +2832,6 @@ export const handler = async (event) => {
     }
   }
 
-  // ─────────────────────────────────────────────────────────────────────────────
-  // STATS - untuk dashboard stat card Kinerja
-  // GET /api/kinerja/stats?bulan=1&tahun=2026
-  // ─────────────────────────────────────────────────────────────────────────────
   if (sub === 'stats') {
     const auth = requireAuth(event);
     if (!auth) return errorResponse('Unauthorized', 401);
@@ -2946,7 +2844,6 @@ export const handler = async (event) => {
 
       let belumRows;
       if (auth.is_admin) {
-        // Admin: hitung semua indikator aktif
         rows = await sql`
           SELECT
             COUNT(ki.id)::int                                        AS total_indikator,
@@ -2975,7 +2872,6 @@ export const handler = async (event) => {
           LIMIT 200
         `;
       } else {
-        // User biasa: hitung hanya indikator yang di-assign ke user
         const assignRows = await sql`
           SELECT indikator_id FROM user_indikator WHERE user_id = ${auth.id}
         `;
@@ -3027,26 +2923,16 @@ export const handler = async (event) => {
     }
   }
 
-  // ─────────────────────────────────────────────────────────────────────────────
-  // MONITORING - Admin only
-  // GET /api/kinerja/monitoring?bulan=5&tahun=2026&jenis=monev
-  // ─────────────────────────────────────────────────────────────────────────────
   if (sub === 'monitoring') {
     const admin = requireAdmin(event);
     if (!admin) return errorResponse('Unauthorized - admin only', 401);
 
-    const bulan = qs.bulan ? parseInt(qs.bulan) : null;   // null = semua bulan
-    const tahun = qs.tahun ? parseInt(qs.tahun) : null;   // null = semua tahun
-    const jenis = qs.jenis || 'all'; // 'monev' | 'ikk' | 'spm' | 'all'
+    const bulan = qs.bulan ? parseInt(qs.bulan) : null;
+    const tahun = qs.tahun ? parseInt(qs.tahun) : null;
+    const jenis = qs.jenis || 'all';
 
-    // Helper: kondisi JOIN realisasi sesuai filter bulan/tahun
-    // Kalau semua bulan → join tanpa filter bulan/tahun (ambil semua realisasi)
-    // Kalau ada bulan/tahun → join dengan filter spesifik
-    // Karena template literal SQL tidak bisa conditional, kita buat 4 kombinasi query
 
     try {
-      // neon tagged template tidak bisa interpolasi sql`...` fragment di posisi ON clause
-      // maupun di akhir WHERE → pakai 4 query eksplisit, filter jenis pakai boolean biasa
       const filterMonev = jenis === 'monev';
       const filterIkk   = jenis === 'ikk';
       const filterSpm   = jenis === 'spm';
@@ -3345,14 +3231,10 @@ export const handler = async (event) => {
     }
   }
 
-  // ══════════════════════════════════════════════════════
-  //  LAPORAN TEMPLATE  (Admin only)
-  // ══════════════════════════════════════════════════════
   if (sub === 'laporan-template') {
     const adminUser = requireAdmin(event);
     if (!adminUser) return errorResponse('Unauthorized', 401);
 
-    // Pastikan tabel ada - tanpa FK dulu agar tidak error jika tabel belum ada
     try {
       await sql`CREATE TABLE IF NOT EXISTS laporan_template (
         id SERIAL PRIMARY KEY, jenis TEXT NOT NULL DEFAULT 'urusan',
@@ -3363,14 +3245,12 @@ export const handler = async (event) => {
         id SERIAL PRIMARY KEY, template_id INT NOT NULL,
         indikator_id INT NOT NULL, urutan INT NOT NULL DEFAULT 0,
         UNIQUE(template_id, indikator_id))`;
-      // Migrasi: tambah kolom parent_id jika tabel sudah dibuat sebelumnya tanpa kolom ini
       await sql`ALTER TABLE laporan_template ADD COLUMN IF NOT EXISTS parent_id INT REFERENCES laporan_template(id) ON DELETE CASCADE`;
     } catch(_e) { /* tabel sudah ada, lanjut */ }
 
     const templateId = segments[1] ? parseInt(segments[1]) : null;
-    const subAction  = segments[2] || null; // 'indikator'
+    const subAction  = segments[2] || null;
 
-    // ── GET /api/kinerja/laporan-template/:id/indikator ──
     if (event.httpMethod === 'GET' && templateId && subAction === 'indikator') {
       try {
         const rows = await sql`
@@ -3386,7 +3266,6 @@ export const handler = async (event) => {
       }
     }
 
-    // ── POST /api/kinerja/laporan-template/:id/indikator (set/replace) ──
     if (event.httpMethod === 'POST' && templateId && subAction === 'indikator') {
       try {
         const body = await parseBody(event);
@@ -3402,7 +3281,6 @@ export const handler = async (event) => {
       }
     }
 
-    // ── GET /api/kinerja/laporan-template ──
     if (event.httpMethod === 'GET' && !templateId) {
       try {
         const jenis     = event.queryStringParameters?.jenis      || null;
@@ -3437,7 +3315,6 @@ export const handler = async (event) => {
       }
     }
 
-    // ── POST /api/kinerja/laporan-template ──
     if (event.httpMethod === 'POST' && !templateId) {
       try {
         const body = await parseBody(event);
@@ -3453,7 +3330,6 @@ export const handler = async (event) => {
       }
     }
 
-    // ── PUT /api/kinerja/laporan-template/:id ──
     if (event.httpMethod === 'PUT' && templateId && !subAction) {
       try {
         const body = await parseBody(event);
@@ -3473,7 +3349,6 @@ export const handler = async (event) => {
       }
     }
 
-    // ── DELETE /api/kinerja/laporan-template/:id ──
     if (event.httpMethod === 'DELETE' && templateId && !subAction) {
       try {
         await sql`DELETE FROM laporan_template WHERE id = ${templateId}`;
