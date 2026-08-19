@@ -54,17 +54,18 @@
   }
 
   var PARTIKEL_CONFIG = {
-    'konfeti-merah-putih': { arah: 'jatuh', tipe: 'rect', warna: ['#e11d2e', '#ffffff', '#e11d2e'] },
+    'konfeti-merah-putih': { arah: 'jatuh', tipe: 'confetti', warna: ['#e11d2e', '#ffffff', '#e11d2e'] },
     'kembang-api': { arah: 'burst', tipe: 'emoji', isi: ['🎆', '🎇', '✨'] },
     'balon': { arah: 'naik', tipe: 'emoji', isi: ['🎈'] },
     'pita-bendera': { arah: 'jatuh', tipe: 'rect', warna: ['#e11d2e', '#ffffff'], sempit: true },
     'lentera': { arah: 'naik', tipe: 'emoji', isi: ['🏮'] },
     'kerlip-bintang': { arah: 'ambang', tipe: 'emoji', isi: ['✨', '⭐'] },
-    'ketupat': { arah: 'jatuh', tipe: 'emoji', isi: ['🟨'] },
+    'ketupat': { arah: 'jatuh', tipe: 'ketupat', warna: ['#d9a441', '#c98a2e'] },
+    'konfeti-hijau-emas': { arah: 'jatuh', tipe: 'confetti', warna: ['#16a34a', '#d4af37', '#ffffff'] },
     'bulan-bintang': { arah: 'ambang', tipe: 'emoji', isi: ['🌙', '⭐'] },
     'salju': { arah: 'jatuh', tipe: 'emoji', isi: ['❄️'] },
     'lonceng-bintang': { arah: 'jatuh', tipe: 'emoji', isi: ['🔔', '⭐'] },
-    'konfeti-emas-perak': { arah: 'jatuh', tipe: 'rect', warna: ['#d4af37', '#c0c0c0'] },
+    'konfeti-emas-perak': { arah: 'jatuh', tipe: 'confetti', warna: ['#d4af37', '#c0c0c0', '#ffffff'] },
     'kelopak-kamboja': { arah: 'jatuh', tipe: 'petal', warna: ['#fff7ed', '#fecdd3'] },
     'asap-dupa': { arah: 'naik', tipe: 'wisp', warna: ['rgba(200,200,200,.35)'] },
     'kunang-kunang': { arah: 'ambang', tipe: 'dot', warna: ['#eab308'] },
@@ -72,12 +73,15 @@
     'lampion-terbang': { arah: 'naik', tipe: 'emoji', isi: ['🏮'] },
     'kelopak-teratai': { arah: 'jatuh', tipe: 'petal', warna: ['#fbcfe8', '#fff1f2'] },
     'cahaya-keemasan': { arah: 'ambang', tipe: 'dot', warna: ['#fbbf24'] },
-    'konfeti-merah-emas': { arah: 'jatuh', tipe: 'rect', warna: ['#e11d2e', '#d4af37'] },
+    'konfeti-kuning-safron': { arah: 'jatuh', tipe: 'confetti', warna: ['#f59e0b', '#fbbf24', '#fde68a'] },
+    'konfeti-merah-emas': { arah: 'jatuh', tipe: 'confetti', warna: ['#e11d2e', '#d4af37'] },
     'koin-angpao': { arah: 'jatuh', tipe: 'emoji', isi: ['🧧'] },
     'kelopak-sakura': { arah: 'jatuh', tipe: 'petal', warna: ['#fbcfe8', '#f9a8d4'] },
+    'konfeti-pastel': { arah: 'jatuh', tipe: 'confetti', warna: ['#fbcfe8', '#bfdbfe', '#fef08a', '#bbf7d0'] },
     'kelopak-pastel': { arah: 'jatuh', tipe: 'petal', warna: ['#fbcfe8', '#bfdbfe', '#fef08a'] },
     'kupu-kupu': { arah: 'ambang', tipe: 'emoji', isi: ['🦋'] },
     'kerlip-generik': { arah: 'ambang', tipe: 'emoji', isi: ['✨'] },
+    'konfeti-pelangi': { arah: 'jatuh', tipe: 'confetti', warna: ['#ef4444', '#f97316', '#eab308', '#22c55e', '#3b82f6', '#a855f7'] },
     'gelembung': { arah: 'naik', tipe: 'bubble', warna: ['rgba(255,255,255,.5)'] },
     'daun-jatuh': { arah: 'jatuh', tipe: 'emoji', isi: ['🍂', '🍁'] },
     'kelopak-bunga': { arah: 'jatuh', tipe: 'petal', warna: ['#fecdd3', '#fff7ed'] },
@@ -135,6 +139,29 @@
         break;
       case 'wisp':
         el.style.cssText = 'width:' + rand(6, 10) + 'px;height:' + rand(28, 44) + 'px;border-radius:50%;background:' + pick(cfg.warna) + ';filter:blur(3px)';
+        break;
+      case 'ketupat':
+        var ks = rand(9, 14);
+        var kBase = pick(cfg.warna);
+        el.style.cssText = 'width:' + ks + 'px;height:' + ks + 'px;transform:rotate(45deg);' +
+          'border-radius:2px;background:' + kBase + ';' +
+          'background-image:repeating-linear-gradient(45deg, rgba(255,255,255,.35) 0 1.5px, transparent 1.5px 4px), ' +
+          'repeating-linear-gradient(-45deg, rgba(0,0,0,.18) 0 1.5px, transparent 1.5px 4px);' +
+          'box-shadow:inset 0 0 1px rgba(0,0,0,.3);';
+        break;
+      case 'confetti':
+        var ccolor = pick(cfg.warna);
+        var crot = rand(0, 360);
+        var croll = Math.random();
+        if (croll < 0.4) {
+          var cw = rand(6, 11);
+          el.style.cssText = 'width:' + cw + 'px;height:' + cw + 'px;background:' + ccolor + ';border-radius:1px;transform:rotate(' + crot + 'deg)';
+        } else if (croll < 0.72) {
+          var cd = rand(5, 9);
+          el.style.cssText = 'width:' + cd + 'px;height:' + cd + 'px;background:' + ccolor + ';border-radius:50%';
+        } else {
+          el.style.cssText = 'width:' + rand(3, 5) + 'px;height:' + rand(10, 16) + 'px;background:' + ccolor + ';border-radius:1px;transform:rotate(' + crot + 'deg)';
+        }
         break;
     }
     return el;

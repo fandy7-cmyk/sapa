@@ -705,7 +705,8 @@ body::before {
   position: relative; overflow: hidden; pointer-events: none;
 }
 .topbar-constellation canvas { position: absolute; inset: 0; display: block; }
-@media (max-width: 900px) { .topbar-constellation { display: none; } }
+@media (max-width: 480px) { .topbar-constellation { min-width: 36px; } }
+@media (max-width: 340px) { .topbar-constellation { display: none; } }
 @media (prefers-reduced-motion: reduce) { .topbar-constellation { opacity: .6; } }
 
 /* Topbar profile */
@@ -1294,6 +1295,21 @@ tr:hover td:not(.td-sticky-no):not(.td-sticky-name) { background: var(--abu-1); 
   opacity: 0;
 }
 .csel-option.selected .csel-option-check { opacity: 1; }
+
+/* Group label - header kategori di dalam panel searchable (mis. Efek Partikel) */
+.csel-group-label {
+  padding: 8px var(--sp-4) 4px;
+  font-size: .68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  color: var(--teks-muted);
+  background: var(--abu-1);
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+.csel-group-label:first-child { margin-top: 0; }
 
 /* Search box di dalam panel - dipakai select dgn banyak opsi (mis. Filter User).
    Panel jadi flex-column: search box fixed di atas, cuma list opsi yg discroll. */
@@ -9960,4 +9976,19 @@ body:not(.is-admin) .abs-hariini-flex-wrap .dash-kpi-row .abs-jamkerja-wrap:nth-
     min-width: 0 !important;
     flex-basis: 100% !important;
   }
+}
+
+/* ── Modal Absensi Reminder: selalu di tengah, di semua ukuran layar ──
+   Modal lain sengaja pakai "slide up dari bawah" (bottom sheet) di mobile,
+   tapi reminder ini popup pendek yang bisa muncul kapan aja saat user lagi
+   aktif pakai app - center-modal lebih pas & gak keliatan "nyempil" di
+   bawah layar. ID selector biar menang lawan rule .modal-overlay di semua
+   media query mobile (yang set align-items:flex-end). */
+#modalAbsReminder {
+  align-items: center !important;
+  justify-content: center !important;
+}
+#modalAbsReminder .modal-box {
+  border-radius: var(--r-lg) !important;
+  max-height: 90vh;
 }

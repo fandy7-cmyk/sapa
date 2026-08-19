@@ -1229,7 +1229,7 @@ async function _bootRefreshFoto() {
       buildSidebar();
       _applySidebarCollapse();
       _startPeriodeTimer();
-      if (typeof _cekAbsensiReminder === 'function') _cekAbsensiReminder();
+      if (typeof _startAbsensiReminderPoll === 'function') _startAbsensiReminderPoll();
       
       
       if (typeof _cekPengajuanPendingReminder === 'function') _cekPengajuanPendingReminder();

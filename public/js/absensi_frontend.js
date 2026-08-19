@@ -501,12 +501,12 @@ async function renderAbsHariIni() {
             ${!todayRow?.jam_masuk ? `
             <button class="btn btn-primary" id="btnAbsMasuk" ${(belumWaktuMasuk || lewatWaktuMasuk) ? 'disabled' : ''} onclick="doAbsCheckin()">
               <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" style="margin-right:6px;vertical-align:-2px"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg>
-              Simpan Absensi Masuk
+              Absensi Masuk
             </button>` : ''}
             ${todayRow?.jam_masuk && !todayRow?.jam_keluar && !belumWaktuPulang ? `
             <button class="btn btn-secondary" id="btnAbsKeluar" ${lewatWaktuPulang ? 'disabled' : ''} onclick="doAbsCheckout()">
               <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" style="margin-right:6px;vertical-align:-2px"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
-              Simpan Absensi Keluar
+              Absensi Keluar
             </button>` : ''}
             ${todayRow?.jam_masuk && todayRow?.jam_keluar ? `<div class="abs-hariini-status badge badge-hijau">Absensi hari ini lengkap</div>` : ''}
           </div>
@@ -640,9 +640,23 @@ async function doAbsCheckout() {
   } catch { toast('Gagal menyimpan absensi keluar', 'error'); }
 }
 
+let _absReminderPollInterval = null;
+// Cek sekali langsung, lalu polling berkala - biar tetep kecek meski user
+// diem aja di aplikasi tanpa reload/pindah menu pas jendela absen kebuka.
+function _startAbsensiReminderPoll() {
+  if (_absReminderPollInterval) clearInterval(_absReminderPollInterval);
+  if (typeof _cekAbsensiReminder === 'function') _cekAbsensiReminder();
+  _absReminderPollInterval = setInterval(() => {
+    if (typeof _cekAbsensiReminder === 'function') _cekAbsensiReminder();
+  }, 60000); // tiap 1 menit
+}
+
 async function _cekAbsensiReminder() {
   if (!_user) return;
   if (_user.is_admin) return; 
+  // Jangan cek ulang / timpa modal kalau lagi kebuka (misal user lagi ngisi jam)
+  const _modalEl = document.getElementById('modalAbsReminder');
+  if (_modalEl && _modalEl.classList.contains('open')) return;
   try {
     await loadAbsSettings();
     if (!_absSettings) return;
