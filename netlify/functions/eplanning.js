@@ -1170,7 +1170,14 @@ export const handler = async (event) => {
         const page = Math.max(1, parseInt(qs.page) || 1);
         const pageSize = Math.min(100, Math.max(1, parseInt(qs.pageSize) || 25));
         const kategori = (qs.kategori || 'SSH').trim().toUpperCase();
-        const search = `%${(qs.search || '').trim()}%`;
+        const searchRaw = (qs.search || '').trim();
+        const search = `%${searchRaw}%`;
+        // Kalau pencarian murni angka (mis. lagi nyari harga), cocokin pakai
+        // batas angka biar "132" gak nyangkut ke tengah angka lain kayak
+        // "13200" (spesifikasi VA) atau "00132" (kode komponen) — cuma
+        // ke angka yang beneran diawali/berisi blok "132" utuh.
+        const isNumericSearch = /^\d+$/.test(searchRaw);
+        const numBoundary = isNumericSearch ? ('(^|[^0-9])' + searchRaw + '([^0-9]|$)') : null;
         const statusFilter = qs.status === 'true' ? true : (qs.status === 'false' ? false : null);
         const satuanFilter = (qs.satuan || '').trim();
         const tahunFilter = qs.tahun && /^\d{4}$/.test(qs.tahun) ? parseInt(qs.tahun) : null;
@@ -1185,11 +1192,17 @@ export const handler = async (event) => {
             ) AS rekening_label
           FROM eplanning_standar_harga sh
           WHERE sh.kategori = ${kategori}
-            AND (sh.uraian_barang ILIKE ${search} OR sh.kode_barang ILIKE ${search} OR sh.spesifikasi ILIKE ${search}
+            AND (sh.uraian_barang ILIKE ${search}
+                 OR (${numBoundary}::text IS NOT NULL AND (
+                       sh.kode_barang ~ ${numBoundary} OR sh.spesifikasi ~ ${numBoundary} OR sh.harga_satuan::text ~ ${numBoundary}
+                     ))
+                 OR (${numBoundary}::text IS NULL AND (sh.kode_barang ILIKE ${search} OR sh.spesifikasi ILIKE ${search}))
                  OR EXISTS (
                    SELECT 1 FROM unnest(string_to_array(sh.kode_rekening, ',')) AS kk(kode)
                    LEFT JOIN eplanning_rekening r3 ON r3.kode_rekening = trim(kk.kode)
-                   WHERE trim(kk.kode) ILIKE ${search} OR r3.nama_rekening ILIKE ${search}
+                   WHERE r3.nama_rekening ILIKE ${search}
+                     OR (${numBoundary}::text IS NOT NULL AND trim(kk.kode) ~ ${numBoundary})
+                     OR (${numBoundary}::text IS NULL AND trim(kk.kode) ILIKE ${search})
                  ))
             AND (${statusFilter}::boolean IS NULL OR sh.aktif = ${statusFilter}::boolean)
             AND (${satuanFilter} = '' OR sh.satuan = ${satuanFilter})
@@ -1201,11 +1214,17 @@ export const handler = async (event) => {
         const totalRows = await sql`
           SELECT COUNT(*)::int AS total FROM eplanning_standar_harga sh
           WHERE sh.kategori = ${kategori}
-            AND (sh.uraian_barang ILIKE ${search} OR sh.kode_barang ILIKE ${search} OR sh.spesifikasi ILIKE ${search}
+            AND (sh.uraian_barang ILIKE ${search}
+                 OR (${numBoundary}::text IS NOT NULL AND (
+                       sh.kode_barang ~ ${numBoundary} OR sh.spesifikasi ~ ${numBoundary} OR sh.harga_satuan::text ~ ${numBoundary}
+                     ))
+                 OR (${numBoundary}::text IS NULL AND (sh.kode_barang ILIKE ${search} OR sh.spesifikasi ILIKE ${search}))
                  OR EXISTS (
                    SELECT 1 FROM unnest(string_to_array(sh.kode_rekening, ',')) AS kk(kode)
                    LEFT JOIN eplanning_rekening r3 ON r3.kode_rekening = trim(kk.kode)
-                   WHERE trim(kk.kode) ILIKE ${search} OR r3.nama_rekening ILIKE ${search}
+                   WHERE r3.nama_rekening ILIKE ${search}
+                     OR (${numBoundary}::text IS NOT NULL AND trim(kk.kode) ~ ${numBoundary})
+                     OR (${numBoundary}::text IS NULL AND trim(kk.kode) ILIKE ${search})
                  ))
             AND (${statusFilter}::boolean IS NULL OR sh.aktif = ${statusFilter}::boolean)
             AND (${tahunFilter}::int IS NULL OR sh.tahun = ${tahunFilter}::int

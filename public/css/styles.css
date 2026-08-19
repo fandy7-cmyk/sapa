@@ -2324,7 +2324,7 @@ body.login-page::before {
 /* left panel - branding (38.2% = minor φ) */
 .panel-left {
   flex: 0 0 var(--panel-left-w);
-  background: linear-gradient(145deg, #0c2d2b 0%, #071a19 50%, #040f0e 100%);
+  background: linear-gradient(145deg, #165652 0%, #0d3130 50%, #081d1b 100%);
   padding: var(--sp-7) var(--sp-6);
   display: flex; flex-direction: column;
   position: relative; overflow: hidden;

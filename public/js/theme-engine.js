@@ -218,6 +218,7 @@
 
     var panelRight = document.querySelector('#loginOverlay .panel-right');
     if (panelRight) {
+      panelRight.classList.remove('has-tema-bg-mobile');
       panelRight.style.removeProperty('background-image');
       panelRight.style.removeProperty('background-size');
       panelRight.style.removeProperty('background-position');
@@ -332,7 +333,7 @@
     if (panelLeft) {
       if (isPanelVisible(panelLeft)) {
         renderLoginPanelTheme(theme, panelLeft);
-      } else if (theme.posisi !== 'panel-login-saja') {
+      } else {
         renderLoginMobileBackground(theme);
       }
       return;
@@ -372,12 +373,13 @@
     if (!panelRight) return;
     var img = theme.gambar_url.replace(/'/g, "\\'");
     var bgValue =
-      'linear-gradient(180deg, rgba(255,255,255,.9) 0%, rgba(255,255,255,.8) 45%, rgba(255,255,255,.92) 100%), ' +
+      'linear-gradient(180deg, rgba(4,15,14,.32) 0%, rgba(4,15,14,.45) 55%, rgba(4,15,14,.6) 100%), ' +
       "url('" + img + "')";
     panelRight.style.setProperty('background-image', bgValue, 'important');
     panelRight.style.setProperty('background-size', 'cover', 'important');
     panelRight.style.setProperty('background-position', 'center', 'important');
     panelRight.style.setProperty('background-repeat', 'no-repeat', 'important');
+    panelRight.classList.add('has-tema-bg-mobile');
     applyPartikel(panelRight, theme.partikel, theme.partikel_densitas);
   }
 
