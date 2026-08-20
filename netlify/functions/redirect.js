@@ -27,6 +27,9 @@ function getBundleHtml() {
       return { theme: null };
     });
   </script>
+  <!-- Preload file theme-engine.js juga, paralel dari awal - jangan
+       nunggu parser sampe ke <script> di akhir body baru mulai narik. -->
+  <link rel="preload" as="script" href="/js/theme-engine.js?v=1.4.4" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>SAPA Perencanaan</title>
   <!-- Open Graph / WhatsApp Preview -->
