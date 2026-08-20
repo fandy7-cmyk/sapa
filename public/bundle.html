@@ -2,9 +2,26 @@
 <html lang="id">
 <head>
   <meta charset="UTF-8" />
+  <script>
+  // Bundle page cuma mau efek partikel tema di header (kayak topbar di
+  // landing/app), bukan pill/banner mengambang atau background penuh -
+  // theme-engine.js cek flag ini duluan sebelum render pill/banner.
+  window.SAPA_TEMA_PARTIKEL_ONLY = true;
+  </script>
+  <script>
+  // Prefetch tema musiman sedini mungkin - lihat komentar sama di
+  // landing.html/app.html. theme-engine.js (dimuat di akhir body)
+  // tinggal pakai hasilnya lewat window.__sapaTemaPromise.
+  window.__sapaTemaPromise = fetch('/api/landing/tema-aktif?_=' + Date.now(), { cache: 'no-store' })
+    .then(function (r) { return r.ok ? r.json() : { theme: null }; })
+    .catch(function (e) {
+      console.warn('[theme-engine] prefetch awal gagal:', e);
+      return { theme: null };
+    });
+  </script>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>SAPA Perencanaan</title>
-  <meta name="app-version" content="1.4.2" />
+  <meta name="app-version" content="1.4.3" />
 
   
   <meta property="og:type"         content="website" />
@@ -23,7 +40,7 @@
   <link rel="apple-touch-icon" href="/favicon.png" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="css/styles.css?v=1.4.2" />
+  <link rel="stylesheet" href="css/styles.css?v=1.4.3" />
   <style>
     
     .item-icon svg, .state-icon svg, .item-arrow svg {
@@ -110,7 +127,7 @@
 <div class="page-wrap">
 
   
-  <div class="bundle-header" id="bundleHeader">
+  <div class="bundle-header" id="topbar">
     
     <div class="logo-partner-row">
       <img src="/logokemenkes.png" alt="Kemenkes RI" />
@@ -376,5 +393,6 @@ async function loadBundle(slug, pw) {
   setInterval(checkVersion, CHECK_INTERVAL_MS);
 })();
 </script>
+<script src="js/theme-engine.js?v=1.4.3"></script>
 </body>
 </html>

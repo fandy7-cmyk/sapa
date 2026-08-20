@@ -29,6 +29,13 @@
     Expires = "0"
 
 [[headers]]
+  for = "/login.html"
+  [headers.values]
+    Cache-Control = "no-cache, no-store, must-revalidate"
+    Pragma = "no-cache"
+    Expires = "0"
+
+[[headers]]
   for = "/bundle.html"
   [headers.values]
     Cache-Control = "no-cache, no-store, must-revalidate"
@@ -222,10 +229,10 @@
   force = true
 
 
-# ── /login → app.html (tanpa expose nama file) ───────────────
+# ── /login → login.html (tanpa expose nama file) ──────────────
 [[redirects]]
   from = "/login"
-  to = "/app.html"
+  to = "/login.html"
   status = 200
   force = true
 
@@ -240,6 +247,14 @@
 # app.html tetap bisa diakses langsung
 [[redirects]]
   from = "/app.html"
+  to = "/app.html"
+  status = 200
+  force = true
+
+# ── /app → app.html (alias tanpa ekstensi, dipake pas redirect abis
+#    login biar address bar sempet nampilin "/app" bukan "/app.html") ──
+[[redirects]]
+  from = "/app"
   to = "/app.html"
   status = 200
   force = true

@@ -88,7 +88,7 @@
   };
 
   var CSS_PARTIKEL = '' +
-    '@keyframes sapaPtkJatuh{0%{top:-15%;opacity:0;transform:rotate(0deg)}10%{opacity:1}88%{opacity:1}100%{top:125%;opacity:0;transform:rotate(140deg)}}' +
+    '@keyframes sapaPtkJatuh{0%{top:-15%;opacity:0;transform:rotate(0deg)}10%{opacity:1}88%{opacity:1}100%{top:125%;opacity:0;transform:rotate(380deg)}}' +
     '@keyframes sapaPtkNaik{0%{top:120%;opacity:0;transform:scale(.9)}10%{opacity:1}88%{opacity:1}100%{top:-20%;opacity:0;transform:scale(1.05)}}' +
     '@keyframes sapaPtkAmbang{0%,100%{opacity:.3;transform:scale(.92)}50%{opacity:.8;transform:scale(1.06)}}' +
     '@keyframes sapaPtkBurst{0%{opacity:0;transform:scale(.2)}18%{opacity:1;transform:scale(1)}40%{opacity:0;transform:scale(1.5)}100%{opacity:0;transform:scale(1.5)}}' +
@@ -123,11 +123,13 @@
         break;
       case 'rect':
         var w = cfg.sempit ? rand(4, 6) : rand(6, 10);
-        el.style.cssText = 'width:' + w + 'px;height:' + rand(8, 14) + 'px;background:' + pick(cfg.warna) + ';border-radius:1px';
+        var rrot = rand(0, 360);
+        el.style.cssText = 'width:' + w + 'px;height:' + rand(8, 14) + 'px;background:' + pick(cfg.warna) + ';border-radius:1px;transform:rotate(' + rrot + 'deg)';
         break;
       case 'petal':
         var ps = rand(8, 14);
-        el.style.cssText = 'width:' + ps + 'px;height:' + (ps * 0.7) + 'px;background:' + pick(cfg.warna) + ';border-radius:70% 30% 70% 30%';
+        var prot = rand(0, 360);
+        el.style.cssText = 'width:' + ps + 'px;height:' + (ps * 0.7) + 'px;background:' + pick(cfg.warna) + ';border-radius:70% 30% 70% 30%;transform:rotate(' + prot + 'deg)';
         break;
       case 'dot':
         var ds = cfg.besar ? rand(10, 18) : rand(4, 8);

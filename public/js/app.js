@@ -49,14 +49,11 @@ function _handleSessionExpired() {
   sessionStorage.removeItem('sapa_refresh_token');
   sessionStorage.removeItem('sapa_user');
   try { sessionStorage.removeItem('sapa_nav'); } catch(e) {}
-  
-  if (typeof toast === 'function') {
-    toast('Sesi Anda telah berakhir. Silakan login kembali.', 'warning');
-    setTimeout(() => location.reload(), 1500);
-  } else {
-    alert('Sesi Anda telah berakhir. Silakan login kembali.');
-    location.reload();
-  }
+
+  // login.html udah gak nempel di app.html lagi - lempar balik kesana,
+  // pesannya dititip lewat sessionStorage biar bisa ditampilkan di sana.
+  try { sessionStorage.setItem('sapa_login_msg', 'Sesi Anda telah berakhir. Silakan login kembali.'); } catch(e) {}
+  window.location.replace('/login.html');
 }
 
 function initAuth() {
@@ -75,7 +72,7 @@ function initAuth() {
     sessionStorage.removeItem('sapa_refresh_token');
     sessionStorage.removeItem('sapa_user');
   }
-  if (!_token || !_user) { showLoginOverlay(); return false; }
+  if (!_token || !_user) { window.location.replace('/login.html'); return false; }
   document.body.classList.toggle('is-admin', !!_user.is_admin);
 
   
@@ -83,7 +80,8 @@ function initAuth() {
     sessionStorage.removeItem('sapa_token');
     sessionStorage.removeItem('sapa_refresh_token');
     sessionStorage.removeItem('sapa_user');
-    showLoginOverlay('Sesi Anda telah berakhir. Silakan login kembali.');
+    try { sessionStorage.setItem('sapa_login_msg', 'Sesi Anda telah berakhir. Silakan login kembali.'); } catch(e) {}
+    window.location.replace('/login.html');
     return false;
   }
 
@@ -1288,6 +1286,8 @@ async function _bootRefreshFoto() {
           const nav = JSON.parse(_saved);
           
           if (nav.subId === 'dashboard' && (_user.is_admin || hasAccess('dashboard'))) {
+            _activeSubId = 'dashboard';
+            buildSidebar();
             loadDashboard();
             _restored = true;
           } else if (nav.subId === 'dashboard') {
@@ -1344,6 +1344,8 @@ async function _bootRefreshFoto() {
               '<div style="padding:2rem;text-align:center;color:#6b7280;">Belum ada menu yang dapat diakses. Hubungi administrator.</div>';
           }
         } else {
+          _activeSubId = 'dashboard';
+          buildSidebar();
           loadDashboard();
         }
       }

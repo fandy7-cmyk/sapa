@@ -13,6 +13,20 @@ function getBundleHtml() {
 <html lang="id">
 <head>
   <meta charset="UTF-8" />
+  <script>
+  // Sama kayak bundle.html - halaman ini cuma mau efek partikel tema di
+  // header, bukan pill/banner mengambang atau background penuh.
+  window.SAPA_TEMA_PARTIKEL_ONLY = true;
+  </script>
+  <script>
+  // Prefetch tema musiman sedini mungkin, sama kayak bundle.html.
+  window.__sapaTemaPromise = fetch('/api/landing/tema-aktif?_=' + Date.now(), { cache: 'no-store' })
+    .then(function (r) { return r.ok ? r.json() : { theme: null }; })
+    .catch(function (e) {
+      console.warn('[theme-engine] prefetch awal gagal:', e);
+      return { theme: null };
+    });
+  </script>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>SAPA Perencanaan</title>
   <!-- Open Graph / WhatsApp Preview -->
@@ -100,7 +114,7 @@ function getBundleHtml() {
 <div class="page-wrap">
 
   <!-- HEADER -->
-  <div class="bundle-header" id="bundleHeader">
+  <div class="bundle-header" id="topbar">
     <div class="logo-partner-row">
       <img src="/logokemenkes.png" alt="Kemenkes RI" />
       <div class="logo-divider"></div>
@@ -288,6 +302,7 @@ async function loadBundle(slug, pw) {
   }
 }
 </script>
+<script src="/js/theme-engine.js"></script>
 </body>
 </html>`;
 }

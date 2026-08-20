@@ -1,39 +1,22 @@
 <!DOCTYPE html>
-<html lang="id" class="login-mode">
+<html lang="id">
 <head>
   <meta charset="UTF-8" />
-  <script>history.replaceState(null, '', location.origin);</script>
   <script>
-  // Prefetch tema musiman SEDINI MUNGKIN (paling atas <head>), jalan
-  // paralel sambil browser masih parsing sisa HTML/CSS/JS di bawah -
-  // theme-engine.js (dimuat di akhir body, setelah 15+ script lain)
-  // tinggal pakai hasilnya lewat window.__sapaTemaPromise, gak fetch
-  // ulang dari nol. Ini yang bikin tema kerasa "lambat muncul" sebelumnya:
-  // fetch-nya baru mulai setelah SEMUA script lain selesai load+eksekusi.
+  // Prefetch tema musiman sedini mungkin, biar theme-engine.js (dimuat
+  // di akhir body) tinggal pakai hasilnya lewat window.__sapaTemaPromise
+  // tanpa fetch ulang dari nol - lihat komentar sama di landing.html.
   window.__sapaTemaPromise = fetch('/api/landing/tema-aktif?_=' + Date.now(), { cache: 'no-store' })
     .then(function (r) { return r.ok ? r.json() : { theme: null }; })
-    .then(function (d) {
-      var t = d && d.theme;
-      // Preload gambar tema begitu data dapat, biar download gambar
-      // jalan paralel dari sekarang juga - bukan nunggu theme-engine.js
-      // di bawah baru mulai request gambarnya.
-      if (t && t.gambar_url) {
-        var link = document.createElement('link');
-        link.rel = 'preload';
-        link.as = 'image';
-        link.href = t.gambar_url;
-        document.head.appendChild(link);
-      }
-      return d;
-    })
     .catch(function (e) {
       console.warn('[theme-engine] prefetch awal gagal:', e);
       return { theme: null };
     });
   </script>
+  <script>history.replaceState(null, '', location.origin);</script>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>SAPA Perencanaan</title>
-  <meta name="app-version" content="1.4.2" />
+  <meta name="app-version" content="1.4.3" />
   <link rel="icon" type="image/png" href="/favicon.png" />
   <link rel="manifest" href="/manifest.json" />
   <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
@@ -44,131 +27,8 @@
   <meta name="apple-mobile-web-app-title" content="SAPA" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="css/styles.css?v=1.4.2" />
+  <link rel="stylesheet" href="css/styles.css?v=1.4.3" />
   <style>
-    
-    #loginOverlay {
-      position: fixed; inset: 0; z-index: 9999;
-      background: linear-gradient(135deg, #ffffff 0%, #e0f7f5 35%, #99e6df 65%, #0d9488 100%);
-      display: flex; align-items: center; justify-content: center;
-      padding: 0; margin: 0;
-      transition: opacity .35s ease, visibility .35s ease;
-    }
-    #loginOverlay.hidden {
-      opacity: 0; visibility: hidden; pointer-events: none;
-    }
-    
-    html.login-mode,
-    body.login-mode {
-      overflow: hidden !important;
-      height: 100% !important;
-      max-height: 100vh !important;
-    }
-    
-    html:has(#loginOverlay:not(.hidden)),
-    body:has(#loginOverlay:not(.hidden)) {
-      overflow: hidden !important;
-      height: 100% !important;
-      max-height: 100vh !important;
-    }
-    
-    #appShell[style*="visibility:hidden"],
-    #appShell[style*="visibility: hidden"] {
-      position: fixed !important;
-      top: 0; left: 0;
-      pointer-events: none;
-    }
-    #loginOverlay .card.login-card {
-      border: none !important; outline: none !important;
-      border-radius: var(--r-xl) !important;
-      min-height: unset !important;
-      margin: 24px 16px !important;
-      background: transparent !important;
-      padding: 0 !important;
-      box-shadow: 0 32px 80px rgba(0,0,0,.22), 0 8px 32px rgba(0,0,0,.12), 0 0 0 1px rgba(255,255,255,.6) !important;
-      max-height: calc(100vh - 48px);
-      overflow-y: auto;
-    }
-    #loginOverlay .panel-left {
-      overflow: hidden;
-      transition: background-image .4s ease;
-      background-size: cover !important;
-      background-position: center !important;
-    }
-    #loginOverlay .panel-left.has-tema-bg::before {
-      /* redupkan gambar tema biar teks putih tetap kebaca */
-      background:
-        linear-gradient(180deg, rgba(4,15,14,.32) 0%, rgba(4,15,14,.45) 55%, rgba(4,15,14,.6) 100%);
-    }
-    /* tagline (moto) ditampilkan tegas di depan gambar tema, gaya senada
-       dengan "Satu Pintu Akses" (brand-sub) tapi opacity dinaikkan biar
-       gak kalah sama gambar tema di belakangnya */
-    #loginOverlay .panel-left.has-tema-bg .moto-watermark-text::before {
-      display: none;
-    }
-    /* moto-watermark bawaan (ghost tagline "Dari Data Menuju Kebijakan...")
-       disembunyikan total pas tema aktif, biar gak numpuk sama teks yang
-       udah ada di gambar tema itu sendiri (mis. kutipan ayat, dsb) */
-    #loginOverlay .panel-left.has-tema-bg .moto-watermark {
-      display: none;
-    }
-    /* pas tema aktif: sembunyiin logo & branding SAPA di panel kiri biar
-       gambar tema tampil bersih tanpa numpuk teks. Cuma footer (Sub
-       Bagian Perencanaan dkk) yang tetap ditampilkan. */
-    #loginOverlay .panel-left.has-tema-bg .left-logos,
-    #loginOverlay .panel-left.has-tema-bg .left-brand {
-      display: none;
-    }
-    /* left-brand yang di-hide di atas itu biasanya jadi "spacer" (flex:1)
-       yang dorong footer ke bawah—tanpa dia, footer bakal naik ke atas.
-       margin-top:auto di sini yang gantiin peran spacer itu. */
-    #loginOverlay .panel-left.has-tema-bg .left-footer {
-      margin-top: auto;
-    }
-    #loginOverlay .panel-right { background: #f8fafa !important; }
-    #loginOverlay .forgot-row  { margin-bottom: 20px !important; }
-    #loginOverlay .btn-login   { margin-top: 4px; }
-    #loginOverlay .info-banner { margin-top: 14px; }
-
-    
-    @media (max-width: 640px) {
-      #loginOverlay .panel-left { display: none !important; }
-      #loginOverlay .card.login-card {
-        margin: 24px 20px !important;
-        border-radius: var(--r-xl) !important;
-        min-height: unset !important;
-        max-height: calc(100vh - 48px) !important;
-        width: 100% !important;
-        max-width: 420px !important;
-      }
-      #loginOverlay .panel-right {
-        border-radius: var(--r-xl) !important;
-        min-height: unset !important;
-        padding: 36px 28px 32px !important;
-      }
-
-      /* pas tema musiman aktif di mobile: background jadi gambar,
-         jadi teks & field ikut disesuaikan biar tetap kontras/kebaca. */
-      #loginOverlay .panel-right.has-tema-bg-mobile {
-        position: relative;
-        isolation: isolate;
-      }
-      #loginOverlay .panel-right.has-tema-bg-mobile .welcome-title,
-      #loginOverlay .panel-right.has-tema-bg-mobile .field-lbl {
-        color: #ffffff !important;
-      }
-      #loginOverlay .panel-right.has-tema-bg-mobile .welcome-sub {
-        color: rgba(255,255,255,.82) !important;
-      }
-      #loginOverlay .panel-right.has-tema-bg-mobile .forgot-row a,
-      #loginOverlay .panel-right.has-tema-bg-mobile .forgot-row {
-        color: #ffffff !important;
-      }
-      #loginOverlay .panel-right.has-tema-bg-mobile .field input {
-        background: rgba(255,255,255,.94) !important;
-      }
-    }
-
     
     .filter-bar {
       display: flex;
@@ -296,144 +156,26 @@
     }
   </style>
 </head>
-<body class="login-mode">
-
-<div id="loginOverlay">
-<div class="lp-aurora" id="lpAurora" aria-hidden="true"></div>
-<script>
-
-(function() {
-  var aurora = document.getElementById('lpAurora');
-  if (!aurora) return;
-  var count = window.innerWidth < 640 ? 90 : 200;
-  var minR = 6, maxR = 55; 
-  var frag = document.createDocumentFragment();
-  for (var i = 0; i < count; i++) {
-    var s = document.createElement('span');
-    s.className = 'lp-aurora-spark';
-    var r = minR + Math.random() * (maxR - minR);
-    
-    
-    var orbitDur   = (8 + (r - minR) / (maxR - minR) * 22).toFixed(1);   
-    var orbitDelay = (-(Math.random() * orbitDur)).toFixed(1);
-    var twinkleDur   = (Math.random() * 2 + 1.5).toFixed(1);            
-    var twinkleDelay = (-(Math.random() * twinkleDur)).toFixed(1);
-    var size = (Math.random() * 0.8 + 0.6).toFixed(2); 
-    s.style.cssText = '--r:' + r.toFixed(1) + 'vmin;width:' + size + 'vmin;height:' + size + 'vmin;' +
-      'animation-duration:' + orbitDur + 's,' + twinkleDur + 's;' +
-      'animation-delay:' + orbitDelay + 's,' + twinkleDelay + 's;';
-    frag.appendChild(s);
-  }
-  aurora.appendChild(frag);
-})();
-</script>
-<div class="card login-card">
-
-  
-  <div class="panel-left" id="panelLeft">
-    <div class="dot-grid"></div>
-    <div class="left-logos">
-      <img src="/logokemenkes.png" alt="Kemenkes" />
-      <div class="logo-divider"></div>
-      <img src="/logobkkbn.png" alt="BKKBN" />
-      <div class="logo-divider"></div>
-      <img src="/logobalut.png" alt="Banggai Laut" />
-    </div>
-    <div class="left-brand" style="text-align:center;align-items:center">
-      <div class="brand-name" style="font-size:2.4rem;display:flex;align-items:baseline;justify-content:center;gap:10px">SAPA <span style="color:#4dd4b8">Perencanaan</span></div>
-      <div class="brand-sub" style="font-size:1.05rem">Satu Pintu Akses</div>
-    </div>
-    <div class="moto-watermark">
-      <div class="moto-watermark-text">
-        <span class="moto-main" id="motoMain"></span>
-        <span class="moto-dot"></span>
-      </div>
-    </div>
-    <div class="left-footer">
-      Sub Bagian Perencanaan <br/>
-      Dinas Kesehatan, Pengendalian Penduduk dan Keluarga Berencana <br/>
-      Kabupaten Banggai Laut © 2026
-    </div>
-  </div>
-
-  
-  <div class="panel-right">
-    <div class="welcome-icon">
-      <img src="/favicon.png" alt="SAPA" style="width:48px;height:48px;object-fit:contain;" />
-    </div>
-    <div class="welcome-title">Selamat Datang</div>
-    <div class="welcome-sub">Masuk menggunakan akun SAPA Anda</div>
-
-    <form id="loginForm" onsubmit="doLogin(); return false;">
-    <div class="field">
-      <div class="field-lbl">Username</div>
-      <div class="field-inner">
-        <span class="field-ico"><svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M16 21v-2a4 4 0 00-4-4H6a4 4 0 00-4 4v2M9 11a4 4 0 100-8 4 4 0 000 8zM22 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg></span>
-        <input type="text" id="loginNip" name="username" placeholder="Username" autocomplete="username" maxlength="32" onkeydown="if(event.key==='Enter'){event.preventDefault();document.getElementById('loginPassword').focus();}" />
-      </div>
-    </div>
-
-    <div class="field">
-      <div class="field-lbl">Password</div>
-      <div class="field-inner">
-        <span class="field-ico"><svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg></span>
-        <input type="password" id="loginPassword" name="password" placeholder="••••••••" autocomplete="current-password" style="padding-right:42px" />
-        <button type="button" class="pw-toggle" onclick="loginTogglePw()" aria-label="Toggle password">
-          <svg id="loginEyeIcon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
-            <path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
-          </svg>
-        </button>
-      </div>
-    </div>
-
-    <div class="forgot-row">
-      <a href="#" onclick="loginToggleInfo(); return false;">Lupa password?</a>
-    </div>
-
-    <div class="error-msg" id="loginErrMsg"></div>
-
-    <button type="submit" class="btn-login" id="loginBtn">
-      <span class="btn-text">
-        <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:5px;vertical-align:-2px"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" x2="3" y1="12" y2="12"/></svg>
-        Login
-      </span>
-      <div class="spinner"></div>
-    </button>
-    </form>
-
-    <div class="info-banner" id="loginInfoBanner">
-      <div class="info-banner-icon">i</div>
-      <div>Akun dikelola oleh <strong>Admin</strong>. Hubungi Admin jika belum terdaftar atau ingin reset password.</div>
-    </div>
-  </div>
-
-</div>
-</div>
+<body>
 
 <script>
+// Guard: app.html cuma boleh diakses kalau ada sesi valid. Dicek sedini
+// mungkin (sebelum appShell/modal dirender / sebelum app.js 184KB+ ke-load)
+// biar yang belum login gak perlu download seluruh app-shell.
+// Boot penuh (initAuth -> buildSidebar -> loadDashboard) tetap dilakukan
+// oleh app.js di bagian bawah - guard ini cuma nyegat yang jelas2 gak punya token.
 (function() {
   try {
-    
-    
-    localStorage.removeItem('sapa_token');
-    localStorage.removeItem('sapa_user');
     var token = sessionStorage.getItem('sapa_token');
     var user  = sessionStorage.getItem('sapa_user');
-    if (!token || !user) return; 
-    
+    if (!token || !user) { window.location.replace('/login.html'); return; }
     JSON.parse(user);
-    
-    var overlay = document.getElementById('loginOverlay');
-    if (overlay) overlay.classList.add('hidden');
-    document.documentElement.classList.remove('login-mode');
-    document.body.classList.remove('login-mode');
-    
-    
-  } catch(e) {
-    
-    sessionStorage.removeItem('sapa_token');
-    sessionStorage.removeItem('sapa_user');
+    var payload = JSON.parse(atob(token.split('.')[1].replace(/-/g,'+').replace(/_/g,'/')));
+    if (!payload.exp || (payload.exp + 300) <= (Date.now() / 1000)) {
+      window.location.replace('/login.html');
+    }
+  } catch (e) {
+    window.location.replace('/login.html');
   }
 })();
 </script>
@@ -496,7 +238,7 @@
       <div class="topbar-constellation" id="topbarConstellation" aria-hidden="true">
         <canvas id="topbarConstellationCanvas"></canvas>
       </div>
-      <script src="js/topbar_constellation.js?v=1.4.2"></script>
+      <script src="js/topbar_constellation.js?v=1.4.3"></script>
 
       <div class="topbar-profile">
         <div class="topbar-user-info">
@@ -4368,406 +4110,8 @@
   "></div>
 </div>
 
-<script>
 
-const LOGIN_LOCK_KEY = 'sapa_login_lock'; 
-
-function _getLoginLock() {
-  try {
-    const raw = sessionStorage.getItem(LOGIN_LOCK_KEY);
-    if (!raw) return null;
-    const data = JSON.parse(raw);
-    if (!data?.nip || !data?.until) return null;
-    if (Date.now() >= data.until) { sessionStorage.removeItem(LOGIN_LOCK_KEY); return null; }
-    return data;
-  } catch { return null; }
-}
-
-function _setLoginLock(nip, untilTs) {
-  try { sessionStorage.setItem(LOGIN_LOCK_KEY, JSON.stringify({ nip: nip.trim(), until: untilTs })); } catch {}
-}
-
-function _clearLoginLock() {
-  try { sessionStorage.removeItem(LOGIN_LOCK_KEY); } catch {}
-}
-
-function _syncLoginLockUI() {
-  const nipEl = document.getElementById('loginNip');
-  const btn   = document.getElementById('loginBtn');
-  if (!nipEl || !btn) return;
-  const lock   = _getLoginLock();
-  const curNip = nipEl.value.trim();
-
-  if (lock && lock.nip === curNip) {
-    btn.disabled = true;
-    const menit = Math.max(1, Math.ceil((lock.until - Date.now()) / 60000));
-    _loginShowErr(`Terlalu banyak percobaan login. Coba lagi dalam ${menit} menit.`, 'lock');
-  } else {
-    btn.disabled = false;
-  }
-}
-
-setInterval(_syncLoginLockUI, 1000);
-
-document.addEventListener('DOMContentLoaded', () => {
-  const _nipEl = document.getElementById('loginNip');
-  if (_nipEl) {
-    ['input', 'change', 'blur', 'keyup', 'animationstart'].forEach(ev => {
-      _nipEl.addEventListener(ev, _syncLoginLockUI);
-    });
-  }
-  _syncLoginLockUI();
-});
-
-const NIP_LEN = 18;
-function _checkNipLen() {
-  const nipEl = document.getElementById('loginNip');
-  if (!nipEl) return;
-  const val = nipEl.value.trim();
-  nipEl.classList.remove('nip-warn', 'nip-ok');
-  if (!val) return;
-
-  if (val.length === NIP_LEN) {
-    nipEl.classList.add('nip-ok');
-  } else {
-    nipEl.classList.add('nip-warn');
-  }
-}
-document.addEventListener('DOMContentLoaded', () => {
-  const _nipEl2 = document.getElementById('loginNip');
-  if (_nipEl2) {
-    ['input', 'blur', 'animationstart'].forEach(ev => _nipEl2.addEventListener(ev, _checkNipLen));
-  }
-});
-
-function showLoginOverlay(msg) {
-  const overlay = document.getElementById('loginOverlay');
-  overlay.classList.remove('hidden');
-  document.documentElement.classList.add('login-mode'); 
-  document.body.classList.add('login-mode');             
-  const shell = document.getElementById('appShell');
-  if (shell) shell.style.visibility = 'hidden';
-  document.getElementById('loginNip').value    = '';
-  document.getElementById('loginPassword').value = '';
-  document.getElementById('loginErrMsg').innerHTML = '';
-  document.getElementById('loginNip').classList.remove('nip-warn', 'nip-ok');
-  document.getElementById('loginBtn').disabled = false;
-  if (msg) _loginShowErr(msg);
-  setTimeout(() => document.getElementById('loginNip').focus(), 100);
-}
-
-function hideLoginOverlay() {
-  document.getElementById('loginOverlay').classList.add('hidden');
-  document.documentElement.classList.remove('login-mode'); 
-  document.body.classList.remove('login-mode');             
-}
-
-function loginToggleInfo() {
-  const b = document.getElementById('loginInfoBanner');
-  b.classList.add('show');
-  setTimeout(() => b.classList.remove('show'), 2000);
-}
-
-function loginTogglePw() {
-  const inp = document.getElementById('loginPassword');
-  const isText = inp.type === 'text';
-  inp.type = isText ? 'password' : 'text';
-  document.getElementById('loginEyeIcon').innerHTML = isText
-    ? `<path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>`
-    : `<path stroke-linecap="round" stroke-linejoin="round" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21"/>`;
-}
-
-function _labelWilayah(raw, label, fullWord) {
-  if (!raw) return null;
-  const lower = raw.toLowerCase();
-  if (lower.startsWith(fullWord.toLowerCase()) || lower.startsWith(label.toLowerCase().replace('.', ''))) {
-    return raw;
-  }
-  return `${label} ${raw}`;
-}
-
-// Susun 3 level administratif: Kec → Kab/Kota → Provinsi.
-// Level Desa/Kelurahan sengaja tidak dipakai - di daerah yang datanya minim
-// di OSM (mis. luar Jawa), Nominatim sering nempelin nama dusun/kampung
-// terdekat yang belum tentu akurat, jadi berpotensi menyesatkan.
-// Level yang tidak ada di data OSM otomatis dilewati, bukan dipaksa kosong.
-function _formatAlamatNominatim(addr) {
-  if (!addr) return null;
-  const parts = [];
-
-  // Kecamatan
-  const kecamatan = addr.city_district || addr.subdistrict || addr.district || addr.borough || addr.town || addr.municipality;
-  if (kecamatan) {
-    parts.push(_labelWilayah(kecamatan, 'Kecamatan', 'kecamatan'));
-  }
-
-  
-  const kabKota = addr.county || addr.regency || addr.city || addr.state_district;
-  if (kabKota && kabKota !== kecamatan) {
-    parts.push(/kota/i.test(kabKota) ? kabKota : _labelWilayah(kabKota, 'Kabupaten', 'kabupaten'));
-  }
-
-  
-  if (addr.state) {
-    parts.push(_labelWilayah(addr.state, 'Provinsi', 'provinsi'));
-  }
-
-  return parts.length ? parts.join(', ') : null;
-}
-
-async function _getLokasiTomTom(latitude, longitude) {
-  try {
-    const r = await fetch('/api/reverse-geocode', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ lat: latitude, lon: longitude }),
-      signal: AbortSignal.timeout(4000),
-    });
-    if (!r.ok) return null;
-    const d = await r.json();
-    return d.lokasi || null;
-  } catch {
-    return null;
-  }
-}
-
-async function _getLokasiNominatim(latitude, longitude) {
-  try {
-    const r = await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${latitude}&lon=${longitude}&addressdetails=1&accept-language=id`, {
-      signal: AbortSignal.timeout(3500),
-      headers: { 'Accept': 'application/json' },
-    });
-    if (!r.ok) return null;
-    const d = await r.json();
-    
-    
-    
-    return _formatAlamatNominatim(d.address) || d.display_name || null;
-  } catch {
-    return null;
-  }
-}
-
-async function _getBrowserLokasi() {
-  try {
-    if (!navigator.geolocation) return null;
-    const pos = await new Promise((resolve, reject) => {
-      navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 3000, maximumAge: 600000 });
-    });
-    const { latitude, longitude } = pos.coords;
-    const tomtom = await _getLokasiTomTom(latitude, longitude);
-    if (tomtom) return tomtom;
-    return await _getLokasiNominatim(latitude, longitude);
-  } catch {
-    return null;
-  }
-}
-
-async function doLogin() {
-  const nip      = document.getElementById('loginNip').value.trim();
-  const password = document.getElementById('loginPassword').value;
-  const btn      = document.getElementById('loginBtn');
-  let _rateLimited = false;
-
-  document.getElementById('loginErrMsg').innerHTML = '';
-  document.getElementById('loginNip').classList.remove('error');
-  document.getElementById('loginPassword').classList.remove('error');
-
-  if (!nip || !password) {
-    _loginShowErr('Username dan password wajib diisi');
-    if (!nip)      document.getElementById('loginNip').classList.add('error');
-    if (!password) document.getElementById('loginPassword').classList.add('error');
-    return;
-  }
-
-  
-  
-  const _existingLock = _getLoginLock();
-  if (_existingLock && _existingLock.nip === nip) {
-    _syncLoginLockUI();
-    return;
-  }
-
-  btn.disabled = true; btn.classList.add('loading');
-  try {
-    const _lokasi = await _getBrowserLokasi();
-    const r = await fetch('/api/auth/login', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ nip, password, lokasi: _lokasi }),
-    });
-    const data = await r.json();
-    if (!r.ok) {
-      if (r.status === 429) {
-        const _lockUntil = Date.now() + 15 * 60 * 1000;
-        _setLoginLock(nip, _lockUntil);
-        _syncLoginLockUI();
-        _rateLimited = true;
-        return;
-      }
-      let errMsg = data.error || 'Username atau password salah';
-      let errType = 'warn';
-      if (typeof data.sisa_percobaan === 'number') {
-        errMsg += data.sisa_percobaan > 0
-          ? ` (sisa ${data.sisa_percobaan}x percobaan)`
-          : ' (percobaan terakhir - akun akan terkunci sementara jika salah lagi)';
-        if (data.sisa_percobaan === 0) errType = 'lock';
-      }
-      _loginShowErr(errMsg, errType);
-      return;
-    }
-
-    sessionStorage.setItem('sapa_token', data.token);
-    _clearLoginLock();
-    sessionStorage.setItem('sapa_refresh_token', data.refresh_token);
-    sessionStorage.setItem('sapa_user', JSON.stringify(data.user));
-
-    
-    window._authBootDone = true;
-    hideLoginOverlay();
-    document.getElementById('appShell').style.visibility = '';
-    if (typeof initAuth === 'function' && typeof buildSidebar === 'function') {
-      if (initAuth()) {
-        const _u = JSON.parse(sessionStorage.getItem('sapa_user'));
-        const initial = (_u.nama || 'U')[0].toUpperCase();
-        const el = (id) => document.getElementById(id);
-        el('topbarAvatarInner').textContent = initial;
-        el('topbarName').textContent   = _u.nama;
-        
-        
-        
-        if (typeof _bootRefreshFoto === 'function') _bootRefreshFoto();
-        el('topbarRole').textContent   = _u.is_admin ? 'Super Admin' : (_u.bidang_nama || '');
-        el('ddName').textContent       = _u.nama;
-        const _ddR = el('ddRole');
-        if (_ddR) { _ddR.textContent = 'Super Admin'; _ddR.style.display = _u.is_admin ? '' : 'none'; }
-        const _ddB = el('ddBidang');
-        if (_ddB && !_u.is_admin && _u.bidang_nama) { _ddB.textContent = _u.bidang_nama; _ddB.style.display = ''; }
-        // Reset semua page ke dashboard - hapus sisa sesi sebelumnya
-        try { sessionStorage.removeItem('sapa_nav'); } catch(e) {}
-        document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-        const _dash = document.getElementById('page-dashboard');
-        if (_dash) _dash.classList.add('active');
-        _activeSubId = 'dashboard';
-        _openGroups  = {};
-        if (typeof _idleStart === 'function') _idleStart();
-        (async () => {
-          try {
-            if (typeof loadPeriodeAktif === 'function') await loadPeriodeAktif();
-            if (typeof _cekKinerjaIndikator === 'function') await _cekKinerjaIndikator();
-          } catch(e) { console.warn('[doLogin boot]', e); }
-          buildSidebar();
-          
-          
-          if (typeof _startAbsensiReminderPoll === 'function') _startAbsensiReminderPoll();
-          
-          
-          
-          if (typeof _cekPengajuanPendingReminder === 'function') _cekPengajuanPendingReminder();
-
-          
-          
-          
-          
-          
-          
-          const _firstAccessibleChild = (onlyGroupId) => {
-            for (const g of MENUS) {
-              if (onlyGroupId && g.id !== onlyGroupId) continue;
-              if (g.adminOnly && !_u.is_admin) continue;
-              for (const c of (g.children || [])) {
-                const canAccess = !c.adminOnly || _u.is_admin;
-                const keyOk     = !c.key || hasAccess(c.key);
-                const showOk    = !c.showIf || c.showIf();
-                if (canAccess && keyOk && showOk) return { child: c, group: g };
-              }
-            }
-            return null;
-          };
-
-          if (!_u.is_admin && !hasAccess('dashboard')) {
-            const _onlyKinerjaAvailable = (() => {
-              const hasOtherModule = MENUS.some(g => {
-                if (g.id === 'kinerja' || g.adminOnly) return false;
-                return (g.children || []).some(c => {
-                  const keyOk  = !c.key || hasAccess(c.key);
-                  const showOk = !c.showIf || c.showIf();
-                  return keyOk && showOk;
-                });
-              });
-              return !hasOtherModule && !!_firstAccessibleChild('kinerja');
-            })();
-            const found = _onlyKinerjaAvailable
-              ? _firstAccessibleChild('kinerja')
-              : _firstAccessibleChild(null);
-            if (found) {
-              navigateTo(found.child.id, found.child.label, found.child.loader, found.group.id, found.child.page);
-            } else {
-              document.getElementById('mainContent').innerHTML =
-                '<div style="padding:2rem;text-align:center;color:#6b7280;">Belum ada menu yang dapat diakses. Hubungi administrator.</div>';
-            }
-          } else {
-            loadDashboard();
-          }
-          _startPeriodeTimer();
-        })();
-      }
-    } else {
-      
-      setTimeout(() => location.reload(), 150);
-    }
-  } catch {
-    _loginShowErr('Terjadi kesalahan koneksi. Coba lagi.');
-  } finally {
-    btn.classList.remove('loading');
-    if (!_rateLimited) btn.disabled = false;
-  }
-}
-
-let _loginErrTimerId = null;   
-let _loginErrToken   = 0;      
-
-function _loginShowErr(msg, type = 'warn') {
-  const icons = {
-    warn: `<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>`,
-    lock: `<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>`,
-  };
-  const icon = icons[type] || icons.warn;
-  const el = document.getElementById('loginErrMsg');
-  el.innerHTML = `${icon}${msg}`;
-
-  clearTimeout(_loginErrTimerId);
-  const _myToken = ++_loginErrToken;
-  
-  
-  if (type !== 'lock') {
-    _loginErrTimerId = setTimeout(() => {
-      if (_myToken === _loginErrToken) el.innerHTML = '';
-    }, 5000);
-  }
-}
-
-// Tagline watermark di panel kiri diambil dari kolom Visi (Profil Instansi,
-// diatur admin lewat menu Profil) - supaya bisa diubah tanpa perlu edit kode.
-// Fallback ke teks default kalau visi belum diisi / endpoint gagal.
-(async function _loadMotoTagline() {
-  const el = document.getElementById('motoMain');
-  if (!el) return;
-  try {
-    const r = await fetch('/api/landing/profil');
-    if (!r.ok) return;
-    const data = await r.json();
-    if (data?.visi && data.visi.trim()) {
-      el.textContent = data.visi.trim();
-      if (data.visi.trim().length > 40) el.classList.add('moto-long');
-    }
-  } catch (err) {
-    console.warn('[_loadMotoTagline]', err);
-  }
-})();
-</script>
-
-<script src="js/periode_frontend.js?v=1.4.2"></script>
+<script src="js/periode_frontend.js?v=1.4.3"></script>
 <script>
 (function() {
   'use strict';
@@ -4910,24 +4254,24 @@ function _loginShowErr(msg, type = 'warn') {
 })();
 </script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/quill/1.3.7/quill.min.js"></script>
-  <script src="js/app.js?v=1.4.2"></script>
-<script src="js/dashboard.js?v=1.4.2"></script>
+  <script src="js/app.js?v=1.4.3"></script>
+<script src="js/dashboard.js?v=1.4.3"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-<script src="js/superlink.js?v=1.4.2"></script>
-<script src="js/pengumuman_frontend.js?v=1.4.2"></script>
-<script src="js/surat.js?v=1.4.2"></script>
-<script src="js/eplanning_frontend.js?v=1.4.2"></script>
-<script src="js/absensi_frontend.js?v=1.4.2"></script>
-<script src="js/users_frontend.js?v=1.4.2"></script>
-<script src="js/kinerja.js?v=1.4.2"></script>
-<script src="js/laporan.js?v=1.4.2"></script>
-<script src="js/struktur_frontend.js?v=1.4.2"></script>
-<script src="js/audit_frontend.js?v=1.4.2"></script>
-<script src="js/dokumen_publik_frontend.js?v=1.4.2"></script>
-<script src="js/profil_frontend.js?v=1.4.2"></script>
-<script src="js/tema_musiman_frontend.js?v=1.4.2"></script>
-<script src="js/theme-engine.js?v=1.4.2"></script>
+<script src="js/superlink.js?v=1.4.3"></script>
+<script src="js/pengumuman_frontend.js?v=1.4.3"></script>
+<script src="js/surat.js?v=1.4.3"></script>
+<script src="js/eplanning_frontend.js?v=1.4.3"></script>
+<script src="js/absensi_frontend.js?v=1.4.3"></script>
+<script src="js/users_frontend.js?v=1.4.3"></script>
+<script src="js/kinerja.js?v=1.4.3"></script>
+<script src="js/laporan.js?v=1.4.3"></script>
+<script src="js/struktur_frontend.js?v=1.4.3"></script>
+<script src="js/audit_frontend.js?v=1.4.3"></script>
+<script src="js/dokumen_publik_frontend.js?v=1.4.3"></script>
+<script src="js/profil_frontend.js?v=1.4.3"></script>
+<script src="js/tema_musiman_frontend.js?v=1.4.3"></script>
+<script src="js/theme-engine.js?v=1.4.3"></script>
 
 <script>
 (function () {
