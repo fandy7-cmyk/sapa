@@ -4,32 +4,64 @@
   <meta charset="UTF-8" />
   <script>
   // Prefetch tema musiman SEDINI MUNGKIN (paling atas <head>) - sama
-  // kayak app.html, lihat komentar di sana. theme-engine.js (dimuat di
-  // akhir body) pakai window.__sapaTemaPromise ini kalau ada.
-  window.__sapaTemaPromise = fetch('/api/landing/tema-aktif?_=' + Date.now(), { cache: 'no-store' })
-    .then(function (r) { return r.ok ? r.json() : { theme: null }; })
-    .then(function (d) {
-      var t = d && d.theme;
-      if (t && t.gambar_url) {
+  // kayak app.html, lihat komentar di sana. Ditambah cache localStorage
+  // (lihat login.html) biar gak ada jeda "halaman polos dulu baru tema
+  // muncul" akibat cold-start Netlify Function/DB.
+  (function () {
+    var CACHE_KEY = 'sapa_tema_cache_v1';
+    var CACHE_TTL = 6 * 60 * 60 * 1000; // 6 jam
+
+    function preloadGambar(theme) {
+      if (theme && theme.gambar_url) {
         var link = document.createElement('link');
         link.rel = 'preload';
         link.as = 'image';
-        link.href = t.gambar_url;
+        link.href = theme.gambar_url;
         document.head.appendChild(link);
       }
-      return d;
-    })
-    .catch(function (e) {
-      console.warn('[theme-engine] prefetch awal gagal:', e);
-      return { theme: null };
-    });
+    }
+
+    function bacaCache() {
+      try {
+        var raw = localStorage.getItem(CACHE_KEY);
+        if (!raw) return null;
+        var parsed = JSON.parse(raw);
+        if (!parsed || !parsed.ts || (Date.now() - parsed.ts) > CACHE_TTL) return null;
+        return parsed.data;
+      } catch (e) { return null; }
+    }
+
+    function tulisCache(data) {
+      try { localStorage.setItem(CACHE_KEY, JSON.stringify({ ts: Date.now(), data: data })); } catch (e) {}
+    }
+
+    var freshPromise = fetch('/api/landing/tema-aktif?_=' + Date.now(), { cache: 'no-store' })
+      .then(function (r) { return r.ok ? r.json() : { theme: null }; })
+      .then(function (d) {
+        tulisCache(d);
+        preloadGambar(d && d.theme);
+        return d;
+      })
+      .catch(function (e) {
+        console.warn('[theme-engine] prefetch awal gagal:', e);
+        return { theme: null };
+      });
+
+    var cached = bacaCache();
+    if (cached) {
+      preloadGambar(cached.theme);
+      window.__sapaTemaPromise = Promise.resolve(cached);
+    } else {
+      window.__sapaTemaPromise = freshPromise;
+    }
+  })();
   </script>
   <!-- Preload file theme-engine.js juga, paralel dari awal - jangan
        nunggu parser sampe ke <script> di akhir body baru mulai narik. -->
-  <link rel="preload" as="script" href="js/theme-engine.js?v=1.4.4" />
+  <link rel="preload" as="script" href="js/theme-engine.js?v=1.4.5" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>SAPA Perencanaan</title>
-  <meta name="app-version" content="1.4.4" />
+  <meta name="app-version" content="1.4.5" />
   <meta property="og:type"         content="website" />
   <meta property="og:site_name"    content="SAPA Perencanaan" />
   <meta property="og:title"        content="SAPA Perencanaan" />
@@ -3184,6 +3216,6 @@ loadTicker();
 })();
 </script>
 <script>window.SAPA_TEMA_PARTIKEL_ONLY = true;</script>
-<script src="js/theme-engine.js?v=1.4.4"></script>
+<script src="js/theme-engine.js?v=1.4.5"></script>
 </body>
 </html>
