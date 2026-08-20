@@ -658,25 +658,32 @@ async function _cekAbsensiReminder() {
   const _modalEl = document.getElementById('modalAbsReminder');
   if (_modalEl && _modalEl.classList.contains('open')) return;
   try {
-    await loadAbsSettings();
-    if (!_absSettings) return;
-
     const w = _witaNow();
     if (w.day === 0 || w.day === 6) return; 
     const isJumat = w.day === 5;
 
-    
-    try {
-      const rl = await fetch(`/api/absensi/libur?tahun=${w.year}&bulan=${w.month}`, { headers: authHeaders() });
-      const dl = await rl.json();
-      const liburSet = new Set((dl.libur || []).map(l => _absLiburLocalYMD(l.tanggal)));
-      if (liburSet.has(todayISO())) return;
-    } catch {  }
+    // Ketiga request ini independen satu sama lain, jadi dijalanin paralel
+    // (bukan berurutan) biar modal reminder nggak lambat muncul pas baru login.
+    const [, liburRes, absensiRes] = await Promise.all([
+      loadAbsSettings(),
+      fetch(`/api/absensi/libur?tahun=${w.year}&bulan=${w.month}`, { headers: authHeaders() }).catch(() => null),
+      fetch(`/api/absensi?user_id=${_user.id}&dari=${todayISO()}&sampai=${todayISO()}`, { headers: authHeaders() }).catch(() => null),
+    ]);
+
+    if (!_absSettings) return;
+
+    if (liburRes) {
+      try {
+        const dl = await liburRes.json();
+        const liburSet = new Set((dl.libur || []).map(l => _absLiburLocalYMD(l.tanggal)));
+        if (liburSet.has(todayISO())) return;
+      } catch {  }
+    }
 
     let todayRow = null;
+    if (!absensiRes) return;
     try {
-      const r = await fetch(`/api/absensi?user_id=${_user.id}&dari=${todayISO()}&sampai=${todayISO()}`, { headers: authHeaders() });
-      const d = await r.json();
+      const d = await absensiRes.json();
       todayRow = (d.absensi || [])[0] || null;
     } catch { return; }
     if (todayRow?.status === 'cuti' || todayRow?.status === 'tugas_luar') return; 

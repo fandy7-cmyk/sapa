@@ -929,18 +929,49 @@ export const handler = async (event) => {
       return errorResponse('Not found', 404);
     }
 
-    const REFERENSI_TABLES = {
-      prioritasprov: 'eplanning_prioritasprov',
-      prioritaskabkota: 'eplanning_prioritaskabkota',
-      bidangurusan: 'eplanning_bidangurusan',
-      tagbelanja: 'eplanning_tagbelanja',
-    };
-    if (REFERENSI_TABLES[resource]) {
-      const table = REFERENSI_TABLES[resource];
+    const REFERENSI_TABLES = ['prioritasprov', 'prioritaskabkota', 'bidangurusan', 'tagbelanja'];
+    if (REFERENSI_TABLES.includes(resource)) {
       const id = segments[1] ? parseInt(segments[1]) : null;
 
+      // sql.unsafe() is not available on @neondatabase/serverless's tagged-template client,
+      // so table names are resolved through this literal switch instead of string interpolation.
+      const refQuery = {
+        select: () => {
+          switch (resource) {
+            case 'prioritasprov':    return sql`SELECT * FROM eplanning_prioritasprov ORDER BY nama ASC`;
+            case 'prioritaskabkota': return sql`SELECT * FROM eplanning_prioritaskabkota ORDER BY nama ASC`;
+            case 'bidangurusan':     return sql`SELECT * FROM eplanning_bidangurusan ORDER BY nama ASC`;
+            case 'tagbelanja':       return sql`SELECT * FROM eplanning_tagbelanja ORDER BY nama ASC`;
+          }
+        },
+        insert: (nama) => {
+          switch (resource) {
+            case 'prioritasprov':    return sql`INSERT INTO eplanning_prioritasprov (nama) VALUES (${nama}) ON CONFLICT (nama) DO NOTHING RETURNING *`;
+            case 'prioritaskabkota': return sql`INSERT INTO eplanning_prioritaskabkota (nama) VALUES (${nama}) ON CONFLICT (nama) DO NOTHING RETURNING *`;
+            case 'bidangurusan':     return sql`INSERT INTO eplanning_bidangurusan (nama) VALUES (${nama}) ON CONFLICT (nama) DO NOTHING RETURNING *`;
+            case 'tagbelanja':       return sql`INSERT INTO eplanning_tagbelanja (nama) VALUES (${nama}) ON CONFLICT (nama) DO NOTHING RETURNING *`;
+          }
+        },
+        update: (namaVal, aktifVal, rowId) => {
+          switch (resource) {
+            case 'prioritasprov':    return sql`UPDATE eplanning_prioritasprov SET nama = COALESCE(${namaVal}, nama), aktif = COALESCE(${aktifVal}, aktif) WHERE id = ${rowId} RETURNING *`;
+            case 'prioritaskabkota': return sql`UPDATE eplanning_prioritaskabkota SET nama = COALESCE(${namaVal}, nama), aktif = COALESCE(${aktifVal}, aktif) WHERE id = ${rowId} RETURNING *`;
+            case 'bidangurusan':     return sql`UPDATE eplanning_bidangurusan SET nama = COALESCE(${namaVal}, nama), aktif = COALESCE(${aktifVal}, aktif) WHERE id = ${rowId} RETURNING *`;
+            case 'tagbelanja':       return sql`UPDATE eplanning_tagbelanja SET nama = COALESCE(${namaVal}, nama), aktif = COALESCE(${aktifVal}, aktif) WHERE id = ${rowId} RETURNING *`;
+          }
+        },
+        delete: (rowId) => {
+          switch (resource) {
+            case 'prioritasprov':    return sql`DELETE FROM eplanning_prioritasprov WHERE id = ${rowId}`;
+            case 'prioritaskabkota': return sql`DELETE FROM eplanning_prioritaskabkota WHERE id = ${rowId}`;
+            case 'bidangurusan':     return sql`DELETE FROM eplanning_bidangurusan WHERE id = ${rowId}`;
+            case 'tagbelanja':       return sql`DELETE FROM eplanning_tagbelanja WHERE id = ${rowId}`;
+          }
+        },
+      };
+
       if (event.httpMethod === 'GET') {
-        const rows = await sql`SELECT * FROM ${sql.unsafe(table)} ORDER BY nama ASC`;
+        const rows = await refQuery.select();
         return jsonResponse({ [resource]: rows });
       }
       if (!role.isAdmin) return errorResponse('Unauthorized', 401);
@@ -948,20 +979,14 @@ export const handler = async (event) => {
       if (event.httpMethod === 'POST' && !id) {
         const { nama } = parseBody(event);
         if (!nama || !nama.trim()) return errorResponse('Nama wajib diisi', 400);
-        const rows = await sql`
-          INSERT INTO ${sql.unsafe(table)} (nama) VALUES (${nama.trim()})
-          ON CONFLICT (nama) DO NOTHING RETURNING *`;
+        const rows = await refQuery.insert(nama.trim());
         return jsonResponse({ [resource]: rows[0] || null }, 201);
       }
       if (event.httpMethod === 'PUT' && id) {
         const { nama, aktif } = parseBody(event);
         if (nama !== undefined && !nama.trim()) return errorResponse('Nama wajib diisi', 400);
         try {
-          const rows = await sql`
-            UPDATE ${sql.unsafe(table)} SET
-              nama  = COALESCE(${nama !== undefined ? nama.trim() : null}, nama),
-              aktif = COALESCE(${aktif ?? null}, aktif)
-            WHERE id = ${id} RETURNING *`;
+          const rows = await refQuery.update(nama !== undefined ? nama.trim() : null, aktif ?? null, id);
           if (!rows[0]) return errorResponse('Data tidak ditemukan', 404);
           return jsonResponse({ [resource]: rows[0] });
         } catch (e) {
@@ -970,7 +995,7 @@ export const handler = async (event) => {
         }
       }
       if (event.httpMethod === 'DELETE' && id) {
-        await sql`DELETE FROM ${sql.unsafe(table)} WHERE id = ${id}`;
+        await refQuery.delete(id);
         return jsonResponse({ ok: true });
       }
       return errorResponse('Not found', 404);

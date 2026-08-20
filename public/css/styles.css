@@ -9866,6 +9866,12 @@ body:not(.is-admin) .abs-hariini-flex-wrap .dash-kpi-row .abs-jamkerja-wrap:nth-
 }
 .modal--danger .modal-header { background: #fef2f2; }
 .modal--warning .modal-header { background: #fffbeb; }
+.modal--danger .btn-close, .modal--warning .btn-close {
+  background: #fff; color: var(--teks-muted);
+  box-shadow: 0 1px 3px rgba(0,0,0,.08);
+}
+.modal--danger .btn-close:hover { background: var(--merah); color: #fff; }
+.modal--warning .btn-close:hover { background: #d97706; color: #fff; }
 .abs-reminder-icon-badge--warning { background: #fef3c7; color: #d97706; }
 .abs-reminder-title-wrap { display: flex; align-items: center; gap: var(--sp-3); }
 .abs-reminder-icon-badge {
@@ -9988,7 +9994,7 @@ body:not(.is-admin) .abs-hariini-flex-wrap .dash-kpi-row .abs-jamkerja-wrap:nth-
   align-items: center !important;
   justify-content: center !important;
 }
-#modalAbsReminder .modal-box {
+#modalAbsReminder .modal {
   border-radius: var(--r-lg) !important;
   max-height: 90vh;
 }
