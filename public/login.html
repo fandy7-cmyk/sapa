@@ -55,9 +55,13 @@
       return { theme: null };
     });
   </script>
+  <!-- Preload file theme-engine.js juga, biar downloadnya paralel dari
+       awal - bukan nunggu parser sampe ke <script> di akhir body baru
+       mulai narik filenya. Ini yang bikin tema kerasa lambat muncul. -->
+  <link rel="preload" as="script" href="js/theme-engine.js?v=1.4.4" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>SAPA Perencanaan</title>
-  <meta name="app-version" content="1.4.3" />
+  <meta name="app-version" content="1.4.4" />
   <link rel="icon" type="image/png" href="/favicon.png" />
   <link rel="manifest" href="/manifest.json" />
   <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
@@ -68,7 +72,7 @@
   <meta name="apple-mobile-web-app-title" content="SAPA" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="css/styles.css?v=1.4.3" />
+  <link rel="stylesheet" href="css/styles.css?v=1.4.4" />
   <style>
     
     #loginOverlay {
@@ -611,6 +615,6 @@ function _loginShowErr(msg, type = 'warn') {
 </script>
 
 
-<script src="js/theme-engine.js?v=1.4.3"></script>
+<script src="js/theme-engine.js?v=1.4.4"></script>
 </body>
 </html>
