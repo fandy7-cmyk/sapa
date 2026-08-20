@@ -711,7 +711,7 @@ function _openAbsReminder(tipe) {
       <div id="ctp_absReminderJam" class="ctp-mount" data-ctp="absReminderJam" data-placeholder="--:--"></div>
       <input type="hidden" id="absReminderJam" />
     </div>
-    <button class="btn btn-primary" style="width:100%;margin-top:8px" onclick="_submitAbsReminder('${tipe}')">${icon}Simpan Absensi ${label}</button>
+    <button class="btn btn-primary" style="width:100%;margin-top:8px" onclick="_submitAbsReminder('${tipe}')">${icon}Simpan</button>
   `;
   if (typeof initCtp === 'function') initCtp();
   openModal('modalAbsReminder');

@@ -2863,7 +2863,7 @@ body.login-page::before {
   .card-header { margin-bottom: var(--sp-3); }
 
   /* ── Modal - slide up dari bawah ── */
-  .modal-overlay { padding: var(--sp-2); align-items: flex-end; }
+  .modal-overlay { padding: var(--sp-2) var(--sp-2) 0; align-items: flex-end; }
   .modal-box { border-radius: var(--r-md) var(--r-md) 0 0; max-height: 92vh; }
   .modal-header { padding: var(--sp-3) var(--sp-4); }
   .modal-body { padding: var(--sp-3) var(--sp-4); max-height: 65vh; overflow-y: auto; }
@@ -4338,7 +4338,7 @@ body { overflow-x: hidden; }
   .card table { min-width: 420px; }
 
   /* Modal - slide up dari bawah */
-  .modal-overlay { padding: var(--sp-2); align-items: flex-end; }
+  .modal-overlay { padding: var(--sp-2) var(--sp-2) 0; align-items: flex-end; }
   .modal-box { border-radius: var(--r-md) var(--r-md) 0 0; max-height: 92vh; width: 100%; }
   .modal-header { padding: var(--sp-3) var(--sp-4); }
   .modal-body { padding: var(--sp-3) var(--sp-4); max-height: 65vh; overflow-y: auto; }

@@ -130,7 +130,7 @@ async function loadEplanning() {
   
   const btnTambah = document.getElementById('btnTambahEpUsulan');
   const tbody = document.getElementById('epTableBody');
-  if (tbody) tbody.innerHTML = `<tr class="empty-row"><td colspan="7">Memuat data...</td></tr>`;
+  if (tbody) tbody.innerHTML = `<tr class="empty-row"><td colspan="7"><span class="btn-spin" style="width:11px;height:11px;vertical-align:-1px;margin-right:6px"></span>Memuat data...</td></tr>`;
 
   
   
@@ -789,7 +789,7 @@ function epRefTabSwitch(kategori) {
 }
 async function epLoadMasterReferensi() {
   const tb = document.getElementById('epMasterReferensiBody');
-  if (tb) tb.innerHTML = `<tr class="empty-row"><td colspan="3">Memuat data...</td></tr>`;
+  if (tb) tb.innerHTML = `<tr class="empty-row"><td colspan="3"><span class="btn-spin" style="width:11px;height:11px;vertical-align:-1px;margin-right:6px"></span>Memuat data...</td></tr>`;
   try {
     const r = await fetch(`/api/eplanning/${_epRefKategori}`, { headers: authHeaders() });
     const d = await r.json();
@@ -1273,7 +1273,7 @@ async function loadRincian(usulanId) {
   document.getElementById('epRincianJudul').textContent = _epCurrentUsulan.sub_kegiatan || '-';
   document.getElementById('epRincianBidang').textContent = _epCurrentUsulan.bidang_nama || '-';
   const tbody = document.getElementById('epRincianTableBody');
-  tbody.innerHTML = `<tr class="empty-row"><td colspan="7">Memuat data...</td></tr>`;
+  tbody.innerHTML = `<tr class="empty-row"><td colspan="7"><span class="btn-spin" style="width:11px;height:11px;vertical-align:-1px;margin-right:6px"></span>Memuat data...</td></tr>`;
   try {
     const r = await fetch(`/api/eplanning/rincian?usulan_id=${usulanId}`, { headers: authHeaders() });
     const d = await r.json();
@@ -1779,7 +1779,7 @@ const _epSubkegiatanPageSize = 10;
 
 async function epLoadMasterSubkegiatan() {
   const tbody = document.getElementById('epMasterSubkegiatanBody');
-  if (tbody) tbody.innerHTML = `<tr class="empty-row"><td colspan="6">Memuat...</td></tr>`;
+  if (tbody) tbody.innerHTML = `<tr class="empty-row"><td colspan="6"><span class="btn-spin" style="width:11px;height:11px;vertical-align:-1px;margin-right:6px"></span>Memuat data...</td></tr>`;
   try {
     const r = await fetch('/api/eplanning/subkegiatan', { headers: authHeaders() });
     const d = await r.json();
@@ -2023,7 +2023,7 @@ const _epSumberDanaPageSize = 10;
 
 async function epLoadMasterSumberDana() {
   const tb = document.getElementById('epMasterSumberDanaBody');
-  if (tb) tb.innerHTML = `<tr class="empty-row"><td colspan="4">Memuat data...</td></tr>`;
+  if (tb) tb.innerHTML = `<tr class="empty-row"><td colspan="4"><span class="btn-spin" style="width:11px;height:11px;vertical-align:-1px;margin-right:6px"></span>Memuat data...</td></tr>`;
   try {
     const r = await fetch('/api/eplanning/sumberdana', { headers: authHeaders() });
     const d = await r.json();
@@ -2252,7 +2252,7 @@ const _epSatuanPageSize = 10;
 
 async function epLoadMasterSatuan() {
   const tb = document.getElementById('epMasterSatuanBody');
-  if (tb) tb.innerHTML = `<tr class="empty-row"><td colspan="3">Memuat data...</td></tr>`;
+  if (tb) tb.innerHTML = `<tr class="empty-row"><td colspan="3"><span class="btn-spin" style="width:11px;height:11px;vertical-align:-1px;margin-right:6px"></span>Memuat data...</td></tr>`;
   try {
     const r = await fetch('/api/eplanning/satuan', { headers: authHeaders() });
     const d = await r.json();
@@ -2370,7 +2370,7 @@ let _epRekeningCache = {};
 async function epLoadMasterRekening(page = 1) {
   _epRekeningPage = page;
   const tb = document.getElementById('epMasterRekeningBody');
-  if (tb) tb.innerHTML = `<tr class="empty-row"><td colspan="4">Memuat data...</td></tr>`;
+  if (tb) tb.innerHTML = `<tr class="empty-row"><td colspan="4"><span class="btn-spin" style="width:11px;height:11px;vertical-align:-1px;margin-right:6px"></span>Memuat data...</td></tr>`;
   const search = (document.getElementById('epRekeningSearch')?.value || '').trim();
   try {
     const qs = new URLSearchParams({ page, pageSize: _epRekeningPageSize, search });
@@ -2951,7 +2951,7 @@ function renderShPagination(total) {
 async function epLoadStandarHarga(page = 1) {
   _epShPage = page;
   const tb = document.getElementById('epStandarHargaBody');
-  if (tb) tb.innerHTML = `<tr class="empty-row"><td colspan="9">Memuat data...</td></tr>`;
+  if (tb) tb.innerHTML = `<tr class="empty-row"><td colspan="9"><span class="btn-spin" style="width:11px;height:11px;vertical-align:-1px;margin-right:6px"></span>Memuat data...</td></tr>`;
   await epEnsureTahunList();
   const search = (document.getElementById('epShSearch')?.value || '').trim();
   const status = document.getElementById('epShFilterStatus')?.value || '';

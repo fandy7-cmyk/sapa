@@ -57,11 +57,11 @@
   </script>
   <!-- Preload file theme-engine.js juga, paralel dari awal - jangan
        nunggu parser sampe ke <script> di akhir body baru mulai narik. -->
-  <link rel="preload" as="script" href="js/theme-engine.js?v=1.4.5" />
+  <link rel="preload" as="script" href="js/theme-engine.js?v=1.4.7" />
   <script>history.replaceState(null, '', location.origin);</script>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>SAPA Perencanaan</title>
-  <meta name="app-version" content="1.4.5" />
+  <meta name="app-version" content="1.4.7" />
   <link rel="icon" type="image/png" href="/favicon.png" />
   <link rel="manifest" href="/manifest.json" />
   <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
@@ -72,7 +72,7 @@
   <meta name="apple-mobile-web-app-title" content="SAPA" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="css/styles.css?v=1.4.5" />
+  <link rel="stylesheet" href="css/styles.css?v=1.4.7" />
   <style>
     
     .filter-bar {
@@ -283,7 +283,7 @@
       <div class="topbar-constellation" id="topbarConstellation" aria-hidden="true">
         <canvas id="topbarConstellationCanvas"></canvas>
       </div>
-      <script src="js/topbar_constellation.js?v=1.4.5"></script>
+      <script src="js/topbar_constellation.js?v=1.4.7"></script>
 
       <div class="topbar-profile">
         <div class="topbar-user-info">
@@ -362,7 +362,7 @@
         <div class="card" style="padding:0;overflow:auto;-webkit-overflow-scrolling:touch;max-height:70vh">
           <table class="freeze-table">
             <thead><tr><th>Tautan</th><th>Status</th><th class="col-admin-only">Dibuat Oleh</th><th>Aksi</th></tr></thead>
-            <tbody id="slTableBody"><tr class="empty-row"><td colspan="4">Memuat data...</td></tr></tbody>
+            <tbody id="slTableBody"><tr class="empty-row"><td colspan="4"><span class="btn-spin" style="width:11px;height:11px;vertical-align:-1px;margin-right:6px"></span>Memuat data...</td></tr></tbody>
           </table>
         </div>
         <div id="slPagination"></div>
@@ -388,7 +388,7 @@
         <div class="card" style="padding:0;overflow:auto;-webkit-overflow-scrolling:touch;max-height:70vh">
           <table class="freeze-table">
             <thead><tr><th>Tautan</th><th>Status</th><th class="col-admin-only">Dibuat Oleh</th><th>Aksi</th></tr></thead>
-            <tbody id="bundleTableBody"><tr class="empty-row"><td colspan="4">Memuat data...</td></tr></tbody>
+            <tbody id="bundleTableBody"><tr class="empty-row"><td colspan="4"><span class="btn-spin" style="width:11px;height:11px;vertical-align:-1px;margin-right:6px"></span>Memuat data...</td></tr></tbody>
           </table>
         </div>
         <div id="bundlePagination"></div>
@@ -423,7 +423,7 @@
         <div class="card" style="padding:0;overflow:auto;-webkit-overflow-scrolling:touch">
           <table>
             <thead><tr><th>Judul / Isi</th><th>Tipe</th><th>Status</th><th>Tanggal</th><th>Aksi</th></tr></thead>
-            <tbody id="pengumumanTableBody"><tr class="empty-row"><td colspan="5">Memuat data...</td></tr></tbody>
+            <tbody id="pengumumanTableBody"><tr class="empty-row"><td colspan="5"><span class="btn-spin" style="width:11px;height:11px;vertical-align:-1px;margin-right:6px"></span>Memuat data...</td></tr></tbody>
           </table>
         </div>
         <div id="pengumumanPagination"></div>
@@ -455,7 +455,7 @@
                 </tr>
               </thead>
               <tbody id="tickerTableBody">
-                <tr class="empty-row"><td colspan="5">Memuat data...</td></tr>
+                <tr class="empty-row"><td colspan="5"><span class="btn-spin" style="width:11px;height:11px;vertical-align:-1px;margin-right:6px"></span>Memuat data...</td></tr>
               </tbody>
             </table>
           </div>
@@ -497,7 +497,7 @@
         <div class="card" style="padding:0;overflow:auto;-webkit-overflow-scrolling:touch;max-height:70vh">
           <table class="surat-table">
             <thead><tr><th>No</th><th>Asal Surat</th><th>Nomor Surat</th><th>Tanggal Surat</th><th>Perihal</th><th>Tanggal Terima</th><th>Batas Waktu</th><th>Pegawai</th><th style="text-align:center;width:80px">Dokumen</th><th>Status</th><th>Aksi</th></tr></thead>
-            <tbody id="smTableBody"><tr class="empty-row"><td colspan="11">Memuat data...</td></tr></tbody>
+            <tbody id="smTableBody"><tr class="empty-row"><td colspan="11"><span class="btn-spin" style="width:11px;height:11px;vertical-align:-1px;margin-right:6px"></span>Memuat data...</td></tr></tbody>
           </table>
         </div>
         <div id="smPagination"></div>
@@ -533,7 +533,7 @@
         <div class="card" style="padding:0;overflow:auto;-webkit-overflow-scrolling:touch;max-height:70vh">
           <table class="surat-table">
             <thead><tr><th>No</th><th>Tujuan Surat</th><th>Nomor Surat</th><th>Tanggal Surat</th><th>Perihal</th><th>Pegawai</th><th style="text-align:center;width:80px">Dokumen</th><th>Aksi</th></tr></thead>
-            <tbody id="skTableBody"><tr class="empty-row"><td colspan="8">Memuat data...</td></tr></tbody>
+            <tbody id="skTableBody"><tr class="empty-row"><td colspan="8"><span class="btn-spin" style="width:11px;height:11px;vertical-align:-1px;margin-right:6px"></span>Memuat data...</td></tr></tbody>
           </table>
         </div>
         <div id="skPagination"></div>
@@ -580,7 +580,7 @@
         <div class="card" style="padding:0;overflow:auto;-webkit-overflow-scrolling:touch;max-height:70vh">
           <table class="surat-table">
             <thead><tr><th>No</th><th>Sub Kegiatan</th><th>Unit Kerja</th><th>Pengusul</th><th>Total Anggaran</th><th>Status</th><th>Aksi</th></tr></thead>
-            <tbody id="epTableBody"><tr class="empty-row"><td colspan="7">Memuat data...</td></tr></tbody>
+            <tbody id="epTableBody"><tr class="empty-row"><td colspan="7"><span class="btn-spin" style="width:11px;height:11px;vertical-align:-1px;margin-right:6px"></span>Memuat data...</td></tr></tbody>
           </table>
         </div>
         <div id="epPagination"></div>
@@ -598,7 +598,7 @@
         <div class="card" style="padding:0;overflow:auto;-webkit-overflow-scrolling:touch;max-height:60vh">
           <table class="surat-table">
             <thead><tr><th>No</th><th>Rekening</th><th>Komponen</th><th>Sumber Dana</th><th>Koefisien</th><th>Sub Total</th><th>Aksi</th></tr></thead>
-            <tbody id="epRincianTableBody"><tr class="empty-row"><td colspan="7">Memuat data...</td></tr></tbody>
+            <tbody id="epRincianTableBody"><tr class="empty-row"><td colspan="7"><span class="btn-spin" style="width:11px;height:11px;vertical-align:-1px;margin-right:6px"></span>Memuat data...</td></tr></tbody>
           </table>
         </div>
         <div style="text-align:right;margin-top:10px;font-size:16px;font-weight:700">Total: <span id="epRincianTotal">Rp 0</span></div>
@@ -625,7 +625,7 @@
         <div class="card" style="padding:0;overflow:auto;-webkit-overflow-scrolling:touch">
           <table class="surat-table">
             <thead><tr><th>Kode</th><th>Nama</th><th>Indikator</th><th>Satuan</th><th style="width:110px">Status</th><th style="width:140px;white-space:nowrap">Aksi</th></tr></thead>
-            <tbody id="epMasterSubkegiatanBody"><tr class="empty-row"><td colspan="6">Memuat...</td></tr></tbody>
+            <tbody id="epMasterSubkegiatanBody"><tr class="empty-row"><td colspan="6"><span class="btn-spin" style="width:11px;height:11px;vertical-align:-1px;margin-right:6px"></span>Memuat data...</td></tr></tbody>
           </table>
         </div>
         <div id="epSubkegiatanPagination"></div>
@@ -652,7 +652,7 @@
         <div class="card" style="padding:0;overflow:auto;-webkit-overflow-scrolling:touch">
           <table>
             <thead><tr><th style="width:140px">Kode</th><th>Nama</th><th style="width:110px">Status</th><th style="width:140px;white-space:nowrap">Aksi</th></tr></thead>
-            <tbody id="epMasterSumberDanaBody"><tr class="empty-row"><td colspan="4">Memuat data...</td></tr></tbody>
+            <tbody id="epMasterSumberDanaBody"><tr class="empty-row"><td colspan="4"><span class="btn-spin" style="width:11px;height:11px;vertical-align:-1px;margin-right:6px"></span>Memuat data...</td></tr></tbody>
           </table>
         </div>
         <div id="epSumberDanaPagination"></div>
@@ -679,7 +679,7 @@
         <div class="card" style="padding:0;overflow:auto;-webkit-overflow-scrolling:touch">
           <table>
             <thead><tr><th>Nama Satuan</th><th style="width:110px">Status</th><th style="width:140px;white-space:nowrap">Aksi</th></tr></thead>
-            <tbody id="epMasterSatuanBody"><tr class="empty-row"><td colspan="3">Memuat data...</td></tr></tbody>
+            <tbody id="epMasterSatuanBody"><tr class="empty-row"><td colspan="3"><span class="btn-spin" style="width:11px;height:11px;vertical-align:-1px;margin-right:6px"></span>Memuat data...</td></tr></tbody>
           </table>
         </div>
         <div id="epSatuanPagination"></div>
@@ -702,7 +702,7 @@
         <div class="card" style="padding:0;overflow:auto;-webkit-overflow-scrolling:touch;max-height:70vh">
           <table class="surat-table">
             <thead><tr><th style="width:200px">Kode Rekening</th><th>Nama Rekening</th><th style="width:110px">Status</th><th style="width:140px;white-space:nowrap">Aksi</th></tr></thead>
-            <tbody id="epMasterRekeningBody"><tr class="empty-row"><td colspan="4">Memuat data...</td></tr></tbody>
+            <tbody id="epMasterRekeningBody"><tr class="empty-row"><td colspan="4"><span class="btn-spin" style="width:11px;height:11px;vertical-align:-1px;margin-right:6px"></span>Memuat data...</td></tr></tbody>
           </table>
         </div>
         <div id="epRekeningPagination"></div>
@@ -737,7 +737,7 @@
         <div class="card" style="padding:0;overflow:auto;-webkit-overflow-scrolling:touch;max-height:65vh">
           <table class="surat-table">
             <thead><tr><th>Kode Komponen</th><th>Uraian Komponen</th><th>Spesifikasi</th><th style="width:90px">Satuan</th><th style="width:140px">Harga Satuan</th><th style="width:80px">TKDN</th><th style="width:70px">Tahun</th><th style="width:90px">Status</th><th style="width:140px;white-space:nowrap">Aksi</th></tr></thead>
-            <tbody id="epStandarHargaBody"><tr class="empty-row"><td colspan="9">Memuat data...</td></tr></tbody>
+            <tbody id="epStandarHargaBody"><tr class="empty-row"><td colspan="9"><span class="btn-spin" style="width:11px;height:11px;vertical-align:-1px;margin-right:6px"></span>Memuat data...</td></tr></tbody>
           </table>
         </div>
         <div id="epStandarHargaPagination"></div>
@@ -760,7 +760,7 @@
         <div class="card" style="padding:0;overflow:auto;-webkit-overflow-scrolling:touch">
           <table>
             <thead><tr><th id="epRefKolomNama">Nama Prioritas</th><th style="width:110px">Status</th><th style="width:140px;white-space:nowrap">Aksi</th></tr></thead>
-            <tbody id="epMasterReferensiBody"><tr class="empty-row"><td colspan="3">Memuat data...</td></tr></tbody>
+            <tbody id="epMasterReferensiBody"><tr class="empty-row"><td colspan="3"><span class="btn-spin" style="width:11px;height:11px;vertical-align:-1px;margin-right:6px"></span>Memuat data...</td></tr></tbody>
           </table>
         </div>
         <div id="epRefPagination"></div>
@@ -873,7 +873,7 @@
             <div class="abs-pengaturan-body">
               <div class="abs-pengaturan-title">Jam Kerja</div>
               <div class="abs-pengaturan-desc">Jam masuk, jam pulang, dan toleransi keterlambatan - berlaku untuk semua pegawai.</div>
-              <div class="abs-pengaturan-ringkasan" id="absPengaturanJamKerjaRingkasan"><span class="btn-spin" style="width:11px;height:11px;vertical-align:-1px;margin-right:6px"></span>Memuat...</div>
+              <div class="abs-pengaturan-ringkasan" id="absPengaturanJamKerjaRingkasan"><span class="btn-spin" style="width:11px;height:11px;vertical-align:-1px;margin-right:6px"></span>Memuat data...</div>
             </div>
             <button class="btn btn-secondary btn-sm" onclick="openAbsSettingsModal()"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4Z"/></svg>Atur Jam Kerja</button>
           </div>
@@ -1168,7 +1168,7 @@
                 </tr>
               </thead>
               <tbody id="indikatorAdminBody">
-                <tr class="empty-row"><td colspan="8">Memuat data...</td></tr>
+                <tr class="empty-row"><td colspan="8"><span class="btn-spin" style="width:11px;height:11px;vertical-align:-1px;margin-right:6px"></span>Memuat data...</td></tr>
               </tbody>
             </table>
           </div>
@@ -1219,7 +1219,7 @@
                 </tr>
               </thead>
               <tbody id="lapTemplateBody">
-                <tr class="empty-row"><td colspan="5">Memuat data...</td></tr>
+                <tr class="empty-row"><td colspan="5"><span class="btn-spin" style="width:11px;height:11px;vertical-align:-1px;margin-right:6px"></span>Memuat data...</td></tr>
               </tbody>
             </table>
           </div>
@@ -1389,7 +1389,7 @@
         <div class="card" style="padding:0;overflow:auto;-webkit-overflow-scrolling:touch">
           <table>
             <thead><tr><th>Nama</th><th>NIP</th><th>Email</th><th style="min-width:160px;max-width:220px">Unit Kerja</th><th>Role</th><th>Login Terakhir</th><th>Aksi</th></tr></thead>
-            <tbody id="userTableBody"><tr class="empty-row"><td colspan="7">Memuat data...</td></tr></tbody>
+            <tbody id="userTableBody"><tr class="empty-row"><td colspan="7"><span class="btn-spin" style="width:11px;height:11px;vertical-align:-1px;margin-right:6px"></span>Memuat data...</td></tr></tbody>
           </table>
         </div>
         <div id="userPagination"></div>
@@ -1409,7 +1409,7 @@
         <div class="card" style="padding:0;overflow:auto;-webkit-overflow-scrolling:touch">
           <table>
             <thead><tr><th>Nama Unit Kerja</th><th>Tipe</th><th>Aksi</th></tr></thead>
-            <tbody id="bidangTableBody"><tr class="empty-row"><td colspan="3">Memuat data...</td></tr></tbody>
+            <tbody id="bidangTableBody"><tr class="empty-row"><td colspan="3"><span class="btn-spin" style="width:11px;height:11px;vertical-align:-1px;margin-right:6px"></span>Memuat data...</td></tr></tbody>
           </table>
         </div>
         <div id="bidangPagination"></div>
@@ -1424,7 +1424,7 @@
         <div class="card" style="padding:0;overflow:auto;-webkit-overflow-scrolling:touch">
           <table>
             <thead><tr><th>Tema</th><th>Rentang Tanggal</th><th>Status</th><th>Aksi</th></tr></thead>
-            <tbody id="temaMusimanTableBody"><tr class="empty-row"><td colspan="4">Memuat data...</td></tr></tbody>
+            <tbody id="temaMusimanTableBody"><tr class="empty-row"><td colspan="4"><span class="btn-spin" style="width:11px;height:11px;vertical-align:-1px;margin-right:6px"></span>Memuat data...</td></tr></tbody>
           </table>
         </div>
       </div>
@@ -1455,7 +1455,7 @@
         </div>
 
         <div id="periodeCardsWrap">
-          <div class="periode-empty">Memuat data...</div>
+          <div class="periode-empty"><span class="btn-spin" style="width:11px;height:11px;vertical-align:-1px;margin-right:6px"></span>Memuat data...</div>
         </div>
         <div id="periodePagination"></div>
       </div>
@@ -1682,7 +1682,7 @@
                 </tr>
               </thead>
               <tbody id="pegawaiTableBody">
-                <tr class="empty-row"><td colspan="7">Memuat data...</td></tr>
+                <tr class="empty-row"><td colspan="7"><span class="btn-spin" style="width:11px;height:11px;vertical-align:-1px;margin-right:6px"></span>Memuat data...</td></tr>
               </tbody>
             </table>
           </div>
@@ -1744,7 +1744,7 @@
                 <th>Lokasi</th>
               </tr>
             </thead>
-            <tbody id="auditTableBody"><tr class="empty-row"><td colspan="6">Memuat data...</td></tr></tbody>
+            <tbody id="auditTableBody"><tr class="empty-row"><td colspan="6"><span class="btn-spin" style="width:11px;height:11px;vertical-align:-1px;margin-right:6px"></span>Memuat data...</td></tr></tbody>
           </table>
         </div>
         <div id="auditPagination"></div>
@@ -1791,7 +1791,7 @@
               </tr>
             </thead>
             <tbody id="dokumenTableBody">
-              <tr class="empty-row"><td colspan="5">Memuat data...</td></tr>
+              <tr class="empty-row"><td colspan="5"><span class="btn-spin" style="width:11px;height:11px;vertical-align:-1px;margin-right:6px"></span>Memuat data...</td></tr>
             </tbody>
           </table>
         </div>
@@ -3646,7 +3646,7 @@
           <label>Jenis Kinerja <span style="color:var(--merah)">*</span></label>
           <div id="indikatorJenisWrap" style="display:flex;flex-wrap:wrap;gap:8px;margin-top:8px">
             
-            <span style="color:var(--teks-muted);font-size:.82rem">Memuat data...</span>
+            <span style="color:var(--teks-muted);font-size:.82rem"><span class="btn-spin" style="width:11px;height:11px;vertical-align:-1px;margin-right:6px"></span>Memuat data...</span>
           </div>
         </div>
       </div>
@@ -4156,7 +4156,7 @@
 </div>
 
 
-<script src="js/periode_frontend.js?v=1.4.5"></script>
+<script src="js/periode_frontend.js?v=1.4.7"></script>
 <script>
 (function() {
   'use strict';
@@ -4299,24 +4299,24 @@
 })();
 </script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/quill/1.3.7/quill.min.js"></script>
-  <script src="js/app.js?v=1.4.5"></script>
-<script src="js/dashboard.js?v=1.4.5"></script>
+  <script src="js/app.js?v=1.4.7"></script>
+<script src="js/dashboard.js?v=1.4.7"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-<script src="js/superlink.js?v=1.4.5"></script>
-<script src="js/pengumuman_frontend.js?v=1.4.5"></script>
-<script src="js/surat.js?v=1.4.5"></script>
-<script src="js/eplanning_frontend.js?v=1.4.5"></script>
-<script src="js/absensi_frontend.js?v=1.4.5"></script>
-<script src="js/users_frontend.js?v=1.4.5"></script>
-<script src="js/kinerja.js?v=1.4.5"></script>
-<script src="js/laporan.js?v=1.4.5"></script>
-<script src="js/struktur_frontend.js?v=1.4.5"></script>
-<script src="js/audit_frontend.js?v=1.4.5"></script>
-<script src="js/dokumen_publik_frontend.js?v=1.4.5"></script>
-<script src="js/profil_frontend.js?v=1.4.5"></script>
-<script src="js/tema_musiman_frontend.js?v=1.4.5"></script>
-<script src="js/theme-engine.js?v=1.4.5"></script>
+<script src="js/superlink.js?v=1.4.7"></script>
+<script src="js/pengumuman_frontend.js?v=1.4.7"></script>
+<script src="js/surat.js?v=1.4.7"></script>
+<script src="js/eplanning_frontend.js?v=1.4.7"></script>
+<script src="js/absensi_frontend.js?v=1.4.7"></script>
+<script src="js/users_frontend.js?v=1.4.7"></script>
+<script src="js/kinerja.js?v=1.4.7"></script>
+<script src="js/laporan.js?v=1.4.7"></script>
+<script src="js/struktur_frontend.js?v=1.4.7"></script>
+<script src="js/audit_frontend.js?v=1.4.7"></script>
+<script src="js/dokumen_publik_frontend.js?v=1.4.7"></script>
+<script src="js/profil_frontend.js?v=1.4.7"></script>
+<script src="js/tema_musiman_frontend.js?v=1.4.7"></script>
+<script src="js/theme-engine.js?v=1.4.7"></script>
 
 <script>
 (function () {
