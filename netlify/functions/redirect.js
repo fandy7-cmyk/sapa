@@ -19,17 +19,61 @@ function getBundleHtml() {
   window.SAPA_TEMA_PARTIKEL_ONLY = true;
   </script>
   <script>
-  // Prefetch tema musiman sedini mungkin, sama kayak bundle.html.
-  window.__sapaTemaPromise = fetch('/api/landing/tema-aktif?_=' + Date.now(), { cache: 'no-store' })
-    .then(function (r) { return r.ok ? r.json() : { theme: null }; })
-    .catch(function (e) {
-      console.warn('[theme-engine] prefetch awal gagal:', e);
-      return { theme: null };
-    });
+  // Prefetch tema musiman sedini mungkin - lihat komentar sama di
+  // bundle.html/login.html soal cache localStorage (biar gak ada jeda
+  // "halaman polos dulu baru tema muncul" akibat cold-start function/DB).
+  (function () {
+    var CACHE_KEY = 'sapa_tema_cache_v1';
+    var CACHE_TTL = 6 * 60 * 60 * 1000; // 6 jam
+
+    function preloadGambar(theme) {
+      if (theme && theme.gambar_url) {
+        var link = document.createElement('link');
+        link.rel = 'preload';
+        link.as = 'image';
+        link.href = theme.gambar_url;
+        document.head.appendChild(link);
+      }
+    }
+
+    function bacaCache() {
+      try {
+        var raw = localStorage.getItem(CACHE_KEY);
+        if (!raw) return null;
+        var parsed = JSON.parse(raw);
+        if (!parsed || !parsed.ts || (Date.now() - parsed.ts) > CACHE_TTL) return null;
+        return parsed.data;
+      } catch (e) { return null; }
+    }
+
+    function tulisCache(data) {
+      try { localStorage.setItem(CACHE_KEY, JSON.stringify({ ts: Date.now(), data: data })); } catch (e) {}
+    }
+
+    var freshPromise = fetch('/api/landing/tema-aktif?_=' + Date.now(), { cache: 'no-store' })
+      .then(function (r) { return r.ok ? r.json() : { theme: null }; })
+      .then(function (d) {
+        tulisCache(d);
+        preloadGambar(d && d.theme);
+        return d;
+      })
+      .catch(function (e) {
+        console.warn('[theme-engine] prefetch awal gagal:', e);
+        return { theme: null };
+      });
+
+    var cached = bacaCache();
+    if (cached) {
+      preloadGambar(cached.theme);
+      window.__sapaTemaPromise = Promise.resolve(cached);
+    } else {
+      window.__sapaTemaPromise = freshPromise;
+    }
+  })();
   </script>
   <!-- Preload file theme-engine.js juga, paralel dari awal - jangan
        nunggu parser sampe ke <script> di akhir body baru mulai narik. -->
-  <link rel="preload" as="script" href="/js/theme-engine.js?v=1.4.4" />
+  <link rel="preload" as="script" href="/js/theme-engine.js?v=1.4.5" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>SAPA Perencanaan</title>
   <!-- Open Graph / WhatsApp Preview -->
