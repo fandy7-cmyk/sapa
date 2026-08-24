@@ -84,16 +84,20 @@
     // tiap kali halaman di-refresh, sama kayak di topbar app.html.
     var cached = bacaCache();
     if (cached) preloadGambar(cached.theme);
+    // Diekspos biar theme-engine.js bisa render tema cache ini SINKRON
+    // (instan, gak nunggu network) sambil tetep reconcile ke data fresh
+    // begitu freshPromise selesai - lihat init() di theme-engine.js.
+    window.__sapaTemaCache = cached;
     window.__sapaTemaPromise = freshPromise;
   })();
   </script>
   <!-- Preload file theme-engine.js juga, biar downloadnya paralel dari
        awal - bukan nunggu parser sampe ke <script> di akhir body baru
        mulai narik filenya. Ini yang bikin tema kerasa lambat muncul. -->
-  <link rel="preload" as="script" href="js/theme-engine.js?v=1.4.9" />
+  <link rel="preload" as="script" href="js/theme-engine.js?v=1.5.0" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>SAPA Perencanaan</title>
-  <meta name="app-version" content="1.4.9" />
+  <meta name="app-version" content="1.5.0" />
   <link rel="icon" type="image/png" href="/favicon.png" />
   <link rel="manifest" href="/manifest.json" />
   <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
@@ -104,7 +108,7 @@
   <meta name="apple-mobile-web-app-title" content="SAPA" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="css/styles.css?v=1.4.9" />
+  <link rel="stylesheet" href="css/styles.css?v=1.5.0" />
   <style>
     
     #loginOverlay {
@@ -647,6 +651,6 @@ function _loginShowErr(msg, type = 'warn') {
 </script>
 
 
-<script src="js/theme-engine.js?v=1.4.9"></script>
+<script src="js/theme-engine.js?v=1.5.0"></script>
 </body>
 </html>

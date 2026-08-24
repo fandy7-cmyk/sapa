@@ -219,14 +219,30 @@
   }
 
   function init() {
+    // Render cache dulu SINKRON kalau ada (instan, gak nunggu network -
+    // biar gak ada jeda "halaman polos dulu baru tema muncul"). Begitu
+    // fetch fresh (no-store, selalu akurat) selesai, cuma REPLACE kalau
+    // hasilnya beda dari yang udah kepasang (beda id tema, atau salah
+    // satunya null) - biar gak ada re-render/flicker yang gak perlu
+    // kalau ternyata cache-nya udah sesuai sama data terbaru.
+    var cachedData  = window.__sapaTemaCache || null;
+    var cachedTheme = cachedData && cachedData.theme;
+    var cachedId    = cachedTheme ? cachedTheme.id : null;
+    if (cachedTheme) applyTheme(cachedTheme);
+
     var pre = window.__sapaTemaPromise;
     var p = (pre && typeof pre.then === 'function')
       ? pre
       : fetch('/api/landing/tema-aktif?_=' + Date.now(), { cache: 'no-store' })
           .then(function (r) { return r.ok ? r.json() : { theme: null }; });
 
-    p.then(function (d) { applyTheme(d && d.theme); })
-      .catch(function (e) {
+    p.then(function (d) {
+      var freshTheme = d && d.theme;
+      var freshId = freshTheme ? freshTheme.id : null;
+      if (freshId === cachedId) return; // sama persis, gak perlu re-render
+      removeActiveVisuals();
+      applyTheme(freshTheme);
+    }).catch(function (e) {
         console.warn('[theme-engine] gagal load/terapkan tema:', e);
       });
   }

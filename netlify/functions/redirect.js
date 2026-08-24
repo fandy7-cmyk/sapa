@@ -69,12 +69,16 @@ function getBundleHtml() {
     // tiap kali halaman di-refresh, sama kayak di topbar app.html.
     var cached = bacaCache();
     if (cached) preloadGambar(cached.theme);
+    // Diekspos biar theme-engine.js bisa render tema cache ini SINKRON
+    // (instan, gak nunggu network) sambil tetep reconcile ke data fresh
+    // begitu freshPromise selesai - lihat init() di theme-engine.js.
+    window.__sapaTemaCache = cached;
     window.__sapaTemaPromise = freshPromise;
   })();
   </script>
   <!-- Preload file theme-engine.js juga, paralel dari awal - jangan
        nunggu parser sampe ke <script> di akhir body baru mulai narik. -->
-  <link rel="preload" as="script" href="/js/theme-engine.js?v=1.4.9" />
+  <link rel="preload" as="script" href="/js/theme-engine.js?v=1.5.0" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>SAPA Perencanaan</title>
   <!-- Open Graph / WhatsApp Preview -->
