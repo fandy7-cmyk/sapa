@@ -145,7 +145,7 @@ async function loadEplanning() {
   try {
     
     
-    const qs = new URLSearchParams(_epTahunAktif ? { tahun: _epTahunAktif } : {});
+    const qs = new URLSearchParams({ tahap: 'usulanku', ...(_epTahunAktif ? { tahun: String(_epTahunAktif) } : {}) });
     const r = await fetch(`/api/eplanning/usulan?${qs}`, { headers: authHeaders() });
     const d = await r.json();
     if (!r.ok) throw new Error(d.error || 'Gagal memuat data');
@@ -357,19 +357,7 @@ function renderEplanningTable() {
   const start = (_epPage - 1) * _epPageSize;
   const list = filtered.slice(start, start + _epPageSize);
   tbody.innerHTML = list.map((u, i) => {
-    const canEdit = ['DRAFT', 'DITOLAK'].includes(u.status) &&
-      (role.isAdmin || (role.isOperator && u.pembuat_user_id === _user.id));
-    
-    
-    const canDelete = _user.is_admin || canEdit;
-    const canSubmit = u.status === 'DRAFT' &&
-      (role.isAdmin || (role.isOperator && u.pembuat_user_id === _user.id));
-    const canApproveKabid = role.isKabid && isEpMenungguKepala(u.status);
-    const canApproveSekretaris = (role.isAdmin || role.isSekretaris) && u.status === 'MENUNGGU SEKRETARIS';
-    const canApproveAdmin = role.isAdmin && u.status === 'MENUNGGU ADMIN';
-    const canTolak = (role.isAdmin && (u.status === 'MENUNGGU ADMIN' || u.status === 'MENUNGGU SEKRETARIS')) ||
-      (role.isSekretaris && u.status === 'MENUNGGU SEKRETARIS') ||
-      (role.isKabid && isEpMenungguKepala(u.status));
+    const canDelete = _user.is_admin;
     return `<tr>
       <td>${start + i + 1}</td>
       <td>
@@ -382,12 +370,7 @@ function renderEplanningTable() {
       <td>${epStatusBadge(u.status)}</td>
       <td style="white-space:nowrap">
         <button class="btn btn-ghost btn-sm" data-tip="Rincian Anggaran" onclick="openRincianPage('${u.id}')">${EP_ICON_LIST}</button>
-        ${canEdit ? `<button class="btn btn-ghost btn-sm" data-tip="Edit" onclick="openUsulanModal('${u.id}')">${EP_ICON_EDIT}</button>` : ''}
-        ${canSubmit ? `<button class="btn btn-ghost btn-sm" data-tip="Submit / Ajukan" onclick="epSubmitUsulan('${u.id}')" style="color:#2563eb">${EP_ICON_SEND}</button>` : ''}
-        ${canApproveKabid ? `<button class="btn btn-ghost btn-sm" data-tip="Setujui (Kepala)" onclick="openApproveKabidModal('${u.id}')" style="color:#16a34a">${EP_ICON_CHECK}</button>` : ''}
-        ${canApproveSekretaris ? `<button class="btn btn-ghost btn-sm" data-tip="Setujui (Sekretaris)" onclick="openApproveSekretarisModal('${u.id}')" style="color:#16a34a">${EP_ICON_CHECK}</button>` : ''}
-        ${canApproveAdmin ? `<button class="btn btn-ghost btn-sm" data-tip="Sahkan (Admin)" onclick="openApproveAdminModal('${u.id}')" style="color:#16a34a">${EP_ICON_CHECK}</button>` : ''}
-        ${canTolak ? `<button class="btn btn-ghost btn-sm" data-tip="Tolak" onclick="epKirimBalik('${u.id}')" style="color:#dc2626">${EP_ICON_BACK}</button>` : ''}
+        <button class="btn btn-ghost btn-sm" data-tip="Lihat Dokumen" onclick="openUsulanModal('${u.id}')">${EP_ICON_EDIT}</button>
         ${canDelete ? `<button class="btn-hapus" data-tip="Hapus" onclick="deleteUsulan('${u.id}')">${EP_ICON_TRASH}</button>` : ''}
       </td>
     </tr>`;
@@ -420,9 +403,6 @@ async function openUsulanModal(id = null) {
   epRenderSumberDanaRingkasan([]);
   if (!_epPeriodeAktif) await epLoadPeriodeAktif();
   document.getElementById('epTahunAnggaran').value = _epPeriodeAktif?.tahun || (new Date().getFullYear() + 1);
-  epResetFileUpload('Surat');
-  epResetFileUpload('Kak');
-  epResetFileUpload('DataDukung');
   document.getElementById('epRincianLokasiList').innerHTML = '';
   await epRenderLokasiPelaksanaanSelect('');
   _epClearRefCache();
@@ -451,9 +431,6 @@ async function openUsulanModal(id = null) {
       document.getElementById('epTarget').value = angka;
       document.getElementById('epSatuan').value = satuan;
       document.getElementById('epTahunAnggaran').value = u.tahun_anggaran || '';
-      epSetExistingFile('Surat', u.link_surat_usulan, _epFileNameFromUrl(u.link_surat_usulan));
-      epSetExistingFile('Kak', u.link_kak, _epFileNameFromUrl(u.link_kak));
-      epSetExistingFile('DataDukung', u.link_datadukung, _epFileNameFromUrl(u.link_datadukung));
       await epRenderLokasiPelaksanaanSelect(u.lokasi_pelaksanaan_kabkota_id || '');
       for (const rl of (u.rincian_lokasi || [])) {
         await epAddRincianLokasiRow(rl);
@@ -473,7 +450,26 @@ async function openUsulanModal(id = null) {
       epRenderSumberDanaRingkasan(u.sumber_dana_summary || []);
     }
   }
+  const dokWrap = document.getElementById('epDokumenWrap');
+  if (id) {
+    dokWrap.style.display = '';
+    epRenderDokumenRingkasan(id);
+  } else {
+    dokWrap.style.display = 'none';
+  }
   openModal('modalEpUsulan');
+}
+
+function epRenderDokumenRingkasan(id) {
+  const u = _epUsulanList.find(x => x.id === id);
+  const el = document.getElementById('epDokumenRingkasan');
+  if (!u || !el) return;
+  const badge = (label, status) => {
+    const map = { DISETUJUI: '#065f46;background:#d1fae5', DITOLAK: '#991b1b;background:#fee2e2', MENUNGGU: '#92400e;background:#fef3c7' };
+    const style = map[status] || map.MENUNGGU;
+    return `<span style="display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:5px;font-size:.72rem;font-weight:600;color:${style}">${label}: ${status || 'MENUNGGU'}</span>`;
+  };
+  el.innerHTML = `<div style="display:flex;gap:6px;flex-wrap:wrap">${badge('Surat', u.status_surat)}${badge('TOR', u.status_tor)}${badge('RAB', u.status_rab)}</div>`;
 }
 
 async function epLoadSubkegiatanOptions() {
@@ -906,9 +902,6 @@ async function saveUsulan() {
     indikator: document.getElementById('epIndikator').value.trim(),
     target,
     tahun_anggaran: parseInt(document.getElementById('epTahunAnggaran').value) || null,
-    link_surat_usulan: document.getElementById('epLinkSurat').value || null,
-    link_kak: document.getElementById('epLinkKak').value || null,
-    link_datadukung: document.getElementById('epLinkDataDukung').value || null,
     lokasi_pelaksanaan_kabkota_id: document.getElementById('epLokasiPelaksanaan').value || null,
     rincian_lokasi: epCollectRincianLokasi(),
     prioritas_provinsi_id: prioProvSel.value || null,
@@ -968,8 +961,7 @@ function epUpdateSaveButtonState() {
   const btn = document.getElementById('btnSimpanUsulan');
   if (!btn) return;
   const targetOk = document.getElementById('epTarget').value.trim() !== '';
-  const filesOk  = ['Surat', 'Kak', 'DataDukung'].every(f => (_epFileState[f] || []).length > 0);
-  btn.disabled = !(targetOk && filesOk);
+  btn.disabled = !targetOk;
 }
 
 const _epFileState = { Surat: [], Kak: [], DataDukung: [] };
@@ -3265,4 +3257,617 @@ async function epSubmitImporStandarHarga() {
   } finally {
     btn.disabled = false; btnBatal.disabled = false;
   }
+}
+
+/* ================= Dokumen Usulan: Surat Usulan / TOR / RAB (form + preview + PDF) ================= */
+
+let _epDokUsulan = null;
+let _epDokRincian = [];
+let _epDokTab = 'surat';
+
+function _epTerbilang(n) {
+  const satuan = ['', 'Satu', 'Dua', 'Tiga', 'Empat', 'Lima', 'Enam', 'Tujuh', 'Delapan', 'Sembilan', 'Sepuluh',
+    'Sebelas'];
+  function t(n) {
+    n = Math.floor(n);
+    if (n < 12) return satuan[n];
+    if (n < 20) return t(n - 10) + ' Belas';
+    if (n < 100) return t(Math.floor(n / 10)) + ' Puluh' + (n % 10 ? ' ' + t(n % 10) : '');
+    if (n < 200) return 'Seratus' + (n % 100 ? ' ' + t(n % 100) : '');
+    if (n < 1000) return t(Math.floor(n / 100)) + ' Ratus' + (n % 100 ? ' ' + t(n % 100) : '');
+    if (n < 2000) return 'Seribu' + (n % 1000 ? ' ' + t(n % 1000) : '');
+    if (n < 1000000) return t(Math.floor(n / 1000)) + ' Ribu' + (n % 1000 ? ' ' + t(n % 1000) : '');
+    if (n < 1000000000) return t(Math.floor(n / 1000000)) + ' Juta' + (n % 1000000 ? ' ' + t(n % 1000000) : '');
+    if (n < 1000000000000) return t(Math.floor(n / 1000000000)) + ' Miliar' + (n % 1000000000 ? ' ' + t(n % 1000000000) : '');
+    return t(Math.floor(n / 1000000000000)) + ' Triliun' + (n % 1000000000000 ? ' ' + t(n % 1000000000000) : '');
+  }
+  n = Math.round(Number(n) || 0);
+  if (n === 0) return 'Nol Rupiah';
+  return t(n).replace(/\s+/g, ' ').trim() + ' Rupiah';
+}
+
+async function epOpenDokumen() {
+  const id = document.getElementById('epUsulanId').value;
+  if (!id) { toast('Simpan Sub Kegiatan ini dulu sebelum mengisi dokumen', 'error'); return; }
+  try {
+    const [ru, rr] = await Promise.all([
+      fetch(`/api/eplanning/usulan/${id}`, { headers: authHeaders() }),
+      fetch(`/api/eplanning/rincian?usulan_id=${id}`, { headers: authHeaders() }),
+    ]);
+    const du = await ru.json(), dr = await rr.json();
+    if (!ru.ok) throw new Error(du.error || 'Gagal memuat usulan');
+    _epDokUsulan = du.usulan;
+    _epDokRincian = dr.rincian || [];
+    closeModal('modalEpUsulan');
+    epSwitchDokTab('surat');
+    openModal('modalEpDokumen');
+  } catch (err) { toast(err.message, 'error'); }
+}
+
+function _epDokEditable(tipe) {
+  if (!_epDokUsulan) return false;
+  const st = _epDokUsulan.status;
+  if (['DRAFT', 'DITOLAK'].includes(st)) return true;
+  if (st === 'PRA USULAN') {
+    const komp = tipe === 'surat' ? _epDokUsulan.status_surat : tipe === 'tor' ? _epDokUsulan.status_tor : _epDokUsulan.status_rab;
+    return ['MENUNGGU', 'DITOLAK'].includes(komp);
+  }
+  return false;
+}
+
+function epSwitchDokTab(tab) {
+  _epDokTab = tab;
+  ['Surat', 'Tor', 'Rab'].forEach(t => {
+    const btn = document.getElementById(`epDokTabBtn${t}`);
+    if (btn) btn.className = 'btn btn-sm ' + (t.toLowerCase() === tab ? 'btn-primary' : 'btn-ghost');
+  });
+  const el = document.getElementById('epDokContent');
+  if (tab === 'surat') el.innerHTML = _epRenderSuratForm();
+  else if (tab === 'tor') el.innerHTML = _epRenderTorForm();
+  else el.innerHTML = _epRenderRabTab();
+}
+
+function _epDokRincianTotal() {
+  return _epDokRincian.reduce((s, r) => s + (Number(r.sub_total) || 0), 0);
+}
+
+/* ---------- Surat Usulan ---------- */
+function _epRenderSuratForm() {
+  const u = _epDokUsulan;
+  const d = u.data_surat || {};
+  const editable = _epDokEditable('surat');
+  const tahun = u.tahun_anggaran || (new Date().getFullYear() + 1);
+  return `
+    <div class="field-row">
+      <div class="field"><label>Tempat &amp; Tanggal Surat</label><input type="text" id="epSrTempatTanggal" ${editable ? '' : 'readonly'} value="${esc(d.tempat_tanggal || `Banggai Laut, ……………. ${new Date().getFullYear()}`)}" /></div>
+      <div class="field"><label>Nomor Surat</label><input type="text" id="epSrNomor" ${editable ? '' : 'readonly'} value="${esc(d.nomor_surat || '')}" placeholder="   /       /          / ${new Date().getFullYear()}" /></div>
+    </div>
+    <div class="field-row">
+      <div class="field"><label>Sifat</label><input type="text" id="epSrSifat" ${editable ? '' : 'readonly'} value="${esc(d.sifat || 'Penting')}" /></div>
+      <div class="field"><label>Hal</label><input type="text" id="epSrHal" ${editable ? '' : 'readonly'} value="${esc(d.hal || `Usulan Kegiatan Tahun ${tahun}`)}" /></div>
+    </div>
+    <div class="field-hint" style="margin:-4px 0 12px">Isi surat, daftar lampiran (KAK/TOR, RAB, Standar Harga jika ada), dan penandatangan mengikuti template baku - otomatis dari data Sub Kegiatan ini.</div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:6px">
+      ${editable ? `<button type="button" class="btn btn-primary btn-sm" onclick="epSaveDokumen('surat')">Simpan</button>` : ''}
+      <button type="button" class="btn btn-ghost btn-sm" onclick="epPreviewSurat()">Preview / Download PDF</button>
+    </div>`;
+}
+
+function epCollectSuratData() {
+  return {
+    tempat_tanggal: document.getElementById('epSrTempatTanggal').value.trim(),
+    nomor_surat: document.getElementById('epSrNomor').value.trim(),
+    sifat: document.getElementById('epSrSifat').value.trim(),
+    hal: document.getElementById('epSrHal').value.trim(),
+  };
+}
+
+function epPreviewSurat() {
+  const d = epCollectSuratData();
+  const u = _epDokUsulan;
+  const bidangLabel = u.bidang_tipe === 'puskesmas' ? `Puskesmas ${u.bidang_nama || '….'}`
+    : u.bidang_tipe === 'sub_bagian' ? `Sub Bagian ${u.bidang_nama || '….'}`
+    : `Bidang ${u.bidang_nama || '….'}`;
+  const html = `
+    <div style="text-align:center;font-weight:700;border-bottom:3px double #1e293b;padding-bottom:8px;margin-bottom:18px">KOP SURAT</div>
+    <div style="text-align:right;margin-bottom:14px">${esc(d.tempat_tanggal)}</div>
+    <table style="width:auto;margin-bottom:14px">
+      <tr><td style="width:70px;border:none">Nomor</td><td style="border:none">: ${esc(d.nomor_surat)}</td></tr>
+      <tr><td style="border:none">Sifat</td><td style="border:none">: ${esc(d.sifat)}</td></tr>
+      <tr><td style="border:none">Lampiran</td><td style="border:none">: 1 (satu) berkas</td></tr>
+      <tr><td style="border:none">Hal</td><td style="border:none">: ${esc(d.hal)}</td></tr>
+    </table>
+    <div style="margin-bottom:14px">Kepada Yth.<br>KEPALA DINAS KESEHATAN, PENGENDALIAN PENDUDUK DAN<br>KELUARGA BERENCANA<br>di-<br>&emsp;Tempat</div>
+    <p style="text-align:justify;margin-bottom:10px">Dalam rangka penyusunan Rancangan APBD Tahun Anggaran ${u.tahun_anggaran || ''}, kami kirimkan usulan kegiatan pada tahun ${u.tahun_anggaran || ''} sebagaimana terlampir. Adapun usulan telah disusun berdasarkan prinsip efektivitas, efisiensi, dan sesuai dengan program prioritas nasional dan arah kebijakan pemerintah daerah Kabupaten Banggai Laut pada tahun ${u.tahun_anggaran || ''}. Bersama ini kami lampirkan:</p>
+    <ol style="margin:0 0 10px 24px">
+      <li>Kerangka Acuan Kerja/ TOR;</li>
+      <li>Rencana Anggaran Biaya (RAB);</li>
+      <li>Usulan standar harga satuan (jika ada).</li>
+    </ol>
+    <p style="text-align:justify;margin-bottom:10px">Besar harapan kami kiranya Bapak dapat menyetujui usulan kegiatan ${esc(bidangLabel)} pada Rancangan APBD Tahun Anggaran ${u.tahun_anggaran || ''}.</p>
+    <p style="text-align:justify;margin-bottom:30px">Demikian kami sampaikan, atas pertimbangan Bapak diucapkan terimakasih.</p>
+    <div style="margin-left:auto;width:260px;text-align:center">
+      <div>Kepala ${esc(bidangLabel)}</div>
+      <div style="height:60px"></div>
+      <div style="font-weight:700;text-decoration:underline">${esc(u.nama_kabid || '……………………………')}</div>
+      <div>NIP. ${esc(u.nip_kabid || '……………………………')}</div>
+    </div>`;
+  _bukaPreviewPDF(html, `Surat Usulan - ${u.sub_kegiatan || ''}`, 'portrait');
+}
+
+/* ---------- TOR ---------- */
+let _epTorRows = { iku_ikk: [], penerima_manfaat: [], strategi: [] };
+
+function _epRenderTorForm() {
+  const u = _epDokUsulan;
+  const d = u.data_tor || {};
+  _epTorRows = {
+    iku_ikk: (d.iku_ikk || []).slice(),
+    penerima_manfaat: (d.penerima_manfaat || []).slice(),
+    strategi: (d.strategi || []).slice(),
+  };
+  const editable = _epDokEditable('tor');
+  return `
+    <div class="field"><label>Dasar Hukum</label><textarea id="epTrDasarHukum" ${editable ? '' : 'readonly'} rows="2">${esc(d.dasar_hukum || '')}</textarea></div>
+    <div class="field"><label>Gambaran Umum</label><textarea id="epTrGambaranUmum" ${editable ? '' : 'readonly'} rows="4">${esc(d.gambaran_umum || '')}</textarea></div>
+
+    <div class="field">
+      <label>Dukungan Terhadap IKU/IKK</label>
+      <div id="epTrIkuIkkList"></div>
+      ${editable ? `<button type="button" class="btn btn-ghost btn-sm" onclick="epTorAddRow('iku_ikk')">+ Baris IKU/IKK</button>` : ''}
+    </div>
+    <div class="field">
+      <label>Penerima Manfaat</label>
+      <div id="epTrPenerimaList"></div>
+      ${editable ? `<button type="button" class="btn btn-ghost btn-sm" onclick="epTorAddRow('penerima_manfaat')">+ Baris Penerima Manfaat</button>` : ''}
+    </div>
+    <div class="field">
+      <label>Strategi Pencapaian Keluaran</label>
+      <div id="epTrStrategiList"></div>
+      ${editable ? `<button type="button" class="btn btn-ghost btn-sm" onclick="epTorAddRow('strategi')">+ Baris Strategi</button>` : ''}
+    </div>
+    <div class="field-hint" style="margin:4px 0 12px">Kurun waktu pelaksanaan otomatis dari Waktu Pelaksanaan Sub Kegiatan. Biaya yang diperlukan otomatis dari total RAB (${epFmtRupiah(_epDokRincianTotal())}).</div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:6px">
+      ${editable ? `<button type="button" class="btn btn-primary btn-sm" onclick="epSaveDokumen('tor')">Simpan</button>` : ''}
+      <button type="button" class="btn btn-ghost btn-sm" onclick="epPreviewTor()">Preview / Download PDF</button>
+    </div>
+    <script>_epRenderTorRows()</script>`;
+}
+
+const EP_TOR_COLS = {
+  iku_ikk: [['nama_kegiatan', 'Nama Kegiatan'], ['indikator', 'Indikator (IKU/IKK)'], ['target', 'Target']],
+  penerima_manfaat: [['jumlah', 'Jumlah'], ['penerima', 'Penerima Manfaat']],
+  strategi: [['output', 'Output (satuan/volume)'], ['metode', 'Metode Pelaksanaan'], ['tahapan', 'Tahapan Pelaksanaan']],
+};
+const EP_TOR_TARGETS = { iku_ikk: 'epTrIkuIkkList', penerima_manfaat: 'epTrPenerimaList', strategi: 'epTrStrategiList' };
+
+function _epRenderTorRows() {
+  for (const key of Object.keys(EP_TOR_TARGETS)) {
+    const wrap = document.getElementById(EP_TOR_TARGETS[key]);
+    if (!wrap) continue;
+    const editable = _epDokEditable('tor');
+    const cols = EP_TOR_COLS[key];
+    wrap.innerHTML = _epTorRows[key].map((row, i) => `
+      <div style="display:flex;gap:6px;margin-bottom:6px;align-items:center">
+        ${cols.map(([field, label]) => `<input type="text" placeholder="${esc(label)}" value="${esc(row[field] || '')}" ${editable ? '' : 'readonly'}
+          oninput="_epTorRows['${key}'][${i}]['${field}']=this.value" style="flex:1" />`).join('')}
+        ${editable ? `<button type="button" class="btn-hapus btn-sm" onclick="epTorRemoveRow('${key}',${i})">${EP_ICON_TRASH}</button>` : ''}
+      </div>`).join('') || `<div style="font-size:.78rem;color:var(--teks-muted,#94a3b8);padding:4px 0">Belum ada baris</div>`;
+  }
+}
+
+function epTorAddRow(key) {
+  _epTorRows[key].push({});
+  _epRenderTorRows();
+}
+function epTorRemoveRow(key, i) {
+  _epTorRows[key].splice(i, 1);
+  _epRenderTorRows();
+}
+
+function epCollectTorData() {
+  return {
+    dasar_hukum: document.getElementById('epTrDasarHukum').value.trim(),
+    gambaran_umum: document.getElementById('epTrGambaranUmum').value.trim(),
+    iku_ikk: _epTorRows.iku_ikk.filter(r => Object.values(r).some(v => v)),
+    penerima_manfaat: _epTorRows.penerima_manfaat.filter(r => Object.values(r).some(v => v)),
+    strategi: _epTorRows.strategi.filter(r => Object.values(r).some(v => v)),
+  };
+}
+
+const EP_BULAN = ['', 'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+
+function epPreviewTor() {
+  const d = epCollectTorData();
+  const u = _epDokUsulan;
+  const total = _epDokRincianTotal();
+  const bidangLabel = u.bidang_tipe === 'puskesmas' ? `Puskesmas ${u.bidang_nama || '….'}`
+    : u.bidang_tipe === 'sub_bagian' ? `Sub Bagian ${u.bidang_nama || '….'}`
+    : `Bidang ${u.bidang_nama || '….'}`;
+  const waktu = (u.waktu_mulai_bulan && u.waktu_selesai_bulan)
+    ? (u.waktu_mulai_bulan === u.waktu_selesai_bulan ? `Bulan ${EP_BULAN[u.waktu_mulai_bulan]}` : `Bulan ${EP_BULAN[u.waktu_mulai_bulan]} - ${EP_BULAN[u.waktu_selesai_bulan]}`)
+    : 'Bulan ……..';
+  const rowsHtml = (rows, cols) => rows.length
+    ? rows.map((r, i) => `<tr><td>${i + 1}</td>${cols.map(([f]) => `<td>${esc(r[f] || '')}</td>`).join('')}</tr>`).join('')
+    : `<tr><td colspan="${cols.length + 1}" style="text-align:center;color:#94a3b8">-</td></tr>`;
+  const html = `
+    <div style="text-align:center;font-weight:700;margin-bottom:2px">KERANGKA ACUAN KERJA/TERM OF REFERENCE</div>
+    <div style="text-align:center;font-weight:700;margin-bottom:16px">TAHUN ANGGARAN ${u.tahun_anggaran || ''}</div>
+    <p style="font-weight:700;margin-bottom:4px">A. LATAR BELAKANG</p>
+    <p style="font-weight:600;margin:6px 0 2px">Dasar Hukum</p>
+    <p style="text-align:justify;white-space:pre-wrap;margin-bottom:8px">${esc(d.dasar_hukum || '-')}</p>
+    <p style="font-weight:600;margin:6px 0 2px">Gambaran Umum</p>
+    <p style="text-align:justify;white-space:pre-wrap;margin-bottom:12px">${esc(d.gambaran_umum || '-')}</p>
+
+    <p style="font-weight:700;margin-bottom:4px">B. DUKUNGAN TERHADAP IKU DAN IKK</p>
+    <table style="margin-bottom:14px"><thead><tr><th>No</th><th>Nama Kegiatan</th><th>Indikator</th><th>Target ${u.tahun_anggaran || ''}</th></tr></thead>
+      <tbody>${rowsHtml(d.iku_ikk, EP_TOR_COLS.iku_ikk)}</tbody></table>
+
+    <p style="font-weight:700;margin-bottom:4px">C. PENERIMA MANFAAT</p>
+    <table style="margin-bottom:14px"><thead><tr><th>No</th><th>Jumlah</th><th>Penerima Manfaat</th></tr></thead>
+      <tbody>${rowsHtml(d.penerima_manfaat, EP_TOR_COLS.penerima_manfaat)}</tbody></table>
+
+    <p style="font-weight:700;margin-bottom:4px">D. STRATEGI PENCAPAIAN KELUARAN</p>
+    <table style="margin-bottom:6px"><thead><tr><th>No</th><th>Output</th><th>Metode Pelaksanaan</th><th>Tahapan Pelaksanaan</th></tr></thead>
+      <tbody>${rowsHtml(d.strategi, EP_TOR_COLS.strategi)}</tbody></table>
+    <p style="margin-bottom:14px"><b>Kurun Waktu Pencapaian Keluaran:</b> ${esc(waktu)}</p>
+
+    <p style="font-weight:700;margin-bottom:4px">E. BIAYA YANG DIPERLUKAN</p>
+    <p style="text-align:justify;margin-bottom:30px">Biaya yang diperlukan untuk usulan kegiatan <b>${esc((u.sub_kegiatan || '').toUpperCase())}</b> adalah sebesar <b>${epFmtRupiah(total)} (${_epTerbilang(total)})</b> dengan kebutuhan per rincian menu kegiatan terlampir pada RAB.</p>
+
+    <div style="text-align:right;margin-bottom:6px">Banggai Laut, …. ${EP_BULAN[new Date().getMonth() + 1]} ${new Date().getFullYear()}</div>
+    <div style="margin-left:auto;width:260px;text-align:center">
+      <div>Kepala ${esc(bidangLabel)}</div>
+      <div style="height:60px"></div>
+      <div style="font-weight:700;text-decoration:underline">${esc(u.nama_kabid || '……………………………')}</div>
+      <div>NIP. ${esc(u.nip_kabid || '……………………………')}</div>
+    </div>`;
+  _bukaPreviewPDF(html, `TOR - ${u.sub_kegiatan || ''}`, 'portrait');
+}
+
+/* ---------- RAB (reuse eplanning_rincian yang sudah ada) ---------- */
+function _epRenderRabTab() {
+  const u = _epDokUsulan;
+  const total = _epDokRincianTotal();
+  const rowsHtml = _epDokRincian.length
+    ? _epDokRincian.map((r, i) => `<tr>
+        <td>${i + 1}</td>
+        <td>${esc(r.komponen || '-')}<div style="font-size:11px;color:#64748b">${esc(r.spesifikasi || '')}</div></td>
+        <td>${esc(r.kode_rekening || '-')}</td>
+        <td>${esc(r.koefisien || '-')}</td>
+        <td style="white-space:nowrap">${epFmtRupiah(r.harga_satuan)}</td>
+        <td style="white-space:nowrap;font-weight:600">${epFmtRupiah(r.sub_total)}</td>
+      </tr>`).join('')
+    : `<tr><td colspan="6" style="text-align:center;color:#94a3b8">Belum ada rincian - isi lewat halaman Rincian Anggaran</td></tr>`;
+  return `
+    <div class="field-hint" style="margin-bottom:10px">RAB diisi lewat halaman Rincian Anggaran (baris per komponen belanja, kode rekening, harga satuan). Ringkasan di bawah otomatis mengikuti data tersebut.</div>
+    <table style="width:100%;border-collapse:collapse;font-size:.82rem">
+      <thead><tr><th>No</th><th>Komponen</th><th>Kode Rekening</th><th>Koefisien</th><th>Harga Satuan</th><th>Sub Total</th></tr></thead>
+      <tbody>${rowsHtml}</tbody>
+      <tfoot><tr><td colspan="5" style="text-align:right;font-weight:700">TOTAL</td><td style="font-weight:700">${epFmtRupiah(total)}</td></tr></tfoot>
+    </table>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px">
+      <button type="button" class="btn btn-primary btn-sm" onclick="closeModal('modalEpDokumen');openRincianPage(_epDokUsulan.id)">Buka Rincian Anggaran</button>
+      <button type="button" class="btn btn-ghost btn-sm" onclick="epPreviewRab()">Preview / Download PDF</button>
+    </div>`;
+}
+
+function epPreviewRab() {
+  const u = _epDokUsulan;
+  const total = _epDokRincianTotal();
+  const rowsHtml = _epDokRincian.length
+    ? _epDokRincian.map((r, i) => `<tr>
+        <td>${i + 1}</td>
+        <td>${esc(r.komponen || '-')}</td>
+        <td>${esc(r.kode_rekening || '-')}</td>
+        <td>${esc(r.nama_rekening || '-')}</td>
+        <td>${esc(r.spesifikasi || '-')}</td>
+        <td>${esc(r.satuan || '-')}</td>
+        <td>${esc(r.koefisien || '-')}</td>
+        <td style="white-space:nowrap">${epFmtRupiah(r.harga_satuan)}</td>
+        <td style="white-space:nowrap;font-weight:600">${epFmtRupiah(r.sub_total)}</td>
+      </tr>`).join('')
+    : `<tr><td colspan="9" style="text-align:center;color:#94a3b8">Belum ada rincian</td></tr>`;
+  const html = `
+    <div style="text-align:center;font-weight:700;font-size:1.1rem;margin-bottom:16px">RENCANA ANGGARAN BIAYA (RAB)</div>
+    <p style="margin-bottom:10px"><b>${esc(u.sub_kegiatan || '')}</b> - ${esc(u.bidang_nama || '')} - Tahun Anggaran ${u.tahun_anggaran || ''}</p>
+    <table style="width:100%;border-collapse:collapse;font-size:10px">
+      <thead><tr><th>No</th><th>Uraian Belanja</th><th>Kode Rekening</th><th>Detail Rekening</th><th>Spesifikasi</th><th>Satuan</th><th>Koefisien</th><th>Harga Satuan</th><th>Sub Total</th></tr></thead>
+      <tbody>${rowsHtml}</tbody>
+      <tfoot><tr><td colspan="8" style="text-align:right;font-weight:700">JUMLAH TOTAL</td><td style="font-weight:700">${epFmtRupiah(total)}</td></tr></tfoot>
+    </table>`;
+  _bukaPreviewPDF(html, `RAB - ${u.sub_kegiatan || ''}`, 'landscape');
+}
+
+/* ---------- Simpan dokumen ---------- */
+async function epSaveDokumen(tipe) {
+  const id = _epDokUsulan.id;
+  const data = tipe === 'surat' ? epCollectSuratData() : epCollectTorData();
+  try {
+    const r = await fetch(`/api/eplanning/usulan/${id}/dokumen`, {
+      method: 'PUT', headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+      body: JSON.stringify({ tipe, data }),
+    });
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.error || 'Gagal menyimpan dokumen');
+    _epDokUsulan = d.usulan;
+    const idx = _epUsulanList.findIndex(u => u.id === id);
+    if (idx > -1) _epUsulanList[idx] = d.usulan;
+    toast(`${tipe === 'surat' ? 'Surat Usulan' : 'TOR'} tersimpan`, 'success');
+  } catch (err) { toast(err.message, 'error'); }
+}
+
+/* ================= Halaman Pra Usulan (verifikasi per-komponen) ================= */
+
+let _epPraList = [];
+let _epPraPage = 1;
+const _epPraPageSize = 10;
+let _epPraFilterBidang = '';
+let _epPraFilterStatus = '';
+let _epPraSearchText = '';
+
+function setEpPraTahunAktif(val) {
+  _epTahunAktif = parseInt(val);
+  localStorage.setItem('ep_tahun_aktif', String(_epTahunAktif));
+  _renderEpTahunDropdowns();
+  const el = document.getElementById('epPraTahunAktif');
+  if (el) el.value = _epTahunAktif;
+  const page = document.getElementById('page-eplanning-praunsulan');
+  if (page && page.classList.contains('active')) loadEplanningPraUsulan();
+}
+
+async function loadEplanningPraUsulan() {
+  const btnTambah = document.getElementById('btnTambahEpPraUsulan');
+  const tbody = document.getElementById('epPraTableBody');
+  if (tbody) tbody.innerHTML = `<tr class="empty-row"><td colspan="9"><span class="btn-spin" style="width:11px;height:11px;vertical-align:-1px;margin-right:6px"></span>Memuat data...</td></tr>`;
+
+  const [periodeList] = await Promise.all([_epFetchPeriodeAktif(), epEnsureTahunList()]);
+  _epApplyPeriodeAktif(periodeList);
+  const selTahun = document.getElementById('epPraTahunAktif');
+  if (selTahun) {
+    selTahun.innerHTML = _epTahunList.map(t => `<option value="${t}">${t}</option>`).join('');
+    selTahun.value = _epTahunAktif;
+  }
+  if (btnTambah) btnTambah.style.display = (epRole().isOperator && _epPeriodeAktif) ? '' : 'none';
+  const banner = document.getElementById('epPraPeriodeBanner');
+  if (banner) {
+    const tmp = document.getElementById('epPeriodeBanner');
+    renderEpPeriodeBanner();
+    if (tmp) banner.innerHTML = tmp.innerHTML;
+  }
+
+  try {
+    const qs = new URLSearchParams({ tahap: 'pra-usulan', ...(_epTahunAktif ? { tahun: String(_epTahunAktif) } : {}) });
+    const r = await fetch(`/api/eplanning/usulan?${qs}`, { headers: authHeaders() });
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.error || 'Gagal memuat data');
+    _epPraList = d.usulan || [];
+    _epPraPage = 1;
+    _rebuildEpPraFilterBidang();
+    renderEplanningPraTable();
+  } catch (err) {
+    if (tbody) tbody.innerHTML = `<tr class="empty-row"><td colspan="9">${esc(err.message)}</td></tr>`;
+  }
+}
+
+function _rebuildEpPraFilterBidang() {
+  const sel = document.getElementById('epPraFilterBidang');
+  if (!sel) return;
+  const current = _epPraFilterBidang;
+  const map = new Map();
+  _epPraList.forEach(u => { if (u.bidang_id != null) map.set(String(u.bidang_id), u.bidang_nama || '-'); });
+  const opts = [...map.entries()].sort((a, b) => a[1].localeCompare(b[1], 'id'))
+    .map(([id, nama]) => `<option value="${id}">${esc(nama)}</option>`).join('');
+  sel.innerHTML = `<option value="">Semua Unit Kerja</option>` + opts;
+  if (map.size === 1) { _epPraFilterBidang = [...map.keys()][0]; }
+  else if (current && !map.has(current)) { _epPraFilterBidang = ''; }
+  else { _epPraFilterBidang = current; }
+  sel.value = _epPraFilterBidang;
+}
+
+function setEpPraFilterBidang(v) { _epPraFilterBidang = v; _epPraPage = 1; renderEplanningPraTable(); }
+function setEpPraFilterStatus(v) { _epPraFilterStatus = v; _epPraPage = 1; renderEplanningPraTable(); }
+function setEpPraSearchText(v) { _epPraSearchText = (v || '').trim(); _epPraPage = 1; renderEplanningPraTable(); }
+
+function _epPraFilteredList() {
+  const q = _epPraSearchText.toLowerCase();
+  return _epPraList.filter(u => {
+    if (_epPraFilterStatus && u.status !== _epPraFilterStatus) return false;
+    if (_epPraFilterBidang && String(u.bidang_id) !== _epPraFilterBidang) return false;
+    if (q && !(u.sub_kegiatan || '').toLowerCase().includes(q)) return false;
+    return true;
+  });
+}
+
+function _epKomponenBadge(status) {
+  const map = {
+    DISETUJUI: 'background:#d1fae5;color:#065f46',
+    DITOLAK: 'background:#fee2e2;color:#991b1b',
+    MENUNGGU: 'background:#fef3c7;color:#92400e',
+  };
+  const style = map[status] || map.MENUNGGU;
+  return `<span style="display:inline-block;padding:2px 8px;border-radius:5px;font-size:.72rem;font-weight:600;${style}">${status || 'MENUNGGU'}</span>`;
+}
+
+function goEpPraPage(p) { _epPraPage = p; renderEplanningPraTable(); }
+
+function renderEplanningPraTable() {
+  const tbody = document.getElementById('epPraTableBody');
+  if (!tbody) return;
+  const role = epRole();
+  const filtered = _epPraFilteredList();
+  if (!_epPraList.length) {
+    tbody.innerHTML = `<tr class="empty-row"><td colspan="9">Belum ada usulan di tahap Pra Usulan</td></tr>`;
+    renderPagination('epPraPagination', 0, 1, _epPraPageSize, 'goEpPraPage');
+    return;
+  }
+  if (!filtered.length) {
+    tbody.innerHTML = `<tr class="empty-row"><td colspan="9">Tidak ada usulan yang cocok dengan filter</td></tr>`;
+    renderPagination('epPraPagination', 0, 1, _epPraPageSize, 'goEpPraPage');
+    return;
+  }
+  const totalPages = Math.max(1, Math.ceil(filtered.length / _epPraPageSize));
+  if (_epPraPage > totalPages) _epPraPage = totalPages;
+  const start = (_epPraPage - 1) * _epPraPageSize;
+  const list = filtered.slice(start, start + _epPraPageSize);
+  tbody.innerHTML = list.map((u, i) => {
+    const canEdit = ['DRAFT', 'DITOLAK'].includes(u.status) &&
+      (role.isAdmin || (role.isOperator && u.pembuat_user_id === _user.id));
+    const canDelete = _user.is_admin || canEdit;
+    const canSubmit = ['DRAFT', 'DITOLAK'].includes(u.status) &&
+      (role.isAdmin || (role.isOperator && u.pembuat_user_id === _user.id));
+    const canVerifikasi = u.status === 'PRA USULAN' && (role.isAdmin || (role.isKabid && role.bidangId === u.bidang_id));
+    return `<tr>
+      <td>${start + i + 1}</td>
+      <td>
+        <div style="font-weight:600">${esc(u.sub_kegiatan || '-')}</div>
+        <div style="font-size:12px;color:var(--text-secondary,#64748b)">${esc(u.indikator || '')}</div>
+      </td>
+      <td>${esc(u.bidang_nama || '-')}</td>
+      <td>${esc(u.pembuat_nama || '-')}</td>
+      <td style="white-space:nowrap;font-weight:600">${epFmtRupiah(u.total_anggaran)}</td>
+      <td>${u.status === 'DRAFT' ? '<span style="color:#94a3b8;font-size:.72rem">-</span>' : _epKomponenBadge(u.status_surat)}</td>
+      <td>${u.status === 'DRAFT' ? '<span style="color:#94a3b8;font-size:.72rem">-</span>' : _epKomponenBadge(u.status_tor)}</td>
+      <td>${u.status === 'DRAFT' ? '<span style="color:#94a3b8;font-size:.72rem">-</span>' : _epKomponenBadge(u.status_rab)}</td>
+      <td style="white-space:nowrap">
+        <button class="btn btn-ghost btn-sm" data-tip="Rincian Anggaran" onclick="openRincianPage('${u.id}')">${EP_ICON_LIST}</button>
+        ${canEdit ? `<button class="btn btn-ghost btn-sm" data-tip="Edit" onclick="openUsulanModal('${u.id}')">${EP_ICON_EDIT}</button>` : ''}
+        ${canSubmit ? `<button class="btn btn-ghost btn-sm" data-tip="Submit / Ajukan" onclick="epSubmitUsulanPra('${u.id}')" style="color:#2563eb">${EP_ICON_SEND}</button>` : ''}
+        ${canVerifikasi ? `<button class="btn btn-ghost btn-sm" data-tip="Verifikasi Dokumen" onclick="openVerifikasiModal('${u.id}')" style="color:#16a34a">${EP_ICON_CHECK}</button>` : ''}
+        ${canDelete ? `<button class="btn-hapus" data-tip="Hapus" onclick="deleteUsulanPra('${u.id}')">${EP_ICON_TRASH}</button>` : ''}
+      </td>
+    </tr>`;
+  }).join('');
+  renderPagination('epPraPagination', filtered.length, _epPraPage, _epPraPageSize, 'goEpPraPage');
+}
+
+async function epSubmitUsulanPra(id) {
+  if (!confirm('Ajukan Sub Kegiatan ini untuk verifikasi Surat Usulan/TOR/RAB?')) return;
+  try {
+    const r = await fetch(`/api/eplanning/usulan/${id}/submit`, { method: 'PUT', headers: authHeaders() });
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.error || 'Gagal mengajukan usulan');
+    toast('Usulan diajukan, menunggu verifikasi dokumen', 'success');
+    loadEplanningPraUsulan();
+  } catch (err) { toast(err.message, 'error'); }
+}
+
+async function deleteUsulanPra(id) {
+  if (!confirm('Hapus Sub Kegiatan ini beserta seluruh rincian & dokumennya?')) return;
+  try {
+    const r = await fetch(`/api/eplanning/usulan/${id}`, { method: 'DELETE', headers: authHeaders() });
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(d.error || 'Gagal menghapus usulan');
+    toast('Usulan dihapus', 'success');
+    loadEplanningPraUsulan();
+  } catch (err) { toast(err.message, 'error'); }
+}
+
+/* ---------- Modal verifikasi per-komponen ---------- */
+let _epVerifUsulanId = null;
+
+function openVerifikasiModal(id) {
+  _epVerifUsulanId = id;
+  const u = _epPraList.find(x => x.id === id);
+  if (!u) return;
+  _epRenderVerifBody(u);
+  openModal('modalEpVerifikasi');
+}
+
+function _epRenderVerifBody(u) {
+  const komponen = [
+    { key: 'surat', label: 'Surat Usulan' },
+    { key: 'tor', label: 'TOR' },
+    { key: 'rab', label: 'RAB' },
+  ];
+  const body = document.getElementById('epVerifBody');
+  body.innerHTML = `
+    <div style="font-weight:600;margin-bottom:2px">${esc(u.sub_kegiatan || '-')}</div>
+    <div style="font-size:.8rem;color:#64748b;margin-bottom:14px">${esc(u.bidang_nama || '-')} - ${esc(u.pembuat_nama || '-')}</div>
+    ${komponen.map(k => {
+      const status = u[`status_${k.key}`];
+      const catatan = u[`catatan_${k.key}`];
+      return `
+      <div style="border:1px solid var(--border,#e2e8f0);border-radius:var(--r-sm);padding:10px 12px;margin-bottom:10px">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:6px">
+          <div style="font-weight:600">${k.label}</div>
+          ${_epKomponenBadge(status)}
+        </div>
+        ${status === 'DITOLAK' && catatan ? `<div style="font-size:.78rem;color:#991b1b;margin-bottom:8px">Catatan: ${esc(catatan)}</div>` : ''}
+        <div style="display:flex;gap:6px;flex-wrap:wrap">
+          <button type="button" class="btn btn-ghost btn-sm" onclick="epPreview${k.key === 'surat' ? 'Surat' : k.key === 'tor' ? 'Tor' : 'Rab'}FromVerif('${u.id}','${k.key}')">Lihat Dokumen</button>
+          ${status === 'MENUNGGU' ? `
+            <button type="button" class="btn btn-primary btn-sm" onclick="epVerifKomponen('${k.key}','DISETUJUI')" style="background:#16a34a;border-color:#16a34a">Setujui</button>
+            <button type="button" class="btn btn-primary btn-sm" onclick="epVerifTolakPrompt('${k.key}')" style="background:#dc2626;border-color:#dc2626">Tolak</button>` : ''}
+        </div>
+        <div id="epVerifTolak_${k.key}" style="display:none;margin-top:8px">
+          <textarea id="epVerifCatatan_${k.key}" rows="2" placeholder="Alasan penolakan..." style="width:100%"></textarea>
+          <button type="button" class="btn btn-primary btn-sm" style="margin-top:6px;background:#dc2626;border-color:#dc2626" onclick="epVerifKomponen('${k.key}','DITOLAK')">Kirim Penolakan</button>
+        </div>
+      </div>`;
+    }).join('')}`;
+}
+
+async function epPreviewSuratFromVerif(id) {
+  const u = await _epFetchUsulanDetail(id);
+  if (!u) return;
+  _epDokUsulan = u.usulan;
+  _epDokRincian = u.rincian || [];
+  epPreviewSurat();
+}
+async function epPreviewTorFromVerif(id) {
+  const u = await _epFetchUsulanDetail(id);
+  if (!u) return;
+  _epDokUsulan = u.usulan;
+  _epDokRincian = u.rincian || [];
+  epPreviewTor();
+}
+async function epPreviewRabFromVerif(id) {
+  const u = await _epFetchUsulanDetail(id);
+  if (!u) return;
+  _epDokUsulan = u.usulan;
+  _epDokRincian = u.rincian || [];
+  epPreviewRab();
+}
+
+async function _epFetchUsulanDetail(id) {
+  try {
+    const [ru, rr] = await Promise.all([
+      fetch(`/api/eplanning/usulan/${id}`, { headers: authHeaders() }),
+      fetch(`/api/eplanning/rincian?usulan_id=${id}`, { headers: authHeaders() }),
+    ]);
+    const du = await ru.json(), dr = await rr.json();
+    if (!ru.ok) throw new Error(du.error || 'Gagal memuat usulan');
+    return { usulan: du.usulan, rincian: dr.rincian || [] };
+  } catch (err) { toast(err.message, 'error'); return null; }
+}
+
+function epVerifTolakPrompt(komponen) {
+  const el = document.getElementById(`epVerifTolak_${komponen}`);
+  if (el) el.style.display = el.style.display === 'none' ? '' : 'none';
+}
+
+async function epVerifKomponen(komponen, keputusan) {
+  const id = _epVerifUsulanId;
+  const catatanEl = document.getElementById(`epVerifCatatan_${komponen}`);
+  const catatan = catatanEl ? catatanEl.value.trim() : '';
+  if (keputusan === 'DITOLAK' && !catatan) { toast('Catatan alasan penolakan wajib diisi', 'error'); return; }
+  try {
+    const r = await fetch(`/api/eplanning/usulan/${id}/verify-komponen`, {
+      method: 'PUT', headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+      body: JSON.stringify({ komponen, keputusan, catatan }),
+    });
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.error || 'Gagal memverifikasi');
+    toast(`${komponen.toUpperCase()} ${keputusan === 'DISETUJUI' ? 'disetujui' : 'ditolak'}`, 'success');
+    const idx = _epPraList.findIndex(x => x.id === id);
+    if (d.usulan.status === 'SELESAI') {
+      if (idx > -1) _epPraList.splice(idx, 1);
+      closeModal('modalEpVerifikasi');
+    } else {
+      if (idx > -1) _epPraList[idx] = d.usulan;
+      _epRenderVerifBody(d.usulan);
+    }
+    renderEplanningPraTable();
+  } catch (err) { toast(err.message, 'error'); }
 }

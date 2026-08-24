@@ -22,8 +22,20 @@ function parseTemaValue(raw) {
   try { const p = JSON.parse(raw); return Array.isArray(p) ? p : []; } catch { return []; }
 }
 
+function _todayWita() {
+  return new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Makassar' });
+}
+
+// Status ditampilkan berdasarkan kombinasi toggle manual (t.aktif) DAN rentang
+// tanggal, biar sama persis dengan logika pemilihan tema di landing.js
+// (tema-aktif). Toggle mati -> selalu Nonaktif. Toggle nyala tapi belum/sudah
+// lewat periode -> Terjadwal/Nonaktif. Toggle nyala + dalam periode -> Aktif.
 function temaStatus(t) {
-  return t.aktif ? { label: 'Aktif', cls: 'badge-hijau' } : { label: 'Nonaktif', cls: 'badge-abu' };
+  if (t.aktif === false) return { label: 'Nonaktif', cls: 'badge-abu' };
+  const today = _todayWita();
+  if (t.tanggal_mulai && today < t.tanggal_mulai) return { label: 'Terjadwal', cls: 'badge-yellow' };
+  if (t.tanggal_selesai && today > t.tanggal_selesai) return { label: 'Nonaktif', cls: 'badge-abu' };
+  return { label: 'Aktif', cls: 'badge-hijau' };
 }
 
 function fmtTgl(s) {

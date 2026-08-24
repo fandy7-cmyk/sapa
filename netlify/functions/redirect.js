@@ -62,18 +62,19 @@ function getBundleHtml() {
         return { theme: null };
       });
 
+    // Cache localStorage cuma dipakai buat preload gambar lebih awal
+    // (biar gak ada jeda render). Tema yang BENERAN diterapkan selalu
+    // nunggu freshPromise (fetch tanpa cache) - biar status Aktif/
+    // Nonaktif/Terjadwal selalu akurat sesuai tanggal & toggle terbaru
+    // tiap kali halaman di-refresh, sama kayak di topbar app.html.
     var cached = bacaCache();
-    if (cached) {
-      preloadGambar(cached.theme);
-      window.__sapaTemaPromise = Promise.resolve(cached);
-    } else {
-      window.__sapaTemaPromise = freshPromise;
-    }
+    if (cached) preloadGambar(cached.theme);
+    window.__sapaTemaPromise = freshPromise;
   })();
   </script>
   <!-- Preload file theme-engine.js juga, paralel dari awal - jangan
        nunggu parser sampe ke <script> di akhir body baru mulai narik. -->
-  <link rel="preload" as="script" href="/js/theme-engine.js?v=1.4.7" />
+  <link rel="preload" as="script" href="/js/theme-engine.js?v=1.4.9" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>SAPA Perencanaan</title>
   <!-- Open Graph / WhatsApp Preview -->

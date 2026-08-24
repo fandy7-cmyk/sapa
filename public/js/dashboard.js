@@ -1480,10 +1480,11 @@ function _ikuRenderChartSection() {
       const b   = i + 1;
       const rec = rekapTahun ? (rekapTahun['b' + b] || []).find(r => r.id === indId) : null;
       const real = rec && rec.realisasi !== null && rec.realisasi !== '' ? parseFloat(rec.realisasi) : null;
-      const tgtF = targetTahun !== null ? parseFloat(targetTahun) : null;
-      const cap  = (real !== null && tgtF !== null && tgtF !== 0)
-        ? (bermaknaNeg ? ((tgtF - (real - tgtF)) / tgtF * 100) : (real / tgtF * 100))
-        : null;
+      // Pakai capaian_persen yang udah dihitung backend (SQL CASE per tipe_perhitungan:
+      // kumulatif = akumulasi Jan..bulan ini, rata_rata = rata-rata Jan..bulan ini,
+      // non_kumulatif = apa adanya bulan itu). Jangan hitung ulang dari realisasi
+      // mentah / target di sini - itu yang bikin kumulatif keitung non-kumulatif.
+      const cap  = (rec && rec.capaian_persen != null) ? Number(rec.capaian_persen) : null;
       // isInRange: dalam rentang filter Dari–Sampai (jika ada)
       // Bulan masa depan tanpa data otomatis abu karena capaian === null
       const fromKey = _ikuRangeFrom ? _ikuRangeFrom.tahun * 100 + _ikuRangeFrom.bulan : 0;
@@ -1496,7 +1497,6 @@ function _ikuRenderChartSection() {
   // Helper: build chart data PER TAHUN (untuk mode filter "Tahun")
   // 1 entri per tahun dalam rentang Dari–Sampai, ambil realisasi bulan terakhir yang terisi
   function _buildYearlyChartData(indId, targetTahun, bermaknaNeg) {
-    const tgtF = targetTahun !== null ? parseFloat(targetTahun) : null;
     return _ikuYearsNeeded.map(thn => {
       const rekapThn = (typeof _kwAllRekap !== 'undefined' && _kwAllRekap[thn]) ? _kwAllRekap[thn] : null;
       let latestRec = null;
@@ -1508,9 +1508,9 @@ function _ikuRenderChartSection() {
         }
       }
       const real = latestRec ? parseFloat(latestRec.realisasi) : null;
-      const cap  = (real !== null && tgtF !== null && tgtF !== 0)
-        ? (bermaknaNeg ? ((tgtF - (real - tgtF)) / tgtF * 100) : (real / tgtF * 100))
-        : null;
+      // Sama kayak di atas - pakai capaian_persen dari backend (udah kumulatif/
+      // rata-rata sesuai tipe_perhitungan-nya), bukan recompute real/target polos.
+      const cap  = (latestRec && latestRec.capaian_persen != null) ? Number(latestRec.capaian_persen) : null;
       return { bulan: thn, tahun: thn, label: String(thn), realisasi: real, realisasi_display: latestRec?.realisasi_display ?? null, capaian: cap, isInRange: true };
     });
   }
@@ -1555,6 +1555,7 @@ function _ikuRenderChartSection() {
     const satuan     = meta?.satuan             || row.satuan || '';
     const berneg     = meta?.bermakna_negatif   ?? row.bermakna_negatif ?? false;
     const isPredikatMini = (meta?.tipe_nilai ?? row.tipe_nilai) === 'predikat';
+    const tipePerh    = meta?.tipe_perhitungan ?? row.tipe_perhitungan;
     const tgt        = targetThn !== null ? parseFloat(targetThn) : null;
 
     
@@ -1587,7 +1588,10 @@ function _ikuRenderChartSection() {
         <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;margin-bottom:8px">
           <div style="min-width:0;flex:1">
             <div style="font-size:.72rem;font-weight:700;color:#0f172a;line-height:1.35;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical">${esc(indNama)}${_polarIcon(berneg, 13)}</div>
-            <div style="font-size:.63rem;color:#94a3b8;margin-top:2px">${satuan ? esc(satuan) : ''}</div>
+            <div style="display:flex;align-items:center;gap:6px;margin-top:3px;flex-wrap:wrap">
+              <span style="font-size:.63rem;color:#94a3b8">${satuan ? esc(satuan) : ''}</span>
+              ${typeof _tipeBadge === 'function' ? _tipeBadge(tipePerh) : ''}
+            </div>
           </div>
           <div style="text-align:right;flex-shrink:0">
             <div style="font-size:1.1rem;font-weight:800;color:${col};line-height:1">${capLast !== null ? capLast.toFixed(1)+'%' : '-'}</div>
@@ -2456,6 +2460,20 @@ function _kwClearRekapCache(tahun) {
   try { localStorage.removeItem(KW_REKAP_CACHE_KEY(tahun)); } catch {}
 }
 
+// Dipanggil pas edit Indikator (ganti tipe_perhitungan/bermakna_negatif/dll) -
+// beda sama simpan realisasi biasa (yang cuma pengaruh 1 tahun), ganti tipe
+// perhitungan ngaruh ke capaian_persen SEMUA tahun buat indikator itu, jadi
+// bersihin cache di memori + localStorage utk semua tahun yg pernah ke-cache,
+// lalu rerender widget dashboard yang lagi kebuka (kalau ada).
+function _invalidateAllKinerjaDashboardCache() {
+  if (typeof _kwAllRekap === 'undefined') return;
+  Object.keys(_kwAllRekap).forEach(thn => {
+    delete _kwAllRekap[thn];
+    _kwClearRekapCache(thn);
+  });
+  _kwRerenderAfterBgRefresh();
+}
+
 async function _kwFetchTahunFresh(tahun) {
   const hasilPerBulan = new Map();
   for (let b = 1; b <= 12; b++) hasilPerBulan.set(b, []);
@@ -3126,6 +3144,7 @@ function _renderKinerjaWatch() {
           ${selInd.group_nama ? `<span class="kw-ind-selector-tag kw-ind-selector-tag--bidang">${esc(selInd.group_nama)}</span>` : ''}
           ${selInd.penanggung_jawab ? `<span class="kw-ind-selector-tag kw-ind-selector-tag--pj">${esc(selInd.penanggung_jawab)}</span>` : ''}
           ${selInd.satuan ? `<span class="kw-ind-selector-tag">Satuan: ${esc(selInd.satuan)}</span>` : ''}
+          ${typeof _tipeBadge === 'function' ? _tipeBadge(selInd.tipe_perhitungan) : ''}
         </div>
       </div>
       <button class="kw-ind-selector-change" onclick="_kwToggleDd()" type="button">

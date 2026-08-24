@@ -2537,6 +2537,10 @@ async function saveIndikator() {
     try { if (typeof loadKinerjaRekap === 'function') await loadKinerjaRekap(); } catch (_) {}
     try { if (typeof loadIkkRekap === 'function') await loadIkkRekap(); } catch (_) {}
     try { if (typeof loadSpmRekap === 'function') await loadSpmRekap(); } catch (_) {}
+    // Ganti tipe_perhitungan/bermakna_negatif dll ngubah capaian_persen di
+    // SEMUA tahun buat indikator ini - bersihin cache dashboard biar "Pantau
+    // Indikator" & mini chart "Tren Per Bulan" gak nampilin angka basi.
+    try { if (typeof _invalidateAllKinerjaDashboardCache === 'function') _invalidateAllKinerjaDashboardCache(); } catch (_) {}
   } catch (err) { toast('Error: ' + err.message, 'error'); }
 }
 

@@ -56,6 +56,37 @@ async function ensureSchema(sql) {
     UPDATE eplanning_usulan SET status = 'MENUNGGU KEPALA BIDANG', bidang_tipe = 'bidang'
     WHERE status = 'DIAJUKAN KE BIDANG'
   `;
+
+  // --- Verifikasi per-komponen (Surat Usulan / TOR / RAB) - menggantikan alur status tunggal lama ---
+  await sql`ALTER TABLE eplanning_usulan ADD COLUMN IF NOT EXISTS status_surat TEXT NOT NULL DEFAULT 'MENUNGGU'`;
+  await sql`ALTER TABLE eplanning_usulan ADD COLUMN IF NOT EXISTS status_tor TEXT NOT NULL DEFAULT 'MENUNGGU'`;
+  await sql`ALTER TABLE eplanning_usulan ADD COLUMN IF NOT EXISTS status_rab TEXT NOT NULL DEFAULT 'MENUNGGU'`;
+  await sql`ALTER TABLE eplanning_usulan ADD COLUMN IF NOT EXISTS catatan_surat TEXT`;
+  await sql`ALTER TABLE eplanning_usulan ADD COLUMN IF NOT EXISTS catatan_tor TEXT`;
+  await sql`ALTER TABLE eplanning_usulan ADD COLUMN IF NOT EXISTS catatan_rab TEXT`;
+  await sql`ALTER TABLE eplanning_usulan ADD COLUMN IF NOT EXISTS verifikator_surat TEXT`;
+  await sql`ALTER TABLE eplanning_usulan ADD COLUMN IF NOT EXISTS verifikator_tor TEXT`;
+  await sql`ALTER TABLE eplanning_usulan ADD COLUMN IF NOT EXISTS verifikator_rab TEXT`;
+  await sql`ALTER TABLE eplanning_usulan ADD COLUMN IF NOT EXISTS tgl_verifikasi_surat TIMESTAMPTZ`;
+  await sql`ALTER TABLE eplanning_usulan ADD COLUMN IF NOT EXISTS tgl_verifikasi_tor TIMESTAMPTZ`;
+  await sql`ALTER TABLE eplanning_usulan ADD COLUMN IF NOT EXISTS tgl_verifikasi_rab TIMESTAMPTZ`;
+  await sql`ALTER TABLE eplanning_usulan ADD COLUMN IF NOT EXISTS sumber_dana_pilihan TEXT`;
+  // Surat Usulan & TOR sekarang diisi lewat form/template, bukan upload file lagi.
+  // link_surat_usulan/link_kak/link_datadukung dibiarkan ada di DB (data lama) tapi tidak dipakai lagi.
+  await sql`ALTER TABLE eplanning_usulan ADD COLUMN IF NOT EXISTS data_surat JSONB NOT NULL DEFAULT '{}'::jsonb`;
+  await sql`ALTER TABLE eplanning_usulan ADD COLUMN IF NOT EXISTS data_tor JSONB NOT NULL DEFAULT '{}'::jsonb`;
+  // Usulan yang dulu sudah SELESAI (disetujui admin) dianggap seluruh komponennya sudah disetujui.
+  await sql`
+    UPDATE eplanning_usulan SET status_surat = 'DISETUJUI', status_tor = 'DISETUJUI', status_rab = 'DISETUJUI'
+    WHERE status = 'SELESAI' AND status_surat = 'MENUNGGU'
+  `;
+  // Usulan lama yang masih dalam proses (bukan DRAFT/SELESAI/DITOLAK) masuk ke Pra Usulan,
+  // komponennya diverifikasi ulang dari awal karena alur lama tidak memisahkan per-komponen.
+  await sql`
+    UPDATE eplanning_usulan SET status = 'PRA USULAN'
+    WHERE status NOT IN ('DRAFT', 'SELESAI', 'DITOLAK', 'PRA USULAN')
+  `;
+
   await sql`
     CREATE TABLE IF NOT EXISTS eplanning_rincian (
       id            TEXT PRIMARY KEY,
@@ -335,12 +366,22 @@ export const handler = async (event) => {
 
       if (event.httpMethod === 'GET' && !id) {
         const tahunFilter = qs.tahun && /^\d{4}$/.test(qs.tahun) ? parseInt(qs.tahun) : null;
+        // tahap=pra-usulan -> belum lengkap disetujui (DRAFT/PRA USULAN/DITOLAK); tahap=usulanku -> semua komponen sudah disetujui (SELESAI)
         let rows;
         if (role.isAdmin) {
+          const adminTahap = qs.tahap === 'pra-usulan' ? ['DRAFT', 'PRA USULAN', 'DITOLAK']
+            : qs.tahap === 'usulanku' ? ['SELESAI'] : null;
           if (qs.status) {
             rows = await sql`
               SELECT * FROM eplanning_usulan
               WHERE status = ${qs.status}
+                AND (${tahunFilter}::int IS NULL OR tahun_anggaran = ${tahunFilter}::int
+                     OR (${tahunFilter}::int = 2027 AND tahun_anggaran IS NULL))
+              ORDER BY updated_at DESC`;
+          } else if (adminTahap) {
+            rows = await sql`
+              SELECT * FROM eplanning_usulan
+              WHERE status = ANY(${adminTahap}::text[])
                 AND (${tahunFilter}::int IS NULL OR tahun_anggaran = ${tahunFilter}::int
                      OR (${tahunFilter}::int = 2027 AND tahun_anggaran IS NULL))
               ORDER BY updated_at DESC`;
@@ -353,23 +394,32 @@ export const handler = async (event) => {
               ORDER BY updated_at DESC`;
           }
         } else if (role.isKabid) {
+          const kabidTahap = qs.tahap === 'pra-usulan' ? ['DRAFT', 'PRA USULAN', 'DITOLAK']
+            : qs.tahap === 'usulanku' ? ['SELESAI'] : null;
           rows = await sql`
             SELECT * FROM eplanning_usulan
             WHERE bidang_id = ${role.bidangId}
+              AND (${kabidTahap}::text[] IS NULL OR status = ANY(${kabidTahap}::text[]))
               AND (${tahunFilter}::int IS NULL OR tahun_anggaran = ${tahunFilter}::int
                    OR (${tahunFilter}::int = 2027 AND tahun_anggaran IS NULL))
             ORDER BY updated_at DESC`;
         } else if (role.isSekretaris) {
+          const sekTahap = qs.tahap === 'pra-usulan' ? ['DRAFT', 'PRA USULAN', 'DITOLAK']
+            : qs.tahap === 'usulanku' ? ['SELESAI'] : null;
           rows = await sql`
             SELECT * FROM eplanning_usulan
             WHERE bidang_tipe = 'sub_bagian'
+              AND (${sekTahap}::text[] IS NULL OR status = ANY(${sekTahap}::text[]))
               AND (${tahunFilter}::int IS NULL OR tahun_anggaran = ${tahunFilter}::int
                    OR (${tahunFilter}::int = 2027 AND tahun_anggaran IS NULL))
             ORDER BY updated_at DESC`;
         } else {
+          const opTahap = qs.tahap === 'pra-usulan' ? ['DRAFT', 'PRA USULAN', 'DITOLAK']
+            : qs.tahap === 'usulanku' ? ['SELESAI'] : null;
           rows = await sql`
             SELECT * FROM eplanning_usulan
             WHERE bidang_id = ${role.bidangId} AND pembuat_user_id = ${auth.id}
+              AND (${opTahap}::text[] IS NULL OR status = ANY(${opTahap}::text[]))
               AND (${tahunFilter}::int IS NULL OR tahun_anggaran = ${tahunFilter}::int
                    OR (${tahunFilter}::int = 2027 AND tahun_anggaran IS NULL))
             ORDER BY updated_at DESC`;
@@ -381,17 +431,96 @@ export const handler = async (event) => {
         const cur = await sql`SELECT pembuat_user_id, bidang_id, status FROM eplanning_usulan WHERE id = ${id} LIMIT 1`;
         if (!cur.length) return errorResponse('Usulan tidak ditemukan', 404);
         if (!role.isAdmin && cur[0].pembuat_user_id !== auth.id) return errorResponse('Unauthorized', 401);
-        if (!['DRAFT'].includes(cur[0].status)) return errorResponse('Usulan sudah diajukan, tidak bisa disubmit ulang', 409);
+        if (!['DRAFT', 'DITOLAK'].includes(cur[0].status)) return errorResponse('Usulan sudah diajukan, tidak bisa disubmit ulang', 409);
         const b = await sql`SELECT tipe FROM bidang WHERE id = ${cur[0].bidang_id} LIMIT 1`;
         const bidangTipe = b[0]?.tipe || 'bidang';
         const rows = await sql`
           UPDATE eplanning_usulan SET
-            status = ${statusMenungguKepala(bidangTipe)}, bidang_tipe = ${bidangTipe},
+            status = 'PRA USULAN', bidang_tipe = ${bidangTipe},
+            status_surat = 'MENUNGGU', status_tor = 'MENUNGGU', status_rab = 'MENUNGGU',
+            catatan_surat = NULL, catatan_tor = NULL, catatan_rab = NULL,
             ditolak_oleh = NULL, updated_at = NOW()
           WHERE id = ${id} RETURNING *`;
         await logAudit(sql, event, { user_id: auth.id, nama: auth.nama, aksi: 'eplanning_submit', entitas: 'eplanning_usulan', entitas_id: id });
         return jsonResponse({ usulan: rows[0] });
       }
+
+      // Verifikasi satu komponen (surat/tor/rab) secara independen oleh Kepala Puskesmas/Bidang/Subbagian (role isKabid, dicocokkan via bidang_id) atau Admin.
+      if (event.httpMethod === 'PUT' && id && action === 'verify-komponen') {
+        const cur = await sql`SELECT bidang_id, status FROM eplanning_usulan WHERE id = ${id} LIMIT 1`;
+        if (!cur.length) return errorResponse('Usulan tidak ditemukan', 404);
+        if (!role.isAdmin && !(role.isKabid && role.bidangId === cur[0].bidang_id)) {
+          return errorResponse('Unauthorized', 401);
+        }
+        if (cur[0].status !== 'PRA USULAN') return errorResponse('Usulan tidak sedang dalam tahap Pra Usulan', 409);
+        const body = parseBody(event);
+        const komponen = body.komponen;
+        const keputusan = body.keputusan;
+        const KOMPONEN_VALID = ['surat', 'tor', 'rab'];
+        if (!KOMPONEN_VALID.includes(komponen)) return errorResponse('Komponen tidak valid', 400);
+        if (!['DISETUJUI', 'DITOLAK'].includes(keputusan)) return errorResponse('Keputusan tidak valid', 400);
+        if (keputusan === 'DITOLAK' && (!body.catatan || !body.catatan.trim())) {
+          return errorResponse('Catatan alasan penolakan wajib diisi', 400);
+        }
+        const colStatus = `status_${komponen}`, colCatatan = `catatan_${komponen}`,
+              colVerif = `verifikator_${komponen}`, colTgl = `tgl_verifikasi_${komponen}`;
+        await sql.query(
+          `UPDATE eplanning_usulan SET ${colStatus} = $1, ${colCatatan} = $2, ${colVerif} = $3, ${colTgl} = NOW(), updated_at = NOW() WHERE id = $4`,
+          [keputusan, keputusan === 'DITOLAK' ? body.catatan.trim() : null, auth.nama, id]
+        );
+        const after = await sql`SELECT * FROM eplanning_usulan WHERE id = ${id} LIMIT 1`;
+        let final = after[0];
+        if (final.status_surat === 'DISETUJUI' && final.status_tor === 'DISETUJUI' && final.status_rab === 'DISETUJUI') {
+          const doneRows = await sql`UPDATE eplanning_usulan SET status = 'SELESAI', updated_at = NOW() WHERE id = ${id} RETURNING *`;
+          final = doneRows[0];
+        }
+        await logAudit(sql, event, { user_id: auth.id, nama: auth.nama, aksi: 'eplanning_verify_komponen', entitas: 'eplanning_usulan', entitas_id: id, detail: { komponen, keputusan } });
+        return jsonResponse({ usulan: final });
+      }
+
+      // Pemilik usulan menandai komponen yang DITOLAK sudah diperbaiki -> kembali MENUNGGU verifikasi.
+      if (event.httpMethod === 'PUT' && id && action === 'resubmit-komponen') {
+        const cur = await sql`SELECT pembuat_user_id, status FROM eplanning_usulan WHERE id = ${id} LIMIT 1`;
+        if (!cur.length) return errorResponse('Usulan tidak ditemukan', 404);
+        if (!role.isAdmin && cur[0].pembuat_user_id !== auth.id) return errorResponse('Unauthorized', 401);
+        if (cur[0].status !== 'PRA USULAN') return errorResponse('Usulan tidak sedang dalam tahap Pra Usulan', 409);
+        const body = parseBody(event);
+        const komponen = body.komponen;
+        if (!['surat', 'tor', 'rab'].includes(komponen)) return errorResponse('Komponen tidak valid', 400);
+        const colStatus = `status_${komponen}`, colCatatan = `catatan_${komponen}`;
+        await sql.query(
+          `UPDATE eplanning_usulan SET ${colStatus} = 'MENUNGGU', ${colCatatan} = NULL, updated_at = NOW() WHERE id = $1 AND ${colStatus} = 'DITOLAK'`,
+          [id]
+        );
+        const rows = await sql`SELECT * FROM eplanning_usulan WHERE id = ${id} LIMIT 1`;
+        await logAudit(sql, event, { user_id: auth.id, nama: auth.nama, aksi: 'eplanning_resubmit_komponen', entitas: 'eplanning_usulan', entitas_id: id, detail: { komponen } });
+        return jsonResponse({ usulan: rows[0] });
+      }
+
+      // Simpan form Surat Usulan / TOR (data_surat / data_tor) - terpisah dari saveUsulan supaya gak menimpa field lain.
+      if (event.httpMethod === 'PUT' && id && action === 'dokumen') {
+        const cur = await sql`SELECT pembuat_user_id, status, status_surat, status_tor FROM eplanning_usulan WHERE id = ${id} LIMIT 1`;
+        if (!cur.length) return errorResponse('Usulan tidak ditemukan', 404);
+        if (!role.isAdmin && cur[0].pembuat_user_id !== auth.id) return errorResponse('Unauthorized', 401);
+        const editableStatuses = ['DRAFT', 'DITOLAK'];
+        const c = cur[0];
+        const tipe = parseBody(event).tipe;
+        if (!['surat', 'tor'].includes(tipe)) return errorResponse('Tipe dokumen tidak valid', 400);
+        const komponenStatus = tipe === 'surat' ? c.status_surat : c.status_tor;
+        const bolehEdit = role.isAdmin ||
+          editableStatuses.includes(c.status) ||
+          (c.status === 'PRA USULAN' && ['MENUNGGU', 'DITOLAK'].includes(komponenStatus));
+        if (!bolehEdit) return errorResponse('Dokumen ini sudah diverifikasi, tidak bisa diubah', 409);
+        const body = parseBody(event);
+        const col = tipe === 'surat' ? 'data_surat' : 'data_tor';
+        const rows2 = await sql.query(
+          `UPDATE eplanning_usulan SET ${col} = $1, updated_at = NOW() WHERE id = $2 RETURNING *`,
+          [JSON.stringify(body.data || {}), id]
+        );
+        await logAudit(sql, event, { user_id: auth.id, nama: auth.nama, aksi: 'eplanning_save_dokumen', entitas: 'eplanning_usulan', entitas_id: id, detail: { tipe } });
+        return jsonResponse({ usulan: rows2[0] });
+      }
+
 
       if (event.httpMethod === 'PUT' && id && action === 'approve-kabid') {
         if (!role.isAdmin && !role.isKabid) return errorResponse('Unauthorized', 401);
@@ -525,6 +654,8 @@ export const handler = async (event) => {
               link_surat_usulan = ${body.link_surat_usulan ?? null},
               link_kak           = ${body.link_kak ?? null},
               link_datadukung    = ${body.link_datadukung ?? null},
+              data_surat = ${JSON.stringify(body.data_surat || {})},
+              data_tor   = ${JSON.stringify(body.data_tor || {})},
               lokasi_pelaksanaan_kabkota_id = ${body.lokasi_pelaksanaan_kabkota_id || null},
               rincian_lokasi = ${JSON.stringify(body.rincian_lokasi || [])},
               prioritas_provinsi_id = ${body.prioritas_provinsi_id || null},
@@ -550,6 +681,7 @@ export const handler = async (event) => {
             id, bidang_id, bidang_nama, sub_kegiatan, indikator, target, status,
             pembuat_user_id, pembuat_nama, tahun_anggaran,
             link_surat_usulan, link_kak, link_datadukung,
+            data_surat, data_tor,
             lokasi_pelaksanaan_kabkota_id, rincian_lokasi,
             prioritas_provinsi_id, prioritas_provinsi_nama,
             prioritas_kabkota_id, prioritas_kabkota_nama,
@@ -559,6 +691,7 @@ export const handler = async (event) => {
             ${usulanId}, ${bidangId}, ${bidangNama}, ${body.sub_kegiatan || null}, ${body.indikator || null},
             ${body.target || null}, 'DRAFT', ${auth.id}, ${auth.nama}, ${body.tahun_anggaran || null},
             ${body.link_surat_usulan ?? null}, ${body.link_kak ?? null}, ${body.link_datadukung ?? null},
+            ${JSON.stringify(body.data_surat || {})}, ${JSON.stringify(body.data_tor || {})},
             ${body.lokasi_pelaksanaan_kabkota_id || null}, ${JSON.stringify(body.rincian_lokasi || [])},
             ${body.prioritas_provinsi_id || null}, ${body.prioritas_provinsi_nama || null},
             ${body.prioritas_kabkota_id || null}, ${body.prioritas_kabkota_nama || null},
