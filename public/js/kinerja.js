@@ -2268,7 +2268,7 @@ function initIndikatorPJSearchable() {
   searchInp.type = 'text';
   searchInp.placeholder = 'Cari bidang...';
   searchInp.className = 'bsel-search';
-  searchInp.style.cssText = 'width:100%;border:1px solid var(--border,#e2e8f0);border-radius:6px;padding:5px 10px;font-size:.83rem;outline:none;color:var(--text-primary,#1e293b);background:var(--bg-input,#f8fafc)';
+  searchInp.style.cssText = 'width:100%;border:1px solid var(--border,#e2e8f0);border-radius:6px;padding:5px 10px;font-size:var(--fs-sm,.764rem);outline:none;color:var(--text-primary,#1e293b);background:var(--bg-input,#f8fafc)';
   searchWrap.appendChild(searchInp);
   panel.appendChild(searchWrap);
 
@@ -2311,7 +2311,7 @@ function initIndikatorPJSearchable() {
       listEl.appendChild(div);
     });
     if (!hasResult) {
-      listEl.innerHTML = '<div style="padding:10px 14px;font-size:.83rem;color:var(--text-secondary,#64748b)">Tidak ditemukan</div>';
+      listEl.innerHTML = '<div style="padding:10px 14px;font-size:var(--fs-sm,.764rem);color:var(--text-secondary,#64748b)">Tidak ditemukan</div>';
     }
   }
 
@@ -2664,7 +2664,7 @@ function openJenisModal(id) {
   document.getElementById('jenisWarnaBg').value    = j?.warna_bg   || '#e2e8f0';
   document.getElementById('jenisWarnaTeks').value  = j?.warna_teks || '#334155';
   document.getElementById('jenisUrutan').value     = j?.urutan ?? 99;
-  document.getElementById('jenisAktif').checked    = j ? j.aktif : true;
+  document.getElementById('jenisAktif').value    = (j ? j.aktif : true) ? '1' : '0';
 
   const kodeRow = document.getElementById('jenisKodeRow');
   const kodeEl  = document.getElementById('jenisKodeDisplay');
@@ -2702,7 +2702,7 @@ async function saveJenis() {
   const warna_bg  = document.getElementById('jenisWarnaBg').value;
   const warna_teks= document.getElementById('jenisWarnaTeks').value;
   const urutan    = parseInt(document.getElementById('jenisUrutan').value) || 99;
-  const aktif     = document.getElementById('jenisAktif').checked;
+  const aktif     = document.getElementById('jenisAktif').value === '1';
 
   if (!label) { toast('Label wajib diisi', 'error'); return; }
 
@@ -4179,21 +4179,29 @@ function _mdToHtmlDisplay(md) {
     return h;
   };
   let html = '';
-  let listType = null; // 'ol' | 'ul' | null
-  const closeList = () => { if (listType) { html += `</${listType}>`; listType = null; } };
+  let listType = null; // 'ol' | 'ul' | 'al' | null
+  const tagFor = (t) => (t === 'ul' ? 'ul' : 'ol');
+  const closeList = () => { if (listType) { html += `</${tagFor(listType)}>`; listType = null; } };
   String(md).split('\n').forEach(line => {
+    let alignAttr = '';
+    const alignM = line.match(/^\[(C|R)\](.*)$/);
+    if (alignM) { alignAttr = ` style="text-align:${alignM[1] === 'C' ? 'center' : 'right'}"`; line = alignM[2]; }
     const numM = line.match(/^(\d+)\.\s+(.*)$/);
+    const letM = line.match(/^([a-z])\.\s+(.*)$/);
     const bulM = line.match(/^-\s+(.*)$/);
     if (numM) {
       if (listType !== 'ol') { closeList(); html += '<ol class="md-list">'; listType = 'ol'; }
-      html += `<li>${inlineFmt(numM[2])}</li>`;
+      html += `<li${alignAttr}>${inlineFmt(numM[2])}</li>`;
+    } else if (letM) {
+      if (listType !== 'al') { closeList(); html += '<ol class="md-list" style="list-style-type:lower-alpha">'; listType = 'al'; }
+      html += `<li${alignAttr}>${inlineFmt(letM[2])}</li>`;
     } else if (bulM) {
       if (listType !== 'ul') { closeList(); html += '<ul class="md-list">'; listType = 'ul'; }
-      html += `<li>${inlineFmt(bulM[1])}</li>`;
+      html += `<li${alignAttr}>${inlineFmt(bulM[1])}</li>`;
     } else {
       closeList();
       const h = inlineFmt(line);
-      html += `<div class="md-line">${h || '<br>'}</div>`;
+      html += `<div class="md-line"${alignAttr}>${h || '<br>'}</div>`;
     }
   });
   closeList();
@@ -4213,16 +4221,31 @@ function _mdToRteHtml(md) {
   // supaya bisa di-render rata kanan dalam kotak lebar tetap lewat CSS --
   // titik di belakang nomor 1 digit ("1.") & 2 digit ("10.") jadi sejajar,
   // gak geser kayak dulu (marker cuma teks polos, lebarnya ikut jumlah digit).
-  return String(md).split('\n').map(line => {
-    const m = line.match(/^(\d+\.|-)[ \u00A0](.*)$/);
+  const renderLines = (text) => text.split('\n').map(line => {
+    const imgM = line.match(/^\[IMG(?:\s+w=(\d+))?(?:\s+align=(left|center|right))?\]([\s\S]*?)\[\/IMG\]$/);
+    if (imgM) return _rteRenderImageBlock(imgM[3], imgM[1], imgM[2]);
+    // Rata tengah/kanan per baris teks biasa (mis. keterangan gambar) --
+    // prefix [C]/[R] di depan baris, konsisten sama konvensi align sel tabel.
+    let alignAttr = '';
+    const alignM = line.match(/^\[(C|R)\](.*)$/);
+    if (alignM) { alignAttr = ` style="text-align:${alignM[1] === 'C' ? 'center' : 'right'}"`; line = alignM[2]; }
+    const m = line.match(/^(\d+\.|[a-z]\.|-)[ \u00A0](.*)$/);
     if (m) {
       const marker = _escMd2Html(m[1]);
       const rest = inlineFmt(m[2]);
       const ulCls = m[1] === '-' ? ' rte-marker--ul' : '';
-      return `<div class="rte-line rte-line--list"><span class="rte-marker${ulCls}">${marker}</span>\u00A0${rest || '<br>'}</div>`;
+      return `<div class="rte-line rte-line--list"${alignAttr}><span class="rte-marker${ulCls}">${marker}</span>\u00A0${rest || '<br>'}</div>`;
     }
     const h = inlineFmt(line);
-    return `<div class="rte-line">${h || '<br>'}</div>`;
+    return `<div class="rte-line"${alignAttr}>${h || '<br>'}</div>`;
+  }).join('');
+  // Blok [TABLE]...[/TABLE] bisa multi-baris, jadi dipisahin dulu dari teks biasa
+  // sebelum diproses per-baris (regex split dgn 1 capture group -> hasilnya
+  // selang-seling [teks, isiTabel, teks, isiTabel, ...]).
+  const segments = String(md).split(/\[TABLE\]\n?([\s\S]*?)\n?\[\/TABLE\]/g);
+  return segments.map((seg, i) => {
+    if (i % 2 === 1) return _rteRenderTableBlock(seg);
+    return seg === '' ? '' : renderLines(seg);
   }).join('');
 }
 
@@ -4237,12 +4260,46 @@ function _htmlToMd(el) {
       if (tag === 'BR') { out += '\n'; return; }
       if (tag === 'STRONG' || tag === 'B') { out += '**' + walk(n) + '**'; return; }
       if (tag === 'EM' || tag === 'I')     { out += '_' + walk(n) + '_'; return; }
+      if (n.classList && n.classList.contains('rte-image-block')) {
+        const img = n.querySelector('img');
+        const src = img ? (img.getAttribute('src') || '') : '';
+        const w = img ? parseInt(img.style.width, 10) : NaN;
+        const align = n.dataset.align && n.dataset.align !== 'left' ? n.dataset.align : '';
+        const attrs = [Number.isFinite(w) && w > 0 ? `w=${w}` : '', align ? `align=${align}` : ''].filter(Boolean).join(' ');
+        out += (out ? '\n' : '') + `[IMG${attrs ? ' ' + attrs : ''}]${src}[/IMG]`;
+        return;
+      }
+      if (n.classList && n.classList.contains('rte-table-block')) {
+        const table = n.querySelector('table');
+        let colsLine = '';
+        if (table) {
+          const cols = [...table.querySelectorAll(':scope > colgroup > col')].map(c => {
+            const w = parseInt(c.style.width, 10);
+            return Number.isFinite(w) && w > 0 ? w : null;
+          });
+          if (cols.length && cols.every(w => w != null)) colsLine = `[COLS]${cols.join(',')}\n`;
+        }
+        const rowsMd = table ? [...table.querySelectorAll(':scope > tbody > tr')].map(tr => {
+          const rh = parseInt(tr.style.height, 10);
+          const rowPrefix = Number.isFinite(rh) && rh > 0 ? `[ROW:${rh}]` : '';
+          const cellsMd = [...tr.querySelectorAll('td,th')].map(td => {
+            const align = (td.style.textAlign || '').toLowerCase();
+            const prefix = align === 'center' ? '[C]' : align === 'right' ? '[R]' : '';
+            return prefix + (td.textContent || '').replace(/\|/g, '\\|').replace(/\n/g, ' ').trim();
+          }).join('|');
+          return rowPrefix + cellsMd;
+        }).join('\n') : '';
+        out += (out ? '\n' : '') + `[TABLE]\n${colsLine}${rowsMd}\n[/TABLE]`;
+        return;
+      }
       if (tag === 'DIV' || tag === 'P') {
         
         
         
         const isEmptyLine = n.childNodes.length === 1 && n.firstChild.nodeType === 1 && n.firstChild.tagName === 'BR';
-        out += (out ? '\n' : '') + (isEmptyLine ? '' : walk(n));
+        const align = (n.style.textAlign || '').toLowerCase();
+        const alignPrefix = align === 'center' ? '[C]' : align === 'right' ? '[R]' : '';
+        out += (out ? '\n' : '') + (isEmptyLine ? '' : alignPrefix + walk(n));
         return;
       }
       out += walk(n);
@@ -4305,7 +4362,8 @@ document.addEventListener('keydown', function(e) {
   const lineText  = lineDiv.textContent || '';
   const bulletM   = lineText.match(/^-\s/);
   const numM      = lineText.match(/^(\d+)\.\s/);
-  const markerLen = bulletM ? bulletM[0].length : (numM ? numM[0].length : 0);
+  const letM      = lineText.match(/^([a-z])\.\s/);
+  const markerLen = bulletM ? bulletM[0].length : (numM ? numM[0].length : (letM ? letM[0].length : 0));
   const lineEmpty = markerLen > 0 && lineText.slice(markerLen).trim().length === 0;
 
   if (markerLen > 0 && lineEmpty) {
@@ -4339,7 +4397,7 @@ document.addEventListener('keydown', function(e) {
   if (markerLen > 0) {
     
     
-    const nextMarkerText = bulletM ? '-' : `${parseInt(numM[1], 10) + 1}.`;
+    const nextMarkerText = bulletM ? '-' : (numM ? `${parseInt(numM[1], 10) + 1}.` : `${String.fromCharCode(Math.min(letM[1].charCodeAt(0) + 1, 122))}.`);
     const sep = _rteInsertMarker(newLine, nextMarkerText);
     newRange.setStart(sep, sep.length);
   } else {
@@ -4358,31 +4416,42 @@ document.addEventListener('keydown', function(e) {
   el.dispatchEvent(new Event('input', { bubbles: true }));
 });
 
-document.addEventListener('input', function(e) {
-  const el = e.target;
-  if (!el?.classList?.contains?.('ps-rte')) return;
+// Deteksi "1. "/"- "/"a. " yg baru diketik di awal baris & convert jadi
+// <span class="rte-marker">. Dipisah jadi fungsi (bukan inline di listener
+// 'input') supaya bisa dipanggil ulang dari 'compositionend' -- lihat
+// alasannya di komentar listener 'input' di bawah.
+function _rteTryAutoMarker(el) {
   const sel = window.getSelection();
   if (!sel || !sel.rangeCount || !sel.isCollapsed) return;
   const range = sel.getRangeAt(0);
   const node = range.startContainer;
+  const offset = range.startOffset;
 
-  
-  
-  
-  
-  
   if (!el.querySelector(':scope > .rte-line')) {
     const wrap = document.createElement('div');
     wrap.className = 'rte-line';
     while (el.firstChild) wrap.appendChild(el.firstChild);
     el.appendChild(wrap);
+    // Mindahin node yang lagi megang kursor (di atas) ke parent baru (wrap)
+    // bikin browser nge-reset boundary point Range itu balik ke posisi lama
+    // di 'el' (spec: node dilepas dari parent lamanya dulu sebelum ditaro di
+    // parent baru) -- makanya kursor keliatan lompat ke kiri/awal field pas
+    // ngetik karakter pertama di field yang masih kosong. Re-set manual ke
+    // (node, offset) yang sama, tapi sekarang di lokasi barunya (dalem wrap).
+    if (node && wrap.contains(node)) {
+      const r = document.createRange();
+      r.setStart(node, offset);
+      r.collapse(true);
+      sel.removeAllRanges();
+      sel.addRange(r);
+    }
   }
 
   const lineDiv = (node.nodeType === 1 ? node : node.parentElement)?.closest('.rte-line');
   if (!lineDiv || !el.contains(lineDiv) || _rteMarkerSpan(lineDiv)) return;
   const first = lineDiv.firstChild;
   if (!first || first.nodeType !== 3) return;
-  const m = first.nodeValue.match(/^(\d+\.|-)[ \u00A0]/);
+  const m = first.nodeValue.match(/^(\d+\.|[a-z]\.|-)[ \u00A0]/);
   
   
   if (!m || range.startContainer !== first || range.startOffset !== m[0].length) return;
@@ -4400,13 +4469,49 @@ document.addEventListener('input', function(e) {
   newRange.collapse(true);
   sel.removeAllRanges();
   sel.addRange(newRange);
+}
+
+document.addEventListener('input', function(e) {
+  const el = e.target;
+  if (!el?.classList?.contains?.('ps-rte')) return;
+  // Skip selagi IME/keyboard prediktif (mis. Gboard/HP) masih "composing" --
+  // baca first.nodeValue di tengah komposisi bisa nangkep state sementara
+  // yg belum final (karakter kepotong/ke-reorder di layar, mis. "1." sempat
+  // kebaca/kerender ".1"). Ditangkep lagi begitu komposisi commit lewat
+  // listener 'compositionend' di bawah, jadi marker tetep kebentuk normal
+  // begitu teksnya udah final.
+  if (e.isComposing) return;
+  _rteTryAutoMarker(el);
+});
+
+document.addEventListener('compositionend', function(e) {
+  const el = e.target;
+  if (!el?.classList?.contains?.('ps-rte')) return;
+  _rteTryAutoMarker(el);
 });
 
 document.addEventListener('paste', function(e) {
-  const el = e.target;
-  if (!el?.classList?.contains?.('ps-rte')) return;
+  const el = e.target?.closest?.('.ps-rte');
+  if (!el) return;
+  const dt = e.clipboardData || window.clipboardData;
+  // Gambar di-copy-paste (screenshot, copy dari Word/gambar lain, dst) --
+  // dt.items berisi entri "file" bertipe image/* pas itu terjadi. Ini
+  // sekarang satu-satunya cara masukin gambar (tombol toolbar udah dicabut).
+  const items = dt && dt.items ? Array.from(dt.items) : [];
+  const imageItem = items.find(it => it.kind === 'file' && it.type && it.type.startsWith('image/'));
+  let imageFile = imageItem ? imageItem.getAsFile() : null;
+  // Fallback: sebagian browser/OS (mis. paste dari file manager, atau Firefox
+  // versi lama) gak isi dt.items dengan kind:"file", tapi isi dt.files langsung.
+  if (!imageFile && dt && dt.files && dt.files.length) {
+    imageFile = Array.from(dt.files).find(f => f.type && f.type.startsWith('image/')) || null;
+  }
+  if (imageFile) {
+    e.preventDefault();
+    _rteUploadAndInsertImage(el, imageFile);
+    return;
+  }
   e.preventDefault();
-  const text = (e.clipboardData || window.clipboardData)?.getData('text/plain') || '';
+  const text = (dt)?.getData('text/plain') || '';
   const sel = window.getSelection();
   if (!sel.rangeCount) return;
   const range = sel.getRangeAt(0);
@@ -4419,10 +4524,10 @@ document.addEventListener('paste', function(e) {
   if (!el.querySelector(':scope > .rte-line')) {
     const wrap = document.createElement('div');
     wrap.className = 'rte-line';
-    const hadContent = !!el.firstChild;
     while (el.firstChild) wrap.appendChild(el.firstChild);
     el.appendChild(wrap);
-    if (hadContent) { range.selectNodeContents(wrap); range.collapse(false); }
+    range.selectNodeContents(wrap);
+    range.collapse(false);
   }
 
   let lineDiv = range.startContainer.nodeType === 1 ? range.startContainer : range.startContainer.parentElement;
@@ -4462,7 +4567,7 @@ document.addEventListener('paste', function(e) {
   
   
   
-  lineDiv.classList.toggle('rte-line--list', /^(\d+\.\s|-\s)/.test(lineDiv.textContent || ''));
+  lineDiv.classList.toggle('rte-line--list', /^(\d+\.\s|[a-z]\.\s|-\s)/.test(lineDiv.textContent || ''));
   // Bungkus markernya jadi <span class="rte-marker"> (rata kanan lewat CSS)
   // biar list yang di-paste align-nya sama kayak list yang diketik langsung.
   _rteWrapMarker(lineDiv);
@@ -4475,7 +4580,7 @@ document.addEventListener('paste', function(e) {
     
     
     
-    if (/^(\d+\.\s|-\s)/.test(lines[i])) div.classList.add('rte-line--list');
+    if (/^(\d+\.\s|[a-z]\.\s|-\s)/.test(lines[i])) div.classList.add('rte-line--list');
     div.appendChild(document.createTextNode(lines[i]));
     if (i === lines.length - 1) div.appendChild(afterFrag);
     if (!div.childNodes.length) div.appendChild(document.createElement('br'));
@@ -4493,7 +4598,7 @@ document.addEventListener('paste', function(e) {
   el.dispatchEvent(new Event('input', { bubbles: true }));
 });
 
-let _rteToolbarEl = null, _rteActiveEl = null;
+let _rteToolbarEl = null, _rteActiveEl = null, _rteActiveTd = null, _rteActiveLine = null;
 function _ensureRteToolbar() {
   if (_rteToolbarEl) return _rteToolbarEl;
   const tb = document.createElement('div');
@@ -4504,6 +4609,11 @@ function _ensureRteToolbar() {
     <span class="rte-sep"></span>
     <button type="button" data-cmd="ul" data-tip="Daftar simbol"><svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h.01"/><path d="M3 18h.01"/><path d="M3 6h.01"/><path d="M8 12h13"/><path d="M8 18h13"/><path d="M8 6h13"/></svg></button>
     <button type="button" data-cmd="ol" data-tip="Daftar bernomor"><svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="M10 12h11"/><path d="M10 18h11"/><path d="M10 6h11"/><path d="M4 10h2"/><path d="M4 6h1v4"/><path d="M6 18H4c0-1 2-2 2-3s-1-1.5-2-1"/></svg></button>
+    <button type="button" data-cmd="al" data-tip="Daftar huruf"><svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="M10 12h11"/><path d="M10 18h11"/><path d="M10 6h11"/><text x="3" y="8.3" font-size="7" font-family="sans-serif" font-weight="700" stroke="none" fill="currentColor">a</text><text x="3" y="14.3" font-size="7" font-family="sans-serif" font-weight="700" stroke="none" fill="currentColor">b</text><text x="3" y="20.3" font-size="7" font-family="sans-serif" font-weight="700" stroke="none" fill="currentColor">c</text></svg></button>
+    <span class="rte-sep rte-align-group" style="display:none"></span>
+    <button type="button" class="rte-align-group" style="display:none" data-cmd="align-left" data-tip="Rata kiri"><svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="15" y2="12"/><line x1="3" y1="18" x2="18" y2="18"/></svg></button>
+    <button type="button" class="rte-align-group" style="display:none" data-cmd="align-center" data-tip="Rata tengah"><svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="6" y1="12" x2="18" y2="12"/><line x1="4" y1="18" x2="20" y2="18"/></svg></button>
+    <button type="button" class="rte-align-group" style="display:none" data-cmd="align-right" data-tip="Rata kanan"><svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="9" y1="12" x2="21" y2="12"/><line x1="6" y1="18" x2="21" y2="18"/></svg></button>
   `;
   tb.addEventListener('mousedown', e => e.preventDefault()); 
   tb.addEventListener('click', e => {
@@ -4526,10 +4636,15 @@ document.addEventListener('selectionchange', () => {
   if (!el) { _hideRteToolbar(); return; }
   _rteActiveEl = el;
   const range = sel.getRangeAt(0);
+  _rteActiveTd = node ? node.closest('td') : null;
+  // Kalau bukan lagi di dalam sel tabel, align tetap bisa dipake buat baris
+  // teks biasa (mis. keterangan gambar) -- disimpen di .rte-line-nya.
+  _rteActiveLine = node ? node.closest('.rte-line') : null;
   const rect = range.getBoundingClientRect();
   if (!rect || (rect.width === 0 && rect.height === 0)) { _hideRteToolbar(); return; }
   const tb = _ensureRteToolbar();
   tb.style.display = 'flex';
+  tb.querySelectorAll('.rte-align-group').forEach(n => { n.style.display = (_rteActiveTd || _rteActiveLine) ? '' : 'none'; });
   const top  = rect.top + window.scrollY - tb.offsetHeight - 8;
   let left   = rect.left + window.scrollX + rect.width / 2 - tb.offsetWidth / 2;
   left = Math.max(8, Math.min(left, window.innerWidth - tb.offsetWidth - 8));
@@ -4545,7 +4660,7 @@ function _rteUpdateToolbarState(tb) {
   tb.querySelector('button[data-cmd="bold"]')?.classList.toggle('active', boldOn);
   tb.querySelector('button[data-cmd="italic"]')?.classList.toggle('active', italicOn);
 
-  let ulOn = false, olOn = false;
+  let ulOn = false, olOn = false, alOn = false;
   const sel = window.getSelection();
   if (sel && sel.rangeCount) {
     const range = sel.getRangeAt(0);
@@ -4555,22 +4670,409 @@ function _rteUpdateToolbarState(tb) {
     const markerTxt = marker ? marker.textContent : '';
     ulOn = markerTxt === '-';
     olOn = /^\d+\.$/.test(markerTxt);
+    alOn = /^[a-z]\.$/.test(markerTxt);
   }
   tb.querySelector('button[data-cmd="ul"]')?.classList.toggle('active', ulOn);
   tb.querySelector('button[data-cmd="ol"]')?.classList.toggle('active', olOn);
+  tb.querySelector('button[data-cmd="al"]')?.classList.toggle('active', alOn);
+
+  const curAlign = ((_rteActiveTd ? _rteActiveTd.style.textAlign : (_rteActiveLine ? _rteActiveLine.style.textAlign : '')) || 'left').toLowerCase();
+  tb.querySelector('button[data-cmd="align-left"]')?.classList.toggle('active', curAlign === 'left');
+  tb.querySelector('button[data-cmd="align-center"]')?.classList.toggle('active', curAlign === 'center');
+  tb.querySelector('button[data-cmd="align-right"]')?.classList.toggle('active', curAlign === 'right');
 }
 
 function _rteApplyCmd(cmd) {
   const el = _rteActiveEl;
   if (!el) return;
+  if (cmd === 'align-left' || cmd === 'align-center' || cmd === 'align-right') {
+    const target = _rteActiveTd || _rteActiveLine;
+    if (!target) return;
+    target.style.textAlign = cmd === 'align-left' ? '' : cmd.replace('align-', '');
+    el.dispatchEvent(new Event('input', { bubbles: true }));
+    if (_rteToolbarEl) _rteUpdateToolbarState(_rteToolbarEl);
+    return;
+  }
   const sel = window.getSelection();
   if (!sel || sel.rangeCount === 0) return;
   const range = sel.getRangeAt(0);
   if (cmd === 'bold')       _rteToggleInline(range, 'STRONG');
   else if (cmd === 'italic') _rteToggleInline(range, 'EM');
-  else if (cmd === 'ul' || cmd === 'ol') _rteToggleListPrefix(el, range, cmd);
+  else if (cmd === 'ul' || cmd === 'ol' || cmd === 'al') _rteToggleListPrefix(el, range, cmd);
   el.dispatchEvent(new Event('input', { bubbles: true }));
   if (_rteToolbarEl) _rteUpdateToolbarState(_rteToolbarEl);
+}
+
+/* ---------- Sisipkan Gambar di dalam .ps-rte ----------
+   Disimpan di string markdown-lite pakai penanda khusus supaya tetap 1 field
+   teks (gak perlu ubah skema DB): [IMG w=lebarPx align=left|center|right]url[/IMG]
+   -- w= dan align= opsional, data lama tanpa atribut ([IMG]url[/IMG]) tetap kebaca.
+   Tombol toolbar "Sisipkan Gambar/Tabel" udah dicabut -- gambar sekarang cuma
+   bisa masuk lewat paste (lihat document.addEventListener('paste', ...) di bawah),
+   tapi begitu masuk tetap bisa di-resize (drag handle pojok) & di-drag buat
+   diposisi ulang / ganti rata kiri-tengah-kanan lewat mini-toolbar pas di-hover. */
+function _rteInsertBlockAtCursor(el, html) {
+  el.focus();
+  const sel = window.getSelection();
+  let range;
+  if (sel && sel.rangeCount && el.contains(sel.anchorNode)) range = sel.getRangeAt(0);
+  else { range = document.createRange(); range.selectNodeContents(el); range.collapse(false); }
+  const startNode = range.startContainer.nodeType === 1 ? range.startContainer : range.startContainer.parentElement;
+  const lineDiv = startNode ? startNode.closest('.rte-line') : null;
+  const temp = document.createElement('div');
+  temp.innerHTML = html;
+  const blockNode = temp.firstElementChild;
+  if (lineDiv) lineDiv.after(blockNode); else el.appendChild(blockNode);
+  const afterLine = document.createElement('div');
+  afterLine.className = 'rte-line';
+  afterLine.appendChild(document.createElement('br'));
+  blockNode.after(afterLine);
+  const newRange = document.createRange();
+  newRange.setStart(afterLine, 0);
+  newRange.collapse(true);
+  sel.removeAllRanges();
+  sel.addRange(newRange);
+  el.dispatchEvent(new Event('input', { bubbles: true }));
+}
+function _rteRenderImageBlock(url, width, align) {
+  const w = parseInt(width, 10);
+  const widthAttr = Number.isFinite(w) && w > 0 ? ` style="width:${w}px"` : '';
+  const al = (align === 'center' || align === 'right') ? align : 'left';
+  const alignIcon = {
+    left: `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="15" y2="12"/><line x1="3" y1="18" x2="18" y2="18"/></svg>`,
+    center: `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="6" y1="12" x2="18" y2="12"/><line x1="4" y1="18" x2="20" y2="18"/></svg>`,
+    right: `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="9" y1="12" x2="21" y2="12"/><line x1="6" y1="18" x2="21" y2="18"/></svg>`,
+  };
+  return `<div class="rte-image-block" contenteditable="false" draggable="true" data-tip="Tahan &amp; geser buat pindah posisi" data-align="${al}" style="text-align:${al}">
+    <div class="rte-image-inner">
+      <img src="${esc(url)}" alt=""${widthAttr} draggable="false">
+      <div class="rte-image-align">
+        <button type="button" data-tip="Rata kiri" onclick="_rteImageAlign(this,'left')">${alignIcon.left}</button>
+        <button type="button" data-tip="Rata tengah" onclick="_rteImageAlign(this,'center')">${alignIcon.center}</button>
+        <button type="button" data-tip="Rata kanan" onclick="_rteImageAlign(this,'right')">${alignIcon.right}</button>
+      </div>
+      <div class="rte-image-resize" data-tip="Ubah ukuran"></div>
+      <button type="button" class="rte-block-remove" onclick="_rteRemoveBlock(this)" data-tip="Hapus gambar">✕</button>
+    </div>
+  </div>`;
+}
+function _rteImageAlign(btn, align) {
+  const block = btn.closest('.rte-image-block');
+  if (!block) return;
+  block.dataset.align = align;
+  block.style.textAlign = align;
+  const el = block.closest('.ps-rte');
+  if (el) el.dispatchEvent(new Event('input', { bubbles: true }));
+}
+// Handle drag resize gambar (pojok kanan-bawah) -- delegated lewat pointerdown
+// di document karena blok gambar dibikin lewat innerHTML string (gak ada
+// listener langsung ke elemen barunya kalau attach cuma sekali di awal).
+document.addEventListener('pointerdown', e => {
+  const handle = e.target.closest && e.target.closest('.rte-image-resize');
+  if (!handle) return;
+  e.preventDefault();
+  e.stopPropagation();
+  const block = handle.closest('.rte-image-block');
+  const img = block && block.querySelector('img');
+  if (!img) return;
+  const startX = e.clientX;
+  const startWidth = img.getBoundingClientRect().width;
+  handle.setPointerCapture(e.pointerId);
+  function onMove(ev) {
+    const newWidth = Math.max(60, Math.round(startWidth + (ev.clientX - startX)));
+    img.style.width = newWidth + 'px';
+  }
+  function onUp() {
+    handle.removeEventListener('pointermove', onMove);
+    handle.removeEventListener('pointerup', onUp);
+    const el = block.closest('.ps-rte');
+    if (el) el.dispatchEvent(new Event('input', { bubbles: true }));
+  }
+  handle.addEventListener('pointermove', onMove);
+  handle.addEventListener('pointerup', onUp);
+});
+// Drag & drop buat reposisi urutan blok gambar di antara baris teks lain
+// (native HTML5 drag) -- dibatasi cuma bisa geser di dalam kotak .ps-rte
+// yang sama tempat gambarnya berasal, gak bisa dilempar ke kotak lain.
+let _rteDragBlock = null, _rteDragSourceEl = null, _rteDropIndicatorEl = null;
+document.addEventListener('dragstart', e => {
+  const block = e.target.closest && e.target.closest('.rte-image-block');
+  if (!block) return;
+  const el = block.closest('.ps-rte');
+  if (!el) return;
+  _rteDragBlock = block;
+  _rteDragSourceEl = el;
+  e.dataTransfer.effectAllowed = 'move';
+  try { e.dataTransfer.setData('text/plain', ''); } catch {  }
+  setTimeout(() => block.classList.add('rte-dragging'), 0);
+});
+document.addEventListener('dragover', e => {
+  if (!_rteDragBlock) return;
+  const el = e.target.closest && e.target.closest('.ps-rte');
+  if (!el || el !== _rteDragSourceEl) return;
+  e.preventDefault();
+  e.dataTransfer.dropEffect = 'move';
+  const beforeEl = _rteDragAfterElement(el, e.clientY);
+  if (!_rteDropIndicatorEl) { _rteDropIndicatorEl = document.createElement('div'); _rteDropIndicatorEl.className = 'rte-drop-indicator'; }
+  if (beforeEl) beforeEl.before(_rteDropIndicatorEl); else el.appendChild(_rteDropIndicatorEl);
+});
+document.addEventListener('drop', e => {
+  if (!_rteDragBlock) return;
+  const el = e.target.closest && e.target.closest('.ps-rte');
+  if (_rteDropIndicatorEl) _rteDropIndicatorEl.remove();
+  if (el && el === _rteDragSourceEl) {
+    e.preventDefault();
+    const beforeEl = _rteDragAfterElement(el, e.clientY);
+    if (beforeEl) el.insertBefore(_rteDragBlock, beforeEl); else el.appendChild(_rteDragBlock);
+    el.dispatchEvent(new Event('input', { bubbles: true }));
+  }
+  _rteDragBlock.classList.remove('rte-dragging');
+  _rteDragBlock = null; _rteDragSourceEl = null;
+});
+document.addEventListener('dragend', () => {
+  if (_rteDragBlock) _rteDragBlock.classList.remove('rte-dragging');
+  if (_rteDropIndicatorEl) _rteDropIndicatorEl.remove();
+  _rteDragBlock = null; _rteDragSourceEl = null;
+});
+function _rteDragAfterElement(el, y) {
+  const els = [...el.children].filter(c => c !== _rteDragBlock && c !== _rteDropIndicatorEl);
+  return els.reduce((closest, child) => {
+    const box = child.getBoundingClientRect();
+    const offset = y - box.top - box.height / 2;
+    if (offset < 0 && offset > closest.offset) return { offset, element: child };
+    return closest;
+  }, { offset: -Infinity, element: null }).element;
+}
+// Upload gambar dari paste lalu sisip di posisi kursor -- endpoint & flow-nya
+// sama kayak tombol "Sisipkan Gambar" yang lama (skrg dicabut), cuma trigger-nya
+// beda (paste, bukan klik tombol + file picker).
+async function _rteUploadAndInsertImage(el, file) {
+  const MAX_MB = 2;
+  if (file.size > MAX_MB * 1024 * 1024) { toast(`Gambar terlalu besar (maks ${MAX_MB}MB)`, 'error'); return; }
+  const elId = el && el.id;
+  try {
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('kategori', 'eplanning');
+    const auth = authHeaders();
+    if (!auth || !auth['Authorization']) throw new Error('Sesi login gak valid, silakan refresh halaman');
+    const r = await fetch('/api/upload', {
+      method: 'POST', headers: { 'Authorization': auth['Authorization'] }, body: formData,
+    });
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(d.error || `Gagal upload gambar (${r.status})`);
+    if (!d.url) throw new Error('Response upload gak ada URL gambar');
+    // Row-nya bisa aja udah di-render ulang selagi nunggu upload selesai
+    // (misal autosave/refresh tabel) -- kalau elemen lama udah lepas dari
+    // DOM, cari ulang pake id-nya biar gambar tetap kesisip, bukan ilang diem-diem.
+    let targetEl = el;
+    if (!targetEl || !targetEl.isConnected) {
+      targetEl = elId ? document.getElementById(elId) : null;
+    }
+    if (!targetEl) { toast('Gambar keupload tapi gagal disisip (field udah ke-refresh), coba paste ulang', 'error'); return; }
+    _rteInsertBlockAtCursor(targetEl, _rteRenderImageBlock(d.url));
+  } catch (err) {
+    console.error('[PASTE IMAGE ERROR]', err);
+    toast(err.message || 'Gagal upload gambar', 'error');
+  }
+}
+// body bisa diawali baris [COLS]w1,w2,... (lebar kolom custom dlm px) lalu
+// tiap baris data bisa diawali [ROW:n] (tinggi baris custom dlm px). Kedua
+// prefix opsional -- tabel lama tanpa prefix ini tetap kebaca normal (auto).
+// CATATAN: tabel udah gak bisa disisip baru lewat toolbar (tombol dicabut),
+// fungsi2 di bawah ini cuma dipertahankan biar tabel yang UDAH ada di data
+// lama tetap kerender & bisa diedit/di-resize kayak biasa (backward compat).
+function _rteRenderTableBlock(body) {
+  const lines = String(body || '').split('\n');
+  let colsAttr = null;
+  if (lines.length && /^\[COLS\]/.test(lines[0])) {
+    colsAttr = lines.shift().slice(6).split(',').map(w => parseInt(w, 10)).filter(n => Number.isFinite(n) && n > 0);
+  }
+  const rowsData = lines.map(r => {
+    const hm = r.match(/^\[ROW:(\d+)\]/);
+    return { height: hm ? parseInt(hm[1], 10) : null, cellsRaw: hm ? r.slice(hm[0].length) : r };
+  });
+  const nCols = rowsData.reduce((mx, r) => Math.max(mx, r.cellsRaw.split('|').length), 0);
+  const colgroupHtml = nCols ? `<colgroup>${Array.from({ length: nCols }, (_, i) => {
+    const w = colsAttr && colsAttr[i];
+    return `<col${w ? ` style="width:${w}px"` : ''}>`;
+  }).join('')}</colgroup>` : '';
+  const tableStyleAttr = (colsAttr && colsAttr.length === nCols)
+    ? ` style="table-layout:fixed;width:${colsAttr.reduce((a, b) => a + b, 0)}px"` : '';
+  const rowsHtml = rowsData.map(r => {
+    const trStyle = r.height ? ` style="height:${r.height}px"` : '';
+    const cellsHtml = r.cellsRaw.split('|').map(c => {
+      let cell = c.replace(/\\\|/g, '|');
+      let align = '';
+      const m = cell.match(/^\[(C|R)\]/);
+      if (m) { align = m[1] === 'C' ? 'center' : 'right'; cell = cell.slice(3); }
+      const alignAttr = align ? ` style="text-align:${align}"` : '';
+      return `<td contenteditable="true"${alignAttr}>${_escMd2Html(cell)}</td>`;
+    }).join('');
+    return `<tr${trStyle}>${cellsHtml}</tr>`;
+  }).join('');
+  return `<div class="rte-table-block" contenteditable="false"><table class="rte-table"${tableStyleAttr}>${colgroupHtml}<tbody>${rowsHtml}</tbody></table><div class="rte-table-resizers"></div><button type="button" class="rte-block-remove" onclick="_rteRemoveBlock(this)" data-tip="Hapus tabel">✕</button></div>`;
+}
+
+// Bekuin layout tabel jadi lebar-tetap-per-kolom (dipanggil pas mulai drag
+// resize kolom) -- kalau kolom belum pernah di-resize manual, lebar diambil
+// dari lebar render saat ini biar gak "lompat" pas drag pertama kali mulai.
+function _rteFreezeTableLayout(table) {
+  const colgroup = table.querySelector(':scope > colgroup');
+  const firstRow = table.querySelector(':scope > tbody > tr');
+  if (!colgroup || !firstRow) return;
+  let sum = 0;
+  Array.from(firstRow.children).forEach((td, i) => {
+    const col = colgroup.children[i];
+    if (!col) return;
+    let w = parseInt(col.style.width, 10);
+    if (!Number.isFinite(w) || w <= 0) w = Math.round(td.getBoundingClientRect().width);
+    col.style.width = w + 'px';
+    sum += w;
+  });
+  table.style.tableLayout = 'fixed';
+  table.style.width = sum + 'px';
+}
+
+function _rteColResizeStart(e) {
+  e.preventDefault();
+  const handle = e.currentTarget;
+  const ci = parseInt(handle.dataset.colIndex, 10);
+  const blockEl = handle.closest('.rte-table-block');
+  const table = blockEl && blockEl.querySelector('table');
+  if (!table) return;
+  blockEl._rteResizeInProgress = true; // cegah layer resizer dirombak ulang selagi drag jalan (lihat _rteLayoutTableResizers)
+  _rteFreezeTableLayout(table);
+  const colgroup = table.querySelector(':scope > colgroup');
+  const col = colgroup.children[ci];
+  if (!col) { blockEl._rteResizeInProgress = false; return; }
+  const startX = e.clientX;
+  const startWidth = parseInt(col.style.width, 10) || 60;
+  const startTableWidth = parseInt(table.style.width, 10) || table.getBoundingClientRect().width;
+  handle.setPointerCapture(e.pointerId);
+  function onMove(ev) {
+    const newWidth = Math.max(40, startWidth + (ev.clientX - startX));
+    col.style.width = newWidth + 'px';
+    table.style.width = (startTableWidth + (newWidth - startWidth)) + 'px';
+  }
+  function onUp() {
+    handle.removeEventListener('pointermove', onMove);
+    handle.removeEventListener('pointerup', onUp);
+    blockEl._rteResizeInProgress = false;
+    _rteLayoutTableResizers(blockEl);
+    const rteEl = blockEl.closest('.ps-rte');
+    if (rteEl) rteEl.dispatchEvent(new Event('input', { bubbles: true }));
+  }
+  handle.addEventListener('pointermove', onMove);
+  handle.addEventListener('pointerup', onUp);
+}
+
+function _rteRowResizeStart(e, tr) {
+  e.preventDefault();
+  const handle = e.currentTarget;
+  const blockEl = handle.closest('.rte-table-block');
+  blockEl._rteResizeInProgress = true; // cegah layer resizer dirombak ulang selagi drag jalan (lihat _rteLayoutTableResizers)
+  const startY = e.clientY;
+  const startHeight = tr.getBoundingClientRect().height;
+  handle.setPointerCapture(e.pointerId);
+  function onMove(ev) {
+    const newHeight = Math.max(24, startHeight + (ev.clientY - startY));
+    tr.style.height = newHeight + 'px';
+  }
+  function onUp() {
+    handle.removeEventListener('pointermove', onMove);
+    handle.removeEventListener('pointerup', onUp);
+    blockEl._rteResizeInProgress = false;
+    _rteLayoutTableResizers(blockEl);
+    const rteEl = blockEl.closest('.ps-rte');
+    if (rteEl) rteEl.dispatchEvent(new Event('input', { bubbles: true }));
+  }
+  handle.addEventListener('pointermove', onMove);
+  handle.addEventListener('pointerup', onUp);
+}
+
+// Handle drag resize digambar sbg overlay terpisah (bukan child <td>) biar
+// gak ketauto-edit/kehapus pas user ngetik isi sel -- posisinya dihitung
+// ulang dari getBoundingClientRect tiap kali tabel di-render/di-resize.
+// PENTING: selama drag lagi jalan (_rteResizeInProgress true), fungsi ini
+// harus no-op -- kalau enggak, ResizeObserver di bawah bakal ngerombak ulang
+// handle yang lagi di-drag (elemen lama kehapus -> pointer capture & event
+// listener-nya ikut ilang -> drag keputus di tengah jalan).
+function _rteLayoutTableResizers(blockEl) {
+  if (blockEl && blockEl._rteResizeInProgress) return;
+  const table = blockEl && blockEl.querySelector('table');
+  if (!table) return;
+  let layer = blockEl.querySelector(':scope > .rte-table-resizers');
+  if (!layer) {
+    layer = document.createElement('div');
+    layer.className = 'rte-table-resizers';
+    blockEl.appendChild(layer);
+  }
+  // ResizeObserver nutupin kasus tabel sempet ke-render pas kontainernya
+  // masih display:none (row belum masuk mode edit, dll) -- ukurannya 0 pas
+  // pertama kali dicoba di-layout, jadi handle-nya baru bener2 kepasang
+  // begitu tabelnya bener2 keliatan (size berubah dari 0 -> nyata).
+  if (typeof ResizeObserver !== 'undefined' && !blockEl._rteResizeObs) {
+    const ro = new ResizeObserver(() => _rteLayoutTableResizers(blockEl));
+    ro.observe(table);
+    blockEl._rteResizeObs = ro;
+  }
+  const tableRect = table.getBoundingClientRect();
+  if (!tableRect.width || !tableRect.height) return; // blok lagi gak kelihatan, skip dulu (ResizeObserver bakal nyoba lagi)
+  layer.innerHTML = '';
+  const blockRect = blockEl.getBoundingClientRect();
+  const firstRow = table.querySelector(':scope > tbody > tr');
+  if (firstRow) {
+    Array.from(firstRow.children).forEach((td, ci) => {
+      const r = td.getBoundingClientRect();
+      const h = document.createElement('div');
+      h.className = 'rte-col-resizer';
+      h.dataset.colIndex = ci;
+      h.style.left = (r.right - blockRect.left - 3) + 'px';
+      h.style.top = (tableRect.top - blockRect.top) + 'px';
+      h.style.height = tableRect.height + 'px';
+      h.addEventListener('pointerdown', _rteColResizeStart);
+      layer.appendChild(h);
+    });
+  }
+  Array.from(table.querySelectorAll(':scope > tbody > tr')).forEach(tr => {
+    const r = tr.getBoundingClientRect();
+    const h = document.createElement('div');
+    h.className = 'rte-row-resizer';
+    h.style.top = (r.bottom - blockRect.top - 3) + 'px';
+    h.style.left = (tableRect.left - blockRect.left) + 'px';
+    h.style.width = tableRect.width + 'px';
+    h.addEventListener('pointerdown', (e) => _rteRowResizeStart(e, tr));
+    layer.appendChild(h);
+  });
+}
+function _rteLayoutAllTableResizers(root) {
+  (root || document).querySelectorAll('.rte-table-block').forEach(_rteLayoutTableResizers);
+}
+// Pasang ulang handle resize tiap ada blok tabel baru masuk DOM (insert baru
+// atau isi editor di-load dari data tersimpan), + reposisi pas window resize.
+(function _watchRteTableBlocks() {
+  if (typeof document === 'undefined' || !document.body) return;
+  _rteLayoutAllTableResizers(document);
+  new MutationObserver(muts => {
+    muts.forEach(m => m.addedNodes.forEach(node => {
+      if (node.nodeType !== 1) return;
+      if (node.classList?.contains('rte-table-block')) _rteLayoutTableResizers(node);
+      node.querySelectorAll?.('.rte-table-block').forEach(_rteLayoutTableResizers);
+    }));
+  }).observe(document.body, { childList: true, subtree: true });
+  let _rResizeTimer;
+  window.addEventListener('resize', () => {
+    clearTimeout(_rResizeTimer);
+    _rResizeTimer = setTimeout(() => _rteLayoutAllTableResizers(document), 150);
+  });
+})();
+function _rteRemoveBlock(btn) {
+  const block = btn.closest('.rte-image-block, .rte-table-block');
+  const el = block ? block.closest('.ps-rte') : null;
+  if (block && block._rteResizeObs) block._rteResizeObs.disconnect();
+  if (block) block.remove();
+  if (el) el.dispatchEvent(new Event('input', { bubbles: true }));
 }
 
 function _rteToggleInline(range, tagName) {
@@ -4651,7 +5153,7 @@ function _rteWrapMarker(lineDiv) {
   if (_rteMarkerSpan(lineDiv)) return;
   const first = lineDiv.firstChild;
   if (!first || first.nodeType !== 3) return;
-  const m = first.nodeValue.match(/^(\d+\.|-)[ \u00A0]/);
+  const m = first.nodeValue.match(/^(\d+\.|[a-z]\.|-)[ \u00A0]/);
   if (!m) return;
   const span = document.createElement('span');
   span.className = 'rte-marker' + (m[1] === '-' ? ' rte-marker--ul' : '');
@@ -4698,13 +5200,15 @@ function _rteToggleListPrefix(el, range, mode) {
   
   const isOlMarker = (txt) => /^\d+\.$/.test(txt);
   const isUlMarker = (txt) => txt === '-';
+  const isAlMarker = (txt) => /^[a-z]\.$/.test(txt);
+  const isModeMarker = (txt) => (mode === 'ul' ? isUlMarker(txt) : mode === 'al' ? isAlMarker(txt) : isOlMarker(txt));
   const markerTextOf = (lineDiv) => { const s = _rteMarkerSpan(lineDiv); return s ? s.textContent : ''; };
 
   // Toggle ditentukan dari baris PERTAMA yang di-select: kalau udah punya
   // prefix sesuai mode ini, semua baris terpilih dilepas; kalau belum,
-  // semua baris terpilih dikasih prefix (nomor urut buat mode 'ol').
+  // semua baris terpilih dikasih prefix (nomor/huruf urut buat mode 'ol'/'al').
   const firstMarkerText = markerTextOf(lines[0]);
-  const isRemoving = mode === 'ul' ? isUlMarker(firstMarkerText) : isOlMarker(firstMarkerText);
+  const isRemoving = isModeMarker(firstMarkerText);
 
   let n = 1;
   lines.forEach(lineDiv => {
@@ -4714,9 +5218,10 @@ function _rteToggleListPrefix(el, range, mode) {
       
       
       const existing = markerTextOf(lineDiv);
-      const hasOther = mode === 'ul' ? isOlMarker(existing) : isUlMarker(existing);
+      const hasOther = existing && !isModeMarker(existing);
       if (hasOther) _rteRemoveMarker(lineDiv);
-      _rteInsertMarker(lineDiv, mode === 'ul' ? '-' : `${n}.`);
+      const markerText = mode === 'ul' ? '-' : mode === 'al' ? `${String.fromCharCode(Math.min(96 + n, 122))}.` : `${n}.`;
+      _rteInsertMarker(lineDiv, markerText);
       n++;
     }
   });
@@ -4755,7 +5260,7 @@ function _renderPSCell(idBase, indikatorId, value, capaian, canEdit, label, onch
                 onclick="_togglePSExpand('${idBase}', ${indikatorId}, event)"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></button>` : ''}
             </div>
             <!-- Edit mode: rich text editor (markdown-lite: **tebal**, _miring_, "- "/"1. " daftar) -->
-            <div class="ps-rte" id="${idBase}_${indikatorId}" contenteditable="${locked ? 'false' : 'true'}"
+            <div class="ps-rte" id="${idBase}_${indikatorId}" contenteditable="${locked ? 'false' : 'true'}" spellcheck="false"
               data-placeholder="${canEdit ? 'Ketik di sini...' : '-'}"
               ${locked ? 'readonly' : ''}
               data-tip="${locked ? `Klik tombol Edit untuk mengisi ${label}` : ''}"

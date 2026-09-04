@@ -39,6 +39,44 @@ function _menitDariJam(jamStr) {
   return h * 60 + m;
 }
 
+// Cari periode Ramadhan (dari tabel riwayat ramadhan_periods) yang mencakup tanggalStr.
+// `periods` adalah array baris ramadhan_periods (tanggal_mulai/tanggal_selesai sebagai string YYYY-MM-DD).
+function cariPeriodeRamadhan(tanggalStr, periods) {
+  if (!Array.isArray(periods) || !periods.length) return null;
+  return periods.find((p) => {
+    const mulai = p.tanggal_mulai?.toString().slice(0, 10);
+    const selesai = p.tanggal_selesai?.toString().slice(0, 10);
+    if (!mulai || !selesai) return false;
+    return tanggalStr >= mulai && tanggalStr <= selesai;
+  }) || null;
+}
+
+function isTanggalRamadhan(tanggalStr, periods) {
+  return !!cariPeriodeRamadhan(tanggalStr, periods);
+}
+
+// Pilih jam kerja Ramadhan (kalau tanggalStr jatuh di salah satu periode riwayat) atau jam kerja normal.
+// `settings` = baris absensi_settings (jam kerja normal). `periods` = seluruh baris ramadhan_periods,
+// dicocokkan per-tanggal supaya data & rekap tahun lalu tidak ikut berubah saat periode tahun berjalan diedit.
+function settingsEfektif(tanggalStr, settings, periods) {
+  const periode = cariPeriodeRamadhan(tanggalStr, periods);
+  if (!periode) return settings;
+  return {
+    ...settings,
+    jam_masuk_awal_senin_kamis: periode.jam_masuk_awal_senin_kamis || settings.jam_masuk_awal_senin_kamis,
+    jam_masuk_awal_jumat: periode.jam_masuk_awal_jumat || settings.jam_masuk_awal_jumat,
+    jam_masuk_akhir_senin_kamis: periode.jam_masuk_akhir_senin_kamis || settings.jam_masuk_akhir_senin_kamis,
+    jam_masuk_akhir_jumat: periode.jam_masuk_akhir_jumat || settings.jam_masuk_akhir_jumat,
+    jam_masuk_senin_kamis: periode.jam_masuk_senin_kamis || settings.jam_masuk_senin_kamis,
+    jam_masuk_jumat: periode.jam_masuk_jumat || settings.jam_masuk_jumat,
+    jam_pulang_senin_kamis: periode.jam_pulang_senin_kamis || settings.jam_pulang_senin_kamis,
+    jam_pulang_jumat: periode.jam_pulang_jumat || settings.jam_pulang_jumat,
+    jam_pulang_akhir_senin_kamis: periode.jam_pulang_akhir_senin_kamis || settings.jam_pulang_akhir_senin_kamis,
+    jam_pulang_akhir_jumat: periode.jam_pulang_akhir_jumat || settings.jam_pulang_akhir_jumat,
+    toleransi_menit: periode.toleransi_menit ?? settings.toleransi_menit,
+  };
+}
+
 function cekJendelaWaktu(tanggalStr, jamSekarangStr, batasAwalStr, batasAkhirStr) {
   const toMin = (t) => {
     const [h, m] = t.split(':').map(Number);
@@ -68,6 +106,18 @@ function isCronAlpaRow(row) {
   return row.status === 'alpa' && row.input_by === null && row.keterangan === KETERANGAN_CRON_ALPA;
 }
 
+async function getSettingsAsli(sql) {
+  const rows = await sql`SELECT * FROM absensi_settings WHERE id = 1`;
+  return rows[0];
+}
+
+async function getRamadhanPeriods(sql) {
+  return sql`
+    SELECT *, tanggal_mulai::text AS tanggal_mulai, tanggal_selesai::text AS tanggal_selesai
+    FROM ramadhan_periods ORDER BY ramadhan_periods.tanggal_mulai DESC
+  `;
+}
+
 function _rentangTanggalYMD(mulaiStr, selesaiStr) {
   const parse = (s) => { const [y, m, d] = s.split('-').map(Number); return Date.UTC(y, m - 1, d); };
   const fmt = (t) => {
@@ -94,6 +144,7 @@ export const handler = async (event) => {
 
   const isSettings = segments[0] === 'settings';
   const isLibur = segments[0] === 'libur';
+  const isRamadhan = segments[0] === 'ramadhan';
   const isRekap = segments[0] === 'rekap';
   const isRingkasanBulan = segments[0] === 'ringkasan-bulan';
   const isJamKerja = segments[0] === 'jam-kerja';
@@ -106,6 +157,7 @@ export const handler = async (event) => {
   const isPengajuan = segments[0] === 'pengajuan';
   const recordId = segments[0] && !isNaN(segments[0]) ? parseInt(segments[0]) : null;
   const liburId = isLibur && segments[1] && !isNaN(segments[1]) ? parseInt(segments[1]) : null;
+  const ramadhanId = isRamadhan && segments[1] && !isNaN(segments[1]) ? parseInt(segments[1]) : null;
   const pengajuanId = isPengajuan && segments[1] && !isNaN(segments[1]) ? parseInt(segments[1]) : null;
   const pengajuanAction = isPengajuan ? segments[2] : null;
 
@@ -158,6 +210,132 @@ export const handler = async (event) => {
       } catch (err) {
         console.error('[PUT /api/absensi/settings]', err);
         return errorResponse('Gagal menyimpan pengaturan');
+      }
+    }
+    return errorResponse('Not found', 404);
+  }
+
+  if (isRamadhan) {
+    const RMD_FIELDS_REQUIRED = ['jam_masuk_senin_kamis', 'jam_masuk_jumat', 'jam_pulang_senin_kamis', 'jam_pulang_jumat'];
+    const RMD_FIELDS_OPTIONAL = [
+      'jam_masuk_awal_senin_kamis', 'jam_masuk_awal_jumat',
+      'jam_masuk_akhir_senin_kamis', 'jam_masuk_akhir_jumat',
+      'jam_pulang_akhir_senin_kamis', 'jam_pulang_akhir_jumat',
+    ];
+
+    if (event.httpMethod === 'GET') {
+      try {
+        const periods = await getRamadhanPeriods(sql);
+        return jsonResponse({ periode: periods });
+      } catch (err) {
+        console.error('[GET /api/absensi/ramadhan]', err);
+        return errorResponse('Gagal mengambil data periode Ramadhan');
+      }
+    }
+
+    if (event.httpMethod === 'POST' || (event.httpMethod === 'PUT' && ramadhanId)) {
+      if (!full) return errorResponse('Unauthorized', 401);
+      const body = parseBody(event);
+      const { tanggal_mulai, tanggal_selesai, toleransi_menit } = body;
+      if (!tanggal_mulai || !tanggal_selesai) return errorResponse('Tanggal mulai & selesai Ramadhan wajib diisi', 400);
+      if (tanggal_selesai < tanggal_mulai) return errorResponse('Tanggal selesai tidak boleh sebelum tanggal mulai', 400);
+      for (const f of RMD_FIELDS_REQUIRED) {
+        if (!body[f]) return errorResponse('Batas tepat waktu & jam pulang Ramadhan wajib diisi', 400);
+      }
+      const tahun = parseInt(tanggal_mulai.slice(0, 4));
+      try {
+        const overlap = event.httpMethod === 'POST'
+          ? await sql`SELECT id FROM ramadhan_periods WHERE tanggal_mulai <= ${tanggal_selesai} AND tanggal_selesai >= ${tanggal_mulai} LIMIT 1`
+          : await sql`SELECT id FROM ramadhan_periods WHERE id != ${ramadhanId} AND tanggal_mulai <= ${tanggal_selesai} AND tanggal_selesai >= ${tanggal_mulai} LIMIT 1`;
+        if (overlap.length) return errorResponse('Rentang tanggal tersebut tumpang tindih dengan periode Ramadhan lain', 409);
+
+        const vals = {
+          jam_masuk_awal_senin_kamis: body.jam_masuk_awal_senin_kamis || null,
+          jam_masuk_awal_jumat: body.jam_masuk_awal_jumat || null,
+          jam_masuk_akhir_senin_kamis: body.jam_masuk_akhir_senin_kamis || null,
+          jam_masuk_akhir_jumat: body.jam_masuk_akhir_jumat || null,
+          jam_masuk_senin_kamis: body.jam_masuk_senin_kamis,
+          jam_masuk_jumat: body.jam_masuk_jumat,
+          jam_pulang_senin_kamis: body.jam_pulang_senin_kamis,
+          jam_pulang_jumat: body.jam_pulang_jumat,
+          jam_pulang_akhir_senin_kamis: body.jam_pulang_akhir_senin_kamis || null,
+          jam_pulang_akhir_jumat: body.jam_pulang_akhir_jumat || null,
+          toleransi_menit: toleransi_menit === '' || toleransi_menit === undefined ? null : (toleransi_menit ?? null),
+        };
+
+        let row;
+        if (event.httpMethod === 'POST') {
+          const rows = await sql`
+            INSERT INTO ramadhan_periods (
+              tahun, tanggal_mulai, tanggal_selesai,
+              jam_masuk_awal_senin_kamis, jam_masuk_awal_jumat,
+              jam_masuk_akhir_senin_kamis, jam_masuk_akhir_jumat,
+              jam_masuk_senin_kamis, jam_masuk_jumat,
+              jam_pulang_senin_kamis, jam_pulang_jumat,
+              jam_pulang_akhir_senin_kamis, jam_pulang_akhir_jumat,
+              toleransi_menit, created_by
+            ) VALUES (
+              ${tahun}, ${tanggal_mulai}, ${tanggal_selesai},
+              ${vals.jam_masuk_awal_senin_kamis}, ${vals.jam_masuk_awal_jumat},
+              ${vals.jam_masuk_akhir_senin_kamis}, ${vals.jam_masuk_akhir_jumat},
+              ${vals.jam_masuk_senin_kamis}, ${vals.jam_masuk_jumat},
+              ${vals.jam_pulang_senin_kamis}, ${vals.jam_pulang_jumat},
+              ${vals.jam_pulang_akhir_senin_kamis}, ${vals.jam_pulang_akhir_jumat},
+              ${vals.toleransi_menit}, ${auth.id}
+            )
+            RETURNING *, tanggal_mulai::text AS tanggal_mulai, tanggal_selesai::text AS tanggal_selesai
+          `;
+          row = rows[0];
+          await logAudit(sql, event, {
+            user_id: auth.id, nama: auth.nama, email: auth.email,
+            aksi: 'create_ramadhan_periode', entitas: 'ramadhan_periods', entitas_id: row.id, detail: row,
+          });
+          return jsonResponse({ periode: row }, 201);
+        } else {
+          const rows = await sql`
+            UPDATE ramadhan_periods SET
+              tahun = ${tahun}, tanggal_mulai = ${tanggal_mulai}, tanggal_selesai = ${tanggal_selesai},
+              jam_masuk_awal_senin_kamis = ${vals.jam_masuk_awal_senin_kamis},
+              jam_masuk_awal_jumat = ${vals.jam_masuk_awal_jumat},
+              jam_masuk_akhir_senin_kamis = ${vals.jam_masuk_akhir_senin_kamis},
+              jam_masuk_akhir_jumat = ${vals.jam_masuk_akhir_jumat},
+              jam_masuk_senin_kamis = ${vals.jam_masuk_senin_kamis},
+              jam_masuk_jumat = ${vals.jam_masuk_jumat},
+              jam_pulang_senin_kamis = ${vals.jam_pulang_senin_kamis},
+              jam_pulang_jumat = ${vals.jam_pulang_jumat},
+              jam_pulang_akhir_senin_kamis = ${vals.jam_pulang_akhir_senin_kamis},
+              jam_pulang_akhir_jumat = ${vals.jam_pulang_akhir_jumat},
+              toleransi_menit = ${vals.toleransi_menit},
+              updated_at = NOW()
+            WHERE id = ${ramadhanId}
+            RETURNING *, tanggal_mulai::text AS tanggal_mulai, tanggal_selesai::text AS tanggal_selesai
+          `;
+          if (!rows.length) return errorResponse('Periode Ramadhan tidak ditemukan', 404);
+          row = rows[0];
+          await logAudit(sql, event, {
+            user_id: auth.id, nama: auth.nama, email: auth.email,
+            aksi: 'update_ramadhan_periode', entitas: 'ramadhan_periods', entitas_id: ramadhanId, detail: row,
+          });
+          return jsonResponse({ periode: row });
+        }
+      } catch (err) {
+        console.error('[POST/PUT /api/absensi/ramadhan]', err);
+        return errorResponse('Gagal menyimpan periode Ramadhan');
+      }
+    }
+
+    if (event.httpMethod === 'DELETE' && ramadhanId) {
+      if (!full) return errorResponse('Unauthorized', 401);
+      try {
+        await sql`DELETE FROM ramadhan_periods WHERE id = ${ramadhanId}`;
+        await logAudit(sql, event, {
+          user_id: auth.id, nama: auth.nama, email: auth.email,
+          aksi: 'delete_ramadhan_periode', entitas: 'ramadhan_periods', entitas_id: ramadhanId,
+        });
+        return jsonResponse({ ok: true });
+      } catch (err) {
+        console.error('[DELETE /api/absensi/ramadhan/:id]', err);
+        return errorResponse('Gagal menghapus periode Ramadhan');
       }
     }
     return errorResponse('Not found', 404);
@@ -419,8 +597,9 @@ export const handler = async (event) => {
       const existing = await sql`SELECT id, jam_masuk FROM absensi WHERE user_id = ${auth.id} AND tanggal = ${tanggal} LIMIT 1`;
       if (existing.length && existing[0].jam_masuk) return errorResponse('Anda sudah absensi masuk hari ini', 409);
 
-      const settingsRows = await sql`SELECT * FROM absensi_settings WHERE id = 1`;
-      const settings = settingsRows[0];
+      const settingsAsli = await getSettingsAsli(sql);
+      const periods = await getRamadhanPeriods(sql);
+      const settings = settingsEfektif(tanggal, settingsAsli, periods);
 
       const isJumat = new Date(`${tanggal}T00:00:00`).getDay() === 5;
       const batasAwalMasuk = isJumat ? settings.jam_masuk_awal_jumat : settings.jam_masuk_awal_senin_kamis;
@@ -474,8 +653,9 @@ export const handler = async (event) => {
       if (!existing.length || !existing[0].jam_masuk) return errorResponse('Anda belum absensi masuk hari ini', 400);
       if (existing[0].jam_keluar) return errorResponse('Anda sudah absensi keluar hari ini', 409);
 
-      const settingsRows = await sql`SELECT * FROM absensi_settings WHERE id = 1`;
-      const settings = settingsRows[0];
+      const settingsAsli = await getSettingsAsli(sql);
+      const periods = await getRamadhanPeriods(sql);
+      const settings = settingsEfektif(tanggal, settingsAsli, periods);
       const isJumat = new Date(`${tanggal}T00:00:00`).getDay() === 5;
       const batasAwalPulang = isJumat ? settings.jam_pulang_jumat : settings.jam_pulang_senin_kamis;
       const batasAkhirPulang = isJumat ? settings.jam_pulang_akhir_jumat : settings.jam_pulang_akhir_senin_kamis;
@@ -660,10 +840,14 @@ export const handler = async (event) => {
     const m = bulan ? parseInt(bulan) : (semuaBulan ? null : parseInt(todayStr().slice(5, 7)));
 
     try {
-      const settingsRows = await sql`SELECT * FROM absensi_settings WHERE id = 1`;
-      const settings = settingsRows[0];
-      const targetMenitSeninKamis = _menitDariJam(settings.jam_pulang_senin_kamis) - _menitDariJam(settings.jam_masuk_senin_kamis);
-      const targetMenitJumat = _menitDariJam(settings.jam_pulang_jumat) - _menitDariJam(settings.jam_masuk_jumat);
+      const settingsAsli = await getSettingsAsli(sql);
+      const periods = await getRamadhanPeriods(sql);
+      const targetMenitHari = (tgl, dow) => {
+        const eff = settingsEfektif(tgl, settingsAsli, periods);
+        return dow === 5
+          ? _menitDariJam(eff.jam_pulang_jumat) - _menitDariJam(eff.jam_masuk_jumat)
+          : _menitDariJam(eff.jam_pulang_senin_kamis) - _menitDariJam(eff.jam_masuk_senin_kamis);
+      };
 
       const liburRows = await sql`
         SELECT tanggal::text AS tanggal FROM hari_libur
@@ -681,7 +865,7 @@ export const handler = async (event) => {
           if (dow === 0 || dow === 6) continue;
           if (liburSet.has(tgl)) continue;
           hariKerjaTotal += 1;
-          targetMenitPerPegawai += (dow === 5) ? targetMenitJumat : targetMenitSeninKamis;
+          targetMenitPerPegawai += targetMenitHari(tgl, dow);
         }
       }
 
@@ -730,10 +914,11 @@ export const handler = async (event) => {
       for (const r of rows) {
         const dow = new Date(`${r.tanggal}T00:00:00Z`).getUTCDay();
         const isJumatRow = dow === 5;
-        const targetHari = isJumatRow ? targetMenitJumat : targetMenitSeninKamis;
+        const effRow = settingsEfektif(r.tanggal, settingsAsli, periods);
+        const targetHari = targetMenitHari(r.tanggal, dow);
         if (r.status === 'hadir' && r.jam_masuk && r.jam_keluar) {
-          const standarMasuk  = _menitDariJam(isJumatRow ? settings.jam_masuk_jumat  : settings.jam_masuk_senin_kamis);
-          const standarPulang = _menitDariJam(isJumatRow ? settings.jam_pulang_jumat : settings.jam_pulang_senin_kamis);
+          const standarMasuk  = _menitDariJam(isJumatRow ? effRow.jam_masuk_jumat  : effRow.jam_masuk_senin_kamis);
+          const standarPulang = _menitDariJam(isJumatRow ? effRow.jam_pulang_jumat : effRow.jam_pulang_senin_kamis);
           const masukEfektif  = Math.max(_menitDariJam(r.jam_masuk), standarMasuk);
           const pulangEfektif = Math.min(_menitDariJam(r.jam_keluar), standarPulang);
           const durasi = pulangEfektif - masukEfektif;
@@ -1022,11 +1207,12 @@ export const handler = async (event) => {
         overwriteId = exist[0].id; 
       }
 
-      const settingsRows = await sql`SELECT * FROM absensi_settings WHERE id = 1`;
+      const settingsAsli = await getSettingsAsli(sql);
+      const periods = await getRamadhanPeriods(sql);
 
       const finalStatus = status || 'hadir';
       const { terlambat, menit_terlambat } = finalStatus === 'hadir'
-        ? hitungTerlambat(tanggal, jam_masuk, settingsRows[0])
+        ? hitungTerlambat(tanggal, jam_masuk, settingsEfektif(tanggal, settingsAsli, periods))
         : { terlambat: false, menit_terlambat: 0 };
 
       const rows = overwriteId
@@ -1072,10 +1258,11 @@ export const handler = async (event) => {
       const finalDukungUrl = clear_data_dukung ? null : (data_dukung_url !== undefined ? (data_dukung_url || null) : existing[0].data_dukung_url);
       const finalDukungNama = clear_data_dukung ? null : (data_dukung_nama !== undefined ? (data_dukung_nama || null) : existing[0].data_dukung_nama);
       const tanggalStr = existing[0].tanggal;
-      const settingsRows = await sql`SELECT * FROM absensi_settings WHERE id = 1`;
+      const settingsAsli = await getSettingsAsli(sql);
+      const periods = await getRamadhanPeriods(sql);
 
       const { terlambat, menit_terlambat } = finalStatus === 'hadir'
-        ? hitungTerlambat(tanggalStr, finalJamMasuk, settingsRows[0])
+        ? hitungTerlambat(tanggalStr, finalJamMasuk, settingsEfektif(tanggalStr, settingsAsli, periods))
         : { terlambat: false, menit_terlambat: 0 };
 
       const rows = await sql`

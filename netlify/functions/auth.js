@@ -23,6 +23,7 @@ export const handler = async (event) => {
     }
 
     try {
+      await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS tanda_tangan TEXT`;
       const rows = await sql`
         SELECT u.*, b.nama AS bidang_nama, b.singkatan AS bidang_singkatan
         FROM users u
@@ -69,6 +70,7 @@ export const handler = async (event) => {
           id: user.id, nama: user.nama, nip: user.nip, email: user.email, is_admin: user.is_admin,
           bidang_id: user.bidang_id, bidang_nama: user.bidang_nama || null,
           bidang_singkatan: user.bidang_singkatan || null, permissions,
+          tanda_tangan: user.tanda_tangan || null,
         },
       });
     } catch (err) {
@@ -144,8 +146,9 @@ export const handler = async (event) => {
     const auth = requireAuth(event);
     if (!auth) return errorResponse('Unauthorized', 401);
     try {
+      await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS tanda_tangan TEXT`;
       const rows = await sql`
-        SELECT u.id, u.nama, u.email, u.is_admin, u.bidang_id,
+        SELECT u.id, u.nama, u.email, u.is_admin, u.bidang_id, u.tanda_tangan,
                b.nama AS bidang_nama, b.singkatan AS bidang_singkatan
         FROM users u LEFT JOIN bidang b ON b.id = u.bidang_id
         WHERE u.id = ${auth.id} LIMIT 1

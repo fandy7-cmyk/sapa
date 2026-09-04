@@ -530,7 +530,7 @@ async function downloadLaporanAbsensiPDF(btnEl) {
         <td style="border:1px solid #0f766e;text-align:center;font-size:8px;padding:3px 4px;vertical-align:middle;height:22px">${i + 1}</td>
         <td style="border:1px solid #0f766e;font-size:8px;padding:3px 6px;white-space:nowrap;vertical-align:middle;height:22px">
           <div>${esc(peg.nama || '')}</div>
-          ${peg.nip ? `<div style="font-size:7px;color:#64748b;font-weight:400">NIP. ${esc(peg.nip)}</div>` : ''}
+          ${peg.nip ? `<div style="font-size:7px;color:#1e293b;font-weight:400">NIP. ${esc(peg.nip)}</div>` : ''}
         </td>
         ${cells}
         ${rekapCell(cHadir)}${rekapCell(cTerlambat)}${rekapCell(cTidakLengkap)}${rekapCell(cTugas)}${rekapCell(cCuti)}${rekapCell(cAlpa)}${rekapCell(jumlahKehadiran, true)}${rekapCell(jamKerjaTxt, true, jkWarna)}
@@ -576,7 +576,7 @@ async function downloadLaporanAbsensiPDF(btnEl) {
       ${_kopSuratHtml()}
       <div style="text-align:center;margin:14px 0 12px">
         <div style="font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.5px">Laporan Absensi</div>
-        <div style="font-size:11px;color:#64748b;margin-top:4px">Periode : ${periodeLabel}${full ? `&nbsp;&nbsp;&nbsp;&nbsp;Unit Kerja : ${unitLabel}` : ''}</div>
+        <div style="font-size:11px;color:#1e293b;margin-top:4px">Periode : ${periodeLabel}${full ? ` &nbsp;|&nbsp; Unit Kerja : ${unitLabel}` : ''}</div>
       </div>
       <table style="border-collapse:collapse">
         ${headerHtml}
@@ -751,6 +751,283 @@ async function loadLaporanAbsensi(page = 1) {
   } catch (err) {
     console.error('[loadLaporanAbsensi]', err);
     tbody.innerHTML = `<tr class="empty-row"><td colspan="6">Gagal memuat data</td></tr>`;
+  }
+}
+
+// ── Lembur ───────────────────────────────────────────────────────────────────
+let _lapLemburData = [];
+let _lapLemburFull = false;
+
+function _lapLemburNorm(s) {
+  return (s || '').toString().toLowerCase();
+}
+
+function filterLaporanLembur() {
+  const tbody = document.getElementById('lapLemburTableBody');
+  if (!tbody) return;
+  const term = _lapLemburNorm(document.getElementById('lapLemburSearch')?.value || '').trim();
+  const rows = !term ? _lapLemburData : _lapLemburData.filter(r => {
+    const tglLabel = r.sesi?.tanggal ? new Date(r.sesi.tanggal).toLocaleDateString('id-ID', { day: '2-digit', month: 'long', year: 'numeric' }) : '';
+    return _lapLemburNorm(r.nama).includes(term) ||
+      _lapLemburNorm(r.sesi?.kegiatan_nama).includes(term) ||
+      _lapLemburNorm(r.uraian_tugas).includes(term) ||
+      _lapLemburNorm(tglLabel).includes(term);
+  });
+  _renderLapLemburRows(rows, _lapLemburFull);
+}
+
+function _renderLapLemburRows(rows, full) {
+  const tbody = document.getElementById('lapLemburTableBody');
+  if (!tbody) return;
+  if (!rows.length) {
+    tbody.innerHTML = `<tr class="empty-row"><td colspan="6">Belum ada data lembur pada periode ini</td></tr>`;
+    return;
+  }
+  tbody.innerHTML = rows.map((r, i) => `
+    <tr>
+      <td style="text-align:center;vertical-align:top">${i + 1}</td>
+      <td style="display:${full ? '' : 'none'};text-align:left;vertical-align:top">${esc(r.nama || '')}</td>
+      <td style="text-align:center;vertical-align:top">${esc(r.sesi.kegiatan_nama || '')}</td>
+      <td style="text-align:center;vertical-align:top">${new Date(r.sesi.tanggal).toLocaleDateString('id-ID', { day: '2-digit', month: 'long', year: 'numeric' })}</td>
+      <td style="text-align:center;vertical-align:top">${r.sesi.jam_mulai ? r.sesi.jam_mulai.slice(0,5) : '-'} WITA - ${r.sesi.jam_selesai ? r.sesi.jam_selesai.slice(0,5) : '-'} WITA</td>
+      <td style="text-align:left;vertical-align:top">${r.uraian_tugas ? _lapMdToHtml(r.uraian_tugas) : '-'}</td>
+    </tr>`).join('');
+}
+
+function _lapLemburJamSesi(s) {
+  if (!s.jam_mulai || !s.jam_selesai) return 0;
+  const [h1, m1] = s.jam_mulai.split(':').map(Number);
+  const [h2, m2] = s.jam_selesai.split(':').map(Number);
+  let menit = (h2 * 60 + m2) - (h1 * 60 + m1);
+  if (menit < 0) menit += 24 * 60; // lewat tengah malam
+  return menit / 60;
+}
+
+function _lapLemburTahunTersedia(sesiList) {
+  return [...new Set((sesiList || []).filter(s => s.tanggal).map(s => s.tanggal.slice(0, 4)))]
+    .sort((a, b) => b.localeCompare(a));
+}
+
+function _lapLemburBulanTersedia(sesiList, tahun) {
+  return [...new Set(
+    (sesiList || [])
+      .filter(s => s.tanggal && s.tanggal.slice(0, 4) === tahun)
+      .map(s => parseInt(s.tanggal.slice(5, 7), 10))
+  )].sort((a, b) => a - b);
+}
+
+function _populateLapLemburTahunBulan(sesiList) {
+  const tahunSel = document.getElementById('lapLemburTahun');
+  const bulanSel = document.getElementById('lapLemburBulan');
+  const now = String(new Date().getFullYear());
+
+  const tahunPresent = _lapLemburTahunTersedia(sesiList);
+  const tahunOpts = tahunPresent.length ? tahunPresent : [now];
+
+  if (tahunSel) {
+    const curTahun = tahunSel.value || now;
+    tahunSel.innerHTML = tahunOpts.map(y => `<option value="${y}">${y}</option>`).join('');
+    tahunSel.value = tahunOpts.includes(curTahun) ? curTahun : tahunOpts[0];
+    syncCustomSelect?.('lapLemburTahun');
+  }
+
+  if (bulanSel) {
+    const tahunVal = tahunSel?.value || tahunOpts[0];
+    const bulanPresent = _lapLemburBulanTersedia(sesiList, tahunVal);
+    const curBulan = bulanSel.value;
+    bulanSel.innerHTML = `<option value="">Semua Bulan</option>` +
+      bulanPresent.map(m => `<option value="${m}">${BULAN_NAMA[m - 1]}</option>`).join('');
+    bulanSel.value = bulanPresent.map(String).includes(curBulan) ? curBulan : '';
+    syncCustomSelect?.('lapLemburBulan');
+  }
+}
+
+async function _populateLapLemburFilters(sesiList) {
+  const full = typeof _lemburHasFull === 'function' && _lemburHasFull();
+  const pegawaiWrap = document.getElementById('lapLemburPegawaiWrap');
+  const thNama = document.getElementById('lapLemburThNama');
+
+  if (pegawaiWrap) pegawaiWrap.style.display = full ? '' : 'none';
+  if (thNama) thNama.style.display = full ? '' : 'none';
+
+  _populateLapLemburTahunBulan(sesiList);
+
+  if (full) {
+    const pegawaiSel = document.getElementById('lapLemburPegawai');
+    if (pegawaiSel && !pegawaiSel.dataset.rebuilt) {
+      pegawaiSel.dataset.rebuilt = '1';
+      try {
+        const r = await fetch('/api/lembur/pegawai', { headers: authHeaders() });
+        const d = r.ok ? await r.json() : { pegawai: [] };
+        pegawaiSel.innerHTML = `<option value="">Semua Pegawai</option>` +
+          (d.pegawai || []).map(p => `<option value="${p.id}">${esc(p.nama)}</option>`).join('');
+      } catch { pegawaiSel.innerHTML = `<option value="">Semua Pegawai</option>`; }
+    }
+  }
+}
+
+function setLapLemburFilterTahun() { loadLaporanLembur(); }
+function setLapLemburFilterBulan() { loadLaporanLembur(); }
+function setLapLemburFilterPegawai() { loadLaporanLembur(); }
+
+async function loadLaporanLembur() {
+  const tbody = document.getElementById('lapLemburTableBody');
+  const rekapBox = document.getElementById('lapLemburRekapBox');
+  if (!tbody) return;
+
+  const full = typeof _lemburHasFull === 'function' && _lemburHasFull();
+
+  tbody.innerHTML = `<tr><td colspan="6"><div class="lap-loading-wrap"><div class="lap-spinner"></div><div style="margin-top:.75rem;color:#64748b;font-size:.85rem">Memuat data...</div></div></td></tr>`;
+
+  const pegawaiId = full ? (document.getElementById('lapLemburPegawai')?.value || '') : String(_user.id);
+
+  try {
+    const rk = await fetch('/api/lembur/kegiatan', { headers: authHeaders() });
+    const dk = rk.ok ? await rk.json() : { kegiatan: [] };
+    const kegiatanList = dk.kegiatan || [];
+
+    const sesiPerKegiatan = await Promise.all(kegiatanList.map(k =>
+      fetch(`/api/lembur/sesi?kegiatan_id=${k.id}`, { headers: authHeaders() })
+        .then(r => r.ok ? r.json() : { sesi: [] })
+        .then(d => (d.sesi || []).map(s => ({ ...s, kegiatan_nama: k.nama_kegiatan })))
+        .catch(() => [])
+    ));
+    let sesiTersedia = sesiPerKegiatan.flat();
+    if (!full) sesiTersedia = sesiTersedia.filter(s => s.is_peserta);
+
+    await _populateLapLemburFilters(sesiTersedia);
+
+    const tahun = document.getElementById('lapLemburTahun')?.value || String(new Date().getFullYear());
+    const bulan = document.getElementById('lapLemburBulan')?.value || '';
+
+    let allSesi = sesiTersedia.filter(s => {
+      if (!s.tanggal) return false;
+      const [ty, tm] = s.tanggal.slice(0, 7).split('-');
+      if (ty !== tahun) return false;
+      if (bulan && String(parseInt(tm, 10)) !== bulan) return false;
+      return true;
+    });
+
+    const entriesPerSesi = await Promise.all(allSesi.map(s =>
+      fetch(`/api/lembur/entries?sesi_id=${s.id}`, { headers: authHeaders() })
+        .then(r => r.ok ? r.json() : { entries: [] })
+        .then(d => (d.entries || []).map(e => ({ ...e, sesi: s })))
+        .catch(() => [])
+    ));
+    let rows = entriesPerSesi.flat();
+    if (pegawaiId) rows = rows.filter(e => String(e.user_id) === String(pegawaiId));
+    rows.sort((a, b) => new Date(a.sesi.tanggal) - new Date(b.sesi.tanggal));
+    _lapLemburData = rows;
+    _lapLemburFull = full;
+
+    const sesiIdsTerpakai = [...new Set(rows.map(r => r.sesi.id))];
+    const totalSesi = sesiIdsTerpakai.length;
+    // Jumlahkan durasi per sesi unik (bukan per baris peserta), supaya sesi dengan
+    // beberapa peserta tidak dihitung berkali-kali.
+    const totalJam = sesiIdsTerpakai.reduce((a, id) => {
+      const s = allSesi.find(x => x.id === id);
+      return a + (s ? _lapLemburJamSesi(s) : 0);
+    }, 0);
+    const totalPegawai = new Set(rows.map(r => r.user_id)).size;
+    const totalDok = sesiIdsTerpakai.reduce((a, id) => {
+      const s = allSesi.find(x => x.id === id);
+      return a + (s?.jumlah_dokumentasi || 0);
+    }, 0);
+
+    const iconSesi = `<svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>`;
+    const iconJam = `<svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 6v6l4 2"/><circle cx="12" cy="12" r="10"/></svg>`;
+    const iconPegawai = `<svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>`;
+    const iconFoto = `<svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg>`;
+
+    if (rekapBox) rekapBox.innerHTML =
+      _kpiCard({ icon: iconSesi, label: 'Total Sesi', value: totalSesi, color: 'blue' }) +
+      _kpiCard({ icon: iconJam, label: 'Total Jam Lembur', value: `${Math.round(totalJam)} jam`, color: 'amber' }) +
+      (full ? _kpiCard({ icon: iconPegawai, label: 'Pegawai Terlibat', value: totalPegawai, color: 'teal' }) : '') +
+      _kpiCard({ icon: iconFoto, label: 'Dokumentasi', value: totalDok, color: 'purple' });
+
+    filterLaporanLembur();
+  } catch (err) {
+    console.error('[loadLaporanLembur]', err);
+    tbody.innerHTML = `<tr class="empty-row"><td colspan="6">Gagal memuat data</td></tr>`;
+    if (rekapBox) rekapBox.innerHTML = '';
+  }
+}
+
+async function downloadLaporanLemburPDF(btnEl) {
+  const rows = _lapLemburData || [];
+  if (!rows.length) { toast('Tidak ada data lembur pada periode ini', 'error'); return; }
+
+  const originalHtml = btnEl ? btnEl.innerHTML : '';
+  if (btnEl) { btnEl.disabled = true; btnEl.innerHTML = `<span class="btn-spin" style="width:12px;height:12px"></span> Memuat...`; }
+
+  try {
+    const full = typeof _lemburHasFull === 'function' && _lemburHasFull();
+    const tahun = document.getElementById('lapLemburTahun')?.value || String(new Date().getFullYear());
+    const bulanVal = document.getElementById('lapLemburBulan')?.value || '';
+    const bulanLabel = bulanVal ? BULAN_NAMA[parseInt(bulanVal, 10) - 1] : 'Semua Bulan';
+    const periodeLabel = `${bulanLabel} ${tahun}`;
+    const pegawaiLabel = full ? (document.getElementById('lapLemburPegawai')?.selectedOptions?.[0]?.textContent || 'Semua Pegawai') : (_user.nama || '');
+
+    const kepalaDinas = await _fetchKepalaDinas();
+    const nowStrTtd = new Date().toLocaleDateString('id-ID', { day: '2-digit', month: 'long', year: 'numeric' });
+
+    const detailRows = rows.map((r, i) => `
+      <tr>
+        <td style="padding:4px 6px;border:1px solid #000;text-align:center;vertical-align:top;font-size:8px">${i + 1}</td>
+        ${full ? `<td style="padding:4px 6px;border:1px solid #000;text-align:left;vertical-align:top;font-size:8px">
+          <div>${esc(r.nama || '')}</div>
+          ${r.nip ? `<div style="font-size:7px;color:#1e293b;font-weight:400">NIP. ${esc(r.nip)}</div>` : ''}
+        </td>` : ''}
+        <td style="padding:4px 6px;border:1px solid #000;text-align:center;vertical-align:top;font-size:8px">${esc(r.sesi.kegiatan_nama || '')}</td>
+        <td style="padding:4px 6px;border:1px solid #000;text-align:center;vertical-align:top;font-size:8px;white-space:nowrap">${new Date(r.sesi.tanggal).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' })}</td>
+        <td style="padding:4px 6px;border:1px solid #000;text-align:center;vertical-align:top;font-size:8px;white-space:nowrap">${r.sesi.jam_mulai ? r.sesi.jam_mulai.slice(0, 5) : '-'} WITA - ${r.sesi.jam_selesai ? r.sesi.jam_selesai.slice(0, 5) : '-'} WITA</td>
+        <td style="padding:4px 6px;border:1px solid #000;text-align:center;vertical-align:top;font-size:8px;white-space:nowrap">${_lapLemburJamSesi(r.sesi).toFixed(1)} jam</td>
+        <td style="padding:4px 6px;border:1px solid #000;text-align:left;vertical-align:top;font-size:8px">${r.uraian_tugas ? _lapMdToHtml(r.uraian_tugas) : '-'}</td>
+      </tr>`).join('');
+
+    // Jumlahkan durasi per sesi unik (bukan per baris peserta), supaya sesi dengan
+    // beberapa peserta tidak dihitung berkali-kali.
+    const sesiUnikMap = new Map();
+    rows.forEach(r => { if (r.sesi?.id != null && !sesiUnikMap.has(r.sesi.id)) sesiUnikMap.set(r.sesi.id, r.sesi); });
+    const totalJam = [...sesiUnikMap.values()].reduce((a, s) => a + _lapLemburJamSesi(s), 0);
+    const totalSesi = sesiUnikMap.size;
+    const colspanLabel = full ? 5 : 4;
+
+    const bodyHtml = `
+      ${_kopSuratHtml()}
+      <div style="text-align:center;margin:14px 0 12px">
+        <div style="font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.5px">Laporan Lembur</div>
+        <div style="font-size:11px;color:#1e293b;margin-top:4px">Periode : ${periodeLabel}${full ? ` &nbsp;|&nbsp; Pegawai : ${esc(pegawaiLabel)}` : ''}</div>
+      </div>
+      <table>
+        <thead>
+          <tr style="background:#0d9488">
+            <th style="color:white;padding:5px 6px;border:1px solid #000;text-align:center;font-size:8px;width:32px">NO</th>
+            ${full ? `<th style="color:white;padding:5px 6px;border:1px solid #000;text-align:center;font-size:8px;width:140px">PEGAWAI</th>` : ''}
+            <th style="color:white;padding:5px 6px;border:1px solid #000;text-align:center;font-size:8px;width:180px">KEGIATAN</th>
+            <th style="color:white;padding:5px 6px;border:1px solid #000;text-align:center;font-size:8px;width:80px">TANGGAL</th>
+            <th style="color:white;padding:5px 6px;border:1px solid #000;text-align:center;font-size:8px;width:80px">JAM LEMBUR</th>
+            <th style="color:white;padding:5px 6px;border:1px solid #000;text-align:center;font-size:8px;width:60px">DURASI</th>
+            <th style="color:white;padding:5px 6px;border:1px solid #000;text-align:center;font-size:8px">URAIAN TUGAS</th>
+          </tr>
+        </thead>
+        <tbody>${detailRows}</tbody>
+        <tfoot>
+          <tr>
+            <td colspan="${colspanLabel}" style="padding:5px 6px;border:1px solid #000;text-align:right;font-size:8px;font-weight:700">TOTAL (${totalSesi} sesi)</td>
+            <td style="padding:5px 6px;border:1px solid #000;text-align:center;font-size:8px;font-weight:700">${totalJam.toFixed(1)} jam</td>
+            <td style="padding:5px 6px;border:1px solid #000"></td>
+          </tr>
+        </tfoot>
+      </table>
+      ${_ttdHtml(kepalaDinas, nowStrTtd, 24, 8)}`;
+
+    _bukaPreviewPDF(bodyHtml, `Laporan Lembur ${periodeLabel}`, 'landscape');
+  } catch (err) {
+    console.error('[downloadLaporanLemburPDF]', err);
+    toast('Gagal membuat laporan PDF', 'error');
+  } finally {
+    if (btnEl) { btnEl.disabled = false; btnEl.innerHTML = originalHtml; }
   }
 }
 
@@ -1675,15 +1952,18 @@ function _kopSuratHtml() {
     : '/logobalut.png';
   return `
     <div style="padding-bottom:10px;margin-bottom:14px;border-bottom:2px solid #1e293b">
-      <div style="position:relative;width:100%;min-height:76px;display:flex;align-items:center;justify-content:center">
-        <img src="${logoSrc}" style="position:absolute;left:220px;top:50%;transform:translateY(-50%);width:72px;height:72px;object-fit:contain" onerror="this.style.display='none'">
-        <div style="text-align:center;line-height:1.1">
+      <div style="display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:14px;width:100%;min-height:76px">
+        <div style="justify-self:end">
+          <img src="${logoSrc}" style="width:72px;height:72px;object-fit:contain" onerror="this.style.display='none'">
+        </div>
+        <div style="text-align:center;line-height:1.1;white-space:nowrap">
           <div style="font-family:'Bookman Old Style',Bookman,serif;font-size:12px;font-weight:400;text-transform:uppercase;letter-spacing:0.3px">PEMERINTAH KABUPATEN BANGGAI LAUT</div>
           <div style="font-family:'Bookman Old Style',Bookman,serif;font-size:14px;font-weight:700;text-transform:uppercase;letter-spacing:0.2px">DINAS KESEHATAN, PENGENDALIAN PENDUDUK</div>
           <div style="font-family:'Bookman Old Style',Bookman,serif;font-size:14px;font-weight:700;text-transform:uppercase;letter-spacing:0.2px">DAN KELUARGA BERENCANA</div>
           <div style="font-family:'Bookman Old Style',Bookman,serif;font-size:10px;font-weight:400;margin-top:2px">Jl. KM 7 Adean, Banggai Tengah, Banggai Laut, Sulawesi Tengah 94895</div>
           <div style="font-family:'Bookman Old Style',Bookman,serif;font-size:10px;font-weight:400">Pos-el: <span style="color:#1a56db;text-decoration:underline">dinkeskb.balutsulteng@gmail.com</span></div>
         </div>
+        <div></div>
       </div>
     </div>`;
 }
@@ -1727,6 +2007,7 @@ function _bukaPreviewPDF(htmlBody, judulDokumen, orientation) {
   table { border-collapse:collapse; width:100%; }
   th, td { font-size:10px; }
   td { word-break:break-word; overflow-wrap:break-word; }
+  p, span, li, div { overflow-wrap:break-word; word-break:break-word; }
   .lap-md-line { white-space:pre-wrap; }
   .lap-md-list { margin:1px 0 3px; padding-left:1.2em; text-align:left; }
   .lap-md-list li { margin-bottom:2px; padding-left:2px; }
@@ -1747,7 +2028,17 @@ function _bukaPreviewPDF(htmlBody, judulDokumen, orientation) {
     color:#0f172a;
     font-weight:400;
   }
+  /* Daftar huruf (a./b./c.) - sama persis kayak di atas, cuma format
+     counter-nya lower-alpha. Dipakai kalau baris list di editor pake
+     marker "a. "/"b. " dst, bukan "1. "/"2. ". */
+  ol.lap-md-list--alpha > li::before { content:counter(lapmdnum, lower-alpha) "."; }
   .lap-md-list li:last-child { margin-bottom:0; }
+  /* Varian "flush": nomor rata kiri sejajar sama teks paragraf di atasnya
+     (dipakai surat/TOR - eplanning_frontend.js), beda sama varian rata-kanan
+     di atas yang khusus buat tabel laporan kinerja biar titik 1&2 digit sejajar. */
+  ol.lap-md-list--flush { padding-left:1.7em; margin:4px 0 8px; }
+  ol.lap-md-list--flush > li::before { left:-1.7em; text-align:left; }
+  ol.lap-md-list--flush > li { margin-bottom:0; line-height:1.15; }
 </style>
 </head>
 <body>
@@ -1828,7 +2119,7 @@ function downloadLaporanSuratPDF(btnEl) {
     ${_kopSuratHtml()}
     <div style="text-align:center;margin:14px 0 12px">
       <div style="font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.5px">Laporan Surat</div>
-      <div style="font-size:11px;color:#64748b;margin-top:4px">Rekap ${subtitleLabel}</div>
+      <div style="font-size:11px;color:#1e293b;margin-top:4px">Rekap ${subtitleLabel}</div>
     </div>
 
     ${detailRows ? `

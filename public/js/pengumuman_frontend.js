@@ -183,7 +183,7 @@ function openPengumumanModal(id = null) {
   document.getElementById('pengumumanId').value = '';
   document.getElementById('pengumumanJudul').value = '';
   document.getElementById('pengumumanTipe').value = 'info';
-  document.getElementById('pengumumanAktif').checked = true;
+  document.getElementById('pengumumanAktif').value = '1';
   document.getElementById('modalPengumumanTitle').textContent = id ? 'Edit Pengumuman' : 'Tambah Pengumuman';
   _quillPengumuman.setText('');
   _aksiItems = [];
@@ -195,7 +195,7 @@ function openPengumumanModal(id = null) {
       document.getElementById('pengumumanId').value = p.id;
       document.getElementById('pengumumanJudul').value = p.judul;
       document.getElementById('pengumumanTipe').value = p.tipe || 'info';
-      document.getElementById('pengumumanAktif').checked = !!p.aktif;
+      document.getElementById('pengumumanAktif').value = p.aktif ? '1' : '0';
       _quillPengumuman.clipboard.dangerouslyPasteHTML(p.isi || '');
       try {
         _aksiItems = Array.isArray(p.aksi) ? p.aksi.map(a => ({ label: a.label || '', url: a.url || '' })) : [];
@@ -210,7 +210,7 @@ async function savePengumuman() {
   const id    = document.getElementById('pengumumanId').value;
   const judul = document.getElementById('pengumumanJudul').value.trim();
   const tipe  = document.getElementById('pengumumanTipe').value;
-  const aktif = document.getElementById('pengumumanAktif').checked;
+  const aktif = document.getElementById('pengumumanAktif').value === '1';
 
   const isiHtml = _quillPengumuman ? _quillPengumuman.root.innerHTML : '';
   const isiText = _quillPengumuman ? _quillPengumuman.getText().trim() : '';
@@ -321,11 +321,14 @@ function renderTickerTable() {
     <tr>
       <td style="color:var(--teks-muted);font-size:.8rem">${i + 1}</td>
       <td style="font-size:.85rem">
-        <span style="display:inline-flex;align-items:center;gap:6px">
-          <span style="width:10px;height:10px;border-radius:50%;background:${esc(t.warna_teks||'#1e293b')};flex-shrink:0;border:1px solid rgba(0,0,0,.1)" data-tip="Warna teks: ${esc(t.warna_teks||'#1e293b')}"></span>
-          ${t.warna_bg ? `<span style="width:10px;height:10px;border-radius:50%;background:${esc(t.warna_bg)};flex-shrink:0;border:1px solid rgba(0,0,0,.1)" data-tip="Warna bg: ${esc(t.warna_bg)}"></span>` : ''}
-          ${esc(t.teks)}
-        </span>
+        <div style="display:flex;align-items:flex-start;gap:6px">
+          <span style="width:10px;height:10px;border-radius:50%;background:${esc(t.warna_teks||'#1e293b')};flex-shrink:0;margin-top:4px;border:1px solid rgba(0,0,0,.1)" data-tip="Warna teks: ${esc(t.warna_teks||'#1e293b')}"></span>
+          ${t.warna_bg ? `<span style="width:10px;height:10px;border-radius:50%;background:${esc(t.warna_bg)};flex-shrink:0;margin-top:4px;border:1px solid rgba(0,0,0,.1)" data-tip="Warna bg: ${esc(t.warna_bg)}"></span>` : ''}
+          <div style="flex:1;min-width:0">
+            <span class="ticker-teks-clamp" id="tkTeks_${t.id}">${esc(t.teks)}</span><br>
+            <button type="button" class="ticker-teks-more" id="tkMore_${t.id}" onclick="toggleTickerTeks(${t.id})" style="display:none">Selengkapnya</button>
+          </div>
+        </div>
       </td>
       <td style="text-align:center;font-size:.8rem;color:var(--teks-muted)">${t.urutan ?? 0}</td>
       <td style="text-align:center">
@@ -345,13 +348,53 @@ function renderTickerTable() {
         </div>
       </td>
     </tr>`).join('');
+
+  // Tampilin tombol "Selengkapnya" cuma buat teks yang beneran kepotong -
+  // dan cuma di layar sempit (samain breakpoint-nya sama CSS clamp-nya,
+  // max-width:768px). Di desktop clamp-nya emang gak aktif (lihat CSS),
+  // jadi gak usah dicek sama sekali - tombolnya tetep disembunyikan.
+  if (window.matchMedia('(max-width: 768px)').matches) {
+    // Toleransi setengah baris (bukan cuma +1px) biar gak kena selisih
+    // pembulatan sub-pixel font-rendering yang bisa bikin positif palsu.
+    _tickerAll.forEach(t => {
+      const clampEl = document.getElementById(`tkTeks_${t.id}`);
+      const moreBtn = document.getElementById(`tkMore_${t.id}`);
+      if (!clampEl || !moreBtn) return;
+      const lineH = parseFloat(getComputedStyle(clampEl).lineHeight) || 16;
+      if (clampEl.scrollHeight - clampEl.clientHeight > lineH / 2) {
+        moreBtn.style.display = 'inline-block';
+      }
+    });
+  }
 }
+
+function toggleTickerTeks(id) {
+  const clampEl = document.getElementById(`tkTeks_${id}`);
+  const moreBtn = document.getElementById(`tkMore_${id}`);
+  if (!clampEl || !moreBtn) return;
+  const expanded = clampEl.classList.toggle('is-expanded');
+  moreBtn.textContent = expanded ? 'Sembunyikan' : 'Selengkapnya';
+}
+
+// Klik di luar area teks yang lagi "Selengkapnya" -> otomatis balik ringkas
+// (clamp 3 baris lagi), gak perlu cari-cari tombol "Sembunyikan" yang udah
+// ke-scroll jauh ke bawah kalo teksnya panjang banget.
+document.addEventListener('click', (e) => {
+  document.querySelectorAll('.ticker-teks-clamp.is-expanded').forEach(clampEl => {
+    const cell = clampEl.closest('td');
+    if (cell && !cell.contains(e.target)) {
+      clampEl.classList.remove('is-expanded');
+      const moreBtn = document.getElementById(`tkMore_${clampEl.id.replace('tkTeks_', '')}`);
+      if (moreBtn) moreBtn.textContent = 'Selengkapnya';
+    }
+  });
+});
 
 function openTickerModal(id = null) {
   document.getElementById('tickerId').value = '';
   document.getElementById('tickerTeks').value = '';
   document.getElementById('tickerUrutan').value = '0';
-  document.getElementById('tickerAktif').checked = true;
+  document.getElementById('tickerAktif').value = '1';
   document.getElementById('modalTickerTitle').textContent = id ? 'Edit Ticker' : 'Tambah Ticker';
   const defaultWarna = '#1e293b';
   let warna = defaultWarna;
@@ -362,7 +405,7 @@ function openTickerModal(id = null) {
       document.getElementById('tickerId').value = t.id;
       document.getElementById('tickerTeks').value = t.teks;
       document.getElementById('tickerUrutan').value = t.urutan ?? 0;
-      document.getElementById('tickerAktif').checked = !!t.aktif;
+      document.getElementById('tickerAktif').value = t.aktif ? '1' : '0';
       warna = t.warna_teks || defaultWarna;
       warnaBg = t.warna_bg || null;
     }
@@ -381,7 +424,7 @@ async function saveTicker() {
   const id     = document.getElementById('tickerId').value;
   const teks       = document.getElementById('tickerTeks').value.trim();
   const urutan     = parseInt(document.getElementById('tickerUrutan').value) || 0;
-  const aktif      = document.getElementById('tickerAktif').checked;
+  const aktif      = document.getElementById('tickerAktif').value === '1';
   const warna_teks = document.getElementById('tickerWarna').value || '#1e293b';
   const bgInput    = document.getElementById('tickerWarnaBg');
   const warna_bg   = bgInput.dataset.cleared === '1' ? null : (bgInput.value || null);

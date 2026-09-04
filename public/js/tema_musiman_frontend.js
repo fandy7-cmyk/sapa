@@ -84,7 +84,7 @@ function openTemaMusimanModal() {
   dpSetValue('temaTanggalMulai', null);
   dpSetValue('temaTanggalSelesai', null);
   document.getElementById('temaGambarUrl').value = '';
-  document.getElementById('temaAktif').checked = true;
+  document.getElementById('temaAktif').value = '1';
   document.getElementById('temaPosisi').value = 'pill-atas';
   document.getElementById('temaAnimasi').value = 'none';
   document.getElementById('temaPartikel').value = 'none';
@@ -150,7 +150,7 @@ function editTemaMusiman(id) {
   dpSetValue('temaTanggalMulai', t.tanggal_mulai || null);
   dpSetValue('temaTanggalSelesai', t.tanggal_selesai || null);
   document.getElementById('temaGambarUrl').value = t.gambar_url || '';
-  document.getElementById('temaAktif').checked = t.aktif !== false;
+  document.getElementById('temaAktif').value = t.aktif !== false ? '1' : '0';
   document.getElementById('temaPosisi').value = t.posisi || 'pill-atas';
   document.getElementById('temaAnimasi').value = t.efek || 'none';
   document.getElementById('temaPartikel').value = t.partikel || 'none';
@@ -223,7 +223,7 @@ async function saveTemaMusiman() {
   const mulai = dpGetValue('temaTanggalMulai') || '';
   const selesai = dpGetValue('temaTanggalSelesai') || '';
   const gambar_url = document.getElementById('temaGambarUrl').value.trim();
-  const aktif = document.getElementById('temaAktif').checked;
+  const aktif = document.getElementById('temaAktif').value === '1';
   const posisi = document.getElementById('temaPosisi').value;
   const efek = document.getElementById('temaAnimasi').value;
   const partikel = document.getElementById('temaPartikel').value;

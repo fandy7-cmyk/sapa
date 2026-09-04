@@ -59,6 +59,7 @@ async function loadAbsensi() {
   if (thAksi) thAksi.style.display = isAbsensiFull() ? '' : 'none';
 
   await loadAbsSettings();
+  await loadAbsRamadhanPeriods();
   await rebuildAbsFilterTahun();
   if (isAbsensiFull()) {
     await rebuildAbsFilterBidang();
@@ -259,12 +260,15 @@ async function setAbsFilterBidang() {
 
 async function loadAbsPengaturan() {
   await loadAbsSettings();
+  await loadAbsRamadhanPeriods();
   const box = document.getElementById('absPengaturanJamKerjaRingkasan');
   if (box) {
+    const rmdAktifHariIni = !!_absCariPeriodeRamadhan(todayISO());
     box.innerHTML = _absSettings ? `
       Senin–Kamis: <b>${_absSettings.jam_masuk_senin_kamis.slice(0, 5)} – ${_absSettings.jam_pulang_senin_kamis.slice(0, 5)} WITA</b> ·
       Jumat: <b>${_absSettings.jam_masuk_jumat.slice(0, 5)} – ${_absSettings.jam_pulang_jumat.slice(0, 5)} WITA</b> ·
       Toleransi: <b>${_absSettings.toleransi_menit} menit</b>
+      ${rmdAktifHariIni ? ' · <span class="badge badge-hijau">Jam Ramadhan sedang aktif</span>' : ''}
     ` : 'Belum diatur';
   }
 }
@@ -275,6 +279,57 @@ async function loadAbsSettings() {
     const d = await r.json();
     _absSettings = d.settings;
   } catch { _absSettings = null; }
+}
+
+let _absRamadhanPeriods = [];
+async function loadAbsRamadhanPeriods() {
+  try {
+    const r = await fetch('/api/absensi/ramadhan', { headers: authHeaders() });
+    const d = await r.json();
+    if (!r.ok) {
+      console.error('[loadAbsRamadhanPeriods] gagal, status', r.status, d);
+      toast(d.error || 'Gagal memuat daftar periode Ramadhan', 'error');
+      _absRamadhanPeriods = [];
+      return;
+    }
+    _absRamadhanPeriods = d.periode || [];
+  } catch (err) {
+    console.error('[loadAbsRamadhanPeriods]', err);
+    toast('Gagal memuat daftar periode Ramadhan', 'error');
+    _absRamadhanPeriods = [];
+  }
+}
+
+// Cari periode Ramadhan (dari riwayat) yang mencakup tanggalYMD - cermin dari cariPeriodeRamadhan() di backend
+function _absCariPeriodeRamadhan(tanggalYMD) {
+  return _absRamadhanPeriods.find(p => {
+    const mulai = p.tanggal_mulai?.slice(0, 10);
+    const selesai = p.tanggal_selesai?.slice(0, 10);
+    return mulai && selesai && tanggalYMD >= mulai && tanggalYMD <= selesai;
+  }) || null;
+}
+// Jam kerja Ramadhan (kalau tanggal jatuh di salah satu periode riwayat) menggantikan jam normal
+// - cermin dari settingsEfektif() di backend. Dicocokkan per-tanggal supaya rekap tahun lalu
+// tetap konsisten walau periode tahun berjalan diedit/ditambah.
+function _absSettingsEfektif(tanggalYMD) {
+  if (!_absSettings) return null;
+  const p = _absCariPeriodeRamadhan(tanggalYMD);
+  if (!p) return _absSettings;
+  const s = _absSettings;
+  return {
+    ...s,
+    jam_masuk_awal_senin_kamis: p.jam_masuk_awal_senin_kamis || s.jam_masuk_awal_senin_kamis,
+    jam_masuk_awal_jumat: p.jam_masuk_awal_jumat || s.jam_masuk_awal_jumat,
+    jam_masuk_akhir_senin_kamis: p.jam_masuk_akhir_senin_kamis || s.jam_masuk_akhir_senin_kamis,
+    jam_masuk_akhir_jumat: p.jam_masuk_akhir_jumat || s.jam_masuk_akhir_jumat,
+    jam_masuk_senin_kamis: p.jam_masuk_senin_kamis || s.jam_masuk_senin_kamis,
+    jam_masuk_jumat: p.jam_masuk_jumat || s.jam_masuk_jumat,
+    jam_pulang_senin_kamis: p.jam_pulang_senin_kamis || s.jam_pulang_senin_kamis,
+    jam_pulang_jumat: p.jam_pulang_jumat || s.jam_pulang_jumat,
+    jam_pulang_akhir_senin_kamis: p.jam_pulang_akhir_senin_kamis || s.jam_pulang_akhir_senin_kamis,
+    jam_pulang_akhir_jumat: p.jam_pulang_akhir_jumat || s.jam_pulang_akhir_jumat,
+    toleransi_menit: p.toleransi_menit ?? s.toleransi_menit,
+  };
 }
 
 async function renderAbsHariIni() {
@@ -327,10 +382,11 @@ async function renderAbsHariIni() {
   
   
   const nowHHMM = w.hhmm;
-  const masukAwal = _absSettings ? (isJumat ? _absSettings.jam_masuk_awal_jumat : _absSettings.jam_masuk_awal_senin_kamis)?.slice(0, 5) : null;
-  const pulangAwal = _absSettings ? (isJumat ? _absSettings.jam_pulang_jumat : _absSettings.jam_pulang_senin_kamis)?.slice(0, 5) : null;
-  const masukAkhir = _absSettings ? (isJumat ? _absSettings.jam_masuk_akhir_jumat : _absSettings.jam_masuk_akhir_senin_kamis)?.slice(0, 5) : null;
-  const pulangAkhir = _absSettings ? (isJumat ? _absSettings.jam_pulang_akhir_jumat : _absSettings.jam_pulang_akhir_senin_kamis)?.slice(0, 5) : null;
+  const _effHariIni = _absSettingsEfektif(todayISO());
+  const masukAwal = _effHariIni ? (isJumat ? _effHariIni.jam_masuk_awal_jumat : _effHariIni.jam_masuk_awal_senin_kamis)?.slice(0, 5) : null;
+  const pulangAwal = _effHariIni ? (isJumat ? _effHariIni.jam_pulang_jumat : _effHariIni.jam_pulang_senin_kamis)?.slice(0, 5) : null;
+  const masukAkhir = _effHariIni ? (isJumat ? _effHariIni.jam_masuk_akhir_jumat : _effHariIni.jam_masuk_akhir_senin_kamis)?.slice(0, 5) : null;
+  const pulangAkhir = _effHariIni ? (isJumat ? _effHariIni.jam_pulang_akhir_jumat : _effHariIni.jam_pulang_akhir_senin_kamis)?.slice(0, 5) : null;
   const belumWaktuMasuk = masukAwal && nowHHMM < masukAwal;
   const belumWaktuPulang = pulangAwal && nowHHMM < pulangAwal;
   const lewatWaktuMasuk = masukAkhir && nowHHMM > masukAkhir;
@@ -370,8 +426,8 @@ async function renderAbsHariIni() {
 
   
   
-  const jamMasukHariIni = _absSettings ? (isJumat ? _absSettings.jam_masuk_jumat : _absSettings.jam_masuk_senin_kamis)?.slice(0, 5) : null;
-  const jamPulangHariIni = _absSettings ? (isJumat ? _absSettings.jam_pulang_jumat : _absSettings.jam_pulang_senin_kamis)?.slice(0, 5) : null;
+  const jamMasukHariIni = _effHariIni ? (isJumat ? _effHariIni.jam_masuk_jumat : _effHariIni.jam_masuk_senin_kamis)?.slice(0, 5) : null;
+  const jamPulangHariIni = _effHariIni ? (isJumat ? _effHariIni.jam_pulang_jumat : _effHariIni.jam_pulang_senin_kamis)?.slice(0, 5) : null;
 
   const hhmmDate = (hhmm) => _hhmmWitaToDate(hhmm, todayISO());
   const masukAwalDate = hhmmDate(masukAwal);
@@ -417,46 +473,43 @@ async function renderAbsHariIni() {
   };
   const iconStatusHariIni = `<span style="margin-right:5px;vertical-align:-1px">${statusIconSvg(12)}</span>`;
 
-  const panelKanan = `
-    <div class="abs-hariini-right">
-      ${isWeekend || isLibur || skipAbsenHariIni
-        ? (pengajuanPendingHariIni
-            ? `<div class="abs-jadwal-value abs-jadwal-value--pending">Absensi Ditahan Sementara</div>`
-            : `<div class="abs-jadwal-value abs-jadwal-value--kosong">${statusIconSvg(15)}${labelStatusHariIni}</div>
-               <div class="abs-jadwal-label">Tidak ada jadwal absensi</div>`)
-        : `
-        <div class="abs-jam-live-label">${countdownLabel || countdownDoneText}</div>
-        ${countdownTargetMs
-          ? `<div class="abs-jam-live" id="absCountdown" data-target="${countdownTargetMs}">--:--:--</div>`
-          : countdownExpired
-            ? `<div class="abs-jam-live abs-jam-live--expired"><span class="abs-jam-live-expired-badge"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18M6 6l12 12"/></svg></span></div>`
-            : `<div class="abs-jam-live abs-jam-live--done"><span class="abs-jam-live-done-badge"><svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path class="abs-jam-live-done-check" d="M4 12l5 5L20 6"/></svg></span></div>`}
-        <div class="abs-jadwal-divider"></div>
-        <div class="abs-progress-wrap">
-          <div class="abs-progress-track"><div class="abs-progress-fill" id="absProgressFill" data-start="${jamMasukStdDate?.getTime() || ''}" data-end="${jamPulangStdDate?.getTime() || ''}" style="width:${progressPct}%;background:${_absProgressColor(progressPct)}"></div></div>
-          <div class="abs-progress-jam"><span>${jamMasukHariIni || '--:--'} WITA</span><span>${jamPulangHariIni || '--:--'} WITA</span></div>
-        </div>
-        <div class="abs-jadwal-label">Jadwal Hari Ini</div>
-        `}
+  const panelSamping = isWeekend || isLibur || skipAbsenHariIni ? `
+    <div class="abs-hariini-side abs-hariini-side--kosong">
+      ${pengajuanPendingHariIni
+        ? `<div class="abs-jadwal-value abs-jadwal-value--pending">Absensi Ditahan Sementara</div>`
+        : `<div class="abs-jadwal-value abs-jadwal-value--kosong">${statusIconSvg(15)}${labelStatusHariIni}</div>
+           <div class="abs-jadwal-label">Tidak ada jadwal absensi</div>`}
     </div>
-  `;
-
-  const panelInfo = (isWeekend || isLibur || skipAbsenHariIni) ? '' : `
-    <div class="abs-hariini-info">
-      <div class="abs-jadwal-label">Info Jadwal Absensi</div>
-      <div class="abs-info-row">
-        <span class="abs-info-row-label"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg>Absensi Masuk</span>
-        <span class="abs-info-row-value">${masukAwal || '--:--'}${masukAkhir ? `–${masukAkhir}` : ''} WITA</span>
+  ` : `
+    <div class="abs-hariini-side">
+      <div class="abs-jadwal-top">
+      <div class="abs-jam-live-label">${countdownLabel || countdownDoneText}</div>
+      ${countdownTargetMs
+        ? `<div class="abs-jam-live" id="absCountdown" data-target="${countdownTargetMs}">--:--:--</div>`
+        : countdownExpired
+          ? `<div class="abs-jam-live abs-jam-live--expired"><span class="abs-jam-live-expired-badge"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18M6 6l12 12"/></svg></span></div>`
+          : `<div class="abs-jam-live abs-jam-live--done"><span class="abs-jam-live-done-badge"><svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path class="abs-jam-live-done-check" d="M4 12l5 5L20 6"/></svg></span></div>`}
+      <div class="abs-progress-wrap">
+        <div class="abs-progress-track"><div class="abs-progress-fill" id="absProgressFill" data-start="${jamMasukStdDate?.getTime() || ''}" data-end="${jamPulangStdDate?.getTime() || ''}" style="width:${progressPct}%;background:${_absProgressColor(progressPct)}"></div></div>
+        <div class="abs-progress-jam"><span>${jamMasukHariIni || '--:--'} WITA</span><span>${jamPulangHariIni || '--:--'} WITA</span></div>
       </div>
-      <div class="abs-info-row">
-        <span class="abs-info-row-label"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>Absensi Keluar</span>
-        <span class="abs-info-row-value">${pulangAwal || '--:--'}${pulangAkhir ? `–${pulangAkhir}` : ''} WITA</span>
       </div>
-      ${_absSettings?.toleransi_menit ? `
-      <div class="abs-info-row">
-        <span class="abs-info-row-label"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/></svg>Toleransi</span>
-        <span class="abs-info-row-value">${_absSettings.toleransi_menit} menit</span>
-      </div>` : ''}
+      <div class="abs-info-rows">
+        <div class="abs-info-row">
+          <span class="abs-info-row-label"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg>Absensi Masuk</span>
+          <span class="abs-info-row-value">${masukAwal || '--:--'} WITA${masukAkhir ? ` – ${masukAkhir} WITA` : ''}</span>
+        </div>
+        <div class="abs-info-row">
+          <span class="abs-info-row-label"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>Absensi Keluar</span>
+          <span class="abs-info-row-value">${pulangAwal || '--:--'} WITA${pulangAkhir ? ` – ${pulangAkhir} WITA` : ''}</span>
+        </div>
+        ${_effHariIni?.toleransi_menit ? `
+        <div class="abs-info-row">
+          <span class="abs-info-row-label"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/></svg>Toleransi</span>
+          <span class="abs-info-row-value">${_effHariIni.toleransi_menit} menit</span>
+        </div>` : ''}
+      </div>
+      ${_absCariPeriodeRamadhan(todayISO()) ? '<div class="abs-info-row"><span class="badge badge-hijau">Jam Ramadhan sedang aktif</span></div>' : ''}
     </div>
   `;
 
@@ -517,8 +570,7 @@ async function renderAbsHariIni() {
           ${todayRow?.jam_masuk && !todayRow?.jam_keluar && !belumWaktuPulang && !lewatWaktuPulang ? `<div class="abs-hariini-hint">Isi jam sesuai absensi di e-Balimang kamu, lalu simpan</div>` : ''}
           `}
       </div>
-      ${panelKanan}
-      ${panelInfo}
+      ${panelSamping}
     </div>
   `;
 
@@ -654,6 +706,7 @@ function _startAbsensiReminderPoll() {
 async function _cekAbsensiReminder() {
   if (!_user) return;
   if (_user.is_admin) return; 
+  if (!hasAccess('absensi') && !hasAccess('absensi.full')) return; 
   // Jangan cek ulang / timpa modal kalau lagi kebuka (misal user lagi ngisi jam)
   const _modalEl = document.getElementById('modalAbsReminder');
   if (_modalEl && _modalEl.classList.contains('open')) return;
@@ -690,10 +743,11 @@ async function _cekAbsensiReminder() {
     if (await _absCekPengajuanPendingHariIni()) return; 
 
     const nowHHMM = w.hhmm;
-    const masukAwal = (isJumat ? _absSettings.jam_masuk_awal_jumat : _absSettings.jam_masuk_awal_senin_kamis)?.slice(0, 5);
-    const pulangAwal = (isJumat ? _absSettings.jam_pulang_jumat : _absSettings.jam_pulang_senin_kamis)?.slice(0, 5);
-    const masukAkhir = (isJumat ? _absSettings.jam_masuk_akhir_jumat : _absSettings.jam_masuk_akhir_senin_kamis)?.slice(0, 5);
-    const pulangAkhir = (isJumat ? _absSettings.jam_pulang_akhir_jumat : _absSettings.jam_pulang_akhir_senin_kamis)?.slice(0, 5);
+    const effHariIni = _absSettingsEfektif(todayISO());
+    const masukAwal = (isJumat ? effHariIni.jam_masuk_awal_jumat : effHariIni.jam_masuk_awal_senin_kamis)?.slice(0, 5);
+    const pulangAwal = (isJumat ? effHariIni.jam_pulang_jumat : effHariIni.jam_pulang_senin_kamis)?.slice(0, 5);
+    const masukAkhir = (isJumat ? effHariIni.jam_masuk_akhir_jumat : effHariIni.jam_masuk_akhir_senin_kamis)?.slice(0, 5);
+    const pulangAkhir = (isJumat ? effHariIni.jam_pulang_akhir_jumat : effHariIni.jam_pulang_akhir_senin_kamis)?.slice(0, 5);
 
     if (!todayRow?.jam_masuk && masukAwal && nowHHMM >= masukAwal && !(masukAkhir && nowHHMM > masukAkhir)) {
       _openAbsReminder('masuk');
@@ -1292,6 +1346,7 @@ async function saveAbsSettings() {
     jam_pulang_akhir_jumat: document.getElementById('absSetPulangAkhirJumat').value,
     toleransi_menit: parseInt(document.getElementById('absSetToleransi').value) || 0,
   };
+
   try {
     const r = await fetch('/api/absensi/settings', {
       method: 'PUT', headers: { ...authHeaders(), 'Content-Type': 'application/json' },
@@ -1304,6 +1359,153 @@ async function saveAbsSettings() {
     closeModal('modalAbsSettings');
     if (document.getElementById('absPengaturanJamKerjaRingkasan')) loadAbsPengaturan();
   } catch { toast('Gagal menyimpan pengaturan', 'error'); }
+}
+
+// ---- Periode Ramadhan (riwayat per tahun, gak nimpa data tahun lalu) ----
+const ABS_RMD_FIELD_IDS = [
+  'absRmdMasukAwalSK', 'absRmdMasukAwalJumat',
+  'absRmdMasukSK', 'absRmdMasukJumat',
+  'absRmdMasukAkhirSK', 'absRmdMasukAkhirJumat',
+  'absRmdPulangSK', 'absRmdPulangJumat',
+  'absRmdPulangAkhirSK', 'absRmdPulangAkhirJumat',
+];
+
+async function openAbsRamadhanModal() {
+  await loadAbsRamadhanPeriods();
+  cancelEditAbsRamadhan();
+  renderAbsRamadhanList();
+  openModal('modalAbsRamadhan');
+
+  setTimeout(() => {
+    if (typeof initCtp === 'function') initCtp();
+    if (typeof initCdtp === 'function') initCdtp();
+    ABS_RMD_FIELD_IDS.forEach(id => {
+      document.getElementById('ctp_' + id)?._ctp?.set(document.getElementById(id).value || null);
+    });
+    document.getElementById('cdtp_absRmdTglMulai')?._cdtp?.clear();
+    document.getElementById('cdtp_absRmdTglSelesai')?._cdtp?.clear();
+  }, 30);
+}
+
+function renderAbsRamadhanList() {
+  const box = document.getElementById('absRamadhanList');
+  if (!box) return;
+  const items = [..._absRamadhanPeriods].sort((a, b) => (b.tanggal_mulai || '').localeCompare(a.tanggal_mulai || ''));
+
+  const fmt = (t) => t ? t.slice(0, 5) : '-';
+  box.innerHTML = items.length
+    ? items.map(p => `
+      <tr>
+        <td style="font-weight:600;white-space:nowrap">${p.tahun}</td>
+        <td style="white-space:nowrap">${new Date(p.tanggal_mulai).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' })} – ${new Date(p.tanggal_selesai).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' })}</td>
+        <td style="color:var(--teks-muted);white-space:nowrap">${fmt(p.jam_masuk_senin_kamis)}–${fmt(p.jam_pulang_senin_kamis)} · ${fmt(p.jam_masuk_jumat)}–${fmt(p.jam_pulang_jumat)}</td>
+        <td style="text-align:right">
+          <div style="display:flex;gap:6px;justify-content:flex-end">
+            <button class="btn-edit" data-tip="Edit" onclick="editAbsRamadhan(${p.id})"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button>
+            <button class="btn-hapus" data-tip="Hapus" onclick="deleteAbsRamadhan(${p.id})"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6m4-6v6"/><path d="M9 6V4h6v2"/></svg></button>
+          </div>
+        </td>
+      </tr>`).join('')
+    : '<tr class="empty-row"><td colspan="4">Belum ada periode Ramadhan tercatat</td></tr>';
+}
+
+function editAbsRamadhan(id) {
+  const p = _absRamadhanPeriods.find(x => x.id === id);
+  if (!p) return;
+  document.getElementById('absRmdEditId').value = id;
+  document.getElementById('absRmdTglMulai').value = p.tanggal_mulai || '';
+  document.getElementById('absRmdTglSelesai').value = p.tanggal_selesai || '';
+  document.getElementById('cdtp_absRmdTglMulai')?._cdtp?.set(p.tanggal_mulai || null);
+  document.getElementById('cdtp_absRmdTglSelesai')?._cdtp?.set(p.tanggal_selesai || null);
+  document.getElementById('absRmdMasukAwalSK').value = p.jam_masuk_awal_senin_kamis?.slice(0, 5) || '';
+  document.getElementById('absRmdMasukAwalJumat').value = p.jam_masuk_awal_jumat?.slice(0, 5) || '';
+  document.getElementById('absRmdMasukSK').value = p.jam_masuk_senin_kamis?.slice(0, 5) || '';
+  document.getElementById('absRmdMasukJumat').value = p.jam_masuk_jumat?.slice(0, 5) || '';
+  document.getElementById('absRmdMasukAkhirSK').value = p.jam_masuk_akhir_senin_kamis?.slice(0, 5) || '';
+  document.getElementById('absRmdMasukAkhirJumat').value = p.jam_masuk_akhir_jumat?.slice(0, 5) || '';
+  document.getElementById('absRmdPulangSK').value = p.jam_pulang_senin_kamis?.slice(0, 5) || '';
+  document.getElementById('absRmdPulangJumat').value = p.jam_pulang_jumat?.slice(0, 5) || '';
+  document.getElementById('absRmdPulangAkhirSK').value = p.jam_pulang_akhir_senin_kamis?.slice(0, 5) || '';
+  document.getElementById('absRmdPulangAkhirJumat').value = p.jam_pulang_akhir_jumat?.slice(0, 5) || '';
+  document.getElementById('absRmdToleransi').value = p.toleransi_menit ?? '';
+  ABS_RMD_FIELD_IDS.forEach(id2 => {
+    document.getElementById('ctp_' + id2)?._ctp?.set(document.getElementById(id2).value || null);
+  });
+  document.getElementById('absRmdSaveLabel').textContent = 'Simpan Perubahan';
+  document.getElementById('btnCancelEditAbsRmd').style.display = '';
+  document.getElementById('modalAbsRamadhan').querySelector('.modal-body')?.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function cancelEditAbsRamadhan() {
+  document.getElementById('absRmdEditId').value = '';
+  document.getElementById('absRmdTglMulai').value = '';
+  document.getElementById('absRmdTglSelesai').value = '';
+  document.getElementById('cdtp_absRmdTglMulai')?._cdtp?.clear();
+  document.getElementById('cdtp_absRmdTglSelesai')?._cdtp?.clear();
+  [...ABS_RMD_FIELD_IDS, 'absRmdToleransi'].forEach(id => { document.getElementById(id).value = ''; });
+  ABS_RMD_FIELD_IDS.forEach(id => { document.getElementById('ctp_' + id)?._ctp?.set(null); });
+  document.getElementById('absRmdSaveLabel').textContent = 'Tambah Periode';
+  document.getElementById('btnCancelEditAbsRmd').style.display = 'none';
+}
+
+async function saveAbsRamadhan() {
+  document.getElementById('cdtp_absRmdTglMulai')?._cdtp?.commit();
+  document.getElementById('cdtp_absRmdTglSelesai')?._cdtp?.commit();
+  ABS_RMD_FIELD_IDS.forEach(id => { document.getElementById('ctp_' + id)?._ctp?.commit(); });
+
+  const id = document.getElementById('absRmdEditId').value;
+  const tanggal_mulai = document.getElementById('absRmdTglMulai').value;
+  const tanggal_selesai = document.getElementById('absRmdTglSelesai').value;
+  if (!tanggal_mulai || !tanggal_selesai) { toast('Tanggal mulai & selesai Ramadhan wajib diisi', 'error'); return; }
+  if (tanggal_selesai < tanggal_mulai) { toast('Tanggal selesai tidak boleh sebelum tanggal mulai', 'error'); return; }
+  const jam_masuk_senin_kamis = document.getElementById('absRmdMasukSK').value;
+  const jam_masuk_jumat = document.getElementById('absRmdMasukJumat').value;
+  const jam_pulang_senin_kamis = document.getElementById('absRmdPulangSK').value;
+  const jam_pulang_jumat = document.getElementById('absRmdPulangJumat').value;
+  if (!jam_masuk_senin_kamis || !jam_masuk_jumat || !jam_pulang_senin_kamis || !jam_pulang_jumat) {
+    toast('Batas tepat waktu & jam pulang Ramadhan wajib diisi', 'error'); return;
+  }
+
+  const payload = {
+    tanggal_mulai, tanggal_selesai,
+    jam_masuk_awal_senin_kamis: document.getElementById('absRmdMasukAwalSK').value,
+    jam_masuk_awal_jumat: document.getElementById('absRmdMasukAwalJumat').value,
+    jam_masuk_senin_kamis, jam_masuk_jumat,
+    jam_masuk_akhir_senin_kamis: document.getElementById('absRmdMasukAkhirSK').value,
+    jam_masuk_akhir_jumat: document.getElementById('absRmdMasukAkhirJumat').value,
+    jam_pulang_senin_kamis, jam_pulang_jumat,
+    jam_pulang_akhir_senin_kamis: document.getElementById('absRmdPulangAkhirSK').value,
+    jam_pulang_akhir_jumat: document.getElementById('absRmdPulangAkhirJumat').value,
+    toleransi_menit: document.getElementById('absRmdToleransi').value === '' ? null : (parseInt(document.getElementById('absRmdToleransi').value) || 0),
+  };
+
+  try {
+    const r = await fetch(id ? `/api/absensi/ramadhan/${id}` : '/api/absensi/ramadhan', {
+      method: id ? 'PUT' : 'POST',
+      headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    const d = await r.json();
+    if (!r.ok) { toast(d.error || (id ? 'Gagal menyimpan perubahan' : 'Gagal menambah periode'), 'error'); return; }
+    toast(id ? 'Periode Ramadhan berhasil diperbarui' : 'Periode Ramadhan berhasil ditambahkan', 'success');
+    cancelEditAbsRamadhan();
+    await loadAbsRamadhanPeriods();
+    renderAbsRamadhanList();
+    if (document.getElementById('absPengaturanJamKerjaRingkasan')) loadAbsPengaturan();
+  } catch { toast(id ? 'Gagal menyimpan perubahan' : 'Gagal menambah periode', 'error'); }
+}
+
+async function deleteAbsRamadhan(id) {
+  const ok = await showConfirm({
+    title: 'Hapus Periode Ramadhan', msg: 'Periode ini tidak lagi dipakai untuk hitung jam kerja Ramadhan.',
+    okText: 'Ya, Hapus', icon: 'trash', type: 'danger',
+  });
+  if (!ok) return;
+  await fetch(`/api/absensi/ramadhan/${id}`, { method: 'DELETE', headers: authHeaders() });
+  toast('Periode Ramadhan berhasil dihapus', 'success');
+  await loadAbsRamadhanPeriods();
+  renderAbsRamadhanList();
+  if (document.getElementById('absPengaturanJamKerjaRingkasan')) loadAbsPengaturan();
 }
 
 let _absLiburAll   = [];   

@@ -121,7 +121,7 @@ function openDokumenModal(id = null) {
   document.getElementById('dokumenKategoriCustom').value = '';
   _setDokumenKategoriSelect('');
   document.getElementById('dokumenFileUrl').value    = '';
-  document.getElementById('dokumenAktif').checked    = true;
+  document.getElementById('dokumenAktif').value    = '1';
   document.getElementById('modalDokumenTitle').textContent = id ? 'Edit Dokumen' : 'Tambah Dokumen';
 
   if (id) {
@@ -132,7 +132,7 @@ function openDokumenModal(id = null) {
       document.getElementById('dokumenKeterangan').value = d.keterangan || '';
       _setDokumenKategoriSelect(d.kategori || '');
       document.getElementById('dokumenFileUrl').value    = d.file_url || '';
-      document.getElementById('dokumenAktif').checked    = !!d.aktif;
+      document.getElementById('dokumenAktif').value    = d.aktif ? '1' : '0';
     }
   }
   openModal('modalDokumen');
@@ -144,7 +144,7 @@ async function saveDokumen() {
   const keterangan = document.getElementById('dokumenKeterangan').value.trim();
   const kategori   = _getDokumenKategoriValue();
   const fileUrl    = document.getElementById('dokumenFileUrl').value.trim();
-  const aktif      = document.getElementById('dokumenAktif').checked;
+  const aktif      = document.getElementById('dokumenAktif').value === '1';
 
   if (!judul)   { toast('Judul wajib diisi', 'error'); return; }
   if (!fileUrl) { toast('URL file wajib diisi', 'error'); return; }

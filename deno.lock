@@ -14,8 +14,7 @@
         "npm:@neondatabase/serverless@0.9",
         "npm:bcryptjs@^2.4.3",
         "npm:cloudinary@^2.3.0",
-        "npm:jsonwebtoken@^9.0.2",
-        "npm:netlify-cli@17"
+        "npm:jsonwebtoken@^9.0.2"
       ]
     }
   }

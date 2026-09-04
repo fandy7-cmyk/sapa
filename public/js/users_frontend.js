@@ -62,7 +62,7 @@ function initBidangSearchable() {
   searchInp.type = 'text';
   searchInp.placeholder = 'Cari bidang...';
   searchInp.className = 'bsel-search';
-  searchInp.style.cssText = 'width:100%;border:1px solid var(--border,#e2e8f0);border-radius:6px;padding:5px 10px;font-size:.83rem;outline:none;color:var(--text-primary,#1e293b);background:var(--bg-input,#f8fafc)';
+  searchInp.style.cssText = 'width:100%;border:1px solid var(--border,#e2e8f0);border-radius:6px;padding:5px 10px;font-size:var(--fs-sm,.764rem);outline:none;color:var(--text-primary,#1e293b);background:var(--bg-input,#f8fafc)';
   searchWrap.appendChild(searchInp);
   panel.appendChild(searchWrap);
 
@@ -109,7 +109,7 @@ function initBidangSearchable() {
     });
 
     if (!hasResult) {
-      listEl.innerHTML = '<div style="padding:10px 14px;font-size:.83rem;color:var(--text-secondary,#64748b)">Tidak ditemukan</div>';
+      listEl.innerHTML = '<div style="padding:10px 14px;font-size:var(--fs-sm,.764rem);color:var(--text-secondary,#64748b)">Tidak ditemukan</div>';
     }
   }
 
@@ -231,6 +231,9 @@ function renderUsersTable() {
           <button class="btn btn-ghost btn-sm" data-tip="Edit" onclick="editUser(${u.id})">
             <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
           </button>
+          ${(u.permissions || []).some(p => p.startsWith('eplanning.')) ? `<button class="btn btn-ghost btn-sm" data-tip="${u.tanda_tangan ? 'Lihat Tanda Tangan' : 'Tanda tangan belum diupload'}" style="${u.tanda_tangan ? '' : 'color:var(--teks-muted);opacity:.45'}" onclick="previewTandaTanganUser(${u.id})">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.086 18.412A2 2 0 0112.67 19H5v-7.672a2 2 0 01.586-1.414L11.75 3.75a6 6 0 118.49 8.49z"/><path d="M16 8 2 22"/><path d="M17.488 15H9"/></svg>
+          </button>` : ''}
           <button class="btn btn-ghost btn-sm" data-tip="Hak Akses" onclick="openPermsModal(${u.id})">
             <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"/></svg>
           </button>
@@ -254,6 +257,41 @@ function renderUsersTable() {
 }
 
 window.goUserPage = (p) => { _userPage = p; renderUsersTable(); };
+
+function previewTandaTanganUser(id) {
+  const u = _users.find(x => x.id === id); if (!u) return;
+  let modal = document.getElementById('modalTtdPreview');
+  if (!modal) {
+    modal = document.createElement('div');
+    modal.className = 'modal-overlay';
+    modal.id = 'modalTtdPreview';
+    modal.innerHTML = `
+      <div class="modal" style="max-width:420px">
+        <div class="modal-header">
+          <div class="modal-title-wrap"><span class="modal-icon-badge"><svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.086 18.412A2 2 0 0112.67 19H5v-7.672a2 2 0 01.586-1.414L11.75 3.75a6 6 0 118.49 8.49z"/><path d="M16 8 2 22"/><path d="M17.488 15H9"/></svg></span><div class="modal-title" id="modalTtdPreviewTitle">Tanda Tangan</div></div>
+          <button class="btn-close" onclick="closeModal('modalTtdPreview')"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg></button>
+        </div>
+        <div class="modal-body" id="modalTtdPreviewBody"></div>
+        <div class="modal-footer">
+          <button class="btn btn-ghost" onclick="closeModal('modalTtdPreview')">Tutup</button>
+        </div>
+      </div>`;
+    modal.addEventListener('click', (e) => { if (e.target === modal) closeModal('modalTtdPreview'); });
+    document.body.appendChild(modal);
+  }
+  document.getElementById('modalTtdPreviewTitle').textContent = `Tanda Tangan — ${u.nama}`;
+  const body = document.getElementById('modalTtdPreviewBody');
+  body.innerHTML = u.tanda_tangan
+    ? `<div style="border:1.5px solid var(--abu-2);border-radius:10px;background:#fff;padding:16px;text-align:center">
+         <img src="${esc(u.tanda_tangan)}" style="max-width:100%;max-height:180px;object-fit:contain" onerror="this.style.display='none';document.getElementById('modalTtdPreviewErr').style.display='block'">
+         <div id="modalTtdPreviewErr" style="display:none;color:var(--merah);font-size:.8rem;padding:8px">Gagal memuat gambar tanda tangan</div>
+       </div>`
+    : `<div style="border:2px dashed var(--abu-2);border-radius:10px;background:var(--abu-1);padding:32px;text-align:center;color:var(--teks-muted)">
+         <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5" style="margin-bottom:8px"><path d="M14.086 18.412A2 2 0 0112.67 19H5v-7.672a2 2 0 01.586-1.414L11.75 3.75a6 6 0 118.49 8.49z"/><path d="M16 8 2 22"/><path d="M17.488 15H9"/></svg>
+         <div style="font-size:.85rem">Tanda tangan belum diupload</div>
+       </div>`;
+  openModal('modalTtdPreview');
+}
 
 function openUrutanLaporanModal() {
   const list = _users
@@ -482,6 +520,8 @@ const PERM_DEFS = [
   { key: 'kinerja.spm',         name: 'SPM (Standar Pelayanan Minimal)', desc: 'Input realisasi SPM' },
   { key: 'absensi',             name: 'Absensi',                  desc: 'Input & lihat absensi harian sendiri' },
   { key: 'absensi.full',        name: 'Absensi › Admin Penuh',    desc: 'Kelola absensi semua pegawai, atur jam kerja & hari libur (setara admin)' },
+  { key: 'lembur',               name: 'Lembur',                   desc: 'Isi uraian tugas lembur milik sendiri' },
+  { key: 'lembur.full',          name: 'Lembur › Admin Penuh',     desc: 'Kelola kegiatan/sesi lembur, tambah peserta, upload dokumentasi (setara admin)' },
   { key: 'eplanning.operator',   name: 'E-Planning › Operator',            desc: 'Bikin & edit usulan anggaran milik sendiri' },
   { key: 'eplanning.kabid',      name: 'E-Planning › Kepala Unit Kerja',   desc: 'Review & setujui semua usulan di unit kerjanya (Puskesmas/Bidang/Sub Bagian)' },
   { key: 'eplanning.sekretaris', name: 'E-Planning › Sekretaris Dinas',    desc: 'Verifikasi tambahan khusus usulan dari unit kerja tipe Sub Bagian, sebelum ke Admin' },

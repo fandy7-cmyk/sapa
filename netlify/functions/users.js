@@ -84,6 +84,34 @@ export const handler = async (event) => {
     }
   }
 
+  // Tanda tangan pribadi user (dipakai buat syarat wajib tanda tangan sebelum
+  // mengajukan/memverifikasi usulan e-Planning) - pola sama kayak avatar di atas.
+  if (event.httpMethod === 'GET' && userId && segments[1] === 'tanda-tangan') {
+    if (auth.id !== userId && !auth.is_admin) return errorResponse('Unauthorized', 401);
+    try {
+      await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS tanda_tangan TEXT`;
+      const rows = await sql`SELECT tanda_tangan FROM users WHERE id = ${userId} LIMIT 1`;
+      return jsonResponse({ tanda_tangan: rows[0]?.tanda_tangan || null });
+    } catch (err) {
+      console.error('[GET /api/users/:id/tanda-tangan]', err);
+      return jsonResponse({ tanda_tangan: null });
+    }
+  }
+
+  if (event.httpMethod === 'PUT' && userId && segments[1] === 'tanda-tangan') {
+    if (auth.id !== userId && !auth.is_admin) return errorResponse('Unauthorized', 401);
+    const { tanda_tangan } = parseBody(event);
+    try {
+      await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS tanda_tangan TEXT`;
+      const val = (tanda_tangan && tanda_tangan.trim()) ? tanda_tangan.trim() : null;
+      await sql`UPDATE users SET tanda_tangan = ${val} WHERE id = ${userId}`;
+      return jsonResponse({ ok: true, tanda_tangan: val });
+    } catch (err) {
+      console.error('[PUT /api/users/:id/tanda-tangan]', err);
+      return errorResponse('Gagal menyimpan tanda tangan');
+    }
+  }
+
   const admin = requireAdmin(event);
   if (!admin) return errorResponse('Unauthorized', 401);
 
@@ -91,10 +119,12 @@ export const handler = async (event) => {
     try {
       await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS urutan_laporan INTEGER`;
       await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar_url TEXT`;
+      await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS tanda_tangan TEXT`;
       const users = await sql`
         SELECT u.id, u.nama, u.nip, u.email, u.is_admin, u.last_login, u.created_at,
                u.bidang_id, b.nama AS bidang_nama, b.singkatan AS bidang_singkatan,
                u.urutan_laporan,
+               u.tanda_tangan,
                COALESCE(u.avatar_url, p.foto_url) AS foto_url,
                COALESCE(
                  (SELECT array_agg(up.menu_key) FROM user_permissions up WHERE up.user_id = u.id),

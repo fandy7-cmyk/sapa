@@ -17,7 +17,9 @@ const FOLDER_MAP = {
   surat_keluar: 'SAPA/Surat/Surat Keluar',
   surat_masuk:  'SAPA/Surat/Surat Masuk',
   absensi:      'SAPA/Absensi',
+  lembur:       'SAPA/Lembur',
   foto_profil:  'SAPA/Foto Profil',
+  tanda_tangan: 'SAPA/Tanda Tangan',
   eplanning:    'SAPA/E-Planning',
   tema_musiman: 'SAPA/Tema Musiman',
 };

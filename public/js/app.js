@@ -392,6 +392,98 @@ async function saveAvatarUpload() {
   }
 }
 
+function openTandaTanganUpload() {
+  const current = _user.tanda_tangan || null;
+  document.getElementById('ttdUploadUrl').value = current || '';
+  const prev  = document.getElementById('ttdUploadPreview');
+  const empty = document.getElementById('ttdUploadEmpty');
+  if (current) {
+    prev.src = current; prev.style.display = 'block'; empty.style.display = 'none';
+  } else {
+    prev.style.display = 'none'; empty.style.display = 'flex';
+  }
+  document.getElementById('ttdUploadProgress').style.display = 'none';
+  document.getElementById('topbarDropdown')?.classList.remove('open');
+  openModal('modalTandaTangan');
+}
+
+async function onTandaTanganFileChange(input) {
+  const file = input.files?.[0];
+  if (!file) return;
+
+  const MAX_MB = 2;
+  if (file.size > MAX_MB * 1024 * 1024) {
+    toast(`Gambar terlalu besar (maks. ${MAX_MB} MB)`, 'error');
+    input.value = '';
+    return;
+  }
+
+  const prog  = document.getElementById('ttdUploadProgress');
+  const bar   = document.getElementById('ttdUploadProgressBar');
+  const prev  = document.getElementById('ttdUploadPreview');
+  const empty = document.getElementById('ttdUploadEmpty');
+  if (prog) prog.style.display = '';
+  if (bar)  bar.style.width = '30%';
+
+  try {
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('kategori', 'tanda_tangan');
+    const r = await fetch('/api/upload', {
+      method: 'POST',
+      headers: { 'Authorization': authHeaders()['Authorization'] },
+      body: formData,
+    });
+    if (bar) bar.style.width = '90%';
+    if (!r.ok) {
+      const d = await r.json().catch(() => ({}));
+      throw new Error(d.error || 'Gagal upload');
+    }
+    const d = await r.json();
+    if (bar) { bar.style.width = '100%'; setTimeout(() => { if (prog) prog.style.display = 'none'; }, 600); }
+    document.getElementById('ttdUploadUrl').value = d.url;
+    prev.src = d.url; prev.style.display = 'block';
+    empty.style.display = 'none';
+    toast('Tanda tangan berhasil diupload', 'success');
+  } catch (err) {
+    if (prog) prog.style.display = 'none';
+    toast('Gagal upload tanda tangan: ' + err.message, 'error');
+  } finally {
+    input.value = '';
+  }
+}
+
+function clearTandaTanganUpload() {
+  document.getElementById('ttdUploadUrl').value = '';
+  const prev  = document.getElementById('ttdUploadPreview');
+  const empty = document.getElementById('ttdUploadEmpty');
+  prev.src = ''; prev.style.display = 'none';
+  empty.style.display = 'flex';
+  const fi = document.getElementById('ttdUploadFile');
+  if (fi) fi.value = '';
+}
+
+async function saveTandaTanganUpload() {
+  const ttdUrl = document.getElementById('ttdUploadUrl').value.trim();
+  try {
+    const r = await fetch(`/api/users/${_user.id}/tanda-tangan`, {
+      method: 'PUT',
+      headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+      body: JSON.stringify({ tanda_tangan: ttdUrl }),
+    });
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok) { toast(d.error || 'Gagal menyimpan tanda tangan', 'error'); return; }
+    _user.tanda_tangan = ttdUrl || null;
+    sessionStorage.setItem('sapa_user', JSON.stringify(_user));
+    toast('Tanda tangan berhasil disimpan', 'success');
+    closeModal('modalTandaTangan');
+    if (typeof renderEplanningPraTable === 'function') renderEplanningPraTable();
+    if (typeof _epRefreshBtnTambah === 'function') _epRefreshBtnTambah();
+  } catch (err) {
+    toast('Gagal: ' + err.message, 'error');
+  }
+}
+
 function openChangePassword() {
   document.getElementById('cpOld').value = '';
   document.getElementById('cpNew').value = '';
@@ -583,6 +675,14 @@ const MENUS = [
     ],
   },
   {
+    id: 'lembur', label: 'Lembur', icon: `<svg class="ic-line" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M10 6C10 10.4183 13.5817 14 18 14C19.4386 14 20.7885 13.6203 21.9549 12.9556C21.4738 18.0302 17.2005 22 12 22C6.47715 22 2 17.5228 2 12C2 6.79948 5.9698 2.52616 11.0444 2.04507C10.3797 3.21152 10 4.56142 10 6ZM4 12C4 16.4183 7.58172 20 12 20C14.9654 20 17.5757 18.3788 18.9571 15.9546C18.6407 15.9848 18.3214 16 18 16C12.4772 16 8 11.5228 8 6C8 5.67863 8.01524 5.35933 8.04536 5.04293C5.62119 6.42426 4 9.03458 4 12ZM18.1642 2.29104L19 2.5V3.5L18.1642 3.70896C17.4476 3.8881 16.8881 4.4476 16.709 5.16417L16.5 6H15.5L15.291 5.16417C15.1119 4.4476 14.5524 3.8881 13.8358 3.70896L13 3.5V2.5L13.8358 2.29104C14.5524 2.1119 15.1119 1.5524 15.291 0.835829L15.5 0H16.5L16.709 0.835829C16.8881 1.5524 17.4476 2.1119 18.1642 2.29104ZM23.1642 7.29104L24 7.5V8.5L23.1642 8.70896C22.4476 8.8881 21.8881 9.4476 21.709 10.1642L21.5 11H20.5L20.291 10.1642C20.1119 9.4476 19.5524 8.8881 18.8358 8.70896L18 8.5V7.5L18.8358 7.29104C19.5524 7.1119 20.1119 6.5524 20.291 5.83583L20.5 5H21.5L21.709 5.83583C21.8881 6.5524 22.4476 7.1119 23.1642 7.29104Z"/></svg><svg class="ic-fill" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M9.8216 2.23796C9.29417 3.38265 9 4.65697 9 6C9 10.9706 13.0294 15 18 15C19.343 15 20.6174 14.7058 21.762 14.1784C20.7678 18.6537 16.7747 22 12 22C6.47715 22 2 17.5228 2 12C2 7.22532 5.3463 3.23221 9.8216 2.23796ZM18.1642 2.29104L19 2.5V3.5L18.1642 3.70896C17.4476 3.8881 16.8881 4.4476 16.709 5.16417L16.5 6H15.5L15.291 5.16417C15.1119 4.4476 14.5524 3.8881 13.8358 3.70896L13 3.5V2.5L13.8358 2.29104C14.5524 2.1119 15.1119 1.5524 15.291 0.835829L15.5 0H16.5L16.709 0.835829C16.8881 1.5524 17.4476 2.1119 18.1642 2.29104ZM23.1642 7.29104L24 7.5V8.5L23.1642 8.70896C22.4476 8.8881 21.8881 9.4476 21.709 10.1642L21.5 11H20.5L20.291 10.1642C20.1119 9.4476 19.5524 8.8881 18.8358 8.70896L18 8.5V7.5L18.8358 7.29104C19.5524 7.1119 20.1119 6.5524 20.291 5.83583L20.5 5H21.5L21.709 5.83583C21.8881 6.5524 22.4476 7.1119 23.1642 7.29104Z"/></svg>`,
+    children: [
+      { id: 'dashboard-lembur', key: null, showIf: () => _user.is_admin || hasAccess('lembur') || hasAccess('lembur.full'), label: 'Dashboard', page: 'page-dashboard-lembur', loader: () => loadDashboardLembur(), icon: `<svg class="ic-line" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M14 21C13.4477 21 13 20.5523 13 20V12C13 11.4477 13.4477 11 14 11H20C20.5523 11 21 11.4477 21 12V20C21 20.5523 20.5523 21 20 21H14ZM4 13C3.44772 13 3 12.5523 3 12V4C3 3.44772 3.44772 3 4 3H10C10.5523 3 11 3.44772 11 4V12C11 12.5523 10.5523 13 10 13H4ZM9 11V5H5V11H9ZM4 21C3.44772 21 3 20.5523 3 20V16C3 15.4477 3.44772 15 4 15H10C10.5523 15 11 15.4477 11 16V20C11 20.5523 10.5523 21 10 21H4ZM5 19H9V17H5V19ZM15 19H19V13H15V19ZM13 4C13 3.44772 13.4477 3 14 3H20C20.5523 3 21 3.44772 21 4V8C21 8.55228 20.5523 9 20 9H14C13.4477 9 13 8.55228 13 8V4ZM15 5V7H19V5H15Z"/></svg><svg class="ic-fill" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M3 12C3 12.5523 3.44772 13 4 13H10C10.5523 13 11 12.5523 11 12V4C11 3.44772 10.5523 3 10 3H4C3.44772 3 3 3.44772 3 4V12ZM3 20C3 20.5523 3.44772 21 4 21H10C10.5523 21 11 20.5523 11 20V16C11 15.4477 10.5523 15 10 15H4C3.44772 15 3 15.4477 3 16V20ZM13 20C13 20.5523 13.4477 21 14 21H20C20.5523 21 21 20.5523 21 20V12C21 11.4477 20.5523 11 20 11H14C13.4477 11 13 11.4477 13 12V20ZM14 3C13.4477 3 13 3.44772 13 4V8C13 8.55228 13.4477 9 14 9H20C20.5523 9 21 8.55228 21 8V4C21 3.44772 20.5523 3 20 3H14Z"/></svg>` },
+      { id: 'lembur-kegiatan', key: null, showIf: () => _user.is_admin || hasAccess('lembur') || hasAccess('lembur.full'), label: 'Kegiatan Lembur', page: 'page-lembur-kegiatan', loader: () => loadLemburKegiatan(), icon: `<svg class="ic-line" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M3 3H21C21.5523 3 22 3.44772 22 4V20C22 20.5523 21.5523 21 21 21H3C2.44772 21 2 20.5523 2 20V4C2 3.44772 2.44772 3 3 3ZM4 5V19H20V5H4ZM6 8H18V10H6V8ZM6 12H14V14H6V12Z"/></svg><svg class="ic-fill" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M3 3H21C21.5523 3 22 3.44772 22 4V20C22 20.5523 21.5523 21 21 21H3C2.44772 21 2 20.5523 2 20V4C2 3.44772 2.44772 3 3 3ZM6 8V10H18V8H6ZM6 12V14H14V12H6Z"/></svg>` },
+      { id: 'laporan-lembur', key: null, showIf: () => _user.is_admin || hasAccess('lembur') || hasAccess('lembur.full'), label: 'Laporan', page: 'page-laporan-lembur', loader: () => loadLaporanLembur(), icon: `<svg class="ic-line" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M11 7H13V17H11V7ZM15 11H17V17H15V11ZM7 13H9V17H7V13ZM15 4H5V20H19V8H15V4ZM3 2.9918C3 2.44405 3.44749 2 3.9985 2H16L20.9997 7L21 20.9925C21 21.5489 20.5551 22 20.0066 22H3.9934C3.44476 22 3 21.5447 3 21.0082V2.9918Z"/></svg><svg class="ic-fill" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M16 2L21 7V21.0082C21 21.556 20.5551 22 20.0066 22H3.9934C3.44476 22 3 21.5447 3 21.0082V2.9918C3 2.44405 3.44495 2 3.9934 2H16ZM11 7V17H13V7H11ZM15 11V17H17V11H15ZM7 13V17H9V13H7Z"/></svg>` },
+    ],
+  },
+  {
     id: 'kinerja', label: 'Kinerja', icon: `<svg class="ic-line" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M5 3V19H21V21H3V3H5ZM20.2929 6.29289L21.7071 7.70711L16 13.4142L13 10.415L8.70711 14.7071L7.29289 13.2929L13 7.58579L16 10.585L20.2929 6.29289Z"/></svg><svg class="ic-fill" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M5 3V19H21V21H3V3H5ZM19.9393 5.93934L22.0607 8.06066L16 14.1213L13 11.121L9.06066 15.0607L6.93934 12.9393L13 6.87868L16 9.879L19.9393 5.93934Z"/></svg>`,
     children: [
       { id: 'dashboard-kinerja', key: null, showIf: () => _user.is_admin || _hasMonevIndikator || _hasIkkIndikator || _hasSpmIndikator, label: 'Dashboard', page: 'page-dashboard-kinerja', loader: () => loadDashboardKinerja(), icon: `<svg class="ic-line" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M14 21C13.4477 21 13 20.5523 13 20V12C13 11.4477 13.4477 11 14 11H20C20.5523 11 21 11.4477 21 12V20C21 20.5523 20.5523 21 20 21H14ZM4 13C3.44772 13 3 12.5523 3 12V4C3 3.44772 3.44772 3 4 3H10C10.5523 3 11 3.44772 11 4V12C11 12.5523 10.5523 13 10 13H4ZM9 11V5H5V11H9ZM4 21C3.44772 21 3 20.5523 3 20V16C3 15.4477 3.44772 15 4 15H10C10.5523 15 11 15.4477 11 16V20C11 20.5523 10.5523 21 10 21H4ZM5 19H9V17H5V19ZM15 19H19V13H15V19ZM13 4C13 3.44772 13.4477 3 14 3H20C20.5523 3 21 3.44772 21 4V8C21 8.55228 20.5523 9 20 9H14C13.4477 9 13 8.55228 13 8V4ZM15 5V7H19V5H15Z"/></svg><svg class="ic-fill" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M3 12C3 12.5523 3.44772 13 4 13H10C10.5523 13 11 12.5523 11 12V4C11 3.44772 10.5523 3 10 3H4C3.44772 3 3 3.44772 3 4V12ZM3 20C3 20.5523 3.44772 21 4 21H10C10.5523 21 11 20.5523 11 20V16C11 15.4477 10.5523 15 10 15H4C3.44772 15 3 15.4477 3 16V20ZM13 20C13 20.5523 13.4477 21 14 21H20C20.5523 21 21 20.5523 21 20V12C21 11.4477 20.5523 11 20 11H14C13.4477 11 13 11.4477 13 12V20ZM14 3C13.4477 3 13 3.44772 13 4V8C13 8.55228 13.4477 9 14 9H20C20.5523 9 21 8.55228 21 8V4C21 3.44772 20.5523 3 20 3H14Z"/></svg>` },
@@ -597,7 +697,8 @@ const MENUS = [
     id: 'eplanning', label: 'e-Planning', icon: `<svg class="ic-line" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M21 3C21.5523 3 22 3.44772 22 4V20C22 20.5523 21.5523 21 21 21H3C2.44772 21 2 20.5523 2 20V4C2 3.44772 2.44772 3 3 3H21ZM11 13H4V19H11V13ZM20 13H13V19H20V13ZM11 5H4V11H11V5ZM20 5H13V11H20V5Z"/></svg><svg class="ic-fill" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M22 12.999V20C22 20.5523 21.5523 21 21 21H13V12.999H22ZM11 12.999V21H3C2.44772 21 2 20.5523 2 20V12.999H11ZM11 3V10.999H2V4C2 3.44772 2.44772 3 3 3H11ZM21 3C21.5523 3 22 3.44772 22 4V10.999H13V3H21Z"/></svg>`,
     children: [
       { id: 'eplanning-praunsulan', key: null, showIf: () => _user.is_admin || hasAccess('eplanning.admin') || hasAccess('eplanning.kabid') || hasAccess('eplanning.operator'), label: 'Pra Usulan', page: 'page-eplanning-praunsulan', loader: () => loadEplanningPraUsulan(), icon: `<svg class="ic-line" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg><svg class="ic-fill" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12S6.48 22 12 22 22 17.52 22 12 17.52 2 12 2ZM13 12.4142L17.4142 16.8284L16 18.2426L11 13.2426V6H13V12.4142Z"/></svg>` },
-      { id: 'eplanning-usulan', key: null, showIf: () => _user.is_admin || hasAccess('eplanning.admin') || hasAccess('eplanning.kabid') || hasAccess('eplanning.operator'), label: 'Usulanku', page: 'page-eplanning', loader: () => loadEplanning(), icon: `<svg class="ic-line" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M17 2V4H20.0066C20.5552 4 21 4.44495 21 4.9934V21.0066C21 21.5552 20.5551 22 20.0066 22H3.9934C3.44476 22 3 21.5551 3 21.0066V4.9934C3 4.44476 3.44495 4 3.9934 4H7V2H17ZM7 6H5V20H19V6H17V8H7V6ZM9 16V18H7V16H9ZM9 13V15H7V13H9ZM9 10V12H7V10H9ZM15 4H9V6H15V4Z"/></svg><svg class="ic-fill" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M6 4V8H18V4H20.0066C20.5552 4 21 4.44495 21 4.9934V21.0066C21 21.5552 20.5551 22 20.0066 22H3.9934C3.44476 22 3 21.5551 3 21.0066V4.9934C3 4.44476 3.44495 4 3.9934 4H6ZM9 17H7V19H9V17ZM9 14H7V16H9V14ZM9 11H7V13H9V11ZM16 2V6H8V2H16Z"/></svg>` },
+      { id: 'eplanning-usulan', key: null, showIf: () => _user.is_admin || hasAccess('eplanning.admin') || hasAccess('eplanning.kabid') || hasAccess('eplanning.operator'), label: 'Usulan', page: 'page-eplanning', loader: () => loadEplanning(), icon: `<svg class="ic-line" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M17 2V4H20.0066C20.5552 4 21 4.44495 21 4.9934V21.0066C21 21.5552 20.5551 22 20.0066 22H3.9934C3.44476 22 3 21.5551 3 21.0066V4.9934C3 4.44476 3.44495 4 3.9934 4H7V2H17ZM7 6H5V20H19V6H17V8H7V6ZM9 16V18H7V16H9ZM9 13V15H7V13H9ZM9 10V12H7V10H9ZM15 4H9V6H15V4Z"/></svg><svg class="ic-fill" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M6 4V8H18V4H20.0066C20.5552 4 21 4.44495 21 4.9934V21.0066C21 21.5552 20.5551 22 20.0066 22H3.9934C3.44476 22 3 21.5551 3 21.0066V4.9934C3 4.44476 3.44495 4 3.9934 4H6ZM9 17H7V19H9V17ZM9 14H7V16H9V14ZM9 11H7V13H9V11ZM16 2V6H8V2H16Z"/></svg>` },
+      { id: 'eplanning-pembahasan', key: null, showIf: () => _user.is_admin || hasAccess('eplanning.admin') || hasAccess('eplanning.kabid') || hasAccess('eplanning.operator'), label: 'Pembahasan', page: 'page-eplanning-pembahasan', loader: () => loadEplanningPembahasan(), icon: `<svg class="ic-line" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h20"/><path d="M21 3v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V3"/><path d="m7 21 5-5 5 5"/></svg><svg class="ic-fill" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><rect x="2" y="3" width="20" height="13" rx="2"/><path d="M7 21l5-5 5 5H7z"/></svg>` },
       { id: 'eplanning-standarharga-group', adminOnly: false, label: 'Standar Harga Satuan', icon: `<svg class="ic-line" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M10.9042 2.10025L20.8037 3.51446L22.2179 13.414L13.0255 22.6063C12.635 22.9969 12.0019 22.9969 11.6113 22.6063L1.71184 12.7069C1.32131 12.3163 1.32131 11.6832 1.71184 11.2926L10.9042 2.10025ZM11.6113 4.22157L3.83316 11.9997L12.3184 20.485L20.0966 12.7069L19.036 5.28223L11.6113 4.22157ZM13.7327 10.5855C12.9516 9.80448 12.9516 8.53815 13.7327 7.7571C14.5137 6.97606 15.78 6.97606 16.5611 7.7571C17.3421 8.53815 17.3421 9.80448 16.5611 10.5855C15.78 11.3666 14.5137 11.3666 13.7327 10.5855Z"/></svg><svg class="ic-fill" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M10.9042 2.10025L20.8037 3.51446L22.2179 13.414L13.0255 22.6063C12.635 22.9969 12.0019 22.9969 11.6113 22.6063L1.71184 12.7069C1.32131 12.3163 1.32131 11.6832 1.71184 11.2926L10.9042 2.10025ZM13.7327 10.5855C14.5137 11.3666 15.78 11.3666 16.5611 10.5855C17.3421 9.80448 17.3421 8.53815 16.5611 7.7571C15.78 6.97606 14.5137 6.97606 13.7327 7.7571C12.9516 8.53815 12.9516 9.80448 13.7327 10.5855Z"/></svg>`, children: [
         { id: 'eplanning-standarharga-ssh', key: null, showIf: () => _user.is_admin || hasAccess('eplanning.admin') || hasAccess('eplanning.kabid') || hasAccess('eplanning.operator'), label: 'SSH', page: 'page-eplanning-standarharga', loader: () => epShTabSwitch('SSH'), icon: `<svg class="ic-line" xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M2.00488 3.99979C2.00488 3.4475 2.4526 2.99979 3.00488 2.99979H21.0049C21.5572 2.99979 22.0049 3.4475 22.0049 3.99979V9.49979C20.6242 9.49979 19.5049 10.6191 19.5049 11.9998C19.5049 13.3805 20.6242 14.4998 22.0049 14.4998V19.9998C22.0049 20.5521 21.5572 20.9998 21.0049 20.9998H3.00488C2.4526 20.9998 2.00488 20.5521 2.00488 19.9998V3.99979ZM8.09024 18.9998C8.29615 18.4172 8.85177 17.9998 9.50488 17.9998C10.158 17.9998 10.7136 18.4172 10.9195 18.9998H20.0049V16.032C18.5232 15.2957 17.5049 13.7666 17.5049 11.9998C17.5049 10.2329 18.5232 8.7039 20.0049 7.96755V4.99979H10.9195C10.7136 5.58238 10.158 5.99979 9.50488 5.99979C8.85177 5.99979 8.29615 5.58238 8.09024 4.99979H4.00488V18.9998H8.09024ZM9.50488 10.9998C8.67646 10.9998 8.00488 10.3282 8.00488 9.49979C8.00488 8.67136 8.67646 7.99979 9.50488 7.99979C10.3333 7.99979 11.0049 8.67136 11.0049 9.49979C11.0049 10.3282 10.3333 10.9998 9.50488 10.9998ZM9.50488 15.9998C8.67646 15.9998 8.00488 15.3282 8.00488 14.4998C8.00488 13.6714 8.67646 12.9998 9.50488 12.9998C10.3333 12.9998 11.0049 13.6714 11.0049 14.4998C11.0049 15.3282 10.3333 15.9998 9.50488 15.9998Z"/></svg><svg class="ic-fill" xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M11.0049 20.9997C11.0049 20.1712 10.3333 19.4997 9.50488 19.4997C8.67646 19.4997 8.00488 20.1712 8.00488 20.9997H3.00488C2.4526 20.9997 2.00488 20.5519 2.00488 19.9997V3.99966C2.00488 3.44738 2.4526 2.99966 3.00488 2.99966H8.00488C8.00488 3.82809 8.67646 4.49966 9.50488 4.49966C10.3333 4.49966 11.0049 3.82809 11.0049 2.99966H21.0049C21.5572 2.99966 22.0049 3.44738 22.0049 3.99966V9.49966C20.6242 9.49966 19.5049 10.619 19.5049 11.9997C19.5049 13.3804 20.6242 14.4997 22.0049 14.4997V19.9997C22.0049 20.5519 21.5572 20.9997 21.0049 20.9997H11.0049ZM9.50488 10.4997C10.3333 10.4997 11.0049 9.82809 11.0049 8.99966C11.0049 8.17124 10.3333 7.49966 9.50488 7.49966C8.67646 7.49966 8.00488 8.17124 8.00488 8.99966C8.00488 9.82809 8.67646 10.4997 9.50488 10.4997ZM9.50488 16.4997C10.3333 16.4997 11.0049 15.8281 11.0049 14.9997C11.0049 14.1712 10.3333 13.4997 9.50488 13.4997C8.67646 13.4997 8.00488 14.1712 8.00488 14.9997C8.00488 15.8281 8.67646 16.4997 9.50488 16.4997Z"/></svg>` },
         { id: 'eplanning-standarharga-hspk', key: null, showIf: () => _user.is_admin || hasAccess('eplanning.admin') || hasAccess('eplanning.kabid') || hasAccess('eplanning.operator'), label: 'HSPK', page: 'page-eplanning-standarharga', loader: () => epShTabSwitch('HSPK'), icon: `<svg class="ic-line" xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M4 8H20V5H4V8ZM14 19V10H10V19H14ZM16 19H20V10H16V19ZM8 19V10H4V19H8ZM3 3H21C21.5523 3 22 3.44772 22 4V20C22 20.5523 21.5523 21 21 21H3C2.44772 21 2 20.5523 2 20V4C2 3.44772 2.44772 3 3 3Z"/></svg><svg class="ic-fill" xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M15 21H9V10H15V21ZM17 21V10H22V20C22 20.5523 21.5523 21 21 21H17ZM7 21H3C2.44772 21 2 20.5523 2 20V10H7V21ZM22 8H2V4C2 3.44772 2.44772 3 3 3H21C21.5523 3 22 3.44772 22 4V8Z"/></svg>` },
@@ -1189,6 +1290,19 @@ async function _bootRefreshFoto() {
   } catch {}
 }
 
+// Refresh tanda tangan user dari server (bisa beda dari yang tersimpan di token/login lama)
+// - dipakai buat syarat wajib tanda tangan sebelum submit/verifikasi usulan e-Planning.
+async function _bootRefreshTandaTangan() {
+  try {
+    const r = await fetch(`/api/users/${_user.id}/tanda-tangan`, { headers: authHeaders() });
+    if (r.ok) {
+      const d = await r.json();
+      _user.tanda_tangan = d.tanda_tangan || null;
+      sessionStorage.setItem('sapa_user', JSON.stringify(_user));
+    }
+  } catch {}
+}
+
 (function _domReady(fn) { if (document.readyState === 'loading') { window.addEventListener('DOMContentLoaded', fn); } else { fn(); } })(function() {
   if (!initAuth()) return;
 
@@ -1240,15 +1354,22 @@ async function _bootRefreshFoto() {
   if (typeof _startAbsensiReminderPoll === 'function') _startAbsensiReminderPoll();
 
   loadPeriodeAktif()
-    .then(() => Promise.all([_bootRefreshUser(), _bootRefreshFoto()]))
+    .then(() => Promise.all([_bootRefreshUser(), _bootRefreshFoto(), _bootRefreshTandaTangan()]))
     .then(() => _cekKinerjaIndikator())
     .finally(() => {
       buildSidebar();
       _applySidebarCollapse();
       _startPeriodeTimer();
-      
+
+      // Menu "Tanda Tangan Saya" cuma relevan buat user yang butuh ttd di e-Planning (Super Admin dikecualikan).
+      const btnTandaTanganDD = document.getElementById('btnTandaTanganDD');
+      if (btnTandaTanganDD) btnTandaTanganDD.style.display = (typeof _epButuhTtd === 'function' && _epButuhTtd()) ? '' : 'none';
+
       
       if (typeof _cekPengajuanPendingReminder === 'function') _cekPengajuanPendingReminder();
+
+      // Popup pengingat tanda tangan - kasih jeda dikit biar gak numpuk sama modal reminder lain pas baru login.
+      setTimeout(() => { if (typeof _cekTtdLoginPopup === 'function') _cekTtdLoginPopup(); }, 1200);
 
       
       
@@ -1370,9 +1491,12 @@ async function _bootRefreshFoto() {
     });
 });
 
-document.querySelectorAll('.modal-overlay, .modal-overlay-main').forEach(overlay => {
-  overlay.addEventListener('click', e => { if (e.target === overlay) overlay.classList.remove('open'); });
-});
+// Klik-di-luar-modal buat auto-close DIMATIKAN (2026-08) - modal cuma boleh nutup lewat tombol
+// X/Batal eksplisit, biar user gak kehilangan progress isian gara-gara klik meleset ke backdrop
+// (terutama modal yang isinya form panjang kayak Kelola Dokumen Usulan).
+// document.querySelectorAll('.modal-overlay, .modal-overlay-main').forEach(overlay => {
+//   overlay.addEventListener('click', e => { if (e.target === overlay) overlay.classList.remove('open'); });
+// });
 
 function toggleProfileDD() {
   document.getElementById('topbarDropdown').classList.toggle('open');
@@ -1618,6 +1742,121 @@ document.addEventListener('click', () => {
   Object.values(_datepickers).forEach(dp => { if (dp._open) dp._close(); });
 });
 
+/* ── CTP inline: jam-only spinner, tanpa popup (lihat .ctp-inline di styles.css) ── */
+class TimePicker {
+  constructor(containerId, { value = null } = {}) {
+    this.containerId = containerId;
+    this.h  = 0;
+    this.mi = 0;
+    this._applyValue(value);
+    this._render();
+  }
+
+  _container() { return document.getElementById(this.containerId); }
+
+  _applyValue(value) {
+    if (value && /^\d{1,2}:\d{2}/.test(value)) {
+      const [h, mi] = value.split(':').map(Number);
+      this.h = ((h % 24) + 24) % 24;
+      this.mi = ((mi % 60) + 60) % 60;
+    } else {
+      this.h = 0; this.mi = 0;
+    }
+  }
+
+  _render() {
+    const wrap = this._container();
+    if (!wrap) return;
+    wrap.innerHTML = `
+      <div class="ctp-inline" id="${this.containerId}-box">
+        <svg class="ctp-inline-icon" xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+        <div class="cdtp-time-spin">
+          <input type="number" class="cdtp-time-val" data-time="h" value="${String(this.h).padStart(2,'0')}" min="0" max="23" inputmode="numeric">
+          <button type="button" class="cdtp-spin-btn" data-spin="h" data-dir="1" aria-label="Tambah jam"><svg xmlns="http://www.w3.org/2000/svg" width="9" height="9" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M5 15l7-7 7 7"/></svg></button>
+          <button type="button" class="cdtp-spin-btn" data-spin="h" data-dir="-1" aria-label="Kurangi jam"><svg xmlns="http://www.w3.org/2000/svg" width="9" height="9" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg></button>
+        </div>
+        <span class="cdtp-time-sep">:</span>
+        <div class="cdtp-time-spin">
+          <input type="number" class="cdtp-time-val" data-time="mi" value="${String(this.mi).padStart(2,'0')}" min="0" max="59" inputmode="numeric">
+          <button type="button" class="cdtp-spin-btn" data-spin="mi" data-dir="1" aria-label="Tambah menit"><svg xmlns="http://www.w3.org/2000/svg" width="9" height="9" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M5 15l7-7 7 7"/></svg></button>
+          <button type="button" class="cdtp-spin-btn" data-spin="mi" data-dir="-1" aria-label="Kurangi menit"><svg xmlns="http://www.w3.org/2000/svg" width="9" height="9" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg></button>
+        </div>
+      </div>`;
+    this._bind();
+  }
+
+  _bind() {
+    const wrap = this._container();
+    if (!wrap) return;
+    wrap.querySelectorAll('[data-spin]').forEach(btn => {
+      btn.addEventListener('click', e => {
+        e.stopPropagation();
+        const field = btn.dataset.spin;
+        const dir   = parseInt(btn.dataset.dir);
+        if (field === 'h') this.h = ((this.h + dir) % 24 + 24) % 24;
+        else                this.mi = ((this.mi + dir) % 60 + 60) % 60;
+        this._syncInput(field);
+        this._commit();
+      });
+    });
+    wrap.querySelectorAll('[data-time]').forEach(inp => {
+      inp.addEventListener('click', e => e.stopPropagation());
+      inp.addEventListener('input', () => {
+        const field = inp.dataset.time;
+        let v = parseInt(inp.value, 10);
+        if (isNaN(v)) v = 0;
+        v = field === 'h' ? Math.min(23, Math.max(0, v)) : Math.min(59, Math.max(0, v));
+        if (field === 'h') this.h = v; else this.mi = v;
+        this._commit();
+      });
+      inp.addEventListener('blur', () => { this._syncInput(inp.dataset.time); });
+    });
+  }
+
+  _syncInput(field) {
+    const inp = this._container()?.querySelector(`[data-time="${field}"]`);
+    if (inp) inp.value = String(field === 'h' ? this.h : this.mi).padStart(2, '0');
+  }
+
+  _commit() {
+    const hidden = document.getElementById(this.containerId.replace('tp-', ''));
+    if (hidden) {
+      hidden.value = this.getValue();
+      hidden.dispatchEvent(new Event('change', { bubbles: true }));
+    }
+  }
+
+  setValue(value) {
+    this._applyValue(value);
+    this._render();
+    this._commit();
+  }
+
+  getValue() { return `${String(this.h).padStart(2,'0')}:${String(this.mi).padStart(2,'0')}`; }
+}
+
+const _timepickers = {};
+
+function initTimePicker(id, opts = {}) {
+  let hidden = document.getElementById(id);
+  if (!hidden) {
+    hidden = document.createElement('input');
+    hidden.type = 'hidden';
+    hidden.id = id;
+    document.body.appendChild(hidden);
+  }
+  _timepickers[`tp-${id}`] = new TimePicker(`tp-${id}`, { value: hidden.value || opts.value || null });
+}
+
+function tpSetValue(id, val) {
+  const tp = _timepickers[`tp-${id}`];
+  if (tp) tp.setValue(val || null);
+}
+function tpGetValue(id) {
+  const tp = _timepickers[`tp-${id}`];
+  return tp ? tp.getValue() : null;
+}
+
 (function _domReady(fn) { if (document.readyState === 'loading') { window.addEventListener('DOMContentLoaded', fn); } else { fn(); } })(function() {
   initDatePicker('smTglSurat',  { placeholder: 'Pilih tanggal' });
   initDatePicker('smTglTerima', { placeholder: 'Pilih tanggal' });
@@ -1625,6 +1864,10 @@ document.addEventListener('click', () => {
   initDatePicker('skTglSurat',  { placeholder: 'Pilih tanggal' });
   initDatePicker('temaTanggalMulai',   { placeholder: 'Pilih tanggal' });
   initDatePicker('temaTanggalSelesai', { placeholder: 'Pilih tanggal' });
+  initTimePicker('lemburSesiJamMulai');
+  initTimePicker('lemburSesiJamSelesai');
+  initTimePicker('lemburKegiatanJamMulai');
+  initTimePicker('lemburKegiatanJamSelesai');
 });
 
 const _OFFICE_EXTS = new Set(['doc','docx','xls','xlsx','ppt','pptx']);

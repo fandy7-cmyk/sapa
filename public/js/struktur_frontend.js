@@ -118,7 +118,7 @@ function openPegawaiModal(id = null) {
   document.getElementById('pegawaiGolongan').value   = '';
   document.getElementById('pegawaiUrutan').value     = '';
   document.getElementById('pegawaiFotoUrl').value    = '';
-  document.getElementById('pegawaiAktif').checked    = true;
+  document.getElementById('pegawaiAktif').value    = '1';
   document.getElementById('pegawaiFotoPreview').style.display = 'none';
   document.getElementById('pegawaiFotoPreview').src  = '';
   document.getElementById('pegawaiFotoProgress').style.display = 'none';
@@ -137,7 +137,7 @@ function openPegawaiModal(id = null) {
       document.getElementById('pegawaiGolongan').value = p.golongan || '';
       document.getElementById('pegawaiUrutan').value   = p.urutan ?? '';
       document.getElementById('pegawaiFotoUrl').value  = p.foto_url || '';
-      document.getElementById('pegawaiAktif').checked  = !!p.aktif;
+      document.getElementById('pegawaiAktif').value  = p.aktif ? '1' : '0';
       document.getElementById('pegawaiAtasan').value   = p.parent_id ?? '';
       if (p.foto_url) {
         const prev = document.getElementById('pegawaiFotoPreview');
@@ -239,7 +239,7 @@ async function savePegawai() {
   const golongan = document.getElementById('pegawaiGolongan').value.trim();
   const urutan   = document.getElementById('pegawaiUrutan').value;
   const fotoUrl  = document.getElementById('pegawaiFotoUrl').value.trim();
-  const aktif    = document.getElementById('pegawaiAktif').checked;
+  const aktif    = document.getElementById('pegawaiAktif').value === '1';
   const atasanVal= document.getElementById('pegawaiAtasan').value;
   const parent_id = atasanVal ? parseInt(atasanVal) : null;
 

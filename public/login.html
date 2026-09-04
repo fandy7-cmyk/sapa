@@ -94,26 +94,26 @@
   <!-- Preload file theme-engine.js juga, biar downloadnya paralel dari
        awal - bukan nunggu parser sampe ke <script> di akhir body baru
        mulai narik filenya. Ini yang bikin tema kerasa lambat muncul. -->
-  <link rel="preload" as="script" href="js/theme-engine.js?v=1.5.0" />
+  <link rel="preload" as="script" href="js/theme-engine.js?v=1.5.1" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>SAPA Perencanaan</title>
-  <meta name="app-version" content="1.5.0" />
+  <meta name="app-version" content="1.5.1" />
   <link rel="icon" type="image/png" href="/favicon.png" />
   <link rel="manifest" href="/manifest.json" />
   <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
-  <meta name="theme-color" content="#0d9488" />
+  <meta name="theme-color" content="#047D78" />
   <meta name="mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="apple-mobile-web-app-title" content="SAPA" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="css/styles.css?v=1.5.0" />
+  <link rel="stylesheet" href="css/styles.css?v=1.5.1" />
   <style>
     
     #loginOverlay {
       position: fixed; inset: 0; z-index: 9999;
-      background: linear-gradient(135deg, #ffffff 0%, #e0f7f5 35%, #99e6df 65%, #0d9488 100%);
+      background: linear-gradient(135deg, #ffffff 0%, #e0f7f5 35%, #99e6df 65%, var(--hijau, #047D78) 100%);
       display: flex; align-items: center; justify-content: center;
       padding: 0; margin: 0;
       transition: opacity .35s ease, visibility .35s ease;
@@ -651,6 +651,6 @@ function _loginShowErr(msg, type = 'warn') {
 </script>
 
 
-<script src="js/theme-engine.js?v=1.5.0"></script>
+<script src="js/theme-engine.js?v=1.5.1"></script>
 </body>
 </html>

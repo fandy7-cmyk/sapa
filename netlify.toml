@@ -228,6 +228,12 @@
   status = 200
   force = true
 
+[[redirects]]
+  from = "/icons/*"
+  to = "/icons/:splat"
+  status = 200
+  force = true
+
 
 # ── /login → login.html (tanpa expose nama file) ──────────────
 [[redirects]]

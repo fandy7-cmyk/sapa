@@ -317,6 +317,134 @@ function _klikTrendPanel(data) {
   </div>`;
 }
 
+// ── Lembur ───────────────────────────────────────────────────────────────────
+async function _fetchLemburDashData() {
+  try {
+    const rk = await fetch('/api/lembur/kegiatan', { headers: authHeaders() });
+    const dk = rk.ok ? await rk.json() : { kegiatan: [] };
+    const kegiatanList = dk.kegiatan || [];
+    const sesiPerKegiatan = await Promise.all(kegiatanList.map(k =>
+      fetch(`/api/lembur/sesi?kegiatan_id=${k.id}`, { headers: authHeaders() })
+        .then(r => r.ok ? r.json() : { sesi: [] })
+        .then(d => (d.sesi || []).map(s => ({ ...s, kegiatan_id: k.id, kegiatan_nama: k.nama_kegiatan })))
+        .catch(() => [])
+    ));
+    return { kegiatanList, allSesi: sesiPerKegiatan.flat() };
+  } catch (err) {
+    console.error('[_fetchLemburDashData]', err);
+    return { kegiatanList: [], allSesi: [] };
+  }
+}
+
+// Hitung durasi jam lembur satu sesi dari jam_mulai/jam_selesai (HH:MM:SS)
+function _lemburJamSesi(s) {
+  if (!s.jam_mulai || !s.jam_selesai) return 0;
+  const [h1, m1] = s.jam_mulai.split(':').map(Number);
+  const [h2, m2] = s.jam_selesai.split(':').map(Number);
+  let menit = (h2 * 60 + m2) - (h1 * 60 + m1);
+  if (menit < 0) menit += 24 * 60; // lewat tengah malam
+  return menit / 60;
+}
+
+async function loadDashboardLembur() {
+  const wrap = document.getElementById('dashLemburStats');
+  if (!wrap) return;
+  wrap.innerHTML = `
+    <div class="dash-kpi-row">${Array(4).fill(0).map(() => `<div class="skeleton" style="height:98px;border-radius:14px"></div>`).join('')}</div>
+    <div class="skeleton" style="height:160px;border-radius:16px"></div>`;
+
+  const full = typeof _lemburHasFull === 'function' && _lemburHasFull();
+  const { kegiatanList, allSesi } = await _fetchLemburDashData();
+  const sesiRelevant = full ? allSesi : allSesi.filter(s => s.is_peserta);
+
+  const icon = `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor" style="flex-shrink:0;opacity:.85"><path d="M3 12C3 12.5523 3.44772 13 4 13H10C10.5523 13 11 12.5523 11 12V4C11 3.44772 10.5523 3 10 3H4C3.44772 3 3 3.44772 3 4V12ZM3 20C3 20.5523 3.44772 21 4 21H10C10.5523 21 11 20.5523 11 20V16C11 15.4477 10.5523 15 10 15H4C3.44772 15 3 15.4477 3 16V20ZM13 20C13 20.5523 13.4477 21 14 21H20C20.5523 21 21 20.5523 21 20V12C21 11.4477 20.5523 11 20 11H14C13.4477 11 13 11.4477 13 12V20ZM14 3C13.4477 3 13 3.44772 13 4V8C13 8.55228 13.4477 9 14 9H20C20.5523 9 21 8.55228 21 8V4C21 3.44772 20.5523 3 20 3H14Z"/></svg>`;
+  let html = _dashModuleHeader(icon, 'Dashboard', full ? 'Ringkasan aktivitas lembur seluruh pegawai' : 'Ringkasan aktivitas lembur Anda');
+
+  const now = new Date();
+  const ymNow = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  const sesiBulanIni = sesiRelevant.filter(s => (s.tanggal || '').slice(0, 7) === ymNow);
+  const totalJam = sesiRelevant.reduce((a, s) => a + _lemburJamSesi(s), 0);
+  const totalJamBulanIni = sesiBulanIni.reduce((a, s) => a + _lemburJamSesi(s), 0);
+  const totalDok = sesiRelevant.reduce((a, s) => a + (s.jumlah_dokumentasi || 0), 0);
+  const kegiatanDiikuti = full ? kegiatanList.length : new Set(sesiRelevant.map(s => s.kegiatan_id)).size;
+
+  const iconKegiatan = `<svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M3 9h18"/><path d="M9 21V9"/></svg>`;
+  const iconSesi = `<svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>`;
+  const iconJam = `<svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 6v6l4 2"/><circle cx="12" cy="12" r="10"/></svg>`;
+  const iconFoto = `<svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg>`;
+
+  html += `<div class="dash-kpi-row">
+    ${_kpiCard({ icon: iconKegiatan, label: full ? 'Total Kegiatan' : 'Kegiatan Diikuti', value: kegiatanDiikuti, sub: `${kegiatanList.length} total terdaftar`, color: 'teal' })}
+    ${_kpiCard({ icon: iconSesi, label: full ? 'Total Sesi Lembur' : 'Sesi Saya', value: sesiRelevant.length, sub: `${sesiBulanIni.length} sesi bulan ini`, color: 'blue' })}
+    ${_kpiCard({ icon: iconJam, label: full ? 'Total Jam Lembur' : 'Jam Lembur Saya', value: `${Math.round(totalJam)} jam`, sub: `${Math.round(totalJamBulanIni)} jam bulan ini`, color: 'amber' })}
+    ${_kpiCard({ icon: iconFoto, label: 'Dokumentasi', value: totalDok, sub: 'foto terlampir', color: 'purple' })}
+  </div>`;
+
+  const panels = [];
+  panels.push(_lemburTrendPanel(sesiRelevant, full));
+
+  const sesiDenganDok = sesiRelevant.filter(s => (s.jumlah_dokumentasi || 0) > 0).length;
+  panels.push(_miniDonutPanel({
+    icon: iconFoto, title: 'Kelengkapan Dokumentasi',
+    segments: [
+      { label: 'Ada Dokumentasi', value: sesiDenganDok, color: '#0d9488' },
+      { label: 'Belum Ada', value: Math.max(0, sesiRelevant.length - sesiDenganDok), color: '#cbd5e1' },
+    ],
+    centerVal: sesiRelevant.length, centerLbl: 'Total Sesi',
+  }));
+
+  if (panels.length) html += `<div class="dash-panels">${panels.join('')}</div>`;
+
+  const recentKegiatan = [...kegiatanList]
+    .filter(k => full || sesiRelevant.some(s => s.kegiatan_id === k.id))
+    .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+    .slice(0, 5);
+  if (recentKegiatan.length) {
+    html += `<div class="dash-panels">${_barListPanel({
+      icon: iconKegiatan, title: 'Kegiatan Terbaru',
+      rows: recentKegiatan.map(k => ({
+        label: k.nama_kegiatan,
+        sublabel: `${k.jumlah_sesi || 0} hari lembur`,
+        value: k.jumlah_sesi || 0, suffix: ' hari',
+        color: '#0d9488',
+      })),
+    })}</div>`;
+  }
+
+  wrap.innerHTML = html;
+}
+
+// Grafik tren jumlah sesi lembur 6 bulan terakhir
+function _lemburTrendPanel(sesiList, full) {
+  const BULAN = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];
+  const now = new Date();
+  const bucket = [];
+  for (let i = 5; i >= 0; i--) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    bucket.push({ key: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`, label: BULAN[d.getMonth()] });
+  }
+  const counts = new Map(bucket.map(b => [b.key, 0]));
+  sesiList.forEach(s => {
+    const key = (s.tanggal || '').slice(0, 7);
+    if (counts.has(key)) counts.set(key, counts.get(key) + 1);
+  });
+  const max = Math.max(1, ...bucket.map(b => counts.get(b.key) || 0));
+  const bars = bucket.map(b => {
+    const v = counts.get(b.key) || 0;
+    const h = Math.max(3, Math.round((v / max) * 74));
+    return `
+      <div class="dash-trend-bar-wrap" data-tip="${v} sesi">
+        <div class="dash-trend-val">${v || ''}</div>
+        <div class="dash-trend-bar" style="height:${h}px"></div>
+        <div class="dash-trend-lbl">${b.label}</div>
+      </div>`;
+  }).join('');
+  return `<div class="dash-panel">
+    <div class="dash-panel-header"><svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-3 3"/></svg> ${full ? 'Tren Sesi Lembur 6 Bulan Terakhir' : 'Tren Sesi Lembur Saya 6 Bulan Terakhir'}</div>
+    <div class="dash-trend"><div class="dash-trend-bars">${bars}</div></div>
+  </div>`;
+}
+
 // ── Surat ────────────────────────────────────────────────────────────────────
 async function loadDashboardSurat() {
   const wrap = document.getElementById('dashSuratStats');
@@ -1589,7 +1717,7 @@ function _ikuRenderChartSection() {
           <div style="min-width:0;flex:1">
             <div style="font-size:.72rem;font-weight:700;color:#0f172a;line-height:1.35;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical">${esc(indNama)}${_polarIcon(berneg, 13)}</div>
             <div style="display:flex;align-items:center;gap:6px;margin-top:3px;flex-wrap:wrap">
-              <span style="font-size:.63rem;color:#94a3b8">${satuan ? esc(satuan) : ''}</span>
+              ${satuan ? `<span class="kw-ind-selector-tag" data-tip="Satuan pengukuran indikator">${esc(satuan)}</span>` : ''}
               ${typeof _tipeBadge === 'function' ? _tipeBadge(tipePerh) : ''}
             </div>
           </div>
@@ -3139,12 +3267,14 @@ function _renderKinerjaWatch() {
   const indBarHtml = selInd ? `
     <div class="kw-ind-selector-bar kw-ind-selector-bar--active">
       <div class="kw-ind-selector-info" onclick="_kwToggleDd()" style="cursor:pointer;flex:1;min-width:0;">
-        <div class="kw-ind-selector-name">${esc(selInd.indikator_kinerja)}${_polarIcon(selInd.bermakna_negatif, 15)}</div>
+        <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;min-width:0">
+          <div class="kw-ind-selector-name" style="flex:0 1 auto;min-width:0">${esc(selInd.indikator_kinerja)}${_polarIcon(selInd.bermakna_negatif, 15)}</div>
+          ${selInd.satuan ? `<span class="kw-ind-selector-tag" data-tip="Satuan pengukuran indikator">${esc(selInd.satuan)}</span>` : ''}
+          ${typeof _tipeBadge === 'function' ? _tipeBadge(selInd.tipe_perhitungan) : ''}
+        </div>
         <div class="kw-ind-selector-meta">
           ${selInd.group_nama ? `<span class="kw-ind-selector-tag kw-ind-selector-tag--bidang">${esc(selInd.group_nama)}</span>` : ''}
           ${selInd.penanggung_jawab ? `<span class="kw-ind-selector-tag kw-ind-selector-tag--pj">${esc(selInd.penanggung_jawab)}</span>` : ''}
-          ${selInd.satuan ? `<span class="kw-ind-selector-tag">Satuan: ${esc(selInd.satuan)}</span>` : ''}
-          ${typeof _tipeBadge === 'function' ? _tipeBadge(selInd.tipe_perhitungan) : ''}
         </div>
       </div>
       <button class="kw-ind-selector-change" onclick="_kwToggleDd()" type="button">
@@ -4735,8 +4865,10 @@ div.kw-kpi-card {
 .kw-ind-selector-bar--active  { background: #f0fdfa !important; border: 1.5px solid #5eead4 !important; box-shadow: 0 0 0 3px rgba(13,148,136,.06) !important; }
 .kw-ind-selector-bar--empty   { border: 1.5px dashed #94a3b8 !important; background: #f8fafc !important; color: #94a3b8 !important; font-size: 0.84rem !important; }
 .kw-ind-selector-bar--empty:hover { border-color: #0d9488 !important; background: #f0fdfa !important; color: #0d9488 !important; }
-.kw-ind-selector-name   { font-size: 0.88rem !important; font-weight: 700 !important; color: #0f172a !important; flex: 1 !important; min-width: 0 !important; overflow: hidden !important; text-overflow: ellipsis !important; white-space: nowrap !important; }
-.kw-ind-selector-tag    { display: inline-flex !important; align-items: center !important; gap: 4px !important; font-size: 0.63rem !important; font-weight: 600 !important; background: #ccfbf1 !important; color: #0f766e !important; border-radius: 6px !important; padding: 2px 8px !important; flex-shrink: 0 !important; }
+.kw-ind-selector-name   { font-size: 0.88rem !important; font-weight: 700 !important; color: #0f172a !important; flex: 0 1 auto !important; min-width: 0 !important; overflow: hidden !important; text-overflow: ellipsis !important; white-space: nowrap !important; }
+.kw-ind-selector-tag    { display: inline-flex !important; align-items: center !important; justify-content: center !important; gap: 4px !important; box-sizing: border-box !important; height: 24px !important; font-size: 0.63rem !important; font-weight: 600 !important; line-height: 1 !important; background: #ccfbf1 !important; color: #0f766e !important; border: 1px solid #99f6e4 !important; border-radius: 6px !important; padding: 0 8px !important; flex-shrink: 0 !important; }
+.kw-ind-selector-tag--bidang { background: #dbeafe !important; color: #1d4ed8 !important; border-color: #bfdbfe !important; }
+.kw-ind-selector-tag--pj     { background: #e0f2fe !important; color: #0369a1 !important; border-color: #bae6fd !important; }
 .kw-ind-selector-change { display: inline-flex !important; align-items: center !important; gap: 5px !important; font-size: 0.72rem !important; font-weight: 600 !important; padding: 5px 12px !important; border-radius: 8px !important; border: 1.5px solid #5eead4 !important; background: #ffffff !important; color: #0f766e !important; cursor: pointer !important; flex-shrink: 0 !important; }
 .kw-ind-selector-change:hover { background: #f0fdfa !important; }
 .kw-ind-selector-reset  { display: flex !important; align-items: center !important; justify-content: center !important; width: 30px !important; height: 30px !important; border-radius: 8px !important; border: 1.5px solid #fecaca !important; background: #fff5f5 !important; color: #ef4444 !important; cursor: pointer !important; flex-shrink: 0 !important; }
