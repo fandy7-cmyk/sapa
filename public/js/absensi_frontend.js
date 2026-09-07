@@ -521,14 +521,14 @@ async function renderAbsHariIni() {
 
   box.innerHTML = isLiburTanpaPengajuan ? `
     ${dangerBadge}
-    <div class="abs-hariini-tgl">${tanggalLabel}</div>
+    <div class="abs-hariini-tgl"><svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>${tanggalLabel}</div>
     <div class="abs-libur-notice">
       <div class="dash-libur-heading">${statusIconSvg(15)}<span>${labelStatusHariIni}</span></div>
       <div class="dash-libur-caption">Tidak ada jadwal absensi</div>
     </div>
   ` : `
     ${dangerBadge}
-    <div class="abs-hariini-tgl">${tanggalLabel}</div>
+    <div class="abs-hariini-tgl"><svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>${tanggalLabel}</div>
     <div class="abs-hariini-main">
       <div class="abs-hariini-left">
         ${isWeekend || isLibur || skipAbsenHariIni
@@ -554,12 +554,12 @@ async function renderAbsHariIni() {
             ${!todayRow?.jam_masuk ? `
             <button class="btn btn-primary" id="btnAbsMasuk" ${(belumWaktuMasuk || lewatWaktuMasuk) ? 'disabled' : ''} onclick="doAbsCheckin()">
               <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" style="margin-right:6px;vertical-align:-2px"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg>
-              Absensi Masuk
+              Simpan
             </button>` : ''}
             ${todayRow?.jam_masuk && !todayRow?.jam_keluar && !belumWaktuPulang ? `
             <button class="btn btn-secondary" id="btnAbsKeluar" ${lewatWaktuPulang ? 'disabled' : ''} onclick="doAbsCheckout()">
               <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" style="margin-right:6px;vertical-align:-2px"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
-              Absensi Keluar
+              Simpan
             </button>` : ''}
             ${todayRow?.jam_masuk && todayRow?.jam_keluar ? `<div class="abs-hariini-status badge badge-hijau">Absensi hari ini lengkap</div>` : ''}
           </div>
@@ -2152,3 +2152,14 @@ async function submitTolakPengajuan() {
     await refreshPengajuanPendingBadge();
   } catch { toast('Gagal menolak pengajuan', 'error'); }
 }
+/* ── Tinggi card "Hari Ini" (kiri) vs kolom KPI+Jam Kerja (kanan) ──
+   SUDAH ditangani murni via CSS (.abs-hariini-flex-wrap align-items:stretch
+   + .dash-kpi-row grid-template-rows: ...min-content 1fr, lihat styles.css).
+   Card kanan yang ngikutin tinggi kiri secara deterministic lewat grid,
+   BUKAN sebaliknya. Sengaja TIDAK pakai ResizeObserver dua-arah di sini -
+   pattern lama (kiri di-set ngikutin offsetHeight kanan) balikin arah
+   dependency CSS-nya & bikin feedback loop (kanan berubah → JS ubah kiri →
+   CSS stretch ubah kanan lagi → observer ke-trigger lagi), hasilnya goyah/
+   nondeterministic terutama abis browser zoom. Kalau ada kasus CSS-only
+   ini meleset lagi, jangan tambah balik ResizeObserver 2 arah - benerin di
+   grid-template-rows/breakpoint container query-nya. */

@@ -9765,8 +9765,9 @@ tr:hover td:not(.td-sticky-no):not(.td-sticky-name) { background: var(--abu-1); 
    #absRekapBox cuma dipaksa N kolom pas Super Admin (body.is-admin), karena
    di situ dia sendirian ambil lebar penuh (kartu "Hari Ini" disembunyikan).
    Buat user biasa, #absRekapBox masih gandengan sama kartu "Hari Ini" di
-   .abs-hariini-flex-wrap, jadi tetap pakai rule repeat(3,1fr) yang sudah ada
-   biar gak kepepet sempit.
+   .abs-hariini-flex-wrap, jadi pakai rule auto-fit minmax(130px,1fr) yang
+   sudah ada di situ (reflow otomatis ngikut sisa lebar, gak kepepet sempit
+   pas sidebar makan tempat di tablet).
    #absRekapBox sekarang selalu 7 kartu (kartu ke-7 "Jam Kerja"/"Rata-rata Jam
    Kerja" udah tampil juga di admin - lihat absensi_frontend.js). #lapAbsRekapBox
    (Laporan) sekarang JUGA 7 kartu dgn pola grid yang sama - lihat rule di
@@ -10017,9 +10018,39 @@ body.is-admin #absRekapBox { grid-template-columns: repeat(6, 0.85fr) 1.5fr; }
    Pakai variabel warna yg sudah ada (--hijau, --abu-1, --teks, dst)
    ══════════════════════════════════════════════════════════════════════ */
 
-.abs-hariini-flex-wrap { display: flex; gap: 20px; align-items: stretch; margin-bottom: 16px; }
-.abs-hariini-flex-wrap .abs-hariini-card { flex-shrink: 0; margin-bottom: 0; }
-.abs-hariini-flex-wrap .dash-kpi-row { flex: 1; min-width: 0; margin-bottom: 0; grid-template-columns: repeat(3, 1fr); align-content: stretch; }
+.abs-hariini-flex-wrap { display: flex; gap: 20px; align-items: stretch; margin-bottom: 16px; flex-wrap: wrap; }
+.abs-hariini-flex-wrap .abs-hariini-card { flex-shrink: 0; margin-bottom: 0; display: flex; flex-direction: column; align-self: stretch; }
+/* Container query gak bisa ngukur lebar elemen dari elemen itu sendiri,
+   cuma dari ancestor ke descendant - makanya container-type ditaruh di
+   .abs-kpi-container (wrapper baru di app.html), BUKAN langsung di
+   .dash-kpi-row yang mau di-style. Wrapper ini yang megang flex:1 (jadi
+   lebarnya = jatah sisa ruang di flex row, sama kayak sebelumnya), lalu
+   .dash-kpi-row di dalemnya ngukur lebar wrapper itu buat milih jumlah
+   kolom. */
+.abs-hariini-flex-wrap .abs-kpi-container {
+  container-type: inline-size; container-name: abskpirow;
+  flex: 1; min-width: 260px;
+}
+.abs-hariini-flex-wrap .dash-kpi-row {
+  margin-bottom: 0; height: 100%;
+  grid-template-columns: repeat(2, 1fr); /* fallback: 6 kartu ÷ 2 = 3 baris penuh */
+  grid-template-rows: repeat(3, min-content) 1fr; /* 3 baris kpi (2 kolom) + baris Jam Kerja nyerap sisa tinggi */
+}
+/* Cuma pakai kolom yang HABIS DIBAGI 6 (2, 3, atau 6) - biar baris terakhir
+   selalu penuh, gak nyisa 1-2 kartu doang kayak kejadian di auto-fit lama
+   (4 kolom nyisa 2, atau 5 kolom nyisa 1). */
+@container abskpirow (min-width: 460px) {
+  .abs-hariini-flex-wrap .dash-kpi-row {
+    grid-template-columns: repeat(3, 1fr);
+    grid-template-rows: repeat(2, min-content) 1fr; /* 2 baris kpi (3 kolom) + baris Jam Kerja */
+  }
+}
+@container abskpirow (min-width: 900px) {
+  .abs-hariini-flex-wrap .dash-kpi-row {
+    grid-template-columns: repeat(6, 1fr);
+    grid-template-rows: min-content 1fr; /* 1 baris kpi (6 kolom) + baris Jam Kerja */
+  }
+}
 .abs-hariini-flex-wrap .dash-kpi-card { height: 100%; }
 /* Kartu ke-7 (Jam Kerja Bulan Ini) sendirian di baris terakhir grid 3 kolom → span penuh biar gak nyisa ruang kosong */
 /* Kartu ke-7 full-width sebaris sendiri - cuma relevan buat view pegawai
@@ -10029,9 +10060,38 @@ body.is-admin #absRekapBox { grid-template-columns: repeat(6, 0.85fr) 1.5fr; }
    repeat(7,1fr) di atas, jadi kartu ke-7 harus TETAP sejajar 1 baris kayak
    6 kartu lain, bukan melebar. */
 body:not(.is-admin) .abs-hariini-flex-wrap .dash-kpi-row .abs-jamkerja-wrap:nth-child(7):last-child { grid-column: 1 / -1; }
-@media (max-width: 900px) {
+/* Sidebar (~233px) makan jatah lebar konten. Breakpoint stack ini
+   sengaja lumayan lebar (1400px, bukan 900/1180) - soalnya kartu "Hari
+   Ini" ternyata bukan cuma ~380px, tapi gabungan kolom "Absensi Masuk"
+   + "Menuju Absensi Keluar" jadi total ~600px. Digabung sama gap(20)
+   + lebar minimal kartu KPI(260), baris gabungannya baru muat nyaman
+   mulai ~1400px konten. Di bawah itu, flex-wrap:wrap sebenarnya udah
+   bikin numpuk sendiri (natural wrap) walau breakpoint-nya belum kena -
+   makanya kalau breakpoint ini ketinggalan sempit, kartu "Hari Ini"
+   udah numpuk duluan tapi width:100%-nya belum ikut kepicu (itu bug
+   yang kejadian di iPad Pro 11" 1194px kemarin). */
+@media (max-width: 1400px) {
   .abs-hariini-flex-wrap { flex-direction: column; }
-  .abs-hariini-flex-wrap .dash-kpi-row { grid-template-columns: repeat(3, 1fr); }
+  /* Pas ditumpuk, kartu "Hari Ini" biar selebar kartu KPI di bawahnya
+     (yang udah width:100%) - defaultnya width:fit-content (buat mode
+     desktop side-by-side), jadi nyisa gap kosong di kanan kalau gak
+     dipaksa full-width di sini. */
+  .abs-hariini-flex-wrap .abs-hariini-card { width: 100%; }
+  /* FIX: gap kosong gede antara kartu-kartu KPI & toolbar/tabel di tablet.
+     .abs-kpi-container lebarnya seharusnya cuma dari align-items:stretch
+     (cross-axis) - TAPI dia juga container-type:inline-size (buat
+     @container abskpirow query nentuin jumlah kolom grid). Kombinasi flex
+     item auto-height + container-type ini bikin Chrome kadang commit ke
+     tinggi versi PERTAMA (grid-template-columns fallback repeat(2,1fr),
+     butuh 4 baris = lebih tinggi) sebelum container query kelar mutusin
+     lebar akhir & grid pindah ke 3 kolom (3 baris, lebih pendek) - tinggi
+     kotongnya "nyangkut" di ukuran pertama yang salah, nyisa spasi kosong
+     di bawah kartu-kartu KPI sebelum toolbar (baru kejadian di lebar
+     tablet/mobile, dari sini flex-direction udah column). Kasih
+     width:100% EKSPLISIT (bukan nunggu proses stretch) biar Chrome punya
+     lebar pasti dari awal render, gak ada 2 kali hitung ulang yang beda
+     hasil kayak gitu. */
+  .abs-hariini-flex-wrap .abs-kpi-container { width: 100%; }
 }
 @media (max-width: 560px) {
   .abs-hariini-flex-wrap .dash-kpi-row { grid-template-columns: repeat(2, 1fr); }
@@ -10108,7 +10168,8 @@ body:not(.is-admin) .abs-hariini-flex-wrap .dash-kpi-row .abs-jamkerja-wrap:nth-
   background: #7f1d1d; color: #fff;
   box-shadow: 0 2px 8px rgba(127,29,29,.35);
 }
-.abs-hariini-tgl { font-weight: 700; font-size: var(--fs-md, 1rem); color: var(--teks); margin-bottom: 12px; }
+.abs-hariini-tgl { display: flex; align-items: center; gap: 5px; font-weight: 700; font-size: var(--fs-md, 1rem); color: var(--teks); margin-bottom: 12px; }
+.abs-hariini-tgl svg { flex-shrink: 0; opacity: .75; }
 .abs-hariini-status { display: inline-block; }
 /* Notice "Absensi tidak diperlukan" (akhir pekan / libur / cuti-tugas) - satu
    blok tersusun rapi (badge > heading > caption), disamain sama notice "libur"
@@ -10143,9 +10204,9 @@ body:not(.is-admin) .abs-hariini-flex-wrap .dash-kpi-row .abs-jamkerja-wrap:nth-
 .abs-info-row-label svg { flex-shrink: 0; opacity: .75; }
 .abs-info-row-value { font-size: .8rem; font-weight: 700; color: var(--teks); font-variant-numeric: tabular-nums; text-align: right; white-space: nowrap; justify-self: end; align-self: center; }
 .abs-jam-live-label { font-size: .72rem; font-weight: 600; color: var(--text-secondary, #64748b); text-transform: uppercase; letter-spacing: .02em; }
-.abs-jam-live { font-size: 2rem; font-weight: 800; color: var(--teks); font-variant-numeric: tabular-nums; line-height: 1.3; }
-.abs-jam-live--done { display: flex; align-items: center; color: var(--hijau); }
-.abs-jam-live--expired { display: flex; align-items: center; color: var(--merah); }
+.abs-jam-live { font-size: 1.6rem; font-weight: 800; color: var(--teks); font-variant-numeric: tabular-nums; line-height: 1.3; }
+.abs-jam-live--done { display: flex; align-items: center; justify-content: center; color: var(--hijau); }
+.abs-jam-live--expired { display: flex; align-items: center; justify-content: center; color: var(--merah); }
 .abs-jam-live-expired-badge {
   position: relative;
   display: flex; align-items: center; justify-content: center;
@@ -10202,7 +10263,7 @@ body:not(.is-admin) .abs-hariini-flex-wrap .dash-kpi-row .abs-jamkerja-wrap:nth-
    ngikutin urgensi yg sama kayak border card: merah = absen masuk, kuning =
    absen keluar. Icon panah (bukan centang) buat nunjukin "ayo lakukan", bukan
    "udah kelar". */
-.abs-jam-live--ready { display: flex; align-items: center; }
+.abs-jam-live--ready { display: flex; align-items: center; justify-content: center; }
 .abs-jam-live--ready-masuk  { color: var(--merah); }
 .abs-jam-live--ready-keluar { color: #a16207; }
 .abs-jam-live-ready-badge {
@@ -10274,7 +10335,8 @@ body:not(.is-admin) .abs-hariini-flex-wrap .dash-kpi-row .abs-jamkerja-wrap:nth-
     width: 100%; border-left: none; border-top: 1px solid var(--border, #e2e8f0);
     padding-left: 0; padding-top: 10px; gap: 8px;
   }
-  .abs-jam-live { font-size: 1.4rem; line-height: 1.1; }
+  .abs-jam-value { font-size: 1.2rem; }
+  .abs-jam-live { font-size: 1.2rem; line-height: 1.1; }
 }
 
 .abs-rekap-row { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; margin-bottom: 16px; }

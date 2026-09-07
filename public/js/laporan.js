@@ -850,6 +850,13 @@ async function _populateLapLemburFilters(sesiList) {
   if (pegawaiWrap) pegawaiWrap.style.display = full ? '' : 'none';
   if (thNama) thNama.style.display = full ? '' : 'none';
 
+  const searchInput = document.getElementById('lapLemburSearch');
+  if (searchInput) {
+    searchInput.placeholder = full
+      ? 'Cari kegiatan, pegawai, atau uraian tugas\u2026'
+      : 'Cari kegiatan atau uraian tugas\u2026';
+  }
+
   _populateLapLemburTahunBulan(sesiList);
 
   if (full) {
@@ -1968,6 +1975,8 @@ function _kopSuratHtml() {
     </div>`;
 }
 
+const _SAPA_FAVICON_B64 = 'iVBORw0KGgoAAAANSUhEUgAAALQAAACtCAMAAAAuyqVTAAADAFBMVEUAAAACh9ACeLADltgBeMkDouUHxXEBabQDm+IMzLEChLMBasMAf78P1MYP07QA//8KyY0DlpICh5oAqlUAv38AqqoGxlgDpIkG0W8VxnIAf38DodkZbbQP49QAv78ciaj///8TxWkdpeMA/7Na0sUBfp0Dp60iqeMMnOMK1owA/wAckrsX1MUcy4xw1Kodmswco9gAqv8A/38a1cUAVaoMhdUUzLkX0LYhp9kAf/8MdssFt3cEs7cdy5Pe3t4FtIgNld0H01rf3/8SlpcDrH4UzbcAAP8SqIwRxV4sypIozasjzaMTtIUPg6AAvz8dzacb0bwcc7YEk6MNra4MpOcSyHUVwoAryoVn2Md04rMPfaMcyHUZzrof0KYxq+EKbcQMo90ZpOMRpOQTx18ttq8oy3YBjOEQpNwWpeUA/1Urpdgjy5gr0rISpdwYsbMCsfUY0r0kercthcg6tbo1tOgh0bYAAH8AP38KabQKbsIUdLELc6wXcsMRnOIYq5oOq7EXrbMQt4cZsLMTsLMAzJkbyYIX280jebMozHQhyX07x7gtz7km0bZ/utxrsOtoya9mzMyYutz//9MAP78AVVUAZmYSb6wOb6wAfwAXfLEaeMMTjp0Nj6UQmZ4WmaYRlaMAmcwMoJgPq7APr7Afp9wVu38btJYbuYsWt7wPs7UAv/8Ox1oAzGYfyWsPz8AZ0WgZ0Ike1skI5GIkf8Q2g7kvi7chi6Yrmqwgrp4xoKsnpaUhoKUhpNs8peEoreEouZciv444s+InsOIswsIz0Yk22sg52MUl3M1VqlVdrrtRrdZBvaxRudxBtuFZzJlZzKVR1pla4dJ/o8hzoudvv79x4sZm5eV///+LormUv+mZzLKf37+q1Kq/3//MzMzf////f3//qqr/v///zP///wD//38AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAC5E/uAAABAHRSTlMA/v7+/v79/v78/v4E/f4B/v7+AwQD/f7+rQL9Wv4EcAKNVgMV/vxV3f8Bb413EXBwAwKoA82N1VQCzfz+Mgf80v4Ip/3XAamOMDJ4qKcEeKlZ/dHPzLFOFBCmcaoxLM3QdbCmLTb/sJADL3I4k1T/kzMlGC5wAgTXr5baebSOV3PLdYQFgslHS2EZQEsLDQ4FBwYEAwWbsAJ5RKfLx4ewBd2ZqUmmd4uhyATQBVH7mLZl/0YhQHNHXy5HZGsRcVFoG1suMhwoZgMTGR8WIxQUGREOCxAJFAILDAoQBggFCAIDBAUBAgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAATbsKwAAACQRJREFUeNrt3YdfG+cZB/BHd9LpEBIHAiFxMo6ggGzFcS2iJlalBNO4SohTamMwuG7xqN3YTeIkjpOmSZq9mtmke++99957773X/9H3lnR7SO+9d1fz+wAWyB/560e/e+84SQCwkY1spBOOq6a9plrngiTX09EbcxXg0rOT5W+VUSYnxQ9i0AXpC+htpzHvOfvNUmDNaMH6yeWE1xQT1xe/9io+GDMP/z3qCCzSNF2UQgspCp9e99Kg5szDV49d7wZdVIUuJopXI3Jd2oY5whskV//1soNZmq1ajS4K5CqvWnw4otvgsYQ7c1uOxnxkJ0CuLt/E1O9++VvBTdBc9mQW2Ikjk6gYivEZsG08k7nw+/8EUtskxz2+7I1MJ47s+DdwufZNSOjx8QenSKnrMCnaWLfmRHHHE+K6rkMj9oNThHpdt2900UC+7ieI3AITdGZ8G7pMIC14wht5HSCtG2cbncl8l0hB6rDu2iwtzFVDAzro8U/C5qDXDg2aTVy9U7Mwm6G3EUGn5e3QLLolo4zul7rZbajQFxIptTWaZbWrXEm9yoUUrTYn6KOPa1e5EKJZjTlRPPkjG3JI0KyAVpF/alzlQolWBp1IHDvrQA4IzerNrGxG5HXzVS4kaJZVmWXysuUqFzS6LG13arS0MxHIvJsDoIA6LZJZVjvor0C66uo2gkHLZlZb6B1Vl6dCgum0HAneXjh2gEv05sDQSrPbe5UooNtm72hNPTjC9dCYwz3pslKPHtAXBY1mozjpHtE5YuhEIoGr0zmSk2aVeXeDvkH5bjwItOo42hs6QxitWvISLNsd+iIFvZc8mtV8YxgFNK01hx9Nm8Qb+mOk0TTdO7ovkmhB3Rc5tJDMC89ZNOeUd3B40f/hK5UKx0nvYqCiXHCTVlV7wt40t1hP+pldTdrhJEklt3nW5mrxfnr675fq8xxN/vh0GSu69LeSTWSZ5Xc3VfhH+eTyFnaLdXah0Ltoi7BdoPv6nqvOxSbZe/P3wKr4VSgvJ9RHnJbBix5wSmZ84IZHzL9VqMJRCzDtNt2hDRkw/j8yA4+aqXPIbCr2gKbxoE3Gjz5/1NiQemu9xzHjRZuopzj9MlOHVyR6JWNFG9RobeT05vVewbjRarz0x7W6gnzI2Gg6ELTJ4tEnqtEH/aFV1dAOmg7NpPvkWfdNaQtyC2zpnewBDbB9bW1KzNqacsksa1c+djFSS3x9P2CXG28MH9p9SnsH5JnfrH9EepeRrCfGYjHxazEcaM5l+PvhyQF50s83ovW7kZiQDj+mC7FJ3w97BiwnTRvJkk2ccCwwdI57TEbvsUfHnEMODdfa1MOD2FQdCwod8xJaqI16M/UJfaU1OtZlOndPhNCxSKI7etLoZ4UWzcGLIonus1insaDP97cee2Dk/wH9knMezXP+dNpPtHCszkcMzcFN3y5he3KBgh40QcewoXm4uznzweO4Zi2jBwfROo0fnZLQOTjdnJlp7sf1EhxxQxxEGbgGPzolo7nS/hmU5mlMo0boQTGe6hH3hObg+IyIfjemB1O6QMfluEZvhruaInp/CVc9FmS023rEO3E0K+h722iOPDqujaNZQd/t16QvsEQrvHjcCzrVRufa9cC0Ic7CJRJ6qy3aPMJVLtA83CRtiPdheoWCMzruEOd6oFG/Sxh18zimfaItOu4iSnniZoNW1mn+kf3NZvNeXA8f94w2H3kqpUYLhx73feA0tiMmP9CpTjoHTIDxlYY26Gd7RMfjlAasRgOXzuF7aoEd2isZJWWFxhpsaIqKLFrPjgiaIoJewIKmVPEdPYwHTVmgYz6hL8GOVrFj54UXTUUPTVGW6FRY0XZmf9DCksfgRlME0L1NmqLs1L7Vw/uk+/vtzR21j51mGMYMrbJpuP3tKyjr+Io+wQhmC3R/vxre34mDuK32qdMnGMYeLRnRe3+/Vh12tC5JKUGh0bGHjD7kFp3sxFntC3qksrrVAn3YiexG7Qea/wgc2GpRj8POZnu4x0lXZodd5Q0AFxSkehS6mrSt2q96/OIBRk5hVft805YF2oPaEzoHhz5xQMiYU1aYgoJmFrTnUmrwcpdmPPUYgYmtjFmQsKBN56qVkvZcShruwNAOT+hBxmMKr9RVug5n3IiDRBdW/qI/0WbSD29oyvdJfwf0r2eot85YOl3C/UWjpcN4pq0Gb3KNNmWn0Jtv6AKjL7SivvFwr7P2CV1gxhbglOkN1eAPd9yadF75kM5C7RN6ZWJVOGwyj/CzRM58epNd9om5jbJE857RY3/+2cHtqhxEUX365MGD4k7f8qZar3b3T27CgVbu+jEXf3vY4Ziq5uLnqW6y6Ec3aGasNOLwbGQcRzBpwIuGYfA/+NCNyKELAUw6eU6imQijC0TRyUiikxvooNCpcwbNRApdCAeaigI6iWHSo4UNNBk0s4HuDp17bfTQn4PX5FyirwhNp1Pn/wt4PqTopBV66S2fd/XSCwU9KqBPkUQb94jZbGrp7V908coLGT06SnzSJmcgs9ns0tLbfghOT9lcFI89RoNHS2aBPfTlEgzz7tDzIUFnh5be+iX7akv1CAKdtEIj9tBlx+06IqJHRfSLQ4IeEnPnbwBmo4bOv/MLaNi85R5xNIxoxL4cdYSvhBmdNaCH8vk7f2xabaEeRNFVeMgMPZ1NZfVogf2+P5ns2VXoK9D65394uNEUPT1tROfz+bl7vo6QnCX6EBE0wFO3mrTDCo3YVy3oO9Lp9OgJIvWAl8HrjJOetkbn5+be/3PtQz1t9PyHS2R+dU6t3Y+kO3R+99zcNzR79g6a0KCFh8Feb1Dbo5H6nlXhmT06NGo0ITPwrc94Re/e3WgcWADlWSbogOlT8/PzKw8TMwsF2Ud5Q+cbjQbTeGA7VETlLHz04xMTDz9F0CzsYPZRntGNxuDKNajaqgMSkmZhBXnodvXjAdOu0GjaK6vSDcwuLi6eqgDZ1OBXb7zd7DUYSxqusN5JUU7tFsYWfh/Y76KsAfz1s+fd9gIxz1Py5stUubydq5S8d2xiYrUEgYWrQRTTqqX5mpRcTni3i/zkwFOLIz+AjWzEv/wP2WaR0nna2EUAAAAASUVORK5CYII=';
+
 function _bukaPreviewPDF(htmlBody, judulDokumen, orientation) {
   const ori = orientation || 'landscape';
   const fullHtml = `<!DOCTYPE html>
@@ -1975,6 +1984,7 @@ function _bukaPreviewPDF(htmlBody, judulDokumen, orientation) {
 <head>
 <meta charset="UTF-8">
 <title>${judulDokumen}</title>
+<link rel="icon" type="image/png" href="data:image/png;base64,${_SAPA_FAVICON_B64}">
 <style>
   * { margin:0; padding:0; box-sizing:border-box; }
   body {
@@ -2059,9 +2069,9 @@ function _bukaPreviewPDF(htmlBody, judulDokumen, orientation) {
     toast('Pop-up diblokir browser. Izinkan pop-up untuk situs ini.', 'error');
     return;
   }
-  previewWin.document.open();
-  previewWin.document.write(fullHtml);
-  previewWin.document.close();
+  const _blobUrl = URL.createObjectURL(new Blob([fullHtml], { type: 'text/html' }));
+  previewWin.location.href = _blobUrl;
+  setTimeout(() => URL.revokeObjectURL(_blobUrl), 60000);
 }
 
 function downloadLaporanSuratPDF(btnEl) {
@@ -2410,14 +2420,14 @@ async function downloadLaporanByUrusan(btnEl) {
       <table style="border-collapse:collapse;border-spacing:0;width:100%;table-layout:auto">
         <thead>
           <tr style="background:#0d9488">
-            <th rowspan="3" style="color:white;padding:5px 4px;border:1px solid #000;text-align:center;font-size:10px;width:36px">NO</th>
+            <th rowspan="3" style="color:white;padding:5px 4px;border:1px solid #000;text-align:center;font-size:10px;white-space:nowrap;min-width:36px">NO</th>
             <th rowspan="3" style="color:white;padding:5px 4px;border:1px solid #000;text-align:center;font-size:10px;min-width:150px">INDIKATOR KINERJA</th>
-            <th rowspan="3" style="color:white;padding:5px 3px;border:1px solid #000;text-align:center;font-size:10px;width:40px">TARGET ${tahun}</th>
-            <th rowspan="3" style="color:white;padding:5px 3px;border:1px solid #000;text-align:center;font-size:10px;width:38px">SATUAN</th>
+            <th rowspan="3" style="color:white;padding:5px 3px;border:1px solid #000;text-align:center;font-size:10px;white-space:nowrap;min-width:40px">TARGET ${tahun}</th>
+            <th rowspan="3" style="color:white;padding:5px 3px;border:1px solid #000;text-align:center;font-size:10px;white-space:nowrap;min-width:38px">SATUAN</th>
             <th rowspan="3" style="color:white;padding:5px 3px;border:1px solid #000;text-align:center;font-size:10px;min-width:110px">UNIT KERJA</th>
             ${twJudulHeader}
-            <th rowspan="3" style="color:white;padding:5px 3px;border:1px solid #000;text-align:center;font-size:10px;width:50px">REALISASI S.D ${BULAN_FULL[bulanSampai].toUpperCase()}</th>
-            <th rowspan="3" style="color:white;padding:5px 3px;border:1px solid #000;text-align:center;font-size:10px;width:45px">CAPAIAN</th>
+            <th rowspan="3" style="color:white;padding:5px 3px;border:1px solid #000;text-align:center;font-size:10px;white-space:nowrap;min-width:50px">REALISASI S.D ${BULAN_FULL[bulanSampai].toUpperCase()}</th>
+            <th rowspan="3" style="color:white;padding:5px 3px;border:1px solid #000;text-align:center;font-size:10px;white-space:nowrap;min-width:45px">CAPAIAN</th>
             <th rowspan="3" style="color:white;padding:5px 4px;border:1px solid #000;text-align:center;font-size:10px;min-width:130px">FAKTOR PENGHAMBAT</th>
             <th rowspan="3" style="color:white;padding:5px 4px;border:1px solid #000;text-align:center;font-size:10px;min-width:130px">SOLUSI</th>
             <th rowspan="3" style="color:white;padding:5px 4px;border:1px solid #000;text-align:center;font-size:10px;min-width:130px">FAKTOR PENDUKUNG</th>
@@ -2624,15 +2634,15 @@ async function downloadLaporanByTSP(btnEl) {
 
     const theadHtml = orderedTpl ? `
           <tr style="background:#0d9488">
-            <th rowspan="3" style="color:white;padding:6px 4px;border:1px solid #000;text-align:center;font-size:10px;width:36px">NO</th>
-            <th rowspan="3" style="color:white;padding:6px 8px;border:1px solid #000;text-align:center;font-size:10px;width:180px">SASARAN STRATEGIS /<br>PROGRAM / KEGIATAN</th>
+            <th rowspan="3" style="color:white;padding:6px 4px;border:1px solid #000;text-align:center;font-size:10px;white-space:nowrap;min-width:36px">NO</th>
+            <th rowspan="3" style="color:white;padding:6px 8px;border:1px solid #000;text-align:center;font-size:10px;white-space:nowrap;min-width:180px">SASARAN STRATEGIS /<br>PROGRAM / KEGIATAN</th>
             <th rowspan="3" style="color:white;padding:6px 8px;border:1px solid #000;text-align:center;font-size:10px">INDIKATOR KINERJA</th>
-            <th rowspan="3" style="color:white;padding:6px 5px;border:1px solid #000;text-align:center;font-size:10px;width:50px">SATUAN</th>
-            <th rowspan="3" style="color:white;padding:6px 5px;border:1px solid #000;text-align:center;font-size:10px;width:55px">TARGET ${tahun}</th>
+            <th rowspan="3" style="color:white;padding:6px 5px;border:1px solid #000;text-align:center;font-size:10px;white-space:nowrap;min-width:50px">SATUAN</th>
+            <th rowspan="3" style="color:white;padding:6px 5px;border:1px solid #000;text-align:center;font-size:10px;white-space:nowrap;min-width:55px">TARGET ${tahun}</th>
             <th rowspan="3" style="color:white;padding:6px 5px;border:1px solid #000;text-align:center;font-size:10px;min-width:110px">UNIT KERJA</th>
             ${twJudulHeader}
-            <th rowspan="3" style="color:white;padding:6px 5px;border:1px solid #000;text-align:center;font-size:10px;width:55px">REALISASI S.D ${BULAN_FULL[bulanSampai].toUpperCase()}</th>
-            <th rowspan="3" style="color:white;padding:6px 5px;border:1px solid #000;text-align:center;font-size:10px;width:50px">CAPAIAN</th>
+            <th rowspan="3" style="color:white;padding:6px 5px;border:1px solid #000;text-align:center;font-size:10px;white-space:nowrap;min-width:55px">REALISASI S.D ${BULAN_FULL[bulanSampai].toUpperCase()}</th>
+            <th rowspan="3" style="color:white;padding:6px 5px;border:1px solid #000;text-align:center;font-size:10px;white-space:nowrap;min-width:50px">CAPAIAN</th>
             <th rowspan="3" style="color:white;padding:6px 6px;border:1px solid #000;text-align:center;font-size:10px;min-width:140px">FAKTOR PENGHAMBAT</th>
             <th rowspan="3" style="color:white;padding:6px 6px;border:1px solid #000;text-align:center;font-size:10px;min-width:140px">SOLUSI</th>
             <th rowspan="3" style="color:white;padding:6px 6px;border:1px solid #000;text-align:center;font-size:10px;min-width:140px">FAKTOR PENDUKUNG</th>
@@ -2641,14 +2651,14 @@ async function downloadLaporanByTSP(btnEl) {
           <tr style="background:#0d9488">${twHeaders}</tr>
           <tr style="background:#0d9488">${bulanHeaderCells}</tr>` : `
           <tr style="background:#0d9488">
-            <th rowspan="3" style="color:white;padding:5px 4px;border:1px solid #000;text-align:center;font-size:10px;width:36px">NO</th>
+            <th rowspan="3" style="color:white;padding:5px 4px;border:1px solid #000;text-align:center;font-size:10px;white-space:nowrap;min-width:36px">NO</th>
             <th rowspan="3" style="color:white;padding:5px 4px;border:1px solid #000;text-align:center;font-size:10px;min-width:150px">INDIKATOR KINERJA</th>
-            <th rowspan="3" style="color:white;padding:5px 3px;border:1px solid #000;text-align:center;font-size:10px;width:40px">TARGET ${tahun}</th>
-            <th rowspan="3" style="color:white;padding:5px 3px;border:1px solid #000;text-align:center;font-size:10px;width:38px">SATUAN</th>
+            <th rowspan="3" style="color:white;padding:5px 3px;border:1px solid #000;text-align:center;font-size:10px;white-space:nowrap;min-width:40px">TARGET ${tahun}</th>
+            <th rowspan="3" style="color:white;padding:5px 3px;border:1px solid #000;text-align:center;font-size:10px;white-space:nowrap;min-width:38px">SATUAN</th>
             <th rowspan="3" style="color:white;padding:5px 3px;border:1px solid #000;text-align:center;font-size:10px;min-width:110px">UNIT KERJA</th>
             ${twJudulHeader}
-            <th rowspan="3" style="color:white;padding:5px 3px;border:1px solid #000;text-align:center;font-size:10px;width:50px">REALISASI S.D ${BULAN_FULL[bulanSampai].toUpperCase()}</th>
-            <th rowspan="3" style="color:white;padding:5px 3px;border:1px solid #000;text-align:center;font-size:10px;width:45px">CAPAIAN</th>
+            <th rowspan="3" style="color:white;padding:5px 3px;border:1px solid #000;text-align:center;font-size:10px;white-space:nowrap;min-width:50px">REALISASI S.D ${BULAN_FULL[bulanSampai].toUpperCase()}</th>
+            <th rowspan="3" style="color:white;padding:5px 3px;border:1px solid #000;text-align:center;font-size:10px;white-space:nowrap;min-width:45px">CAPAIAN</th>
             <th rowspan="3" style="color:white;padding:5px 4px;border:1px solid #000;text-align:center;font-size:10px;min-width:130px">FAKTOR PENGHAMBAT</th>
             <th rowspan="3" style="color:white;padding:5px 4px;border:1px solid #000;text-align:center;font-size:10px;min-width:130px">SOLUSI</th>
             <th rowspan="3" style="color:white;padding:5px 4px;border:1px solid #000;text-align:center;font-size:10px;min-width:130px">FAKTOR PENDUKUNG</th>
