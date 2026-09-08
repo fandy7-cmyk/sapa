@@ -46,12 +46,24 @@ export const handler = async (event) => {
   if (resource === 'kegiatan') {
     if (event.httpMethod === 'GET' && !id1) {
       try {
-        const rows = await sql`
-          SELECT k.*,
-            (SELECT COUNT(*)::INT FROM lembur_sesi s WHERE s.kegiatan_id = k.id) AS jumlah_sesi
-          FROM lembur_kegiatan k
-          ORDER BY k.created_at DESC
-        `;
+        const rows = full
+          ? await sql`
+              SELECT k.*,
+                (SELECT COUNT(*)::INT FROM lembur_sesi s WHERE s.kegiatan_id = k.id) AS jumlah_sesi
+              FROM lembur_kegiatan k
+              ORDER BY k.created_at DESC
+            `
+          : await sql`
+              SELECT k.*,
+                (SELECT COUNT(*)::INT FROM lembur_sesi s WHERE s.kegiatan_id = k.id) AS jumlah_sesi
+              FROM lembur_kegiatan k
+              WHERE EXISTS (
+                SELECT 1 FROM lembur_sesi s
+                JOIN lembur_entries e ON e.sesi_id = s.id
+                WHERE s.kegiatan_id = k.id AND e.user_id = ${auth.id}
+              )
+              ORDER BY k.created_at DESC
+            `;
         return jsonResponse({ kegiatan: rows });
       } catch (err) { return errorResponse('Gagal mengambil data kegiatan: ' + err.message); }
     }
@@ -97,6 +109,27 @@ export const handler = async (event) => {
         return jsonResponse({ ok: true });
       } catch (err) { return errorResponse('Gagal menghapus kegiatan: ' + err.message); }
     }
+  }
+
+  // ----------------------------------------------------------- CEK TANGGAL
+  if (resource === 'cek-tanggal' && event.httpMethod === 'GET') {
+    const tanggal = q.tanggal || null;
+    if (!tanggal) return errorResponse('tanggal wajib diisi', 400);
+    try {
+      const excludeKegiatanId = q.exclude_kegiatan_id ? parseInt(q.exclude_kegiatan_id) : null;
+      const rows = excludeKegiatanId
+        ? await sql`
+            SELECT k.nama_kegiatan FROM lembur_sesi s
+            JOIN lembur_kegiatan k ON k.id = s.kegiatan_id
+            WHERE s.tanggal = ${tanggal} AND s.kegiatan_id != ${excludeKegiatanId} LIMIT 1
+          `
+        : await sql`
+            SELECT k.nama_kegiatan FROM lembur_sesi s
+            JOIN lembur_kegiatan k ON k.id = s.kegiatan_id
+            WHERE s.tanggal = ${tanggal} LIMIT 1
+          `;
+      return jsonResponse({ terpakai: rows.length > 0, nama_kegiatan: rows[0]?.nama_kegiatan || null });
+    } catch (err) { return errorResponse('Gagal mengecek tanggal: ' + err.message); }
   }
 
   // -------------------------------------------------------------------- SESI
@@ -156,6 +189,8 @@ export const handler = async (event) => {
       const { kegiatan_id, tanggal, jam_mulai, jam_selesai, user_ids } = parseBody(event);
       if (!kegiatan_id || !tanggal) return errorResponse('Kegiatan dan tanggal wajib diisi', 400);
       try {
+        const dup = await sql`SELECT 1 FROM lembur_sesi WHERE tanggal = ${tanggal} LIMIT 1`;
+        if (dup.length) return errorResponse('Sudah ada sesi lembur pada tanggal ini (di kegiatan lain)', 409);
         const rows = await sql`
           INSERT INTO lembur_sesi (kegiatan_id, tanggal, jam_mulai, jam_selesai, created_by)
           VALUES (${kegiatan_id}, ${tanggal}, ${jam_mulai || null}, ${jam_selesai || null}, ${auth.id})
@@ -183,6 +218,10 @@ export const handler = async (event) => {
       if (!full) return errorResponse('Akses ditolak', 403);
       const { tanggal, jam_mulai, jam_selesai } = parseBody(event);
       try {
+        if (tanggal) {
+          const dup = await sql`SELECT 1 FROM lembur_sesi WHERE tanggal = ${tanggal} AND id != ${id1} LIMIT 1`;
+          if (dup.length) return errorResponse('Sudah ada sesi lembur pada tanggal ini (di kegiatan lain)', 409);
+        }
         const rows = await sql`
           UPDATE lembur_sesi SET
             tanggal = COALESCE(${tanggal ?? null}, tanggal),
@@ -292,10 +331,12 @@ export const handler = async (event) => {
   if (resource === 'pegawai' && event.httpMethod === 'GET') {
     if (!full) return errorResponse('Akses ditolak', 403);
     try {
+      const tanggal = q.tanggal || null;
       const rows = await sql`
-        SELECT DISTINCT u.id, u.nama, u.nip
+        SELECT DISTINCT u.id, u.nama, u.nip, a.status AS absensi_status
         FROM users u
         JOIN user_permissions up ON up.user_id = u.id
+        LEFT JOIN absensi a ON a.user_id = u.id AND a.tanggal = ${tanggal}::date
         WHERE u.is_admin = FALSE AND up.menu_key IN ('lembur', 'lembur.full')
         ORDER BY u.nama ASC
       `;

@@ -34,6 +34,63 @@ async function loadLemburKegiatan() {
   await _lemburRenderKegiatanList();
 }
 
+// Kalender lembur: hijau kalau ada hari lembur tercatat di tanggal itu, abu2 kalau tidak.
+// Klik tanggal yg ada lembur -> langsung buka detail hari lembur itu.
+function _lemburKalenderPanel(sesiList, bulan, tahun) {
+  const daysInMonth = new Date(tahun, bulan, 0).getDate();
+  const today = new Date();
+  const todayKey = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+  const pad2 = n => String(n).padStart(2, '0');
+
+  const byDay = new Map();
+  (sesiList || []).forEach(s => byDay.set(s.tanggal, s));
+
+  const firstDow = new Date(tahun, bulan - 1, 1).getDay();
+  const cells = [];
+  for (let i = 0; i < firstDow; i++) cells.push(`<div class="dash-heatmap-cell is-empty"></div>`);
+
+  for (let day = 1; day <= daysInMonth; day++) {
+    const key = `${tahun}-${pad2(bulan)}-${pad2(day)}`;
+    const isFuture = key > todayKey;
+    const s = byDay.get(key);
+    if (s) {
+      cells.push(`<div class="dash-heatmap-cell" style="background:#10b981;cursor:pointer" data-tip="Tgl ${day}: ${esc(s.nama_kegiatan || s.kegiatan_nama || '')}" onclick="_lemburKalenderKlikTanggal(${s.kegiatan_id}, ${s.id})">${day}</div>`);
+    } else if (isFuture) {
+      cells.push(`<div class="dash-heatmap-cell is-future">${day}</div>`);
+    } else {
+      cells.push(`<div class="dash-heatmap-cell" style="background:#f8fafc;color:#cbd5e1" data-tip="Tgl ${day}: tidak ada lembur">${day}</div>`);
+    }
+  }
+
+  const icon = `<svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/><path d="M8 2v4"/><path d="M16 2v4"/></svg>`;
+  return `<div class="dash-panel dash-panel--kalender">
+    <div class="dash-panel-header">${icon} Kalender Lembur - ${ABS_BULAN_NAMA[bulan]} ${tahun}</div>
+    <div class="dash-heatmap">
+      <div class="dash-heatmap-dow"><span>Min</span><span>Sen</span><span>Sel</span><span>Rab</span><span>Kam</span><span>Jum</span><span>Sab</span></div>
+      <div class="dash-heatmap-grid">${cells.join('')}</div>
+    </div>
+    <div class="dash-heatmap-legend"><span><i style="background:#10b981"></i>Ada Lembur</span><span><i style="background:#f8fafc;border:1px solid #e2e8f0"></i>Tidak ada data</span></div>
+  </div>`;
+}
+
+async function _lemburBukaDariKalender(kegiatanId, sesiId) {
+  let k = _lemburKegiatanList.find(x => x.id === kegiatanId);
+  if (!k) { await _lemburFetchKegiatan(); k = _lemburKegiatanList.find(x => x.id === kegiatanId); }
+  if (!k) return;
+  _lemburActiveKegiatan = k;
+  _lemburView = 'sesi';
+  await _lemburFetchSesi();
+  await _lemburOpenSesi(sesiId);
+}
+
+// Dipanggil dari kalender lembur di halaman manapun (Dashboard/Kegiatan Lembur) -
+// pindah dulu ke halaman Kegiatan Lembur baru buka detail hari itu.
+function _lemburKalenderKlikTanggal(kegiatanId, sesiId) {
+  navigateTo('lembur-kegiatan', 'Kegiatan Lembur', () => {
+    loadLemburKegiatan().then(() => _lemburBukaDariKalender(kegiatanId, sesiId));
+  }, 'lembur', 'page-lembur-kegiatan');
+}
+
 async function _lemburFetchKegiatan() {
   try {
     const r = await fetch('/api/lembur/kegiatan', { headers: authHeaders() });
@@ -114,7 +171,7 @@ async function _lemburOpenTambahKegiatan() {
   document.getElementById('lemburKegiatanPesertaGrid').innerHTML = '';
   openModal('modalLemburKegiatan');
   setTimeout(() => document.getElementById('lemburKegiatanNama').focus(), 50);
-  await _lemburFetchPegawai();
+  await _lemburFetchPegawai(document.getElementById('lemburKegiatanTanggal').value);
   _lemburRenderKegiatanPesertaGrid();
 }
 
@@ -129,10 +186,22 @@ function _lemburRenderTanggalChips() {
   `).join('');
 }
 
-function _lemburAddTanggalChip() {
+async function _lemburAddTanggalChip() {
   const tgl = document.getElementById('lemburKegiatanTanggal').value;
   if (!tgl) { toast('Pilih tanggal terlebih dahulu', 'error'); return; }
   if (_lemburKegiatanTanggalList.includes(tgl)) { toast('Tanggal itu sudah ditambahkan', 'error'); return; }
+  const btn = document.getElementById('btnLemburTanggalTambah');
+  if (btn) btn.disabled = true;
+  try {
+    const r = await fetch(`/api/lembur/cek-tanggal?tanggal=${tgl}`, { headers: authHeaders() });
+    const d = await r.json();
+    if (r.ok && d.terpakai) {
+      const tglLabel = new Date(tgl).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
+      toast(`${tglLabel} sudah ada lembur (kegiatan "${d.nama_kegiatan}")`, 'error');
+      return;
+    }
+  } catch { /* kalau cek gagal, biar tetap bisa lanjut & divalidasi ulang saat submit */ }
+  finally { if (btn) btn.disabled = false; }
   _lemburKegiatanTanggalList.push(tgl);
   _lemburKegiatanTanggalList.sort();
   _lemburRenderTanggalChips();
@@ -244,13 +313,19 @@ async function _lemburCreateKegiatanMulti(nama_kegiatan, tanggalList, jam_mulai,
     if (!r.ok) { toast(d.error || 'Gagal menyimpan kegiatan', 'error'); return; }
 
     let firstSesi = null, sukses = 0, gagal = 0;
+    const gagalDetail = [];
     for (const tanggal of tanggalList) {
       const r2 = await fetch('/api/lembur/sesi', {
         method: 'POST', headers: { ...authHeaders(), 'Content-Type': 'application/json' },
         body: JSON.stringify({ kegiatan_id: d.kegiatan.id, tanggal, jam_mulai, jam_selesai }),
       });
       const d2 = await r2.json();
-      if (!r2.ok) { gagal++; continue; }
+      if (!r2.ok) {
+        gagal++;
+        const tglLabel = new Date(tanggal).toLocaleDateString('id-ID', { day: 'numeric', month: 'long' });
+        gagalDetail.push(`${tglLabel} (${d2.error || 'gagal'})`);
+        continue;
+      }
       sukses++;
       if (!firstSesi) firstSesi = d2.sesi;
       if (peserta_ids.length) {
@@ -263,8 +338,10 @@ async function _lemburCreateKegiatanMulti(nama_kegiatan, tanggalList, jam_mulai,
       for (const f of dokFiles) { await _lemburUploadOneDokTo(firstSesi.id, f); }
     }
 
-    if (!firstSesi) { toast('Gagal menyimpan hari lembur', 'error'); return; }
-    toast(gagal ? `${sukses} hari lembur ditambahkan, ${gagal} tanggal gagal/duplikat` : 'Kegiatan lembur ditambahkan', gagal ? 'error' : 'success');
+    if (!firstSesi) { toast(gagalDetail.length ? `Gagal: ${gagalDetail.join(', ')}` : 'Gagal menyimpan hari lembur', 'error'); return; }
+    toast(gagal
+      ? `${sukses} hari lembur ditambahkan. Gagal: ${gagalDetail.join(', ')}`
+      : 'Kegiatan lembur ditambahkan', gagal ? 'error' : 'success');
 
     await _lemburFetchKegiatan();
     _lemburActiveKegiatan = d.kegiatan;
@@ -278,15 +355,18 @@ function _lemburRenderKegiatanPesertaGrid() {
   const grid = document.getElementById('lemburKegiatanPesertaGrid');
   if (!grid) return;
   grid.innerHTML = _lemburPegawai.length
-    ? _lemburPegawai.map(p => `
-        <div class="perm-item${_lemburKegiatanPesertaSelected.has(p.id) ? ' selected' : ''}" onclick="_lemburToggleKegiatanPeserta(${p.id}, this)">
+    ? _lemburPegawai.map(p => {
+        const st = _lemburStatusAbsensi(p.absensi_status);
+        if (st) _lemburKegiatanPesertaSelected.delete(p.id);
+        return `
+        <div class="perm-item${_lemburKegiatanPesertaSelected.has(p.id) ? ' selected' : ''}" style="${st ? 'opacity:.55;cursor:not-allowed' : ''}" ${st ? '' : `onclick="_lemburToggleKegiatanPeserta(${p.id}, this)"`}>
           <div class="perm-check"></div>
           <div>
-            <div class="perm-name">${esc(p.nama)}</div>
-            <div class="perm-desc">${esc(p.nip || '')}</div>
+            <div class="perm-name" style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">${esc(p.nama)}${st ? ` <span class="badge ${st.badge}" style="font-size:.68em;padding:2px 8px">${st.label}</span>` : ''}</div>
+            <div class="perm-desc">${p.nip ? 'NIP. ' + esc(p.nip) : ''}</div>
           </div>
-        </div>
-      `).join('')
+        </div>`;
+      }).join('')
     : `<div style="text-align:center;color:var(--teks-muted);padding:8px;font-size:.82rem">Belum ada data pegawai.</div>`;
 }
 
@@ -416,7 +496,7 @@ async function _lemburOpenTambahSesi() {
   document.getElementById('lemburSesiPesertaGrid').innerHTML = '';
   document.getElementById('btnSaveLemburSesi').setAttribute('onclick', '_lemburSubmitSesi()');
   openModal('modalLemburSesi');
-  await _lemburFetchPegawai();
+  await _lemburFetchPegawai(document.getElementById('lemburSesiTanggal').value);
   _lemburRenderSesiPesertaGrid();
 }
 
@@ -426,15 +506,18 @@ function _lemburRenderSesiPesertaGrid(excludeIds = []) {
   const exclude = new Set(excludeIds);
   const options = _lemburPegawai.filter(p => !exclude.has(p.id));
   grid.innerHTML = options.length
-    ? options.map(p => `
-        <div class="perm-item${_lemburPesertaSelected.has(p.id) ? ' selected' : ''}" onclick="_lemburToggleSesiPeserta(${p.id}, this)">
+    ? options.map(p => {
+        const st = _lemburStatusAbsensi(p.absensi_status);
+        if (st) _lemburPesertaSelected.delete(p.id);
+        return `
+        <div class="perm-item${_lemburPesertaSelected.has(p.id) ? ' selected' : ''}" style="${st ? 'opacity:.55;cursor:not-allowed' : ''}" ${st ? '' : `onclick="_lemburToggleSesiPeserta(${p.id}, this)"`}>
           <div class="perm-check"></div>
           <div>
-            <div class="perm-name">${esc(p.nama)}</div>
-            <div class="perm-desc">${esc(p.nip || '')}</div>
+            <div class="perm-name" style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">${esc(p.nama)}${st ? ` <span class="badge ${st.badge}" style="font-size:.68em;padding:2px 8px">${st.label}</span>` : ''}</div>
+            <div class="perm-desc">${p.nip ? 'NIP. ' + esc(p.nip) : ''}</div>
           </div>
-        </div>
-      `).join('')
+        </div>`;
+      }).join('')
     : `<div style="text-align:center;color:var(--teks-muted);padding:8px;font-size:.82rem">Semua pegawai sudah ditambahkan.</div>`;
 }
 
@@ -471,13 +554,38 @@ async function _lemburCreateSesi(tanggal, jam_mulai, jam_selesai, peserta_ids = 
   } catch { toast('Gagal menyimpan hari lembur', 'error'); }
 }
 
-async function _lemburFetchPegawai() {
+async function _lemburFetchPegawai(tanggal) {
   if (!_lemburFull) return;
   try {
-    const r = await fetch('/api/lembur/pegawai', { headers: authHeaders() });
+    const url = tanggal ? `/api/lembur/pegawai?tanggal=${tanggal}` : '/api/lembur/pegawai';
+    const r = await fetch(url, { headers: authHeaders() });
     const d = await r.json();
     if (r.ok) _lemburPegawai = d.pegawai || [];
   } catch {}
+}
+
+// Status absensi yang bikin pegawai tidak bisa ditambahkan sbg peserta lembur pd tanggal itu
+function _lemburStatusAbsensi(status) {
+  if (status === 'cuti') return { label: 'Cuti', badge: 'badge-fuchsia' };
+  if (status === 'alpa') return { label: 'Alpa', badge: 'badge-merah' };
+  if (status === 'tugas_luar' || status === 'izin' || status === 'sakit') return { label: 'Tugas Luar', badge: 'badge-biru' };
+  return null;
+}
+
+async function _lemburOnKegiatanTanggalChange() {
+  if (!_lemburFull) return;
+  const tgl = document.getElementById('lemburKegiatanTanggal').value;
+  if (!tgl) return;
+  await _lemburFetchPegawai(tgl);
+  _lemburRenderKegiatanPesertaGrid();
+}
+
+async function _lemburOnSesiTanggalChange() {
+  if (!_lemburFull) return;
+  const tgl = document.getElementById('lemburSesiTanggal').value;
+  if (!tgl) return;
+  await _lemburFetchPegawai(tgl);
+  _lemburRenderSesiPesertaGrid();
 }
 
 async function _lemburOpenSesi(id) {
@@ -530,17 +638,17 @@ function _lemburRenderSesiDetail() {
     return `
       <tr>
         <td style="width:48px;text-align:center;color:var(--teks-muted);vertical-align:top">${i + 1}</td>
-        <td style="white-space:nowrap;vertical-align:top">
+        <td style="vertical-align:top">
           <div style="display:flex;align-items:center;gap:10px">
-            <div class="lembur-peserta-avatar">${_lemburAvatarHtml(e)}</div>
-            <div>
-              <div class="lembur-peserta-nama">${esc(e.nama)}</div>
+            <div class="lembur-peserta-avatar" style="flex-shrink:0">${_lemburAvatarHtml(e)}</div>
+            <div style="min-width:0">
+              <div class="lembur-peserta-nama" style="white-space:normal;overflow-wrap:break-word">${esc(e.nama)}</div>
               <div class="lembur-peserta-nip">NIP. ${esc(e.nip || '-')}</div>
             </div>
           </div>
         </td>
-        <td style="white-space:nowrap;vertical-align:top">${tanggalCell}</td>
-        <td style="white-space:nowrap;vertical-align:top">${jamCell}</td>
+        <td style="vertical-align:top">${tanggalCell}</td>
+        <td style="vertical-align:top">${jamCell}</td>
         <td class="textarea-cell" style="text-align:left;vertical-align:top">
           <div class="ps-rte" id="lemburUraian_${e.id}" contenteditable="${bisaEdit ? 'true' : 'false'}" spellcheck="false"
             data-placeholder="${bisaEdit ? 'Uraian tugas selama lembur...' : 'Terkunci — bukan milik Anda'}"
@@ -613,7 +721,7 @@ async function _lemburEditJam(id) {
     document.getElementById('lemburSesiPesertaGrid').innerHTML = `<div style="text-align:center;color:var(--teks-muted);padding:8px;font-size:.82rem">Memuat peserta...</div>`;
     try {
       const [, entriesRes] = await Promise.all([
-        _lemburFetchPegawai(),
+        _lemburFetchPegawai(_lemburActiveSesi.tanggal),
         fetch(`/api/lembur/entries?sesi_id=${_lemburActiveSesi.id}`, { headers: authHeaders() }).then(r => r.json()),
       ]);
       _lemburEditOrigUserIds = (entriesRes.entries || []).map(e => e.user_id);
@@ -853,7 +961,7 @@ function _lemburHalamanSesiHtml(s, entries, dok, namaTtd, nipTtd, pageBreak) {
     ${_kopSuratHtml()}
     <div style="text-align:center;margin:14px 0 12px">
       <div style="font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.5px">Daftar Hadir Lembur</div>
-      <div style="font-size:11px;color:#64748b;margin-top:4px">${esc(_lemburActiveKegiatan.nama_kegiatan.toUpperCase())}</div>
+      <div style="font-size:11px;color:#1e293b;margin-top:4px">${esc(_lemburActiveKegiatan.nama_kegiatan.toUpperCase())}</div>
     </div>
     <div style="font-size:10px;margin-bottom:8px">Hari/Tanggal : ${tgl}</div>
     <table>
@@ -890,7 +998,7 @@ function _lemburHalamanSesiHtml(s, entries, dok, namaTtd, nipTtd, pageBreak) {
         ${_kopSuratHtml()}
         <div style="text-align:center;margin:14px 0 12px">
           <div style="font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.5px">Dokumentasi Lembur</div>
-          <div style="font-size:11px;color:#64748b;margin-top:4px">${esc(_lemburActiveKegiatan.nama_kegiatan.toUpperCase())}</div>
+          <div style="font-size:11px;color:#1e293b;margin-top:4px">${esc(_lemburActiveKegiatan.nama_kegiatan.toUpperCase())}</div>
         </div>
         <div style="display:grid;grid-template-columns:1fr 1fr;grid-template-rows:repeat(3,1fr);gap:12px;height:230mm">${grup.map(d => `<div style="border:1px solid #000;overflow:hidden"><img src="${d.file_url}" style="width:100%;height:100%;object-fit:cover;display:block"></div>`).join('')}</div>
       </div>`).join('');

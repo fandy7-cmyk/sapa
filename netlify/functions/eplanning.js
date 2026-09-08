@@ -85,6 +85,13 @@ async function ensureSchema(sql) {
   await sql`ALTER TABLE eplanning_usulan ADD COLUMN IF NOT EXISTS tgl_verifikasi_surat TIMESTAMPTZ`;
   await sql`ALTER TABLE eplanning_usulan ADD COLUMN IF NOT EXISTS tgl_verifikasi_tor TIMESTAMPTZ`;
   await sql`ALTER TABLE eplanning_usulan ADD COLUMN IF NOT EXISTS tgl_verifikasi_rab TIMESTAMPTZ`;
+  // Alur lanjutan: Usulan (isi skala prioritas) > Pembahasan > Pra Final (verifikasi Kepala Dinas) > Final
+  // (loop balik ke Pembahasan kalau Kepala Dinas minta ada perubahan di tahap Pra Final).
+  await sql`ALTER TABLE eplanning_usulan ADD COLUMN IF NOT EXISTS skala_prioritas INT`;
+  await sql`ALTER TABLE eplanning_usulan ADD COLUMN IF NOT EXISTS tgl_prioritas TIMESTAMPTZ`;
+  await sql`ALTER TABLE eplanning_usulan ADD COLUMN IF NOT EXISTS tgl_prafinal TIMESTAMPTZ`;
+  await sql`ALTER TABLE eplanning_usulan ADD COLUMN IF NOT EXISTS tgl_final TIMESTAMPTZ`;
+  await sql`ALTER TABLE eplanning_usulan ADD COLUMN IF NOT EXISTS catatan_prafinal TEXT`;
   await sql`ALTER TABLE eplanning_usulan ADD COLUMN IF NOT EXISTS sumber_dana_pilihan TEXT`;
   // Surat Usulan & TOR sekarang diisi lewat form/template, bukan upload file lagi.
   // link_surat_usulan/link_kak/link_datadukung dibiarkan ada di DB (data lama) tapi tidak dipakai lagi.
@@ -308,6 +315,30 @@ async function ensureSchema(sql) {
   await sql`ALTER TABLE eplanning_standar_harga ADD COLUMN IF NOT EXISTS tkdn NUMERIC`;
   await sql`ALTER TABLE eplanning_standar_harga ADD COLUMN IF NOT EXISTS tahun INT`;
   await sql`UPDATE eplanning_standar_harga SET tahun = 2027 WHERE tahun IS NULL`;
+  // Standar Harga "MANUAL" - hasil kalkulator survei 3 toko yang diinput langsung oleh user
+  // (bukan admin/import SIPD) lewat form Rincian Belanja. catatan_survei nyimpen ringkasan
+  // toko/harga/ongkir yang dipakai buat ngitung, dibuat_oleh nyimpen nama penginput - biar
+  // superadmin bisa lacak/verifikasi asal harganya pas ditinjau di tab MANUAL.
+  await sql`ALTER TABLE eplanning_standar_harga ADD COLUMN IF NOT EXISTS catatan_survei TEXT`;
+  await sql`ALTER TABLE eplanning_standar_harga ADD COLUMN IF NOT EXISTS dibuat_oleh TEXT`;
+  // Parameter kalkulator survei harga (3 toko) - dulu di-hardcode di frontend, sekarang bisa
+  // diatur superadmin (tombol Pengaturan di halaman Standar Harga) biar gampang disesuaikan
+  // kalau ada perubahan indeks inflasi/keuntungan/pajak dari pemerintah.
+  await sql`
+    CREATE TABLE IF NOT EXISTS eplanning_pengaturan (
+      kunci      TEXT PRIMARY KEY,
+      nilai      NUMERIC NOT NULL,
+      keterangan TEXT,
+      updated_at TIMESTAMPTZ DEFAULT NOW()
+    )
+  `;
+  await sql`
+    INSERT INTO eplanning_pengaturan (kunci, nilai, keterangan) VALUES
+      ('persen_inflasi', 5.33, 'Persentase indeks inflasi tahunan (kalkulator survei harga 3 toko)'),
+      ('persen_untung_default', 15, 'Persentase keuntungan + overhead default (kalkulator survei harga 3 toko)'),
+      ('persen_pajak', 12.5, 'Persentase PPN + PPh efektif (kalkulator survei harga 3 toko)')
+    ON CONFLICT (kunci) DO NOTHING
+  `;
   await sql`CREATE INDEX IF NOT EXISTS idx_eplanning_usulan_bidang ON eplanning_usulan(bidang_id)`;
   await sql`CREATE INDEX IF NOT EXISTS idx_eplanning_usulan_status ON eplanning_usulan(status)`;
   await sql`CREATE INDEX IF NOT EXISTS idx_eplanning_usulan_tahun ON eplanning_usulan(tahun_anggaran)`;
@@ -525,7 +556,9 @@ export const handler = async (event) => {
           // DRAFT/DITOLAK punya operator (buat keperluan moderasi/bersih-bersih data).
           const adminTahap = qs.tahap === 'pra-usulan' ? (auth.is_admin ? EP_STATUS_BELUM_SELESAI : ['MENUNGGU ADMIN'])
             : qs.tahap === 'usulanku' ? ['SELESAI']
-            : qs.tahap === 'pembahasan' ? ['PEMBAHASAN'] : null;
+            : qs.tahap === 'pembahasan' ? ['PEMBAHASAN']
+            : qs.tahap === 'pra-final' ? ['PRA FINAL']
+            : qs.tahap === 'final' ? ['FINAL'] : null;
           if (qs.status) {
             rows = await sql`
               SELECT * FROM eplanning_usulan
@@ -551,7 +584,9 @@ export const handler = async (event) => {
         } else if (role.isKabid) {
           const kabidTahap = qs.tahap === 'pra-usulan' ? EP_STATUS_BELUM_SELESAI_VERIFIKATOR
             : qs.tahap === 'usulanku' ? ['SELESAI']
-            : qs.tahap === 'pembahasan' ? ['PEMBAHASAN'] : null;
+            : qs.tahap === 'pembahasan' ? ['PEMBAHASAN']
+            : qs.tahap === 'pra-final' ? ['PRA FINAL']
+            : qs.tahap === 'final' ? ['FINAL'] : null;
           rows = await sql`
             SELECT * FROM eplanning_usulan
             WHERE bidang_id = ${role.bidangId}
@@ -562,7 +597,9 @@ export const handler = async (event) => {
         } else if (role.isSekretaris) {
           const sekTahap = qs.tahap === 'pra-usulan' ? EP_STATUS_BELUM_SELESAI_VERIFIKATOR
             : qs.tahap === 'usulanku' ? ['SELESAI']
-            : qs.tahap === 'pembahasan' ? ['PEMBAHASAN'] : null;
+            : qs.tahap === 'pembahasan' ? ['PEMBAHASAN']
+            : qs.tahap === 'pra-final' ? ['PRA FINAL']
+            : qs.tahap === 'final' ? ['FINAL'] : null;
           rows = await sql`
             SELECT * FROM eplanning_usulan
             WHERE bidang_tipe = 'sub_bagian'
@@ -573,7 +610,9 @@ export const handler = async (event) => {
         } else {
           const opTahap = qs.tahap === 'pra-usulan' ? EP_STATUS_BELUM_SELESAI
             : qs.tahap === 'usulanku' ? ['SELESAI']
-            : qs.tahap === 'pembahasan' ? ['PEMBAHASAN'] : null;
+            : qs.tahap === 'pembahasan' ? ['PEMBAHASAN']
+            : qs.tahap === 'pra-final' ? ['PRA FINAL']
+            : qs.tahap === 'final' ? ['FINAL'] : null;
           rows = await sql`
             SELECT * FROM eplanning_usulan
             WHERE bidang_id = ${role.bidangId} AND pembuat_user_id = ${auth.id}
@@ -801,17 +840,75 @@ export const handler = async (event) => {
         return jsonResponse({ usulan: rows[0] });
       }
 
-      // Admin (Verifikator) memfilter usulan yang sudah SELESAI untuk diteruskan ke tahap Pembahasan.
+      // Usulan yang sudah SELESAI dikembalikan ke Kepala unit kerja (Kabid/Kapus/Kasubag) untuk
+      // mengisi skala prioritas sebelum dikembalikan ke Sub Bagian Perencanaan (Admin).
+      if (event.httpMethod === 'PUT' && id && action === 'set-prioritas') {
+        const cur = await sql`SELECT bidang_id, status FROM eplanning_usulan WHERE id = ${id} LIMIT 1`;
+        if (!cur.length) return errorResponse('Usulan tidak ditemukan', 404);
+        if (cur[0].status !== 'SELESAI') return errorResponse('Usulan belum di tahap Usulan (Selesai)', 409);
+        if (!role.isAdmin && !(role.isKabid && String(role.bidangId) === String(cur[0].bidang_id))) {
+          return errorResponse('Hanya Kepala unit kerja pemilik usulan yang bisa mengisi skala prioritas', 401);
+        }
+        const { skala_prioritas } = parseBody(event);
+        const n = parseInt(skala_prioritas, 10);
+        if (!Number.isFinite(n) || n < 1) return errorResponse('Skala prioritas wajib diisi angka lebih dari 0', 400);
+        const rows = await sql`
+          UPDATE eplanning_usulan SET skala_prioritas = ${n}, tgl_prioritas = NOW(), updated_at = NOW()
+          WHERE id = ${id} RETURNING *`;
+        await logAudit(sql, event, { user_id: auth.id, nama: auth.nama, aksi: 'eplanning_set_prioritas', entitas: 'eplanning_usulan', entitas_id: id, detail: JSON.stringify({ skala_prioritas: n }) });
+        return jsonResponse({ usulan: rows[0] });
+      }
+
+      // Admin (Verifikator/Sub Bagian Perencanaan) memfilter usulan yang sudah SELESAI dan sudah
+      // diisi skala prioritas oleh Kepala unit kerja, untuk diteruskan ke tahap Pembahasan.
       if (event.httpMethod === 'PUT' && id && action === 'kirim-pembahasan') {
         if (!role.isAdmin) return errorResponse('Unauthorized', 401);
-        const cur = await sql`SELECT status FROM eplanning_usulan WHERE id = ${id} LIMIT 1`;
+        const cur = await sql`SELECT status, skala_prioritas FROM eplanning_usulan WHERE id = ${id} LIMIT 1`;
         if (!cur.length) return errorResponse('Usulan tidak ditemukan', 404);
         if (cur[0].status !== 'SELESAI') return errorResponse('Usulan belum di tahap Selesai', 409);
+        if (cur[0].skala_prioritas == null) return errorResponse('Skala prioritas usulan ini belum diisi oleh Kepala unit kerja', 409);
         const rows = await sql`
           UPDATE eplanning_usulan SET status = 'PEMBAHASAN', updated_at = NOW()
           WHERE id = ${id} RETURNING *`;
         if (!rows.length) return errorResponse('Usulan tidak ditemukan', 404);
         await logAudit(sql, event, { user_id: auth.id, nama: auth.nama, aksi: 'eplanning_kirim_pembahasan', entitas: 'eplanning_usulan', entitas_id: id });
+        return jsonResponse({ usulan: rows[0] });
+      }
+
+      // Admin (Sub Bagian Perencanaan) meneruskan usulan yang sudah diputuskan lanjut ke tahapan
+      // RKA dari Pembahasan ke Pra Final, untuk diverifikasi Kepala Dinas.
+      if (event.httpMethod === 'PUT' && id && action === 'kirim-prafinal') {
+        if (!role.isAdmin) return errorResponse('Unauthorized', 401);
+        const cur = await sql`SELECT status FROM eplanning_usulan WHERE id = ${id} LIMIT 1`;
+        if (!cur.length) return errorResponse('Usulan tidak ditemukan', 404);
+        if (cur[0].status !== 'PEMBAHASAN') return errorResponse('Usulan belum di tahap Pembahasan', 409);
+        const rows = await sql`
+          UPDATE eplanning_usulan SET status = 'PRA FINAL', catatan_prafinal = NULL, tgl_prafinal = NOW(), updated_at = NOW()
+          WHERE id = ${id} RETURNING *`;
+        if (!rows.length) return errorResponse('Usulan tidak ditemukan', 404);
+        await logAudit(sql, event, { user_id: auth.id, nama: auth.nama, aksi: 'eplanning_kirim_prafinal', entitas: 'eplanning_usulan', entitas_id: id });
+        return jsonResponse({ usulan: rows[0] });
+      }
+
+      // Verifikasi Kepala Dinas di tahap Pra Final: kalau tidak ada perubahan -> Final,
+      // kalau ada perubahan -> balik ke tahap Pembahasan untuk disesuaikan.
+      if (event.httpMethod === 'PUT' && id && action === 'verifikasi-prafinal') {
+        if (!role.isAdmin) return errorResponse('Unauthorized', 401);
+        const cur = await sql`SELECT status FROM eplanning_usulan WHERE id = ${id} LIMIT 1`;
+        if (!cur.length) return errorResponse('Usulan tidak ditemukan', 404);
+        if (cur[0].status !== 'PRA FINAL') return errorResponse('Usulan belum di tahap Pra Final', 409);
+        const { keputusan, catatan } = parseBody(event);
+        if (!['FINAL', 'PERUBAHAN'].includes(keputusan)) return errorResponse('Keputusan tidak valid', 400);
+        if (keputusan === 'PERUBAHAN' && !catatan) return errorResponse('Catatan perubahan wajib diisi', 400);
+        const rows = keputusan === 'FINAL'
+          ? await sql`
+              UPDATE eplanning_usulan SET status = 'FINAL', tgl_final = NOW(), catatan_prafinal = NULL, updated_at = NOW()
+              WHERE id = ${id} RETURNING *`
+          : await sql`
+              UPDATE eplanning_usulan SET status = 'PEMBAHASAN', catatan_prafinal = ${catatan}, updated_at = NOW()
+              WHERE id = ${id} RETURNING *`;
+        if (!rows.length) return errorResponse('Usulan tidak ditemukan', 404);
+        await logAudit(sql, event, { user_id: auth.id, nama: auth.nama, aksi: 'eplanning_verifikasi_prafinal', entitas: 'eplanning_usulan', entitas_id: id, detail: JSON.stringify({ keputusan, catatan: catatan || null }) });
         return jsonResponse({ usulan: rows[0] });
       }
 
@@ -1172,22 +1269,73 @@ export const handler = async (event) => {
 
       if (event.httpMethod === 'GET' && !kode && qs.page === undefined) {
         const q = (qs.q || '').trim();
+        // Dipake buat nyaring dropdown "Objek Belanja" di modal Tambah Rincian - biar kategori
+        // yang emang gak punya rekening aktif sama sekali (mis. Belanja Bunga/Subsidi/Bagi Hasil
+        // di Dinas Kesehatan) gak ditampilin, jadi user gak nemu "Tidak ditemukan" pas lanjut milih
+        // Rekening/Akun.
+        if (qs.kategoriTersedia === '1') {
+          const rows = await sql`SELECT kode_rekening FROM eplanning_rekening WHERE aktif = true`;
+          const kodeList = rows.map(r => r.kode_rekening);
+          const kategori = EP_OBJEK_BELANJA_PREFIX_MAP
+            .filter(([prefix]) => kodeList.some(k => k.startsWith(prefix)))
+            .map(([, label]) => label);
+          // debug sementara - biar kelihatan kode_rekening mana yang bikin sebuah kategori
+          // ke-anggep "ada", buat nelusurin kenapa kategori yang katanya kosong masih muncul
+          const debug = {};
+          EP_OBJEK_BELANJA_PREFIX_MAP.forEach(([prefix, label]) => {
+            const cocok = kodeList.filter(k => k.startsWith(prefix));
+            if (cocok.length) debug[label] = cocok.slice(0, 5);
+          });
+          return jsonResponse({ kategori, debug });
+        }
         if (q.length === 1) return jsonResponse({ rekening: [] });
+        // Kalau lagi nyari rekening buat kategori "Objek Belanja" tertentu, saring langsung di
+        // query (bukan ambil top-30 rekening paling sering dipake se-instansi lalu disaring di
+        // client) - soalnya kategori yang jarang dipake bisa aja kode-nya kelempar keluar top-30
+        // umum itu walau sebenernya ada, jadi kelihatan "Tidak ditemukan" padahal ada.
+        const kategori = (qs.kategori || '').trim();
+        // "Dana BOS"/"Belanja Operasional (BLUD)" itu ditentuin dari Sumber Dana, bukan prefix
+        // Kode Rekening - jadi rekening apa aja boleh dipake buat kategori ini (gak dibatasi
+        // prefix). Kategori lain yang gak punya prefix mapping di EP_OBJEK_BELANJA_PREFIX_MAP
+        // memang belum ada rekening resminya - jangan ditampilin rekening kategori lain, biar
+        // tetap "Tidak ditemukan" sampai prefix-nya didefinisiin.
+        const kategoriTanpaPrefix = ['Dana BOS (BOS Pusat)', 'Belanja Operasional (BLUD)'];
+        const prefixes = kategori
+          ? EP_OBJEK_BELANJA_PREFIX_MAP.filter(([, label]) => label === kategori).map(([prefix]) => prefix)
+          : [];
+        const kategoriTanpaMapping = kategori && !prefixes.length && !kategoriTanpaPrefix.includes(kategori);
+        if (kategoriTanpaMapping) return jsonResponse({ rekening: [] });
         if (q.length === 0) {
-          const rows = await sql`
-            SELECT er.kode_rekening, er.nama_rekening
-            FROM eplanning_rekening er
-            LEFT JOIN eplanning_rincian ri ON ri.kode_rekening = er.kode_rekening
-            WHERE er.aktif = true
-            GROUP BY er.kode_rekening, er.nama_rekening
-            ORDER BY COUNT(ri.id) DESC, er.nama_rekening ASC
-            LIMIT 30`;
+          const rows = prefixes.length
+            ? await sql`
+                SELECT er.kode_rekening, er.nama_rekening
+                FROM eplanning_rekening er
+                LEFT JOIN eplanning_rincian ri ON ri.kode_rekening = er.kode_rekening
+                WHERE er.aktif = true
+                  AND EXISTS (SELECT 1 FROM unnest(${prefixes}::text[]) p WHERE er.kode_rekening LIKE p || '%')
+                GROUP BY er.kode_rekening, er.nama_rekening
+                ORDER BY COUNT(ri.id) DESC, er.nama_rekening ASC
+                LIMIT 30`
+            : await sql`
+                SELECT er.kode_rekening, er.nama_rekening
+                FROM eplanning_rekening er
+                LEFT JOIN eplanning_rincian ri ON ri.kode_rekening = er.kode_rekening
+                WHERE er.aktif = true
+                GROUP BY er.kode_rekening, er.nama_rekening
+                ORDER BY COUNT(ri.id) DESC, er.nama_rekening ASC
+                LIMIT 30`;
           return jsonResponse({ rekening: rows });
         }
-        const rows = await sql`
-          SELECT kode_rekening, nama_rekening FROM eplanning_rekening
-          WHERE aktif = true AND (nama_rekening ILIKE ${'%' + q + '%'} OR kode_rekening ILIKE ${'%' + q + '%'})
-          ORDER BY nama_rekening ASC LIMIT 30`;
+        const rows = prefixes.length
+          ? await sql`
+              SELECT kode_rekening, nama_rekening FROM eplanning_rekening
+              WHERE aktif = true AND (nama_rekening ILIKE ${'%' + q + '%'} OR kode_rekening ILIKE ${'%' + q + '%'})
+                AND EXISTS (SELECT 1 FROM unnest(${prefixes}::text[]) p WHERE kode_rekening LIKE p || '%')
+              ORDER BY nama_rekening ASC LIMIT 30`
+          : await sql`
+              SELECT kode_rekening, nama_rekening FROM eplanning_rekening
+              WHERE aktif = true AND (nama_rekening ILIKE ${'%' + q + '%'} OR kode_rekening ILIKE ${'%' + q + '%'})
+              ORDER BY nama_rekening ASC LIMIT 30`;
         return jsonResponse({ rekening: rows });
       }
 
@@ -1542,6 +1690,32 @@ export const handler = async (event) => {
       return errorResponse('Not found', 404);
     }
 
+    // Parameter kalkulator "Survei Harga (3 Toko)" - siapa aja yang punya akses eplanning boleh
+    // baca (dipakai pas ngitung di form Rincian/Standar Harga), tapi cuma superadmin yang boleh ubah.
+    if (resource === 'pengaturankalkulator') {
+      if (event.httpMethod === 'GET') {
+        const rows = await sql`SELECT kunci, nilai, keterangan FROM eplanning_pengaturan ORDER BY kunci`;
+        const pengaturan = {};
+        rows.forEach(r => { pengaturan[r.kunci] = Number(r.nilai); });
+        return jsonResponse({ pengaturan, detail: rows });
+      }
+      if (event.httpMethod === 'PUT') {
+        if (!role.isAdmin) return errorResponse('Unauthorized', 401);
+        const b = parseBody(event);
+        const allowedKeys = ['persen_inflasi', 'persen_untung_default', 'persen_pajak'];
+        for (const k of allowedKeys) {
+          if (b[k] !== undefined && b[k] !== '' && !isNaN(Number(b[k]))) {
+            await sql`UPDATE eplanning_pengaturan SET nilai = ${Number(b[k])}, updated_at = NOW() WHERE kunci = ${k}`;
+          }
+        }
+        const rows = await sql`SELECT kunci, nilai, keterangan FROM eplanning_pengaturan ORDER BY kunci`;
+        const pengaturan = {};
+        rows.forEach(r => { pengaturan[r.kunci] = Number(r.nilai); });
+        return jsonResponse({ ok: true, pengaturan });
+      }
+      return errorResponse('Not found', 404);
+    }
+
     if (resource === 'standarharga') {
       const sub = segments[1] || null;
 
@@ -1562,7 +1736,7 @@ export const handler = async (event) => {
                 WHERE aktif = true AND kategori = ${kFilter}
                   AND (${tahunFilter}::int IS NULL OR tahun = ${tahunFilter}::int
                        OR (${tahunFilter}::int = 2027 AND tahun IS NULL))
-                  AND (${rekFilter}::text IS NULL
+                  AND (${rekFilter}::text IS NULL OR kode_rekening IS NULL OR trim(kode_rekening) = ''
                        OR EXISTS (SELECT 1 FROM unnest(string_to_array(kode_rekening, ',')) kk WHERE trim(kk) = ${rekFilter}))
                 ORDER BY uraian_barang ASC LIMIT 30`
             : await sql`
@@ -1570,7 +1744,7 @@ export const handler = async (event) => {
                 WHERE aktif = true
                   AND (${tahunFilter}::int IS NULL OR tahun = ${tahunFilter}::int
                        OR (${tahunFilter}::int = 2027 AND tahun IS NULL))
-                  AND (${rekFilter}::text IS NULL
+                  AND (${rekFilter}::text IS NULL OR kode_rekening IS NULL OR trim(kode_rekening) = ''
                        OR EXISTS (SELECT 1 FROM unnest(string_to_array(kode_rekening, ',')) kk WHERE trim(kk) = ${rekFilter}))
                 ORDER BY uraian_barang ASC LIMIT 30`;
         } else {
@@ -1582,7 +1756,7 @@ export const handler = async (event) => {
                   AND (uraian_barang ILIKE ${like} OR kode_barang ILIKE ${like} OR spesifikasi ILIKE ${like})
                   AND (${tahunFilter}::int IS NULL OR tahun = ${tahunFilter}::int
                        OR (${tahunFilter}::int = 2027 AND tahun IS NULL))
-                  AND (${rekFilter}::text IS NULL
+                  AND (${rekFilter}::text IS NULL OR kode_rekening IS NULL OR trim(kode_rekening) = ''
                        OR EXISTS (SELECT 1 FROM unnest(string_to_array(kode_rekening, ',')) kk WHERE trim(kk) = ${rekFilter}))
                 ORDER BY uraian_barang ASC LIMIT 30`
             : await sql`
@@ -1591,7 +1765,7 @@ export const handler = async (event) => {
                   AND (uraian_barang ILIKE ${like} OR kode_barang ILIKE ${like} OR spesifikasi ILIKE ${like})
                   AND (${tahunFilter}::int IS NULL OR tahun = ${tahunFilter}::int
                        OR (${tahunFilter}::int = 2027 AND tahun IS NULL))
-                  AND (${rekFilter}::text IS NULL
+                  AND (${rekFilter}::text IS NULL OR kode_rekening IS NULL OR trim(kode_rekening) = ''
                        OR EXISTS (SELECT 1 FROM unnest(string_to_array(kode_rekening, ',')) kk WHERE trim(kk) = ${rekFilter}))
                 ORDER BY uraian_barang ASC LIMIT 30`;
         }
@@ -1675,7 +1849,7 @@ export const handler = async (event) => {
             AND (${satuanFilter} = '' OR sh.satuan = ${satuanFilter})
             AND (${tahunFilter}::int IS NULL OR sh.tahun = ${tahunFilter}::int
                  OR (${tahunFilter}::int = 2027 AND sh.tahun IS NULL))
-            AND (${rekFilter}::text IS NULL
+            AND (${rekFilter}::text IS NULL OR sh.kode_rekening IS NULL OR trim(sh.kode_rekening) = ''
                  OR EXISTS (SELECT 1 FROM unnest(string_to_array(sh.kode_rekening, ',')) kk WHERE trim(kk) = ${rekFilter}))
           ORDER BY sh.uraian_barang ASC
           LIMIT ${pageSize} OFFSET ${offset}`;
@@ -1698,7 +1872,7 @@ export const handler = async (event) => {
             AND (${tahunFilter}::int IS NULL OR sh.tahun = ${tahunFilter}::int
                  OR (${tahunFilter}::int = 2027 AND sh.tahun IS NULL))
             AND (${satuanFilter} = '' OR sh.satuan = ${satuanFilter})
-            AND (${rekFilter}::text IS NULL
+            AND (${rekFilter}::text IS NULL OR sh.kode_rekening IS NULL OR trim(sh.kode_rekening) = ''
                  OR EXISTS (SELECT 1 FROM unnest(string_to_array(sh.kode_rekening, ',')) kk WHERE trim(kk) = ${rekFilter}))`;
         return jsonResponse({ standarharga: rows, total: totalRows[0].total, page, pageSize });
       }
@@ -1760,12 +1934,16 @@ export const handler = async (event) => {
         return jsonResponse({ ok: true, deleted: del.length });
       }
 
-      if (!role.isAdmin) return errorResponse('Unauthorized', 401);
       const id = sub && /^\d+$/.test(sub) ? parseInt(sub) : null;
 
+      // Kategori "MANUAL" = hasil kalkulator survei 3 toko yang diinput user biasa (kabid/operator)
+      // lewat form Rincian Belanja, bukan lewat panel admin Standar Harga - jadi dikecualikan dari
+      // pengecekan isAdmin di bawah. Kategori lain (SSH/HSPK/ASB/SBU) tetap admin-only seperti semula.
       if (event.httpMethod === 'POST' && !sub) {
         const b = parseBody(event);
         const kategori = (b.kategori || '').trim().toUpperCase();
+        const isManual = kategori === 'MANUAL';
+        if (!isManual && !role.isAdmin) return errorResponse('Unauthorized', 401);
         const uraian_barang = (b.uraian_barang || '').trim();
         const tahun = /^\d{4}$/.test(String(b.tahun)) ? parseInt(b.tahun) : null;
         if (!kategori || !uraian_barang) return errorResponse('Kategori dan uraian barang wajib diisi', 400);
@@ -1773,15 +1951,19 @@ export const handler = async (event) => {
         const rows = await sql`
           INSERT INTO eplanning_standar_harga
             (kategori, tahun, kode_kelompok_barang, uraian_kelompok_barang, id_standar_harga, kode_barang,
-             uraian_barang, spesifikasi, satuan, harga_satuan, kode_rekening, tkdn)
+             uraian_barang, spesifikasi, satuan, harga_satuan, kode_rekening, tkdn, catatan_survei, dibuat_oleh)
           VALUES (
             ${kategori}, ${tahun}, ${b.kode_kelompok_barang?.trim() || null}, ${b.uraian_kelompok_barang?.trim() || null},
             ${b.id_standar_harga?.trim() || null}, ${b.kode_barang || null}, ${uraian_barang},
             ${b.spesifikasi || null}, ${b.satuan || null}, ${Number(b.harga_satuan) || 0}, ${b.kode_rekening || null},
-            ${b.tkdn === '' || b.tkdn == null ? null : Number(b.tkdn)}
+            ${b.tkdn === '' || b.tkdn == null ? null : Number(b.tkdn)},
+            ${isManual ? (b.catatan_survei || null) : null}, ${isManual ? (auth.nama || null) : null}
           ) RETURNING *`;
         return jsonResponse({ standarharga: rows[0] }, 201);
       }
+
+      if (!role.isAdmin) return errorResponse('Unauthorized', 401);
+
       if (event.httpMethod === 'PUT' && id) {
         const b = parseBody(event);
         const has = (k) => Object.prototype.hasOwnProperty.call(b, k);

@@ -380,6 +380,19 @@ async function loadDashboardLembur() {
     ${_kpiCard({ icon: iconFoto, label: 'Dokumentasi', value: totalDok, sub: 'foto terlampir', color: 'purple' })}
   </div>`;
 
+  // Kalender lembur (2 bulan lalu, bulan lalu, bulan ini) - buat lihat cepat tanggal mana sudah/belum ada lembur
+  if (typeof _lemburKalenderPanel === 'function') {
+    const inBulan = (s, b, t) => (s.tanggal || '').slice(0, 7) === `${t}-${String(b).padStart(2, '0')}`;
+    const bulanList = [2, 1, 0].map(i => {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      return { bulan: d.getMonth() + 1, tahun: d.getFullYear() };
+    });
+    const panelsKalender = bulanList.map(({ bulan, tahun }) =>
+      _lemburKalenderPanel(sesiRelevant.filter(s => inBulan(s, bulan, tahun)), bulan, tahun)
+    );
+    html += `<div class="dash-panels dash-panels--kalender-row">${panelsKalender.join('')}</div>`;
+  }
+
   const panels = [];
   panels.push(_lemburTrendPanel(sesiRelevant, full));
 
@@ -4373,21 +4386,21 @@ const DASH_STYLE_CSS = `
 /* ── Welcome banner ── */
 .dash-welcome {
   background: linear-gradient(135deg, #f0fdfa 0%, #ffffff 60%) !important;
-  border-radius: 16px !important;
-  padding: 18px 24px !important;
+  border-radius: 14px !important;
+  padding: 11px 20px !important;
   margin-bottom: 18px !important;
   border: 1px solid #99f6e4 !important;
   box-shadow: none !important;
   position: relative !important;
 }
 @media (max-width: 480px) {
-  .dash-welcome { padding: 14px 16px !important; border-radius: 12px !important; }
+  .dash-welcome { padding: 10px 14px !important; border-radius: 12px !important; }
 }
 .dash-welcome-title {
   font-size: 1.05rem !important;
   font-weight: 700 !important;
   color: #0f172a !important;
-  margin-bottom: 4px !important;
+  margin-bottom: 2px !important;
 }
 .dash-welcome-sub {
   font-size: 0.84rem !important;

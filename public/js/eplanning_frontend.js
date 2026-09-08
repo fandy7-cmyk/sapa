@@ -16,6 +16,74 @@ const EP_ICON_POWER_ON = `<svg xmlns="http://www.w3.org/2000/svg" width="14" hei
 const EP_ICON_POWER_OFF = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 12l2 2 4-4"/><circle cx="12" cy="12" r="10"/></svg>`;
 const EP_ICON_MESSAGE = `<svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/><path d="M12 8v4"/><path d="M12 16h.01"/></svg>`;
 const EP_ICON_MESSAGE_SM = `<svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/><path d="M12 8v4"/><path d="M12 16h.01"/></svg>`;
+const EP_ICON_UK_DRAFT = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M9 13h6M9 17h6"/></svg>`;
+const EP_ICON_UK_SEND = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/></svg>`;
+const EP_ICON_UK_CHAT = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/><path d="M12 8v4"/><path d="M12 16h.01"/></svg>`;
+const EP_ICON_UK_SHIELD = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z"/><path d="M9 12l2 2 4-4"/></svg>`;
+const EP_ICON_UK_FLAG = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 22V4"/><path d="M4 4h14l-2.5 4L18 12H4"/></svg>`;
+
+// ============================================================
+// Usulanku - timeline navigasi e-Planning (Pra Usulan sampai Final)
+// Sebelumnya 5 menu sidebar terpisah, sekarang digabung jadi 1 menu
+// "Usulanku" dengan timeline/chip di atas buat pindah tahap. Tabel &
+// aksi tiap tahap tetap dipakai apa adanya (loadEplanningPraUsulan dkk),
+// cuma dibungkus 1 halaman & 1 sidebar item.
+// ============================================================
+const EP_USULANKU_TABS = [
+  { id: 'praunsulan', tabEl: 'page-eplanning-praunsulan', label: 'Pra Usulan', icon: EP_ICON_UK_DRAFT,  loader: () => loadEplanningPraUsulan(), getList: () => _epPraList },
+  { id: 'usulan',     tabEl: 'page-eplanning',            label: 'Usulan',     icon: EP_ICON_UK_SEND,   loader: () => loadEplanning(),          getList: () => _epUsulanList },
+  { id: 'pembahasan', tabEl: 'page-eplanning-pembahasan', label: 'Pembahasan', icon: EP_ICON_UK_CHAT,   loader: () => loadEplanningPembahasan(), getList: () => _epPemList },
+  { id: 'prafinal',   tabEl: 'page-eplanning-prafinal',   label: 'Pra Final',  icon: EP_ICON_UK_SHIELD, loader: () => loadEplanningPrafinal(),   getList: () => _epPfList },
+  { id: 'final',      tabEl: 'page-eplanning-final',      label: 'Final',      icon: EP_ICON_UK_FLAG,   loader: () => loadEplanningFinal(),      getList: () => _epFinList },
+];
+let _epUsulankuActiveTab = 'praunsulan';
+
+function _epUsulankuRenderTimeline() {
+  const wrap = document.getElementById('epUsulankuTimeline');
+  if (!wrap) return;
+  const activeIdx = EP_USULANKU_TABS.findIndex(t => t.id === _epUsulankuActiveTab);
+  // Tahap upcoming cuma ditampilkan di timeline kalau sudah ada usulan yang sampai
+  // ke tahap itu (list-nya sudah ke-load & isinya > 0). Belum ke-load / masih kosong
+  // = belum ditampilkan sama sekali, bukan cuma dikosongin icon-nya.
+  const visible = EP_USULANKU_TABS.filter((t, i) => {
+    if (i <= activeIdx) return true;
+    const list = t.getList();
+    return Array.isArray(list) && list.length > 0;
+  });
+  wrap.innerHTML = visible.map((t, vi) => {
+    const i = EP_USULANKU_TABS.indexOf(t);
+    const state = i < activeIdx ? 'done' : (i === activeIdx ? 'active' : 'upcoming');
+    const dotContent = state === 'done' ? EP_ICON_CHECK : t.icon;
+    return `
+    <div class="ep-uk-step ${state}" data-tab="${t.id}" onclick="epUsulankuGoTo('${t.id}')">
+      <span class="ep-uk-step-dot">${dotContent}</span>
+      <span class="ep-uk-step-label">${esc(t.label)}</span>
+    </div>${vi < visible.length - 1 ? `<div class="ep-uk-step-line${i < activeIdx ? ' done' : ''}"></div>` : ''}`;
+  }).join('');
+}
+
+// Dipanggil dari sidebar (item "Usulanku") - pertama kali dibuka, balik ke tab terakhir dilihat.
+function loadEplanningUsulanku() {
+  _epUsulankuRenderTimeline();
+  epUsulankuGoTo(_epUsulankuActiveTab || 'praunsulan');
+}
+
+// Pindah tahap di dalam halaman Usulanku (dipakai timeline & tombol "Kembali ke daftar usulan").
+function epUsulankuGoTo(tabId) {
+  const cfg = EP_USULANKU_TABS.find(t => t.id === tabId) || EP_USULANKU_TABS[0];
+  _epUsulankuActiveTab = cfg.id;
+  document.querySelectorAll('.ep-usulanku-tab').forEach(el => el.classList.remove('active'));
+  const el = document.getElementById(cfg.tabEl);
+  if (el) el.classList.add('active');
+  _epUsulankuRenderTimeline();
+  cfg.loader();
+}
+
+// Dipanggil dari luar halaman Usulanku (misal tombol "Kembali ke daftar usulan" di Rincian Anggaran)
+// - mastiin halaman wrapper "Usulanku" ke-aktifin lagi via navigateTo biasa, baru pindah tab.
+function epUsulankuOpenTab(tabId) {
+  navigateTo('eplanning-usulanku', 'e-Planning', () => epUsulankuGoTo(tabId), 'eplanning', 'page-eplanning-usulanku');
+}
 
 // Ganti prompt() bawaan browser dengan modal custom senada tampilan showConfirm().
 // Dipakai buat input teks wajib diisi (misal: catatan alasan penolakan).
@@ -73,6 +141,7 @@ function showEpPrompt({ title = 'Input', msg = '', placeholder = '', okText = 'K
 const EP_ICON_FILE_PDF = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/><line x1="16" x2="8" y1="13" y2="13"/><line x1="16" x2="8" y1="17" y2="17"/><line x1="10" x2="8" y1="9" y2="9"/></svg>`;
 const EP_ICON_CLOCK = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>`;
 const EP_ICON_EYE = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>`;
+const EP_ICON_SEARCH = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>`;
 const EP_ICON_ZOOM_IN = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="11" y1="8" x2="11" y2="14"/><line x1="8" y1="11" x2="14" y2="11"/></svg>`;
 const EP_ICON_ZOOM_OUT = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="8" y1="11" x2="14" y2="11"/></svg>`;
 const EP_ICON_ZOOM_RESET = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></svg>`;
@@ -180,6 +249,8 @@ function epStatusBadge(status) {
     'MENUNGGU ADMIN':      ['badge-blue',  'Menunggu Admin'],
     'SELESAI':            ['badge-green',  'Selesai'],
     'PEMBAHASAN':         ['badge-ungu',   'Pembahasan'],
+    'PRA FINAL':          ['badge-blue',   'Pra Final'],
+    'FINAL':              ['badge-green',  'Final'],
     'DITOLAK':            ['badge-red',    'Ditolak'],
   };
   if (FIXED[status]) {
@@ -204,6 +275,8 @@ const EP_STATUS_ORDER = [
   ['DITOLAK',                     'Ditolak'],
   ['SELESAI',                     'Selesai'],
   ['PEMBAHASAN',                  'Pembahasan'],
+  ['PRA FINAL',                   'Pra Final'],
+  ['FINAL',                       'Final'],
 ];
 
 let _epUsulanList = [];
@@ -305,6 +378,7 @@ async function loadEplanning() {
     _rebuildEpFilterBidang();
     _rebuildEpFilterStatus();
     renderEplanningTable();
+    _epUsulankuRenderTimeline();
   } catch (err) {
     if (tbody) tbody.innerHTML = `<tr class="empty-row"><td colspan="7">${esc(err.message)}</td></tr>`;
   }
@@ -498,12 +572,12 @@ function renderEplanningTable() {
   const isAdmin = role.isAdmin;
   const filtered = _epFilteredList();
   if (!_epUsulanList.length) {
-    tbody.innerHTML = `<tr class="empty-row"><td colspan="7">Belum ada usulan</td></tr>`;
+    tbody.innerHTML = `<tr class="empty-row"><td colspan="8">Belum ada usulan</td></tr>`;
     renderPagination('epPagination', 0, 1, _epPageSize, 'goEpPage');
     return;
   }
   if (!filtered.length) {
-    tbody.innerHTML = `<tr class="empty-row"><td colspan="7">Tidak ada usulan yang cocok dengan filter</td></tr>`;
+    tbody.innerHTML = `<tr class="empty-row"><td colspan="8">Tidak ada usulan yang cocok dengan filter</td></tr>`;
     renderPagination('epPagination', 0, 1, _epPageSize, 'goEpPage');
     return;
   }
@@ -523,11 +597,17 @@ function renderEplanningTable() {
       <td>${esc(u.pembuat_nama || '-')}</td>
       <td style="white-space:nowrap;font-weight:600">${epFmtRupiah(u.total_anggaran)}</td>
       <td>${epStatusBadge(u.status)}</td>
+      <td style="white-space:nowrap;text-align:center">
+        ${u.skala_prioritas != null ? `<span class="badge badge-blue">#${u.skala_prioritas}</span>` : `<span style="color:var(--text-secondary,#94a3b8)">-</span>`}
+        ${(u.status === 'SELESAI' && (role.isKabid || isAdmin)) ? `<button class="btn btn-ghost btn-sm" data-tip="Isi Skala Prioritas" onclick="epSetPrioritas('${u.id}', ${u.skala_prioritas != null ? u.skala_prioritas : 'null'})">${EP_ICON_EDIT}</button>` : ''}
+      </td>
       <td style="white-space:nowrap">
         <button class="btn btn-ghost btn-sm" data-tip="Kelola Dokumen" onclick="epOpenDokumenFor('${u.id}')">${EP_ICON_LIST}</button>
         <button class="btn btn-ghost btn-sm" data-tip="Lihat Dokumen" onclick="openUsulanModal('${u.id}')">${EP_ICON_EDIT}</button>
         <button class="btn btn-ghost btn-sm" data-tip="Riwayat Aktivitas" onclick="epOpenRiwayat('${u.id}')">${EP_ICON_CLOCK}</button>
-        ${isAdmin ? `<button class="btn btn-ghost btn-sm" data-tip="Kirim ke Pembahasan" onclick="kirimKePembahasan('${u.id}')">${EP_ICON_SEND}</button>` : ''}
+        ${isAdmin ? (u.skala_prioritas != null
+          ? `<button class="btn btn-ghost btn-sm" data-tip="Kirim ke Pembahasan" onclick="kirimKePembahasan('${u.id}')">${EP_ICON_SEND}</button>`
+          : `<button class="btn btn-ghost btn-sm" disabled style="opacity:.4;cursor:not-allowed" data-tip="Skala prioritas belum diisi">${EP_ICON_SEND}</button>`) : ''}
         ${canDelete ? `<button class="btn-hapus" data-tip="Hapus" onclick="deleteUsulan('${u.id}')">${EP_ICON_TRASH}</button>` : ''}
       </td>
     </tr>`;
@@ -580,6 +660,7 @@ async function loadEplanningPembahasan() {
     _epPemPage = 1;
     _rebuildEpPemFilterBidang();
     renderEplanningPembahasanTable();
+    _epUsulankuRenderTimeline();
   } catch (err) {
     if (tbody) tbody.innerHTML = `<tr class="empty-row"><td colspan="7">${esc(err.message)}</td></tr>`;
   }
@@ -636,6 +717,7 @@ function _epPemFilteredList() {
 function renderEplanningPembahasanTable() {
   const tbody = document.getElementById('epPemTableBody');
   if (!tbody) return;
+  const isAdmin = epRole().isAdmin;
   const filtered = _epPemFilteredList();
   if (!_epPemList.length) {
     tbody.innerHTML = `<tr class="empty-row"><td colspan="7">Belum ada usulan di tahap Pembahasan</td></tr>`;
@@ -665,12 +747,321 @@ function renderEplanningPembahasanTable() {
         <button class="btn btn-ghost btn-sm" data-tip="Kelola Dokumen" onclick="epOpenDokumenFor('${u.id}')">${EP_ICON_LIST}</button>
         <button class="btn btn-ghost btn-sm" data-tip="Lihat Dokumen" onclick="openUsulanModal('${u.id}')">${EP_ICON_EDIT}</button>
         <button class="btn btn-ghost btn-sm" data-tip="Riwayat Aktivitas" onclick="epOpenRiwayat('${u.id}')">${EP_ICON_CLOCK}</button>
+        ${isAdmin ? `<button class="btn btn-ghost btn-sm" data-tip="Kirim ke Pra Final" onclick="kirimKePrafinal('${u.id}')">${EP_ICON_SEND}</button>` : ''}
       </td>
     </tr>`).join('');
   renderPagination('epPemPagination', filtered.length, _epPemPage, _epPemPageSize, 'goEpPemPage');
 }
 
 window.goEpPemPage = (p) => { _epPemPage = p; renderEplanningPembahasanTable(); };
+
+async function kirimKePrafinal(id) {
+  const ok = await showConfirm({
+    title: 'Kirim ke Pra Final',
+    msg: 'Usulan ini akan dipindahkan ke tahap Pra Final untuk diverifikasi Kepala Dinas. Lanjutkan?',
+    okText: 'Ya, Kirim',
+    type: 'warning',
+    icon: 'wave',
+  });
+  if (!ok) return;
+  try {
+    const r = await fetch(`/api/eplanning/usulan/${id}/kirim-prafinal`, { method: 'PUT', headers: authHeaders() });
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.error || 'Gagal mengirim ke Pra Final');
+    toast('Usulan dikirim ke Pra Final', 'success');
+    loadEplanningPembahasan();
+  } catch (err) { toast(err.message, 'error'); }
+}
+
+// ==================== PRA FINAL ====================
+let _epPfList = [];
+let _epPfFilterBidang = '';
+let _epPfSearchText = '';
+let _epPfPage = 1;
+const _epPfPageSize = 10;
+
+async function loadEplanningPrafinal() {
+  const tbody = document.getElementById('epPfTableBody');
+  if (tbody) tbody.innerHTML = `<tr class="empty-row"><td colspan="7"><span class="btn-spin" style="width:11px;height:11px;vertical-align:-1px;margin-right:6px"></span>Memuat data...</td></tr>`;
+  const [periodeList] = await Promise.all([_epFetchPeriodeAktif(), epEnsureTahunList()]);
+  _epApplyPeriodeAktif(periodeList);
+  const selTahun = document.getElementById('epPfTahunAktif');
+  if (selTahun) {
+    selTahun.innerHTML = _epTahunList.map(t => `<option value="${t}">${t}</option>`).join('');
+    selTahun.value = _epTahunAktif;
+  }
+  try {
+    const qs = new URLSearchParams({ tahap: 'pra-final', ...(_epTahunAktif ? { tahun: String(_epTahunAktif) } : {}) });
+    const r = await fetch(`/api/eplanning/usulan?${qs}`, { headers: authHeaders() });
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.error || 'Gagal memuat data');
+    _epPfList = d.usulan || [];
+    _epPfPage = 1;
+    _rebuildEpPfFilterBidang();
+    renderEplanningPrafinalTable();
+    _epUsulankuRenderTimeline();
+  } catch (err) {
+    if (tbody) tbody.innerHTML = `<tr class="empty-row"><td colspan="7">${esc(err.message)}</td></tr>`;
+  }
+}
+
+function setEpPfTahunAktif(val) {
+  _epTahunAktif = parseInt(val);
+  localStorage.setItem('ep_tahun_aktif', String(_epTahunAktif));
+  _renderEpTahunDropdowns();
+  const el = document.getElementById('epPfTahunAktif');
+  if (el) el.value = _epTahunAktif;
+  loadEplanningPrafinal();
+}
+
+function _rebuildEpPfFilterBidang() {
+  const sel = document.getElementById('epPfFilterBidang');
+  if (!sel) return;
+  const wrap = sel.closest('.select-wrap') || sel;
+  const isAdmin = epRole().isAdmin;
+  wrap.style.display = isAdmin ? '' : 'none';
+  if (!isAdmin) { _epPfFilterBidang = ''; return; }
+  const current = _epPfFilterBidang;
+  const map = new Map();
+  _epPfList.forEach(u => { if (u.bidang_id != null) map.set(String(u.bidang_id), u.bidang_nama || '-'); });
+  const opts = [...map.entries()]
+    .sort((a, b) => a[1].localeCompare(b[1], 'id'))
+    .map(([id, nama]) => `<option value="${id}">${esc(nama)}</option>`)
+    .join('');
+  sel.innerHTML = `<option value="">Semua Unit Kerja</option>` + opts;
+  if (map.size === 1) { _epPfFilterBidang = [...map.keys()][0]; }
+  else if (current && !map.has(current)) { _epPfFilterBidang = ''; }
+  else { _epPfFilterBidang = current; }
+  sel.value = _epPfFilterBidang;
+}
+
+function setEpPfFilterBidang(bidangId) { _epPfFilterBidang = bidangId; _epPfPage = 1; renderEplanningPrafinalTable(); }
+function setEpPfSearchText(text) { _epPfSearchText = (text || '').trim(); _epPfPage = 1; renderEplanningPrafinalTable(); }
+
+function _epPfFilteredList() {
+  const q = _epPfSearchText.toLowerCase();
+  return _epPfList.filter(u => {
+    if (_epPfFilterBidang && String(u.bidang_id) !== _epPfFilterBidang) return false;
+    if (q && !(u.nama_kegiatan || '').toLowerCase().includes(q) && !(u.sub_kegiatan || '').toLowerCase().includes(q)) return false;
+    return true;
+  });
+}
+
+function renderEplanningPrafinalTable() {
+  const tbody = document.getElementById('epPfTableBody');
+  if (!tbody) return;
+  const isAdmin = epRole().isAdmin;
+  const filtered = _epPfFilteredList();
+  if (!_epPfList.length) {
+    tbody.innerHTML = `<tr class="empty-row"><td colspan="7">Belum ada usulan di tahap Pra Final</td></tr>`;
+    renderPagination('epPfPagination', 0, 1, _epPfPageSize, 'goEpPfPage');
+    return;
+  }
+  if (!filtered.length) {
+    tbody.innerHTML = `<tr class="empty-row"><td colspan="7">Tidak ada usulan yang cocok dengan filter</td></tr>`;
+    renderPagination('epPfPagination', 0, 1, _epPfPageSize, 'goEpPfPage');
+    return;
+  }
+  const totalPages = Math.max(1, Math.ceil(filtered.length / _epPfPageSize));
+  if (_epPfPage > totalPages) _epPfPage = totalPages;
+  const start = (_epPfPage - 1) * _epPfPageSize;
+  const list = filtered.slice(start, start + _epPfPageSize);
+  tbody.innerHTML = list.map((u, i) => `<tr>
+      <td>${start + i + 1}</td>
+      <td>
+        <div style="font-weight:600">${esc(u.nama_kegiatan || '-')}</div>
+        <div style="font-size:12px;color:var(--text-secondary,#64748b)">${u.kode_subkegiatan ? `<b>${esc(u.kode_subkegiatan)}</b> - ` : ''}${esc(u.sub_kegiatan || '')}</div>
+        ${u.catatan_prafinal ? `<div style="font-size:12px;color:var(--merah,#dc2626);margin-top:2px">Catatan sebelumnya: ${esc(u.catatan_prafinal)}</div>` : ''}
+      </td>
+      <td style="white-space:normal;word-wrap:break-word;overflow-wrap:break-word;max-width:180px">${esc(u.bidang_nama || '-')}</td>
+      <td>${esc(u.pembuat_nama || '-')}</td>
+      <td style="white-space:nowrap;font-weight:600">${epFmtRupiah(u.total_anggaran)}</td>
+      <td>${epStatusBadge(u.status)}</td>
+      <td style="white-space:nowrap">
+        <button class="btn btn-ghost btn-sm" data-tip="Kelola Dokumen" onclick="epOpenDokumenFor('${u.id}')">${EP_ICON_LIST}</button>
+        <button class="btn btn-ghost btn-sm" data-tip="Lihat Dokumen" onclick="openUsulanModal('${u.id}')">${EP_ICON_EDIT}</button>
+        <button class="btn btn-ghost btn-sm" data-tip="Riwayat Aktivitas" onclick="epOpenRiwayat('${u.id}')">${EP_ICON_CLOCK}</button>
+        ${isAdmin ? `<button class="btn btn-ghost btn-sm" data-tip="Verifikasi (Kepala Dinas)" onclick="epOpenVerifikasiPrafinal('${u.id}')">${EP_ICON_CHECK}</button>` : ''}
+      </td>
+    </tr>`).join('');
+  renderPagination('epPfPagination', filtered.length, _epPfPage, _epPfPageSize, 'goEpPfPage');
+}
+
+window.goEpPfPage = (p) => { _epPfPage = p; renderEplanningPrafinalTable(); };
+
+let _epPfVerifId = null;
+function epOpenVerifikasiPrafinal(id) {
+  _epPfVerifId = id;
+  document.getElementById('epPfCatatanPerubahan').value = '';
+  document.getElementById('epPfPerubahanField').style.display = 'none';
+  const btn = document.getElementById('epPfBtnAdaPerubahan');
+  btn.textContent = 'Ya, Ada Perubahan';
+  btn.setAttribute('onclick', 'epTogglePrafinalPerubahan()');
+  openModal('modalEpVerifikasiPrafinal');
+}
+function epTogglePrafinalPerubahan() {
+  const field = document.getElementById('epPfPerubahanField');
+  const btn = document.getElementById('epPfBtnAdaPerubahan');
+  const showing = field.style.display !== 'none';
+  if (!showing) {
+    field.style.display = '';
+    btn.textContent = 'Kirim Perubahan';
+    btn.setAttribute('onclick', "submitVerifikasiPrafinal('PERUBAHAN')");
+    document.getElementById('epPfCatatanPerubahan').focus();
+  }
+}
+async function submitVerifikasiPrafinal(keputusan) {
+  const catatan = document.getElementById('epPfCatatanPerubahan').value.trim();
+  if (keputusan === 'PERUBAHAN' && !catatan) { toast('Catatan perubahan wajib diisi', 'error'); return; }
+  const body = keputusan === 'PERUBAHAN' ? { keputusan, catatan } : { keputusan };
+  try {
+    const r = await fetch(`/api/eplanning/usulan/${_epPfVerifId}/verifikasi-prafinal`, {
+      method: 'PUT', headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.error || 'Gagal memverifikasi usulan');
+    toast(keputusan === 'FINAL' ? 'Usulan dinyatakan Final' : 'Usulan dikembalikan ke Pembahasan', 'success');
+    closeModal('modalEpVerifikasiPrafinal');
+    loadEplanningPrafinal();
+  } catch (err) { toast(err.message, 'error'); }
+}
+
+// ==================== FINAL ====================
+let _epFinList = [];
+let _epFinFilterBidang = '';
+let _epFinSearchText = '';
+let _epFinPage = 1;
+const _epFinPageSize = 10;
+
+async function loadEplanningFinal() {
+  const tbody = document.getElementById('epFinTableBody');
+  if (tbody) tbody.innerHTML = `<tr class="empty-row"><td colspan="7"><span class="btn-spin" style="width:11px;height:11px;vertical-align:-1px;margin-right:6px"></span>Memuat data...</td></tr>`;
+  const [periodeList] = await Promise.all([_epFetchPeriodeAktif(), epEnsureTahunList()]);
+  _epApplyPeriodeAktif(periodeList);
+  const selTahun = document.getElementById('epFinTahunAktif');
+  if (selTahun) {
+    selTahun.innerHTML = _epTahunList.map(t => `<option value="${t}">${t}</option>`).join('');
+    selTahun.value = _epTahunAktif;
+  }
+  try {
+    const qs = new URLSearchParams({ tahap: 'final', ...(_epTahunAktif ? { tahun: String(_epTahunAktif) } : {}) });
+    const r = await fetch(`/api/eplanning/usulan?${qs}`, { headers: authHeaders() });
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.error || 'Gagal memuat data');
+    _epFinList = d.usulan || [];
+    _epFinPage = 1;
+    _rebuildEpFinFilterBidang();
+    renderEplanningFinalTable();
+    _epUsulankuRenderTimeline();
+  } catch (err) {
+    if (tbody) tbody.innerHTML = `<tr class="empty-row"><td colspan="7">${esc(err.message)}</td></tr>`;
+  }
+}
+
+function setEpFinTahunAktif(val) {
+  _epTahunAktif = parseInt(val);
+  localStorage.setItem('ep_tahun_aktif', String(_epTahunAktif));
+  _renderEpTahunDropdowns();
+  const el = document.getElementById('epFinTahunAktif');
+  if (el) el.value = _epTahunAktif;
+  loadEplanningFinal();
+}
+
+function _rebuildEpFinFilterBidang() {
+  const sel = document.getElementById('epFinFilterBidang');
+  if (!sel) return;
+  const wrap = sel.closest('.select-wrap') || sel;
+  const isAdmin = epRole().isAdmin;
+  wrap.style.display = isAdmin ? '' : 'none';
+  if (!isAdmin) { _epFinFilterBidang = ''; return; }
+  const current = _epFinFilterBidang;
+  const map = new Map();
+  _epFinList.forEach(u => { if (u.bidang_id != null) map.set(String(u.bidang_id), u.bidang_nama || '-'); });
+  const opts = [...map.entries()]
+    .sort((a, b) => a[1].localeCompare(b[1], 'id'))
+    .map(([id, nama]) => `<option value="${id}">${esc(nama)}</option>`)
+    .join('');
+  sel.innerHTML = `<option value="">Semua Unit Kerja</option>` + opts;
+  if (map.size === 1) { _epFinFilterBidang = [...map.keys()][0]; }
+  else if (current && !map.has(current)) { _epFinFilterBidang = ''; }
+  else { _epFinFilterBidang = current; }
+  sel.value = _epFinFilterBidang;
+}
+
+function setEpFinFilterBidang(bidangId) { _epFinFilterBidang = bidangId; _epFinPage = 1; renderEplanningFinalTable(); }
+function setEpFinSearchText(text) { _epFinSearchText = (text || '').trim(); _epFinPage = 1; renderEplanningFinalTable(); }
+
+function _epFinFilteredList() {
+  const q = _epFinSearchText.toLowerCase();
+  return _epFinList.filter(u => {
+    if (_epFinFilterBidang && String(u.bidang_id) !== _epFinFilterBidang) return false;
+    if (q && !(u.nama_kegiatan || '').toLowerCase().includes(q) && !(u.sub_kegiatan || '').toLowerCase().includes(q)) return false;
+    return true;
+  });
+}
+
+function renderEplanningFinalTable() {
+  const tbody = document.getElementById('epFinTableBody');
+  if (!tbody) return;
+  const filtered = _epFinFilteredList();
+  if (!_epFinList.length) {
+    tbody.innerHTML = `<tr class="empty-row"><td colspan="7">Belum ada usulan Final</td></tr>`;
+    renderPagination('epFinPagination', 0, 1, _epFinPageSize, 'goEpFinPage');
+    return;
+  }
+  if (!filtered.length) {
+    tbody.innerHTML = `<tr class="empty-row"><td colspan="7">Tidak ada usulan yang cocok dengan filter</td></tr>`;
+    renderPagination('epFinPagination', 0, 1, _epFinPageSize, 'goEpFinPage');
+    return;
+  }
+  const totalPages = Math.max(1, Math.ceil(filtered.length / _epFinPageSize));
+  if (_epFinPage > totalPages) _epFinPage = totalPages;
+  const start = (_epFinPage - 1) * _epFinPageSize;
+  const list = filtered.slice(start, start + _epFinPageSize);
+  tbody.innerHTML = list.map((u, i) => `<tr>
+      <td>${start + i + 1}</td>
+      <td>
+        <div style="font-weight:600">${esc(u.nama_kegiatan || '-')}</div>
+        <div style="font-size:12px;color:var(--text-secondary,#64748b)">${u.kode_subkegiatan ? `<b>${esc(u.kode_subkegiatan)}</b> - ` : ''}${esc(u.sub_kegiatan || '')}</div>
+      </td>
+      <td style="white-space:normal;word-wrap:break-word;overflow-wrap:break-word;max-width:180px">${esc(u.bidang_nama || '-')}</td>
+      <td>${esc(u.pembuat_nama || '-')}</td>
+      <td style="white-space:nowrap;font-weight:600">${epFmtRupiah(u.total_anggaran)}</td>
+      <td>${epStatusBadge(u.status)}</td>
+      <td style="white-space:nowrap">
+        <button class="btn btn-ghost btn-sm" data-tip="Kelola Dokumen" onclick="epOpenDokumenFor('${u.id}')">${EP_ICON_LIST}</button>
+        <button class="btn btn-ghost btn-sm" data-tip="Lihat Dokumen" onclick="openUsulanModal('${u.id}')">${EP_ICON_EDIT}</button>
+        <button class="btn btn-ghost btn-sm" data-tip="Riwayat Aktivitas" onclick="epOpenRiwayat('${u.id}')">${EP_ICON_CLOCK}</button>
+      </td>
+    </tr>`).join('');
+  renderPagination('epFinPagination', filtered.length, _epFinPage, _epFinPageSize, 'goEpFinPage');
+}
+
+window.goEpFinPage = (p) => { _epFinPage = p; renderEplanningFinalTable(); };
+
+// ==================== Skala Prioritas (tahap Usulan) ====================
+async function epSetPrioritas(id, current) {
+  const val = await showEpPrompt({
+    title: 'Isi Skala Prioritas',
+    msg: 'Masukkan angka skala prioritas usulan ini (semakin kecil semakin prioritas).',
+    placeholder: current != null ? String(current) : 'Contoh: 1',
+    okText: 'Simpan',
+  });
+  if (val === null) return;
+  const n = parseInt(val, 10);
+  if (!Number.isFinite(n) || n < 1) { toast('Skala prioritas harus angka lebih dari 0', 'error'); return; }
+  try {
+    const r = await fetch(`/api/eplanning/usulan/${id}/set-prioritas`, {
+      method: 'PUT', headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+      body: JSON.stringify({ skala_prioritas: n }),
+    });
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.error || 'Gagal menyimpan skala prioritas');
+    toast('Skala prioritas disimpan', 'success');
+    loadEplanning();
+  } catch (err) { toast(err.message, 'error'); }
+}
 
 function _epParseTarget(target) {
   const m = String(target || '').trim().match(/^(-?\d+(?:[.,]\d+)?)\s*(.*)$/);
@@ -1607,7 +1998,27 @@ function renderRincianTable() {
   epRenderSumberDanaRingkasan(Object.entries(perSumber).map(([nama, total]) => ({ nama, total })));
 }
 
+// Cache kategori "Objek Belanja" yang beneran punya Rekening/Akun aktif di database - dipake
+// buat nyaring EP_OBJEK_BELANJA_LIST biar kategori kosong (mis. Belanja Bunga/Subsidi di Dinas
+// Kesehatan) gak ditampilin di dropdown. null = belum dimuat (fallback tampilin semua dulu).
+let _epObjekBelanjaTersedia = null;
+async function _epLoadObjekBelanjaTersedia() {
+  try {
+    const r = await fetch('/api/eplanning/rekening?kategoriTersedia=1', { headers: authHeaders() });
+    const d = await r.json();
+    if (r.ok) _epObjekBelanjaTersedia = d.kategori || [];
+  } catch { /* noop - biarin fallback tampilin semua */ }
+  // List Objek Belanja kemungkinan udah kebuka duluan sebelum fetch ini selesai (user langsung
+  // klik field-nya pas modal baru dibuka) - refresh biar hasil penyaringannya kepake tanpa
+  // user harus klik ulang. Cuma refresh kalau field-nya masih lagi difokus, biar gak muncul
+  // dropdown sendiri kalau user udah pindah ke field lain.
+  if (document.activeElement && document.activeElement.id === 'epRincObjekBelanja') {
+    _epObjekBelanjaCombo.search();
+  }
+}
+
 async function openRincianItemModal(id = null, readonly = false) {
+  _epLoadObjekBelanjaTersedia();
   document.getElementById('epRincianId').value = id || '';
   document.getElementById('epRincKodeRekening').value = '';
   delete document.getElementById('epRincKodeRekening').dataset.kode;
@@ -1841,16 +2252,19 @@ function _epMakeRekeningCombobox(inputId) {
     delete input.dataset.kode; 
     if (q.length === 1) { renderState('Ketik minimal 2 huruf…'); return; }
     renderState(q.length === 0 ? 'Memuat rekening yang sering dipakai…' : 'Mencari…');
+    // Kirim kategori Objek Belanja yang udah dipilih ke backend, biar query-nya disaring
+    // langsung ke rekening yang cocok sama kategori itu - bukan cuma nyaring top-30 rekening
+    // paling sering dipake se-instansi di client (kategori jarang dipake bisa keluar dari
+    // top-30 umum itu walau sebenernya ada rekeningnya).
+    let kategoriParam = '';
+    if (inputId === 'epRincKodeRekening') {
+      const objekBelanja = document.getElementById('epRincObjekBelanja')?.value || '';
+      if (objekBelanja) kategoriParam = `&kategori=${encodeURIComponent(objekBelanja)}`;
+    }
     try {
-      const r = await fetch(`/api/eplanning/rekening?q=${encodeURIComponent(q)}`, { headers: authHeaders() });
+      const r = await fetch(`/api/eplanning/rekening?q=${encodeURIComponent(q)}${kategoriParam}`, { headers: authHeaders() });
       const d = await r.json();
-      let list = d.rekening || [];
-      // Disaring sesuai Objek Belanja yang udah dipilih di modal Tambah Rincian, biar
-      // pilihan Kode Rekening yang muncul konsisten sama kategori di atasnya (kayak SIPD).
-      if (inputId === 'epRincKodeRekening') {
-        const objekBelanja = document.getElementById('epRincObjekBelanja')?.value || '';
-        if (objekBelanja) list = list.filter(x => _epGuessObjekBelanja(x.kode_rekening, '') === objekBelanja);
-      }
+      const list = d.rekening || [];
       if (input.value.trim() !== q) return;
       renderList(list);
     } catch { renderList([]); }
@@ -2085,7 +2499,14 @@ function _epMakeLocalCombobox({ inputId, getOptions, matchText, renderOption, on
     const input = document.getElementById(inputId);
     const q = input.value.trim().toLowerCase();
     const all = getOptions();
-    list = q ? all.filter(x => matchText(x).toLowerCase().includes(q)) : all;
+    const cocok = q ? all.filter(x => matchText(x).toLowerCase().includes(q)) : all;
+    // Riwayat Uraian Paket/Keterangan bisa numpuk ratusan-ribuan item lintas tahun anggaran -
+    // ngerender semuanya jadi elemen DOM tiap 1 huruf diketik itu yang bikin lag. Cukup
+    // tampilin 50 kecocokan teratas dulu, biar user makin ngetik makin ke-persempit hasilnya.
+    // "list" (dipake juga buat navigasi panah atas/bawah) sengaja cuma isi yang ditampilin ini.
+    const TAMPIL_MAKS = 50;
+    list = cocok.slice(0, TAMPIL_MAKS);
+    const lebihBanyak = cocok.length - list.length;
     const p = ensurePanel();
     p.innerHTML = '';
     optionEls = [];
@@ -2114,6 +2535,9 @@ function _epMakeLocalCombobox({ inputId, getOptions, matchText, renderOption, on
         p.appendChild(div);
         optionEls.push(div);
       });
+      if (lebihBanyak > 0) {
+        p.innerHTML += `<div class="csel-empty">+${lebihBanyak} lainnya - ketik buat mempersempit</div>`;
+      }
     }
     position();
 
@@ -2245,10 +2669,9 @@ function epSimpanKeteranganBaru() {
   }
   if (!_epKeteranganCustom.includes(nilai)) _epKeteranganCustom.push(nilai);
   closeModal('modalEpKeterangan');
-  // Sengaja gak auto-isi epRincKeterangan - biar user tetep pilih sendiri dari dropdown
-  // (list-nya udah kefilter/ke-refresh di bawah), jadi jelas kepilih yang mana.
-  document.getElementById('epRincKeterangan').focus();
-  epSearchKeterangan(); // paksa refresh listnya sekarang - jangan gantung ke event focus doang
+  // Sengaja gak auto-focus/buka dropdown-nya - biar user yang klik sendiri field-nya kalau mau
+  // lihat/pilih dari daftar (field-nya juga punya onfocus yang otomatis buka dropdown, jadi
+  // manggil focus() di sini bakal ikut buka dropdown juga walau gak diinginkan).
 }
 
 // Uraian Pengelompokan Belanja/Paket Pekerjaan: istilah standar SIPD-RI - field "Pengelompokan
@@ -2303,9 +2726,9 @@ function epSimpanUraianPaketBaru() {
   }
   if (!_epUraianPaketCustom.includes(nilai)) _epUraianPaketCustom.push(nilai);
   closeModal('modalEpUraianPaket');
-  // Sengaja gak auto-isi epRincUraianPaket - biar user tetep pilih sendiri dari dropdown.
-  document.getElementById('epRincUraianPaket').focus();
-  epSearchUraianPaket(); // paksa refresh listnya sekarang - jangan gantung ke event focus doang
+  // Sengaja gak auto-focus/buka dropdown-nya - biar user yang klik sendiri field-nya kalau mau
+  // lihat/pilih dari daftar (field-nya juga punya onfocus yang otomatis buka dropdown, jadi
+  // manggil focus() di sini bakal ikut buka dropdown juga walau gak diinginkan).
 }
 
 // Koefisien (Perkalian): sampe 4 pasang Volume x Satuan yang hasil kalinya jadi Volume final -
@@ -2433,9 +2856,14 @@ function _epRevealRincRestFields() {
   const el = document.getElementById('epRincRestFields');
   if (el) el.style.display = '';
 }
+// Kategori yang gak ditentuin dari prefix Kode Rekening (soal Sumber Dana/manual) - selalu
+// ditampilin di dropdown, gak ikut disaring sama _epObjekBelanjaTersedia.
+const EP_OBJEK_BELANJA_TANPA_PREFIX = ['Dana BOS (BOS Pusat)', 'Belanja Operasional (BLUD)', 'Pembebasan Tanah/Lahan'];
 const _epObjekBelanjaCombo = _epMakeLocalCombobox({
   inputId: 'epRincObjekBelanja',
-  getOptions: () => EP_OBJEK_BELANJA_LIST.map(nama => ({ nama })),
+  getOptions: () => EP_OBJEK_BELANJA_LIST
+    .filter(nama => !_epObjekBelanjaTersedia || EP_OBJEK_BELANJA_TANPA_PREFIX.includes(nama) || _epObjekBelanjaTersedia.includes(nama))
+    .map(nama => ({ nama })),
   matchText: x => x.nama,
   renderOption: x => esc(x.nama),
   onPick: (input, x) => {
@@ -3400,6 +3828,22 @@ function _epResetKomponenPick() {
 function _epUpdateKompSearchBtn() {
   const kategori = document.getElementById('epRincKategoriStandar').value;
   document.getElementById('btnKompSearch').disabled = !kategori;
+  // Tombol "+ Buat Standar Harga Manual" cuma relevan kalau kategorinya MANUAL - pengganti
+  // cari-di-daftar (yang tetep bisa dipakai buat milih ulang entri MANUAL yang udah pernah dibuat).
+  const btnManual = document.getElementById('btnBuatStandarHargaManual');
+  if (btnManual) btnManual.style.display = kategori === 'MANUAL' ? '' : 'none';
+}
+
+// Dipanggil dari onchange select Jenis Standar Harga. Kalau user baru milih "Manual (Survei
+// Harga)" dan belum ada komponen kepilih (bukan lagi buka data Edit yang kategorinya emang
+// udah MANUAL dari awal), langsung buka modal kalkulator 3 toko tanpa nunggu klik tombol lagi.
+function _epRincKategoriStandarChanged() {
+  const kategoriBaru = document.getElementById('epRincKategoriStandar').value;
+  const sudahAdaKomponen = !!document.getElementById('epRincKomponen').value;
+  _epResetKomponenPick();
+  _epUpdateKompSearchBtn();
+  _epUpdateSaveRincianBtn();
+  if (kategoriBaru === 'MANUAL' && !sudahAdaKomponen) epOpenStandarHargaManualFromRincian();
 }
 
 const _epStandarHargaCombo = _epMakeStandarHargaCombobox('epRincKomponen', 'epRincKategoriStandar', {
@@ -3664,7 +4108,7 @@ async function epLoadStandarHargaCounts() {
     const r = await fetch(`/api/eplanning/standarharga/count?${qs}`, { headers: authHeaders() });
     const d = await r.json();
     const map = {}; (d.count || []).forEach(x => { map[x.kategori] = x.total; });
-    ['SSH', 'HSPK', 'ASB', 'SBU'].forEach(k => {
+    ['SSH', 'HSPK', 'ASB', 'SBU', 'MANUAL'].forEach(k => {
       const el = document.getElementById(`ephkCount-${k}`);
       if (el) el.textContent = map[k] != null ? map[k] : '0';
     });
@@ -3676,6 +4120,7 @@ const EP_SH_KATEGORI_LABEL = {
   HSPK: 'HSPK - Harga Satuan Pokok Kegiatan',
   ASB: 'ASB - Analisis Standar Belanja',
   SBU: 'SBU - Standar Biaya Umum',
+  MANUAL: 'Manual - Survei Harga Pengguna',
 };
 
 const EP_SH_KATEGORI_ICON_PATH = {
@@ -3683,6 +4128,7 @@ const EP_SH_KATEGORI_ICON_PATH = {
   HSPK: 'M15 21H9V10H15V21ZM17 21V10H22V20C22 20.5523 21.5523 21 21 21H17ZM7 21H3C2.44772 21 2 20.5523 2 20V10H7V21ZM22 8H2V4C2 3.44772 2.44772 3 3 3H21C21.5523 3 22 3.44772 22 4V8Z',
   ASB: 'M3 12H7V21H3V12ZM17 8H21V21H17V8ZM10 2H14V21H10V2Z',
   SBU: 'M17 15.2454V22.1169C17 22.393 16.7761 22.617 16.5 22.617C16.4094 22.617 16.3205 22.5923 16.2428 22.5457L12 20L7.75725 22.5457C7.52046 22.6877 7.21333 22.6109 7.07125 22.3742C7.02463 22.2964 7 22.2075 7 22.1169V15.2454C5.17107 13.7793 4 11.5264 4 9C4 4.58172 7.58172 1 12 1C16.4183 1 20 4.58172 20 9C20 11.5264 18.8289 13.7793 17 15.2454ZM12 15C15.3137 15 18 12.3137 18 9C18 5.68629 15.3137 3 12 3C8.68629 3 6 5.68629 6 9C6 12.3137 8.68629 15 12 15ZM12 13C9.79086 13 8 11.2091 8 9C8 6.79086 9.79086 5 12 5C14.2091 5 16 6.79086 16 9C16 11.2091 14.2091 13 12 13Z',
+  MANUAL: 'M12 20h9M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z',
 };
 
 function epShTabSwitch(kategori) {
@@ -3813,7 +4259,7 @@ async function epLoadStandarHarga(page = 1) {
             ? (rekItems.length > 1
                 ? `<div style="display:flex;flex-direction:column;gap:3px">${rekItems.map(it => `<div>${esc(it)}</div>`).join('')}</div>`
                 : esc(rekItems[0] || rekKey))
-            : 'Tanpa Kode Rekening';
+            : (x.kategori === 'MANUAL' ? 'Manual (Survei Harga)' : 'Tanpa Kode Rekening');
           groupHtml = `<tr class="ep-sh-group-row"><td colspan="9" style="background:var(--bg-hover,#f8fafc);font-weight:700;font-size:12.5px;padding:9px 14px;border-top:1px solid var(--border,#e2e8f0)">${label}</td></tr>`;
         }
         return `${groupHtml}
@@ -3846,37 +4292,85 @@ async function epLoadStandarHarga(page = 1) {
   const isAdminNow = _user.is_admin || (typeof hasAccess === 'function' && hasAccess('eplanning.admin'));
   const btnImp = document.getElementById('btnImporStandarHarga');
   const btnAdd = document.getElementById('btnTambahStandarHarga');
+  const btnPengaturan = document.getElementById('btnPengaturanKalkulator');
   if (btnImp) btnImp.style.display = isAdminNow ? '' : 'none';
   if (btnAdd) btnAdd.style.display = isAdminNow ? '' : 'none';
+  if (btnPengaturan) btnPengaturan.style.display = isAdminNow ? '' : 'none';
 }
 
 // ---- Kalkulator "Hitung dari Survei Harga (3 Toko)" di modal Tambah/Edit Standar Harga ----
+// Parameter (% inflasi, % keuntungan default, % pajak) dulu di-hardcode di sini - sekarang
+// diambil dari /api/eplanning/pengaturankalkulator biar superadmin bisa menyesuaikan tanpa
+// perlu ubah kode (tombol "Pengaturan" di halaman Standar Harga -> lihat epOpenPengaturanKalkulator).
+let _epKalkulatorParam = { persen_inflasi: 5.33, persen_untung_default: 15, persen_pajak: 12.5 };
+let _epKalkulatorParamLoaded = false;
+async function epLoadKalkulatorParam(force = false) {
+  if (_epKalkulatorParamLoaded && !force) return _epKalkulatorParam;
+  try {
+    const r = await fetch('/api/eplanning/pengaturankalkulator', { headers: authHeaders() });
+    const d = await r.json();
+    if (r.ok && d.pengaturan) { _epKalkulatorParam = { ..._epKalkulatorParam, ...d.pengaturan }; _epKalkulatorParamLoaded = true; }
+  } catch { /* noop - biarin fallback default kepake */ }
+  return _epKalkulatorParam;
+}
+
 function epToggleShKalkulator() {
   const box = document.getElementById('epShKalkulatorBox');
   const showing = box.style.display !== 'none';
   box.style.display = showing ? 'none' : 'block';
-  if (!showing) epHitungShKalkulator();
+  if (!showing) epLoadKalkulatorParam().then(() => epHitungShKalkulator());
 }
 
 function _epRupiah(n) {
   return 'Rp' + Math.round(n || 0).toLocaleString('id-ID');
 }
 
+// Format live "Rp 100.000" pas user ngetik di field harga (Toko 1/2/3, Ongkos Kirim, Harga
+// Satuan). Disimpen apa adanya di value input-nya (termasuk prefix "Rp "/titik ribuan) -
+// makanya baca ulang nilainya harus lewat _epParseRupiah(), bukan parseFloat/Number langsung.
+function _epFormatRupiahLive(el) {
+  const raw = (el.value || '').replace(/[^\d]/g, '');
+  el.value = raw ? 'Rp ' + Number(raw).toLocaleString('id-ID') : '';
+}
+function _epParseRupiah(id) {
+  const raw = (document.getElementById(id).value || '').replace(/[^\d]/g, '');
+  return raw ? parseInt(raw, 10) : 0;
+}
+function _epSetRupiah(id, angka) {
+  const el = document.getElementById(id);
+  if (el) el.value = (angka || angka === 0) ? 'Rp ' + Math.round(angka).toLocaleString('id-ID') : '';
+}
+
+const _EP_PERSEN_UNTUNG_MIN = 5, _EP_PERSEN_UNTUNG_MAX = 15;
+// Dibatasi ke rentang wajar (5%-15% per barang) sesuai contoh Analisa Survei Harga -
+// dipakai buat ngitung (biar hasil gak ngaco kalau kepencet angka aneh), field-nya sendiri
+// baru dikoreksi pas blur lewat _epClampPersenUntung() biar gak ganggu user pas lagi ngetik.
+function _epClampPersenUntung() {
+  const el = document.getElementById('epShPersenUntung');
+  let v = parseFloat(el.value);
+  if (isNaN(v)) v = _epKalkulatorParam.persen_untung_default ?? 15;
+  v = Math.min(_EP_PERSEN_UNTUNG_MAX, Math.max(_EP_PERSEN_UNTUNG_MIN, v));
+  el.value = v;
+  epHitungShKalkulator();
+}
+
 function epHitungShKalkulator() {
-  const t1 = parseFloat(document.getElementById('epShT1Harga').value) || 0;
-  const t2 = parseFloat(document.getElementById('epShT2Harga').value) || 0;
-  const t3 = parseFloat(document.getElementById('epShT3Harga').value) || 0;
-  const ongkir = parseFloat(document.getElementById('epShOngkir').value) || 0;
-  const persenUntung = parseFloat(document.getElementById('epShPersenUntung').value) || 0;
-  const pakaiInflasi = document.getElementById('epShPakaiInflasi').checked;
+  const t1 = _epParseRupiah('epShT1Harga');
+  const t2 = _epParseRupiah('epShT2Harga');
+  const t3 = _epParseRupiah('epShT3Harga');
+  const ongkir = _epParseRupiah('epShOngkir');
+  const persenUntungRaw = parseFloat(document.getElementById('epShPersenUntung').value) || 0;
+  const persenUntung = Math.min(_EP_PERSEN_UNTUNG_MAX, Math.max(_EP_PERSEN_UNTUNG_MIN, persenUntungRaw));
+  const persenPajak = Number(_epKalkulatorParam.persen_pajak) || 0;
+  const persenInflasi = Number(_epKalkulatorParam.persen_inflasi) || 0;
 
   const isi = [t1, t2, t3].filter(v => v > 0);
   const rata2 = isi.length ? isi.reduce((a, b) => a + b, 0) / isi.length : 0;
   const totalReal = rata2 + ongkir;
   const untung = totalReal * (persenUntung / 100);
   const jumlah = totalReal + untung;
-  const ppn = jumlah * 0.125; // PPN 12% + PPh 1,5% (efektif 12,5%)
-  const inflasi = pakaiInflasi ? jumlah * 0.0533 : 0;
+  const ppn = jumlah * (persenPajak / 100); // PPN + PPh efektif - diatur di Pengaturan Kalkulator
+  const inflasi = jumlah * (persenInflasi / 100); // wajib, selalu dihitung - bukan opsional lagi
   const totalHarga = jumlah + ppn + inflasi;
   const bulat = Math.round(totalHarga / 1000) * 1000;
 
@@ -3884,18 +4378,36 @@ function epHitungShKalkulator() {
   document.getElementById('epShCalcTotalReal').textContent = _epRupiah(totalReal);
   document.getElementById('epShCalcUntung').textContent = _epRupiah(untung);
   document.getElementById('epShCalcJumlah').textContent = _epRupiah(jumlah);
+  const ppnLabelEl = document.getElementById('epShCalcPpnLabel');
+  if (ppnLabelEl) ppnLabelEl.textContent = `PPN + PPh (${persenPajak}%)`;
   document.getElementById('epShCalcPpn').textContent = _epRupiah(ppn);
-  document.getElementById('epShCalcInflasiRow').style.display = pakaiInflasi ? '' : 'none';
+  const inflasiLabelEl = document.getElementById('epShCalcInflasiLabel');
+  if (inflasiLabelEl) inflasiLabelEl.textContent = `Indeks Inflasi (${persenInflasi}%)`;
   document.getElementById('epShCalcInflasi').textContent = _epRupiah(inflasi);
   document.getElementById('epShCalcTotal').textContent = _epRupiah(totalHarga);
   document.getElementById('epShCalcBulat').textContent = _epRupiah(bulat);
   return bulat;
 }
 
+// Ringkasan toko/harga yang dipakai buat ngitung - disimpen ke catatan_survei pas hasilnya
+// disimpan sebagai Standar Harga MANUAL, biar superadmin bisa lihat dasar hitungannya.
+function _epRingkasanSurveiKalkulator() {
+  const baris = [];
+  [1, 2, 3].forEach(i => {
+    const nama = (document.getElementById(`epShT${i}Nama`).value || '').trim();
+    const harga = _epParseRupiah(`epShT${i}Harga`);
+    if (harga > 0) baris.push(`${nama || `Toko ${i}`}: ${_epRupiah(harga)}`);
+  });
+  const ongkir = _epParseRupiah('epShOngkir');
+  const persenUntung = Math.min(_EP_PERSEN_UNTUNG_MAX, Math.max(_EP_PERSEN_UNTUNG_MIN, parseFloat(document.getElementById('epShPersenUntung').value) || 0));
+  baris.push(`Ongkir: ${_epRupiah(ongkir)}`, `Keuntungan+Overhead: ${persenUntung}%`, `Indeks Inflasi: ${_epKalkulatorParam.persen_inflasi}%`);
+  return `Hasil kalkulator survei 3 toko - ${baris.join(', ')}.`;
+}
+
 function epPakaiHasilShKalkulator() {
   const bulat = epHitungShKalkulator();
   if (!bulat) { toast('Isi dulu minimal 1 harga survei toko', 'error'); return; }
-  document.getElementById('epShHarga').value = bulat;
+  _epSetRupiah('epShHarga', bulat);
   toast('Harga satuan diisi dari hasil kalkulator survei', 'success');
 }
 
@@ -3903,16 +4415,77 @@ function _epResetShKalkulator() {
   ['epShT1Nama', 'epShT1Harga', 'epShT2Nama', 'epShT2Harga', 'epShT3Nama', 'epShT3Harga'].forEach(id => {
     document.getElementById(id).value = '';
   });
-  document.getElementById('epShOngkir').value = '0';
-  document.getElementById('epShPersenUntung').value = '15';
-  document.getElementById('epShPakaiInflasi').checked = false;
+  _epSetRupiah('epShOngkir', 0);
+  document.getElementById('epShPersenUntung').value = _epKalkulatorParam.persen_untung_default ?? 15;
   document.getElementById('epShKalkulatorBox').style.display = 'none';
-  epHitungShKalkulator();
+  epLoadKalkulatorParam().then(() => epHitungShKalkulator());
+}
+
+// ---- Modal "Pengaturan Kalkulator" (superadmin) - atur % inflasi/keuntungan default/pajak ----
+async function epOpenPengaturanKalkulator() {
+  await epLoadKalkulatorParam(true);
+  document.getElementById('epPengaturanInflasi').value = _epKalkulatorParam.persen_inflasi;
+  document.getElementById('epPengaturanUntung').value = _epKalkulatorParam.persen_untung_default;
+  document.getElementById('epPengaturanPajak').value = _epKalkulatorParam.persen_pajak;
+  openModal('modalPengaturanKalkulator');
+}
+
+async function epSavePengaturanKalkulator() {
+  const body = {
+    persen_inflasi: document.getElementById('epPengaturanInflasi').value,
+    persen_untung_default: document.getElementById('epPengaturanUntung').value,
+    persen_pajak: document.getElementById('epPengaturanPajak').value,
+  };
+  const btn = document.getElementById('btnSavePengaturanKalkulator');
+  btn.disabled = true;
+  try {
+    const r = await fetch('/api/eplanning/pengaturankalkulator', {
+      method: 'PUT', headers: { ...authHeaders(), 'Content-Type': 'application/json' }, body: JSON.stringify(body),
+    });
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.error || 'Gagal menyimpan');
+    _epKalkulatorParam = d.pengaturan;
+    toast('Parameter kalkulator diperbarui', 'success');
+    closeModal('modalPengaturanKalkulator');
+    epHitungShKalkulator();
+  } catch (err) { toast(err.message, 'error'); }
+  finally { btn.disabled = false; }
+}
+
+// Dipakai waktu user (bukan cuma admin) input harga manual dari form Rincian Belanja - lihat
+// epOpenStandarHargaManualFromRincian(). Kalau true, epSaveStandarHarga() bakal nerapin hasilnya
+// balik ke form Rincian (bukan cuma nutup modal & refresh tabel admin) dan Kategori dikunci ke MANUAL.
+let _epRincManualMode = false;
+
+// Kode Kelompok Barang/Uraian Kelompok Barang/Kode Komponen/ID Standar Harga cuma relevan
+// buat data SSH/HSPK/ASB/SBU yang diimpor dari export SIPD (buat pengelompokan & sinkronisasi
+// ulang pas re-impor). TKDN juga cuma ada di data resmi SSH dkk, hasil survei manual user
+// gak ada acuan TKDN-nya. Disembunyikan otomatis kalau Kategori = MANUAL.
+function _epUpdateShFieldVisibility() {
+  const isManual = document.getElementById('epShKategori').value === 'MANUAL';
+  const metaBlock = document.getElementById('epShMetaSipdBlock');
+  const tkdnField = document.getElementById('epShTkdnField');
+  if (metaBlock) metaBlock.style.display = isManual ? 'none' : '';
+  if (tkdnField) tkdnField.style.display = isManual ? 'none' : '';
+  // Harga Satuan buat kategori MANUAL wajib hasil hitungan kalkulator survei 3 toko, bukan
+  // ketikan bebas - dikunci readonly, cuma bisa keisi lewat tombol "Pakai Harga Ini".
+  const hargaEl = document.getElementById('epShHarga');
+  if (hargaEl) {
+    hargaEl.readOnly = isManual;
+    hargaEl.style.background = isManual ? 'var(--abu-1)' : '';
+    hargaEl.style.color = isManual ? 'var(--text-secondary,#64748b)' : '';
+    hargaEl.placeholder = isManual ? 'Isi dari kalkulator Survei Harga (3 Toko)' : '';
+  }
 }
 
 function openStandarHargaModal(id = null) {
   _epResetShKalkulator();
+  _epRincManualMode = false;
+  const isAdminNow = _user.is_admin || (typeof hasAccess === 'function' && hasAccess('eplanning.admin'));
+  const btnPengaturan = document.getElementById('btnPengaturanKalkulator');
+  if (btnPengaturan) btnPengaturan.style.display = isAdminNow ? '' : 'none';
   document.getElementById('epShId').value = id || '';
+  document.getElementById('epShKategori').disabled = false;
   document.getElementById('epShKategori').value = _epShKategori;
   document.getElementById('epShTahun').value = _epTahunAktif || '';
   document.getElementById('epShKodeKelompok').value = '';
@@ -3940,13 +4513,34 @@ function openStandarHargaModal(id = null) {
       document.getElementById('epShUraian').value = x.uraian_barang || '';
       document.getElementById('epShSpesifikasi').value = x.spesifikasi || '';
       document.getElementById('epShSatuan').value = x.satuan || '';
-      document.getElementById('epShHarga').value = x.harga_satuan || '';
+      _epSetRupiah('epShHarga', x.harga_satuan);
       document.getElementById('epShTkdn').value = x.tkdn != null ? x.tkdn : '';
       _epShRekeningMulti.setValue(x.kode_rekening || '');
       document.getElementById('epShAktif').value = x.aktif ? '1' : '0';
     }
   }
+  _epUpdateShFieldVisibility();
   openModal('modalStandarHarga');
+}
+
+// Dipanggil dari tombol "+ Buat Standar Harga Manual" di form Rincian Belanja (cuma muncul
+// kalau Jenis Standar Harga = MANUAL). Buka modal Standar Harga yang sama, tapi Kategori
+// dikunci ke MANUAL, prefill dari isian yang udah ada, dan langsung buka kalkulator survei.
+function epOpenStandarHargaManualFromRincian() {
+  openStandarHargaModal(null);
+  _epRincManualMode = true;
+  document.getElementById('modalStandarHargaTitle').textContent = 'Standar Harga Manual (Survei 3 Toko)';
+  document.getElementById('epShKategori').value = 'MANUAL';
+  document.getElementById('epShKategori').disabled = true;
+  _epUpdateShFieldVisibility();
+  document.getElementById('epShTahun').value = (typeof _epCurrentUsulan !== 'undefined' && _epCurrentUsulan?.tahun_anggaran) || _epTahunAktif || new Date().getFullYear() + 1;
+  document.getElementById('epShUraian').value = document.getElementById('epRincKomponen').value || '';
+  // Standar Harga Manual sengaja gak di-tag ke Rekening/Akun tertentu - Rincian/Usulannya
+  // sendiri belum diusulkan (masih draft, akun masih bisa berubah), jadi item survei manual
+  // dibiarkan lepas dari rekening manapun (lihat juga fallback di backend: item tanpa
+  // kode_rekening tetap muncul di Komponen picker akun manapun).
+  document.getElementById('epShKalkulatorBox').style.display = 'block';
+  epLoadKalkulatorParam().then(() => epHitungShKalkulator());
 }
 
 async function epSaveStandarHarga() {
@@ -3961,11 +4555,12 @@ async function epSaveStandarHarga() {
     uraian_barang: document.getElementById('epShUraian').value.trim(),
     spesifikasi: document.getElementById('epShSpesifikasi').value.trim(),
     satuan: document.getElementById('epShSatuan').value.trim(),
-    harga_satuan: document.getElementById('epShHarga').value,
+    harga_satuan: _epParseRupiah('epShHarga'),
     tkdn: document.getElementById('epShTkdn').value.trim(),
     kode_rekening: _epShRekeningMulti.getValue(),
     aktif: document.getElementById('epShAktif').value === '1',
   };
+  if (_epRincManualMode) body.catatan_survei = _epRingkasanSurveiKalkulator();
   if (!body.uraian_barang || !body.harga_satuan) { toast('Uraian barang dan harga satuan wajib diisi', 'error'); return; }
   if (!id && !body.tahun) { toast('Tahun wajib diisi', 'error'); return; }
   const btn = document.getElementById('btnSaveStandarHarga');
@@ -3976,9 +4571,18 @@ async function epSaveStandarHarga() {
     const r = await fetch(url, { method, headers: { ...authHeaders(), 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
     const d = await r.json();
     if (!r.ok) throw new Error(d.error || 'Gagal menyimpan');
-    toast(id ? 'Data diperbarui' : 'Data ditambahkan', 'success');
-    closeModal('modalStandarHarga');
-    epLoadStandarHarga(_epShPage);
+    if (_epRincManualMode) {
+      // Balik ke form Rincian Belanja: terapkan item yang baru disimpan persis kayak milih
+      // dari daftar Standar Harga biasa (isi Komponen/Spesifikasi/Satuan/Harga/TKDN otomatis).
+      _epRincManualMode = false;
+      closeModal('modalStandarHarga');
+      _epApplyStandarHargaPick(d.standarharga);
+      toast('Standar Harga Manual disimpan & dipakai di rincian ini', 'success');
+    } else {
+      toast(id ? 'Data diperbarui' : 'Data ditambahkan', 'success');
+      closeModal('modalStandarHarga');
+      epLoadStandarHarga(_epShPage);
+    }
   } catch (err) { toast(err.message, 'error'); }
   finally { btn.disabled = false; }
 }
@@ -5198,7 +5802,7 @@ function _epBuildTorPreviewHtml(d, u) {
     const padTop = (isFirst) => isFirst ? '4px' : '2px';
     const EP_IKU_IKK_LABEL = { IKU: 'IKU (Indikator Kinerja Utama)', IKK: 'IKK (Indikator Kinerja Kunci)' };
     const labelTr = (label, isFirst) => `<tr>
-        <td style="padding:${padTop(isFirst)} 6px 2px;font-weight:700;text-decoration:underline;font-size:11px">${EP_IKU_IKK_LABEL[label]}</td>
+        <td style="padding:${padTop(isFirst)} 6px 2px;font-weight:700;font-size:11px">${EP_IKU_IKK_LABEL[label]}</td>
         <td style="padding:${padTop(isFirst)} 6px 2px;border-left:1px solid #cbd5e1"></td>
       </tr>`;
     const itemTr = (r, no, isFirst) => `<tr>
@@ -5250,7 +5854,6 @@ function _epBuildTorPreviewHtml(d, u) {
     <p style="font-weight:700;margin-bottom:4px">E. BIAYA YANG DIPERLUKAN</p>
     <p style="text-align:justify;margin-bottom:30px;margin-left:14px">Biaya yang diperlukan untuk usulan kegiatan <b>${esc(u.nama_kegiatan || u.sub_kegiatan || '')}</b> adalah sebesar <b>${epFmtRupiah(total)} (${_epTerbilang(total)})</b> dengan kebutuhan per rincian menu kegiatan terlampir pada RAB.</p>
 
-    <div style="text-align:right;margin-bottom:6px">Banggai Laut, …. ${EP_BULAN[new Date().getMonth() + 1]} ${new Date().getFullYear()}</div>
     ${_epFullSignRowHtml(u, bidangLabel)}`;
 }
 
@@ -5283,22 +5886,34 @@ function _epRenderRabTab() {
   const editable = _epDokEditable('rab');
 
   let rowsHtml = '';
-  let lastKey = null;
+  let lastUraianPaket = null, lastKeterangan = null, lastKey = null;
   if (!pageRows.length) {
     rowsHtml = `<tr class="empty-row"><td colspan="5">Belum ada rincian belanja</td></tr>`;
   } else {
     pageRows.forEach(r => {
+      const uraianPaket = r.uraian_paket || '-';
+      if (uraianPaket !== lastUraianPaket) {
+        rowsHtml += `<tr><td></td><td colspan="4" style="font-weight:700">[#] ${esc(uraianPaket)}</td></tr>`;
+        lastUraianPaket = uraianPaket;
+        lastKeterangan = null;
+        lastKey = null;
+      }
+      const keterangan = r.keterangan || '-';
+      if (keterangan !== lastKeterangan) {
+        rowsHtml += `<tr><td></td><td colspan="4" style="font-weight:700;padding-left:12px">[-] ${esc(keterangan)}</td></tr>`;
+        lastKeterangan = keterangan;
+        lastKey = null;
+      }
       const key = `${r.kode_rekening || ''}||${r.nama_rekening || ''}`;
       if (key !== lastKey) {
-        rowsHtml += `<tr><td colspan="5" style="font-weight:700;background:var(--abu-1);padding:8px 6px">${esc(r.kode_rekening || '-')} ${esc(r.nama_rekening || '')}</td></tr>`;
+        rowsHtml += `<tr><td></td><td colspan="4" style="font-weight:700;white-space:nowrap">${esc(r.kode_rekening || '-')} ${esc(r.nama_rekening || '')}</td></tr>`;
         lastKey = key;
       }
-      const aksiHtml = editable
-        ? `<button class="btn btn-ghost btn-sm" data-tip="Edit" onclick="_epDokSyncRincianContext();openRincianItemModal('${r.id}')">${EP_ICON_EDIT}</button>
-           <button class="btn-hapus" data-tip="Hapus" onclick="_epDokSyncRincianContext();deleteRincianItem('${r.id}')">${EP_ICON_TRASH}</button>`
-        : `<button class="btn btn-ghost btn-sm" data-tip="Lihat" onclick="_epDokSyncRincianContext();openRincianItemModal('${r.id}', true)">${EP_ICON_EYE}</button>`;
+      const aksiHtml = `<button class="btn btn-ghost btn-sm" data-tip="Lihat Detail" onclick="_epDokSyncRincianContext();openRincianItemModal('${r.id}', true)">${EP_ICON_SEARCH}</button>
+        ${editable ? `<button class="btn btn-ghost btn-sm" data-tip="Edit" onclick="_epDokSyncRincianContext();openRincianItemModal('${r.id}')">${EP_ICON_EDIT}</button>
+           <button class="btn-hapus" data-tip="Hapus" onclick="_epDokSyncRincianContext();deleteRincianItem('${r.id}')">${EP_ICON_TRASH}</button>` : ''}`;
       rowsHtml += `<tr>
-        <td style="width:70px;white-space:nowrap">${aksiHtml}</td>
+        <td style="width:90px;white-space:nowrap">${aksiHtml}</td>
         <td>${esc(r.komponen || '-')}<div style="font-size:11px;color:var(--text-secondary,#64748b)">${esc(r.spesifikasi || '')}</div></td>
         <td>${esc(r.koefisien || '-')}</td>
         <td style="white-space:nowrap">${epFmtRupiah(r.harga_satuan)}</td>
@@ -5311,7 +5926,7 @@ function _epRenderRabTab() {
 
   return `
     ${_epDokStatusBar('rab')}
-    <table class="data-table" style="width:100%">
+    <table class="surat-table" style="width:100%">
       <thead><tr>
         <th style="width:40px">Aksi</th>
         <th>Uraian</th>
@@ -5320,7 +5935,7 @@ function _epRenderRabTab() {
         <th>Total</th>
       </tr></thead>
       <tbody>${rowsHtml}</tbody>
-      <tfoot><tr><td colspan="4" style="text-align:right;font-weight:700">Total RAB</td><td style="font-weight:700">${epFmtRupiah(total)}</td></tr></tfoot>
+      <tfoot><tr><td colspan="4" style="text-align:right;font-weight:700">Total</td><td style="padding:0"><span style="display:block;text-align:center;white-space:nowrap;font-weight:700;color:var(--hijau,#047D78);background:var(--hijau-light,#ccfbf1);padding:6px 12px;border-radius:8px">${epFmtRupiah(total)}</span></td></tr></tfoot>
     </table>
     <div id="epRabPagination" style="margin-top:10px"></div>
     ${_epDokActionsBar('rab', `<button type="button" class="btn btn-primary btn-sm" onclick="_epDokSyncRincianContext();openRincianItemModal()">+ Tambah Rincian</button>`, 'epPreviewRab()')}`;
@@ -5450,8 +6065,8 @@ function _epBuildRabTable(u, rincian, aksiCellFn) {
       <thead>
         <tr>
           ${aksiCellFn ? `<th ${th} rowspan="2">Aksi</th>` : ''}
-          <th ${th} rowspan="2">No</th>
-          <th ${th} rowspan="2">Nama Kegiatan yang Diusulkan</th>
+          <th ${thW('2%')} rowspan="2">No</th>
+          <th ${thW('10%')} rowspan="2">Nama Kegiatan yang Diusulkan</th>
           <th ${th} colspan="2">Rekening Belanja</th>
           <th ${thW('16%')} rowspan="2">Uraian Belanja</th>
           <th ${th} rowspan="2">Satuan</th>
@@ -5459,14 +6074,14 @@ function _epBuildRabTable(u, rincian, aksiCellFn) {
           <th ${th} rowspan="2">Harga Satuan</th>
           <th ${th} rowspan="2">Sub Total</th>
           <th ${th} rowspan="2">Jumlah Total</th>
-          <th ${th} rowspan="2">Sub Kegiatan SIPD</th>
+          <th ${thW('9%')} rowspan="2">Sub Kegiatan SIPD</th>
           <th ${thW('7%')} rowspan="2">Indikator Sub Kegiatan</th>
           <th ${th} rowspan="2">Satuan</th>
-          <th ${th} rowspan="2">Target</th>
+          <th style="border:1px solid #333;padding:3px 4px;font-size:7px;font-weight:700;text-align:center;text-transform:uppercase;background:#0f766e;color:#fff;width:3%;white-space:nowrap" rowspan="2">Target</th>
         </tr>
         <tr>
-          <th ${th}>Kode Rekening</th>
-          <th ${th}>Detail</th>
+          <th ${thW('6%')}>Kode Rekening</th>
+          <th ${thW('7%')}>Detail</th>
         </tr>
       </thead>
       <tbody>${rowsHtml}</tbody>
@@ -5595,6 +6210,7 @@ async function loadEplanningPraUsulan() {
     _rebuildEpPraFilterBidang();
     _rebuildEpPraFilterStatus();
     renderEplanningPraTable();
+    _epUsulankuRenderTimeline();
   } catch (err) {
     if (tbody) tbody.innerHTML = `<tr class="empty-row"><td colspan="${_epPraColCount()}">${esc(err.message)}</td></tr>`;
   }
