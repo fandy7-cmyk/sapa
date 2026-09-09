@@ -32,6 +32,18 @@ function _lemburIsTanggalFuture(tgl) {
   return _lemburDateKey(tgl) > _lemburTodayKey();
 }
 
+// Urutkan berdasarkan urutan_laporan yg diatur di "Kelola Pengguna" (sama kayak Laporan
+// Absensi) - yg belum diatur (null) ditaruh di belakang, urut nama sbg fallback.
+function _lemburSortByUrutanLaporan(arr) {
+  return [...arr].sort((a, b) => {
+    const ua = a.urutan_laporan, ub = b.urutan_laporan;
+    if (ua != null && ub != null) return ua - ub;
+    if (ua != null) return -1;
+    if (ub != null) return 1;
+    return (a.nama || '').localeCompare(b.nama || '');
+  });
+}
+
 // Ekstrak tanggal kalender LOKAL "YYYY-MM-DD" dari nilai tanggal apapun: string tanggal murni,
 // atau ISO datetime yang mungkin keserialize jadi UTC midnight dari kolom DATE Postgres (mis.
 // "2026-09-08T16:00:00.000Z" utk tanggal kalender 9 Sept WITA). Naive slice(0,10) di titik-titik
@@ -771,7 +783,7 @@ async function _lemburFetchEntries() {
   try {
     const r = await fetch(`/api/lembur/entries?sesi_id=${_lemburActiveSesi.id}`, { headers: authHeaders() });
     const d = await r.json();
-    if (r.ok) _lemburEntries = d.entries || [];
+    if (r.ok) _lemburEntries = _lemburSortByUrutanLaporan(d.entries || []);
   } catch {}
 }
 
@@ -804,7 +816,12 @@ function _lemburRenderSesiDetail() {
   const tanggalCell = `${new Date(s.tanggal).toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}`;
   const jamCell = `${s.jam_mulai ? s.jam_mulai.slice(0,5) : '-'} WITA - ${s.jam_selesai ? s.jam_selesai.slice(0,5) : '-'} WITA`;
 
-  const pesertaRows = _lemburEntries.map((e, i) => {
+  // User non-admin cuma boleh lihat baris dirinya sendiri di sini - punya orang lain gak usah
+  // ditampilin sama sekali (bukan cuma dikunci). Dokumen cetak/PDF tetap pakai _lemburEntries
+  // yang utuh, karena daftar hadir resmi emang harus nampilin semua peserta buat tanda tangan.
+  const pesertaTampil = _lemburFull ? _lemburEntries : _lemburEntries.filter(e => e.user_id === _user.id);
+
+  const pesertaRows = pesertaTampil.map((e, i) => {
     const bisaEdit = _lemburFull || e.user_id === _user.id;
     const hapusBtn = _lemburFull ? `<button class="btn-hapus" data-tip="Hapus Peserta" onclick="_lemburHapusPeserta(${e.id})"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path stroke-linecap="round" stroke-linejoin="round" d="M19 6l-1 14H6L5 6"/><path stroke-linecap="round" stroke-linejoin="round" d="M10 11v6m4-6v6"/><path stroke-linecap="round" stroke-linejoin="round" d="M9 6V4h6v2"/></svg></button>` : '';
     return `
@@ -1211,7 +1228,7 @@ async function _lemburDownloadKegiatan(id) {
         ]);
         const dEntries = await rEntries.json();
         const dDok = await rDok.json();
-        halaman.push(_lemburHalamanSesiHtml(s, dEntries.entries || [], dDok.dokumentasi || [], ttd.nama, ttd.nip, i > 0));
+        halaman.push(_lemburHalamanSesiHtml(s, _lemburSortByUrutanLaporan(dEntries.entries || []), dDok.dokumentasi || [], ttd.nama, ttd.nip, i > 0));
       }
       _bukaPreviewPDF(halaman.join(''), 'Daftar Hadir Lembur', 'portrait');
     } finally {

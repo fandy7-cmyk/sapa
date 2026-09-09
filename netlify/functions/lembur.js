@@ -189,7 +189,7 @@ export const handler = async (event) => {
           `;
         }
         const rows = await sql`
-          SELECT e.*, u.nama, u.nip, COALESCE(u.avatar_url, p.foto_url) AS foto_url
+          SELECT e.*, u.nama, u.nip, u.urutan_laporan, COALESCE(u.avatar_url, p.foto_url) AS foto_url
           FROM lembur_entries e
           JOIN users u ON u.id = e.user_id
           LEFT JOIN pegawai p ON REGEXP_REPLACE(p.nip, '[^0-9]', '', 'g') = REGEXP_REPLACE(u.nip, '[^0-9]', '', 'g') AND p.aktif = TRUE
@@ -300,7 +300,7 @@ export const handler = async (event) => {
       if (!sesiId) return errorResponse('sesi_id wajib diisi', 400);
       try {
         const rows = await sql`
-          SELECT e.*, u.nama, u.nip, COALESCE(u.avatar_url, p.foto_url) AS foto_url
+          SELECT e.*, u.nama, u.nip, u.urutan_laporan, COALESCE(u.avatar_url, p.foto_url) AS foto_url
           FROM lembur_entries e
           JOIN users u ON u.id = e.user_id
           LEFT JOIN pegawai p ON REGEXP_REPLACE(p.nip, '[^0-9]', '', 'g') = REGEXP_REPLACE(u.nip, '[^0-9]', '', 'g') AND p.aktif = TRUE
