@@ -1513,10 +1513,14 @@ const BULAN_ID = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agus
 const HARI_ID  = ['Min','Sen','Sel','Rab','Kam','Jum','Sab'];
 
 class DatePicker {
-  constructor(containerId, { placeholder = 'Pilih tanggal', alignRight = false } = {}) {
+  constructor(containerId, { placeholder = 'Pilih tanggal', alignRight = false, showLibur = true, maxToday = false } = {}) {
     this.containerId = containerId;
     this.placeholder = placeholder;
     this.alignRight  = alignRight;
+    this.showLibur   = showLibur;
+    this.maxToday    = maxToday;
+    this.liburSet    = new Set();
+    this.liburKey    = null;
     this.value       = null;   
     this.viewYear    = null;
     this.viewMonth   = null;
@@ -1555,16 +1559,42 @@ class DatePicker {
     const vm = this.viewMonth ?? (this.value ? parseInt(this.value.slice(5,7))-1 : now.getMonth());
     this.viewYear  = vy;
     this.viewMonth = vm;
+    this._loadLiburBulan();
+
+    // Animasi fade-in cuma sekali pas popup baru dibuka - re-render berikutnya (nav
+    // bulan/tahun, ganti mode, atau data libur yang baru selesai di-fetch) gak perlu
+    // animasi ulang, soalnya popup-nya emang gak pernah hilang dari layar.
+    this._popupAnimCls = this._popupAnimated ? ' dp-popup-noanim' : '';
+    this._popupAnimated = true;
 
     if (this.mode === 'months') return this._renderMonthPicker(vy, vm);
     if (this.mode === 'years')  return this._renderYearPicker(vy);
     return this._renderDayPicker(vy, vm, now);
   }
 
+  // Ambil daftar hari libur nasional buat bulan yang lagi ditampilin (disamain sama cdtp yang
+  // dipakai Absensi/Lembur) - di-cache per bulan biar gak fetch ulang tiap render/navigasi kecil.
+  async _loadLiburBulan() {
+    if (!this.showLibur) return;
+    const key = `${this.viewYear}-${this.viewMonth}`;
+    if (this.liburKey === key) return;
+    this.liburKey = key;
+    try {
+      const r = await fetch(`/api/absensi/libur?tahun=${this.viewYear}&bulan=${this.viewMonth + 1}`, { headers: authHeaders() });
+      const d = await r.json();
+      this.liburSet = new Set((d.libur || []).map(l => {
+        const dt = new Date(l.tanggal);
+        return `${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,'0')}-${String(dt.getDate()).padStart(2,'0')}`;
+      }));
+    } catch { this.liburSet = new Set(); }
+    if (this._open && this.liburKey === key) this._render();
+  }
+
   _renderDayPicker(vy, vm, now) {
     const first = new Date(vy, vm, 1).getDay();
     const daysInMonth = new Date(vy, vm+1, 0).getDate();
     const daysInPrev  = new Date(vy, vm, 0).getDate();
+    const todayYmd = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
     let cells = '';
     for (let i = 0; i < first; i++) {
       const d = daysInPrev - first + 1 + i;
@@ -1574,14 +1604,19 @@ class DatePicker {
       const dateStr = `${vy}-${String(vm+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
       const isToday    = d === now.getDate() && vm === now.getMonth() && vy === now.getFullYear();
       const isSelected = dateStr === this.value;
-      cells += `<button class="dp-day${isToday ? ' today' : ''}${isSelected ? ' selected' : ''}" data-pick="${dateStr}">${d}</button>`;
+      const isWeekend  = new Date(vy, vm, d).getDay() % 6 === 0; // 0=Minggu, 6=Sabtu
+      const isLibur    = this.showLibur && this.liburSet.has(dateStr);
+      const isFutureBlocked = this.maxToday && dateStr > todayYmd;
+      const cls = `dp-day${isToday ? ' today' : ''}${isSelected ? ' selected' : ''}${isWeekend ? ' weekend' : ''}${isLibur ? ' libur' : ''}${isFutureBlocked ? ' disabled' : ''}`;
+      const tip = isFutureBlocked ? ' data-tip="Belum bisa dipilih"' : (isLibur ? ' data-tip="Hari libur"' : '');
+      cells += `<button class="${cls}" data-pick="${dateStr}"${isFutureBlocked ? ' disabled' : ''}${tip}>${d}</button>`;
     }
     const remaining = 42 - first - daysInMonth;
     for (let d = 1; d <= remaining; d++) {
       cells += `<button class="dp-day other-month" disabled>${d}</button>`;
     }
     return `
-      <div class="dp-popup${this.alignRight ? ' dp-right' : ''}" id="${this.containerId}-popup">
+      <div class="dp-popup${this.alignRight ? ' dp-right' : ''}${this._popupAnimCls}" id="${this.containerId}-popup">
         <div class="dp-nav">
           <button class="dp-nav-btn" id="${this.containerId}-prev"><svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/></svg></button>
           <span class="dp-month-year">
@@ -1600,7 +1635,7 @@ class DatePicker {
       `<button class="dp-my-item${i===vm?' active':''}" data-m="${i}">${b.slice(0,3)}</button>`
     ).join('');
     return `
-      <div class="dp-popup${this.alignRight ? ' dp-right' : ''}" id="${this.containerId}-popup">
+      <div class="dp-popup${this.alignRight ? ' dp-right' : ''}${this._popupAnimCls}" id="${this.containerId}-popup">
         <div class="dp-nav">
           <button class="dp-nav-btn" id="${this.containerId}-prev"><svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/></svg></button>
           <span class="dp-month-year"><span class="dp-my-part" data-switch="years">${vy}</span></span>
@@ -1616,7 +1651,7 @@ class DatePicker {
       `<button class="dp-my-item${y===vy?' active':''}" data-y="${y}">${y}</button>`
     ).join('');
     return `
-      <div class="dp-popup${this.alignRight ? ' dp-right' : ''}" id="${this.containerId}-popup">
+      <div class="dp-popup${this.alignRight ? ' dp-right' : ''}${this._popupAnimCls}" id="${this.containerId}-popup">
         <div class="dp-nav">
           <button class="dp-nav-btn" id="${this.containerId}-prev"><svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/></svg></button>
           <span class="dp-year-label">${start}–${start+11}</span>
@@ -1696,7 +1731,7 @@ class DatePicker {
     }
     this._render();
   }
-  _close() { this._open = false; this._render(); }
+  _close() { this._open = false; this._popupAnimated = false; this._render(); }
 
   setValue(dateStr) {
     this.value = dateStr || null;
@@ -1857,10 +1892,10 @@ function tpGetValue(id) {
 }
 
 (function _domReady(fn) { if (document.readyState === 'loading') { window.addEventListener('DOMContentLoaded', fn); } else { fn(); } })(function() {
-  initDatePicker('smTglSurat',  { placeholder: 'Pilih tanggal' });
-  initDatePicker('smTglTerima', { placeholder: 'Pilih tanggal' });
+  initDatePicker('smTglSurat',  { placeholder: 'Pilih tanggal', maxToday: true });
+  initDatePicker('smTglTerima', { placeholder: 'Pilih tanggal', maxToday: true });
   initDatePicker('smBatas',     { placeholder: 'Pilih tanggal', alignRight: true });
-  initDatePicker('skTglSurat',  { placeholder: 'Pilih tanggal' });
+  initDatePicker('skTglSurat',  { placeholder: 'Pilih tanggal', maxToday: true });
   initDatePicker('temaTanggalMulai',   { placeholder: 'Pilih tanggal' });
   initDatePicker('temaTanggalSelesai', { placeholder: 'Pilih tanggal' });
   initTimePicker('lemburSesiJamMulai');

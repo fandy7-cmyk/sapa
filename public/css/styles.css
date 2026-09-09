@@ -1955,6 +1955,7 @@ input[type="checkbox"].chk:disabled:checked { background: var(--abu-2); border-c
   overflow: hidden;
 }
 .dp-popup.dp-right { left: auto; right: 0; }
+.dp-popup.dp-popup-noanim { animation: none; }
 /* Header teal edge-to-edge, disamain sama tema .cdtp-header */
 .dp-nav {
   display: flex; align-items: center; justify-content: space-between;
@@ -1991,6 +1992,17 @@ input[type="checkbox"].chk:disabled:checked { background: var(--abu-2); border-c
 .dp-day.selected:hover { background: var(--hijau); }
 .dp-day.other-month { color: var(--teks-muted); opacity: .45; }
 .dp-day.other-month:hover { background: var(--abu-1); color: var(--teks-muted); }
+.dp-day.weekend { color: #dc2626; }
+.dp-day.weekend:hover { background: #fef2f2; color: #dc2626; }
+.dp-day.weekend.today { background: #fef2f2; color: #dc2626; }
+.dp-day.weekend.selected { color: #fff; }
+.dp-day.other-month.weekend { color: #fecaca; }
+.dp-day.libur { color: #dc2626; font-weight: 800; }
+.dp-day.libur:hover { background: #fef2f2; color: #dc2626; }
+.dp-day.libur.today { background: #fef2f2; color: #dc2626; }
+.dp-day.libur.selected { color: #fff; }
+.dp-day.other-month.libur { color: #fecaca; }
+.dp-day.disabled { color: #e2e8f0 !important; cursor: not-allowed !important; pointer-events: none; font-weight: 600 !important; background: none !important; }
 .dp-footer {
   display: flex; align-items: center; justify-content: space-between;
   margin-top: 6px; padding: 8px 8px 8px; border-top: 1px solid var(--abu-1);
@@ -5883,6 +5895,8 @@ td.col-perihal {
   font-weight: 800;
 }
 .cdtp-day-selected.cdtp-day-today { background: var(--hijau) !important; }
+.cdtp-day-disabled { color: #e2e8f0 !important; cursor: not-allowed !important; pointer-events: none; }
+.cdtp-day-disabled:hover { background: transparent !important; }
 
 /* ── Divider ── */
 .cdtp-divider {
@@ -6165,6 +6179,9 @@ td.col-perihal {
 .cdtp-day-libur.cdtp-day-selected { color: #fff !important; }
 .cdtp-day-other.cdtp-day-weekend,
 .cdtp-day-other.cdtp-day-libur { color: #fecaca; }
+.cdtp-day-disabled,
+.cdtp-day-disabled.cdtp-day-weekend,
+.cdtp-day-disabled.cdtp-day-libur { color: #e2e8f0 !important; cursor: not-allowed !important; pointer-events: none; font-weight: 600 !important; background: none !important; }
 
 .cdtp-divider { height: 1px; background: var(--abu-2); margin: 0 10px; }
 
@@ -9771,11 +9788,10 @@ tr:hover td:not(.td-sticky-no):not(.td-sticky-name) { background: var(--abu-1); 
 .dash-heatmap-cell.is-empty { visibility: hidden; }
 .dash-heatmap-cell.is-future { background: #f1f5f9; color: #cbd5e1; }
 .dash-heatmap-cell.is-libur { background: #fee2e2; color: #dc2626; }
-.dash-heatmap-legend { display: flex; flex-wrap: nowrap; gap: 6px; padding: 10px 12px 14px; border-top: 1px solid #f1f5f9; margin-top: 4px; overflow-x: auto; scrollbar-width: none; }
-.dash-heatmap-legend::-webkit-scrollbar { display: none; }
-.dash-heatmap-legend span { display: inline-flex; align-items: center; gap: 3px; font-size: .6rem; color: var(--teks-muted); white-space: nowrap; flex-shrink: 0; }
-.dash-heatmap-legend i { width: 7px; height: 7px; }
-.dash-heatmap-legend i { width: 9px; height: 9px; border-radius: 3px; display: inline-block; }
+.dash-heatmap-legend { display: flex; flex-direction: row; flex-wrap: wrap; gap: 5px 14px; padding: 10px 12px 14px; border-top: 1px solid #f1f5f9; margin-top: 4px; }
+.dash-heatmap-legend span { display: inline-flex; align-items: center; gap: 5px; font-size: .68rem; color: var(--teks-muted); }
+.dash-heatmap-legend i { width: 9px; height: 9px; border-radius: 3px; display: inline-block; flex-shrink: 0; }
+.dash-heatmap-legend-label { white-space: normal; overflow-wrap: break-word; }
 
 /* Baris Perbandingan Kehadiran Bulanan + Kalender Kehadiran: kalender ramping
    mengikuti lebar konten, dan kedua card disamakan tingginya. */

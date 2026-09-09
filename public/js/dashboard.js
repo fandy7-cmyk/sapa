@@ -382,13 +382,35 @@ async function loadDashboardLembur() {
 
   // Kalender lembur (2 bulan lalu, bulan lalu, bulan ini) - buat lihat cepat tanggal mana sudah/belum ada lembur
   if (typeof _lemburKalenderPanel === 'function') {
+    if (typeof _lemburSiapkanWarna === 'function') _lemburSiapkanWarna(kegiatanList);
     const inBulan = (s, b, t) => (s.tanggal || '').slice(0, 7) === `${t}-${String(b).padStart(2, '0')}`;
     const bulanList = [2, 1, 0].map(i => {
       const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
       return { bulan: d.getMonth() + 1, tahun: d.getFullYear() };
     });
+
+    // Ambil hari libur nasional (disamain sama Kalender Kehadiran di dashboard Absensi) -
+    // bisa lintas 2 tahun kalau rentang 3 bulan ini nyebrang Desember-Januari.
+    let liburSet = new Set();
+    let liburMap = new Map();
+    try {
+      const tahunLiburSet = new Set(bulanList.map(b => b.tahun));
+      const rLiburList = await Promise.all(
+        [...tahunLiburSet].map(ty => fetch(`/api/absensi/libur?tahun=${ty}`, { headers: authHeaders() }))
+      );
+      for (const rLibur of rLiburList) {
+        if (!rLibur || !rLibur.ok) continue;
+        const dLibur = await rLibur.json();
+        (dLibur.libur || []).forEach(l => {
+          const ymd = typeof _absLiburLocalYMD === 'function' ? _absLiburLocalYMD(l.tanggal) : String(l.tanggal).slice(0, 10);
+          liburSet.add(ymd);
+          liburMap.set(ymd, l.keterangan || 'Hari libur');
+        });
+      }
+    } catch (err) { console.error('[loadDashboardLembur libur]', err); }
+
     const panelsKalender = bulanList.map(({ bulan, tahun }) =>
-      _lemburKalenderPanel(sesiRelevant.filter(s => inBulan(s, bulan, tahun)), bulan, tahun)
+      _lemburKalenderPanel(sesiRelevant.filter(s => inBulan(s, bulan, tahun)), bulan, tahun, liburSet, liburMap)
     );
     html += `<div class="dash-panels dash-panels--kalender-row">${panelsKalender.join('')}</div>`;
   }

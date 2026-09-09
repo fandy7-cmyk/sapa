@@ -3,6 +3,14 @@ import { requireAuth } from './_auth.js';
 import { logAudit } from './_audit.js';
 import { deleteFromCloudinary } from './_cloudinary.js';
 
+const TZ = 'Asia/Makassar';
+
+// "Hari ini" versi WITA, bukan timezone server (Netlify function jalan di UTC) - biar konsisten
+// sama batas tanggal yang dicek di frontend (_lemburIsTanggalFuture / data-cdtp-max-today).
+function hariIniStr() {
+  return new Intl.DateTimeFormat('en-CA', { timeZone: TZ, year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
+}
+
 async function hasBasic(auth, sql) {
   if (auth.is_admin) return true;
   const rows = await sql`
@@ -73,6 +81,8 @@ export const handler = async (event) => {
       const { nama_kegiatan } = parseBody(event);
       if (!nama_kegiatan) return errorResponse('Nama kegiatan wajib diisi', 400);
       try {
+        const dup = await sql`SELECT id FROM lembur_kegiatan WHERE LOWER(TRIM(nama_kegiatan)) = LOWER(TRIM(${nama_kegiatan})) LIMIT 1`;
+        if (dup.length) return errorResponse(`Kegiatan "${nama_kegiatan}" sudah ada`, 409);
         const rows = await sql`
           INSERT INTO lembur_kegiatan (nama_kegiatan, created_by)
           VALUES (${nama_kegiatan}, ${auth.id}) RETURNING *
@@ -86,6 +96,10 @@ export const handler = async (event) => {
       if (!full) return errorResponse('Akses ditolak', 403);
       const { nama_kegiatan } = parseBody(event);
       try {
+        if (nama_kegiatan) {
+          const dup = await sql`SELECT id FROM lembur_kegiatan WHERE LOWER(TRIM(nama_kegiatan)) = LOWER(TRIM(${nama_kegiatan})) AND id != ${id1} LIMIT 1`;
+          if (dup.length) return errorResponse(`Kegiatan "${nama_kegiatan}" sudah ada`, 409);
+        }
         const rows = await sql`
           UPDATE lembur_kegiatan SET nama_kegiatan = COALESCE(${nama_kegiatan ?? null}, nama_kegiatan), updated_at = NOW()
           WHERE id = ${id1} RETURNING *
@@ -132,6 +146,33 @@ export const handler = async (event) => {
     } catch (err) { return errorResponse('Gagal mengecek tanggal: ' + err.message); }
   }
 
+  // ------------------------------------------------------- TANGGAL TERPAKAI
+  // Daftar tanggal dlm sebulan yg udah ada lembur - dipakai date picker "Tanggal Lembur"
+  // buat nge-disable tanggal itu langsung di kalender (disamain sama pola data-cdtp-libur),
+  // biar user gak perlu coba klik "+Tambah" dulu baru ketauan tanggalnya udah kepake.
+  if (resource === 'tanggal-terpakai' && event.httpMethod === 'GET') {
+    const { tahun, bulan } = q;
+    if (!tahun || !bulan) return errorResponse('tahun dan bulan wajib diisi', 400);
+    try {
+      const excludeKegiatanId = q.exclude_kegiatan_id ? parseInt(q.exclude_kegiatan_id) : null;
+      const rows = excludeKegiatanId
+        ? await sql`
+            SELECT s.tanggal::text AS tanggal, k.nama_kegiatan FROM lembur_sesi s
+            JOIN lembur_kegiatan k ON k.id = s.kegiatan_id
+            WHERE EXTRACT(YEAR FROM s.tanggal) = ${parseInt(tahun)}
+              AND EXTRACT(MONTH FROM s.tanggal) = ${parseInt(bulan)}
+              AND s.kegiatan_id != ${excludeKegiatanId}
+          `
+        : await sql`
+            SELECT s.tanggal::text AS tanggal, k.nama_kegiatan FROM lembur_sesi s
+            JOIN lembur_kegiatan k ON k.id = s.kegiatan_id
+            WHERE EXTRACT(YEAR FROM s.tanggal) = ${parseInt(tahun)}
+              AND EXTRACT(MONTH FROM s.tanggal) = ${parseInt(bulan)}
+          `;
+      return jsonResponse({ terpakai: rows });
+    } catch (err) { return errorResponse('Gagal mengambil tanggal terpakai: ' + err.message); }
+  }
+
   // -------------------------------------------------------------------- SESI
   if (resource === 'sesi') {
     // POST /sesi/:id/peserta  -> tambah peserta
@@ -175,7 +216,10 @@ export const handler = async (event) => {
           SELECT s.*,
             (SELECT COUNT(*)::INT FROM lembur_entries e WHERE e.sesi_id = s.id) AS jumlah_peserta,
             (SELECT COUNT(*)::INT FROM lembur_dokumentasi d WHERE d.sesi_id = s.id) AS jumlah_dokumentasi,
-            EXISTS(SELECT 1 FROM lembur_entries e WHERE e.sesi_id = s.id AND e.user_id = ${auth.id}) AS is_peserta
+            EXISTS(SELECT 1 FROM lembur_entries e WHERE e.sesi_id = s.id AND e.user_id = ${auth.id}) AS is_peserta,
+            (SELECT STRING_AGG(u.nama, ', ' ORDER BY e.id ASC)
+               FROM lembur_entries e JOIN users u ON u.id = e.user_id
+               WHERE e.sesi_id = s.id) AS daftar_peserta
           FROM lembur_sesi s
           WHERE s.kegiatan_id = ${kegiatanId}
           ORDER BY s.tanggal ASC, s.id ASC
@@ -188,6 +232,7 @@ export const handler = async (event) => {
       if (!full) return errorResponse('Akses ditolak', 403);
       const { kegiatan_id, tanggal, jam_mulai, jam_selesai, user_ids } = parseBody(event);
       if (!kegiatan_id || !tanggal) return errorResponse('Kegiatan dan tanggal wajib diisi', 400);
+      if (tanggal > hariIniStr()) return errorResponse('Tanggal belum bisa dipilih - lembur cuma bisa dicatat untuk tanggal yang sudah terjadi', 400);
       try {
         const dup = await sql`SELECT 1 FROM lembur_sesi WHERE tanggal = ${tanggal} LIMIT 1`;
         if (dup.length) return errorResponse('Sudah ada sesi lembur pada tanggal ini (di kegiatan lain)', 409);
@@ -217,6 +262,7 @@ export const handler = async (event) => {
     if (event.httpMethod === 'PUT' && id1) {
       if (!full) return errorResponse('Akses ditolak', 403);
       const { tanggal, jam_mulai, jam_selesai } = parseBody(event);
+      if (tanggal && tanggal > hariIniStr()) return errorResponse('Tanggal belum bisa dipilih - lembur cuma bisa dicatat untuk tanggal yang sudah terjadi', 400);
       try {
         if (tanggal) {
           const dup = await sql`SELECT 1 FROM lembur_sesi WHERE tanggal = ${tanggal} AND id != ${id1} LIMIT 1`;
@@ -333,11 +379,14 @@ export const handler = async (event) => {
     try {
       const tanggal = q.tanggal || null;
       const rows = await sql`
-        SELECT DISTINCT u.id, u.nama, u.nip, a.status AS absensi_status
+        SELECT u.id, u.nama, u.nip, a.status AS absensi_status
         FROM users u
-        JOIN user_permissions up ON up.user_id = u.id
         LEFT JOIN absensi a ON a.user_id = u.id AND a.tanggal = ${tanggal}::date
-        WHERE u.is_admin = FALSE AND up.menu_key IN ('lembur', 'lembur.full')
+        WHERE u.is_admin = FALSE
+          AND EXISTS (
+            SELECT 1 FROM user_permissions up
+            WHERE up.user_id = u.id AND up.menu_key IN ('lembur', 'lembur.full')
+          )
         ORDER BY u.nama ASC
       `;
       return jsonResponse({ pegawai: rows });

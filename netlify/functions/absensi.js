@@ -1126,6 +1126,8 @@ export const handler = async (event) => {
     const { user_id, tanggal, tanggal_selesai, jam_masuk, jam_keluar, status, keterangan, data_dukung_url, data_dukung_nama } = parseBody(event);
     if (!user_id || !tanggal) return errorResponse('Pegawai dan tanggal wajib diisi', 400);
     if (status && !STATUS_VALID.includes(status)) return errorResponse('Status tidak valid', 400);
+    if (tanggal > todayStr()) return errorResponse('Tanggal belum bisa dipilih - absensi cuma bisa dicatat untuk tanggal yang sudah terjadi', 400);
+    if (tanggal_selesai && tanggal_selesai > todayStr()) return errorResponse('Tanggal selesai belum bisa dipilih - absensi cuma bisa dicatat untuk tanggal yang sudah terjadi', 400);
 
     const isRentang = !!tanggal_selesai && tanggal_selesai !== tanggal;
     if (isRentang) {

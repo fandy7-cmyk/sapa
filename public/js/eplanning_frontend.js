@@ -2419,6 +2419,7 @@ function _epMakeLocalCombobox({ inputId, getOptions, matchText, renderOption, on
   let list = [];
   let optionEls = [];
   let activeIndex = -1;
+  let emptyCloseTimer = null;
 
   function ensurePanel() {
     if (panel) return panel;
@@ -2454,7 +2455,11 @@ function _epMakeLocalCombobox({ inputId, getOptions, matchText, renderOption, on
     return panel;
   }
 
-  function close() { if (panel) panel.style.display = 'none'; activeIndex = -1; }
+  function close() {
+    if (emptyCloseTimer) { clearTimeout(emptyCloseTimer); emptyCloseTimer = null; }
+    if (panel) panel.style.display = 'none';
+    activeIndex = -1;
+  }
 
   function position() {
     const input = document.getElementById(inputId);
@@ -2511,8 +2516,14 @@ function _epMakeLocalCombobox({ inputId, getOptions, matchText, renderOption, on
     p.innerHTML = '';
     optionEls = [];
     activeIndex = -1;
+    if (emptyCloseTimer) { clearTimeout(emptyCloseTimer); emptyCloseTimer = null; }
     if (!list.length) {
       p.innerHTML = `<div class="csel-empty">${all.length ? 'Tidak ditemukan' : 'Belum ada data master'}</div>`;
+      if (!all.length) {
+        // Belum ada data master sama sekali - cukup tampil sebentar sebagai info,
+        // gak perlu nunggu diklik di luar buat nutupnya.
+        emptyCloseTimer = setTimeout(() => close(), 2000);
+      }
     } else {
       list.forEach((x, idx) => {
         const div = document.createElement('div');

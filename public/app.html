@@ -66,11 +66,11 @@
   </script>
   <!-- Preload file theme-engine.js juga, paralel dari awal - jangan
        nunggu parser sampe ke <script> di akhir body baru mulai narik. -->
-  <link rel="preload" as="script" href="js/theme-engine.js?v=1.5.4" />
+  <link rel="preload" as="script" href="js/theme-engine.js?v=1.5.5" />
   <script>history.replaceState(null, '', location.origin);</script>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>SAPA Perencanaan</title>
-  <meta name="app-version" content="1.5.4" />
+  <meta name="app-version" content="1.5.5" />
   <link rel="icon" type="image/png" href="/favicon.png" />
   <link rel="manifest" href="/manifest.json" />
   <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
@@ -81,7 +81,7 @@
   <meta name="apple-mobile-web-app-title" content="SAPA" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="css/styles.css?v=1.5.4" />
+  <link rel="stylesheet" href="css/styles.css?v=1.5.5" />
   <style>
     
     .filter-bar {
@@ -292,7 +292,7 @@
       <div class="topbar-constellation" id="topbarConstellation" aria-hidden="true">
         <canvas id="topbarConstellationCanvas"></canvas>
       </div>
-      <script src="js/topbar_constellation.js?v=1.5.4"></script>
+      <script src="js/topbar_constellation.js?v=1.5.5"></script>
 
       <div class="topbar-profile">
         <div class="topbar-user-info">
@@ -1718,9 +1718,9 @@
           </div>
           <span style="opacity:.35;font-weight:300;padding:0 2px">|</span>
           <input type="hidden" id="lapAbsDari">
-          <div id="cdtp_lapAbsDari" class="cdtp-mount" data-cdtp="lapAbsDari" data-cdtp-date="1" data-placeholder="Dari tanggal" style="min-width:150px"></div>
+          <div id="cdtp_lapAbsDari" class="cdtp-mount" data-cdtp="lapAbsDari" data-cdtp-date="1" data-cdtp-libur="1" data-placeholder="Dari tanggal" style="min-width:150px"></div>
           <input type="hidden" id="lapAbsSampai">
-          <div id="cdtp_lapAbsSampai" class="cdtp-mount" data-cdtp="lapAbsSampai" data-cdtp-date="1" data-placeholder="Sampai tanggal" style="min-width:150px"></div>
+          <div id="cdtp_lapAbsSampai" class="cdtp-mount" data-cdtp="lapAbsSampai" data-cdtp-date="1" data-cdtp-libur="1" data-placeholder="Sampai tanggal" style="min-width:150px"></div>
           <button class="btn btn-ghost btn-sm" id="lapAbsRangeClearBtn" onclick="_lapAbsRangeClear()" style="display:none" data-tip="Hapus rentang tanggal">
             <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
           </button>
@@ -1951,9 +1951,9 @@
               <option value="refresh_token_reuse_detected">Sesi Dicurigai Dibajak</option>
             </select>
           </div>
-          <div class="cdtp-mount" data-cdtp="auditFilterDari" data-placeholder="Dari tanggal" style="min-width:170px"></div>
+          <div class="cdtp-mount" data-cdtp="auditFilterDari" data-cdtp-libur="1" data-placeholder="Dari tanggal" style="min-width:170px"></div>
           <input type="hidden" id="auditFilterDari" />
-          <div class="cdtp-mount" data-cdtp="auditFilterSampai" data-placeholder="Sampai tanggal" style="min-width:170px"></div>
+          <div class="cdtp-mount" data-cdtp="auditFilterSampai" data-cdtp-libur="1" data-placeholder="Sampai tanggal" style="min-width:170px"></div>
           <input type="hidden" id="auditFilterSampai" />
         </div>
 
@@ -2141,12 +2141,12 @@
         <div class="field">
           <label>Dibuka mulai <span style="color:var(--merah)">*</span></label>
           <input type="hidden" id="periodeOpenAt">
-          <div id="cdtp_open" data-cdtp="periodeOpenAt" data-placeholder="Pilih tanggal &amp; waktu..."></div>
+          <div id="cdtp_open" data-cdtp="periodeOpenAt" data-cdtp-libur="1" data-placeholder="Pilih tanggal &amp; waktu..."></div>
         </div>
         <div class="field">
           <label>Ditutup pada <span style="color:var(--merah)">*</span></label>
           <input type="hidden" id="periodeCloseAt">
-          <div id="cdtp_close" data-cdtp="periodeCloseAt" data-placeholder="Pilih tanggal &amp; waktu..."></div>
+          <div id="cdtp_close" data-cdtp="periodeCloseAt" data-cdtp-libur="1" data-placeholder="Pilih tanggal &amp; waktu..."></div>
         </div>
         <div class="field-hint" style="margin-top:-.25rem">
           Di luar rentang ini, input data kinerja akan dikunci otomatis.
@@ -2192,12 +2192,13 @@
     <div class="modal-body">
       <div class="field">
         <label>Nama Kegiatan <span style="color:var(--merah)">*</span></label>
-        <input type="text" id="lemburKegiatanNama" placeholder="Contoh: Penyusunan Rancangan Renja Tahun 2027" />
+        <input type="text" id="lemburKegiatanNama" autocomplete="off" oninput="lemburSearchNamaKegiatan()" onfocus="lemburSearchNamaKegiatan()" placeholder="Pilih dari daftar, atau ketik nama kegiatan baru…" />
+        <button type="button" class="btn-add-inline" onclick="lemburFocusNamaKegiatanBaru(event)"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg><span>Kegiatan</span></button>
       </div>
       <div class="field" id="lemburKegiatanTanggalWrap">
         <label>Tanggal Lembur <span style="color:var(--merah)">*</span></label>
         <div style="display:flex;gap:8px;align-items:center">
-          <div id="cdtp_lemburKegiatanTanggal" class="cdtp-mount" style="flex:1;min-width:0" data-cdtp="lemburKegiatanTanggal" data-cdtp-date="1" data-placeholder="Pilih tanggal"></div>
+          <div id="cdtp_lemburKegiatanTanggal" class="cdtp-mount" style="flex:1;min-width:0" data-cdtp="lemburKegiatanTanggal" data-cdtp-date="1" data-cdtp-libur="1" data-cdtp-max-today="1" data-cdtp-terpakai="1" data-placeholder="Pilih tanggal"></div>
           <input type="hidden" id="lemburKegiatanTanggal" onchange="_lemburOnKegiatanTanggalChange()" />
           <button type="button" class="btn btn-outline-hijau btn-sm" style="flex-shrink:0" id="btnLemburTanggalTambah" onclick="_lemburAddTanggalChip()">+ Tambah</button>
         </div>
@@ -2215,7 +2216,10 @@
         </div>
       </div>
       <div class="field" id="lemburKegiatanPesertaWrap">
-        <label>Peserta</label>
+        <label style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:6px">
+          <span>Peserta</span>
+          <span id="lemburKegiatanPesertaSelectAll" style="font-weight:600;font-size:.78rem;color:var(--hijau);cursor:pointer;user-select:none" onclick="_lemburToggleSelectAllKegiatanPeserta()">Pilih Semua</span>
+        </label>
         <div id="lemburKegiatanPesertaGrid" style="display:flex;flex-direction:column;gap:6px;max-height:180px;overflow-y:auto;border:1px solid var(--abu-2);border-radius:8px;padding:8px"></div>
       </div>
       <div class="field" id="lemburKegiatanDokWrap" style="margin-bottom:0">
@@ -2241,6 +2245,25 @@
   </div>
 </div>
 
+<div class="modal-overlay" id="modalLemburNamaKegiatan">
+  <div class="modal" style="max-width:420px">
+    <div class="modal-header">
+      <div class="modal-title-wrap"><span class="modal-icon-badge"><svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></span><div class="modal-title">Kegiatan Baru</div></div>
+      <button class="btn-close" onclick="_lemburTutupNamaKegiatanBaru()"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg></button>
+    </div>
+    <div class="modal-body">
+      <div class="field" style="margin-bottom:0">
+        <label>Nama Kegiatan <span style="color:var(--merah)">*</span></label>
+        <input type="text" id="lemburNamaKegiatanBaru" autocomplete="off" placeholder="Ketik nama kegiatan baru…" onkeydown="if(event.key==='Enter'){event.preventDefault();lemburSimpanNamaKegiatanBaru();}" />
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="_lemburTutupNamaKegiatanBaru()">Tutup</button>
+      <button class="btn btn-primary" onclick="lemburSimpanNamaKegiatanBaru()"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>Simpan</button>
+    </div>
+  </div>
+</div>
+
 <div class="modal-overlay" id="modalLemburSesi">
   <div class="modal" style="max-width:480px">
     <div class="modal-header">
@@ -2250,7 +2273,7 @@
     <div class="modal-body">
       <div class="field" id="lemburSesiTanggalWrap">
         <label>Tanggal <span style="color:var(--merah)">*</span></label>
-        <div id="cdtp_lemburSesiTanggal" class="cdtp-mount" data-cdtp="lemburSesiTanggal" data-cdtp-date="1" data-placeholder="Pilih tanggal"></div>
+        <div id="cdtp_lemburSesiTanggal" class="cdtp-mount" data-cdtp="lemburSesiTanggal" data-cdtp-date="1" data-cdtp-libur="1" data-cdtp-max-today="1" data-cdtp-terpakai="1" data-placeholder="Pilih tanggal"></div>
         <input type="hidden" id="lemburSesiTanggal" onchange="_lemburOnSesiTanggalChange()" />
       </div>
       <div class="lembur-jam-row" id="lemburSesiJamWrap">
@@ -2264,7 +2287,10 @@
         </div>
       </div>
       <div class="field" id="lemburSesiPesertaWrap" style="margin-bottom:0">
-        <label>Peserta <span style="font-weight:400;color:var(--teks-muted);font-size:.78rem">(centang untuk tambah, hapus centang untuk keluarkan)</span></label>
+        <label style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:6px">
+          <span>Peserta <span style="font-weight:400;color:var(--teks-muted);font-size:.78rem">(centang untuk tambah, hapus centang untuk keluarkan)</span></span>
+          <span id="lemburSesiPesertaSelectAll" style="font-weight:600;font-size:.78rem;color:var(--hijau);cursor:pointer;user-select:none" onclick="_lemburToggleSelectAllSesiPeserta()">Pilih Semua</span>
+        </label>
         <div id="lemburSesiPesertaGrid" style="display:flex;flex-direction:column;gap:6px;max-height:220px;overflow-y:auto;border:1px solid var(--abu-2);border-radius:8px;padding:8px"></div>
       </div>
     </div>
@@ -2900,7 +2926,7 @@
       <div class="field" id="linkExpiredField" style="display:none">
         <label>Berlaku Sampai</label>
         <input type="hidden" id="linkExpiredAt">
-        <div id="cdtp_linkExpired" data-cdtp="linkExpiredAt" data-placeholder="Pilih tanggal &amp; waktu..."></div>
+        <div id="cdtp_linkExpired" data-cdtp="linkExpiredAt" data-cdtp-libur="1" data-placeholder="Pilih tanggal &amp; waktu..."></div>
         <div class="field-hint">Tautan otomatis tidak bisa diakses setelah tanggal ini.</div>
       </div>
       <div class="toggle-wrap">
@@ -2943,7 +2969,7 @@
         <div class="field" id="bundleExpiredField" style="display:none">
           <label>Berlaku Sampai</label>
           <input type="hidden" id="bundleExpiredAt">
-          <div id="cdtp_bundleExpired" data-cdtp="bundleExpiredAt" data-placeholder="Pilih tanggal &amp; waktu..."></div>
+          <div id="cdtp_bundleExpired" data-cdtp="bundleExpiredAt" data-cdtp-libur="1" data-placeholder="Pilih tanggal &amp; waktu..."></div>
           <div class="field-hint">Bundle otomatis tidak bisa diakses setelah tanggal ini.</div>
         </div>
         <div class="toggle-wrap">
@@ -3061,10 +3087,10 @@
         <div class="ld-section-title"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="20" x2="12" y2="10"/><line x1="18" y1="20" x2="18" y2="4"/><line x1="6" y1="20" x2="6" y2="16"/></svg>Analytics</div>
         <div class="ld-analytics-range">
           <input type="hidden" id="ldRangeDari">
-          <div id="cdtp_ldDari" data-cdtp="ldRangeDari" data-placeholder="Dari tanggal"></div>
+          <div id="cdtp_ldDari" data-cdtp="ldRangeDari" data-cdtp-libur="1" data-placeholder="Dari tanggal"></div>
           <span class="ld-range-sep">-</span>
           <input type="hidden" id="ldRangeSampai">
-          <div id="cdtp_ldSampai" data-cdtp="ldRangeSampai" data-placeholder="Sampai tanggal"></div>
+          <div id="cdtp_ldSampai" data-cdtp="ldRangeSampai" data-cdtp-libur="1" data-placeholder="Sampai tanggal"></div>
         </div>
         <div class="ld-stats-row">
           <div class="ld-stat"><div class="ld-stat-val" id="ldStatTotal">0</div><div class="ld-stat-label">Total Visitors</div></div>
@@ -3527,7 +3553,7 @@
         <div class="select-wrap"><select id="absPegawai" data-searchable="1" data-search-placeholder="Cari pegawai…"><option value="">- Pilih Pegawai -</option></select></div>
       </div>
       <div class="field-row">
-        <div class="field"><label>Tanggal *</label><div id="cdtp_absTanggal" class="cdtp-mount" data-cdtp="absTanggal" data-cdtp-date="1" data-cdtp-libur="1" data-placeholder="Pilih tanggal"></div><input type="hidden" id="absTanggal" /></div>
+        <div class="field"><label>Tanggal *</label><div id="cdtp_absTanggal" class="cdtp-mount" data-cdtp="absTanggal" data-cdtp-date="1" data-cdtp-libur="1" data-cdtp-max-today="1" data-placeholder="Pilih tanggal"></div><input type="hidden" id="absTanggal" /></div>
         <div class="field"><label>Status</label>
           <div class="select-wrap">
             <select id="absStatus" data-placeholder="Otomatis (Tepat Waktu/Terlambat)" onchange="onAbsStatusChange()">
@@ -3543,7 +3569,7 @@
         <div class="field"><label>Absensi Keluar</label><div id="ctp_absJamKeluar" class="ctp-mount" data-ctp="absJamKeluar" data-placeholder="--:--"></div><input type="hidden" id="absJamKeluar" /></div>
       </div>
       <div class="field-row" id="absDurasiRow" style="display:none">
-        <div class="field"><label>Sampai Tanggal *</label><div id="cdtp_absTanggalSelesai" class="cdtp-mount" data-cdtp="absTanggalSelesai" data-cdtp-date="1" data-cdtp-libur="1" data-placeholder="Pilih tanggal"></div><input type="hidden" id="absTanggalSelesai" /></div>
+        <div class="field"><label>Sampai Tanggal *</label><div id="cdtp_absTanggalSelesai" class="cdtp-mount" data-cdtp="absTanggalSelesai" data-cdtp-date="1" data-cdtp-libur="1" data-cdtp-max-today="1" data-placeholder="Pilih tanggal"></div><input type="hidden" id="absTanggalSelesai" /></div>
       </div>
       <div class="field" id="absDukungWrap" style="display:none">
         <label id="absDukungLabel">Data Dukung *</label>
@@ -3711,8 +3737,8 @@
       <div class="page-subtitle" style="margin:-4px 0 14px">Tiap periode disimpan sebagai riwayat sendiri per tahun - nambah/ubah periode tahun ini gak akan ngubah rekap &amp; jam kerja Ramadhan tahun-tahun sebelumnya</div>
 
       <div class="field-row">
-        <div class="field"><label>Tanggal Mulai Ramadhan *</label><div id="cdtp_absRmdTglMulai" class="cdtp-mount" data-cdtp="absRmdTglMulai" data-cdtp-date="1" data-placeholder="Pilih tanggal"></div><input type="hidden" id="absRmdTglMulai" /></div>
-        <div class="field"><label>Tanggal Selesai Ramadhan *</label><div id="cdtp_absRmdTglSelesai" class="cdtp-mount" data-cdtp="absRmdTglSelesai" data-cdtp-date="1" data-placeholder="Pilih tanggal"></div><input type="hidden" id="absRmdTglSelesai" /></div>
+        <div class="field"><label>Tanggal Mulai Ramadhan *</label><div id="cdtp_absRmdTglMulai" class="cdtp-mount" data-cdtp="absRmdTglMulai" data-cdtp-date="1" data-cdtp-libur="1" data-placeholder="Pilih tanggal"></div><input type="hidden" id="absRmdTglMulai" /></div>
+        <div class="field"><label>Tanggal Selesai Ramadhan *</label><div id="cdtp_absRmdTglSelesai" class="cdtp-mount" data-cdtp="absRmdTglSelesai" data-cdtp-date="1" data-cdtp-libur="1" data-placeholder="Pilih tanggal"></div><input type="hidden" id="absRmdTglSelesai" /></div>
       </div>
 
       <div style="font-size:var(--fs-sm);font-weight:700;color:var(--teks-muted);margin:10px 0 8px">Jendela Absensi Masuk</div>
@@ -3770,7 +3796,7 @@
     </div>
     <div class="modal-body">
       <div class="field-row">
-        <div class="field"><label>Tanggal</label><div id="cdtp_absLiburTanggal" class="cdtp-mount" data-cdtp="absLiburTanggal" data-cdtp-date="1" data-placeholder="Pilih tanggal"></div><input type="hidden" id="absLiburTanggal" /></div>
+        <div class="field"><label>Tanggal</label><div id="cdtp_absLiburTanggal" class="cdtp-mount" data-cdtp="absLiburTanggal" data-cdtp-date="1" data-cdtp-libur="1" data-placeholder="Pilih tanggal"></div><input type="hidden" id="absLiburTanggal" /></div>
         <div class="field"><label>Keterangan</label><input type="text" id="absLiburKeterangan" placeholder="mis. Hari Kemerdekaan RI" /></div>
       </div>
       <input type="hidden" id="absLiburEditId" value="" />
@@ -4768,7 +4794,7 @@
 </div>
 
 
-<script src="js/periode_frontend.js?v=1.5.4"></script>
+<script src="js/periode_frontend.js?v=1.5.5"></script>
 <script>
 (function() {
   'use strict';
@@ -4911,25 +4937,25 @@
 })();
 </script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/quill/1.3.7/quill.min.js"></script>
-  <script src="js/app.js?v=1.5.4"></script>
-<script src="js/dashboard.js?v=1.5.4"></script>
+  <script src="js/app.js?v=1.5.5"></script>
+<script src="js/dashboard.js?v=1.5.5"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-<script src="js/superlink.js?v=1.5.4"></script>
-<script src="js/pengumuman_frontend.js?v=1.5.4"></script>
-<script src="js/surat.js?v=1.5.4"></script>
-<script src="js/eplanning_frontend.js?v=1.5.4"></script>
-<script src="js/absensi_frontend.js?v=1.5.4"></script>
-<script src="js/lembur_frontend.js?v=1.5.4"></script>
-<script src="js/users_frontend.js?v=1.5.4"></script>
-<script src="js/kinerja.js?v=1.5.4"></script>
-<script src="js/laporan.js?v=1.5.4"></script>
-<script src="js/struktur_frontend.js?v=1.5.4"></script>
-<script src="js/audit_frontend.js?v=1.5.4"></script>
-<script src="js/dokumen_publik_frontend.js?v=1.5.4"></script>
-<script src="js/profil_frontend.js?v=1.5.4"></script>
-<script src="js/tema_musiman_frontend.js?v=1.5.4"></script>
-<script src="js/theme-engine.js?v=1.5.4"></script>
+<script src="js/superlink.js?v=1.5.5"></script>
+<script src="js/pengumuman_frontend.js?v=1.5.5"></script>
+<script src="js/surat.js?v=1.5.5"></script>
+<script src="js/eplanning_frontend.js?v=1.5.5"></script>
+<script src="js/absensi_frontend.js?v=1.5.5"></script>
+<script src="js/lembur_frontend.js?v=1.5.5"></script>
+<script src="js/users_frontend.js?v=1.5.5"></script>
+<script src="js/kinerja.js?v=1.5.5"></script>
+<script src="js/laporan.js?v=1.5.5"></script>
+<script src="js/struktur_frontend.js?v=1.5.5"></script>
+<script src="js/audit_frontend.js?v=1.5.5"></script>
+<script src="js/dokumen_publik_frontend.js?v=1.5.5"></script>
+<script src="js/profil_frontend.js?v=1.5.5"></script>
+<script src="js/tema_musiman_frontend.js?v=1.5.5"></script>
+<script src="js/theme-engine.js?v=1.5.5"></script>
 
 <script>
 (function () {

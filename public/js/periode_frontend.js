@@ -373,6 +373,13 @@ function _isoToLocal(iso) {
     
     
     const showLibur = mountEl.dataset.cdtpLibur === '1';
+    // data-cdtp-max-today="1" = tanggal setelah hari ini gak bisa dipilih (dipakai buat
+    // input tanggal lembur - lembur cuma boleh dicatat buat tanggal yang sudah terjadi)
+    const maxToday = mountEl.dataset.cdtpMaxToday === '1';
+    // data-cdtp-terpakai="1" = cek tanggal yg udah ada lembur-nya (endpoint /api/lembur/tanggal-terpakai)
+    // dan langsung disable tanggal itu di kalender - biar user gak perlu coba "+Tambah" dulu
+    // baru ketauan tanggalnya bentrok.
+    const showTerpakai = mountEl.dataset.cdtpTerpakai === '1';
     
     let sel   = _parseHidden(hiddenEl); 
     let view  = sel ? { y: sel.y, mo: sel.mo } : { y: new Date().getFullYear(), mo: new Date().getMonth() };
@@ -380,6 +387,8 @@ function _isoToLocal(iso) {
     let open  = false;
     let liburSet = new Set(); 
     let liburKey = null;      
+    let terpakaiMap = new Map();
+    let terpakaiKey = null;
 
     
     
@@ -394,6 +403,19 @@ function _isoToLocal(iso) {
         liburSet = new Set((d.libur || []).map(l => _cdtpLocalYMD(l.tanggal)));
       } catch { liburSet = new Set(); }
       if (mode === 'cal' && liburKey === key) renderCal();
+    }
+
+    async function _loadTerpakaiBulan() {
+      if (!showTerpakai) return;
+      const key = `${view.y}-${view.mo}`;
+      if (terpakaiKey === key) return;
+      terpakaiKey = key;
+      try {
+        const r = await fetch(`/api/lembur/tanggal-terpakai?tahun=${view.y}&bulan=${view.mo + 1}`, { headers: authHeaders() });
+        const d = await r.json();
+        terpakaiMap = new Map((d.terpakai || []).map(t => [_cdtpLocalYMD(t.tanggal), t.nama_kegiatan]));
+      } catch { terpakaiMap = new Map(); }
+      if (mode === 'cal' && terpakaiKey === key) renderCal();
     }
 
     
@@ -448,8 +470,10 @@ function _isoToLocal(iso) {
     }
 
     function renderCal() {
-      _loadLiburBulan(); 
+      _loadLiburBulan();
+      _loadTerpakaiBulan();
       const today = new Date();
+      const todayYmd = _cdtpLocalYMD(today);
       const firstDay = new Date(view.y, view.mo, 1).getDay(); 
       const daysInMonth = new Date(view.y, view.mo + 1, 0).getDate();
       const daysInPrev  = new Date(view.y, view.mo, 0).getDate();
@@ -467,12 +491,20 @@ function _isoToLocal(iso) {
         const isWeekend   = dow === 0 || dow === 6;
         const ymd          = `${view.y}-${PAD(view.mo + 1)}-${PAD(d)}`;
         const isLibur     = showLibur && liburSet.has(ymd);
+        const namaTerpakai = showTerpakai ? terpakaiMap.get(ymd) : null;
+        const isFutureBlocked = maxToday && ymd > todayYmd;
+        const isTerpakaiBlocked = !!namaTerpakai;
         let cls = 'cdtp-day';
         if (isWeekend)  cls += ' cdtp-day-weekend';
         if (isLibur)    cls += ' cdtp-day-libur';
         if (isToday)    cls += ' cdtp-day-today';
         if (isSelected) cls += ' cdtp-day-selected';
-        cells += `<button type="button" class="${cls}" data-d="${d}"${isLibur ? ` data-tip="Hari libur"` : ''}>${d}</button>`;
+        if (isFutureBlocked || isTerpakaiBlocked) cls += ' cdtp-day-disabled';
+        const disabled = isFutureBlocked || isTerpakaiBlocked;
+        const tip = isFutureBlocked ? ' data-tip="Belum bisa dipilih"'
+          : isTerpakaiBlocked ? ` data-tip="Sudah ada lembur: ${namaTerpakai}"`
+          : (isLibur ? ' data-tip="Hari libur"' : '');
+        cells += `<button type="button" class="${cls}" data-d="${d}"${disabled ? ' disabled' : ''}${tip}>${d}</button>`;
       }
       
       const total = firstDay + daysInMonth;
@@ -709,6 +741,10 @@ function _isoToLocal(iso) {
       
       sel  = _parseHidden(hiddenEl);
       if (sel) view = { y: sel.y, mo: sel.mo };
+      // Data "terpakai" (mis. tanggal yg udah ada lembur) sifatnya transaksional dan bisa berubah
+      // kapan aja (ditambah/dihapus dari tempat lain) selagi panel ini ketutup - jadi cache-nya
+      // direset tiap dibuka lagi biar gak nampilin data basi (beda sama libur yg jarang berubah).
+      terpakaiKey = null;
       render();
       panel.style.display = 'block';
       trigger.classList.add('open');
@@ -730,9 +766,14 @@ function _isoToLocal(iso) {
     mountEl._cdtp = {
       set(v) {
         if (!v) { sel = null; updateTrigger(); return; }
-        
-        if (dateOnly && typeof v === 'string' && /^\d{4}-\d{2}-\d{2}/.test(v)) {
-          const [y, mo, d] = v.slice(0, 10).split('-').map(Number);
+
+        // "YYYY-MM-DD" MURNI (persis 10 karakter, gak ada embel2 jam/timezone) - aman di-slice
+        // langsung. String lain (mis. ISO datetime dari kolom DATE Postgres yang keserialize
+        // jadi UTC midnight, "2026-09-08T16:00:00.000Z" utk tanggal kalender 9 Sept WITA) harus
+        // lewat new Date() + komponen tanggal LOKAL, kalau nggak tanggalnya bisa geser mundur/maju
+        // sehari pas parse-nya asal slice 10 karakter depan.
+        if (dateOnly && typeof v === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(v)) {
+          const [y, mo, d] = v.split('-').map(Number);
           sel = { y, mo: mo - 1, d, h: 0, mi: 0 };
         } else {
           const dt = new Date(v);

@@ -21,6 +21,52 @@ let _lemburKegiatanTanggalList = [];
 
 function _lemburHasFull() { return !!(_user?.is_admin || hasAccess('lembur.full')); }
 
+// Lembur cuma boleh dicatat buat tanggal yang sudah terjadi (hari ini atau sebelumnya) -
+// gak boleh nyatet lembur buat tanggal yang belum kejadian (dipakai di semua tempat yang
+// nerima input tanggal lembur: tambah kegiatan baru, tambah hari, ubah tanggal hari).
+function _lemburTodayKey() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+function _lemburIsTanggalFuture(tgl) {
+  return _lemburDateKey(tgl) > _lemburTodayKey();
+}
+
+// Ekstrak tanggal kalender LOKAL "YYYY-MM-DD" dari nilai tanggal apapun: string tanggal murni,
+// atau ISO datetime yang mungkin keserialize jadi UTC midnight dari kolom DATE Postgres (mis.
+// "2026-09-08T16:00:00.000Z" utk tanggal kalender 9 Sept WITA). Naive slice(0,10) di titik-titik
+// ini dulu yang bikin tanggal sesi kepeleset mundur sehari (data absensi ikut kebawa salah tanggal,
+// bukan cuma tampilan date picker-nya - lihat juga fix serupa di initCdtp._cdtp.set()).
+function _lemburDateKey(tgl) {
+  if (!tgl) return null;
+  const s = String(tgl);
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+  const d = new Date(s);
+  if (isNaN(d)) return s.slice(0, 10);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+// ---------------------------------------------------------------- WARNA KEGIATAN
+// Tiap kegiatan lembur dapat warna sendiri yang konsisten dipakai di kalender & legenda.
+// Urutan warna ngikutin urutan kegiatan dibuat (created_at/id ascending) biar stabil
+// antar render & antar kalender bulan yg beda-beda (lihat _lemburSiapkanWarna, dipanggil
+// sekali dari dashboard.js sebelum kalender-kalender bulan dirender).
+const LEMBUR_PALET_WARNA = ['#10b981', '#3b82f6', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#14b8a6', '#f97316', '#6366f1', '#84cc16', '#06b6d4', '#a855f7'];
+const _lemburWarnaMap = new Map();
+function _lemburSiapkanWarna(kegiatanList) {
+  (kegiatanList || []).slice()
+    .sort((a, b) => new Date(a.created_at || 0) - new Date(b.created_at || 0) || (a.id || 0) - (b.id || 0))
+    .forEach(k => {
+      if (k.nama_kegiatan && !_lemburWarnaMap.has(k.nama_kegiatan)) {
+        _lemburWarnaMap.set(k.nama_kegiatan, LEMBUR_PALET_WARNA[_lemburWarnaMap.size % LEMBUR_PALET_WARNA.length]);
+      }
+    });
+}
+function _lemburWarnaKegiatan(nama) {
+  if (!_lemburWarnaMap.has(nama)) _lemburWarnaMap.set(nama, LEMBUR_PALET_WARNA[_lemburWarnaMap.size % LEMBUR_PALET_WARNA.length]);
+  return _lemburWarnaMap.get(nama);
+}
+
 async function loadLemburKegiatan() {
   _lemburFull = _lemburHasFull();
   _lemburView = 'kegiatan';
@@ -36,31 +82,62 @@ async function loadLemburKegiatan() {
 
 // Kalender lembur: hijau kalau ada hari lembur tercatat di tanggal itu, abu2 kalau tidak.
 // Klik tanggal yg ada lembur -> langsung buka detail hari lembur itu.
-function _lemburKalenderPanel(sesiList, bulan, tahun) {
+function _lemburKalenderPanel(sesiList, bulan, tahun, liburSet = new Set(), liburMap = new Map()) {
   const daysInMonth = new Date(tahun, bulan, 0).getDate();
   const today = new Date();
   const todayKey = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
   const pad2 = n => String(n).padStart(2, '0');
 
   const byDay = new Map();
-  (sesiList || []).forEach(s => byDay.set(s.tanggal, s));
+  (sesiList || []).forEach(s => byDay.set(_lemburDateKey(s.tanggal), s));
 
   const firstDow = new Date(tahun, bulan - 1, 1).getDay();
   const cells = [];
   for (let i = 0; i < firstDow; i++) cells.push(`<div class="dash-heatmap-cell is-empty"></div>`);
 
+  const namaBulanIni = [];
   for (let day = 1; day <= daysInMonth; day++) {
     const key = `${tahun}-${pad2(bulan)}-${pad2(day)}`;
+    const dow = new Date(tahun, bulan - 1, day).getDay();
+    const isWeekend = dow === 0 || dow === 6;
+    const isLiburTanggal = liburSet.has(key);
     const isFuture = key > todayKey;
     const s = byDay.get(key);
+
+    // Weekend/hari libur ditandai duluan (disamain sama Kalender Kehadiran Absensi) -
+    // walau ada sesi lembur tercatat di tanggal itu, tetep gak masalah karena
+    // klik masih jalan lewat data-tip kalau memang ada s (jarang, tapi jaga-jaga).
+    if (isWeekend || isLiburTanggal) {
+      const namaLibur = liburMap.get(key) || 'hari libur';
+      const liburTip = isWeekend && isLiburTanggal ? `akhir pekan & ${namaLibur}` : isWeekend ? 'Akhir Pekan' : namaLibur;
+      if (s) {
+        const nama = s.nama_kegiatan || s.kegiatan_nama || '';
+        const warna = _lemburWarnaKegiatan(nama);
+        if (nama && !namaBulanIni.includes(nama)) namaBulanIni.push(nama);
+        cells.push(`<div class="dash-heatmap-cell" style="background:${warna};cursor:pointer" data-tip="Tgl ${day}: ${nama} (${liburTip})" onclick="_lemburKalenderKlikTanggal(${s.kegiatan_id}, ${s.id})">${day}</div>`);
+      } else {
+        cells.push(`<div class="dash-heatmap-cell is-libur" data-tip="Tgl ${day}: ${liburTip}">${day}</div>`);
+      }
+      continue;
+    }
     if (s) {
-      cells.push(`<div class="dash-heatmap-cell" style="background:#10b981;cursor:pointer" data-tip="Tgl ${day}: ${esc(s.nama_kegiatan || s.kegiatan_nama || '')}" onclick="_lemburKalenderKlikTanggal(${s.kegiatan_id}, ${s.id})">${day}</div>`);
+      const nama = s.nama_kegiatan || s.kegiatan_nama || '';
+      const warna = _lemburWarnaKegiatan(nama);
+      if (nama && !namaBulanIni.includes(nama)) namaBulanIni.push(nama);
+      const tip = (_lemburHasFull() && s.daftar_peserta)
+        ? `Tgl ${day}: ${nama} — Peserta: ${s.daftar_peserta}`
+        : `Tgl ${day}: ${nama}`;
+      cells.push(`<div class="dash-heatmap-cell" style="background:${warna};cursor:pointer" data-tip="${esc(tip)}" onclick="_lemburKalenderKlikTanggal(${s.kegiatan_id}, ${s.id})">${day}</div>`);
     } else if (isFuture) {
       cells.push(`<div class="dash-heatmap-cell is-future">${day}</div>`);
     } else {
       cells.push(`<div class="dash-heatmap-cell" style="background:#f8fafc;color:#cbd5e1" data-tip="Tgl ${day}: tidak ada lembur">${day}</div>`);
     }
   }
+
+  const legendHtml = namaBulanIni.length
+    ? namaBulanIni.map(nama => `<span data-tip="${esc(nama)}"><i style="background:${_lemburWarnaKegiatan(nama)}"></i><span class="dash-heatmap-legend-label">${esc(nama)}</span></span>`).join('')
+    : `<span><i style="background:#f8fafc;border:1px solid #e2e8f0"></i>Tidak ada lembur</span>`;
 
   const icon = `<svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/><path d="M8 2v4"/><path d="M16 2v4"/></svg>`;
   return `<div class="dash-panel dash-panel--kalender">
@@ -69,7 +146,7 @@ function _lemburKalenderPanel(sesiList, bulan, tahun) {
       <div class="dash-heatmap-dow"><span>Min</span><span>Sen</span><span>Sel</span><span>Rab</span><span>Kam</span><span>Jum</span><span>Sab</span></div>
       <div class="dash-heatmap-grid">${cells.join('')}</div>
     </div>
-    <div class="dash-heatmap-legend"><span><i style="background:#10b981"></i>Ada Lembur</span><span><i style="background:#f8fafc;border:1px solid #e2e8f0"></i>Tidak ada data</span></div>
+    <div class="dash-heatmap-legend">${legendHtml}</div>
   </div>`;
 }
 
@@ -160,7 +237,7 @@ async function _lemburOpenTambahKegiatan() {
   document.getElementById('btnLemburTanggalTambah').style.display = '';
   document.getElementById('lemburKegiatanTanggalHint').style.display = '';
   if (typeof initCdtp === 'function') initCdtp();
-  { const _c = document.getElementById('cdtp_lemburKegiatanTanggal')?._cdtp; if (_c) { _c.set(new Date().toISOString().slice(0,10)); _c.commit(); } }
+  { const _c = document.getElementById('cdtp_lemburKegiatanTanggal')?._cdtp; if (_c) _c.clear(); }
   tpSetValue('lemburKegiatanJamMulai', '16:30');
   tpSetValue('lemburKegiatanJamSelesai', '19:30');
   _lemburKegiatanTanggalList = [];
@@ -170,9 +247,56 @@ async function _lemburOpenTambahKegiatan() {
   _lemburRenderKegiatanDokPreview();
   document.getElementById('lemburKegiatanPesertaGrid').innerHTML = '';
   openModal('modalLemburKegiatan');
-  setTimeout(() => document.getElementById('lemburKegiatanNama').focus(), 50);
   await _lemburFetchPegawai(document.getElementById('lemburKegiatanTanggal').value);
   _lemburRenderKegiatanPesertaGrid();
+}
+
+// Nama Kegiatan sekarang combobox: opsi diambil dari nama kegiatan yang udah pernah dipakai
+// (bukan master data terpisah), biar penamaan kegiatan yang berulang (mis. "Rapat Koordinasi
+// Bulanan") konsisten - sekalian bikin warnanya di kalender konsisten juga. Pola combobox-nya
+// sama persis kayak "Keterangan" di e-Planning (pake _epMakeLocalCombobox yang sama).
+let _lemburNamaCustom = [];
+const _lemburNamaCombo = (typeof _epMakeLocalCombobox === 'function') ? _epMakeLocalCombobox({
+  inputId: 'lemburKegiatanNama',
+  getOptions: () => {
+    const dariKegiatan = (_lemburKegiatanList || []).map(k => k.nama_kegiatan).filter(Boolean);
+    const dipakai = [..._lemburNamaCustom, ...dariKegiatan];
+    return Array.from(new Set(dipakai)).map(nama => ({ nama }));
+  },
+  matchText: x => x.nama,
+  renderOption: x => esc(x.nama),
+  onPick: (input, x) => { input.value = x.nama; },
+  canDelete: x => _lemburNamaCustom.includes(x.nama) && !(_lemburKegiatanList || []).some(k => k.nama_kegiatan === x.nama),
+  onDelete: (x) => { const i = _lemburNamaCustom.indexOf(x.nama); if (i !== -1) _lemburNamaCustom.splice(i, 1); },
+}) : null;
+function lemburSearchNamaKegiatan() { _lemburNamaCombo?.search(); }
+function lemburFocusNamaKegiatanBaru(e) {
+  e.preventDefault();
+  e.stopPropagation(); // biar klik-nya gak ke-anggep "klik di luar" sama listener combobox yang langsung nutup lagi panel yang baru kebuka
+  _lemburNamaCombo?.close();
+  document.getElementById('lemburNamaKegiatanBaru').value = '';
+  // Modal "Kegiatan Lembur Baru" disembunyikan dulu (bukan di-closeModal beneran, jadi isian
+  // tanggal/jam/peserta yg udah diisi gak ilang) - biar gak numpuk 2 modal-overlay blur bareng,
+  // soalnya itu yang bikin ngetik di modal ini kerasa lag (browser ngerender 2 backdrop-blur sekaligus).
+  document.getElementById('modalLemburKegiatan')?.classList.remove('open');
+  openModal('modalLemburNamaKegiatan');
+  setTimeout(() => document.getElementById('lemburNamaKegiatanBaru').focus(), 50);
+}
+function _lemburTutupNamaKegiatanBaru() {
+  closeModal('modalLemburNamaKegiatan');
+  document.getElementById('modalLemburKegiatan')?.classList.add('open');
+}
+function lemburSimpanNamaKegiatanBaru() {
+  const nilai = document.getElementById('lemburNamaKegiatanBaru').value.trim();
+  if (!nilai) { document.getElementById('lemburNamaKegiatanBaru').focus(); return; }
+  const dariKegiatan = (_lemburKegiatanList || []).map(k => k.nama_kegiatan).filter(Boolean);
+  const sudahAda = [..._lemburNamaCustom, ...dariKegiatan].some(x => x.trim().toLowerCase() === nilai.toLowerCase());
+  if (sudahAda) { toast('Nama kegiatan tersebut sudah ada di daftar', 'error'); document.getElementById('lemburNamaKegiatanBaru').focus(); return; }
+  if (!_lemburNamaCustom.includes(nilai)) _lemburNamaCustom.push(nilai);
+  // Beda sama pola Keterangan di e-Planning: di sini field Nama Kegiatan cuma satu-satunya &
+  // wajib diisi buat lanjut, jadi langsung diisiin ke field-nya biar gak perlu buka dropdown lagi.
+  document.getElementById('lemburKegiatanNama').value = nilai;
+  _lemburTutupNamaKegiatanBaru();
 }
 
 function _lemburRenderTanggalChips() {
@@ -189,6 +313,7 @@ function _lemburRenderTanggalChips() {
 async function _lemburAddTanggalChip() {
   const tgl = document.getElementById('lemburKegiatanTanggal').value;
   if (!tgl) { toast('Pilih tanggal terlebih dahulu', 'error'); return; }
+  if (_lemburIsTanggalFuture(tgl)) { toast('Tanggal belum bisa dipilih - lembur cuma bisa dicatat untuk tanggal yang sudah terjadi', 'error'); return; }
   if (_lemburKegiatanTanggalList.includes(tgl)) { toast('Tanggal itu sudah ditambahkan', 'error'); return; }
   const btn = document.getElementById('btnLemburTanggalTambah');
   if (btn) btn.disabled = true;
@@ -224,12 +349,21 @@ function _lemburOpenEditKegiatan(id) {
   document.getElementById('lemburKegiatanPesertaWrap').style.display = 'none';
   document.getElementById('lemburKegiatanDokWrap').style.display = 'none';
   openModal('modalLemburKegiatan');
-  setTimeout(() => document.getElementById('lemburKegiatanNama').focus(), 50);
 }
 
-function _lemburSubmitTambahKegiatan() {
+async function _lemburSubmitTambahKegiatan() {
   const nama = document.getElementById('lemburKegiatanNama').value.trim();
   if (!nama) { toast('Nama kegiatan wajib diisi', 'error'); return; }
+
+  // Nama kegiatan harus unik - kalau mau nambah hari lembur ke kegiatan yang udah ada dengan
+  // nama yang sama, pakai "+ Tambah Hari Lembur" di kegiatan itu, bukan bikin kegiatan baru lagi.
+  const sudahAda = (_lemburKegiatanList || []).some(k =>
+    k.nama_kegiatan.trim().toLowerCase() === nama.toLowerCase() && k.id !== _lemburKegiatanEditId
+  );
+  if (sudahAda) {
+    toast(`Kegiatan "${nama}" sudah ada. Pakai "+ Tambah Hari Lembur" di kegiatan itu buat nambah tanggal lagi.`, 'error');
+    return;
+  }
 
   if (_lemburKegiatanEditId) {
     closeModal('modalLemburKegiatan');
@@ -242,6 +376,34 @@ function _lemburSubmitTambahKegiatan() {
   let tanggalList = [..._lemburKegiatanTanggalList];
   if (!tanggalList.length && tanggalPicker) tanggalList = [tanggalPicker];
   if (!tanggalList.length) { toast('Tanggal lembur wajib diisi', 'error'); return; }
+  const tglFuture = tanggalList.find(t => _lemburIsTanggalFuture(t));
+  if (tglFuture) {
+    const label = new Date(tglFuture).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
+    toast(`${label} belum terjadi - lembur cuma bisa dicatat untuk tanggal yang sudah lewat`, 'error');
+    return;
+  }
+
+  // Cek benturan tanggal DULU buat semua tanggal sebelum nyimpen apapun - kalau ada yang bentrok,
+  // modal tetap dibuka & belum ada yang disimpan sama sekali, biar user tinggal ganti/hapus chip
+  // tanggal yang bentrok itu tanpa kehilangan isian lain (nama, jam, peserta, tanggal lain yang oke).
+  const btn = document.getElementById('btnSaveLemburKegiatan');
+  if (btn) btn.disabled = true;
+  try {
+    const hasilCek = await Promise.all(tanggalList.map(async tanggal => {
+      try {
+        const r = await fetch(`/api/lembur/cek-tanggal?tanggal=${tanggal}`, { headers: authHeaders() });
+        const d = await r.json();
+        return { tanggal, terpakai: !!(r.ok && d.terpakai), nama_kegiatan: d.nama_kegiatan || null };
+      } catch { return { tanggal, terpakai: false, nama_kegiatan: null }; } // gagal cek, biar tetap lanjut & divalidasi ulang saat submit
+    }));
+    const bentrok = hasilCek.filter(h => h.terpakai);
+    if (bentrok.length) {
+      const detail = bentrok.map(h => `${new Date(h.tanggal).toLocaleDateString('id-ID', { day: 'numeric', month: 'long' })} (di kegiatan "${h.nama_kegiatan}")`).join(', ');
+      toast(`Tanggal bentrok, belum disimpan: ${detail}. Ganti atau hapus tanggal itu dulu.`, 'error');
+      return;
+    }
+  } finally { if (btn) btn.disabled = false; }
+
   const jam_mulai = tpGetValue('lemburKegiatanJamMulai');
   const jam_selesai = tpGetValue('lemburKegiatanJamSelesai');
   const peserta_ids = [..._lemburKegiatanPesertaSelected];
@@ -275,35 +437,6 @@ async function _lemburHapusKegiatan(id) {
     toast('Kegiatan lembur dihapus', 'success');
     await _lemburRenderKegiatanList();
   } catch { toast('Gagal menghapus kegiatan', 'error'); }
-}
-
-async function _lemburCreateKegiatan(nama_kegiatan, tanggal, jam_mulai, jam_selesai, peserta_ids = [], dokFiles = []) {
-  try {
-    const r = await fetch('/api/lembur/kegiatan', { method: 'POST', headers: { ...authHeaders(), 'Content-Type': 'application/json' }, body: JSON.stringify({ nama_kegiatan }) });
-    const d = await r.json();
-    if (!r.ok) { toast(d.error || 'Gagal menyimpan kegiatan', 'error'); return; }
-    const r2 = await fetch('/api/lembur/sesi', {
-      method: 'POST', headers: { ...authHeaders(), 'Content-Type': 'application/json' },
-      body: JSON.stringify({ kegiatan_id: d.kegiatan.id, tanggal, jam_mulai, jam_selesai }),
-    });
-    const d2 = await r2.json();
-    if (!r2.ok) { toast(d2.error || 'Gagal menyimpan hari lembur', 'error'); return; }
-
-    if (peserta_ids.length) {
-      const r3 = await fetch(`/api/lembur/sesi/${d2.sesi.id}/peserta`, { method: 'POST', headers: { ...authHeaders(), 'Content-Type': 'application/json' }, body: JSON.stringify({ user_ids: peserta_ids }) });
-      if (!r3.ok) toast('Kegiatan tersimpan, tapi gagal menambah sebagian peserta', 'error');
-    }
-    for (const f of dokFiles) {
-      await _lemburUploadOneDokTo(d2.sesi.id, f);
-    }
-
-    toast('Kegiatan lembur ditambahkan', 'success');
-    await _lemburFetchKegiatan();
-    _lemburActiveKegiatan = d.kegiatan;
-    _lemburView = 'sesi';
-    await _lemburFetchSesi();
-    await _lemburOpenSesi(d2.sesi.id);
-  } catch { toast('Gagal menyimpan kegiatan', 'error'); }
 }
 
 async function _lemburCreateKegiatanMulti(nama_kegiatan, tanggalList, jam_mulai, jam_selesai, peserta_ids = [], dokFiles = []) {
@@ -343,11 +476,10 @@ async function _lemburCreateKegiatanMulti(nama_kegiatan, tanggalList, jam_mulai,
       ? `${sukses} hari lembur ditambahkan. Gagal: ${gagalDetail.join(', ')}`
       : 'Kegiatan lembur ditambahkan', gagal ? 'error' : 'success');
 
-    await _lemburFetchKegiatan();
-    _lemburActiveKegiatan = d.kegiatan;
-    _lemburView = 'sesi';
-    await _lemburFetchSesi();
-    await _lemburOpenSesi(firstSesi.id);
+    // Tetap di list "Kegiatan Lembur" (cuma refresh list-nya) - jangan lsg lompat ke detail
+    // sesi, biar user yang milih mau buka kegiatan mana.
+    _lemburView = 'kegiatan';
+    await _lemburRenderKegiatanList();
   } catch { toast('Gagal menyimpan kegiatan', 'error'); }
 }
 
@@ -368,11 +500,31 @@ function _lemburRenderKegiatanPesertaGrid() {
         </div>`;
       }).join('')
     : `<div style="text-align:center;color:var(--teks-muted);padding:8px;font-size:.82rem">Belum ada data pegawai.</div>`;
+  _lemburUpdateKegiatanSelectAllLabel();
 }
 
 function _lemburToggleKegiatanPeserta(id, el) {
   if (_lemburKegiatanPesertaSelected.has(id)) { _lemburKegiatanPesertaSelected.delete(id); el.classList.remove('selected'); }
   else { _lemburKegiatanPesertaSelected.add(id); el.classList.add('selected'); }
+  _lemburUpdateKegiatanSelectAllLabel();
+}
+
+function _lemburUpdateKegiatanSelectAllLabel() {
+  const label = document.getElementById('lemburKegiatanPesertaSelectAll');
+  if (!label) return;
+  const selectable = _lemburPegawai.filter(p => !_lemburStatusAbsensi(p.absensi_status));
+  const allSelected = selectable.length > 0 && selectable.every(p => _lemburKegiatanPesertaSelected.has(p.id));
+  label.textContent = allSelected ? 'Batalkan Semua' : 'Pilih Semua';
+}
+
+function _lemburToggleSelectAllKegiatanPeserta() {
+  const grid = document.getElementById('lemburKegiatanPesertaGrid');
+  if (!grid) return;
+  const selectable = _lemburPegawai.filter(p => !_lemburStatusAbsensi(p.absensi_status));
+  const allSelected = selectable.length > 0 && selectable.every(p => _lemburKegiatanPesertaSelected.has(p.id));
+  if (allSelected) selectable.forEach(p => _lemburKegiatanPesertaSelected.delete(p.id));
+  else selectable.forEach(p => _lemburKegiatanPesertaSelected.add(p.id));
+  _lemburRenderKegiatanPesertaGrid();
 }
 
 function _lemburStageDok(files) {
@@ -489,7 +641,7 @@ async function _lemburOpenTambahSesi() {
   document.getElementById('lemburSesiJamWrap').style.display = '';
   document.getElementById('lemburSesiPesertaWrap').style.display = '';
   if (typeof initCdtp === 'function') initCdtp();
-  { const _c = document.getElementById('cdtp_lemburSesiTanggal')?._cdtp; if (_c) { _c.set(new Date().toISOString().slice(0,10)); _c.commit(); } }
+  { const _c = document.getElementById('cdtp_lemburSesiTanggal')?._cdtp; if (_c) { _c.enable(); _c.clear(); } }
   tpSetValue('lemburSesiJamMulai', '16:30');
   tpSetValue('lemburSesiJamSelesai', '19:30');
   _lemburPesertaSelected = new Set();
@@ -519,11 +671,31 @@ function _lemburRenderSesiPesertaGrid(excludeIds = []) {
         </div>`;
       }).join('')
     : `<div style="text-align:center;color:var(--teks-muted);padding:8px;font-size:.82rem">Semua pegawai sudah ditambahkan.</div>`;
+  _lemburUpdateSesiSelectAllLabel(options);
 }
 
 function _lemburToggleSesiPeserta(id, el) {
   if (_lemburPesertaSelected.has(id)) { _lemburPesertaSelected.delete(id); el.classList.remove('selected'); }
   else { _lemburPesertaSelected.add(id); el.classList.add('selected'); }
+  _lemburUpdateSesiSelectAllLabel();
+}
+
+function _lemburUpdateSesiSelectAllLabel(options) {
+  const label = document.getElementById('lemburSesiPesertaSelectAll');
+  if (!label) return;
+  const selectable = (options || _lemburPegawai).filter(p => !_lemburStatusAbsensi(p.absensi_status));
+  const allSelected = selectable.length > 0 && selectable.every(p => _lemburPesertaSelected.has(p.id));
+  label.textContent = allSelected ? 'Batalkan Semua' : 'Pilih Semua';
+}
+
+function _lemburToggleSelectAllSesiPeserta() {
+  const grid = document.getElementById('lemburSesiPesertaGrid');
+  if (!grid) return;
+  const selectable = _lemburPegawai.filter(p => !_lemburStatusAbsensi(p.absensi_status));
+  const allSelected = selectable.length > 0 && selectable.every(p => _lemburPesertaSelected.has(p.id));
+  if (allSelected) selectable.forEach(p => _lemburPesertaSelected.delete(p.id));
+  else selectable.forEach(p => _lemburPesertaSelected.add(p.id));
+  _lemburRenderSesiPesertaGrid();
 }
 
 function _lemburSubmitSesi() {
@@ -531,6 +703,7 @@ function _lemburSubmitSesi() {
   const jam_mulai = document.getElementById('lemburSesiJamMulai').value;
   const jam_selesai = document.getElementById('lemburSesiJamSelesai').value;
   if (!tanggal) { toast('Tanggal wajib diisi', 'error'); return; }
+  if (_lemburIsTanggalFuture(tanggal)) { toast('Tanggal belum bisa dipilih - lembur cuma bisa dicatat untuk tanggal yang sudah terjadi', 'error'); return; }
   const peserta_ids = [..._lemburPesertaSelected];
   closeModal('modalLemburSesi');
   _lemburCreateSesi(tanggal, jam_mulai, jam_selesai, peserta_ids);
@@ -550,7 +723,6 @@ async function _lemburCreateSesi(tanggal, jam_mulai, jam_selesai, peserta_ids = 
     }
     toast('Hari lembur ditambahkan', 'success');
     await _lemburRenderSesiList();
-    _lemburOpenSesi(d.sesi.id);
   } catch { toast('Gagal menyimpan hari lembur', 'error'); }
 }
 
@@ -710,7 +882,7 @@ async function _lemburEditJam(id) {
   document.getElementById('lemburSesiJamWrap').style.display = '';
   document.getElementById('lemburSesiPesertaWrap').style.display = _lemburFull ? '' : 'none';
   if (typeof initCdtp === 'function') initCdtp();
-  { const _c = document.getElementById('cdtp_lemburSesiTanggal')?._cdtp; if (_c) { _c.set(_lemburActiveSesi.tanggal); _c.commit(); } }
+  { const _c = document.getElementById('cdtp_lemburSesiTanggal')?._cdtp; if (_c) { _c.set(_lemburActiveSesi.tanggal); _c.commit(); _c.disable(); } }
   tpSetValue('lemburSesiJamMulai', _lemburActiveSesi.jam_mulai ? _lemburActiveSesi.jam_mulai.slice(0,5) : '00:00');
   tpSetValue('lemburSesiJamSelesai', _lemburActiveSesi.jam_selesai ? _lemburActiveSesi.jam_selesai.slice(0,5) : '00:00');
   document.getElementById('btnSaveLemburSesi').setAttribute('onclick', '_lemburSubmitEditJam()');
@@ -721,7 +893,7 @@ async function _lemburEditJam(id) {
     document.getElementById('lemburSesiPesertaGrid').innerHTML = `<div style="text-align:center;color:var(--teks-muted);padding:8px;font-size:.82rem">Memuat peserta...</div>`;
     try {
       const [, entriesRes] = await Promise.all([
-        _lemburFetchPegawai(_lemburActiveSesi.tanggal),
+        _lemburFetchPegawai(_lemburDateKey(_lemburActiveSesi.tanggal)),
         fetch(`/api/lembur/entries?sesi_id=${_lemburActiveSesi.id}`, { headers: authHeaders() }).then(r => r.json()),
       ]);
       _lemburEditOrigUserIds = (entriesRes.entries || []).map(e => e.user_id);
