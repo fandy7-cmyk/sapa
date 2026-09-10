@@ -844,9 +844,15 @@ function _lemburRenderSesiDetail() {
             ${bisaEdit ? '' : 'data-tip="Hanya pemilik atau admin yang bisa mengubah uraian tugas ini" style="cursor:not-allowed"'}
             onblur="_lemburSaveUraian(${e.id}, this.value)">${_mdToRteHtml(e.uraian_tugas || '')}</div>
         </td>
+        <td class="textarea-cell" style="text-align:left;vertical-align:top">
+          <div class="ps-rte" id="lemburCatatan_${e.id}" contenteditable="${_lemburFull ? 'true' : 'false'}" spellcheck="false"
+            data-placeholder="${_lemburFull ? 'Catatan terkait uraian tugas...' : 'Belum ada catatan'}"
+            ${_lemburFull ? '' : 'data-tip="Hanya admin yang bisa mengisi catatan" style="cursor:not-allowed"'}
+            onblur="_lemburSaveCatatan(${e.id}, this.value)">${_mdToRteHtml(e.catatan || '')}</div>
+        </td>
         ${_lemburFull ? `<td style="white-space:nowrap;text-align:center;vertical-align:top">${hapusBtn}</td>` : ''}
       </tr>`;
-  }).join('') || `<tr><td colspan="6" style="text-align:center;color:var(--teks-muted)">Belum ada peserta.</td></tr>`;
+  }).join('') || `<tr><td colspan="${_lemburFull ? 7 : 6}" style="text-align:center;color:var(--teks-muted)">Belum ada peserta.</td></tr>`;
 
   body.innerHTML = `
     <div class="lembur-toolbar" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
@@ -856,7 +862,7 @@ function _lemburRenderSesiDetail() {
     <div class="card" style="padding:0;overflow:auto;-webkit-overflow-scrolling:touch">
       <table class="surat-table" style="table-layout:fixed">
         <thead>
-          <tr><th style="width:4%;text-align:center">No</th><th style="width:22%">Pegawai</th><th style="width:14%">Tanggal</th><th style="width:13%">Jam Lembur</th><th style="width:${_lemburFull ? '41' : '47'}%">Uraian Tugas</th>${_lemburFull ? '<th style="width:6%;text-align:center">Aksi</th>' : ''}</tr>
+          <tr><th style="width:4%;text-align:center">No</th><th style="width:22%">Pegawai</th><th style="width:14%">Tanggal</th><th style="width:13%">Jam Lembur</th><th style="width:${_lemburFull ? '25' : '29'}%">Uraian Tugas</th><th style="width:${_lemburFull ? '16' : '18'}%">Catatan</th>${_lemburFull ? '<th style="width:6%;text-align:center">Aksi</th>' : ''}</tr>
         </thead>
         <tbody>${pesertaRows}</tbody>
       </table>
@@ -871,6 +877,17 @@ async function _lemburSaveUraian(entryId, uraian_tugas) {
     if (!r.ok) { toast(d.error || 'Gagal menyimpan uraian tugas', 'error'); return; }
     toast('Uraian tugas tersimpan', 'success');
   } catch { toast('Gagal menyimpan uraian tugas', 'error'); }
+}
+
+// Catatan kasubag terkait redaksi uraian tugas - cuma kolom di tampilan layar (tabel Kegiatan
+// Lembur), gak ikut ke dokumen Daftar Hadir yang di-download/cetak (lihat _lemburHalamanSesiHtml).
+async function _lemburSaveCatatan(entryId, catatan) {
+  try {
+    const r = await fetch(`/api/lembur/entries/${entryId}`, { method: 'PUT', headers: { ...authHeaders(), 'Content-Type': 'application/json' }, body: JSON.stringify({ catatan }) });
+    const d = await r.json();
+    if (!r.ok) { toast(d.error || 'Gagal menyimpan catatan', 'error'); return; }
+    toast('Catatan tersimpan', 'success');
+  } catch { toast('Gagal menyimpan catatan', 'error'); }
 }
 
 let _lemburPesertaSelected = new Set();
@@ -1132,6 +1149,17 @@ async function _lemburCetak() {
   _lemburDoCetak(ttd.nama, ttd.nip);
 }
 
+// Foto dokumentasi biasanya langsung dari kamera HP (bisa beberapa MB per file) - preview
+// PDF (_bukaPreviewPDF di laporan.js) baru manggil window.print() setelah event 'load' window,
+// yang nunggu SEMUA <img> selesai di-download dulu. Kalau dokumentasinya banyak, ini bikin
+// "Loading preview..." di dialog print jadi lama banget. Diringkas dulu lewat parameter
+// transformasi Cloudinary (resize + kompresi otomatis) sebelum disisipkan ke <img> laporan -
+// ukurannya di grid cuma ~1/2 halaman, jadi lebar 1000px udah lebih dari cukup buat kualitas cetak.
+function _lemburDokUrlCetak(url) {
+  if (!url || !url.includes('/upload/')) return url;
+  return url.replace('/upload/', '/upload/f_auto,q_auto,w_1000,c_limit/');
+}
+
 function _lemburHalamanSesiHtml(s, entries, dok, namaTtd, nipTtd, pageBreak) {
   const tgl = new Date(s.tanggal).toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
   const tglTtd = new Date(s.tanggal).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
@@ -1189,7 +1217,7 @@ function _lemburHalamanSesiHtml(s, entries, dok, namaTtd, nipTtd, pageBreak) {
           <div style="font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.5px">Dokumentasi Lembur</div>
           <div style="font-size:11px;color:#1e293b;margin-top:4px">${esc(_lemburActiveKegiatan.nama_kegiatan.toUpperCase())}</div>
         </div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;grid-template-rows:repeat(3,1fr);gap:12px;height:230mm">${grup.map(d => `<div style="border:1px solid #000;overflow:hidden"><img src="${d.file_url}" style="width:100%;height:100%;object-fit:cover;display:block"></div>`).join('')}</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;grid-template-rows:repeat(3,1fr);gap:12px;height:230mm">${grup.map(d => `<div style="border:1px solid #000;overflow:hidden"><img src="${_lemburDokUrlCetak(d.file_url)}" style="width:100%;height:100%;object-fit:cover;display:block"></div>`).join('')}</div>
       </div>`).join('');
       })() : ''}
     </div>
@@ -1219,17 +1247,24 @@ async function _lemburDownloadKegiatan(id) {
     const prevKegiatan = _lemburActiveKegiatan;
     _lemburActiveKegiatan = k;
     try {
-      const halaman = [];
-      for (let i = 0; i < sesiList.length; i++) {
-        const s = sesiList[i];
+      // Sebelumnya sesi di-fetch satu-satu (for loop sequential) - sesi ke-3 baru mulai
+      // fetch setelah sesi ke-1 & ke-2 kelar. Sekarang paralel semua sekaligus, dan begitu
+      // data dokumentasi satu sesi sampai, foto-fotonya langsung dipreload (new Image()) di
+      // background sambil sesi lain masih di-fetch. Jadi pas _bukaPreviewPDF buka window
+      // print dan nunggu semua <img> ke-load, sebagian besar udah ke-cache browser duluan -
+      // "Loading preview..." di dialog print jadi jauh lebih cepat.
+      const dataSesi = await Promise.all(sesiList.map(async (s) => {
         const [rEntries, rDok] = await Promise.all([
           fetch(`/api/lembur/entries?sesi_id=${s.id}`, { headers: authHeaders() }),
           fetch(`/api/lembur/dokumentasi?sesi_id=${s.id}`, { headers: authHeaders() })
         ]);
         const dEntries = await rEntries.json();
         const dDok = await rDok.json();
-        halaman.push(_lemburHalamanSesiHtml(s, _lemburSortByUrutanLaporan(dEntries.entries || []), dDok.dokumentasi || [], ttd.nama, ttd.nip, i > 0));
-      }
+        const dok = dDok.dokumentasi || [];
+        dok.forEach(dd => { const img = new Image(); img.src = _lemburDokUrlCetak(dd.file_url); });
+        return { s, entries: _lemburSortByUrutanLaporan(dEntries.entries || []), dok };
+      }));
+      const halaman = dataSesi.map(({ s, entries, dok }, i) => _lemburHalamanSesiHtml(s, entries, dok, ttd.nama, ttd.nip, i > 0));
       _bukaPreviewPDF(halaman.join(''), 'Daftar Hadir Lembur', 'portrait');
     } finally {
       _lemburActiveKegiatan = prevKegiatan;

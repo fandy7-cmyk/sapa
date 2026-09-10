@@ -346,6 +346,9 @@ function _lemburJamSesi(s) {
   return menit / 60;
 }
 
+let _lemburKalOffset = 0; // 0 = jendela 3 bulan terbaru (berakhir di bulan ini); makin besar makin mundur
+let _lemburDashCache = null; // { kegiatanList, sesiRelevant } - dipakai ulang pas navigasi kalender tanpa refetch
+
 async function loadDashboardLembur() {
   const wrap = document.getElementById('dashLemburStats');
   if (!wrap) return;
@@ -353,9 +356,11 @@ async function loadDashboardLembur() {
     <div class="dash-kpi-row">${Array(4).fill(0).map(() => `<div class="skeleton" style="height:98px;border-radius:14px"></div>`).join('')}</div>
     <div class="skeleton" style="height:160px;border-radius:16px"></div>`;
 
+  _lemburKalOffset = 0;
   const full = typeof _lemburHasFull === 'function' && _lemburHasFull();
   const { kegiatanList, allSesi } = await _fetchLemburDashData();
   const sesiRelevant = full ? allSesi : allSesi.filter(s => s.is_peserta);
+  _lemburDashCache = { kegiatanList, sesiRelevant };
 
   const icon = `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor" style="flex-shrink:0;opacity:.85"><path d="M3 12C3 12.5523 3.44772 13 4 13H10C10.5523 13 11 12.5523 11 12V4C11 3.44772 10.5523 3 10 3H4C3.44772 3 3 3.44772 3 4V12ZM3 20C3 20.5523 3.44772 21 4 21H10C10.5523 21 11 20.5523 11 20V16C11 15.4477 10.5523 15 10 15H4C3.44772 15 3 15.4477 3 16V20ZM13 20C13 20.5523 13.4477 21 14 21H20C20.5523 21 21 20.5523 21 20V12C21 11.4477 20.5523 11 20 11H14C13.4477 11 13 11.4477 13 12V20ZM14 3C13.4477 3 13 3.44772 13 4V8C13 8.55228 13.4477 9 14 9H20C20.5523 9 21 8.55228 21 8V4C21 3.44772 20.5523 3 20 3H14Z"/></svg>`;
   let html = _dashModuleHeader(icon, 'Dashboard', full ? 'Ringkasan aktivitas lembur seluruh pegawai' : 'Ringkasan aktivitas lembur Anda');
@@ -383,36 +388,7 @@ async function loadDashboardLembur() {
   // Kalender lembur (2 bulan lalu, bulan lalu, bulan ini) - buat lihat cepat tanggal mana sudah/belum ada lembur
   if (typeof _lemburKalenderPanel === 'function') {
     if (typeof _lemburSiapkanWarna === 'function') _lemburSiapkanWarna(kegiatanList);
-    const inBulan = (s, b, t) => (s.tanggal || '').slice(0, 7) === `${t}-${String(b).padStart(2, '0')}`;
-    const bulanList = [2, 1, 0].map(i => {
-      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-      return { bulan: d.getMonth() + 1, tahun: d.getFullYear() };
-    });
-
-    // Ambil hari libur nasional (disamain sama Kalender Kehadiran di dashboard Absensi) -
-    // bisa lintas 2 tahun kalau rentang 3 bulan ini nyebrang Desember-Januari.
-    let liburSet = new Set();
-    let liburMap = new Map();
-    try {
-      const tahunLiburSet = new Set(bulanList.map(b => b.tahun));
-      const rLiburList = await Promise.all(
-        [...tahunLiburSet].map(ty => fetch(`/api/absensi/libur?tahun=${ty}`, { headers: authHeaders() }))
-      );
-      for (const rLibur of rLiburList) {
-        if (!rLibur || !rLibur.ok) continue;
-        const dLibur = await rLibur.json();
-        (dLibur.libur || []).forEach(l => {
-          const ymd = typeof _absLiburLocalYMD === 'function' ? _absLiburLocalYMD(l.tanggal) : String(l.tanggal).slice(0, 10);
-          liburSet.add(ymd);
-          liburMap.set(ymd, l.keterangan || 'Hari libur');
-        });
-      }
-    } catch (err) { console.error('[loadDashboardLembur libur]', err); }
-
-    const panelsKalender = bulanList.map(({ bulan, tahun }) =>
-      _lemburKalenderPanel(sesiRelevant.filter(s => inBulan(s, bulan, tahun)), bulan, tahun, liburSet, liburMap)
-    );
-    html += `<div class="dash-panels dash-panels--kalender-row">${panelsKalender.join('')}</div>`;
+    html += await _lemburKalenderSectionHtml();
   }
 
   const panels = [];
@@ -447,6 +423,70 @@ async function loadDashboardLembur() {
   }
 
   wrap.innerHTML = html;
+}
+
+// Bagian "Kalender Lembur" (3 bulan) - dipisah dari loadDashboardLembur biar tombol navigasi
+// bulan cuma perlu render ulang bagian ini aja (pake data yg udah kepanggil, gak refetch kegiatan/sesi).
+async function _lemburKalenderSectionHtml() {
+  if (!_lemburDashCache) return '';
+  const { sesiRelevant } = _lemburDashCache;
+  const now = new Date();
+  const inBulan = (s, b, t) => (s.tanggal || '').slice(0, 7) === `${t}-${String(b).padStart(2, '0')}`;
+  const baseDate = new Date(now.getFullYear(), now.getMonth() - _lemburKalOffset, 1);
+  const bulanList = [2, 1, 0].map(i => {
+    const d = new Date(baseDate.getFullYear(), baseDate.getMonth() - i, 1);
+    return { bulan: d.getMonth() + 1, tahun: d.getFullYear() };
+  });
+
+  // Ambil hari libur nasional (disamain sama Kalender Kehadiran di dashboard Absensi) -
+  // bisa lintas 2 tahun kalau rentang 3 bulan ini nyebrang Desember-Januari.
+  let liburSet = new Set();
+  let liburMap = new Map();
+  try {
+    const tahunLiburSet = new Set(bulanList.map(b => b.tahun));
+    const rLiburList = await Promise.all(
+      [...tahunLiburSet].map(ty => fetch(`/api/absensi/libur?tahun=${ty}`, { headers: authHeaders() }))
+    );
+    for (const rLibur of rLiburList) {
+      if (!rLibur || !rLibur.ok) continue;
+      const dLibur = await rLibur.json();
+      (dLibur.libur || []).forEach(l => {
+        const ymd = typeof _absLiburLocalYMD === 'function' ? _absLiburLocalYMD(l.tanggal) : String(l.tanggal).slice(0, 10);
+        liburSet.add(ymd);
+        liburMap.set(ymd, l.keterangan || 'Hari libur');
+      });
+    }
+  } catch (err) { console.error('[_lemburKalenderSectionHtml libur]', err); }
+
+  const panelsKalender = bulanList.map(({ bulan, tahun }) =>
+    _lemburKalenderPanel(sesiRelevant.filter(s => inBulan(s, bulan, tahun)), bulan, tahun, liburSet, liburMap)
+  );
+
+  return `<div id="lemburKalenderSection">
+    ${_dashKalenderNavHtml(_lemburKalOffset, '_lemburKalNav')}
+    <div class="dash-panels dash-panels--kalender-row">${panelsKalender.join('')}</div>
+  </div>`;
+}
+
+async function _lemburKalNav(delta) {
+  _lemburKalOffset = Math.max(0, _lemburKalOffset + delta);
+  const el = document.getElementById('lemburKalenderSection');
+  if (!el) return;
+  el.style.opacity = '.5';
+  const html = await _lemburKalenderSectionHtml();
+  el.outerHTML = html;
+}
+
+// Tombol navigasi geser jendela bulan kalender (dipakai bareng di Dashboard Lembur & Absensi).
+// delta -1 = maju (mundur ke bulan yg lebih baru), +1 = mundur (bulan yg lebih lama).
+// offset 0 = jendela paling baru -> tombol "maju" disable karena gak bisa lebih baru dari sekarang.
+function _dashKalenderNavHtml(offset, fnName) {
+  const iconPrev = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>`;
+  const iconNext = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>`;
+  return `<div class="dash-kalender-nav">
+    <button type="button" class="dash-kalender-nav-btn" data-tip="Tampilkan bulan-bulan sebelumnya" onclick="${fnName}(1)">${iconPrev} Bulan Sebelumnya</button>
+    <button type="button" class="dash-kalender-nav-btn" data-tip="Tampilkan bulan-bulan berikutnya" ${offset <= 0 ? 'disabled' : ''} onclick="${fnName}(-1)">Bulan Berikutnya ${iconNext}</button>
+  </div>`;
 }
 
 // Grafik tren jumlah sesi lembur 6 bulan terakhir
@@ -594,50 +634,46 @@ async function _fetchPengajuanPendingDash(full, userId) {
   } catch { return []; }
 }
 
+let _absKalOffset = 0; // 0 = bulan ini + bulan lalu (jendela terbaru); makin besar makin mundur
+let _absDashCtx = null; // { full, userId } - dipakai ulang pas navigasi kalender tanpa perlu argumen ekstra
+
 async function loadDashboardAbsensi() {
   const wrap = document.getElementById('dashAbsensiStats');
   if (!wrap) return;
   wrap.innerHTML = `
     <div class="skeleton" style="height:160px;border-radius:16px"></div>`;
 
+  _absKalOffset = 0;
   const full = typeof isAbsensiFull === 'function' && isAbsensiFull();
   const now = new Date();
   const bulan = now.getMonth() + 1, tahun = now.getFullYear();
-  const prevRef = new Date(tahun, bulan - 2, 1);
-  const prevBulan = prevRef.getMonth() + 1, prevTahun = prevRef.getFullYear();
   const userId = full ? '' : _user.id;
-  let d = {}, dPrev = {}, pegawaiList = [];
+  _absDashCtx = { full, userId };
+  let d = {}, pegawaiList = [];
   let ringkasan = { harian: [], ranking_terlambat: [], sudah_absen_user_ids: [] };
-  let ringkasanPrev = { harian: [], ranking_terlambat: [], sudah_absen_user_ids: [] };
   let pengajuanPending = [];
   let jamKerja = null;
   let absSettings = null;
   let liburSet = new Set();
   let liburMap = new Map(); // YMD -> keterangan, buat notice "hari ini libur"
   try {
-    const tahunLiburSet = new Set([tahun, prevTahun]); // bisa beda kalau lintas Desember-Januari
-    const [r1, r2, ring, ringPrev, pengPending, rJamKerja, rSettings, ...rLiburList] = await Promise.all([
+    const [r1, ring, pengPending, rJamKerja, rSettings, rLibur] = await Promise.all([
       fetch(`/api/absensi/rekap?user_id=${userId}&bulan=${bulan}&tahun=${tahun}`, { headers: authHeaders() }),
-      fetch(`/api/absensi/rekap?user_id=${userId}&bulan=${prevBulan}&tahun=${prevTahun}`, { headers: authHeaders() }),
       _fetchRingkasanBulan(bulan, tahun, userId),
-      _fetchRingkasanBulan(prevBulan, prevTahun, userId),
       _fetchPengajuanPendingDash(full, _user.id),
       // Jam Kerja: buat non-full ini metrik personal (jam kerja diri sendiri),
       // buat full/admin ini total agregat semua pegawai (lihat backend
       // /api/absensi/jam-kerja: agregat aktif kalau gak ada user_id spesifik).
       fetch(`/api/absensi/jam-kerja?bulan=${bulan}&tahun=${tahun}`, { headers: authHeaders() }),
       fetch(`/api/absensi/settings`, { headers: authHeaders() }),
-      ...[...tahunLiburSet].map(ty => fetch(`/api/absensi/libur?tahun=${ty}`, { headers: authHeaders() })),
+      fetch(`/api/absensi/libur?tahun=${tahun}`, { headers: authHeaders() }),
     ]);
     if (r1.ok) d = await r1.json();
-    if (r2.ok) dPrev = await r2.json();
     ringkasan = ring;
-    ringkasanPrev = ringPrev;
     pengajuanPending = pengPending;
     if (rJamKerja && rJamKerja.ok) jamKerja = await rJamKerja.json();
     if (rSettings && rSettings.ok) { const dSettings = await rSettings.json(); absSettings = dSettings.settings || null; }
-    for (const rLibur of rLiburList) {
-      if (!rLibur || !rLibur.ok) continue;
+    if (rLibur && rLibur.ok) {
       const dLibur = await rLibur.json();
       (dLibur.libur || []).forEach(l => {
         const ymd = _absLiburLocalYMD(l.tanggal);
@@ -659,9 +695,6 @@ async function loadDashboardAbsensi() {
       );
     } catch {  }
   }
-
-  const rk     = d.rekap     || { hadir: 0, tugas_luar: 0, cuti: 0, alpa: 0, terlambat: 0, tidak_lengkap: 0 };
-  const rkPrev = dPrev.rekap || { hadir: 0, tugas_luar: 0, cuti: 0, alpa: 0, terlambat: 0, tidak_lengkap: 0 };
 
   const icon = `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor" style="flex-shrink:0;opacity:.85"><path d="M3 12C3 12.5523 3.44772 13 4 13H10C10.5523 13 11 12.5523 11 12V4C11 3.44772 10.5523 3 10 3H4C3.44772 3 3 3.44772 3 4V12ZM3 20C3 20.5523 3.44772 21 4 21H10C10.5523 21 11 20.5523 11 20V16C11 15.4477 10.5523 15 10 15H4C3.44772 15 3 15.4477 3 16V20ZM13 20C13 20.5523 13.4477 21 14 21H20C20.5523 21 21 20.5523 21 20V12C21 11.4477 20.5523 11 20 11H14C13.4477 11 13 11.4477 13 12V20ZM14 3C13.4477 3 13 3.44772 13 4V8C13 8.55228 13.4477 9 14 9H20C20.5523 9 21 8.55228 21 8V4C21 3.44772 20.5523 3 20 3H14Z"/></svg>`;
   let html = _dashModuleHeader(icon, 'Dashboard', full ? 'Ringkasan kehadiran seluruh pegawai bulan ini' : 'Ringkasan kehadiran Anda bulan ini');
@@ -721,7 +754,72 @@ async function loadDashboardAbsensi() {
     }
   }
 
+  if (panels.length) html += `<div class="dash-panels">${panels.join('')}</div>`;
+
   
+  
+  const jamKerjaPanelHtml = jamKerja ? _absensiJamKerjaPanel(jamKerja, full) : null;
+  const kolomKiriHtml = full ? belumPanelHtml : null;
+  const kolomKananHtml = jamKerjaPanelHtml;
+  const trendPanelHtml = _absensiTrendPanel(ringkasan.harian, bulan, tahun, full,  !kolomKiriHtml && !kolomKananHtml);
+  html += (kolomKiriHtml || kolomKananHtml)
+    ? `<div class="dash-panels dash-panels--belum-tren-row">${kolomKiriHtml || ''}${trendPanelHtml}${kolomKananHtml || ''}</div>`
+    : `<div class="dash-panels">${trendPanelHtml}</div>`;
+
+  
+  html += await _absensiKalenderSectionHtml();
+
+  wrap.innerHTML = html;
+}
+
+// Bagian "Perbandingan Kehadiran Bulanan" + "Kalender Kehadiran" (2 bulan) - dipisah dari
+// loadDashboardAbsensi biar tombol navigasi bulan cuma perlu render ulang bagian ini aja,
+// tanpa reload seluruh dashboard (KPI/status hari ini/jam kerja tetap milik bulan berjalan).
+async function _absensiKalenderSectionHtml() {
+  if (!_absDashCtx) return '';
+  const { full, userId } = _absDashCtx;
+  const now = new Date();
+  const baseRef = new Date(now.getFullYear(), now.getMonth() - _absKalOffset, 1);
+  const bulan = baseRef.getMonth() + 1, tahun = baseRef.getFullYear();
+  const prevRef = new Date(tahun, bulan - 2, 1);
+  const prevBulan = prevRef.getMonth() + 1, prevTahun = prevRef.getFullYear();
+
+  let d = {}, dPrev = {};
+  let ringkasan = { harian: [] }, ringkasanPrev = { harian: [] };
+  let liburSet = new Set();
+  let liburMap = new Map();
+  try {
+    const tahunLiburSet = new Set([tahun, prevTahun]); // bisa beda kalau lintas Desember-Januari
+    const [r1, r2, ring, ringPrev, ...rLiburList] = await Promise.all([
+      fetch(`/api/absensi/rekap?user_id=${userId}&bulan=${bulan}&tahun=${tahun}`, { headers: authHeaders() }),
+      fetch(`/api/absensi/rekap?user_id=${userId}&bulan=${prevBulan}&tahun=${prevTahun}`, { headers: authHeaders() }),
+      _fetchRingkasanBulan(bulan, tahun, userId),
+      _fetchRingkasanBulan(prevBulan, prevTahun, userId),
+      ...[...tahunLiburSet].map(ty => fetch(`/api/absensi/libur?tahun=${ty}`, { headers: authHeaders() })),
+    ]);
+    if (r1.ok) d = await r1.json();
+    if (r2.ok) dPrev = await r2.json();
+    ringkasan = ring;
+    ringkasanPrev = ringPrev;
+    for (const rLibur of rLiburList) {
+      if (!rLibur || !rLibur.ok) continue;
+      const dLibur = await rLibur.json();
+      (dLibur.libur || []).forEach(l => {
+        const ymd = _absLiburLocalYMD(l.tanggal);
+        liburSet.add(ymd);
+        liburMap.set(ymd, l.keterangan || 'Hari libur');
+      });
+    }
+  } catch (err) { console.error('[_absensiKalenderSectionHtml]', err); }
+
+  const rk     = d.rekap     || { hadir: 0, tugas_luar: 0, cuti: 0, alpa: 0, terlambat: 0, tidak_lengkap: 0 };
+  const rkPrev = dPrev.rekap || { hadir: 0, tugas_luar: 0, cuti: 0, alpa: 0, terlambat: 0, tidak_lengkap: 0 };
+
+  const iconCal = `<svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/><path d="M8 2v4"/><path d="M16 2v4"/></svg>`;
+  const iconTidakLengkap = `<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect width="8" height="4" x="8" y="2" rx="1" ry="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="m15 11-6 6"/><path d="m9 11 6 6"/></svg>`;
+  const iconHadirRow = `<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 12l2 2 4-4"/><circle cx="12" cy="12" r="10"/></svg>`;
+  const iconClockRow = `<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>`;
+
   const labelBulanIni  = ABS_BULAN_NAMA[bulan];
   const labelBulanLalu = ABS_BULAN_NAMA[prevBulan];
   const pctChange = rkPrev.hadir > 0 ? Math.round(((rk.hadir - rkPrev.hadir) / rkPrev.hadir) * 100) : null;
@@ -739,22 +837,20 @@ async function loadDashboardAbsensi() {
     ],
   });
 
-  if (panels.length) html += `<div class="dash-panels">${panels.join('')}</div>`;
+  const heatmapPanels = `${perbandinganPanel}${_absensiHeatmapPanel(ringkasanPrev.harian, prevBulan, prevTahun, full, false, liburSet, liburMap)}${_absensiHeatmapPanel(ringkasan.harian, bulan, tahun, full, false, liburSet, liburMap)}`;
 
-  
-  
-  const jamKerjaPanelHtml = jamKerja ? _absensiJamKerjaPanel(jamKerja, full) : null;
-  const kolomKiriHtml = full ? belumPanelHtml : null;
-  const kolomKananHtml = jamKerjaPanelHtml;
-  const trendPanelHtml = _absensiTrendPanel(ringkasan.harian, bulan, tahun, full,  !kolomKiriHtml && !kolomKananHtml);
-  html += (kolomKiriHtml || kolomKananHtml)
-    ? `<div class="dash-panels dash-panels--belum-tren-row">${kolomKiriHtml || ''}${trendPanelHtml}${kolomKananHtml || ''}</div>`
-    : `<div class="dash-panels">${trendPanelHtml}</div>`;
+  return `<div id="absKalenderSection">
+    ${_dashKalenderNavHtml(_absKalOffset, '_absKalNav')}
+    <div class="dash-panels dash-panels--kalender-row">${heatmapPanels}</div>
+  </div>`;
+}
 
-  
-  html += `<div class="dash-panels dash-panels--kalender-row">${perbandinganPanel}${_absensiHeatmapPanel(ringkasanPrev.harian, prevBulan, prevTahun, full, false, liburSet, liburMap)}${_absensiHeatmapPanel(ringkasan.harian, bulan, tahun, full, false, liburSet, liburMap)}</div>`;
-
-  wrap.innerHTML = html;
+async function _absKalNav(delta) {
+  _absKalOffset = Math.max(0, _absKalOffset + delta);
+  const el = document.getElementById('absKalenderSection');
+  if (!el) return;
+  el.style.opacity = '.5';
+  el.outerHTML = await _absensiKalenderSectionHtml();
 }
 
 function _liburNoticePanel(title, labelHariLibur) {

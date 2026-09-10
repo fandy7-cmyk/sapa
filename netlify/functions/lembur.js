@@ -29,6 +29,16 @@ async function hasFull(auth, sql) {
   return rows.length > 0;
 }
 
+// Kolom "catatan" (catatan kasubag terkait redaksi uraian tugas tiap peserta) -
+// ditambahin belakangan, jadi di-migrate sendiri di sini (pola sama kayak
+// ensureSchema di eplanning.js) biar gak perlu migration manual di DB produksi.
+let _lemburSchemaReady = false;
+async function ensureLemburSchema(sql) {
+  if (_lemburSchemaReady) return;
+  await sql`ALTER TABLE lembur_entries ADD COLUMN IF NOT EXISTS catatan TEXT`;
+  _lemburSchemaReady = true;
+}
+
 export const handler = async (event) => {
   if (event.httpMethod === 'OPTIONS') return jsonResponse({});
 
@@ -36,6 +46,7 @@ export const handler = async (event) => {
   if (!auth) return errorResponse('Unauthorized', 401);
 
   const sql = getDb();
+  await ensureLemburSchema(sql);
   const ok = await hasBasic(auth, sql);
   if (!ok) return errorResponse('Akses ditolak', 403);
 
@@ -63,7 +74,9 @@ export const handler = async (event) => {
             `
           : await sql`
               SELECT k.*,
-                (SELECT COUNT(*)::INT FROM lembur_sesi s WHERE s.kegiatan_id = k.id) AS jumlah_sesi
+                (SELECT COUNT(*)::INT FROM lembur_sesi s
+                   JOIN lembur_entries e ON e.sesi_id = s.id
+                   WHERE s.kegiatan_id = k.id AND e.user_id = ${auth.id}) AS jumlah_sesi
               FROM lembur_kegiatan k
               WHERE EXISTS (
                 SELECT 1 FROM lembur_sesi s
@@ -312,20 +325,40 @@ export const handler = async (event) => {
     }
 
     if (event.httpMethod === 'PUT' && id1) {
-      const { uraian_tugas } = parseBody(event);
+      const body = parseBody(event);
+      const isiUraian = Object.prototype.hasOwnProperty.call(body, 'uraian_tugas');
+      const isiCatatan = Object.prototype.hasOwnProperty.call(body, 'catatan');
       try {
         const owner = await sql`SELECT user_id FROM lembur_entries WHERE id = ${id1} LIMIT 1`;
         if (!owner.length) return errorResponse('Entri tidak ditemukan', 404);
-        if (!full && owner[0].user_id !== auth.id) return errorResponse('Akses ditolak', 403);
-        const rows = await sql`
-          UPDATE lembur_entries SET
-            uraian_tugas = ${uraian_tugas ?? null},
-            input_by = ${auth.id},
-            updated_at = NOW()
-          WHERE id = ${id1} RETURNING *
-        `;
-        return jsonResponse({ entry: rows[0] });
-      } catch (err) { return errorResponse('Gagal menyimpan uraian tugas: ' + err.message); }
+
+        // Catatan cuma boleh diisi/diubah sama kasubag/admin (full) - dipisah dari update
+        // uraian_tugas biar gak ketimpa null pas cuma satu field yg disimpan (blur salah satu kotak).
+        if (isiCatatan) {
+          if (!full) return errorResponse('Akses ditolak', 403);
+          const rows = await sql`
+            UPDATE lembur_entries SET
+              catatan = ${body.catatan ?? null},
+              updated_at = NOW()
+            WHERE id = ${id1} RETURNING *
+          `;
+          return jsonResponse({ entry: rows[0] });
+        }
+
+        if (isiUraian) {
+          if (!full && owner[0].user_id !== auth.id) return errorResponse('Akses ditolak', 403);
+          const rows = await sql`
+            UPDATE lembur_entries SET
+              uraian_tugas = ${body.uraian_tugas ?? null},
+              input_by = ${auth.id},
+              updated_at = NOW()
+            WHERE id = ${id1} RETURNING *
+          `;
+          return jsonResponse({ entry: rows[0] });
+        }
+
+        return errorResponse('Tidak ada field yang diubah', 400);
+      } catch (err) { return errorResponse('Gagal menyimpan: ' + err.message); }
     }
 
     if (event.httpMethod === 'DELETE' && id1) {

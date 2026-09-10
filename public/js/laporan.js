@@ -741,7 +741,7 @@ async function loadLaporanAbsensi(page = 1) {
           <td style="text-align:center">${new Date(a.tanggal).toLocaleDateString('id-ID', { day: '2-digit', month: 'long', year: 'numeric' })}</td>
           <td style="text-align:center">${a.jam_masuk ? a.jam_masuk.slice(0,5) + ' WITA' : '-'}</td>
           <td style="text-align:center">${jamKeluarCell}</td>
-          <td style="text-align:left"><span class="badge ${statusBadge}"${statusTip}>${statusIcon}${statusLabel}</span></td>
+          <td style="text-align:center"><span class="badge ${statusBadge}"${statusTip}>${statusIcon}${statusLabel}</span></td>
         </tr>`;
       }).join('');
     }
@@ -757,6 +757,9 @@ async function loadLaporanAbsensi(page = 1) {
 // ── Lembur ───────────────────────────────────────────────────────────────────
 let _lapLemburData = [];
 let _lapLemburFull = false;
+let _lapLemburFilteredRows = [];
+let _lapLemburPage = 1;
+const _LAP_LEMBUR_PER_PAGE = 10;
 
 function _lapLemburNorm(s) {
   return (s || '').toString().toLowerCase();
@@ -773,25 +776,42 @@ function filterLaporanLembur() {
       _lapLemburNorm(r.uraian_tugas).includes(term) ||
       _lapLemburNorm(tglLabel).includes(term);
   });
-  _renderLapLemburRows(rows, _lapLemburFull);
+  _lapLemburFilteredRows = rows;
+  _lapLemburPage = 1;
+  _renderLapLemburRows(_lapLemburFull);
 }
 
-function _renderLapLemburRows(rows, full) {
+// Dipanggil dari renderPagination pas pindah halaman - data udah ada di
+// _lapLemburFilteredRows (client-side), jadi cukup ganti halaman & render ulang,
+// gak perlu fetch ulang ke server.
+function _lapLemburGoPage(p) {
+  _lapLemburPage = p;
+  _renderLapLemburRows(_lapLemburFull);
+}
+
+function _renderLapLemburRows(full) {
   const tbody = document.getElementById('lapLemburTableBody');
   if (!tbody) return;
+  const rows = _lapLemburFilteredRows;
   if (!rows.length) {
     tbody.innerHTML = `<tr class="empty-row"><td colspan="6">Belum ada data lembur pada periode ini</td></tr>`;
+    if (typeof renderPagination === 'function') renderPagination('lapLemburPagination', 0, 1, _LAP_LEMBUR_PER_PAGE, '_lapLemburGoPage');
     return;
   }
-  tbody.innerHTML = rows.map((r, i) => `
+  const totalPages = Math.max(1, Math.ceil(rows.length / _LAP_LEMBUR_PER_PAGE));
+  if (_lapLemburPage > totalPages) _lapLemburPage = totalPages;
+  const start = (_lapLemburPage - 1) * _LAP_LEMBUR_PER_PAGE;
+  const pageRows = rows.slice(start, start + _LAP_LEMBUR_PER_PAGE);
+  tbody.innerHTML = pageRows.map((r, i) => `
     <tr>
-      <td style="text-align:center;vertical-align:top">${i + 1}</td>
+      <td style="text-align:center;vertical-align:top">${start + i + 1}</td>
       <td style="display:${full ? '' : 'none'};text-align:left;vertical-align:top">${esc(r.nama || '')}</td>
-      <td style="text-align:center;vertical-align:top">${esc(r.sesi.kegiatan_nama || '')}</td>
+      <td style="text-align:left;vertical-align:top">${esc(r.sesi.kegiatan_nama || '')}</td>
       <td style="text-align:center;vertical-align:top">${new Date(r.sesi.tanggal).toLocaleDateString('id-ID', { day: '2-digit', month: 'long', year: 'numeric' })}</td>
       <td style="text-align:center;vertical-align:top">${r.sesi.jam_mulai ? r.sesi.jam_mulai.slice(0,5) : '-'} WITA - ${r.sesi.jam_selesai ? r.sesi.jam_selesai.slice(0,5) : '-'} WITA</td>
       <td style="text-align:left;vertical-align:top">${r.uraian_tugas ? _lapMdToHtml(r.uraian_tugas) : '-'}</td>
     </tr>`).join('');
+  if (typeof renderPagination === 'function') renderPagination('lapLemburPagination', rows.length, _lapLemburPage, _LAP_LEMBUR_PER_PAGE, '_lapLemburGoPage');
 }
 
 function _lapLemburJamSesi(s) {
@@ -842,6 +862,25 @@ function _populateLapLemburTahunBulan(sesiList) {
   }
 }
 
+function _lapLemburKegiatanTersedia(sesiList) {
+  const map = new Map();
+  (sesiList || []).forEach(s => { if (s.kegiatan_id != null && !map.has(s.kegiatan_id)) map.set(s.kegiatan_id, s.kegiatan_nama || ''); });
+  return [...map.entries()].sort((a, b) => (a[1] || '').localeCompare(b[1] || '', 'id'));
+}
+
+// Opsi kegiatan diambil dari sesiList yang sama dipakai buat Tahun/Bulan - buat non-full
+// user ini udah difilter is_peserta di loadLaporanLembur, jadi otomatis cuma nampilin
+// kegiatan lembur yang dia sendiri pernah ikuti (bukan seluruh kegiatan di sistem).
+function _populateLapLemburKegiatan(sesiList) {
+  const sel = document.getElementById('lapLemburKegiatan');
+  if (!sel) return;
+  const opsi = _lapLemburKegiatanTersedia(sesiList);
+  const cur = sel.value;
+  sel.innerHTML = `<option value="">Semua Kegiatan</option>` + opsi.map(([id, nama]) => `<option value="${id}">${esc(nama)}</option>`).join('');
+  sel.value = opsi.some(([id]) => String(id) === cur) ? cur : '';
+  syncCustomSelect?.('lapLemburKegiatan');
+}
+
 async function _populateLapLemburFilters(sesiList) {
   const full = typeof _lemburHasFull === 'function' && _lemburHasFull();
   const pegawaiWrap = document.getElementById('lapLemburPegawaiWrap');
@@ -858,6 +897,7 @@ async function _populateLapLemburFilters(sesiList) {
   }
 
   _populateLapLemburTahunBulan(sesiList);
+  _populateLapLemburKegiatan(sesiList);
 
   if (full) {
     const pegawaiSel = document.getElementById('lapLemburPegawai');
@@ -876,6 +916,7 @@ async function _populateLapLemburFilters(sesiList) {
 function setLapLemburFilterTahun() { loadLaporanLembur(); }
 function setLapLemburFilterBulan() { loadLaporanLembur(); }
 function setLapLemburFilterPegawai() { loadLaporanLembur(); }
+function setLapLemburFilterKegiatan() { loadLaporanLembur(); }
 
 async function loadLaporanLembur() {
   const tbody = document.getElementById('lapLemburTableBody');
@@ -906,12 +947,14 @@ async function loadLaporanLembur() {
 
     const tahun = document.getElementById('lapLemburTahun')?.value || String(new Date().getFullYear());
     const bulan = document.getElementById('lapLemburBulan')?.value || '';
+    const kegiatanId = document.getElementById('lapLemburKegiatan')?.value || '';
 
     let allSesi = sesiTersedia.filter(s => {
       if (!s.tanggal) return false;
       const [ty, tm] = s.tanggal.slice(0, 7).split('-');
       if (ty !== tahun) return false;
       if (bulan && String(parseInt(tm, 10)) !== bulan) return false;
+      if (kegiatanId && String(s.kegiatan_id) !== String(kegiatanId)) return false;
       return true;
     });
 
@@ -974,6 +1017,8 @@ async function downloadLaporanLemburPDF(btnEl) {
     const bulanLabel = bulanVal ? BULAN_NAMA[parseInt(bulanVal, 10) - 1] : 'Semua Bulan';
     const periodeLabel = `${bulanLabel} ${tahun}`;
     const pegawaiLabel = full ? (document.getElementById('lapLemburPegawai')?.selectedOptions?.[0]?.textContent || 'Semua Pegawai') : (_user.nama || '');
+    const kegiatanVal = document.getElementById('lapLemburKegiatan')?.value || '';
+    const kegiatanLabel = kegiatanVal ? (document.getElementById('lapLemburKegiatan')?.selectedOptions?.[0]?.textContent || '') : '';
 
     const kepalaDinas = await _fetchKepalaDinas();
     const nowStrTtd = new Date().toLocaleDateString('id-ID', { day: '2-digit', month: 'long', year: 'numeric' });
@@ -1004,7 +1049,7 @@ async function downloadLaporanLemburPDF(btnEl) {
       ${_kopSuratHtml()}
       <div style="text-align:center;margin:14px 0 12px">
         <div style="font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.5px">Laporan Lembur</div>
-        <div style="font-size:11px;color:#1e293b;margin-top:4px">Periode : ${periodeLabel}${full ? ` &nbsp;|&nbsp; Pegawai : ${esc(pegawaiLabel)}` : ''}</div>
+        <div style="font-size:11px;color:#1e293b;margin-top:4px">Periode : ${periodeLabel}${full ? ` &nbsp;|&nbsp; Pegawai : ${esc(pegawaiLabel)}` : ''}${kegiatanLabel ? ` &nbsp;|&nbsp; Kegiatan : ${esc(kegiatanLabel)}` : ''}</div>
       </div>
       <table>
         <thead>
@@ -1018,14 +1063,13 @@ async function downloadLaporanLemburPDF(btnEl) {
             <th style="color:white;padding:5px 6px;border:1px solid #000;text-align:center;font-size:8px">URAIAN TUGAS</th>
           </tr>
         </thead>
-        <tbody>${detailRows}</tbody>
-        <tfoot>
+        <tbody>${detailRows}
           <tr>
             <td colspan="${colspanLabel}" style="padding:5px 6px;border:1px solid #000;text-align:right;font-size:8px;font-weight:700">TOTAL (${totalSesi} sesi)</td>
             <td style="padding:5px 6px;border:1px solid #000;text-align:center;font-size:8px;font-weight:700">${totalJam.toFixed(1)} jam</td>
             <td style="padding:5px 6px;border:1px solid #000"></td>
           </tr>
-        </tfoot>
+        </tbody>
       </table>
       ${_ttdHtml(kepalaDinas, nowStrTtd, 24, 8)}`;
 

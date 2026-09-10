@@ -9801,6 +9801,23 @@ tr:hover td:not(.td-sticky-no):not(.td-sticky-name) { background: var(--abu-1); 
   .dash-panels--kalender-row { grid-template-columns: 1fr; }
 }
 
+/* Navigasi geser bulan di atas baris kalender (Dashboard Absensi & Lembur) -
+   lihat _dashKalenderNavHtml di dashboard.js. */
+.dash-kalender-nav { display: flex; justify-content: center; gap: var(--sp-2, 8px); margin: var(--sp-2, 8px) 0; }
+.dash-kalender-nav-btn {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 7px 14px; border-radius: 99px; border: 1px solid rgba(15,118,110,.25);
+  background: var(--hijau-pale, #e6f6f4); color: var(--hijau, #047D78);
+  font-size: .76rem; font-weight: 600; cursor: pointer; transition: background .15s ease, transform .15s ease, box-shadow .15s ease;
+}
+.dash-kalender-nav-btn:hover:not(:disabled) { background: var(--hijau, #047D78); color: #fff; transform: translateY(-1px); box-shadow: 0 3px 10px rgba(4,125,120,.2); }
+.dash-kalender-nav-btn:active:not(:disabled) { transform: translateY(0); }
+.dash-kalender-nav-btn:disabled { opacity: .4; cursor: not-allowed; }
+.dash-kalender-nav-btn svg { pointer-events: none; flex-shrink: 0; }
+@media (max-width: 560px) {
+  .dash-kalender-nav-btn { padding: 7px 10px; font-size: .7rem; }
+}
+
 /* Baris Belum Absen Hari Ini + Tren Kehadiran Harian + Total Jam Kerja Bulan Ini:
    daftar nama ramping di kiri, grafik tren di tengah mengambil sisa lebar,
    kartu jam kerja ramping di kanan - ketiganya disamakan tingginya. */

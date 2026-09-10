@@ -389,6 +389,7 @@ function _isoToLocal(iso) {
     let liburKey = null;      
     let terpakaiMap = new Map();
     let terpakaiKey = null;
+    let isDisabled = false; // lihat _cdtp.disable()/.enable() - dipakai buat sembunyiin tombol clear pas readonly
 
     
     
@@ -444,7 +445,7 @@ function _isoToLocal(iso) {
         trigTxt.textContent = _fmtDisplay(sel, dateOnly);
         trigTxt.classList.remove('placeholder');
         trigger.classList.add('has-clear');
-        clearBtn.style.display = 'flex';
+        clearBtn.style.display = isDisabled ? 'none' : 'flex';
       } else {
         trigTxt.textContent = label;
         trigTxt.classList.add('placeholder');
@@ -455,6 +456,7 @@ function _isoToLocal(iso) {
 
     clearBtn.addEventListener('click', e => {
       e.stopPropagation();
+      if (isDisabled) return;
       sel = null;
       _writeHidden(hiddenEl, null, dateOnly);
       updateTrigger();
@@ -797,14 +799,18 @@ function _isoToLocal(iso) {
         closePanel();
       },
       disable() {
+        isDisabled = true;
         hiddenEl.disabled = true;
         trigger.disabled = true;
         trigger.classList.add('cdtp-disabled');
+        updateTrigger(); // sembunyiin tombol clear selama readonly
       },
       enable() {
+        isDisabled = false;
         hiddenEl.disabled = false;
         trigger.disabled = false;
         trigger.classList.remove('cdtp-disabled');
+        updateTrigger(); // munculin lagi tombol clear kalau ada tanggal terisi
       }
     };
 
