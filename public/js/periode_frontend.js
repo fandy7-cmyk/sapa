@@ -390,6 +390,11 @@ function _isoToLocal(iso) {
     let terpakaiMap = new Map();
     let terpakaiKey = null;
     let isDisabled = false; // lihat _cdtp.disable()/.enable() - dipakai buat sembunyiin tombol clear pas readonly
+    // Ready-flag terpisah dari *Key - dipakai renderCal() buat tau apakah data bulan yg lagi
+    // ditampilin ini udah beneran nyampe atau masih nunggu fetch, biar pas masih nunggu kalendernya
+    // ditampilin "meredup" dulu (bukan keliatan normal/hitam dulu baru abu2 pas datanya nyampe).
+    let liburReady    = !showLibur;
+    let terpakaiReady = !showTerpakai;
 
     
     
@@ -398,11 +403,13 @@ function _isoToLocal(iso) {
       const key = `${view.y}-${view.mo}`;
       if (liburKey === key) return;
       liburKey = key;
+      liburReady = false;
       try {
         const r = await fetch(`/api/absensi/libur?tahun=${view.y}&bulan=${view.mo + 1}`, { headers: authHeaders() });
         const d = await r.json();
         liburSet = new Set((d.libur || []).map(l => _cdtpLocalYMD(l.tanggal)));
       } catch { liburSet = new Set(); }
+      liburReady = true;
       if (mode === 'cal' && liburKey === key) renderCal();
     }
 
@@ -411,11 +418,13 @@ function _isoToLocal(iso) {
       const key = `${view.y}-${view.mo}`;
       if (terpakaiKey === key) return;
       terpakaiKey = key;
+      terpakaiReady = false;
       try {
         const r = await fetch(`/api/lembur/tanggal-terpakai?tahun=${view.y}&bulan=${view.mo + 1}`, { headers: authHeaders() });
         const d = await r.json();
         terpakaiMap = new Map((d.terpakai || []).map(t => [_cdtpLocalYMD(t.tanggal), t.nama_kegiatan]));
       } catch { terpakaiMap = new Map(); }
+      terpakaiReady = true;
       if (mode === 'cal' && terpakaiKey === key) renderCal();
     }
 
@@ -474,6 +483,10 @@ function _isoToLocal(iso) {
     function renderCal() {
       _loadLiburBulan();
       _loadTerpakaiBulan();
+      // Kalau data libur/terpakai bulan ini belum nyampe (masih fetching), tampilin tanggalnya
+      // meredup & gak bisa diklik dulu - drpd nampilin normal (kesannya available) yg tau2
+      // langsung ganti abu2 pas datanya baru nyampe (kedip hitam->abu2 yg bikin bingung).
+      const dataLoading = !liburReady || !terpakaiReady;
       const today = new Date();
       const todayYmd = _cdtpLocalYMD(today);
       const firstDay = new Date(view.y, view.mo, 1).getDay(); 
@@ -502,8 +515,9 @@ function _isoToLocal(iso) {
         if (isToday)    cls += ' cdtp-day-today';
         if (isSelected) cls += ' cdtp-day-selected';
         if (isFutureBlocked || isTerpakaiBlocked) cls += ' cdtp-day-disabled';
-        const disabled = isFutureBlocked || isTerpakaiBlocked;
-        const tip = isFutureBlocked ? ' data-tip="Belum bisa dipilih"'
+        const disabled = isFutureBlocked || isTerpakaiBlocked || dataLoading;
+        const tip = dataLoading ? ''
+          : isFutureBlocked ? ' data-tip="Belum bisa dipilih"'
           : isTerpakaiBlocked ? ` data-tip="Sudah ada lembur: ${namaTerpakai}"`
           : (isLibur ? ' data-tip="Hari libur"' : '');
         cells += `<button type="button" class="${cls}" data-d="${d}"${disabled ? ' disabled' : ''}${tip}>${d}</button>`;
@@ -532,7 +546,7 @@ function _isoToLocal(iso) {
         </div>
         <div class="cdtp-cal">
           <div class="cdtp-dow">${DOW.map(d => `<div class="cdtp-dow-cell">${d}</div>`).join('')}</div>
-          <div class="cdtp-days">${cells}</div>
+          <div class="cdtp-days" style="${dataLoading ? 'opacity:.45;pointer-events:none;' : ''}transition:opacity .15s">${cells}</div>
         </div>
         ${dateOnly ? '' : `
         <div class="cdtp-divider"></div>

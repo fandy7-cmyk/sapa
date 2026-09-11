@@ -808,7 +808,7 @@ function _renderLapLemburRows(full) {
       <td style="display:${full ? '' : 'none'};text-align:left;vertical-align:top">${esc(r.nama || '')}</td>
       <td style="text-align:left;vertical-align:top">${esc(r.sesi.kegiatan_nama || '')}</td>
       <td style="text-align:center;vertical-align:top">${new Date(r.sesi.tanggal).toLocaleDateString('id-ID', { day: '2-digit', month: 'long', year: 'numeric' })}</td>
-      <td style="text-align:center;vertical-align:top">${r.sesi.jam_mulai ? r.sesi.jam_mulai.slice(0,5) : '-'} WITA - ${r.sesi.jam_selesai ? r.sesi.jam_selesai.slice(0,5) : '-'} WITA</td>
+      <td style="text-align:center;vertical-align:top">${(r.jam_mulai || r.sesi.jam_mulai) ? (r.jam_mulai || r.sesi.jam_mulai).slice(0,5) : '-'} WITA - ${(r.jam_selesai || r.sesi.jam_selesai) ? (r.jam_selesai || r.sesi.jam_selesai).slice(0,5) : '-'} WITA</td>
       <td style="text-align:left;vertical-align:top">${r.uraian_tugas ? _lapMdToHtml(r.uraian_tugas) : '-'}</td>
     </tr>`).join('');
   if (typeof renderPagination === 'function') renderPagination('lapLemburPagination', rows.length, _lapLemburPage, _LAP_LEMBUR_PER_PAGE, '_lapLemburGoPage');
@@ -821,6 +821,11 @@ function _lapLemburJamSesi(s) {
   let menit = (h2 * 60 + m2) - (h1 * 60 + m1);
   if (menit < 0) menit += 24 * 60; // lewat tengah malam
   return menit / 60;
+}
+
+// Durasi lembur satu peserta - pake jam kustom peserta itu kalo di-set, kalo enggak ikut jam sesi.
+function _lapLemburJamEntry(e) {
+  return _lapLemburJamSesi({ jam_mulai: e.jam_mulai || e.sesi?.jam_mulai, jam_selesai: e.jam_selesai || e.sesi?.jam_selesai });
 }
 
 function _lapLemburTahunTersedia(sesiList) {
@@ -1032,8 +1037,8 @@ async function downloadLaporanLemburPDF(btnEl) {
         </td>` : ''}
         <td style="padding:4px 6px;border:1px solid #000;text-align:center;vertical-align:top;font-size:8px">${esc(r.sesi.kegiatan_nama || '')}</td>
         <td style="padding:4px 6px;border:1px solid #000;text-align:center;vertical-align:top;font-size:8px;white-space:nowrap">${new Date(r.sesi.tanggal).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' })}</td>
-        <td style="padding:4px 6px;border:1px solid #000;text-align:center;vertical-align:top;font-size:8px;white-space:nowrap">${r.sesi.jam_mulai ? r.sesi.jam_mulai.slice(0, 5) : '-'} WITA - ${r.sesi.jam_selesai ? r.sesi.jam_selesai.slice(0, 5) : '-'} WITA</td>
-        <td style="padding:4px 6px;border:1px solid #000;text-align:center;vertical-align:top;font-size:8px;white-space:nowrap">${_lapLemburJamSesi(r.sesi).toFixed(1)} jam</td>
+        <td style="padding:4px 6px;border:1px solid #000;text-align:center;vertical-align:top;font-size:8px;white-space:nowrap">${(r.jam_mulai || r.sesi.jam_mulai) ? (r.jam_mulai || r.sesi.jam_mulai).slice(0, 5) : '-'} WITA - ${(r.jam_selesai || r.sesi.jam_selesai) ? (r.jam_selesai || r.sesi.jam_selesai).slice(0, 5) : '-'} WITA</td>
+        <td style="padding:4px 6px;border:1px solid #000;text-align:center;vertical-align:top;font-size:8px;white-space:nowrap">${_lapLemburJamEntry(r).toFixed(1)} jam</td>
         <td style="padding:4px 6px;border:1px solid #000;text-align:left;vertical-align:top;font-size:8px">${r.uraian_tugas ? _lapMdToHtml(r.uraian_tugas) : '-'}</td>
       </tr>`).join('');
 

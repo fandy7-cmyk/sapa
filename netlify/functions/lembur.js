@@ -32,10 +32,14 @@ async function hasFull(auth, sql) {
 // Kolom "catatan" (catatan kasubag terkait redaksi uraian tugas tiap peserta) -
 // ditambahin belakangan, jadi di-migrate sendiri di sini (pola sama kayak
 // ensureSchema di eplanning.js) biar gak perlu migration manual di DB produksi.
+// Kolom jam_mulai/jam_selesai per peserta - opsional, override jam sesi buat peserta
+// tertentu (misal masuk/pulang lembur beda dari peserta lain). NULL = ikut jam sesi.
 let _lemburSchemaReady = false;
 async function ensureLemburSchema(sql) {
   if (_lemburSchemaReady) return;
   await sql`ALTER TABLE lembur_entries ADD COLUMN IF NOT EXISTS catatan TEXT`;
+  await sql`ALTER TABLE lembur_entries ADD COLUMN IF NOT EXISTS jam_mulai TIME`;
+  await sql`ALTER TABLE lembur_entries ADD COLUMN IF NOT EXISTS jam_selesai TIME`;
   _lemburSchemaReady = true;
 }
 
@@ -281,11 +285,14 @@ export const handler = async (event) => {
           const dup = await sql`SELECT 1 FROM lembur_sesi WHERE tanggal = ${tanggal} AND id != ${id1} LIMIT 1`;
           if (dup.length) return errorResponse('Sudah ada sesi lembur pada tanggal ini (di kegiatan lain)', 409);
         }
+        // COALESCE(param, kolom) - bukan nested sql`kolom` tag - driver Neon (`neon()` HTTP,
+        // tanpa session) gak bisa compose sql tag bersarang; kalau field gak dikirim (undefined),
+        // COALESCE bikin kolom itu tetep ikut nilai lama tanpa perlu fragment sql bersarang.
         const rows = await sql`
           UPDATE lembur_sesi SET
             tanggal = COALESCE(${tanggal ?? null}, tanggal),
-            jam_mulai = ${jam_mulai !== undefined ? jam_mulai : sql`jam_mulai`},
-            jam_selesai = ${jam_selesai !== undefined ? jam_selesai : sql`jam_selesai`},
+            jam_mulai = COALESCE(${jam_mulai ?? null}, jam_mulai),
+            jam_selesai = COALESCE(${jam_selesai ?? null}, jam_selesai),
             updated_at = NOW()
           WHERE id = ${id1} RETURNING *
         `;
@@ -328,9 +335,58 @@ export const handler = async (event) => {
       const body = parseBody(event);
       const isiUraian = Object.prototype.hasOwnProperty.call(body, 'uraian_tugas');
       const isiCatatan = Object.prototype.hasOwnProperty.call(body, 'catatan');
+      const isiJam = Object.prototype.hasOwnProperty.call(body, 'jam_mulai') || Object.prototype.hasOwnProperty.call(body, 'jam_selesai');
       try {
-        const owner = await sql`SELECT user_id FROM lembur_entries WHERE id = ${id1} LIMIT 1`;
+        const owner = await sql`SELECT user_id, jam_mulai, jam_selesai FROM lembur_entries WHERE id = ${id1} LIMIT 1`;
         if (!owner.length) return errorResponse('Entri tidak ditemukan', 404);
+
+        // Jam per peserta (override jam sesi) - sama kayak Catatan, cuma admin/kasubag (full)
+        // yang boleh ubah. Kirim string kosong/null buat balikin ke jam sesi (default).
+        //
+        // PENTING: jangan pernah UPDATE dua kolom (jam_mulai & jam_selesai) sekaligus di sini
+        // pakai nilai salah satunya hasil SELECT "owner" di atas (snapshot SEBELUM update ini
+        // jalan). Frontend kadang kirim 2 PUT bersamaan buat entri yg sama (jam_mulai & jam_selesai
+        // kepicu sekaligus dari 1 aksi user - lihat _lemburJamPartCommit di lembur_frontend.js).
+        // Kalau field yg "gak dikirim" itu ditulis ulang pakai snapshot lama, request yg SELECT
+        // duluan bisa nimpa balik kolom yg BARUSAN disimpen sama request satunya -> race condition,
+        // hasil auto-adjust jam_selesai ilang lagi ketimpa nilai lama.
+        // sql`kolom` (nested fragment) buat "biarin kolom apa adanya" JUGA gak bisa dipakai -
+        // driver Neon (`neon()` dari @neondatabase/serverless, mode HTTP tanpa session) gak
+        // bisa compose sql tag bersarang, hasilnya malah ke-stringify jadi teks aneh & gagal
+        // di-cast ke tipe TIME (contoh: "invalid input syntax for type time: {parameterizedQuery...}").
+        // Makanya fix-nya: UPDATE cuma nyentuh kolom yang BENERAN dikirim di body - dipisah per
+        // kombinasi field lewat query terpisah, bukan digabung jadi satu UPDATE dua kolom.
+        if (isiJam) {
+          if (!full) return errorResponse('Akses ditolak', 403);
+          const punyaJamMulai = Object.prototype.hasOwnProperty.call(body, 'jam_mulai');
+          const punyaJamSelesai = Object.prototype.hasOwnProperty.call(body, 'jam_selesai');
+          let rows;
+          if (punyaJamMulai && punyaJamSelesai) {
+            rows = await sql`
+              UPDATE lembur_entries SET
+                jam_mulai = ${body.jam_mulai || null},
+                jam_selesai = ${body.jam_selesai || null},
+                updated_at = NOW()
+              WHERE id = ${id1} RETURNING *
+            `;
+          } else if (punyaJamMulai) {
+            rows = await sql`
+              UPDATE lembur_entries SET
+                jam_mulai = ${body.jam_mulai || null},
+                updated_at = NOW()
+              WHERE id = ${id1} RETURNING *
+            `;
+          } else {
+            rows = await sql`
+              UPDATE lembur_entries SET
+                jam_selesai = ${body.jam_selesai || null},
+                updated_at = NOW()
+              WHERE id = ${id1} RETURNING *
+            `;
+          }
+          if (!rows.length) return errorResponse('Entri tidak ditemukan', 404);
+          return jsonResponse({ entry: rows[0] });
+        }
 
         // Catatan cuma boleh diisi/diubah sama kasubag/admin (full) - dipisah dari update
         // uraian_tugas biar gak ketimpa null pas cuma satu field yg disimpan (blur salah satu kotak).

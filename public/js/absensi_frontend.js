@@ -956,7 +956,7 @@ async function loadAbsTable(page = 1) {
       return `
         <tr>
           <td style="text-align:center">${startNo + i + 1}</td>
-          ${isAbsensiFull() ? `<td style="text-align:center">${esc(a.user_nama)}</td>` : ''}
+          ${isAbsensiFull() ? `<td style="text-align:left">${esc(a.user_nama)}</td>` : ''}
           <td style="text-align:center">${tglLabel}</td>
           <td style="text-align:center">${a.jam_masuk ? a.jam_masuk.slice(0, 5) + ' WITA' : '-'}</td>
           <td style="text-align:center">${jamKeluarCell}</td>
@@ -1399,8 +1399,8 @@ function renderAbsRamadhanList() {
         <td style="font-weight:600;white-space:nowrap">${p.tahun}</td>
         <td style="white-space:nowrap">${new Date(p.tanggal_mulai).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' })} – ${new Date(p.tanggal_selesai).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' })}</td>
         <td style="color:var(--teks-muted);white-space:nowrap">${fmt(p.jam_masuk_senin_kamis)}–${fmt(p.jam_pulang_senin_kamis)} · ${fmt(p.jam_masuk_jumat)}–${fmt(p.jam_pulang_jumat)}</td>
-        <td style="text-align:right">
-          <div style="display:flex;gap:6px;justify-content:flex-end">
+        <td style="text-align:center">
+          <div style="display:flex;gap:6px;justify-content:center">
             <button class="btn-edit" data-tip="Edit" onclick="editAbsRamadhan(${p.id})"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button>
             <button class="btn-hapus" data-tip="Hapus" onclick="deleteAbsRamadhan(${p.id})"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6m4-6v6"/><path d="M9 6V4h6v2"/></svg></button>
           </div>
@@ -1711,8 +1711,8 @@ function renderAbsLiburList(page = _absLiburPage) {
       <tr>
         <td style="font-weight:600;white-space:nowrap">${new Date(l.tanggal).toLocaleDateString('id-ID', { day: '2-digit', month: 'long', year: 'numeric' })}</td>
         <td style="color:var(--teks-muted)">${esc(l.keterangan)}</td>
-        <td style="text-align:right">
-          <div style="display:flex;gap:6px;justify-content:flex-end">
+        <td style="text-align:center">
+          <div style="display:flex;gap:6px;justify-content:center">
             <button class="btn-edit" data-tip="Edit" onclick="editAbsLibur(${l.id})"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button>
             <button class="btn-hapus" data-tip="Hapus" onclick="deleteAbsLibur(${l.id})"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6m4-6v6"/><path d="M9 6V4h6v2"/></svg></button>
           </div>

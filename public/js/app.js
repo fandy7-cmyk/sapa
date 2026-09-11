@@ -49,6 +49,7 @@ function _handleSessionExpired() {
   sessionStorage.removeItem('sapa_refresh_token');
   sessionStorage.removeItem('sapa_user');
   try { sessionStorage.removeItem('sapa_nav'); } catch(e) {}
+  try { sessionStorage.removeItem('sapa_lembur_state'); } catch(e) {}
 
   // login.html udah gak nempel di app.html lagi - lempar balik kesana,
   // pesannya dititip lewat sessionStorage biar bisa ditampilkan di sana.
@@ -539,6 +540,7 @@ async function doLogout() {
   sessionStorage.removeItem('sapa_refresh_token');
   sessionStorage.removeItem('sapa_user');
   try { sessionStorage.removeItem('sapa_nav'); } catch(e) {}
+  try { sessionStorage.removeItem('sapa_lembur_state'); } catch(e) {}
   location.reload();
 }
 
@@ -1160,10 +1162,30 @@ const TOAST_ICONS = {
   warning: `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>`,
 };
 const TOAST_TITLES = { success: 'Berhasil', error: 'Gagal', info: 'Info', warning: 'Perhatian' };
-function toast(msg, type = 'success') {
+function toast(msg, type = 'success', key = null) {
   const c = document.getElementById('toastContainer');
+  // key dipakai buat notif yang bisa "numpuk gantian" (dedup) - kalau toast dengan key yang
+  // sama masih kepampang, jangan bikin elemen baru (numpuk), cukup update teksnya & reset
+  // timer ilangnya. Dipakai misalnya buat auto-save per-field (lihat lembur_frontend.js) yang
+  // bisa kepicu beruntun cepet - tanpa ini tiap save nambah satu toast baru dan penuhin layar.
+  // Panggilan toast() lama (tanpa key) gak kepengaruh sama sekali, tetep numpuk kayak biasa.
+  if (key) {
+    const existing = c.querySelector(`.toast[data-toast-key="${key}"]`);
+    if (existing) {
+      clearTimeout(existing._toastHideTimer);
+      const msgEl = existing.querySelector('.toast-msg');
+      if (msgEl) msgEl.textContent = msg;
+      existing._toastHideTimer = setTimeout(() => {
+        existing.style.transition = 'opacity .3s, transform .3s';
+        existing.style.opacity = '0'; existing.style.transform = 'translateX(20px)';
+        setTimeout(() => existing.remove(), 300);
+      }, 1500); // lebih pendek dari toast biasa (3500ms) - ini notif auto-save yang sering kepicu
+      return;
+    }
+  }
   const t = document.createElement('div');
   t.className = 'toast ' + type;
+  if (key) t.dataset.toastKey = key;
   t.innerHTML = `
     <div class="toast-icon">${TOAST_ICONS[type] || TOAST_ICONS.info}</div>
     <div class="toast-body">
@@ -1174,11 +1196,11 @@ function toast(msg, type = 'success') {
       <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
     </button>`;
   c.appendChild(t);
-  setTimeout(() => {
+  t._toastHideTimer = setTimeout(() => {
     t.style.transition = 'opacity .3s, transform .3s';
     t.style.opacity = '0'; t.style.transform = 'translateX(20px)';
     setTimeout(() => t.remove(), 300);
-  }, 3500);
+  }, key ? 1500 : 3500);
 }
 
 let _confirmResolve = null;
@@ -1806,13 +1828,13 @@ class TimePicker {
         <svg class="ctp-inline-icon" xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
         <div class="cdtp-time-spin">
           <input type="number" class="cdtp-time-val" data-time="h" value="${String(this.h).padStart(2,'0')}" min="0" max="23" inputmode="numeric">
-          <button type="button" class="cdtp-spin-btn" data-spin="h" data-dir="1" aria-label="Tambah jam"><svg xmlns="http://www.w3.org/2000/svg" width="9" height="9" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M5 15l7-7 7 7"/></svg></button>
+          <button type="button" class="cdtp-spin-btn" data-spin="h" data-dir="+1" aria-label="Tambah jam"><svg xmlns="http://www.w3.org/2000/svg" width="9" height="9" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M5 15l7-7 7 7"/></svg></button>
           <button type="button" class="cdtp-spin-btn" data-spin="h" data-dir="-1" aria-label="Kurangi jam"><svg xmlns="http://www.w3.org/2000/svg" width="9" height="9" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg></button>
         </div>
         <span class="cdtp-time-sep">:</span>
         <div class="cdtp-time-spin">
           <input type="number" class="cdtp-time-val" data-time="mi" value="${String(this.mi).padStart(2,'0')}" min="0" max="59" inputmode="numeric">
-          <button type="button" class="cdtp-spin-btn" data-spin="mi" data-dir="1" aria-label="Tambah menit"><svg xmlns="http://www.w3.org/2000/svg" width="9" height="9" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M5 15l7-7 7 7"/></svg></button>
+          <button type="button" class="cdtp-spin-btn" data-spin="mi" data-dir="+1" aria-label="Tambah menit"><svg xmlns="http://www.w3.org/2000/svg" width="9" height="9" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M5 15l7-7 7 7"/></svg></button>
           <button type="button" class="cdtp-spin-btn" data-spin="mi" data-dir="-1" aria-label="Kurangi menit"><svg xmlns="http://www.w3.org/2000/svg" width="9" height="9" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg></button>
         </div>
       </div>`;
@@ -2525,7 +2547,6 @@ function _renderUrusanTable() {
             onclick="openLapTemplateIndikatorModal(${t.id}, '${escHtml(t.nama).replace(/'/g,"\\'")}', 'urusan')"
             style="background:#e0f2fe;color:#0369a1;border:none">
             <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
-            Indikator
           </button>
           <button class="btn btn-ghost btn-sm" data-tip="Edit"
             onclick="openLapTemplateModal(${t.id}, 'urusan')">

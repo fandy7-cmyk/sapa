@@ -113,7 +113,7 @@ async function loadDashboard() {
     <div class="dash-welcome">
       <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:nowrap">
         <div style="flex:1;min-width:0">
-          <div class="dash-welcome-title"><span style="font-weight:400;font-size:.8rem">${salam}</span> ${greetIconSvg}<br><strong style="font-size:.92rem">${esc(_user?.nama || 'Pengguna')}</strong></div>
+          <div class="dash-welcome-title"><span style="font-weight:400;font-size:.8rem">${salam}</span> ${greetIconSvg}<br><span class="dash-live-clock-wrap"><strong class="dash-welcome-name">${esc(_user?.nama || 'Pengguna')}</strong></span></div>
         </div>
         ${quoteHtml}
         <div style="text-align:right;flex-shrink:0;white-space:nowrap">
@@ -4595,6 +4595,15 @@ const DASH_STYLE_CSS = `
 .dash-live-clock {
   font-size: .92rem; font-weight: 700; color: #0f766e;
   font-variant-numeric: tabular-nums; letter-spacing: .02em;
+  line-height: 1.2;
+}
+/* Nama pengguna di baris ke-2 sapaan - disamain ukuran & line-height-nya sama
+   persis kayak .dash-live-clock (baris ke-2 tanggal di sisi kanan), dan dibungkus
+   pakai .dash-live-clock-wrap yang sama biar margin-top-nya identik → kedua baris
+   ini jatuh sejajar satu sama lain. */
+.dash-welcome-name {
+  font-size: .92rem; font-weight: 700; color: #0f172a;
+  line-height: 1.2;
 }
 .dash-live-dot {
   width: 6px; height: 6px; border-radius: 50%; background: #10b981;

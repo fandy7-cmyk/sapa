@@ -266,7 +266,7 @@ let _slFiltered = [], _slPage = 1, _slPageSize = 10;
 
 async function loadShortlinks() {
   const tb0 = document.getElementById('slTableBody');
-  if (tb0) tb0.innerHTML = `<tr class="empty-row"><td colspan="4"><span class="btn-spin" style="width:11px;height:11px;vertical-align:-1px;margin-right:6px"></span>Memuat data...</td></tr>`;
+  if (tb0) tb0.innerHTML = `<tr class="empty-row"><td colspan="5"><span class="btn-spin" style="width:11px;height:11px;vertical-align:-1px;margin-right:6px"></span>Memuat data...</td></tr>`;
   await loadLinks();
   filterShortlinks();
 }
@@ -292,8 +292,9 @@ function renderShortlinks() {
   const tb = document.getElementById('slTableBody');
   const start = (_slPage - 1) * _slPageSize;
   const slice = _slFiltered.slice(start, start + _slPageSize);
-  tb.innerHTML = slice.length ? slice.map(l => `
+  tb.innerHTML = slice.length ? slice.map((l, i) => `
     <tr>
+      <td style="text-align:center;color:var(--teks)">${start + i + 1}</td>
       <td>
         <div style="display:flex;align-items:center;gap:4px;flex-wrap:wrap">
           ${l.slug_pendek
@@ -306,11 +307,11 @@ function renderShortlinks() {
           ${esc(_fmtWita(l.created_at))}
         </div>
       </td>
-      <td>${_linkIsExpired(l)
+      <td style="text-align:center">${_linkIsExpired(l)
           ? `<span class="badge badge-red" data-tip="Berlaku s.d ${esc(fmtDate(l.expired_at))}">Kedaluwarsa</span>`
           : `<span class="badge ${l.aktif?'badge-green':'badge-red'}">${l.aktif?'Aktif':'Nonaktif'}</span>`}</td>
-      <td class="col-admin-only" style="color:var(--teks-muted);font-size:.78rem">${l.created_by_nama ? esc(l.created_by_nama) : '-'}</td>
-      <td style="white-space:nowrap">${l.slug_pendek ? `
+      <td class="col-admin-only" style="color:var(--teks-muted);font-size:.78rem;text-align:center">${l.created_by_nama ? esc(l.created_by_nama) : '-'}</td>
+      <td style="white-space:nowrap;text-align:center">${l.slug_pendek ? `
           <button class="btn btn-ghost btn-sm icon-status${l.expired_at ? ' active' : ''}" data-tip="${l.expired_at ? 'Berlaku s.d ' + esc(fmtDate(l.expired_at)) : 'Tautan berjangka'}" onclick="editLink(${l.id})"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg></button>
           <button class="btn btn-ghost btn-sm icon-status${l.is_protected ? ' active' : ''}" data-tip="${l.is_protected ? 'Tautan diproteksi' : 'Tautan tanpa proteksi'}" onclick="editLink(${l.id})"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="10" width="16" height="10" rx="2"/><path d="M7 10V7a5 5 0 0110 0v3"/></svg></button>
           <button class="btn btn-ghost btn-sm" data-tip="Bagikan" data-share-trigger onclick="toggleShareMenu(event,'link', ${l.id})"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a3 3 0 1 0-2.83-4H15a3 3 0 0 0 .05.54L8.09 8.49a3 3 0 1 0 0 7.02l6.96 3.95A3 3 0 1 0 15.83 18l-6.96-3.95a3 3 0 0 0 0-2.1L15.83 8A3 3 0 0 0 18 8z"/></svg></button>
@@ -319,7 +320,7 @@ function renderShortlinks() {
           <button class="btn btn-ghost btn-sm" data-tip="Edit" onclick="editLink(${l.id})"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg></button>
           <button class="btn-hapus" data-tip="Hapus" onclick="deleteLink(${l.id})"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path stroke-linecap="round" stroke-linejoin="round" d="M19 6l-1 14H6L5 6"/><path stroke-linecap="round" stroke-linejoin="round" d="M10 11v6m4-6v6"/><path stroke-linecap="round" stroke-linejoin="round" d="M9 6V4h6v2"/></svg></button></td>
     </tr>`).join('')
-    : '<tr class="empty-row"><td colspan="4">Tidak ada link</td></tr>';
+    : '<tr class="empty-row"><td colspan="5">Tidak ada link</td></tr>';
   renderPagination('slPagination', _slFiltered.length, _slPage, _slPageSize, 'goSlPage');
 }
 
@@ -334,7 +335,7 @@ let _currentBundleItems = [];
 
 async function loadBundles() {
   const tb0 = document.getElementById('bundleTableBody');
-  if (tb0) tb0.innerHTML = `<tr class="empty-row"><td colspan="4"><span class="btn-spin" style="width:11px;height:11px;vertical-align:-1px;margin-right:6px"></span>Memuat data...</td></tr>`;
+  if (tb0) tb0.innerHTML = `<tr class="empty-row"><td colspan="5"><span class="btn-spin" style="width:11px;height:11px;vertical-align:-1px;margin-right:6px"></span>Memuat data...</td></tr>`;
   try {
     const r = await fetch('/api/bundles', { headers: authHeaders() });
     const d = await r.json();
@@ -365,8 +366,9 @@ function renderBundles() {
   const start = (_bundlePage - 1) * _bundlePageSize;
   const slice = _bundlesFiltered.slice(start, start + _bundlePageSize);
   const tb = document.getElementById('bundleTableBody');
-  tb.innerHTML = slice.length ? slice.map(b => `
+  tb.innerHTML = slice.length ? slice.map((b, i) => `
     <tr>
+      <td style="text-align:center;color:var(--teks)">${start + i + 1}</td>
       <td>
         <div style="font-weight:700;color:var(--teks);font-size:.85rem">${esc(b.judul)}</div>
         <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:3px">
@@ -378,11 +380,11 @@ function renderBundles() {
           ${esc(_fmtWita(b.created_at))}
         </div>
       </td>
-      <td>${_bundleIsExpired(b)
+      <td style="text-align:center">${_bundleIsExpired(b)
           ? `<span class="badge badge-red" data-tip="Berlaku s.d ${esc(fmtDate(b.expired_at))}">Kedaluwarsa</span>`
           : `<span class="badge ${b.aktif?'badge-green':'badge-red'}">${b.aktif?'Aktif':'Nonaktif'}</span>`}</td>
-      <td class="col-admin-only" style="color:var(--teks-muted);font-size:.78rem">${b.created_by_nama ? esc(b.created_by_nama) : '-'}</td>
-      <td style="white-space:nowrap">
+      <td class="col-admin-only" style="color:var(--teks-muted);font-size:.78rem;text-align:center">${b.created_by_nama ? esc(b.created_by_nama) : '-'}</td>
+      <td style="white-space:nowrap;text-align:center">
         <button class="btn btn-ghost btn-sm icon-status${b.expired_at ? ' active' : ''}" data-tip="${b.expired_at ? 'Berlaku s.d ' + esc(fmtDate(b.expired_at)) : 'Bundle berjangka'}" onclick="editBundle(${b.id})"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg></button>
         <button class="btn btn-ghost btn-sm icon-status${b.is_protected ? ' active' : ''}" data-tip="${b.is_protected ? 'Bundle diproteksi' : 'Bundle tanpa proteksi'}" onclick="editBundle(${b.id})"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="10" width="16" height="10" rx="2"/><path d="M7 10V7a5 5 0 0110 0v3"/></svg></button>
         <button class="btn btn-ghost btn-sm" data-tip="Bagikan" data-share-trigger onclick="toggleShareMenu(event,'bundle', ${b.id})"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a3 3 0 1 0-2.83-4H15a3 3 0 0 0 .05.54L8.09 8.49a3 3 0 1 0 0 7.02l6.96 3.95A3 3 0 1 0 15.83 18l-6.96-3.95a3 3 0 0 0 0-2.1L15.83 8A3 3 0 0 0 18 8z"/></svg></button>
@@ -392,7 +394,7 @@ function renderBundles() {
         <button class="btn-hapus" data-tip="Hapus" onclick="deleteBundle(${b.id})"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path stroke-linecap="round" stroke-linejoin="round" d="M19 6l-1 14H6L5 6"/><path stroke-linecap="round" stroke-linejoin="round" d="M10 11v6m4-6v6"/><path stroke-linecap="round" stroke-linejoin="round" d="M9 6V4h6v2"/></svg></button>
       </td>
     </tr>`).join('')
-    : '<tr class="empty-row"><td colspan="4">Tidak ada bundle</td></tr>';
+    : '<tr class="empty-row"><td colspan="5">Tidak ada bundle</td></tr>';
   renderPagination('bundlePagination', _bundlesFiltered.length, _bundlePage, _bundlePageSize, 'goBundlePage');
 }
 

@@ -262,13 +262,13 @@ async function loadSuratMasuk(page = 1) {
     const smOffset = (page - 1) * 10;
     tb.innerHTML = (d.surat||[]).length ? d.surat.map((s, idx) => `
       <tr>
-        <td>${smOffset + idx + 1}</td>
+        <td style="text-align:center">${smOffset + idx + 1}</td>
         <td>${esc(s.asal_surat)}</td>
         <td>${s.no_surat ? esc(s.no_surat) : '-'}</td>
-        <td>${s.tanggal_surat ? fmtDateOnly(s.tanggal_surat) : '-'}</td>
+        <td style="text-align:center">${s.tanggal_surat ? fmtDateOnly(s.tanggal_surat) : '-'}</td>
         <td>${esc(s.perihal)}</td>
-        <td>${fmtDateOnly(s.tanggal_terima)}</td>
-        <td>${s.batas_waktu ? `<span style="white-space:nowrap">${fmtDateOnly(s.batas_waktu)}</span>` : '-'}</td>
+        <td style="text-align:center">${fmtDateOnly(s.tanggal_terima)}</td>
+        <td style="text-align:center">${s.batas_waktu ? `<span style="white-space:nowrap">${fmtDateOnly(s.batas_waktu)}</span>` : '-'}</td>
         <td>${s.pegawai ? esc(s.pegawai) : '-'}</td>
         <td style="text-align:center">${renderDocsBadge(s.file_url, 'Surat Masuk - ' + (s.perihal||''))}</td>
         <td>
@@ -439,14 +439,14 @@ async function loadSuratKeluar(page = 1) {
     const skOffset = (page - 1) * 10;
     tb.innerHTML = (d.surat||[]).length ? d.surat.map((s, idx) => `
       <tr>
-        <td>${skOffset + idx + 1}</td>
+        <td style="text-align:center">${skOffset + idx + 1}</td>
         <td>${esc(s.tujuan_surat)}</td>
-        <td>${s.no_surat ? esc(s.no_surat) : '-'}</td>
-        <td>${s.tanggal_surat ? fmtDateOnly(s.tanggal_surat) : '-'}</td>
+        <td style="text-align:center">${s.no_surat ? esc(s.no_surat) : '-'}</td>
+        <td style="text-align:center">${s.tanggal_surat ? fmtDateOnly(s.tanggal_surat) : '-'}</td>
         <td>${esc(s.perihal)}</td>
-        <td>${s.pegawai ? esc(s.pegawai) : '-'}</td>
+        <td style="text-align:center">${s.pegawai ? esc(s.pegawai) : '-'}</td>
         <td style="text-align:center">${renderDocsBadge(s.file_url, 'Surat Keluar - ' + (s.perihal||''))}</td>
-        <td style="white-space:nowrap">
+        <td style="text-align:center;white-space:nowrap">
           ${(isFull || s.created_by === (_user && _user.id)) ? `<button class="btn btn-ghost btn-sm" data-tip="Edit" onclick="editSK(${s.id})"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg></button>
           <button class="btn-hapus" data-tip="Hapus" onclick="deleteSK(${s.id})"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path stroke-linecap="round" stroke-linejoin="round" d="M19 6l-1 14H6L5 6"/><path stroke-linecap="round" stroke-linejoin="round" d="M10 11v6m4-6v6"/><path stroke-linecap="round" stroke-linejoin="round" d="M9 6V4h6v2"/></svg></button>` : '<span style="color:var(--teks-muted)">-</span>'}
         </td>

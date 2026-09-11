@@ -683,6 +683,12 @@ body::before {
   margin: 0;
 }
 .sidebar.collapsed .nav-item[data-sub="dashboard"] svg { display: flex; }
+/* Item ini punya 2 svg (ic-line & ic-fill) buat toggle aktif/tidak - rule di atas nyalain
+   keduanya sekaligus pas collapsed (harusnya cuma 1 yang kelihatan), makanya ikonnya
+   kelihatan dobel. Timpa lagi di sini biar tetep ikut status aktif kayak nav-item lain. */
+.sidebar.collapsed .nav-item[data-sub="dashboard"] .ic-fill { display: none; }
+.sidebar.collapsed .nav-item[data-sub="dashboard"].active .ic-line { display: none; }
+.sidebar.collapsed .nav-item[data-sub="dashboard"].active .ic-fill { display: flex; }
 .sidebar.collapsed .nav-item[data-sub="dashboard"].active {
   background: #ccfbf1;
   opacity: 1;
@@ -818,7 +824,7 @@ body:not(.is-admin) .col-admin-only { display: none; }
 th {
   font-size: var(--fs-xs); font-weight: 700; color: var(--teks-muted);
   text-transform: uppercase; letter-spacing: .6px;
-  padding: var(--sp-3) var(--sp-3); text-align: left;
+  padding: var(--sp-3) var(--sp-3); text-align: center;
   border-bottom: 1.5px solid var(--abu-2); white-space: nowrap;
 }
 td {
@@ -2131,9 +2137,9 @@ ol.lap-md-list--alpha > li::before { content:counter(lapmdnum, lower-alpha) ".";
 .kinerja-table tr:hover td:not(.td-sticky-no):not(.td-sticky-name) { background:var(--abu-1); }
 .kinerja-table .sasaran-row td { background:rgba(6,95,70,.07); font-weight:700; color:var(--teks); font-size:.78rem; padding:6px 10px; }
 /* Kolom satuan & target - cegah teks bocor ke belakang sticky */
-.kinerja-table td.td-satuan { white-space:normal; word-break:break-word; max-width:80px; }
+.kinerja-table td.td-satuan { white-space:normal; word-break:break-word; max-width:80px; text-align:center; }
 .kinerja-table td.td-bidang { white-space:normal; word-break:break-word; max-width:160px; }
-.kinerja-table td.td-target { white-space:nowrap; overflow:hidden; max-width:80px; text-overflow:ellipsis; }
+.kinerja-table td.td-target { white-space:nowrap; overflow:hidden; max-width:80px; text-overflow:ellipsis; text-align:center; }
 
 /* ── Tabel Running Text (ticker) - kolom Teks wrap, jangan scroll horizontal ── */
 #tickerTable { table-layout: fixed; min-width: 0; }
@@ -5939,7 +5945,7 @@ td.col-perihal {
   align-items: center;
   justify-content: center;
   width: 15px;
-  height: 13px;
+  height: 11px;
   padding: 0;
   border: none;
   background: none;
@@ -5952,8 +5958,8 @@ td.col-perihal {
   font-family: inherit;
 }
 .cdtp-spin-btn svg { width: 9px; height: 9px; }
-.cdtp-spin-btn[data-dir="+1"] { top: 1px; }
-.cdtp-spin-btn[data-dir="-1"] { bottom: 1px; }
+.cdtp-spin-btn[data-dir="+1"] { top: 50%; transform: translateY(-100%); }
+.cdtp-spin-btn[data-dir="-1"] { top: 50%; transform: translateY(0%); }
 .cdtp-spin-btn:hover { background: var(--hijau-light); color: var(--hijau); }
 .cdtp-time-spin:focus-within .cdtp-spin-btn { color: var(--hijau); opacity: 1; pointer-events: auto; }
 .cdtp-time-spin:focus-within .cdtp-spin-btn:hover { background: var(--hijau-light); }
@@ -6192,14 +6198,14 @@ td.col-perihal {
 .cdtp-spin-btn {
   position: absolute; right: 3px;
   display: flex; align-items: center; justify-content: center;
-  width: 15px; height: 13px; padding: 0; border: none; background: none;
+  width: 15px; height: 11px; padding: 0; border: none; background: none;
   color: var(--teks-muted); cursor: pointer; border-radius: 3px;
   opacity: 0; pointer-events: none;
   transition: background .11s, color .11s, opacity .11s; font-family: inherit;
 }
 .cdtp-spin-btn svg { width: 9px; height: 9px; }
-.cdtp-spin-btn[data-dir="+1"] { top: 1px; }
-.cdtp-spin-btn[data-dir="-1"] { bottom: 1px; }
+.cdtp-spin-btn[data-dir="+1"] { top: 50%; transform: translateY(-100%); }
+.cdtp-spin-btn[data-dir="-1"] { top: 50%; transform: translateY(0%); }
 .cdtp-spin-btn:hover { background: var(--hijau-light); color: var(--hijau); }
 .cdtp-time-spin { position: relative; display: inline-flex; align-items: center; }
 .cdtp-time-spin:focus-within .cdtp-spin-btn { color: var(--hijau); opacity: 1; pointer-events: auto; }
@@ -7369,7 +7375,7 @@ th {
   text-transform: uppercase;
   letter-spacing: .6px;
   padding: var(--sp-3) var(--sp-4);   /* 8px × 13px - Fibonacci */
-  text-align: left;
+  text-align: center;
   border-bottom: 1.5px solid var(--abu-2);
   white-space: nowrap;
   line-height: var(--lh-tight);
@@ -8647,6 +8653,75 @@ tr:hover td:not(.td-sticky-no):not(.td-sticky-name) { background: var(--abu-1); 
    teksnya yang dipepetin sampe numpuk beberapa baris. ── */
 #lapAbsTable th, #lapAbsTable td { white-space: nowrap; }
 #lapAbsTable td:nth-child(2) { white-space: normal; } /* kolom Nama tetap boleh wrap 2 baris, tapi dikasih lebar cukup di bawah */
+
+/* ── Usulanku (Pra Usulan): semua kolom rata tengah kecuali kolom Kegiatan ── */
+#epPraTable th:not(:nth-child(2)),
+#epPraTable td:not(:nth-child(2)) { text-align: center; }
+
+/* ── Standar Harga Satuan: kolom Spesifikasi, Satuan, TKDN, Tahun, Status rata tengah ── */
+#epStandarHargaTable th:nth-child(3), #epStandarHargaTable td:nth-child(3),
+#epStandarHargaTable th:nth-child(4), #epStandarHargaTable td:nth-child(4),
+#epStandarHargaTable th:nth-child(6), #epStandarHargaTable td:nth-child(6),
+#epStandarHargaTable th:nth-child(7), #epStandarHargaTable td:nth-child(7),
+#epStandarHargaTable th:nth-child(8), #epStandarHargaTable td:nth-child(8) { text-align: center; }
+
+/* ── Tema Musiman: semua kolom rata tengah kecuali kolom Tema ── */
+#temaMusimanTable th:not(:nth-child(1)),
+#temaMusimanTable td:not(:nth-child(1)) { text-align: center; }
+
+/* ── Pengguna: semua kolom rata tengah kecuali kolom Nama ── */
+#userTable th:not(:nth-child(1)),
+#userTable td:not(:nth-child(1)) { text-align: center; }
+
+/* ── Unit Kerja: kolom Tipe dan Aksi rata tengah ── */
+#bidangTable th:nth-child(2), #bidangTable td:nth-child(2),
+#bidangTable th:nth-child(3), #bidangTable td:nth-child(3) { text-align: center; }
+
+/* ── Struktur Organisasi: semua kolom rata tengah kecuali kolom Nama / NIP ── */
+#pegawaiTable th:not(:nth-child(1)),
+#pegawaiTable td:not(:nth-child(1)) { text-align: center; }
+#pegawaiTable td:nth-child(7) > div { justify-content: center; }
+
+/* ── Dokumen Publik: semua kolom rata tengah kecuali kolom Judul / Keterangan ── */
+#dokumenTable th:not(:nth-child(1)),
+#dokumenTable td:not(:nth-child(1)) { text-align: center; }
+#dokumenTable td:nth-child(5) > div { justify-content: center; }
+
+/* ── Audit Trail: semua kolom rata tengah kecuali kolom Lokasi ── */
+#auditTable th:not(:nth-child(6)),
+#auditTable td:not(:nth-child(6)) { text-align: center; }
+
+/* ── Kelola Indikator Kinerja: semua kolom rata tengah kecuali kolom Indikator Kinerja ── */
+#indikatorAdminTable th:not(:nth-child(2)),
+#indikatorAdminTable td:not(:nth-child(2)) { text-align: center; }
+
+/* ── Sub Kegiatan: kolom Satuan, Status, Aksi rata tengah ── */
+#epSubkegiatanTable th:nth-child(4), #epSubkegiatanTable td:nth-child(4),
+#epSubkegiatanTable th:nth-child(5), #epSubkegiatanTable td:nth-child(5),
+#epSubkegiatanTable th:nth-child(6), #epSubkegiatanTable td:nth-child(6) { text-align: center; }
+
+/* ── Sumber Dana: kolom Status rata tengah ── */
+#epSumberDanaTable th:nth-child(3), #epSumberDanaTable td:nth-child(3),
+#epSumberDanaTable th:nth-child(4), #epSumberDanaTable td:nth-child(4) { text-align: center; }
+
+/* ── Satuan: kolom Status rata tengah ── */
+#epSatuanTable th:nth-child(2), #epSatuanTable td:nth-child(2),
+#epSatuanTable th:nth-child(3), #epSatuanTable td:nth-child(3) { text-align: center; }
+
+/* ── Rekening: kolom Status dan Aksi rata tengah ── */
+#epRekeningTable th:nth-child(3), #epRekeningTable td:nth-child(3),
+#epRekeningTable th:nth-child(4), #epRekeningTable td:nth-child(4) { text-align: center; }
+
+/* ── Prioritas Pembangunan Provinsi/Kab-Kota, Bidang Urusan, Label (Tag) Sub Kegiatan: kolom Aksi rata tengah ── */
+#epRefTable th:nth-child(2), #epRefTable td:nth-child(2),
+#epRefTable th:nth-child(3), #epRefTable td:nth-child(3) { text-align: center; }
+
+/* ── Riwayat Periode Ramadhan: semua kolom rata tengah ── */
+#absRamadhanTable th, #absRamadhanTable td { text-align: center; }
+
+/* ── Daftar Hari Libur / Tanggal Merah: semua kolom rata tengah ── */
+#absLiburTable th, #absLiburTable td { text-align: center; }
+#absLiburTable th:nth-child(2), #absLiburTable td:nth-child(2) { text-align: left; }
 @media (max-width: 640px) {
   #lapAbsTable { min-width: 640px; }
   #lapAbsTable th#lapAbsThNama, #lapAbsTable td:nth-child(2) { width: 150px; }

@@ -2612,7 +2612,7 @@ function renderKelolJenisSection(allJenis) {
           ${j.aktif ? 'Aktif' : 'Nonaktif'}
         </span>
       </td>
-      <td style="white-space:nowrap">
+      <td style="white-space:nowrap;text-align:center">
         <button class="btn btn-ghost btn-sm" data-tip="Edit" onclick="openJenisModal(${j.id})">
           <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
         </button>
@@ -5839,11 +5839,11 @@ function _monRenderTable() {
         <div style="font-size:.82rem;font-weight:600;color:#1e293b;line-height:1.4;white-space:normal;word-break:break-word"><span>${escHtml(r.indikator_kinerja)}</span>${maknaIcon}</div>
         <div style="margin-top:3px;display:flex;align-items:center;gap:3px;flex-wrap:wrap">${tipeBadge}${jenisBadges}</div>
       </td>
-      <td style="font-size:.78rem;color:#64748b;padding:10px 8px;word-break:break-word;white-space:normal">${escHtml(r.penanggung_jawab || '-')}</td>
-      <td style="font-size:.78rem;padding:10px 8px;white-space:nowrap">${targetTx}</td>
+      <td style="font-size:.78rem;color:#64748b;padding:10px 8px;word-break:break-word;white-space:normal;text-align:center">${escHtml(r.penanggung_jawab || '-')}</td>
+      <td style="font-size:.78rem;padding:10px 8px;white-space:nowrap;text-align:center">${targetTx}</td>
       ${bulanCell}
       <td style="text-align:center;padding:10px 8px">${statusBadge}</td>
-      <td style="padding:10px 8px">${picInfo}</td>
+      <td style="padding:10px 8px;text-align:center">${picInfo}</td>
       <td style="text-align:center;padding:10px 8px">${capaian}</td>
     </tr>`;
   }
