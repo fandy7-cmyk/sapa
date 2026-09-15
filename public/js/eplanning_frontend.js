@@ -5097,7 +5097,7 @@ function _epDokPreviewIframeDoc(innerHtml, orientation) {
   ol.lap-md-list > li { counter-increment:lapmdnum; position:relative; }
   ol.lap-md-list > li::before {
     content:counter(lapmdnum) ".";
-    position:absolute; left:-1.4em; width:1.3em; text-align:right; white-space:nowrap;
+    position:absolute; left:-1.4em; width:1.3em; text-align:left; white-space:nowrap;
     color:#0f172a; font-weight:400;
   }
   ol.lap-md-list--alpha > li::before { content:counter(lapmdnum, lower-alpha) "."; }

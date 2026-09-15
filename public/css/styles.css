@@ -1332,7 +1332,7 @@ tr:hover td:not(.td-sticky-no):not(.td-sticky-name) { background: var(--abu-1); 
 .field .ps-rte .rte-line--list { padding-left: 1.9em; }
 .field .ps-rte .rte-marker {
   display:inline-block; box-sizing:border-box; width:1.9em; margin-left:-1.9em;
-  padding-right:.3em; text-align:right; white-space:nowrap; color:var(--teks); font-weight:400;
+  padding-right:.3em; text-align:left; white-space:nowrap; color:var(--teks); font-weight:400;
 }
 .field .ps-rte .rte-marker--ul { color:transparent; position:relative; }
 .field .ps-rte .rte-marker--ul::after { content:"\2022"; position:absolute; inset:0; text-align:right; color:var(--teks); font-weight:700; }
@@ -2110,7 +2110,7 @@ ol.lap-md-list > li::before {
   position:absolute;
   left:-1.5em;
   width:1.3em;
-  text-align:right;
+  text-align:left;
   white-space:nowrap;
   color:var(--teks);
   font-weight:400;
@@ -2282,7 +2282,7 @@ ol.lap-md-list--alpha > li::before { content:counter(lapmdnum, lower-alpha) ".";
   width:1.9em;
   margin-left:-1.9em;
   padding-right:.3em;
-  text-align:right;
+  text-align:left;
   white-space:nowrap;
   color:var(--teks);
   font-weight:400;
@@ -2439,7 +2439,7 @@ ol.lap-md-list--alpha > li::before { content:counter(lapmdnum, lower-alpha) ".";
   position:absolute;
   left:-1.6em;
   width:1.4em;
-  text-align:right;
+  text-align:left;
   white-space:nowrap;
   color:var(--teks);
   font-weight:400;
@@ -8690,6 +8690,7 @@ tr:hover td:not(.td-sticky-no):not(.td-sticky-name) { background: var(--abu-1); 
 /* ── Audit Trail: semua kolom rata tengah kecuali kolom Lokasi ── */
 #auditTable th:not(:nth-child(6)),
 #auditTable td:not(:nth-child(6)) { text-align: center; }
+#auditTable td:nth-child(4) { text-align: left; }
 
 /* ── Kelola Indikator Kinerja: semua kolom rata tengah kecuali kolom Indikator Kinerja ── */
 #indikatorAdminTable th:not(:nth-child(2)),

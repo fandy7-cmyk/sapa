@@ -1196,6 +1196,11 @@ async function loadLaporanSurat() {
   _initLaporanSuratJenisFilter(smFiltered, skFiltered);
   const jenis = document.getElementById('laporanSuratJenis')?.value || '';
 
+  const pengirimTujuanTh = document.getElementById('laporanSuratPengirimTujuanTh');
+  if (pengirimTujuanTh) {
+    pengirimTujuanTh.textContent = jenis === 'masuk' ? 'Pengirim' : jenis === 'keluar' ? 'Tujuan' : 'Pengirim / Tujuan';
+  }
+
   const totalSM   = smFiltered.length;
   const selesaiSM = smFiltered.filter(r => r.selesai).length;
   const belumSM   = totalSM - selesaiSM;
@@ -1289,8 +1294,8 @@ function _lapRenderSuratTbody(rows) {
       ? new Date(r.batas_waktu).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' })
       : '-';
     const jenisBadge = r._jenis === 'masuk'
-      ? `<span style="background:#d1fae5;color:#065f46;padding:2px 8px;border-radius:99px;font-size:.7rem">Masuk</span>`
-      : `<span style="background:#ede9fe;color:#4c1d95;padding:2px 8px;border-radius:99px;font-size:.7rem">Keluar</span>`;
+      ? `<span style="background:#d1fae5;color:#065f46;padding:2px 8px;border-radius:99px;font-size:.7rem;white-space:nowrap">Surat Masuk</span>`
+      : `<span style="background:#ede9fe;color:#4c1d95;padding:2px 8px;border-radius:99px;font-size:.7rem;white-space:nowrap">Surat Keluar</span>`;
     let statusBadge;
     if (r._jenis === 'keluar') {
       statusBadge = `<span style="background:#dbeafe;color:#1e40af;padding:2px 8px;border-radius:99px;font-size:.7rem">Terkirim</span>`;
@@ -1303,9 +1308,9 @@ function _lapRenderSuratTbody(rows) {
     }
     return `<tr>
       <td style="text-align:center">${start + i + 1}</td>
-      <td>${r.no_surat}</td>
+      <td style="text-align:center;white-space:nowrap">${r.no_surat}</td>
       <td>${r.perihal}</td>
-      <td style="text-align:center">${jenisBadge}</td>
+      <td style="text-align:center;white-space:nowrap">${jenisBadge}</td>
       <td style="text-align:center">${tgl}</td>
       <td>${r.pengirim_tujuan}</td>
       <td style="text-align:center;white-space:nowrap;color:${r.terlambat ? '#ef4444' : 'inherit'}">${batas}</td>
@@ -2082,7 +2087,7 @@ function _bukaPreviewPDF(htmlBody, judulDokumen, orientation) {
     position:absolute;
     left:-1.4em;
     width:1.3em;
-    text-align:right;
+    text-align:left;
     white-space:nowrap;
     color:#0f172a;
     font-weight:400;
@@ -2146,8 +2151,8 @@ function downloadLaporanSuratPDF(btnEl) {
     const bg    = 'white';
 
     const jenisBadge = r._jenis === 'masuk'
-      ? `<span style="background:#d1fae5;color:#065f46;padding:1px 6px;border-radius:99px;font-size:7.5px;white-space:nowrap">Masuk</span>`
-      : `<span style="background:#ede9fe;color:#4c1d95;padding:1px 6px;border-radius:99px;font-size:7.5px;white-space:nowrap">Keluar</span>`;
+      ? `<span style="background:#d1fae5;color:#065f46;padding:1px 6px;border-radius:99px;font-size:7.5px;white-space:nowrap">Surat Masuk</span>`
+      : `<span style="background:#ede9fe;color:#4c1d95;padding:1px 6px;border-radius:99px;font-size:7.5px;white-space:nowrap">Surat Keluar</span>`;
 
     let statusBadge;
     if (r._jenis === 'keluar') {

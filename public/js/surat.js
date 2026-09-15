@@ -96,7 +96,7 @@ async function deleteDocBadge(btn, fileUrlRaw) {
         asal_surat:     rec.asal_surat,
         perihal:        rec.perihal,
         batas_waktu:    rec.batas_waktu    ? rec.batas_waktu.split('T')[0]    : null,
-        pegawai:        rec.pegawai        ?? null,
+        pegawai:        Array.isArray(rec.pegawai_list) ? rec.pegawai_list : [],
         keterangan:     rec.keterangan     ?? null,
         selesai:        rec.selesai,
         file_url:       null,
@@ -109,7 +109,7 @@ async function deleteDocBadge(btn, fileUrlRaw) {
         tanggal_surat: rec.tanggal_surat ? rec.tanggal_surat.split('T')[0] : null,
         tujuan_surat:  rec.tujuan_surat,
         perihal:       rec.perihal,
-        pegawai:       rec.pegawai       ?? null,
+        pegawai:       Array.isArray(rec.pegawai_list) ? rec.pegawai_list : [],
         keterangan:    rec.keterangan    ?? null,
         file_url:      null,
         file_name:     null,
@@ -215,11 +215,62 @@ function _populateSuratPegawai(suratList, selectId) {
   if (!sel) return;
   const current = sel.value;
   const pegawaiSet = [...new Set(
-    suratList.map(s => s.pegawai || '').filter(Boolean)
+    suratList.flatMap(s => Array.isArray(s.pegawai_list) ? s.pegawai_list : []).filter(Boolean)
   )].sort((a, b) => a.localeCompare(b, 'id'));
   sel.innerHTML = '<option value="">Semua Pegawai</option>' +
     pegawaiSet.map(p => `<option value="${esc(p)}" ${p === current ? 'selected' : ''}>${esc(p)}</option>`).join('');
   if (typeof window.syncCustomSelect === 'function') syncCustomSelect(selectId);
+}
+
+// ==== Multi-select pegawai (checkbox grid, gaya sama seperti Peserta di Lembur) ====
+let _selectedPegawaiSM = new Set();
+let _selectedPegawaiSK = new Set();
+
+function _pegawaiSelSet(target) { return target === 'sk' ? _selectedPegawaiSK : _selectedPegawaiSM; }
+
+function renderPegawaiGrid(target) {
+  const grid = document.getElementById(target === 'sk' ? 'skPegawaiGrid' : 'smPegawaiGrid');
+  if (!grid) return;
+  const sel = _pegawaiSelSet(target);
+  grid.innerHTML = _smPegawaiList.length
+    ? _smPegawaiList.map(u => `
+      <div class="perm-item${sel.has(u.nama) ? ' selected' : ''}" onclick="togglePegawaiItem('${target}','${esc(u.nama).replace(/'/g,"\\'")}', this)">
+        <div class="perm-check"></div>
+        <div><div class="perm-name">${esc(u.nama)}</div></div>
+      </div>`).join('')
+    : `<div style="text-align:center;color:var(--teks-muted);padding:8px;font-size:.82rem">Belum ada data pegawai.</div>`;
+  updateSelectAllLabel(target);
+  const details = document.getElementById(target === 'sk' ? 'skPegawaiDetails' : 'smPegawaiDetails');
+  if (details) details.open = sel.size > 0;
+}
+
+function togglePegawaiItem(target, nama, el) {
+  const sel = _pegawaiSelSet(target);
+  if (sel.has(nama)) { sel.delete(nama); el.classList.remove('selected'); }
+  else { sel.add(nama); el.classList.add('selected'); }
+  updateSelectAllLabel(target);
+}
+
+function updateSelectAllLabel(target) {
+  const label = document.getElementById(target === 'sk' ? 'skPegawaiSelectAll' : 'smPegawaiSelectAll');
+  const sel = _pegawaiSelSet(target);
+  if (label) {
+    const allSelected = _smPegawaiList.length > 0 && _smPegawaiList.every(u => sel.has(u.nama));
+    label.textContent = allSelected ? 'Batalkan Semua' : 'Pilih Semua';
+  }
+  const summary = document.getElementById(target === 'sk' ? 'skPegawaiSummaryText' : 'smPegawaiSummaryText');
+  if (summary) {
+    summary.textContent = sel.size > 0 ? `${sel.size} pegawai dipilih` : 'Klik untuk pilih pegawai';
+    summary.style.color = sel.size > 0 ? 'var(--teks)' : 'var(--teks-muted)';
+  }
+}
+
+function toggleSelectAllPegawai(target) {
+  const sel = _pegawaiSelSet(target);
+  const allSelected = _smPegawaiList.length > 0 && _smPegawaiList.every(u => sel.has(u.nama));
+  if (allSelected) sel.clear();
+  else _smPegawaiList.forEach(u => sel.add(u.nama));
+  renderPegawaiGrid(target);
 }
 
 function setSMFilter(v) {
@@ -264,12 +315,12 @@ async function loadSuratMasuk(page = 1) {
       <tr>
         <td style="text-align:center">${smOffset + idx + 1}</td>
         <td>${esc(s.asal_surat)}</td>
-        <td>${s.no_surat ? esc(s.no_surat) : '-'}</td>
+        <td style="text-align:center;white-space:nowrap">${s.no_surat ? esc(s.no_surat) : '-'}</td>
         <td style="text-align:center">${s.tanggal_surat ? fmtDateOnly(s.tanggal_surat) : '-'}</td>
         <td>${esc(s.perihal)}</td>
         <td style="text-align:center">${fmtDateOnly(s.tanggal_terima)}</td>
         <td style="text-align:center">${s.batas_waktu ? `<span style="white-space:nowrap">${fmtDateOnly(s.batas_waktu)}</span>` : '-'}</td>
-        <td>${s.pegawai ? esc(s.pegawai) : '-'}</td>
+        <td>${Array.isArray(s.pegawai_list) && s.pegawai_list.length ? s.pegawai_list.map(p => `<span style="white-space:nowrap">${esc(p)}</span>`).join('<br>') : '-'}</td>
         <td style="text-align:center">${renderDocsBadge(s.file_url, 'Surat Masuk - ' + (s.perihal||''))}</td>
         <td>
           ${(() => {
@@ -331,7 +382,8 @@ async function openSMModal() {
   document.getElementById('smId').value = '';
   ['smNoSurat','smAsal','smPerihal','smKeterangan']
     .forEach(id => document.getElementById(id).value = '');
-  document.getElementById('smPegawai').innerHTML = renderPegawaiOptions(null);
+  _selectedPegawaiSM = new Set();
+  renderPegawaiGrid('sm');
   dpSetValue('smTglSurat', null);
   dpSetValue('smTglTerima', null);
   dpSetValue('smBatas', null);
@@ -354,7 +406,8 @@ async function editSM(id) {
     dpSetValue('smTglTerima', s.tanggal_terima?.split('T')[0] || null);
     document.getElementById('smAsal').value = s.asal_surat || '';
     document.getElementById('smPerihal').value = s.perihal || '';
-    document.getElementById('smPegawai').innerHTML = renderPegawaiOptions(s.pegawai || null);
+    _selectedPegawaiSM = new Set(Array.isArray(s.pegawai_list) ? s.pegawai_list : []);
+    renderPegawaiGrid('sm');
     dpSetValue('smBatas', s.batas_waktu?.split('T')[0] || null);
     document.getElementById('smKeterangan').value = s.keterangan || '';
     document.getElementById('smSelesai').checked = s.selesai;
@@ -373,7 +426,7 @@ async function saveSM() {
     tanggal_terima: dpGetValue('smTglTerima') || null,
     asal_surat: document.getElementById('smAsal').value.trim(),
     perihal: document.getElementById('smPerihal').value.trim(),
-    pegawai: document.getElementById('smPegawai').value || null,
+    pegawai: [..._selectedPegawaiSM],
     batas_waktu: dpGetValue('smBatas') || null,
     keterangan: document.getElementById('smKeterangan').value.trim() || null,
     file_url: getUploadUrl('sm'),
@@ -440,11 +493,11 @@ async function loadSuratKeluar(page = 1) {
     tb.innerHTML = (d.surat||[]).length ? d.surat.map((s, idx) => `
       <tr>
         <td style="text-align:center">${skOffset + idx + 1}</td>
-        <td>${esc(s.tujuan_surat)}</td>
-        <td style="text-align:center">${s.no_surat ? esc(s.no_surat) : '-'}</td>
+        <td>${_fmtTujuanSurat(s.tujuan_surat)}</td>
+        <td style="text-align:center;white-space:nowrap">${s.no_surat ? esc(s.no_surat) : '-'}</td>
         <td style="text-align:center">${s.tanggal_surat ? fmtDateOnly(s.tanggal_surat) : '-'}</td>
         <td>${esc(s.perihal)}</td>
-        <td style="text-align:center">${s.pegawai ? esc(s.pegawai) : '-'}</td>
+        <td>${Array.isArray(s.pegawai_list) && s.pegawai_list.length ? s.pegawai_list.map(p => `<span style="white-space:nowrap">${esc(p)}</span>`).join('<br>') : '-'}</td>
         <td style="text-align:center">${renderDocsBadge(s.file_url, 'Surat Keluar - ' + (s.perihal||''))}</td>
         <td style="text-align:center;white-space:nowrap">
           ${(isFull || s.created_by === (_user && _user.id)) ? `<button class="btn btn-ghost btn-sm" data-tip="Edit" onclick="editSK(${s.id})"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg></button>
@@ -470,12 +523,69 @@ async function loadSuratKeluar(page = 1) {
   } catch {}
 }
 
+// Migrasi data lama: sebelumnya sempat disimpan sebagai JSON array (percobaan UI list
+// bernomor dgn tombol +Tambah); sekarang pakai .ps-rte markdown-lite spt Uraian Tugas di
+// Lembur, jadi array lama perlu dirender ulang jadi baris "1. ...\n2. ..." dst.
+function _normalizeTujuanSurat(raw) {
+  if (!raw) return '';
+  try {
+    const parsed = JSON.parse(raw);
+    if (Array.isArray(parsed)) {
+      const cleaned = parsed.filter(v => v != null && String(v).trim() !== '');
+      return cleaned.length > 1
+        ? cleaned.map((v, i) => `${i + 1}. ${v}`).join('\n')
+        : (cleaned[0] || '');
+    }
+  } catch {}
+  return String(raw);
+}
+
+function _fmtTujuanSurat(raw) {
+  const md = _normalizeTujuanSurat(raw);
+  return md ? `<div class="ps-read-full">${_mdToHtmlDisplay(md)}</div>` : '-';
+}
+
+function _skNoSuratYear() { return new Date().getFullYear(); }
+
+let _skMeasureSpan = null;
+function _skAutoSizeInput(el) {
+  if (!_skMeasureSpan) {
+    _skMeasureSpan = document.createElement('span');
+    _skMeasureSpan.style.cssText = 'position:absolute;visibility:hidden;white-space:pre;top:-9999px;left:-9999px';
+    document.body.appendChild(_skMeasureSpan);
+  }
+  _skMeasureSpan.style.font = getComputedStyle(el).font;
+  _skMeasureSpan.textContent = el.value || el.placeholder || '';
+  el.style.width = (_skMeasureSpan.offsetWidth + 4) + 'px';
+}
+
+function _skSetNoSuratSuffix() {
+  const el = document.getElementById('skNoSuratSuffix');
+  if (el) el.textContent = `/DINKES-PPKB/${_skNoSuratYear()}`;
+}
+
+// Data lama boleh jadi belum pakai format ini - kalau polanya cocok, pecah ke 2 kotak;
+// kalau enggak, taruh apa adanya di kotak pertama biar gak ilang pas dibuka lagi.
+function _skParseNoSurat(raw) {
+  if (!raw) return ['', ''];
+  const m = String(raw).match(/^(.*)\/(.*)\/DINKES-PPKB\/\d{4}$/);
+  if (m) return [m[1], m[2]];
+  return [raw, ''];
+}
+
 async function openSKModal() {
   await loadPegawaiPerencanaan();
   document.getElementById('skId').value = '';
-  ['skNoSurat','skTujuan','skPerihal','skKeterangan']
+  ['skNoSurat1','skNoSurat2','skPerihal','skKeterangan']
     .forEach(id => document.getElementById(id).value = '');
-  document.getElementById('skPegawai').innerHTML = renderPegawaiOptions(null);
+  document.getElementById('skNoSurat1').value = '';
+  document.getElementById('skNoSurat2').value = '';
+  _skAutoSizeInput(document.getElementById('skNoSurat1'));
+  _skAutoSizeInput(document.getElementById('skNoSurat2'));
+  _skSetNoSuratSuffix();
+  document.getElementById('skTujuan').value = '';
+  _selectedPegawaiSK = new Set();
+  renderPegawaiGrid('sk');
   dpSetValue('skTglSurat', null);
   document.getElementById('modalSKTitle').textContent = 'Tambah Surat Keluar';
   resetUploadArea('sk');
@@ -489,11 +599,17 @@ async function editSK(id) {
     const d = await r.json();
     const s = d.surat.find(x => x.id === id); if (!s) return;
     document.getElementById('skId').value = s.id;
-    document.getElementById('skNoSurat').value = s.no_surat || '';
+    _skSetNoSuratSuffix();
+    const [n1, n2] = _skParseNoSurat(s.no_surat);
+    document.getElementById('skNoSurat1').value = n1;
+    document.getElementById('skNoSurat2').value = n2;
+    _skAutoSizeInput(document.getElementById('skNoSurat1'));
+    _skAutoSizeInput(document.getElementById('skNoSurat2'));
     dpSetValue('skTglSurat', s.tanggal_surat?.split('T')[0] || null);
-    document.getElementById('skTujuan').value = s.tujuan_surat || '';
+    document.getElementById('skTujuan').value = _normalizeTujuanSurat(s.tujuan_surat);
     document.getElementById('skPerihal').value = s.perihal || '';
-    document.getElementById('skPegawai').innerHTML = renderPegawaiOptions(s.pegawai || null);
+    _selectedPegawaiSK = new Set(Array.isArray(s.pegawai_list) ? s.pegawai_list : []);
+    renderPegawaiGrid('sk');
     document.getElementById('skKeterangan').value = s.keterangan || '';
     document.getElementById('modalSKTitle').textContent = 'Edit Surat Keluar';
     resetUploadArea('sk');
@@ -504,12 +620,14 @@ async function editSK(id) {
 
 async function saveSK() {
   const id = document.getElementById('skId').value;
+  const n1 = document.getElementById('skNoSurat1').value.trim();
+  const n2 = document.getElementById('skNoSurat2').value.trim();
   const body = {
-    no_surat: document.getElementById('skNoSurat').value.trim() || null,
+    no_surat: (n1 || n2) ? `${n1}/${n2}/DINKES-PPKB/${_skNoSuratYear()}` : null,
     tanggal_surat: dpGetValue('skTglSurat') || null,
     tujuan_surat: document.getElementById('skTujuan').value.trim(),
     perihal: document.getElementById('skPerihal').value.trim(),
-    pegawai: document.getElementById('skPegawai').value || null,
+    pegawai: [..._selectedPegawaiSK],
     keterangan: document.getElementById('skKeterangan').value.trim() || null,
     file_url: getUploadUrl('sk'),
     file_name: getUploadName('sk') || null,

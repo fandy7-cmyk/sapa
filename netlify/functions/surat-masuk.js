@@ -3,6 +3,21 @@ import { requireAuth } from './_auth.js';
 import { logAudit } from './_audit.js';
 import { deleteFromCloudinary } from './_cloudinary.js';
 
+let _smMigrated = false;
+async function ensureSchema(sql) {
+  if (_smMigrated) return;
+  await sql`ALTER TABLE surat_masuk ADD COLUMN IF NOT EXISTS pegawai_list JSONB NOT NULL DEFAULT '[]'::jsonb`;
+  // Backfill dari kolom pegawai (single nama) lama ke pegawai_list (array nama)
+  await sql`UPDATE surat_masuk SET pegawai_list = jsonb_build_array(pegawai) WHERE pegawai IS NOT NULL AND pegawai <> '' AND pegawai_list = '[]'::jsonb`;
+  _smMigrated = true;
+}
+
+function _pegawaiArr(pegawai) {
+  if (Array.isArray(pegawai)) return pegawai.filter(Boolean);
+  if (pegawai) return [pegawai];
+  return [];
+}
+
 async function checkAccess(auth, sql) {
   if (auth.is_admin) return true;
   const perms = await sql`SELECT menu_key FROM user_permissions WHERE user_id = ${auth.id} AND menu_key = 'surat.masuk' LIMIT 1`;
@@ -22,6 +37,7 @@ export const handler = async (event) => {
   if (!auth) return errorResponse('Unauthorized', 401);
 
   const sql = getDb();
+  await ensureSchema(sql);
   const ok = await checkAccess(auth, sql);
   if (!ok) return errorResponse('Akses ditolak', 403);
 
@@ -37,10 +53,11 @@ export const handler = async (event) => {
     try {
       const isAdmin = !!auth.is_admin;
       const isFull  = await checkFullAccess(auth, sql);
-      const [{ total }] = await sql`SELECT COUNT(*)::INT AS total FROM surat_masuk WHERE (${isAdmin} = TRUE OR ${isFull} = TRUE OR pegawai = ${auth.nama})`;
-      const [{ belum_selesai }] = await sql`SELECT COUNT(*)::INT AS belum_selesai FROM surat_masuk WHERE selesai = FALSE AND (${isAdmin} = TRUE OR ${isFull} = TRUE OR pegawai = ${auth.nama})`;
-      const [{ bulan_ini }] = await sql`SELECT COUNT(*)::INT AS bulan_ini FROM surat_masuk WHERE DATE_TRUNC('month', tanggal_terima) = DATE_TRUNC('month', (NOW() AT TIME ZONE 'Asia/Makassar')::date) AND (${isAdmin} = TRUE OR ${isFull} = TRUE OR pegawai = ${auth.nama})`;
-      const [{ terlambat }] = await sql`SELECT COUNT(*)::INT AS terlambat FROM surat_masuk WHERE selesai = FALSE AND batas_waktu < (NOW() AT TIME ZONE 'Asia/Makassar')::date AND (${isAdmin} = TRUE OR ${isFull} = TRUE OR pegawai = ${auth.nama})`;
+      const meNama  = JSON.stringify([auth.nama]);
+      const [{ total }] = await sql`SELECT COUNT(*)::INT AS total FROM surat_masuk WHERE (${isAdmin} = TRUE OR ${isFull} = TRUE OR pegawai_list @> ${meNama}::jsonb)`;
+      const [{ belum_selesai }] = await sql`SELECT COUNT(*)::INT AS belum_selesai FROM surat_masuk WHERE selesai = FALSE AND (${isAdmin} = TRUE OR ${isFull} = TRUE OR pegawai_list @> ${meNama}::jsonb)`;
+      const [{ bulan_ini }] = await sql`SELECT COUNT(*)::INT AS bulan_ini FROM surat_masuk WHERE DATE_TRUNC('month', tanggal_terima) = DATE_TRUNC('month', (NOW() AT TIME ZONE 'Asia/Makassar')::date) AND (${isAdmin} = TRUE OR ${isFull} = TRUE OR pegawai_list @> ${meNama}::jsonb)`;
+      const [{ terlambat }] = await sql`SELECT COUNT(*)::INT AS terlambat FROM surat_masuk WHERE selesai = FALSE AND batas_waktu < (NOW() AT TIME ZONE 'Asia/Makassar')::date AND (${isAdmin} = TRUE OR ${isFull} = TRUE OR pegawai_list @> ${meNama}::jsonb)`;
       return jsonResponse({ total, belum_selesai, bulan_ini, terlambat });
     } catch (err) { console.error('[STATS surat-masuk]', err); return errorResponse('Gagal mengambil statistik: ' + err.message); }
   }
@@ -51,10 +68,11 @@ export const handler = async (event) => {
     try {
       const isAdmin = !!auth.is_admin;
       const isFull  = await checkFullAccess(auth, sql);
+      const meNama  = JSON.stringify([auth.nama]);
       const rows = await sql`
-        SELECT tanggal_surat, tanggal_terima, pegawai, selesai, batas_waktu
+        SELECT tanggal_surat, tanggal_terima, pegawai_list, selesai, batas_waktu
         FROM surat_masuk
-        WHERE (${isAdmin} = TRUE OR ${isFull} = TRUE OR pegawai = ${auth.nama})`;
+        WHERE (${isAdmin} = TRUE OR ${isFull} = TRUE OR pegawai_list @> ${meNama}::jsonb)`;
       return jsonResponse({ surat: rows });
     } catch (err) {
       return errorResponse('Gagal mengambil metadata: ' + err.message);
@@ -65,7 +83,7 @@ export const handler = async (event) => {
     const { page = 1, limit = 20, q = '', selesai: sf = '', terlambat: tlf = '', pegawai: pf = '', tahun: tf = '', bulan: bf = '', sort = '' } = event.queryStringParameters || {};
     const offset = (parseInt(page) - 1) * parseInt(limit);
     const search  = `%${q}%`;
-    const pgSearch = pf ? pf : null;
+    const pgFilterJson = pf ? JSON.stringify([pf]) : null;
     const tahunVal = tf ? tf : null;
     const bulanVal = bf ? parseInt(bf) : null;
     const onlyTerlambat = tlf === '1' || tlf === 'true';
@@ -76,39 +94,40 @@ export const handler = async (event) => {
 
       const isAdmin = !!auth.is_admin;
       const isFull  = await checkFullAccess(auth, sql);
+      const meNama  = JSON.stringify([auth.nama]);
       rows = isTerbaru ? await sql`
         SELECT * FROM surat_masuk
         WHERE (perihal ILIKE ${search} OR asal_surat ILIKE ${search} OR no_agenda ILIKE ${search}
-          OR no_surat ILIKE ${search} OR COALESCE(pegawai,'') ILIKE ${search})
+          OR no_surat ILIKE ${search} OR EXISTS (SELECT 1 FROM jsonb_array_elements_text(pegawai_list) e WHERE e ILIKE ${search}))
           AND (${selesaiBool}::boolean IS NULL OR selesai = ${selesaiBool}::boolean)
           AND (${onlyTerlambat} = FALSE OR (selesai = FALSE AND batas_waktu < (NOW() AT TIME ZONE 'Asia/Makassar')::date))
-          AND (${pgSearch}::text IS NULL OR pegawai = ${pgSearch}::text)
+          AND (${pgFilterJson}::jsonb IS NULL OR pegawai_list @> ${pgFilterJson}::jsonb)
           AND (${tahunVal}::text IS NULL OR EXTRACT(YEAR FROM tanggal_terima)::text = ${tahunVal}::text)
           AND (${bulanVal}::int IS NULL OR EXTRACT(MONTH FROM tanggal_terima)::int = ${bulanVal}::int)
-          AND (${isAdmin} = TRUE OR ${isFull} = TRUE OR pegawai = ${auth.nama})
+          AND (${isAdmin} = TRUE OR ${isFull} = TRUE OR pegawai_list @> ${meNama}::jsonb)
         ORDER BY created_at DESC NULLS LAST, id DESC
         LIMIT ${parseInt(limit)} OFFSET ${offset}` : await sql`
         SELECT * FROM surat_masuk
         WHERE (perihal ILIKE ${search} OR asal_surat ILIKE ${search} OR no_agenda ILIKE ${search}
-          OR no_surat ILIKE ${search} OR COALESCE(pegawai,'') ILIKE ${search})
+          OR no_surat ILIKE ${search} OR EXISTS (SELECT 1 FROM jsonb_array_elements_text(pegawai_list) e WHERE e ILIKE ${search}))
           AND (${selesaiBool}::boolean IS NULL OR selesai = ${selesaiBool}::boolean)
           AND (${onlyTerlambat} = FALSE OR (selesai = FALSE AND batas_waktu < (NOW() AT TIME ZONE 'Asia/Makassar')::date))
-          AND (${pgSearch}::text IS NULL OR pegawai = ${pgSearch}::text)
+          AND (${pgFilterJson}::jsonb IS NULL OR pegawai_list @> ${pgFilterJson}::jsonb)
           AND (${tahunVal}::text IS NULL OR EXTRACT(YEAR FROM tanggal_terima)::text = ${tahunVal}::text)
           AND (${bulanVal}::int IS NULL OR EXTRACT(MONTH FROM tanggal_terima)::int = ${bulanVal}::int)
-          AND (${isAdmin} = TRUE OR ${isFull} = TRUE OR pegawai = ${auth.nama})
+          AND (${isAdmin} = TRUE OR ${isFull} = TRUE OR pegawai_list @> ${meNama}::jsonb)
         ORDER BY tanggal_terima ASC NULLS LAST, id ASC
         LIMIT ${parseInt(limit)} OFFSET ${offset}`;
       countRows = await sql`
         SELECT COUNT(*)::INT AS total FROM surat_masuk
         WHERE (perihal ILIKE ${search} OR asal_surat ILIKE ${search} OR no_agenda ILIKE ${search}
-          OR no_surat ILIKE ${search} OR COALESCE(pegawai,'') ILIKE ${search})
+          OR no_surat ILIKE ${search} OR EXISTS (SELECT 1 FROM jsonb_array_elements_text(pegawai_list) e WHERE e ILIKE ${search}))
           AND (${selesaiBool}::boolean IS NULL OR selesai = ${selesaiBool}::boolean)
           AND (${onlyTerlambat} = FALSE OR (selesai = FALSE AND batas_waktu < (NOW() AT TIME ZONE 'Asia/Makassar')::date))
-          AND (${pgSearch}::text IS NULL OR pegawai = ${pgSearch}::text)
+          AND (${pgFilterJson}::jsonb IS NULL OR pegawai_list @> ${pgFilterJson}::jsonb)
           AND (${tahunVal}::text IS NULL OR EXTRACT(YEAR FROM tanggal_terima)::text = ${tahunVal}::text)
           AND (${bulanVal}::int IS NULL OR EXTRACT(MONTH FROM tanggal_terima)::int = ${bulanVal}::int)
-          AND (${isAdmin} = TRUE OR ${isFull} = TRUE OR pegawai = ${auth.nama})`;
+          AND (${isAdmin} = TRUE OR ${isFull} = TRUE OR pegawai_list @> ${meNama}::jsonb)`;
 
       return jsonResponse({ surat: rows, total: countRows[0].total, page: parseInt(page), limit: parseInt(limit) });
     } catch (err) { console.error('[GET surat-masuk]', err); return errorResponse('Gagal mengambil data surat masuk: ' + err.message); }
@@ -129,9 +148,10 @@ export const handler = async (event) => {
           AND EXTRACT(YEAR FROM COALESCE(tanggal_terima, created_at)) = ${tahunAgenda}
       `;
       const no_agenda = String(next_no);
+      const pegawaiListJson = JSON.stringify(_pegawaiArr(pegawai));
       const rows = await sql`
-        INSERT INTO surat_masuk (no_agenda, no_surat, tanggal_surat, tanggal_terima, asal_surat, perihal, batas_waktu, pegawai, file_url, file_name, selesai, keterangan, created_by)
-        VALUES (${no_agenda}, ${no_surat||null}, ${tanggal_surat||null}, ${tanggal_terima||null}, ${asal_surat}, ${perihal}, ${batas_waktu||null}, ${pegawai||null}, ${file_url||null}, ${file_name||null}, ${selesai===true}, ${keterangan||null}, ${auth.id})
+        INSERT INTO surat_masuk (no_agenda, no_surat, tanggal_surat, tanggal_terima, asal_surat, perihal, batas_waktu, pegawai_list, file_url, file_name, selesai, keterangan, created_by)
+        VALUES (${no_agenda}, ${no_surat||null}, ${tanggal_surat||null}, ${tanggal_terima||null}, ${asal_surat}, ${perihal}, ${batas_waktu||null}, ${pegawaiListJson}, ${file_url||null}, ${file_name||null}, ${selesai===true}, ${keterangan||null}, ${auth.id})
         RETURNING *
       `;
       await logAudit(sql, event, {
@@ -160,7 +180,7 @@ export const handler = async (event) => {
           asal_surat     = COALESCE(${asal_surat??null}, asal_surat),
           perihal        = COALESCE(${perihal??null}, perihal),
           batas_waktu    = ${batas_waktu !== undefined ? batas_waktu : sql`batas_waktu`},
-          pegawai        = ${pegawai !== undefined ? pegawai : sql`pegawai`},
+          pegawai_list   = ${pegawai !== undefined ? JSON.stringify(_pegawaiArr(pegawai)) : sql`pegawai_list`},
           file_url       = ${file_url !== undefined ? file_url : sql`file_url`},
           file_name      = ${file_name !== undefined ? file_name : sql`file_name`},
           selesai        = COALESCE(${selesai??null}, selesai),
@@ -181,8 +201,9 @@ export const handler = async (event) => {
   if (event.httpMethod === 'PATCH' && isSelesai) {
     const fullAccess = await checkFullAccess(auth, sql);
     if (!fullAccess) {
-      const owner = await sql`SELECT created_by, pegawai FROM surat_masuk WHERE id = ${numId} LIMIT 1`;
-      if (!owner.length || (owner[0].created_by !== auth.id && owner[0].pegawai !== auth.nama)) {
+      const owner = await sql`SELECT created_by, pegawai_list FROM surat_masuk WHERE id = ${numId} LIMIT 1`;
+      const daftarPegawai = Array.isArray(owner[0]?.pegawai_list) ? owner[0].pegawai_list : [];
+      if (!owner.length || (owner[0].created_by !== auth.id && !daftarPegawai.includes(auth.nama))) {
         return errorResponse('Akses ditolak', 403);
       }
     }
