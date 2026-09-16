@@ -4180,8 +4180,12 @@ function _mdToHtmlDisplay(md) {
   };
   let html = '';
   let listType = null; // 'ol' | 'ul' | 'al' | null
+  let liOpen = false; // <li> lagi kebuka & bisa ditambahin baris lanjutan (wrap)?
   const tagFor = (t) => (t === 'ul' ? 'ul' : 'ol');
-  const closeList = () => { if (listType) { html += `</${tagFor(listType)}>`; listType = null; } };
+  const closeList = () => {
+    if (liOpen) { html += '</li>'; liOpen = false; }
+    if (listType) { html += `</${tagFor(listType)}>`; listType = null; }
+  };
   String(md).split('\n').forEach(line => {
     let alignAttr = '';
     const alignM = line.match(/^\[(C|R)\](.*)$/);
@@ -4190,14 +4194,28 @@ function _mdToHtmlDisplay(md) {
     const letM = line.match(/^([a-z])\.\s+(.*)$/);
     const bulM = line.match(/^-\s+(.*)$/);
     if (numM) {
+      if (liOpen) html += '</li>';
       if (listType !== 'ol') { closeList(); html += '<ol class="md-list">'; listType = 'ol'; }
-      html += `<li${alignAttr}>${inlineFmt(numM[2])}</li>`;
+      html += `<li${alignAttr}>${inlineFmt(numM[2])}`;
+      liOpen = true;
     } else if (letM) {
+      if (liOpen) html += '</li>';
       if (listType !== 'al') { closeList(); html += '<ol class="md-list" style="list-style-type:lower-alpha">'; listType = 'al'; }
-      html += `<li${alignAttr}>${inlineFmt(letM[2])}</li>`;
+      html += `<li${alignAttr}>${inlineFmt(letM[2])}`;
+      liOpen = true;
     } else if (bulM) {
+      if (liOpen) html += '</li>';
       if (listType !== 'ul') { closeList(); html += '<ul class="md-list">'; listType = 'ul'; }
-      html += `<li${alignAttr}>${inlineFmt(bulM[1])}</li>`;
+      html += `<li${alignAttr}>${inlineFmt(bulM[1])}`;
+      liOpen = true;
+    } else if (line.trim() === '') {
+      // Baris kosong beneran -> tutup list/paragraf.
+      closeList();
+    } else if (liOpen) {
+      // Bukan baris "1. "/"a. "/"- " baru, tapi list masih kebuka -> ini
+      // sambungan (wrap) dari item sebelumnya, taruh di DALAM <li> yang
+      // sama (bukan <div> baru) biar hanging-indent-nya tetap sejajar.
+      html += `<br>${inlineFmt(line)}`;
     } else {
       closeList();
       const h = inlineFmt(line);
@@ -4221,9 +4239,19 @@ function _mdToRteHtml(md) {
   // supaya bisa di-render rata kanan dalam kotak lebar tetap lewat CSS --
   // titik di belakang nomor 1 digit ("1.") & 2 digit ("10.") jadi sejajar,
   // gak geser kayak dulu (marker cuma teks polos, lebarnya ikut jumlah digit).
-  const renderLines = (text) => text.split('\n').map(line => {
+  // Baris lanjutan (wrap) dari satu item list -- yg bukan diawali marker baru
+  // tapi list masih "kebuka" -- digabung jadi SATU <div> yang sama dengan
+  // baris marker-nya (nyambung pake <br>, BUKAN <div rte-line> baru). Dengan
+  // gitu padding-left:1.9em di CSS .rte-line--list otomatis kepake browser ke
+  // semua baris di dalam <div> itu, sejajar presisi kayak wrap alami --
+  // gak perlu nebak lebar \u00A0 manual lagi (yang ternyata meleset dikit).
+  // Direset kalau ketemu baris kosong (list beneran ditutup, sama kayak pola
+  // di _mdToHtmlDisplay).
+  let listOpen = false;
+  const lineGroups = [];
+  const flushLines = (text) => text.split('\n').forEach(line => {
     const imgM = line.match(/^\[IMG(?:\s+w=(\d+))?(?:\s+align=(left|center|right))?\]([\s\S]*?)\[\/IMG\]$/);
-    if (imgM) return _rteRenderImageBlock(imgM[3], imgM[1], imgM[2]);
+    if (imgM) { listOpen = false; lineGroups.push({ img: _rteRenderImageBlock(imgM[3], imgM[1], imgM[2]) }); return; }
     // Rata tengah/kanan per baris teks biasa (mis. keterangan gambar) --
     // prefix [C]/[R] di depan baris, konsisten sama konvensi align sel tabel.
     let alignAttr = '';
@@ -4234,11 +4262,32 @@ function _mdToRteHtml(md) {
       const marker = _escMd2Html(m[1]);
       const rest = inlineFmt(m[2]);
       const ulCls = m[1] === '-' ? ' rte-marker--ul' : '';
-      return `<div class="rte-line rte-line--list"${alignAttr}><span class="rte-marker${ulCls}">${marker}</span>\u00A0${rest || '<br>'}</div>`;
+      listOpen = true;
+      lineGroups.push({ isList: true, alignAttr, body: [`<span class="rte-marker${ulCls}">${marker}</span>\u00A0${rest || '<br>'}`] });
+      return;
     }
+    if (line.trim() === '') { listOpen = false; lineGroups.push({ alignAttr, body: ['<br>'] }); return; }
     const h = inlineFmt(line);
-    return `<div class="rte-line"${alignAttr}>${h || '<br>'}</div>`;
-  }).join('');
+    const last = lineGroups[lineGroups.length - 1];
+    if (listOpen && last && last.isList) { last.body.push(h || '<br>'); return; }
+    lineGroups.push({ alignAttr, body: [h || '<br>'] });
+  });
+  const renderLines = (text) => {
+    flushLines(text);
+    return lineGroups.splice(0).map(g => {
+      if (g.img !== undefined) return g.img;
+      // Baris pertama grup list udah punya \u00A0 nempel sebelum teksnya (abis
+      // </span> marker) -- teks "Membuat" itu mulai SETELAH nbsp itu, bukan
+      // langsung di ujung padding. Baris sambungan (abis <br>) butuh gap
+      // yang SAMA biar sejajar -- tapi nbsp-nya dibungkus <span
+      // class="rte-cont-gap"> (bukan teks polos) supaya _htmlToMd bisa
+      // nge-skip pas save, gak ikut kesimpen ke markdown & numpuk tiap kali
+      // box ini di-reload (kalau nempel jadi teks biasa, tiap save-reload
+      // bakal nambah 1 nbsp lagi tiap giliran -- geser makin jauh terus).
+      const joiner = g.isList ? '<br><span class="rte-cont-gap">\u00A0</span>' : '<br>';
+      return `<div class="rte-line${g.isList ? ' rte-line--list' : ''}"${g.alignAttr}>${g.body.join(joiner)}</div>`;
+    }).join('');
+  };
   // Blok [TABLE]...[/TABLE] bisa multi-baris, jadi dipisahin dulu dari teks biasa
   // sebelum diproses per-baris (regex split dgn 1 capture group -> hasilnya
   // selang-seling [teks, isiTabel, teks, isiTabel, ...]).
@@ -4260,6 +4309,7 @@ function _htmlToMd(el) {
       if (tag === 'BR') { out += '\n'; return; }
       if (tag === 'STRONG' || tag === 'B') { out += '**' + walk(n) + '**'; return; }
       if (tag === 'EM' || tag === 'I')     { out += '_' + walk(n) + '_'; return; }
+      if (n.classList && n.classList.contains('rte-cont-gap')) return; // spacer render doang, jangan disimpen
       if (n.classList && n.classList.contains('rte-image-block')) {
         const img = n.querySelector('img');
         const src = img ? (img.getAttribute('src') || '') : '';

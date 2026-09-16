@@ -1186,6 +1186,7 @@ async function loadLaporanSurat() {
   const tahunRaw = document.getElementById('laporanSuratTahun')?.value || '';
   const tahun  = tahunRaw ? parseInt(tahunRaw) : null;
   const status = document.getElementById('laporanSuratStatus')?.value || '';
+  const q      = (document.getElementById('laporanSuratSearch')?.value || '').trim().toLowerCase();
 
   let smFiltered = smRows, skFiltered = skRows;
   if (tahun) {
@@ -1198,7 +1199,7 @@ async function loadLaporanSurat() {
 
   const pengirimTujuanTh = document.getElementById('laporanSuratPengirimTujuanTh');
   if (pengirimTujuanTh) {
-    pengirimTujuanTh.textContent = jenis === 'masuk' ? 'Pengirim' : jenis === 'keluar' ? 'Tujuan' : 'Pengirim / Tujuan';
+    pengirimTujuanTh.textContent = jenis === 'masuk' ? 'Asal' : jenis === 'keluar' ? 'Tujuan' : 'Asal / Tujuan';
   }
 
   const totalSM   = smFiltered.length;
@@ -1245,9 +1246,16 @@ async function loadLaporanSurat() {
 
   
   let filteredRows = allRows;
-  if (status === 'belum')          filteredRows = allRows.filter(r => r._jenis === 'masuk' && !r.selesai);
-  else if (status === 'selesai')   filteredRows = allRows.filter(r => r.selesai);
-  else if (status === 'terlambat') filteredRows = allRows.filter(r => r.terlambat);
+  if (q) {
+    filteredRows = filteredRows.filter(r =>
+      (r.no_surat && String(r.no_surat).toLowerCase().includes(q)) ||
+      (r.perihal && String(r.perihal).toLowerCase().includes(q)) ||
+      (r.pengirim_tujuan && String(r.pengirim_tujuan).toLowerCase().includes(q))
+    );
+  }
+  if (status === 'belum')          filteredRows = filteredRows.filter(r => r._jenis === 'masuk' && !r.selesai);
+  else if (status === 'selesai')   filteredRows = filteredRows.filter(r => r.selesai);
+  else if (status === 'terlambat') filteredRows = filteredRows.filter(r => r.terlambat);
 
   
   _lapSuratPage = 1;
@@ -1267,6 +1275,41 @@ async function loadLaporanSurat() {
   _rebuildSuratStatusOptions(allRows, status);
 
   window._laporanSuratData = { rekap, allRows, filteredRows, tahun, jenis, status };
+}
+
+function _lapNormalizePengirimTujuan(raw) {
+  if (!raw) return '';
+  const str = String(raw).trim();
+  
+  try {
+    const parsed = JSON.parse(str);
+    if (Array.isArray(parsed)) {
+      const cleaned = parsed.filter(v => v != null && String(v).trim() !== '');
+      return cleaned.length > 1
+        ? cleaned.map((v, i) => `${i + 1}. ${v}`).join('\n')
+        : (cleaned[0] || '');
+    }
+  } catch {}
+  
+  const markerCount = (str.match(/\d+\.\s+\S/g) || []).length;
+  if (markerCount > 1) {
+    return str
+      .split(/(?=\d+\.\s+\S)/g)
+      .map(s => s.trim().replace(/^[;,.\s]+/, '').replace(/[;,\s]+$/, ''))
+      .filter(Boolean)
+      .join('\n');
+  }
+  return str;
+}
+
+function _lapFormatPengirimTujuanHtml(raw) {
+  const md = _lapNormalizePengirimTujuan(raw);
+  return md ? `<div class="ps-read-full">${_mdToHtmlDisplay(md)}</div>` : '-';
+}
+
+function _lapFormatPengirimTujuanPdf(raw) {
+  const md = _lapNormalizePengirimTujuan(raw);
+  return md ? _lapMdToHtml(md) : '-';
 }
 
 function _lapRenderSuratTbody(rows) {
@@ -1308,11 +1351,11 @@ function _lapRenderSuratTbody(rows) {
     }
     return `<tr>
       <td style="text-align:center">${start + i + 1}</td>
-      <td style="text-align:center;white-space:nowrap">${r.no_surat}</td>
+      <td style="text-align:left;white-space:nowrap">${r.no_surat}</td>
       <td>${r.perihal}</td>
       <td style="text-align:center;white-space:nowrap">${jenisBadge}</td>
       <td style="text-align:center">${tgl}</td>
-      <td>${r.pengirim_tujuan}</td>
+      <td>${_lapFormatPengirimTujuanHtml(r.pengirim_tujuan)}</td>
       <td style="text-align:center;white-space:nowrap;color:${r.terlambat ? '#ef4444' : 'inherit'}">${batas}</td>
       <td style="text-align:center;white-space:nowrap">${statusBadge}</td>
     </tr>`;
@@ -1385,8 +1428,9 @@ function _lapEscHtml(s) {
   return String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
-function _lapMdToHtml(md) {
+function _lapMdToHtml(md, flush) {
   if (!md) return '';
+  const olClass = flush ? 'lap-md-list lap-md-list--flush' : 'lap-md-list';
   const inlineFmt = (line) => {
     let h = _lapEscHtml(line);
     h = h.replace(/\*\*([^\n]+?)\*\*/g, '<strong>$1</strong>');
@@ -1400,7 +1444,7 @@ function _lapMdToHtml(md) {
     const numM = line.match(/^(\d+)\.\s+(.*)$/);
     const bulM = line.match(/^-\s+(.*)$/);
     if (numM) {
-      if (listType !== 'ol') { closeList(); html += '<ol class="lap-md-list">'; listType = 'ol'; }
+      if (listType !== 'ol') { closeList(); html += `<ol class="${olClass}">`; listType = 'ol'; }
       html += `<li>${inlineFmt(numM[2])}</li>`;
     } else if (bulM) {
       if (listType !== 'ul') { closeList(); html += '<ul class="lap-md-list">'; listType = 'ul'; }
@@ -2171,7 +2215,7 @@ function downloadLaporanSuratPDF(btnEl) {
       <td style="padding:4px 6px;border:1px solid #000;font-size:8px">${r.perihal}</td>
       <td style="padding:4px 6px;border:1px solid #000;text-align:center">${jenisBadge}</td>
       <td style="padding:4px 6px;border:1px solid #000;text-align:center;font-size:8px;white-space:nowrap">${tgl}</td>
-      <td style="padding:4px 6px;border:1px solid #000;font-size:8px">${r.pengirim_tujuan}</td>
+      <td style="padding:4px 6px;border:1px solid #000;font-size:8px">${_lapFormatPengirimTujuanPdf(r.pengirim_tujuan)}</td>
       <td style="padding:4px 6px;border:1px solid #000;text-align:center;font-size:8px;white-space:nowrap;color:${r.terlambat ? '#ef4444' : 'inherit'}">${batas}</td>
       <td style="padding:4px 6px;border:1px solid #000;text-align:center">${statusBadge}</td>
     </tr>`;
@@ -2195,7 +2239,7 @@ function downloadLaporanSuratPDF(btnEl) {
           <th style="color:white;padding:5px 6px;border:1px solid #000;text-align:center;font-size:8px">PERIHAL</th>
           <th style="color:white;padding:5px 6px;border:1px solid #000;text-align:center;font-size:8px;width:52px">JENIS</th>
           <th style="color:white;padding:5px 6px;border:1px solid #000;text-align:center;font-size:8px;width:72px">TANGGAL</th>
-          <th style="color:white;padding:5px 6px;border:1px solid #000;text-align:center;font-size:8px;width:150px">PENGIRIM / TUJUAN</th>
+          <th style="color:white;padding:5px 6px;border:1px solid #000;text-align:center;font-size:8px;width:150px">ASAL / TUJUAN</th>
           <th style="color:white;padding:5px 6px;border:1px solid #000;text-align:center;font-size:8px;width:72px">BATAS WAKTU</th>
           <th style="color:white;padding:5px 6px;border:1px solid #000;text-align:center;font-size:8px;width:82px">STATUS</th>
         </tr>

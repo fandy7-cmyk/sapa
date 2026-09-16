@@ -1509,7 +1509,7 @@ function _lemburHalamanSesiHtml(s, entries, dok, namaTtd, nipTtd, pageBreak) {
       <td style="padding:5px 6px;border:1px solid #000;font-size:9px;vertical-align:top">${esc(e.nama)}<br><span style="color:#64748b">${e.nip ? 'NIP. ' + esc(e.nip) : ''}</span></td>
       <td style="padding:5px 6px;border:1px solid #000;text-align:center;font-size:9px;vertical-align:top">${jm ? jm.slice(0,5) + ' WITA' : ''}</td>
       <td style="padding:5px 6px;border:1px solid #000;text-align:center;font-size:9px;vertical-align:top">${js ? js.slice(0,5) + ' WITA' : ''}</td>
-      <td style="padding:5px 6px;border:1px solid #000;font-size:9px;vertical-align:top">${e.uraian_tugas ? _lapMdToHtml(e.uraian_tugas) : ''}</td>
+      <td style="padding:5px 6px;border:1px solid #000;font-size:9px;vertical-align:top">${e.uraian_tugas ? _lapMdToHtml(e.uraian_tugas, true) : ''}</td>
       <td style="padding:5px 6px;border:1px solid #000;vertical-align:top"></td>
     </tr>`;
   }).join('');

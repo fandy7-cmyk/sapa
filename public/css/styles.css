@@ -1331,7 +1331,12 @@ tr:hover td:not(.td-sticky-no):not(.td-sticky-name) { background: var(--abu-1); 
 .field .ps-rte .rte-line { min-height: 1.4em; }
 .field .ps-rte .rte-line--list { padding-left: 1.9em; }
 .field .ps-rte .rte-marker {
-  display:inline-block; box-sizing:border-box; width:1.9em; margin-left:-1.9em;
+  /* Lebar dipotong .26em (selebar NBSP) karena setelah </span> masih ada satu
+     \00A0 polos sebelum teks. Tanpa potongan ini baris PERTAMA kedorong ~1 spasi
+     ke kanan, sementara baris wrap-nya mulai pas di padding-left:1.9em -- jadi
+     hanging-indent-nya keliatan gak sejajar. margin-left tetap -1.9em biar
+     posisi nomornya sendiri gak geser. */
+  display:inline-block; box-sizing:border-box; width:calc(1.9em - .26em); margin-left:-1.9em;
   padding-right:.3em; text-align:left; white-space:nowrap; color:var(--teks); font-weight:400;
 }
 .field .ps-rte .rte-marker--ul { color:transparent; position:relative; }
@@ -2279,7 +2284,11 @@ ol.lap-md-list--alpha > li::before { content:counter(lapmdnum, lower-alpha) ".";
 .textarea-cell .ps-rte .rte-marker {
   display:inline-block;
   box-sizing:border-box;
-  width:1.9em;
+  /* Lebar dipotong .26em (selebar NBSP) -- setelah </span> masih ada \00A0 polos
+     sebelum teks, jadi baris pertama kedorong ~1 spasi ke kanan sementara baris
+     wrap alami mulai pas di padding-left:1.9em. margin-left tetap -1.9em biar
+     posisi nomornya gak ikut geser. */
+  width:calc(1.9em - .26em);
   margin-left:-1.9em;
   padding-right:.3em;
   text-align:left;

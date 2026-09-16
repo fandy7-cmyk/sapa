@@ -315,7 +315,7 @@ async function loadSuratMasuk(page = 1) {
       <tr>
         <td style="text-align:center">${smOffset + idx + 1}</td>
         <td>${esc(s.asal_surat)}</td>
-        <td style="text-align:center;white-space:nowrap">${s.no_surat ? esc(s.no_surat) : '-'}</td>
+        <td style="text-align:left;white-space:nowrap">${s.no_surat ? esc(s.no_surat) : '-'}</td>
         <td style="text-align:center">${s.tanggal_surat ? fmtDateOnly(s.tanggal_surat) : '-'}</td>
         <td>${esc(s.perihal)}</td>
         <td style="text-align:center">${fmtDateOnly(s.tanggal_terima)}</td>
@@ -494,7 +494,7 @@ async function loadSuratKeluar(page = 1) {
       <tr>
         <td style="text-align:center">${skOffset + idx + 1}</td>
         <td>${_fmtTujuanSurat(s.tujuan_surat)}</td>
-        <td style="text-align:center;white-space:nowrap">${s.no_surat ? esc(s.no_surat) : '-'}</td>
+        <td style="text-align:left;white-space:nowrap">${s.no_surat ? esc(s.no_surat) : '-'}</td>
         <td style="text-align:center">${s.tanggal_surat ? fmtDateOnly(s.tanggal_surat) : '-'}</td>
         <td>${esc(s.perihal)}</td>
         <td>${Array.isArray(s.pegawai_list) && s.pegawai_list.length ? s.pegawai_list.map(p => `<span style="white-space:nowrap">${esc(p)}</span>`).join('<br>') : '-'}</td>
