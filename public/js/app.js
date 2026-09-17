@@ -246,24 +246,6 @@ function authHeaders() {
   return { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + _token };
 }
 
-async function apiFetch(url, opts = {}) {
-  let resp = await fetch(url, opts);
-  if (resp.status === 401) {
-    const refreshed = await _doRefreshToken();
-    if (refreshed) {
-      const retryOpts = { ...opts };
-      if (retryOpts.headers && retryOpts.headers['Authorization'] !== undefined) {
-        retryOpts.headers = { ...retryOpts.headers, 'Authorization': 'Bearer ' + _token };
-      }
-      resp = await fetch(url, retryOpts);
-      if (resp.status !== 401) return resp;
-    }
-    
-    _handleSessionExpired();
-    throw new Error('Sesi berakhir');
-  }
-  return resp;
-}
 
 function hasAccess(key) {
   if (_user.is_admin) return true;
@@ -2490,16 +2472,6 @@ let _lapCascadeSel = [null, null, null];
 
 let _lapCascadeCache = {};
 
-function _syncSelectTrigger(selectEl) {
-  if (!selectEl) return;
-  const wrap = selectEl.closest('.select-wrap');
-  if (!wrap) return;
-  const textEl = wrap.querySelector('[class*="trigger-text"]');
-  if (!textEl) return;
-  const opt = selectEl.options[selectEl.selectedIndex];
-  textEl.textContent = opt ? opt.text : '';
-  textEl.classList.toggle('placeholder', !opt || opt.value === '');
-}
 
 function switchLapMode(mode) {
   _lapMode = mode;

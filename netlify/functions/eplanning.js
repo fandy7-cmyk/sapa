@@ -1,6 +1,6 @@
 
 import { getDb, jsonResponse, errorResponse, parseBody } from './_db.js';
-import { requireAuth, requireAdmin } from './_auth.js';
+import { requireAuth } from './_auth.js';
 import { logAudit } from './_audit.js';
 
 let _migrated = false;

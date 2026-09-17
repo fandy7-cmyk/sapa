@@ -6,17 +6,6 @@ function fmtDateOnly(val) {
   return d.toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' });
 }
 
-function _smStatCard(label, value, color, iconPath) {
-  return `<div class="stat-card" style="border-left-color:${color}">
-    <div class="stat-card-body">
-      <div class="stat-label">${label}</div>
-      <div class="stat-value" style="color:${color}">${value}</div>
-    </div>
-    <div class="stat-icon">
-      <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" fill="none" viewBox="0 0 24 24" stroke="${color}" stroke-width="2">${iconPath}</svg>
-    </div>
-  </div>`;
-}
 
 function renderDocsBadge(fileUrlRaw, label) {
   if (!fileUrlRaw) return '<span style="color:var(--teks-muted)">-</span>';
@@ -45,111 +34,7 @@ function renderDocsBadge(fileUrlRaw, label) {
     </span>`;
 }
 
-async function deleteDocBadge(btn, fileUrlRaw) {
-  const tr = btn.closest('tr');
-  if (!tr) return;
 
-  
-  
-  const tbody = tr.closest('tbody');
-  const isSM  = tbody?.id === 'smTableBody';
-  const isSK  = tbody?.id === 'skTableBody';
-  if (!isSM && !isSK) return;
-
-  
-  const aksiBtn = tr.querySelector('[onclick^="editSM"], [onclick^="editSK"]');
-  if (!aksiBtn) return;
-  const match = aksiBtn.getAttribute('onclick').match(/\d+/);
-  if (!match) return;
-  const recordId = parseInt(match[0]);
-
-  
-  let files = [];
-  try {
-    const parsed = JSON.parse(fileUrlRaw);
-    files = Array.isArray(parsed) ? parsed.filter(f => f && f.url) : [{ url: fileUrlRaw, name: 'Dokumen' }];
-  } catch { files = [{ url: fileUrlRaw, name: 'Dokumen' }]; }
-
-  const namaFile = files.length === 1 ? `"${files[0].name}"` : `${files.length} file dokumen`;
-  const ok = await showConfirm({
-    title:  'Hapus Dokumen',
-    msg:    `${namaFile} akan dihapus permanen dari surat ini.`,
-    okText: 'Ya, Hapus', icon: 'trash',
-  });
-  if (!ok) return;
-
-  
-  try {
-    const apiBase = isSM ? '/api/surat-masuk' : '/api/surat-keluar';
-    const rGet = await fetch(`${apiBase}?limit=1000`, { headers: authHeaders() });
-    const dGet = await rGet.json();
-    const rec  = (dGet.surat || []).find(x => x.id === recordId);
-    if (!rec) { toast('Data surat tidak ditemukan', 'error'); return; }
-
-    let body;
-    if (isSM) {
-      body = {
-        no_agenda:      rec.no_agenda,
-        no_surat:       rec.no_surat       ?? null,
-        tanggal_surat:  rec.tanggal_surat  ? rec.tanggal_surat.split('T')[0]  : null,
-        tanggal_terima: rec.tanggal_terima ? rec.tanggal_terima.split('T')[0] : null,
-        asal_surat:     rec.asal_surat,
-        perihal:        rec.perihal,
-        batas_waktu:    rec.batas_waktu    ? rec.batas_waktu.split('T')[0]    : null,
-        pegawai:        Array.isArray(rec.pegawai_list) ? rec.pegawai_list : [],
-        keterangan:     rec.keterangan     ?? null,
-        selesai:        rec.selesai,
-        file_url:       null,
-        file_name:      null,
-      };
-    } else {
-      body = {
-        no_agenda:     rec.no_agenda,
-        no_surat:      rec.no_surat      ?? null,
-        tanggal_surat: rec.tanggal_surat ? rec.tanggal_surat.split('T')[0] : null,
-        tujuan_surat:  rec.tujuan_surat,
-        perihal:       rec.perihal,
-        pegawai:       Array.isArray(rec.pegawai_list) ? rec.pegawai_list : [],
-        keterangan:    rec.keterangan    ?? null,
-        file_url:      null,
-        file_name:     null,
-      };
-    }
-
-    const r = await fetch(`${apiBase}/${recordId}`, {
-      method: 'PUT', headers: authHeaders(),
-      body: JSON.stringify(body),
-    });
-    if (!r.ok) { const d = await r.json().catch(()=>{}); toast(d?.error || 'Gagal menghapus', 'error'); return; }
-
-    
-    for (const f of files) {
-      if (f.url) deleteCloudinaryFile(f.url);
-    }
-
-    toast('Dokumen berhasil dihapus');
-
-    
-    const docsCell = tr.querySelectorAll('td')[isSM ? 8 : 6];
-    if (docsCell) docsCell.innerHTML = '<span style="color:var(--teks-muted)">-</span>';
-  } catch (err) { toast('Error: ' + err.message, 'error'); }
-}
-
-function toggleDocDD(id, event) {
-  if (event) event.stopPropagation();
-  const el = document.getElementById(id);
-  if (!el) return;
-  const isOpen = el.style.display !== 'none';
-  
-  document.querySelectorAll('.doc-dd-panel').forEach(p => p.style.display = 'none');
-  el.style.display = isOpen ? 'none' : 'block';
-  if (!isOpen) {
-    setTimeout(() => {
-      const close = () => { el.style.display = 'none'; document.removeEventListener('click', close); };
-      document.addEventListener('click', close, { once: true });
-    }, 10);
-  }
-}
 
 let _smFilter = '', _smPage = 1;
 
@@ -370,12 +255,6 @@ async function loadPegawaiPerencanaan() {
   } catch { _smPegawaiList = []; }
 }
 
-function renderPegawaiOptions(selectedNama) {
-  const opts = _smPegawaiList.map(u =>
-    `<option value="${esc(u.nama)}" ${u.nama === selectedNama ? 'selected' : ''}>${esc(u.nama)}</option>`
-  ).join('');
-  return `<option value="">- Pilih Pegawai -</option>` + opts;
-}
 
 async function openSMModal() {
   await loadPegawaiPerencanaan();
@@ -658,7 +537,6 @@ function _getUploadState(prefix) {
   return _uploadState[prefix];
 }
 
-function switchUploadTab(prefix, tab) {  }
 
 function resetUploadArea(prefix) {
   const state = _getUploadState(prefix);
@@ -876,7 +754,7 @@ async function removeUploadedFile(prefix, idx) {
   }
 }
 
-function showFilePreview() {} 
+ 
 
 async function deleteCloudinaryFile(url) {
   if (!url || !url.includes('cloudinary.com')) return true; 

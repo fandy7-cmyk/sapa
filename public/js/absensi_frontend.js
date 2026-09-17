@@ -1010,6 +1010,11 @@ function onAbsStatusChange() {
   const isCutiOrTugas = status === 'tugas_luar' || status === 'cuti';
   const isRentang = isCutiOrTugas && !_absEditingId;
 
+  // Tugas Luar / Cuti biasanya diajukan/dicatat buat tanggal ke depan (rencana),
+  // jadi batas "max hari ini" di datepicker dilepas khusus 2 status ini.
+  document.getElementById('cdtp_absTanggal')?._cdtp?.setMaxToday?.(!isCutiOrTugas);
+  document.getElementById('cdtp_absTanggalSelesai')?._cdtp?.setMaxToday?.(!isCutiOrTugas);
+
   document.getElementById('absJamRow').style.display = status ? 'none' : '';
   document.getElementById('absDurasiRow').style.display = isRentang ? '' : 'none';
   
@@ -1805,7 +1810,7 @@ function openPengajuanModal() {
 
 async function _pengCekBentrokAbsensi(tanggal, tanggal_selesai) {
   try {
-    const params = new URLSearchParams({ dari: tanggal, sampai: tanggal_selesai });
+    const params = new URLSearchParams({ dari: tanggal, sampai: tanggal_selesai, user_id: _user.id });
     const r = await fetch(`/api/absensi?${params}`, { headers: authHeaders() });
     if (!r.ok) return null;
     const d = await r.json();

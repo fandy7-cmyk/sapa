@@ -34,14 +34,6 @@ async function loadPeriodeAktif() {
 
 function getPeriodeAktif() { return _periodeAktif; }
 
-async function getPeriodeTerbuka() {
-  try {
-    const r = await fetch('/api/periode/aktif');
-    if (!r.ok) return [];
-    const d = await r.json();
-    return d.periode || [];
-  } catch { return []; }
-}
 
 function isPeriodeInputOpen(p) {
   if (!p) return false;
@@ -374,8 +366,10 @@ function _isoToLocal(iso) {
     
     const showLibur = mountEl.dataset.cdtpLibur === '1';
     // data-cdtp-max-today="1" = tanggal setelah hari ini gak bisa dipilih (dipakai buat
-    // input tanggal lembur - lembur cuma boleh dicatat buat tanggal yang sudah terjadi)
-    const maxToday = mountEl.dataset.cdtpMaxToday === '1';
+    // input tanggal lembur - lembur cuma boleh dicatat buat tanggal yang sudah terjadi).
+    // Nilai awal dari attribute, tapi bisa di-toggle runtime lewat _cdtp.setMaxToday()
+    // (dipakai di Tambah Absensi: status Tugas Luar/Cuti butuh tanggal masa depan aktif).
+    let maxToday = mountEl.dataset.cdtpMaxToday === '1';
     // data-cdtp-terpakai="1" = cek tanggal yg udah ada lembur-nya (endpoint /api/lembur/tanggal-terpakai)
     // dan langsung disable tanggal itu di kalender - biar user gak perlu coba "+Tambah" dulu
     // baru ketauan tanggalnya bentrok.
@@ -825,6 +819,10 @@ function _isoToLocal(iso) {
         trigger.disabled = false;
         trigger.classList.remove('cdtp-disabled');
         updateTrigger(); // munculin lagi tombol clear kalau ada tanggal terisi
+      },
+      setMaxToday(v) {
+        maxToday = !!v;
+        if (mode === 'cal') render(); // re-render biar tanggal masa depan langsung ke-enable/disable
       }
     };
 

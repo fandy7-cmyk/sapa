@@ -1,10 +1,4 @@
 
-function _updateToggleLabel(id) {
-  const el = document.getElementById(id);
-  if (!el) return;
-  const lbl = document.querySelector(`label[for="${id}"]`);
-  if (lbl) lbl.textContent = el.checked ? 'Aktif' : 'Nonaktif';
-}
 
 function _linkIsExpired(l) {
   return !!l.expired_at && new Date(l.expired_at) < new Date();

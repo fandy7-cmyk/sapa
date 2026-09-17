@@ -1911,108 +1911,8 @@ const _MOD_COLORS = {
 
 const _DONUT_MAX_SEG = 3;
 
-function _moduleCard({ icon, title, color, stats }) {
-  const c = _MOD_COLORS[color] || _MOD_COLORS.blue;
-  const DOTS = c.dots;
-
-  
-  const arcStats = stats.slice(0, _DONUT_MAX_SEG);
-  const numVals  = arcStats.map(s => parseFloat(s.value)).filter(v => !isNaN(v) && v >= 0);
-  const total    = numVals.reduce((a, b) => a + b, 0);
-
-  
-  function _arc(cx, cy, r, startDeg, endDeg) {
-    const toRad = d => (d - 90) * Math.PI / 180;
-    const x1 = cx + r * Math.cos(toRad(startDeg));
-    const y1 = cy + r * Math.sin(toRad(startDeg));
-    const x2 = cx + r * Math.cos(toRad(endDeg));
-    const y2 = cy + r * Math.sin(toRad(endDeg));
-    const large = (endDeg - startDeg) > 180 ? 1 : 0;
-    return `M ${x1} ${y1} A ${r} ${r} 0 ${large} 1 ${x2} ${y2}`;
-  }
-
-  let donutSVG = '';
-  if (total > 0 && numVals.length > 1) {
-    const cx = 40, cy = 40, R = 30, strokeW = 10;
-    let cursor = 0;
-    const paths = arcStats.map((s, i) => {
-      const val = parseFloat(s.value);
-      if (isNaN(val) || val <= 0) return '';
-      const deg  = (val / total) * 360;
-      // hindari full circle (360 = no path)
-      const safeDeg = deg >= 359.9 ? 359.9 : deg;
-      const path = _arc(cx, cy, R, cursor, cursor + safeDeg);
-      cursor += deg;
-      const col = s.highlight ? '#ef4444' : (DOTS[i] || c.accent);
-      return `<path d="${path}" fill="none" stroke="${col}" stroke-width="${strokeW}" stroke-linecap="butt" opacity="${i === 0 ? 1 : 0.7}"/>`;
-    }).join('');
-
-    // Nilai utama di tengah donut
-    const mainVal = stats[0]?.value ?? '-';
-    const mainStr = String(mainVal).length > 4 ? String(mainVal).slice(0,4) : String(mainVal);
-    donutSVG = `
-      <div class="dash-mod-donut">
-        <svg viewBox="0 0 80 80" xmlns="http://www.w3.org/2000/svg">
-          <circle cx="40" cy="40" r="30" fill="none" stroke="#f1f5f9" stroke-width="10"/>
-          ${paths}
-          <text x="40" y="37" text-anchor="middle" dominant-baseline="middle"
-            font-size="12" font-weight="800" fill="${c.accent}" font-family="inherit">${esc(mainStr)}</text>
-          <text x="40" y="50" text-anchor="middle" dominant-baseline="middle"
-            font-size="6" fill="#94a3b8" font-family="inherit">${esc((stats[0]?.label || '').toUpperCase().slice(0,10))}</text>
-        </svg>
-      </div>`;
-  } else if (total > 0 && numVals.length === 1) {
-    // Hanya 1 nilai: tampilkan full circle filled
-    const mainVal = stats[0]?.value ?? '-';
-    donutSVG = `
-      <div class="dash-mod-donut">
-        <svg viewBox="0 0 80 80" xmlns="http://www.w3.org/2000/svg">
-          <circle cx="40" cy="40" r="30" fill="none" stroke="#f1f5f9" stroke-width="10"/>
-          <circle cx="40" cy="40" r="30" fill="none" stroke="${c.accent}" stroke-width="10" stroke-dasharray="188.5" stroke-linecap="round" transform="rotate(-90 40 40)"/>
-          <text x="40" y="38" text-anchor="middle" dominant-baseline="middle"
-            font-size="13" font-weight="800" fill="${c.accent}" font-family="inherit">${esc(String(mainVal))}</text>
-          <text x="40" y="51" text-anchor="middle" dominant-baseline="middle"
-            font-size="5.5" fill="#94a3b8" font-family="inherit">${esc((stats[0]?.label || '').toUpperCase().slice(0,10))}</text>
-        </svg>
-      </div>`;
-  }
-
-  // Stat list di kanan donut (semua item, warna dot konsisten dgn arc utk 3 pertama)
-  const items = stats.map((s, i) => {
-    const col = s.highlight ? '#ef4444' : (DOTS[i] || DOTS[DOTS.length - 1]);
-    return `
-      <div class="dash-mod-stat-row">
-        <span class="dash-mod-stat-dot" style="background:${col}"></span>
-        <div class="dash-mod-stat-body">
-          <div class="dash-mod-stat-val${s.highlight ? ' dash-mod-stat-val--alert' : ''}" style="${s.highlight ? '' : `color:${col}`}">${esc(String(s.value))}</div>
-          <div class="dash-mod-stat-lbl">${esc(s.label)}</div>
-        </div>
-      </div>`;
-  }).join('');
-
-  return `
-    <div class="dash-module-card" style="--card-accent:${c.accent}">
-      <div class="dash-mod-header">
-        <div class="dash-mod-icon" style="background:${c.bg};color:${c.text}">${icon}</div>
-        <div class="dash-mod-title" style="color:#0f172a">${esc(title)}</div>
-      </div>
-      <div class="dash-mod-body">
-        ${donutSVG}
-        <div class="dash-mod-stat-list">${items}</div>
-      </div>
-    </div>`;
-}
 
 // ── Panel helpers ─────────────────────────────────────────────────────────────
-function _topLinksPanel(links) {
-  const rows = links.length
-    ? links.map(l => `<tr><td>${esc(l.judul)}</td><td style="text-align:right"><span class="badge badge-blue">${l.total_klik}</span></td></tr>`).join('')
-    : '<tr class="empty-row"><td colspan="2">Belum ada data klik</td></tr>';
-  return `<div class="dash-panel">
-    <div class="dash-panel-header"><svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg> Top 5 Link Terpopuler</div>
-    <table class="dash-panel-table"><thead><tr><th>Link</th><th style="text-align:right">Klik</th></tr></thead><tbody>${rows}</tbody></table>
-  </div>`;
-}
 
 function _recentSuratPanel(list, jenis) {
   const title = jenis === 'masuk' ? 'Surat Masuk Terbaru' : 'Surat Keluar Terbaru';
@@ -2534,28 +2434,8 @@ function _kwSetRangeAll() {
 const KW_STORAGE_KEY  = () => `kw_watched1_${_user?.id || 'guest'}`;
 const KW_FILTER_KEY   = () => `kw_filter_${_user?.id || 'guest'}`;
 
-function _kwGetBulanList(mode, val) {
-  if (mode === 'bulan')   return [val];
-  if (mode === 'tw')      return [1,2,3].map(i => (val - 1) * 3 + i);       
-  if (mode === 'semester') return val === 1 ? [1,2,3,4,5,6] : [7,8,9,10,11,12];
-  if (mode === 'tahun')   return [1,2,3,4,5,6,7,8,9,10,11,12];
-  return [val];
-}
 
-function _kwPeriodLabel(mode, val, tahun) {
-  if (mode === 'bulan')    return `${_KW_BULAN_FULL[val]} ${tahun}`;
-  if (mode === 'tw')       return `Triwulan ${['I','II','III','IV'][val-1]} ${tahun}`;
-  if (mode === 'semester') return `Semester ${val === 1 ? 'I' : 'II'} ${tahun}`;
-  if (mode === 'tahun')    return `Tahun ${tahun}`;
-  return String(tahun);
-}
 
-function _kwGetCurrentVal() {
-  if (_kwViewMode === 'bulan')    return _kwBulanPilih;
-  if (_kwViewMode === 'tw')       return _kwTWPilih;
-  if (_kwViewMode === 'semester') return _kwSemPilih;
-  return _kwTahunPilih;
-}
 
 function _kwAggregate(indId, bulanList, tahun) {
   const recs = bulanList
@@ -2796,112 +2676,8 @@ function _invalidateKinerjaDashboardCache(tahun) {
   if (tahun) _kwClearRekapCache(tahun);
 }
 
-function _kwYearlyChartData(indId) {
-  const hasil = [];
-  const ind   = _kwAllIndikator.find(x => x.id === indId);
-  for (const thn of _kwTahunList) {
-    let latestRec = null;
-    for (let b = 12; b >= 1; b--) {
-      const rec = (_kwAllRekap[thn]?.['b' + b] || []).find(r => r.id === indId);
-      if (rec && rec.realisasi !== null && rec.realisasi !== undefined && rec.realisasi !== '') {
-        latestRec = rec;
-        break;
-      }
-    }
-    const real    = latestRec ? parseFloat(latestRec.realisasi) : null;
-    const _tgtInfoThn = _kwTargetFromRekap(indId, thn);
-    const _effIndThn  = _tgtInfoThn ? { ...ind, ...(_tgtInfoThn) } : ind;
-    const _tgtNum = _kwTargetNumForInd(_effIndThn);
-    const capaian = _kwHitungCapaian(real, _tgtNum, ind?.bermakna_negatif);
-    hasil.push({ tahun: thn, realisasi: real, realisasi_display: latestRec?.realisasi_display ?? null, capaian, target: !isNaN(_tgtNum) ? _tgtNum : null });
-  }
-  return hasil;
-}
 
 // ── Chart SVG capaian per tahun ───────────────────────────────────────────
-function _kwYearlyChart(yearlyData, targetDisplay, satuan) {
-  if (!yearlyData.length) return '<div class="kw-empty">Belum ada data tahunan</div>';
-
-  const W = 560, H = 210;
-  const PAD = { t: 24, r: 24, b: 44, l: 52 };
-  const cW  = W - PAD.l - PAD.r;
-  const cH  = H - PAD.t - PAD.b;
-  const n   = yearlyData.length;
-
-  const allCap = yearlyData.map(d => d.capaian).filter(v => v !== null);
-  const maxCap = allCap.length ? Math.max(120, ...allCap) : 120;
-  const barW   = Math.min(44, cW / n - 14);
-
-  const toX = i => PAD.l + (i + 0.5) * (cW / n);
-  const toY = v => v === null ? null : PAD.t + cH - Math.min(v / maxCap, 1) * cH;
-
-  // Grid lines
-  let grid = '';
-  [0, 25, 50, 75, 100].forEach(v => {
-    const y     = toY(v);
-    const is100 = v === 100;
-    grid += `<line x1="${PAD.l}" y1="${y}" x2="${W - PAD.r}" y2="${y}"
-      stroke="${is100 ? '#0d9488' : '#f1f5f9'}" stroke-width="${is100 ? 1.5 : 1}"
-      stroke-dasharray="${is100 ? '5,3' : ''}" opacity="${is100 ? .6 : 1}"/>
-    <text x="${PAD.l - 6}" y="${y + 4}" text-anchor="end" font-size="${9*_activeChartFs}" fill="#94a3b8">${v}%</text>`;
-  });
-  grid += `<text x="${W - PAD.r + 3}" y="${toY(100) + 4}" font-size="${8*_activeChartFs}" fill="#0d9488" opacity=".7">100%</text>`;
-
-  // Bars + labels
-  let bars = '', xLabels = '', lineD = '';
-  yearlyData.forEach((d, i) => {
-    const x   = toX(i);
-    const y   = toY(d.capaian);
-    const col = d.capaian === null ? '#e2e8f0' : _kwCapaianColor(d.capaian);
-
-    const bH = d.capaian !== null ? Math.max(4, (Math.min(d.capaian, maxCap) / maxCap) * cH) : 4;
-    const bY = PAD.t + cH - bH;
-    bars += `<rect x="${(x - barW / 2).toFixed(1)}" y="${bY.toFixed(1)}" width="${barW}" height="${bH.toFixed(1)}"
-      rx="5" fill="${col}" opacity=".82"/>`;
-
-    if (d.capaian !== null)
-      bars += `<text x="${x.toFixed(1)}" y="${(bY - 5).toFixed(1)}" text-anchor="middle"
-        font-size="${9*_activeChartFs}" font-weight="700" fill="${col}">${Math.round(d.capaian)}%</text>`;
-
-    if (d.realisasi !== null && bH > 22)
-      bars += `<text x="${x.toFixed(1)}" y="${(PAD.t + cH - 6).toFixed(1)}" text-anchor="middle"
-        font-size="${8*_activeChartFs}" fill="rgba(255,255,255,.85)">${_kwFmtReal(d.realisasi, d.realisasi_display, false)}</text>`;
-
-    xLabels += `<text x="${x.toFixed(1)}" y="${(H - PAD.b + 16).toFixed(1)}"
-      text-anchor="middle" font-size="${10*_activeChartFs}" fill="#475569" font-weight="700">${d.tahun}</text>`;
-
-    if (y !== null) lineD += (lineD === '' ? 'M' : 'L') + `${x.toFixed(1)},${y.toFixed(1)} `;
-  });
-
-  const lineSvg = lineD
-    ? `<path d="${lineD.trim()}" fill="none" stroke="#f59e0b" stroke-width="2.2"
-        stroke-linecap="round" stroke-linejoin="round" opacity=".9"/>` : '';
-
-  let dots = '';
-  yearlyData.forEach((d, i) => {
-    const y = toY(d.capaian);
-    if (y !== null)
-      dots += `<circle cx="${toX(i).toFixed(1)}" cy="${y.toFixed(1)}" r="4"
-        fill="#f59e0b" stroke="#fff" stroke-width="1.5"/>`;
-  });
-
-  const legend = `
-    <div style="display:flex;gap:12px;font-size:0.63rem;font-weight:600;color:#64748b;flex-wrap:wrap;margin-bottom:8px">
-      <span style="display:flex;align-items:center;gap:4px">
-        <span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:#0d9488;opacity:.8"></span>Realisasi (dalam bar)
-      </span>
-      <span style="display:flex;align-items:center;gap:4px">
-        <span style="display:inline-block;width:10px;height:3px;background:#f59e0b;border-radius:2px"></span>Capaian
-      </span>
-      <span style="display:flex;align-items:center;gap:4px">
-        <span style="display:inline-block;width:12px;height:0;border-top:2px dashed #ef4444;border-radius:2px"></span>Target
-      </span>
-    </div>`;
-
-  return legend + `<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;display:block">
-    ${grid}${bars}${lineSvg}${dots}${xLabels}
-  </svg>`;
-}
 
 function _kwSaveFilter() {
   try {
@@ -2937,61 +2713,14 @@ function _kwToggleAcc(btn) {
   }
 }
 
-async function _kwSetMode(mode) {
-  _kwViewMode = mode;
-  _kwSaveFilter();
-  
-  if (!_kwAllRekap[_kwTahunPilih]) {
-    const el = document.getElementById('kinerjaWatchWidget');
-    if (el) el.innerHTML = `<div class="kw-wrap"><div class="skeleton" style="height:280px;border-radius:14px"></div></div>`;
-    await _kwFetchTahun(_kwTahunPilih);
-  }
-  _renderKinerjaWatch();
-}
 
-async function _kwSetBulan(val) {
-  _kwBulanPilih = val; _kwSaveFilter(); _renderKinerjaWatch();
-}
-async function _kwSetTW(val) {
-  _kwTWPilih = val; _kwSaveFilter(); _renderKinerjaWatch();
-}
-async function _kwSetSem(val) {
-  _kwSemPilih = val; _kwSaveFilter(); _renderKinerjaWatch();
-}
-async function _kwSetTahun(val) {
-  _kwTahunPilih = val;
-  _kwSaveFilter();
-  if (!_kwAllRekap[val]) {
-    const el = document.getElementById('kinerjaWatchWidget');
-    if (el) {
-      const existing = el.querySelector('.kw-wrap');
-      if (existing) {
-        const ov = document.createElement('div');
-        ov.style.cssText = 'position:absolute;inset:0;background:rgba(255,255,255,.75);border-radius:14px;display:flex;align-items:center;justify-content:center;z-index:5;backdrop-filter:blur(2px)';
-        ov.innerHTML = `<span class="btn-spin" style="width:22px;height:22px;--spin-thick:3px;color:#0d9488"></span>`;
-        if (existing.style.position !== 'relative') existing.style.position = 'relative';
-        existing.appendChild(ov);
-      }
-    }
-    await _kwFetchTahun(val);
-  }
-  
-  if (val > 2020 && !_kwAllRekap[val - 1]) {
-    _kwFetchTahun(val - 1).then(() => _renderKinerjaWatch()).catch(() => {});
-  }
-  _renderKinerjaWatch();
-}
 
-function _kwNoop() {}
 function _kwSetChartType(type) {
   _kwChartType = type;
   _kwSaveFilter();
   _renderKinerjaWatch();
 }
 window._kwSetChartType = _kwSetChartType;
-function _kwClear() {
-  _kwWatchedId = null; _kwSave(); _renderKinerjaWatch();
-}
 
 function _polarIcon(bermaknaNeg, size = 14) {
   if (bermaknaNeg) {
@@ -4013,49 +3742,6 @@ function _kwGauge(pct, col, colBg) {
     </svg>`;
 }
 // ── (legacy stub, replaced above) ─────────────────────────────────────────────
-function _kwGauge_UNUSED(pct, col) {
-  const R = 62, cx = 80, cy = 78;
-  const startAngle = -200, totalAngle = 220;
-  const toRad = d => d * Math.PI / 180;
-  const polar = (a, r) => [cx + r * Math.cos(toRad(a)), cy + r * Math.sin(toRad(a))];
-
-  const arcPath = (from, to, r) => {
-    const [x1,y1] = polar(from, r);
-    const [x2,y2] = polar(to, r);
-    const large = (to - from) > 180 ? 1 : 0;
-    return `M${x1.toFixed(2)},${y1.toFixed(2)} A${r},${r} 0 ${large},1 ${x2.toFixed(2)},${y2.toFixed(2)}`;
-  };
-
-  const fillAngle = startAngle + totalAngle * Math.min((pct ?? 0) / 100, 1);
-  const endAngle  = startAngle + totalAngle;
-
-  const milestones = [25, 50, 75, 100].map(v => {
-    const a = startAngle + totalAngle * (v / 100);
-    const [mx, my] = polar(a, R + 14);
-    const fs = v === 100 ? 7.5 : 7;
-    return `<text x="${mx.toFixed(1)}" y="${my.toFixed(1)}" text-anchor="middle" font-size="${fs}" fill="${v === 75 ? '#f59e0b' : '#cbd5e1'}" dominant-baseline="middle">${v}%</text>`;
-  }).join('');
-
-  const ticks = [25, 50, 75].map(v => {
-    const a = startAngle + totalAngle * (v / 100);
-    const [x1,y1] = polar(a, R - 6);
-    const [x2,y2] = polar(a, R + 6);
-    return `<line x1="${x1.toFixed(1)}" y1="${y1.toFixed(1)}" x2="${x2.toFixed(1)}" y2="${y2.toFixed(1)}" stroke="#e2e8f0" stroke-width="1.5"/>`;
-  }).join('');
-
-  return `
-    <svg viewBox="0 0 160 96" width="200" height="120" style="display:block;margin:0 auto">
-      <path d="${arcPath(startAngle, endAngle, R)}" fill="none" stroke="#e2e8f0" stroke-width="11" stroke-linecap="round"/>
-      <path d="${arcPath(startAngle, endAngle, R)}" fill="none" stroke="#e2e8f0" stroke-width="11" stroke-linecap="round"/>
-      ${pct !== null && pct > 0 ? `<path d="${arcPath(startAngle, fillAngle, R)}" fill="none" stroke="${col}" stroke-width="11" stroke-linecap="round" opacity=".95"/>` : ''}
-      ${pct !== null && pct > 0 ? (() => { const [gx,gy] = polar(fillAngle, R); return `<circle cx="${gx.toFixed(1)}" cy="${gy.toFixed(1)}" r="6" fill="${col}" opacity=".3"/>` })() : ''}
-      ${ticks}
-      ${milestones}
-      <text x="${cx}" y="${cy - 12}" text-anchor="middle" font-size="${26*_activeChartFs}" font-weight="800" fill="${col}" style="font-family:inherit">${pct !== null ? parseFloat(pct).toFixed(1)+'%' : '-'}</text>
-      <text x="${cx}" y="${cy + 6}" text-anchor="middle" font-size="${8*_activeChartFs}" fill="#94a3b8" letter-spacing="1" style="text-transform:uppercase">Capaian</text>
-      <text x="12" y="${cy + 16}" text-anchor="middle" font-size="7.5" fill="#94a3b8">0%</text>
-    </svg>`;
-}
 
 // ── Bar chart per bulan (baru, menggantikan line chart TW) ────────────────────
 function _kwBarChart(data, activeRange, target) {

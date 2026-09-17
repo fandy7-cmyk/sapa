@@ -1371,45 +1371,6 @@ function _lapSuratGoPage(p) {
   _lapRenderSuratTbody(data.filteredRows);
 }
 
-function _renderSuratChart(rekap, jenis) {
-  const el = document.getElementById('laporanSuratChart');
-  if (!el) return;
-  const maxVal = Math.max(...rekap.map(r => Math.max(r.masuk, r.keluar)), 1);
-  const W = 660, H = 180, padL = 30, padB = 28, padT = 10;
-  const barW = Math.floor((W - padL) / 12);
-  const scale = v => padT + (H - padT - padB) * (1 - v / maxVal);
-
-  let bars = '';
-  rekap.forEach((r, i) => {
-    const x = padL + i * barW;
-    if (jenis !== 'keluar' && r.masuk) {
-      bars += `<rect x="${x+4}" y="${scale(r.masuk)}" width="${barW/2-4}" height="${H - padB - scale(r.masuk)}" fill="#10b981" rx="2" opacity=".85"><title>Masuk: ${r.masuk}</title></rect>`;
-    }
-    if (jenis !== 'masuk' && r.keluar) {
-      bars += `<rect x="${x+barW/2+2}" y="${scale(r.keluar)}" width="${barW/2-4}" height="${H - padB - scale(r.keluar)}" fill="#8b5cf6" rx="2" opacity=".85"><title>Keluar: ${r.keluar}</title></rect>`;
-    }
-    bars += `<text x="${x+barW/2}" y="${H-padB+14}" text-anchor="middle" font-size="9" fill="currentColor" opacity=".6">${BULAN_NAMA[i].slice(0,3)}</text>`;
-  });
-
-  
-  let yLabels = '';
-  for (let v = 0; v <= maxVal; v += Math.ceil(maxVal / 4)) {
-    const y = scale(v);
-    yLabels += `<text x="${padL-4}" y="${y+4}" text-anchor="end" font-size="9" fill="currentColor" opacity=".6">${v}</text>`;
-    yLabels += `<line x1="${padL}" y1="${y}" x2="${W}" y2="${y}" stroke="currentColor" stroke-width=".5" opacity=".15"/>`;
-  }
-
-  const legend = !jenis ? `
-    <circle cx="${W-100}" cy="12" r="5" fill="#10b981"/>
-    <text x="${W-92}" y="16" font-size="10" fill="currentColor" opacity=".8">Masuk</text>
-    <circle cx="${W-48}" cy="12" r="5" fill="#8b5cf6"/>
-    <text x="${W-40}" y="16" font-size="10" fill="currentColor" opacity=".8">Keluar</text>
-  ` : (jenis === 'masuk'
-    ? `<circle cx="${W-60}" cy="12" r="5" fill="#10b981"/><text x="${W-52}" y="16" font-size="10" fill="currentColor" opacity=".8">Masuk</text>`
-    : `<circle cx="${W-60}" cy="12" r="5" fill="#8b5cf6"/><text x="${W-52}" y="16" font-size="10" fill="currentColor" opacity=".8">Keluar</text>`);
-
-  el.innerHTML = `<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" style="width:100%;min-width:380px;max-height:200px">${yLabels}${bars}${legend}</svg>`;
-}
 
 let _laporanKinerjaFilterReady = false;
 let _lapKinerjaTahunList = [];
@@ -2033,22 +1994,7 @@ async function loadLaporanKinerja() {
   _lapRenderKinerjaTbody(filteredRows, bulanTampil, colspanTotal, emptyMsg);
 }
 
-function _renderKinerjaEmpty(tahun) {
-  const statsEl = document.getElementById('laporanKinerjaStats');
-  if (statsEl) statsEl.innerHTML = _statCard('Total Indikator', 0, '#10b981', `<path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2"/>`);
-  const tbody = document.getElementById('laporanKinerjaTableBody');
-  if (tbody) tbody.innerHTML = `<tr class="empty-row"><td colspan="21">Tidak ada data untuk tahun ${tahun}</td></tr>`;
-}
 
-function _statusBadge(capaian) {
-  if (capaian === null || capaian === undefined || capaian === '')
-    return `<span style="background:#e5e7eb;color:#6b7280;padding:2px 8px;border-radius:99px;font-size:.7rem">Belum</span>`;
-  const c = parseFloat(capaian);
-  if (c >= 100) return `<span style="background:#d1fae5;color:#065f46;padding:2px 8px;border-radius:99px;font-size:.7rem">Tercapai</span>`;
-  if (c >= 80)  return `<span style="background:#dbeafe;color:#1e40af;padding:2px 8px;border-radius:99px;font-size:.7rem">Mendekati</span>`;
-  if (c >= 60)  return `<span style="background:#fef3c7;color:#92400e;padding:2px 8px;border-radius:99px;font-size:.7rem">Cukup</span>`;
-  return `<span style="background:#fee2e2;color:#991b1b;padding:2px 8px;border-radius:99px;font-size:.7rem">Rendah</span>`;
-}
 
 
 function _kopSuratHtml() {
@@ -2284,30 +2230,6 @@ function _rebuildSuratStatusOptions(allRows, currentVal) {
   }
 }
 
-function _rebuildKinerjaStatusOptions(allRows, currentVal) {
-  const sel = document.getElementById('laporanKinerjaStatus');
-  if (!sel) return;
-
-  const adaBelum     = allRows.some(r => r.realisasi === null || r.realisasi === undefined || r.realisasi === '');
-  const adaTercapai  = allRows.some(r => r.capaian != null && parseFloat(r.capaian) >= 100);
-  const adaMendekati = allRows.some(r => r.capaian != null && parseFloat(r.capaian) >= 80 && parseFloat(r.capaian) < 100);
-  const adaCukup     = allRows.some(r => r.capaian != null && parseFloat(r.capaian) >= 60 && parseFloat(r.capaian) < 80);
-  const adaRendah    = allRows.some(r => r.capaian != null && parseFloat(r.capaian) < 60);
-
-  const opts = [{ val: 'semua', label: 'Semua Status' }];
-  if (adaBelum)     opts.push({ val: 'belum',     label: 'Belum Diisi' });
-  if (adaTercapai)  opts.push({ val: 'tercapai',  label: 'Tercapai' });
-  if (adaMendekati) opts.push({ val: 'mendekati', label: 'Mendekati' });
-  if (adaCukup)     opts.push({ val: 'cukup',     label: 'Cukup' });
-  if (adaRendah)    opts.push({ val: 'rendah',    label: 'Rendah' });
-
-  const validVals = opts.map(o => o.val);
-  const safeVal = validVals.includes(currentVal) ? currentVal : 'semua';
-
-  sel.innerHTML = opts.map(o =>
-    `<option value="${o.val}"${o.val === safeVal ? ' selected' : ''}>${o.label}</option>`
-  ).join('');
-}
 
 function _statCard(label, value, color, iconPath) {
   return `<div class="stat-card" style="border-left-color:${color}">

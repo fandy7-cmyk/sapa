@@ -51,10 +51,6 @@ function cariPeriodeRamadhan(tanggalStr, periods) {
   }) || null;
 }
 
-function isTanggalRamadhan(tanggalStr, periods) {
-  return !!cariPeriodeRamadhan(tanggalStr, periods);
-}
-
 // Pilih jam kerja Ramadhan (kalau tanggalStr jatuh di salah satu periode riwayat) atau jam kerja normal.
 // `settings` = baris absensi_settings (jam kerja normal). `periods` = seluruh baris ramadhan_periods,
 // dicocokkan per-tanggal supaya data & rekap tahun lalu tidak ikut berubah saat periode tahun berjalan diedit.

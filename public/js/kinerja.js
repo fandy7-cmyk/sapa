@@ -218,46 +218,6 @@ async function _ensureUserIndikatorIds() {
   } catch { _userIndikatorIds = new Set(); }
 }
 
-function _renderKinerjaWindowBanner(containerId, jenis) {
-  const wrap = document.getElementById(containerId);
-  if (!wrap) return;
-
-  
-  if (_user?.is_admin) { wrap.innerHTML = ''; return; }
-
-  const fmtDT = iso => iso ? new Date(iso).toLocaleString('id-ID', { day:'2-digit', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit', timeZone: 'Asia/Makassar' }) + ' WITA' : '-';
-
-  
-  const targetBulan = jenis === 'ikk' ? _ikk_bulan : jenis === 'spm' ? _spm_bulan : _kinerja_bulan;
-  const pa = _periodeListTerbuka.find(p => p.bulan === targetBulan && (!jenis || p.jenis === jenis)) ?? null;
-  
-  const adaPeriodeJenis = _periodeListTerbuka.some(p => !jenis || p.jenis === jenis);
-
-  if (!pa && !adaPeriodeJenis) {
-    wrap.innerHTML = `
-      <div style="display:flex;align-items:center;gap:8px;padding:10px 14px;border-radius:8px;background:#fff7ed;border:1px solid #fed7aa;color:#9a3412;font-size:.83rem;margin-bottom:10px">
-        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v4m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/></svg>
-        <span>Tidak ada periode input yang sedang terbuka. Hubungi Admin untuk mengatur window periode.</span>
-      </div>`;
-    return;
-  }
-
-  if (!pa) {
-    
-    wrap.innerHTML = `
-      <div style="display:flex;align-items:center;gap:8px;padding:10px 14px;border-radius:8px;background:#fffbeb;border:1px solid #fde68a;color:#92400e;font-size:.83rem;margin-bottom:10px">
-        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-        <span>Bulan ini belum ada window input yang terbuka. Pilih bulan lain yang tersedia.</span>
-      </div>`;
-    return;
-  }
-
-  wrap.innerHTML = `
-    <div style="display:flex;align-items:center;gap:8px;padding:10px 14px;border-radius:8px;background:#f0fdf4;border:1px solid #bbf7d0;color:#166534;font-size:.83rem;margin-bottom:10px">
-      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-      <span>Input <strong>terbuka</strong> - batas pengisian hingga <strong>${fmtDT(pa.close_at)}</strong></span>
-    </div>`;
-}
 
 let _kinerjaCountdownTimer = null;
 const _kinerjaCountdownTimers = {};
@@ -1619,11 +1579,6 @@ async function loadGroupAdmin() {
   }
 }
 
-function filterGroup() {
-  _groupSearch = document.getElementById('groupSearch')?.value?.toLowerCase() || '';
-  _groupPage   = 1;
-  renderGroupAdmin();
-}
 window.goGroupPage = (p) => { _groupPage = p; renderGroupAdmin(); };
 
 function renderGroupAdmin() {
@@ -2379,17 +2334,6 @@ function initIndikatorPJSearchable() {
   renderList('');
 }
 
-function _buildGroupOptions(selectedId) {
-  const none = `<option value="">- Tanpa Group -</option>`;
-  const opts = _groupList
-    .filter(g => g.aktif)
-    .map(g => {
-      const meta = JENIS_META[g.jenis] || { label: g.jenis };
-      const sel  = g.id === selectedId ? 'selected' : '';
-      return `<option value="${g.id}" ${sel}>[${escHtml(meta.label)}] ${escHtml(g.nama)}</option>`;
-    }).join('');
-  return none + opts;
-}
 
 function openIndikatorModal(id) {
   _editingIndikatorId = id || null;
@@ -2484,13 +2428,6 @@ function _renderTargetRows() {
     </tr>`).join('');
 }
 
-function _addTargetRow() {
-  _targetRows.push({ tahun: '', target: '', target_display: '' });
-  _renderTargetRows();
-  // focus tahun input di baris terakhir
-  const inputs = document.querySelectorAll('#targetTahunTbody input[type="number"]');
-  if (inputs.length) inputs[inputs.length - 1].focus();
-}
 
 function _removeTargetRow(i) {
   _targetRows.splice(i, 1);
@@ -3208,20 +3145,6 @@ async function saveKtAddTarget() {
   } catch (err) { toast('Error: ' + err.message, 'error'); }
 }
 
-function _goKelolaTarget() {
-  const id = _editingIndikatorId;
-  closeModal('modalIndikator');
-  navigateTo('kelola-target', 'Kelola Target', loadKelolaTarget);
-  if (id) {
-    setTimeout(() => {
-      const ind = _indikatorList.find(r => r.id === id);
-      if (ind) {
-        const el = document.getElementById('ktSearch');
-        if (el) { el.value = ind.indikator_kinerja; filterKelolaTarget(); }
-      }
-    }, 400);
-  }
-}
 
 let _dukungState = { indikatorId: null, tw: null, tahun: null, files: [] };
 
@@ -4150,25 +4073,12 @@ function _autoResizeTA(el) {
   el.style.height = 'auto';
   el.style.height = el.scrollHeight + 'px';
 }
-function _autoResizeAllTA(tr) {
-  if (!tr) return;
-  tr.querySelectorAll('.textarea-cell textarea').forEach(_autoResizeTA);
-}
 
 function _escMd2Html(str) {
   return String(str || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
 // markdown-lite -> HTML aman (dipakai utk isi awal .ps-rte & tampilan ps-read)
-function _mdToHtml(md) {
-  if (!md) return '';
-  return String(md).split('\n').map(line => {
-    let h = _escMd2Html(line);
-    h = h.replace(/\*\*([^\n]+?)\*\*/g, '<strong>$1</strong>');
-    h = h.replace(/(^|[^_])_([^_\n]+?)_(?!_)/g, '$1<em>$2</em>');
-    return h;
-  }).join('<br>');
-}
 
 function _mdToHtmlDisplay(md) {
   if (!md) return '';
@@ -5150,26 +5060,6 @@ function _rteToggleInline(range, tagName) {
   sel.addRange(newRange);
 }
 
-function _rteLineBounds(el, range) {
-  const kids = Array.from(el.childNodes);
-  const point = document.createRange();
-  try { point.setStart(range.startContainer, range.startOffset); }
-  catch { point.selectNodeContents(el); }
-  point.collapse(true);
-
-  let end = kids.length;
-  for (let i = 0; i < kids.length; i++) {
-    if (kids[i].nodeName !== 'BR') continue;
-    const brPoint = document.createRange();
-    brPoint.setStartBefore(kids[i]);
-    brPoint.collapse(true);
-    
-    if (point.compareBoundaryPoints(Range.START_TO_START, brPoint) <= 0) { end = i; break; }
-  }
-  let start = 0;
-  for (let i = end - 1; i >= 0; i--) { if (kids[i].nodeName === 'BR') { start = i + 1; break; } }
-  return { start, end, kids };
-}
 
 function _rteMarkerSpan(lineDiv) {
   const first = lineDiv && lineDiv.firstChild;
@@ -5448,17 +5338,6 @@ function _togglePermasalahanSolusi(prefix, indikatorId, capaian) {
   });
 }
 
-function showPage(pageId) {
-  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-  const el = document.getElementById(pageId);
-  if (el) el.classList.add('active');
-  if (pageId === 'page-kinerja-admin') {
-    switchKinerjaAdminTab('indikator');
-    document.getElementById('btnKelolIndikator').style.display = 'none';
-  } else if (pageId === 'page-kinerja') {
-    document.getElementById('btnKelolIndikator').style.display = _user?.is_admin ? '' : 'none';
-  }
-}
 
 let _mon_bulan  = new Date().getMonth() + 1;
 let _mon_tahun  = new Date().getFullYear();

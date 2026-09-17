@@ -1207,17 +1207,6 @@ function _lemburRenderSesiDetailJagaFokus() {
   }
 }
 
-async function _lemburResetJamPeserta(entryId) {
-  try {
-    const r = await fetch(`/api/lembur/entries/${entryId}`, { method: 'PUT', headers: { ...authHeaders(), 'Content-Type': 'application/json' }, body: JSON.stringify({ jam_mulai: null, jam_selesai: null }) });
-    const d = await r.json();
-    if (!r.ok) { toast(d.error || 'Gagal mengubah jam', 'error'); return; }
-    const idx = _lemburEntries.findIndex(e => e.id === entryId);
-    if (idx > -1) _lemburEntries[idx] = { ..._lemburEntries[idx], jam_mulai: d.entry.jam_mulai, jam_selesai: d.entry.jam_selesai, updated_at: d.entry.updated_at };
-    _lemburRenderSesiDetailJagaFokus();
-    toast('Jam peserta ikut jam sesi lagi', 'success', 'lembur-jam-tersimpan');
-  } catch { toast('Gagal mengubah jam', 'error'); }
-}
 
 let _lemburPesertaSelected = new Set();
 
@@ -1478,12 +1467,6 @@ async function _lemburDownloadSesi(id) {
 }
 
 // ---------------------------------------------------------------- CETAK
-async function _lemburCetak() {
-  let ttd = await _lemburGetPenandatangan();
-  if (!ttd) ttd = await _lemburPromptPenandatangan();
-  if (!ttd) return;
-  _lemburDoCetak(ttd.nama, ttd.nip);
-}
 
 // Foto dokumentasi biasanya langsung dari kamera HP (bisa beberapa MB per file) - preview
 // PDF (_bukaPreviewPDF di laporan.js) baru manggil window.print() setelah event 'load' window,

@@ -112,11 +112,35 @@ export const handler = async (event) => {
     }
   }
 
-  const admin = requireAdmin(event);
-  if (!admin) return errorResponse('Unauthorized', 401);
-
   if (event.httpMethod === 'GET' && !userId) {
+    // Selain admin, staf yang punya permission 'absensi.full' juga boleh akses
+    // list ini (dipakai buat isi dropdown "Pilih Pegawai" di modal Tambah/Edit
+    // Absensi). Untuk non-admin, field yang dibalikin dibatasin (gak ada
+    // email/nip/tanda_tangan/dll) biar gak bocor data sensitif ke staf biasa.
+    let isFullAccess = auth.is_admin;
+    if (!isFullAccess) {
+      const rows = await sql`
+        SELECT 1 FROM user_permissions
+        WHERE user_id = ${auth.id} AND menu_key = 'absensi.full' LIMIT 1
+      `;
+      isFullAccess = rows.length > 0;
+    }
+    if (!isFullAccess) return errorResponse('Unauthorized', 401);
+
     try {
+      if (!auth.is_admin) {
+        const users = await sql`
+          SELECT u.id, u.nama, u.is_admin,
+                 COALESCE(
+                   (SELECT array_agg(up.menu_key) FROM user_permissions up WHERE up.user_id = u.id),
+                   '{}'
+                 ) AS permissions
+          FROM users u
+          ORDER BY u.is_admin DESC, u.nama ASC
+        `;
+        return jsonResponse({ users });
+      }
+
       await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS urutan_laporan INTEGER`;
       await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar_url TEXT`;
       await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS tanda_tangan TEXT`;
@@ -141,6 +165,9 @@ export const handler = async (event) => {
       return errorResponse('Gagal mengambil data pengguna');
     }
   }
+
+  const admin = requireAdmin(event);
+  if (!admin) return errorResponse('Unauthorized', 401);
 
   if (event.httpMethod === 'PUT' && !userId && segments[0] === 'urutan-laporan') {
     const { order } = parseBody(event);

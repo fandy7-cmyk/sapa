@@ -537,11 +537,6 @@ function renderEpPeriodeBanner(targetId) {
   _epCountdownTimer = setInterval(_tick, 1000);
 }
 
-function setEpFilterStatus(status) {
-  _epFilterStatus = status;
-  _epPage = 1;
-  renderEplanningTable();
-}
 
 function setEpFilterBidang(bidangId) {
   _epFilterBidang = bidangId;
@@ -1185,11 +1180,6 @@ function _epKabkotaOptionsHtml(selectedId) {
   return opts.join('');
 }
 
-async function epRenderLokasiPelaksanaanSelect(selectedId) {
-  await epLoadKabkotaOptions();
-  const sel = document.getElementById('epLokasiPelaksanaan');
-  if (sel) sel.innerHTML = _epKabkotaOptionsHtml(selectedId);
-}
 
 async function _epFetchKecamatan(kabkotaId) {
   if (!kabkotaId) return [];
@@ -1225,29 +1215,6 @@ function epRincianLokasiRowHtml(idx) {
 
 let _epRincianLokasiIdx = 0;
 
-async function epAddRincianLokasiRow(existing) {
-  await epLoadKabkotaOptions();
-  const list = document.getElementById('epRincianLokasiList');
-  if (!list) return;
-  const idx = _epRincianLokasiIdx++;
-  list.insertAdjacentHTML('beforeend', epRincianLokasiRowHtml(idx));
-  const row = list.querySelector(`.ep-rl-row[data-idx="${idx}"]`);
-  if (!existing || !existing.kabkota_id) return;
-
-  const kabkotaSel = row.querySelector('.ep-rl-kabkota');
-  kabkotaSel.value = existing.kabkota_id;
-  await epOnRincianLokasiKabkotaChange(kabkotaSel, existing.kecamatan_id, existing.kecamatan_nama);
-  if (existing.kecamatan_id !== undefined) {
-    const kecSel = row.querySelector('.ep-rl-kecamatan');
-    
-    kecSel.value = existing.kecamatan_id === null ? 'SEMUA' : existing.kecamatan_id;
-    await epOnRincianLokasiKecamatanChange(kecSel, existing.desa_id);
-    if (existing.desa_id !== undefined) {
-      const desaSel = row.querySelector('.ep-rl-desa');
-      desaSel.value = existing.desa_id === null ? 'SEMUA' : existing.desa_id;
-    }
-  }
-}
 
 async function epOnRincianLokasiKabkotaChange(selectEl, presetKecamatanId) {
   const row = selectEl.closest('.ep-rl-row');
@@ -1300,27 +1267,6 @@ function epRemoveRincianLokasiRow(btn) {
   btn.closest('.ep-rl-row')?.remove();
 }
 
-function epCollectRincianLokasi() {
-  const rows = [...document.querySelectorAll('#epRincianLokasiList .ep-rl-row')];
-  return rows.map(row => {
-    const kabkotaSel = row.querySelector('.ep-rl-kabkota');
-    const kecSel = row.querySelector('.ep-rl-kecamatan');
-    const desaSel = row.querySelector('.ep-rl-desa');
-    const kabkotaId = kabkotaSel.value || null;
-    const kabkotaNama = kabkotaId ? kabkotaSel.options[kabkotaSel.selectedIndex].textContent : null;
-    const kecValue = kecSel.value || null;
-    const kecId = kecValue && kecValue !== 'SEMUA' ? kecValue : null;
-    const kecNama = kecValue ? (kecValue === 'SEMUA' ? 'Semua Kecamatan' : kecSel.options[kecSel.selectedIndex].textContent) : null;
-    const desaValue = desaSel.value || null;
-    const desaId = desaValue && desaValue !== 'SEMUA' ? desaValue : null;
-    const desaNama = desaValue ? (desaValue === 'SEMUA' ? 'Semua Desa/Kelurahan' : desaSel.options[desaSel.selectedIndex].textContent) : null;
-    return {
-      kabkota_id: kabkotaId, kabkota_nama: kabkotaNama,
-      kecamatan_id: kecId, kecamatan_nama: kecNama,
-      desa_id: desaId, desa_nama: desaNama,
-    };
-  }).filter(r => r.kabkota_id); 
-}
 
 const _epRefCache = {}; 
 
@@ -1636,23 +1582,7 @@ function _epFileNameFromUrl(url) {
   } catch { return 'Dokumen'; }
 }
 
-function epResetFileUpload(field) {
-  _epFileState[field] = [];
-  _epUploadBatch[field] = null;
-  _epRenderFilePreview(field);
-  const fi = document.getElementById(`ep${field}FileInput`);
-  if (fi) fi.value = '';
-  const hidden = document.getElementById(`epLink${field}`);
-  if (hidden) hidden.value = '';
-}
 
-function epSetExistingFile(field, url) {
-  const urls = String(url || '').split(',').map(s => s.trim()).filter(Boolean);
-  _epFileState[field] = urls.map(u => ({ url: u, name: _epFileNameFromUrl(u) }));
-  const hidden = document.getElementById(`epLink${field}`);
-  if (hidden) hidden.value = urls.join(',');
-  _epRenderFilePreview(field);
-}
 
 function epTriggerUpload(field) {
   document.getElementById(`ep${field}FileInput`)?.click();
@@ -1698,25 +1628,6 @@ function _epRenderFilePreview(field) {
 
 const _epUploadBatch = { Surat: null, Kak: null, DataDukung: null };
 
-async function epHandleFileSelect(e, field) {
-  const files = Array.from(e.target.files || []);
-  e.target.value = '';
-  let okCount = 0, failMsgs = [];
-  _epUploadBatch[field] = { current: 0, total: files.length };
-  for (const file of files) {
-    _epUploadBatch[field].current++;
-    const err = await epProcessFile(field, file);
-    if (err) failMsgs.push(err); else okCount++;
-  }
-  _epUploadBatch[field] = null;
-  if (failMsgs.length && okCount) {
-    toast(`${okCount} file berhasil diunggah, ${failMsgs.length} gagal (${failMsgs[0]})`, 'error');
-  } else if (failMsgs.length) {
-    toast(failMsgs.length > 1 ? `${failMsgs.length} file gagal diunggah (${failMsgs[0]})` : failMsgs[0], 'error');
-  } else if (okCount) {
-    toast(okCount > 1 ? `${okCount} file berhasil diunggah` : 'File berhasil diunggah', 'success');
-  }
-}
 
 async function epProcessFile(field, file) {
   const MAX_MB = 2;
@@ -1747,23 +1658,6 @@ async function epProcessFile(field, file) {
   }
 }
 
-async function epRemoveFile(field, index) {
-  const f = _epFileState[field][index];
-  if (!f) return;
-  if (f.url) {
-    const ok = await showConfirm({ title: 'Hapus File', msg: `File "${esc(f.name)}" akan dihapus dari daftar dan dari server.`, okText: 'Ya, Hapus', icon: 'trash' });
-    if (!ok) return;
-  }
-  _epFileState[field].splice(index, 1);
-  document.getElementById(`epLink${field}`).value = _epFileState[field].map(x => x.url).join(',');
-  _epRenderFilePreview(field);
-  if (f.url) {
-    const ok = await deleteCloudinaryFile(f.url);
-    toast(ok ? 'File berhasil dihapus dari server' : 'File dihapus dari daftar (hapus server gagal)', ok ? 'success' : 'error');
-  } else {
-    toast('File dihapus');
-  }
-}
 
 function epPreviewFiles(field) {
   const files = (_epFileState[field] || []).filter(f => !f._loading);
@@ -1887,39 +1781,7 @@ async function submitApproveAdmin() {
   } catch (err) { toast(err.message, 'error'); }
 }
 
-async function epSubmitUsulan(id) {
-  const ok = await showConfirm({
-    title: 'Submit Usulan',
-    msg: 'Usulan akan diajukan ke Kepala unit kerja terkait dan tidak bisa diedit sampai ada keputusan. Lanjutkan?',
-    okText: 'Ya, Submit',
-    type: 'warning',
-  });
-  if (!ok) return;
-  try {
-    const r = await fetch(`/api/eplanning/usulan/${id}/submit`, {
-      method: 'PUT', headers: authHeaders(),
-    });
-    const d = await r.json();
-    if (!r.ok) throw new Error(d.error || 'Gagal submit usulan');
-    toast('Usulan diajukan', 'success');
-    loadEplanning();
-  } catch (err) { toast(err.message, 'error'); }
-}
 
-async function epKirimBalik(id) {
-  const catatan = await showEpPrompt({ title: 'Tolak Usulan', msg: 'Catatan alasan penolakan (wajib diisi):', placeholder: 'Tuliskan alasan penolakan...', okText: 'Ya, Tolak' });
-  if (catatan === null) return;
-  try {
-    const r = await fetch(`/api/eplanning/usulan/${id}/status`, {
-      method: 'PUT', headers: { ...authHeaders(), 'Content-Type': 'application/json' },
-      body: JSON.stringify({ status: 'DITOLAK', catatan_koreksi: catatan }),
-    });
-    const d = await r.json();
-    if (!r.ok) throw new Error(d.error || 'Gagal menolak usulan');
-    toast('Usulan ditolak, dikirim balik ke operator', 'success');
-    loadEplanning();
-  } catch (err) { toast(err.message, 'error'); }
-}
 
 let _epCurrentUsulan = null;
 let _epRincianList = [];
@@ -2277,7 +2139,6 @@ const _epRekeningCombo = _epMakeRekeningCombobox('epRincKodeRekening');
 function epSearchRekening() { _epRekeningCombo.search(); }
 
 const _epRekeningComboNew = _epMakeRekeningCombobox('epNewRincKodeRekening');
-function epSearchRekeningNew() { _epRekeningComboNew.search(); }
 
 function _epMakeRekeningMultiCombobox(inputId, wrapId) {
   let panel = null;
@@ -2600,7 +2461,6 @@ const _epSatuanCombo = _epMakeLocalCombobox({
   renderOption: x => esc(x.nama),
   onPick: (input, x) => { input.value = x.nama; epUpdateKoefisien(); },
 });
-function epSearchSatuan() { _epSatuanCombo.search(); }
 
 // Satuan 1-4 di blok Koefisien (Perkalian) - dulu Satuan 1 ke-auto-isi dari satuan Komponen yang
 // dipilih, tapi itu sering keliru (satuan Komponen belum tentu sama kayak satuan yang dipake
@@ -2814,7 +2674,6 @@ const _epSumberDanaComboNew = _epMakeLocalCombobox({
   renderOption: x => (x.kode ? `<strong>${esc(x.kode)}</strong> - ${esc(x.nama)}` : esc(x.nama)) + (x.aktif === false ? ' <span style="opacity:.6;font-size:11px">(Nonaktif)</span>' : ''),
   onPick: (input, x) => { input.value = x.kode ? `${x.kode} - ${x.nama}` : x.nama; },
 });
-function epSearchSumberDanaNew() { _epSumberDanaComboNew.search(); }
 
 const _epKoefisienComboNew = _epMakeLocalCombobox({
   inputId: 'epNewRincKoefisien',
@@ -2823,7 +2682,6 @@ const _epKoefisienComboNew = _epMakeLocalCombobox({
   renderOption: x => esc(x.nama),
   onPick: (input, x) => { input.value = x.kode ? `${x.kode} - ${x.nama}` : x.nama; },
 });
-function epSearchKoefisienSatuanNew() { _epKoefisienComboNew.search(); }
 
 // Mirror dari mapping di backend (netlify/functions/eplanning.js: resolveObjekBelanja) — dipakai buat
 // auto-isi field "Objek Belanja" di UI secara live. Sumber kebenaran tetap di backend pas simpan.
@@ -3861,7 +3719,6 @@ const _epStandarHargaCombo = _epMakeStandarHargaCombobox('epRincKomponen', 'epRi
   onPick: (x) => _epApplyStandarHargaPick(x),
   onTyping: () => _epResetKomponenPick(),
 });
-function epSearchKomponenStandar() { _epStandarHargaCombo.search(); }
 
 // --- Modal picker "Komponen" (klik icon Search di sebelah field Komponen) ---
 let _epKompPickPage = 1;
@@ -6620,13 +6477,6 @@ async function epOpenRiwayat(id) {
 /* ---------- Modal verifikasi per-komponen ---------- */
 let _epVerifUsulanId = null;
 
-function openVerifikasiModal(id) {
-  _epVerifUsulanId = id;
-  const u = _epPraList.find(x => x.id === id);
-  if (!u) return;
-  _epRenderVerifBody(u);
-  openModal('modalEpVerifikasi');
-}
 
 function _epRenderVerifBody(u) {
   const komponen = [
@@ -6662,27 +6512,6 @@ function _epRenderVerifBody(u) {
     }).join('')}`;
 }
 
-async function epPreviewSuratFromVerif(id) {
-  const u = await _epFetchUsulanDetail(id);
-  if (!u) return;
-  _epDokUsulan = u.usulan;
-  _epDokRincian = u.rincian || [];
-  epPreviewSurat();
-}
-async function epPreviewTorFromVerif(id) {
-  const u = await _epFetchUsulanDetail(id);
-  if (!u) return;
-  _epDokUsulan = u.usulan;
-  _epDokRincian = u.rincian || [];
-  epPreviewTor();
-}
-async function epPreviewRabFromVerif(id) {
-  const u = await _epFetchUsulanDetail(id);
-  if (!u) return;
-  _epDokUsulan = u.usulan;
-  _epDokRincian = u.rincian || [];
-  epPreviewRab();
-}
 
 async function _epFetchUsulanDetail(id) {
   try {
