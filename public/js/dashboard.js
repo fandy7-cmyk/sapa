@@ -1,4 +1,19 @@
 
+// Dedupe GET identik yang lagi in-flight. Beberapa widget dashboard (IKU grid, chart IKU,
+// Pantau Indikator) manggil endpoint yang sama hampir bersamaan - sekarang cuma 1 request
+// jaringan, sisanya dapat clone response-nya. Entry dihapus begitu selesai, jadi tidak ada
+// data basi (bukan cache).
+const _dashInflight = new Map();
+function _dashFetchOnce(url) {
+  let p = _dashInflight.get(url);
+  if (!p) {
+    p = fetch(url, { headers: authHeaders() });
+    _dashInflight.set(url, p);
+    const clear = () => { if (_dashInflight.get(url) === p) _dashInflight.delete(url); };
+    p.then(clear, clear);
+  }
+  return p.then(r => r.clone());
+}
 
 async function loadDashboard() {
   const wrap = document.getElementById('dashStats');
@@ -1437,7 +1452,7 @@ async function _initIkuGrid() {
   
   const [rekapRes, periodeRes, tahunListRes] = await Promise.allSettled([
     fetch(`/api/kinerja/rekap?bulan=${bulan}&tahun=${tahun}`, { headers: authHeaders() }).then(r => r.ok ? r.json() : { rekap: [] }),
-    fetch('/api/periode', { headers: authHeaders() }).then(r => r.ok ? r.json() : { periode: [] }),
+    _dashFetchOnce('/api/periode').then(r => r.ok ? r.json() : { periode: [] }),
     fetch('/api/kinerja/rekap/tahun-list', { headers: authHeaders() }).then(r => r.ok ? r.json() : { tahun: [] }),
   ]);
 
@@ -1675,7 +1690,7 @@ function _ikuRenderChartSection() {
       
       if (!_kwAllIndikator.length) {
         try {
-          const rInd = await fetch('/api/kinerja/indikator', { headers: authHeaders() });
+          const rInd = await _dashFetchOnce('/api/kinerja/indikator');
           if (rInd.ok) {
             const dInd = await rInd.json();
             _kwAllIndikator = (dInd.indikator || [])
@@ -1708,7 +1723,7 @@ function _ikuRenderChartSection() {
   if (!_kwAllIndikator.length && typeof authHeaders === 'function') {
     (async () => {
       try {
-        const rInd = await fetch('/api/kinerja/indikator', { headers: authHeaders() });
+        const rInd = await _dashFetchOnce('/api/kinerja/indikator');
         if (rInd.ok) {
           const dInd = await rInd.json();
           _kwAllIndikator = (dInd.indikator || [])
@@ -2504,9 +2519,9 @@ async function _initKinerjaWatch() {
     
     const [, rAllResult, rIndResult] = await Promise.all([
       _kwFetchTahun(tahun),
-      fetch('/api/periode', { headers: authHeaders() })
+      _dashFetchOnce('/api/periode')
         .then(r => r.ok ? r.json() : null).catch(() => null),
-      fetch('/api/kinerja/indikator', { headers: authHeaders() })
+      _dashFetchOnce('/api/kinerja/indikator')
         .then(r => r.ok ? r.json() : null).catch(() => null),
     ]);
 
@@ -2606,6 +2621,7 @@ function _kwClearRekapCache(tahun) {
 // lalu rerender widget dashboard yang lagi kebuka (kalau ada).
 function _invalidateAllKinerjaDashboardCache() {
   if (typeof _kwAllRekap === 'undefined') return;
+  if (typeof _kwTahunInflight !== 'undefined') _kwTahunInflight.clear();
   Object.keys(_kwAllRekap).forEach(thn => {
     delete _kwAllRekap[thn];
     _kwClearRekapCache(thn);
@@ -2645,7 +2661,20 @@ function _kwRerenderAfterBgRefresh() {
   if (document.getElementById('ikuChartSection') && typeof _ikuRenderChartSection === 'function') _ikuRenderChartSection();
 }
 
+// In-flight dedupe per tahun: tanpa ini, tiap widget yang manggil _kwFetchTahun(2026) barengan
+// nembak 3 request (monev/ikk/spm) sendiri-sendiri.
+const _kwTahunInflight = new Map();
 async function _kwFetchTahun(tahun) {
+  if (_kwAllRekap[tahun]) return;
+  if (_kwTahunInflight.has(tahun)) return _kwTahunInflight.get(tahun);
+  const p = _kwFetchTahunImpl(tahun).finally(() => {
+    if (_kwTahunInflight.get(tahun) === p) _kwTahunInflight.delete(tahun);
+  });
+  _kwTahunInflight.set(tahun, p);
+  return p;
+}
+
+async function _kwFetchTahunImpl(tahun) {
   if (_kwAllRekap[tahun]) return; 
 
   const cached = _kwReadRekapCache(tahun);
@@ -2673,6 +2702,7 @@ async function _kwFetchTahun(tahun) {
 
 function _invalidateKinerjaDashboardCache(tahun) {
   if (typeof _kwAllRekap !== 'undefined' && tahun) delete _kwAllRekap[tahun];
+  if (tahun && typeof _kwTahunInflight !== 'undefined') _kwTahunInflight.delete(tahun);
   if (tahun) _kwClearRekapCache(tahun);
 }
 

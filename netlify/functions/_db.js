@@ -31,3 +31,17 @@ export function errorResponse(message, status = 500, extra = {}) {
 export function parseBody(event) {
   try { return JSON.parse(event.body || '{}'); } catch { return {}; }
 }
+
+// Jalankan fn() sekali per instance function yang warm (mis. migrasi ALTER TABLE ... IF NOT EXISTS).
+// Request yang datang bersamaan berbagi promise yang sama; kalau gagal, entry dibuang supaya dicoba lagi.
+// Penting: ALTER TABLE mengambil lock tabel walau kolomnya sudah ada, jadi jangan dijalankan tiap request.
+const _onceCache = new Map();
+export function runOnce(key, fn) {
+  let p = _onceCache.get(key);
+  if (!p) {
+    p = (async () => fn())();
+    _onceCache.set(key, p);
+    p.catch(() => { if (_onceCache.get(key) === p) _onceCache.delete(key); });
+  }
+  return p;
+}

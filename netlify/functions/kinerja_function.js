@@ -1,4 +1,4 @@
-import { getDb, jsonResponse, errorResponse, parseBody } from './_db.js';
+import { getDb, jsonResponse, errorResponse, parseBody, runOnce } from './_db.js';
 import { requireAuth, requireAdmin } from './_auth.js';
 import { deleteFromCloudinary } from './_cloudinary.js';
 
@@ -49,10 +49,10 @@ export const handler = async (event) => {
   const qs  = event.queryStringParameters || {};
 
   try {
-    await sql`
+    await runOnce('kinerja.tipe_perhitungan', () => sql`
       ALTER TABLE kinerja_indikator
         ADD COLUMN IF NOT EXISTS tipe_perhitungan TEXT NOT NULL DEFAULT 'non_kumulatif'
-    `;
+    `);
   } catch (migErr) {
     console.error('[migrate tipe_perhitungan]', migErr);
   }
@@ -129,6 +129,7 @@ export const handler = async (event) => {
     if (!auth) return errorResponse('Unauthorized', 401);
 
     try {
+      await runOnce('kinerja.jenis', async () => {
       await sql`
         CREATE TABLE IF NOT EXISTS kinerja_jenis (
           id         SERIAL PRIMARY KEY,
@@ -156,6 +157,7 @@ export const handler = async (event) => {
         ALTER TABLE kinerja_indikator
           ADD COLUMN IF NOT EXISTS jenis_custom JSONB DEFAULT '[]'::jsonb
       `;
+      });
     } catch (migErr) {
       console.error('[jenis-kinerja migrate]', migErr);
     }
@@ -3236,6 +3238,7 @@ export const handler = async (event) => {
     if (!adminUser) return errorResponse('Unauthorized', 401);
 
     try {
+      await runOnce('kinerja.laporan_template', async () => {
       await sql`CREATE TABLE IF NOT EXISTS laporan_template (
         id SERIAL PRIMARY KEY, jenis TEXT NOT NULL DEFAULT 'urusan',
         nama TEXT NOT NULL, urutan INT NOT NULL DEFAULT 0,
@@ -3246,6 +3249,7 @@ export const handler = async (event) => {
         indikator_id INT NOT NULL, urutan INT NOT NULL DEFAULT 0,
         UNIQUE(template_id, indikator_id))`;
       await sql`ALTER TABLE laporan_template ADD COLUMN IF NOT EXISTS parent_id INT REFERENCES laporan_template(id) ON DELETE CASCADE`;
+      });
     } catch(_e) { /* tabel sudah ada, lanjut */ }
 
     const templateId = segments[1] ? parseInt(segments[1]) : null;

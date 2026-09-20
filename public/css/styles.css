@@ -1578,6 +1578,31 @@ tr:hover td:not(.td-sticky-no):not(.td-sticky-name) { background: var(--abu-1); 
 }
 .field textarea { resize: vertical; min-height: 89px; }
 .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: var(--sp-4); }
+
+.ep-pt-table-wrap { border-radius: var(--r-sm); overflow-x: auto; }
+#epPengaturanTahunanTable { min-width: 420px; }
+/* Header labelnya lumayan panjang (mis. "UNTUNG+OH (%)") - dipaksa satu baris biar gak wrap
+   dan ke-clip/numpuk sama row di bawahnya pas thead sticky; kalo modal-nya sempit tinggal
+   discroll ke samping (.ep-pt-table-wrap udah overflow-x:auto). */
+#epPengaturanTahunanTable th { white-space: nowrap; text-align: center; }
+#epPengaturanTahunanTable td { text-align: center; }
+#epPengaturanTahunanTable td input {
+  width: 100%; height: var(--sp-6); padding: 6px 8px; background: var(--abu-1); border: 1.5px solid var(--abu-2);
+  border-radius: var(--r-sm); font-family: inherit; font-size: var(--fs-sm); color: var(--teks); outline: none;
+  text-align: center; transition: all var(--transition);
+}
+#epPengaturanTahunanTable td input:focus { background: #fff; border-color: var(--hijau); box-shadow: 0 0 0 var(--sp-1) rgba(6,95,70,.1); }
+#epPengaturanTahunanTable .ep-pt-actions { display: flex; align-items: center; justify-content: center; gap: 4px; }
+#epPengaturanTahunanTable td .btn-hapus,
+#epPengaturanTahunanTable td .btn-edit { padding: var(--sp-2); }
+/* Tombol "Simpan baris ini" (checkmark) - pinjem struktur .btn-edit tapi warnanya teal biar
+   jelas beda arti sama tombol Edit (kuning) & Hapus (merah). */
+#epPengaturanTahunanTable td .ep-pt-btn-simpan-baris {
+  background: var(--hijau-light); color: var(--hijau); border-color: #5eead4;
+}
+#epPengaturanTahunanTable td .ep-pt-btn-simpan-baris:hover {
+  background: var(--hijau); color: #fff; border-color: var(--hijau);
+}
 .field-hint { font-size: var(--fs-xs); color: var(--teks-muted); margin-top: var(--sp-1); }
 
 .btn-add-inline {
@@ -10802,3 +10827,8 @@ body:not(.is-admin) .abs-hariini-flex-wrap .dash-kpi-row .abs-jamkerja-wrap:nth-
    tombol "Buka" di kolom Aksi. Tetap kasih hover halus tapi cursor default
    (bukan pointer) biar gak kesan seluruh baris bisa diklik. */
 .lembur-row-plain:hover { background: var(--abu-1, #f5f5f5); }
+
+
+/* Validasi link toko (survei harga 3 toko) - border merah + pesan kecil di bawah field */
+.field input.input-invalid { border-color: var(--merah); box-shadow: 0 0 0 var(--sp-1) rgba(220,38,38,.10); }
+.field-error { font-size: var(--fs-xs); color: var(--merah); margin-top: var(--sp-1); }

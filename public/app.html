@@ -66,11 +66,11 @@
   </script>
   <!-- Preload file theme-engine.js juga, paralel dari awal - jangan
        nunggu parser sampe ke <script> di akhir body baru mulai narik. -->
-  <link rel="preload" as="script" href="js/theme-engine.js?v=1.6.2" />
+  <link rel="preload" as="script" href="js/theme-engine.js?v=1.6.3" />
   <script>history.replaceState(null, '', location.origin);</script>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>SAPA Perencanaan</title>
-  <meta name="app-version" content="1.6.2" />
+  <meta name="app-version" content="1.6.3" />
   <link rel="icon" type="image/png" href="/favicon.png" />
   <link rel="manifest" href="/manifest.json" />
   <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
@@ -81,7 +81,7 @@
   <meta name="apple-mobile-web-app-title" content="SAPA" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="css/styles.css?v=1.6.2" />
+  <link rel="stylesheet" href="css/styles.css?v=1.6.3" />
   <style>
     
     .filter-bar {
@@ -292,7 +292,7 @@
       <div class="topbar-constellation" id="topbarConstellation" aria-hidden="true">
         <canvas id="topbarConstellationCanvas"></canvas>
       </div>
-      <script src="js/topbar_constellation.js?v=1.6.2"></script>
+      <script src="js/topbar_constellation.js?v=1.6.3"></script>
 
       <div class="topbar-profile">
         <div class="topbar-user-info">
@@ -889,6 +889,9 @@
           <button class="btn btn-primary btn-sm" id="btnUnduhStandarHarga" onclick="epDownloadStandarHargaPDF(this)" data-tip="Unduh daftar sesuai filter yang aktif sebagai PDF"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M12 3v12m0 0 4-4m-4 4-4-4M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg>Unduh Standar Harga</button>
           <button class="btn btn-primary btn-sm" id="btnImporStandarHarga" onclick="openImporStandarHargaModal()" data-tip="Impor daftar Standar Harga dari file Excel hasil export SIPD"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><path stroke-linecap="round" d="M8 13h2M8 17h2M14 13h2M14 17h2"/></svg>Import Standar Harga</button>
           <button class="btn btn-primary btn-sm" id="btnTambahStandarHarga" onclick="openStandarHargaModal()" data-tip="Tambah data Standar Harga baru secara manual"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>Tambah</button>
+          <button type="button" class="btn btn-primary btn-sm" id="btnPengaturanKalkulator" data-tip="Berlaku untuk semua Standar Harga Manual" onclick="epOpenPengaturanKalkulator()">
+            <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="margin-right:5px;vertical-align:-2px"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></svg>Pengaturan
+          </button>
         </div>
         <div class="card" style="padding:0;overflow:auto;-webkit-overflow-scrolling:touch;max-height:65vh">
           <table class="surat-table" id="epStandarHargaTable">
@@ -2628,7 +2631,7 @@
             </select>
           </div>
         </div>
-        <div class="field" style="flex:1"><label>Tahun <span style="color:var(--merah)">*</span></label><input type="number" id="epShTahun" placeholder="mis. 2027" /></div>
+        <div class="field" style="flex:1"><label>Tahun <span style="color:var(--merah)">*</span></label><input type="number" id="epShTahun" placeholder="mis. 2027" oninput="epHitungShKalkulator()" /></div>
       </div>
       <div id="epShMetaSipdBlock">
         <div class="field-row">
@@ -2643,7 +2646,7 @@
       <div class="field"><label>Uraian Komponen <span style="color:var(--merah)">*</span></label><input type="text" id="epShUraian" /></div>
       <div class="field"><label>Spesifikasi</label><input type="text" id="epShSpesifikasi" /></div>
       <div class="field-row">
-        <div class="field"><label>Satuan</label><input type="text" id="epShSatuan" placeholder="mis. Buah, Kg, Paket" /></div>
+        <div class="field"><label>Satuan</label><input type="text" id="epShSatuan" autocomplete="off" placeholder="Klik untuk lihat pilihan, atau ketik untuk mencari..." oninput="epSearchShSatuan()" onfocus="epSearchShSatuan()" /></div>
         <div class="field">
           <label>Harga Satuan <span style="color:var(--merah)">*</span></label>
           <input type="text" inputmode="numeric" id="epShHarga" oninput="_epFormatRupiahLive(this)" />
@@ -2655,36 +2658,66 @@
           <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" style="margin-right:5px;vertical-align:-2px"><rect x="4" y="2" width="16" height="20" rx="2"/><line x1="8" y1="6" x2="16" y2="6"/><line x1="8" y1="10" x2="8" y2="10"/><line x1="12" y1="10" x2="12" y2="10"/><line x1="16" y1="10" x2="16" y2="10"/><line x1="8" y1="14" x2="8" y2="14"/><line x1="12" y1="14" x2="12" y2="14"/><line x1="16" y1="14" x2="16" y2="14"/><line x1="8" y1="18" x2="8" y2="18"/><line x1="12" y1="18" x2="12" y2="18"/></svg>
           Hitung dari Survei Harga (3 Toko)
         </button>
-        <button type="button" class="btn btn-ghost btn-sm" id="btnPengaturanKalkulator" data-tip="Pengaturan Kalkulator (% inflasi/keuntungan/pajak)" onclick="epOpenPengaturanKalkulator()" style="display:none;padding:6px 8px">
-          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M3.33946 17.0002C2.90721 16.2515 2.58277 15.4702 2.36133 14.6741C3.3338 14.1779 3.99972 13.1668 3.99972 12.0002C3.99972 10.8345 3.3348 9.824 2.36353 9.32741C2.81025 7.71651 3.65857 6.21627 4.86474 4.99001C5.7807 5.58416 6.98935 5.65534 7.99972 5.072C9.01009 4.48866 9.55277 3.40635 9.4962 2.31604C11.1613 1.8846 12.8847 1.90004 14.5031 2.31862C14.4475 3.40806 14.9901 4.48912 15.9997 5.072C17.0101 5.65532 18.2187 5.58416 19.1346 4.99007C19.7133 5.57986 20.2277 6.25151 20.66 7.00021C21.0922 7.7489 21.4167 8.53025 21.6381 9.32628C20.6656 9.82247 19.9997 10.8336 19.9997 12.0002C19.9997 13.166 20.6646 14.1764 21.6359 14.673C21.1892 16.2839 20.3409 17.7841 19.1347 19.0104C18.2187 18.4163 17.0101 18.3451 15.9997 18.9284C14.9893 19.5117 14.4467 20.5941 14.5032 21.6844C12.8382 22.1158 11.1148 22.1004 9.49633 21.6818C9.55191 20.5923 9.00929 19.5113 7.99972 18.9284C6.98938 18.3451 5.78079 18.4162 4.86484 19.0103C4.28617 18.4205 3.77172 17.7489 3.33946 17.0002ZM11.9997 15.0002C10.3429 15.0002 8.99972 13.6571 8.99972 12.0002C8.99972 10.3434 10.3429 9.00021 11.9997 9.00021C13.6566 9.00021 14.9997 10.3434 14.9997 12.0002C14.9997 13.6571 13.6566 15.0002 11.9997 15.0002ZM11.9997 13.0002C12.552 13.0002 12.9997 12.5525 12.9997 12.0002C12.9997 11.4479 12.552 11.0002 11.9997 11.0002C11.4474 11.0002 10.9997 11.4479 10.9997 12.0002C10.9997 12.5525 11.4474 13.0002 11.9997 13.0002Z"/></svg>
-        </button>
       </div>
       <div id="epShKalkulatorBox" style="display:none;background:var(--abu-1);border-radius:10px;padding:14px 14px 4px;margin-bottom:16px">
         <div class="field-hint" style="margin-top:0;margin-bottom:10px">Isi hasil survei 3 toko - harga satuan di atas otomatis dihitung & dibulatkan ke ribuan terdekat.</div>
         <div class="field-row">
-          <div class="field"><label>Nama Toko 1</label><input type="text" id="epShT1Nama" placeholder="Nama toko/penyedia" /></div>
-          <div class="field"><label>Harga Toko 1</label><input type="text" inputmode="numeric" id="epShT1Harga" oninput="_epFormatRupiahLive(this); epHitungShKalkulator()" /></div>
+          <div class="field"><label><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:5px;vertical-align:-2px;color:var(--hijau)"><path d="M3 9l1.5-5h15L21 9"/><path d="M3 9a3 3 0 0 0 6 0 3 3 0 0 0 6 0 3 3 0 0 0 6 0"/><path d="M5 12v8h14v-8"/><path d="M10 20v-4h4v4"/></svg>Nama Toko 1</label><input type="text" id="epShT1Nama" placeholder="Nama toko/penyedia" /></div>
+          <div class="field"><label><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:5px;vertical-align:-2px;color:var(--hijau)"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>Harga Toko 1</label><input type="text" inputmode="numeric" id="epShT1Harga" oninput="_epFormatRupiahLive(this); epHitungShKalkulator()" /></div>
         </div>
-        <div class="field-row">
-          <div class="field"><label>Nama Toko 2</label><input type="text" id="epShT2Nama" placeholder="Nama toko/penyedia" /></div>
-          <div class="field"><label>Harga Toko 2</label><input type="text" inputmode="numeric" id="epShT2Harga" oninput="_epFormatRupiahLive(this); epHitungShKalkulator()" /></div>
-        </div>
-        <div class="field-row">
-          <div class="field"><label>Nama Toko 3</label><input type="text" id="epShT3Nama" placeholder="Nama toko/penyedia" /></div>
-          <div class="field"><label>Harga Toko 3</label><input type="text" inputmode="numeric" id="epShT3Harga" oninput="_epFormatRupiahLive(this); epHitungShKalkulator()" /></div>
-        </div>
-        <div class="field-row">
-          <div class="field"><label>Ongkos Kirim</label><input type="text" inputmode="numeric" id="epShOngkir" value="0" oninput="_epFormatRupiahLive(this); epHitungShKalkulator()" /></div>
+        <div class="field-row" style="margin-top:-8px">
+          <div class="field"><label><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:5px;vertical-align:-2px;color:var(--hijau)"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>Link Toko 1</label><input type="url" id="epShT1Link" placeholder="Link Inaproc/Tokopedia/Shopee, dll" onblur="_epCekLinkToko(this)" oninput="_epBersihkanErrorLink(this)" /></div>
           <div class="field">
-            <label>Keuntungan + Overhead (%)</label>
-            <input type="number" id="epShPersenUntung" value="15" min="5" max="15" step="0.01" oninput="epHitungShKalkulator()" onblur="_epClampPersenUntung()" data-tip="Sesuai standar analisa survei harga: 5%-15% per barang" />
+            <label><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:5px;vertical-align:-2px;color:var(--hijau)"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>Bukti Harga Toko 1</label>
+            <div style="display:flex;gap:8px;align-items:center;min-height:38px">
+              <input type="file" id="epShT1BuktiFile" accept="image/*,.pdf" multiple style="display:none" onchange="epUploadBuktiToko(this,1)" />
+              <button type="button" id="epShT1BuktiBtn" onclick="document.getElementById('epShT1BuktiFile').click()" style="display:inline-flex;align-items:center;gap:5px;padding:8px 13px;border-radius:8px;border:1.5px solid #fca5a5;cursor:pointer;font-size:.75rem;font-weight:600;font-family:inherit;background:#fee2e2;color:#991b1b"><svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg><span class="bukti-btn-label">Upload</span></button>
+            </div>
+            <div id="epShT1BuktiList"></div>
           </div>
         </div>
-        <div class="field-hint" style="margin-bottom:10px">PPN + PPh (persentase diatur di Pengaturan Kalkulator) dihitung otomatis dari Jumlah.</div>
+        <div class="field-row">
+          <div class="field"><label><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:5px;vertical-align:-2px;color:var(--hijau)"><path d="M3 9l1.5-5h15L21 9"/><path d="M3 9a3 3 0 0 0 6 0 3 3 0 0 0 6 0 3 3 0 0 0 6 0"/><path d="M5 12v8h14v-8"/><path d="M10 20v-4h4v4"/></svg>Nama Toko 2</label><input type="text" id="epShT2Nama" placeholder="Nama toko/penyedia" /></div>
+          <div class="field"><label><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:5px;vertical-align:-2px;color:var(--hijau)"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>Harga Toko 2</label><input type="text" inputmode="numeric" id="epShT2Harga" oninput="_epFormatRupiahLive(this); epHitungShKalkulator()" /></div>
+        </div>
+        <div class="field-row" style="margin-top:-8px">
+          <div class="field"><label><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:5px;vertical-align:-2px;color:var(--hijau)"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>Link Toko 2</label><input type="url" id="epShT2Link" placeholder="Link Inaproc/Tokopedia/Shopee, dll" onblur="_epCekLinkToko(this)" oninput="_epBersihkanErrorLink(this)" /></div>
+          <div class="field">
+            <label><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:5px;vertical-align:-2px;color:var(--hijau)"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>Bukti Harga Toko 2</label>
+            <div style="display:flex;gap:8px;align-items:center;min-height:38px">
+              <input type="file" id="epShT2BuktiFile" accept="image/*,.pdf" multiple style="display:none" onchange="epUploadBuktiToko(this,2)" />
+              <button type="button" id="epShT2BuktiBtn" onclick="document.getElementById('epShT2BuktiFile').click()" style="display:inline-flex;align-items:center;gap:5px;padding:8px 13px;border-radius:8px;border:1.5px solid #fca5a5;cursor:pointer;font-size:.75rem;font-weight:600;font-family:inherit;background:#fee2e2;color:#991b1b"><svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg><span class="bukti-btn-label">Upload</span></button>
+            </div>
+            <div id="epShT2BuktiList"></div>
+          </div>
+        </div>
+        <div class="field-row">
+          <div class="field"><label><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:5px;vertical-align:-2px;color:var(--hijau)"><path d="M3 9l1.5-5h15L21 9"/><path d="M3 9a3 3 0 0 0 6 0 3 3 0 0 0 6 0 3 3 0 0 0 6 0"/><path d="M5 12v8h14v-8"/><path d="M10 20v-4h4v4"/></svg>Nama Toko 3</label><input type="text" id="epShT3Nama" placeholder="Nama toko/penyedia" /></div>
+          <div class="field"><label><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:5px;vertical-align:-2px;color:var(--hijau)"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>Harga Toko 3</label><input type="text" inputmode="numeric" id="epShT3Harga" oninput="_epFormatRupiahLive(this); epHitungShKalkulator()" /></div>
+        </div>
+        <div class="field-row" style="margin-top:-8px">
+          <div class="field"><label><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:5px;vertical-align:-2px;color:var(--hijau)"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>Link Toko 3</label><input type="url" id="epShT3Link" placeholder="Link Inaproc/Tokopedia/Shopee, dll" onblur="_epCekLinkToko(this)" oninput="_epBersihkanErrorLink(this)" /></div>
+          <div class="field">
+            <label><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:5px;vertical-align:-2px;color:var(--hijau)"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>Bukti Harga Toko 3</label>
+            <div style="display:flex;gap:8px;align-items:center;min-height:38px">
+              <input type="file" id="epShT3BuktiFile" accept="image/*,.pdf" multiple style="display:none" onchange="epUploadBuktiToko(this,3)" />
+              <button type="button" id="epShT3BuktiBtn" onclick="document.getElementById('epShT3BuktiFile').click()" style="display:inline-flex;align-items:center;gap:5px;padding:8px 13px;border-radius:8px;border:1.5px solid #fca5a5;cursor:pointer;font-size:.75rem;font-weight:600;font-family:inherit;background:#fee2e2;color:#991b1b"><svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg><span class="bukti-btn-label">Upload</span></button>
+            </div>
+            <div id="epShT3BuktiList"></div>
+          </div>
+        </div>
+        <div class="field-row">
+          <div class="field"><label><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:5px;vertical-align:-2px;color:var(--hijau)"><rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>Ongkos Kirim</label><input type="text" inputmode="numeric" id="epShOngkir" value="0" oninput="_epFormatRupiahLive(this); epHitungShKalkulator()" /></div>
+          <div class="field">
+            <label><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:5px;vertical-align:-2px;color:var(--hijau)"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>Keuntungan + Overhead (%)</label>
+            <input type="number" id="epShPersenUntung" placeholder="5 - 15" min="5" max="15" step="0.01" oninput="epHitungShKalkulator()" onblur="_epClampPersenUntung()" data-tip="Sesuai standar analisa survei harga: 5%-15% per barang" />
+          </div>
+        </div>
+        <div class="field-hint" style="margin-bottom:10px">Keuntungan + Overhead diisi sendiri per barang (5%-15%). PPN + PPh dan Indeks Inflasi diatur di Pengaturan Kalkulator, dihitung otomatis dari Jumlah.</div>
         <table class="mini-table" style="width:100%;font-size:12.5px;margin-bottom:10px">
           <tr><td>Nilai Rata-Rata</td><td id="epShCalcRata" style="text-align:right;font-weight:600">Rp0</td></tr>
           <tr><td>Total Real (Rata-rata + Ongkir)</td><td id="epShCalcTotalReal" style="text-align:right;font-weight:600">Rp0</td></tr>
-          <tr><td>Keuntungan + Overhead</td><td id="epShCalcUntung" style="text-align:right;font-weight:600">Rp0</td></tr>
+          <tr><td id="epShCalcUntungLabel">Keuntungan + Overhead</td><td id="epShCalcUntung" style="text-align:right;font-weight:600">Rp0</td></tr>
           <tr><td>Jumlah</td><td id="epShCalcJumlah" style="text-align:right;font-weight:600">Rp0</td></tr>
           <tr><td id="epShCalcPpnLabel">PPN + PPh</td><td id="epShCalcPpn" style="text-align:right;font-weight:600">Rp0</td></tr>
           <tr id="epShCalcInflasiRow"><td id="epShCalcInflasiLabel">Indeks Inflasi</td><td id="epShCalcInflasi" style="text-align:right;font-weight:600">Rp0</td></tr>
@@ -2693,7 +2726,7 @@
         </table>
         <button type="button" class="btn btn-primary btn-sm" style="margin-bottom:12px" onclick="epPakaiHasilShKalkulator()">Pakai Harga Ini</button>
       </div>
-      <div class="field">
+      <div class="field" id="epShKodeRekeningField">
         <label>Kode Rekening Terkait</label>
         <div class="chip-multi-wrap" id="epShKodeRekeningWrap" onclick="document.getElementById('epShKodeRekeningInput').focus()">
           <input type="text" class="chip-multi-input" id="epShKodeRekeningInput" placeholder="Cari kode rekening…" autocomplete="off" oninput="debounceInput('epShKodeRekeningInput', epSearchShKodeRekening, 300)" onfocus="epSearchShKodeRekening()" onkeydown="epShKodeRekeningKeydown(event)" />
@@ -2718,16 +2751,34 @@
 </div>
 
 <div class="modal-overlay" id="modalPengaturanKalkulator">
-  <div class="modal" style="max-width:420px">
+  <div class="modal" style="max-width:680px">
     <div class="modal-header">
       <div class="modal-title-wrap"><span class="modal-icon-badge"><svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></span><div class="modal-title">Pengaturan Kalkulator Survei Harga</div></div>
       <button class="btn-close" onclick="closeModal('modalPengaturanKalkulator')"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg></button>
     </div>
     <div class="modal-body">
       <div class="field-hint" style="margin-top:0">Berlaku buat semua kalkulator "Survei Harga (3 Toko)" - baik di panel Standar Harga maupun di form Rincian Belanja (kategori Manual).</div>
-      <div class="field"><label>Persentase Keuntungan + Overhead Default (%)</label><input type="number" id="epPengaturanUntung" step="0.01" min="0" max="100" /></div>
-      <div class="field"><label>Persentase Indeks Inflasi (%)</label><input type="number" id="epPengaturanInflasi" step="0.01" min="0" max="100" /></div>
-      <div class="field"><label>Persentase PPN + PPh Efektif (%)</label><input type="number" id="epPengaturanPajak" step="0.01" min="0" max="100" /></div>
+      <div class="field">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:var(--sp-2)">
+          <label style="margin:0">Setting per Tahun Anggaran</label>
+          <button type="button" class="btn btn-primary btn-sm" style="flex-shrink:0;white-space:nowrap" onclick="_epPengaturanTahunanAddRow()"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>Tambah Tahun</button>
+        </div>
+        <div class="field-hint" style="margin-top:0;margin-bottom:8px">Tiap Tahun Anggaran punya settingnya sendiri, biar ubah setting buat TA baru (mis. 2027) gak ikut ngubah TA yang udah jalan (mis. 2026). Tahun yang belum ditambahkan di sini dianggap belum diatur.</div>
+        <div class="ep-pt-table-wrap">
+          <table class="surat-table" id="epPengaturanTahunanTable">
+            <thead>
+              <tr>
+                <th>Tahun</th>
+                <th>PPN+PPh (%)</th>
+                <th>Inflasi (%)</th>
+                <th>Aksi</th>
+              </tr>
+            </thead>
+            <tbody id="epPengaturanTahunanList"></tbody>
+          </table>
+        </div>
+        <div id="epPengaturanTahunanPagination"></div>
+      </div>
     </div>
     <div class="modal-footer">
       <button class="btn btn-ghost" onclick="closeModal('modalPengaturanKalkulator')">Batal</button>
@@ -3417,6 +3468,7 @@
       </div>
       </div>
       <div id="epRincRestFields" style="display:none">
+      <div id="epRincPengelompokanWrap">
       <div class="field">
         <label>Pengelompokan Belanja / Paket Pekerjaan <span style="color:var(--merah)">*</span></label>
         <div class="select-wrap">
@@ -3431,6 +3483,7 @@
         <label>Uraian Pengelompokan Belanja / Paket Pekerjaan <span style="color:var(--merah)">*</span></label>
         <input type="text" id="epRincUraianPaket" autocomplete="off" oninput="epSearchUraianPaket();_epUpdateSaveRincianBtn()" onfocus="epSearchUraianPaket()" placeholder="Klik untuk lihat pilihan, atau ketik uraian baru…" />
         <button type="button" class="btn-add-inline" id="btnTambahPaketBelanja" onclick="epFocusUraianPaketBaru(event)"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg><span>Tambah Paket Belanja</span></button>
+      </div>
       </div>
       <div class="field">
         <label>Sumber Dana <span style="color:var(--merah)">*</span></label>
@@ -4833,7 +4886,7 @@
 </div>
 
 
-<script src="js/periode_frontend.js?v=1.6.2"></script>
+<script src="js/periode_frontend.js?v=1.6.3"></script>
 <script>
 (function() {
   'use strict';
@@ -4976,25 +5029,24 @@
 })();
 </script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/quill/1.3.7/quill.min.js"></script>
-  <script src="js/app.js?v=1.6.2"></script>
-<script src="js/dashboard.js?v=1.6.2"></script>
+  <script src="js/app.js?v=1.6.3"></script>
+<script src="js/dashboard.js?v=1.6.3"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-<script src="js/superlink.js?v=1.6.2"></script>
-<script src="js/pengumuman_frontend.js?v=1.6.2"></script>
-<script src="js/surat.js?v=1.6.2"></script>
-<script src="js/eplanning_frontend.js?v=1.6.2"></script>
-<script src="js/absensi_frontend.js?v=1.6.2"></script>
-<script src="js/lembur_frontend.js?v=1.6.2"></script>
-<script src="js/users_frontend.js?v=1.6.2"></script>
-<script src="js/kinerja.js?v=1.6.2"></script>
-<script src="js/laporan.js?v=1.6.2"></script>
-<script src="js/struktur_frontend.js?v=1.6.2"></script>
-<script src="js/audit_frontend.js?v=1.6.2"></script>
-<script src="js/dokumen_publik_frontend.js?v=1.6.2"></script>
-<script src="js/profil_frontend.js?v=1.6.2"></script>
-<script src="js/tema_musiman_frontend.js?v=1.6.2"></script>
-<script src="js/theme-engine.js?v=1.6.2"></script>
+<script src="js/superlink.js?v=1.6.3"></script>
+<script src="js/pengumuman_frontend.js?v=1.6.3"></script>
+<script src="js/surat.js?v=1.6.3"></script>
+<script src="js/eplanning_frontend.js?v=1.6.3"></script>
+<script src="js/absensi_frontend.js?v=1.6.3"></script>
+<script src="js/lembur_frontend.js?v=1.6.3"></script>
+<script src="js/users_frontend.js?v=1.6.3"></script>
+<script src="js/kinerja.js?v=1.6.3"></script>
+<script src="js/laporan.js?v=1.6.3"></script>
+<script src="js/struktur_frontend.js?v=1.6.3"></script>
+<script src="js/audit_frontend.js?v=1.6.3"></script>
+<script src="js/dokumen_publik_frontend.js?v=1.6.3"></script>
+<script src="js/profil_frontend.js?v=1.6.3"></script>
+<script src="js/tema_musiman_frontend.js?v=1.6.3"></script>
+<script src="js/theme-engine.js?v=1.6.3"></script>
 
 <script>
 (function () {

@@ -2,10 +2,30 @@
 import { getDb, jsonResponse, errorResponse, parseBody } from './_db.js';
 import { requireAuth } from './_auth.js';
 import { logAudit } from './_audit.js';
+import { createHash } from 'node:crypto';
 
+// Migrasi dijalankan sekali per "versi" isi _runMigrations (hash source-nya disimpan di tabel
+// schema_version). Jadi cold start biasa cuma 1 SELECT, bukan ~90 query. Kalau _runMigrations
+// diedit (nambah kolom/tabel dll), hash berubah dan migrasi otomatis jalan lagi sekali.
 let _migrated = false;
 async function ensureSchema(sql) {
   if (_migrated) return;
+  const ver = createHash('sha1').update(_runMigrations.toString()).digest('hex').slice(0, 16);
+  try {
+    const r = await sql`SELECT version FROM schema_version WHERE modul = 'eplanning' LIMIT 1`;
+    if (r.length && r[0].version === ver) { _migrated = true; return; }
+  } catch (_) { /* tabel schema_version belum ada -> lanjut migrasi */ }
+
+  await _runMigrations(sql);
+
+  await sql`CREATE TABLE IF NOT EXISTS schema_version (
+    modul TEXT PRIMARY KEY, version TEXT NOT NULL, updated_at TIMESTAMPTZ DEFAULT NOW())`;
+  await sql`INSERT INTO schema_version (modul, version) VALUES ('eplanning', ${ver})
+            ON CONFLICT (modul) DO UPDATE SET version = EXCLUDED.version, updated_at = NOW()`;
+  _migrated = true;
+}
+
+async function _runMigrations(sql) {
   await sql`
     CREATE TABLE IF NOT EXISTS eplanning_usulan (
       id                TEXT PRIMARY KEY,
@@ -159,6 +179,9 @@ async function ensureSchema(sql) {
   // pilihannya keliatan hilang/balik ke "-" walau Komponen-nya sendiri udah kepilih. Disimpen
   // sekarang biar bisa direstore.
   await sql`ALTER TABLE eplanning_rincian ADD COLUMN IF NOT EXISTS kategori_standar TEXT`;
+  // Relasi ke Standar Harga Manual (eplanning_standar_harga.id) yang jadi dasar harga rincian ini -
+  // dipakai buat nampilin data survei 3 toko & ikut memperbarui harga rincian pas survei diedit.
+  await sql`ALTER TABLE eplanning_rincian ADD COLUMN IF NOT EXISTS standar_harga_id INT`;
   await sql`
     CREATE TABLE IF NOT EXISTS eplanning_subkegiatan (
       kode_subkegiatan TEXT PRIMARY KEY,
@@ -321,9 +344,27 @@ async function ensureSchema(sql) {
   // superadmin bisa lacak/verifikasi asal harganya pas ditinjau di tab MANUAL.
   await sql`ALTER TABLE eplanning_standar_harga ADD COLUMN IF NOT EXISTS catatan_survei TEXT`;
   await sql`ALTER TABLE eplanning_standar_harga ADD COLUMN IF NOT EXISTS dibuat_oleh TEXT`;
-  // Parameter kalkulator survei harga (3 toko) - dulu di-hardcode di frontend, sekarang bisa
-  // diatur superadmin (tombol Pengaturan di halaman Standar Harga) biar gampang disesuaikan
-  // kalau ada perubahan indeks inflasi/keuntungan/pajak dari pemerintah.
+  // ID user penginput - dipakai buat cek hak ubah survei (nama bisa kembar antar user, ID gak).
+  await sql`ALTER TABLE eplanning_standar_harga ADD COLUMN IF NOT EXISTS dibuat_oleh_id TEXT`;
+  // Data terstruktur survei 3 toko (nama/harga/link/bukti_url per toko + ongkir/persen untung),
+  // disimpen sebagai JSON text - dipakai buat cross-check ulang harga pas pemeriksaan (link toko
+  // & foto struk/screenshot jadi bukti), bukan cuma ringkasan teks di catatan_survei.
+  await sql`ALTER TABLE eplanning_standar_harga ADD COLUMN IF NOT EXISTS survei_toko TEXT`;
+  // Parameter kalkulator survei harga (3 toko) - dulu di-hardcode di frontend, lalu sempet jadi
+  // 1 nilai global (persen_untung_default/persen_pajak) + Indeks Inflasi per tahun terpisah.
+  // Sekarang SEMUANYA (untung, pajak, inflasi) disimpen per Tahun Anggaran dalam 1 tabel, biar
+  // perubahan setting buat TA baru (mis. 2027) gak ikut ngubah TA yang udah jalan (mis. 2026).
+  await sql`
+    CREATE TABLE IF NOT EXISTS eplanning_pengaturan_tahunan (
+      tahun                  INTEGER PRIMARY KEY,
+      persen_untung_default  NUMERIC,
+      persen_pajak           NUMERIC NOT NULL,
+      persen_inflasi         NUMERIC NOT NULL DEFAULT 0,
+      updated_at             TIMESTAMPTZ DEFAULT NOW()
+    )
+  `;
+  // Skema lama (dipertahankan apa adanya di DB, cuma dipakai sbg sumber migrasi 1x di bawah -
+  // gak dipakai lagi di endpoint API) supaya data lama gak hilang pas upgrade.
   await sql`
     CREATE TABLE IF NOT EXISTS eplanning_pengaturan (
       kunci      TEXT PRIMARY KEY,
@@ -334,11 +375,46 @@ async function ensureSchema(sql) {
   `;
   await sql`
     INSERT INTO eplanning_pengaturan (kunci, nilai, keterangan) VALUES
-      ('persen_inflasi', 5.33, 'Persentase indeks inflasi tahunan (kalkulator survei harga 3 toko)'),
-      ('persen_untung_default', 15, 'Persentase keuntungan + overhead default (kalkulator survei harga 3 toko)'),
-      ('persen_pajak', 12.5, 'Persentase PPN + PPh efektif (kalkulator survei harga 3 toko)')
+      ('persen_untung_default', 15, 'Persentase keuntungan + overhead default (kalkulator survei harga 3 toko) - legacy'),
+      ('persen_pajak', 12.5, 'Persentase PPN + PPh efektif (kalkulator survei harga 3 toko) - legacy')
     ON CONFLICT (kunci) DO NOTHING
   `;
+  await sql`
+    CREATE TABLE IF NOT EXISTS eplanning_pengaturan_inflasi (
+      tahun      INTEGER PRIMARY KEY,
+      persen     NUMERIC NOT NULL,
+      updated_at TIMESTAMPTZ DEFAULT NOW()
+    )
+  `;
+  await sql`
+    INSERT INTO eplanning_pengaturan_inflasi (tahun, persen) VALUES (2027, 5.33)
+    ON CONFLICT (tahun) DO NOTHING
+  `;
+  // Kolom persen_untung_default sudah gak dipakai (Keuntungan+Overhead diisi user per barang,
+  // 5%-15%) - dibiarin di DB sbg legacy tapi gak wajib lagi biar INSERT baru gak perlu ngisi.
+  await sql`ALTER TABLE eplanning_pengaturan_tahunan ALTER COLUMN persen_untung_default DROP NOT NULL`;
+  // Migrasi 1x: pindahin data lama (untung/pajak global + inflasi per-tahun) ke tabel baru
+  // per-tahun anggaran. ON CONFLICT DO NOTHING -> aman dipanggil ulang tiap cold start.
+  {
+    const _oldGlobal = await sql`SELECT kunci, nilai FROM eplanning_pengaturan`;
+    const _oldPajak = Number(_oldGlobal.find(r => r.kunci === 'persen_pajak')?.nilai ?? 12.5);
+    const _oldInflasi = await sql`SELECT tahun, persen FROM eplanning_pengaturan_inflasi`;
+    for (const row of _oldInflasi) {
+      await sql`
+        INSERT INTO eplanning_pengaturan_tahunan (tahun, persen_pajak, persen_inflasi)
+        VALUES (${row.tahun}, ${_oldPajak}, ${Number(row.persen)})
+        ON CONFLICT (tahun) DO NOTHING
+      `;
+    }
+    const _cntTahunan = await sql`SELECT COUNT(*)::int AS c FROM eplanning_pengaturan_tahunan`;
+    if (_cntTahunan[0].c === 0) {
+      await sql`
+        INSERT INTO eplanning_pengaturan_tahunan (tahun, persen_pajak, persen_inflasi)
+        VALUES (2027, ${_oldPajak}, 5.33)
+        ON CONFLICT (tahun) DO NOTHING
+      `;
+    }
+  }
   await sql`CREATE INDEX IF NOT EXISTS idx_eplanning_usulan_bidang ON eplanning_usulan(bidang_id)`;
   await sql`CREATE INDEX IF NOT EXISTS idx_eplanning_usulan_status ON eplanning_usulan(status)`;
   await sql`CREATE INDEX IF NOT EXISTS idx_eplanning_usulan_tahun ON eplanning_usulan(tahun_anggaran)`;
@@ -348,7 +424,6 @@ async function ensureSchema(sql) {
   await sql`CREATE INDEX IF NOT EXISTS idx_eplanning_standarharga_uraian ON eplanning_standar_harga(uraian_barang)`;
   await sql`CREATE INDEX IF NOT EXISTS idx_eplanning_standarharga_kode ON eplanning_standar_harga(kode_barang)`;
   await sql`CREATE INDEX IF NOT EXISTS idx_eplanning_standarharga_tahun ON eplanning_standar_harga(tahun)`;
-  _migrated = true;
 }
 
 function generateId(prefix) {
@@ -362,7 +437,7 @@ const EP_OBJEK_BELANJA_LIST = [
   'Belanja Hibah (Barang/Jasa)', 'Belanja Hibah (Uang)', 'Belanja Bantuan Sosial (Barang/Jasa)',
   'Belanja Bantuan Sosial (Uang)', 'Belanja Bagi Hasil', 'Belanja Bantuan Keuangan Umum',
   'Belanja Bantuan Keuangan Khusus', 'Belanja Tidak Terduga (BTT)', 'Dana BOS (BOS Pusat)',
-  'Belanja Operasional (BLUD)', 'Pembebasan Tanah/Lahan',
+  'Belanja Operasional (BLUD)', 'Pembebasan Tanah/Lahan', 'Manual (Survei Harga)',
 ];
 const EP_OBJEK_BELANJA_PREFIX_MAP = [
   ['5.1.05.02', 'Belanja Hibah (Barang/Jasa)'],
@@ -423,6 +498,72 @@ function isStatusMenungguKepala(status) {
   return typeof status === 'string' && status.startsWith('MENUNGGU KEPALA');
 }
 
+// ---- Kalkulator "Survei Harga (3 Toko)" versi server ----
+// Rumusnya SAMA PERSIS dengan epHitungShKalkulator() di frontend. Dipakai buat ngitung ulang
+// harga Standar Harga MANUAL di server, jadi angka dari klien (harga_satuan, persen_untung,
+// catatan_survei) gak dipercaya begitu aja. Persentase Keuntungan + Overhead SEPENUHNYA diisi user
+// per barang (wajib, dibatasi 5%-15% di sini - gak bisa ditembus lewat DevTools/request langsung);
+// gak ada default dari Pengaturan Kalkulator lagi. Kalau kosong/di luar rentang -> { error }.
+const SURVEI_UNTUNG_MIN = 5, SURVEI_UNTUNG_MAX = 15;
+const SURVEI_PAJAK_FALLBACK = 12.5;
+function _fmtRupiahSurvei(n) {
+  return 'Rp' + String(Math.round(n || 0)).replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+}
+function linkTokoValid(v) {
+  v = String(v ?? '').trim();
+  if (!v) return true;
+  try {
+    const u = new URL(v);
+    return (u.protocol === 'http:' || u.protocol === 'https:') && /^[^.\s]+(\.[^.\s]+)+$/.test(u.hostname);
+  } catch { return false; }
+}
+function hitungSurveiHarga(input, pengaturanTahun, tahun) {
+  const tokoIn = Array.isArray(input.toko) ? input.toko.slice(0, 3) : [];
+  const toko = tokoIn.map(t => ({
+    nama: String(t?.nama ?? '').trim(),
+    harga: Math.max(0, Number(t?.harga) || 0),
+    link: String(t?.link ?? '').trim(),
+    bukti_url: typeof t?.bukti_url === 'string' ? t.bukti_url : '',
+  }));
+  if (toko.length < 3) return { error: 'Survei harga wajib 3 toko' };
+  for (let i = 0; i < 3; i++) {
+    if (!toko[i].nama) return { error: `Nama Toko ${i + 1} wajib diisi (survei harus 3 toko)` };
+    if (toko[i].harga <= 0) return { error: `Harga Toko ${i + 1} wajib diisi (survei harus 3 toko)` };
+    if (!toko[i].link) return { error: `Link Toko ${i + 1} wajib diisi (survei harus 3 toko)` };
+    if (!toko[i].bukti_url) return { error: `Bukti Harga Toko ${i + 1} wajib diupload (survei harus 3 toko)` };
+  }
+  for (let i = 0; i < toko.length; i++) {
+    if (!linkTokoValid(toko[i].link)) return { error: `Link Toko ${i + 1} tidak valid (harus diawali http:// atau https://)` };
+  }
+  const ongkir = Math.max(0, Number(input.ongkir) || 0);
+  const persenUntung = (input.persen_untung == null || input.persen_untung === '') ? NaN : Number(input.persen_untung);
+  if (!Number.isFinite(persenUntung) || persenUntung < SURVEI_UNTUNG_MIN || persenUntung > SURVEI_UNTUNG_MAX) {
+    return { error: `Keuntungan + Overhead wajib diisi (${SURVEI_UNTUNG_MIN}% - ${SURVEI_UNTUNG_MAX}%)` };
+  }
+  const persenPajak = pengaturanTahun ? (Number(pengaturanTahun.persen_pajak) || 0) : SURVEI_PAJAK_FALLBACK;
+  const persenInflasi = pengaturanTahun ? (Number(pengaturanTahun.persen_inflasi) || 0) : 0;
+
+  const isi = toko.map(t => t.harga).filter(v => v > 0);
+  const rata2 = isi.length ? isi.reduce((a, b) => a + b, 0) / isi.length : 0;
+  const totalReal = rata2 + ongkir;
+  const jumlah = totalReal + totalReal * (persenUntung / 100);
+  const total = jumlah + jumlah * (persenPajak / 100) + jumlah * (persenInflasi / 100);
+  const bulat = Math.round(total / 1000) * 1000;
+
+  const baris = [];
+  toko.forEach((t, i) => { if (t.harga > 0) baris.push(`${t.nama || `Toko ${i + 1}`}: ${_fmtRupiahSurvei(t.harga)}`); });
+  baris.push(
+    `Ongkir: ${_fmtRupiahSurvei(ongkir)}`,
+    `Keuntungan+Overhead: ${persenUntung}%`,
+    `Indeks Inflasi: ${pengaturanTahun ? `${persenInflasi}%` : `0% (belum diatur utk TA ${tahun})`}`
+  );
+  return {
+    bulat,
+    catatan: `Hasil kalkulator survei 3 toko - ${baris.join(', ')}.`,
+    survei: { toko: toko.filter(t => t.nama || t.harga || t.link || t.bukti_url), ongkir, persen_untung: persenUntung },
+  };
+}
+
 async function getRole(sql, auth) {
   if (auth.is_admin) return { isAdmin: true, isKabid: false, isOperator: false, isSekretaris: false, bidangId: null };
   const perms = await sql`SELECT menu_key FROM user_permissions WHERE user_id = ${auth.id}`;
@@ -477,10 +618,11 @@ export const handler = async (event) => {
   if (event.httpMethod === 'OPTIONS') return jsonResponse({});
 
   const sql = getDb();
-  await ensureSchema(sql);
 
   const auth = requireAuth(event);
   if (!auth) return errorResponse('Unauthorized', 401);
+
+  await ensureSchema(sql);
 
   const role = await getRole(sql, auth);
   if (!role.isAdmin && !role.isKabid && !role.isOperator && !role.isSekretaris) {
@@ -1140,6 +1282,9 @@ export const handler = async (event) => {
           namaRekening = r[0]?.nama_rekening || null;
         }
         const objekBelanja = resolveObjekBelanja(body.kode_rekening, body.sumber_dana, body.objek_belanja);
+        // Relasi ke Standar Harga Manual - cuma berlaku buat kategori MANUAL.
+        const standarHargaId = (String(body.kategori_standar || '').toUpperCase() === 'MANUAL' && Number.isInteger(Number(body.standar_harga_id)) && Number(body.standar_harga_id) > 0)
+          ? Number(body.standar_harga_id) : null;
 
         let rows;
         if (isNew) {
@@ -1147,7 +1292,7 @@ export const handler = async (event) => {
             INSERT INTO eplanning_rincian (
               id, usulan_id, kode_rekening, nama_rekening, sumber_dana, objek_belanja, komponen,
               spesifikasi, satuan, keterangan, jenis_paket, uraian_paket, koefisien, koefisien_detail,
-              volume, harga_satuan, sub_total, status_item, catatan, kategori_standar
+              volume, harga_satuan, sub_total, status_item, catatan, kategori_standar, standar_harga_id
             ) VALUES (
               ${rincianId}, ${body.usulan_id}, ${body.kode_rekening || null}, ${namaRekening},
               ${body.sumber_dana || null}, ${objekBelanja}, ${body.komponen || null}, ${body.spesifikasi || null},
@@ -1155,7 +1300,7 @@ export const handler = async (event) => {
               ${body.koefisien || null},
               ${JSON.stringify(koefisienDetail)},
               ${volume}, ${harga}, ${subTotal}, ${body.status_item || null}, ${body.catatan || null},
-              ${body.kategori_standar || null}
+              ${body.kategori_standar || null}, ${standarHargaId}
             ) RETURNING *`;
         } else {
           rows = await sql`
@@ -1168,7 +1313,7 @@ export const handler = async (event) => {
               koefisien_detail = ${JSON.stringify(koefisienDetail)},
               volume = ${volume}, harga_satuan = ${harga},
               sub_total = ${subTotal}, status_item = ${body.status_item || null}, catatan = ${body.catatan || null},
-              kategori_standar = ${body.kategori_standar || null},
+              kategori_standar = ${body.kategori_standar || null}, standar_harga_id = ${standarHargaId},
               updated_at = NOW()
             WHERE id = ${rincianId} RETURNING *`;
           if (!rows.length) return errorResponse('Rincian tidak ditemukan', 404);
@@ -1690,28 +1835,49 @@ export const handler = async (event) => {
       return errorResponse('Not found', 404);
     }
 
-    // Parameter kalkulator "Survei Harga (3 Toko)" - siapa aja yang punya akses eplanning boleh
-    // baca (dipakai pas ngitung di form Rincian/Standar Harga), tapi cuma superadmin yang boleh ubah.
-    if (resource === 'pengaturankalkulator') {
+    // Parameter kalkulator "Survei Harga (3 Toko)" per Tahun Anggaran (untung, pajak, inflasi
+    // sekalian dalam 1 baris per tahun) - GET dibuka buat siapa aja yang punya akses eplanning
+    // (dipakai ngitung di form Rincian/Standar Harga), PUT (ganti seluruh daftar sekaligus -
+    // biar gampang dari 1 form tambah/hapus baris tahun) cuma buat admin. Tahun yang belum
+    // ada barisnya di sini dianggap "belum diatur" di kalkulator (pakai nilai default darurat).
+    if (resource === 'pengaturantahunan') {
       if (event.httpMethod === 'GET') {
-        const rows = await sql`SELECT kunci, nilai, keterangan FROM eplanning_pengaturan ORDER BY kunci`;
-        const pengaturan = {};
-        rows.forEach(r => { pengaturan[r.kunci] = Number(r.nilai); });
-        return jsonResponse({ pengaturan, detail: rows });
+        const rows = await sql`SELECT tahun, persen_pajak, persen_inflasi FROM eplanning_pengaturan_tahunan ORDER BY tahun ASC`;
+        return jsonResponse({
+          pengaturan: rows.map(r => ({
+            tahun: r.tahun,
+            persen_pajak: Number(r.persen_pajak),
+            persen_inflasi: Number(r.persen_inflasi),
+          })),
+        });
       }
       if (event.httpMethod === 'PUT') {
         if (!role.isAdmin) return errorResponse('Unauthorized', 401);
         const b = parseBody(event);
-        const allowedKeys = ['persen_inflasi', 'persen_untung_default', 'persen_pajak'];
-        for (const k of allowedKeys) {
-          if (b[k] !== undefined && b[k] !== '' && !isNaN(Number(b[k]))) {
-            await sql`UPDATE eplanning_pengaturan SET nilai = ${Number(b[k])}, updated_at = NOW() WHERE kunci = ${k}`;
+        const inputRows = Array.isArray(b.rows) ? b.rows : [];
+        const map = new Map();
+        for (const r of inputRows) {
+          const tahun = parseInt(r.tahun, 10);
+          const pajak = Number(r.persen_pajak);
+          const inflasi = Number(r.persen_inflasi) || 0;
+          if (Number.isInteger(tahun) && tahun >= 2000 && tahun <= 2100
+              && !isNaN(pajak) && pajak >= 0 && inflasi >= 0) {
+            map.set(tahun, { pajak, inflasi }); // duplikat tahun di input -> yang terakhir menang
           }
         }
-        const rows = await sql`SELECT kunci, nilai, keterangan FROM eplanning_pengaturan ORDER BY kunci`;
-        const pengaturan = {};
-        rows.forEach(r => { pengaturan[r.kunci] = Number(r.nilai); });
-        return jsonResponse({ ok: true, pengaturan });
+        await sql`DELETE FROM eplanning_pengaturan_tahunan`;
+        for (const [tahun, v] of map) {
+          await sql`INSERT INTO eplanning_pengaturan_tahunan (tahun, persen_pajak, persen_inflasi) VALUES (${tahun}, ${v.pajak}, ${v.inflasi})`;
+        }
+        const rows = await sql`SELECT tahun, persen_pajak, persen_inflasi FROM eplanning_pengaturan_tahunan ORDER BY tahun ASC`;
+        return jsonResponse({
+          ok: true,
+          pengaturan: rows.map(r => ({
+            tahun: r.tahun,
+            persen_pajak: Number(r.persen_pajak),
+            persen_inflasi: Number(r.persen_inflasi),
+          })),
+        });
       }
       return errorResponse('Not found', 404);
     }
@@ -1948,18 +2114,87 @@ export const handler = async (event) => {
         const tahun = /^\d{4}$/.test(String(b.tahun)) ? parseInt(b.tahun) : null;
         if (!kategori || !uraian_barang) return errorResponse('Kategori dan uraian barang wajib diisi', 400);
         if (!tahun) return errorResponse('Tahun wajib diisi', 400);
+        // MANUAL: harga dihitung ulang di server dari data survei 3 toko + pengaturan TA-nya -
+        // harga_satuan/persen_untung/catatan_survei kiriman klien gak dipercaya (lihat hitungSurveiHarga).
+        let hargaFinal = Number(b.harga_satuan) || 0;
+        let catatanFinal = isManual ? (b.catatan_survei || null) : null;
+        let surveiFinal = isManual ? (b.survei_toko || null) : null;
+        if (isManual) {
+          let surveiIn = null;
+          try { surveiIn = typeof b.survei_toko === 'string' ? JSON.parse(b.survei_toko) : b.survei_toko; } catch { surveiIn = null; }
+          const surveiValid = !!surveiIn && typeof surveiIn === 'object' && Array.isArray(surveiIn.toko);
+          if (!surveiValid && !role.isAdmin) return errorResponse('Data survei 3 toko wajib diisi untuk Standar Harga Manual', 400);
+          if (surveiValid) {
+            const pg = await sql`SELECT persen_pajak, persen_inflasi FROM eplanning_pengaturan_tahunan WHERE tahun = ${tahun}`;
+            const hasil = hitungSurveiHarga(surveiIn, pg[0] || null, tahun);
+            if (hasil.error) return errorResponse(hasil.error, 400);
+            if (hasil.bulat <= 0) return errorResponse('Harga toko wajib diisi', 400);
+            hargaFinal = hasil.bulat;
+            catatanFinal = hasil.catatan;
+            surveiFinal = JSON.stringify(hasil.survei);
+          }
+        }
         const rows = await sql`
           INSERT INTO eplanning_standar_harga
             (kategori, tahun, kode_kelompok_barang, uraian_kelompok_barang, id_standar_harga, kode_barang,
-             uraian_barang, spesifikasi, satuan, harga_satuan, kode_rekening, tkdn, catatan_survei, dibuat_oleh)
+             uraian_barang, spesifikasi, satuan, harga_satuan, kode_rekening, tkdn, catatan_survei, survei_toko, dibuat_oleh, dibuat_oleh_id)
           VALUES (
             ${kategori}, ${tahun}, ${b.kode_kelompok_barang?.trim() || null}, ${b.uraian_kelompok_barang?.trim() || null},
             ${b.id_standar_harga?.trim() || null}, ${b.kode_barang || null}, ${uraian_barang},
-            ${b.spesifikasi || null}, ${b.satuan || null}, ${Number(b.harga_satuan) || 0}, ${b.kode_rekening || null},
+            ${b.spesifikasi || null}, ${b.satuan || null}, ${hargaFinal}, ${b.kode_rekening || null},
             ${b.tkdn === '' || b.tkdn == null ? null : Number(b.tkdn)},
-            ${isManual ? (b.catatan_survei || null) : null}, ${isManual ? (auth.nama || null) : null}
+            ${catatanFinal}, ${surveiFinal},
+            ${isManual ? (auth.nama || null) : null},
+            ${isManual && auth.id != null ? String(auth.id) : null}
           ) RETURNING *`;
         return jsonResponse({ standarharga: rows[0] }, 201);
+      }
+
+      // Ubah survei 3 toko milik Standar Harga MANUAL (dari tombol "Ubah Survei Harga" di modal
+      // Rincian) - UPDATE di tempat (bukan bikin entri baru). Boleh admin atau penginput aslinya
+      // (dibuat_oleh); harga dihitung ulang di server, lalu rincian yang nge-link ke entri ini
+      // (standar_harga_id) dan usulannya masih DRAFT/DITOLAK ikut diperbarui harganya.
+      if (event.httpMethod === 'PUT' && id) {
+        const b0 = parseBody(event);
+        if (b0.survei_toko !== undefined && b0.survei_toko !== null) {
+          const cur0 = await sql`SELECT * FROM eplanning_standar_harga WHERE id = ${id}`;
+          if (!cur0.length) return errorResponse('Data tidak ditemukan', 404);
+          const c0 = cur0[0];
+          if (c0.kategori === 'MANUAL') {
+            // Aturan: HANYA admin & penginput asli yang boleh ngubah; user lain cuma bisa memakai ulang.
+            // Entri lama tanpa dibuat_oleh_id dicocokkan lewat nama penginput.
+            const boleh = role.isAdmin || (c0.dibuat_oleh_id
+              ? String(c0.dibuat_oleh_id) === String(auth.id)
+              : (!!c0.dibuat_oleh && c0.dibuat_oleh === (auth.nama || null)));
+            if (!boleh) return errorResponse(`Survei ini diinput oleh ${c0.dibuat_oleh || 'user lain'} - hanya penginput atau admin yang bisa mengubahnya (kamu tetap bisa memakainya ulang)`, 403);
+            let surveiIn = null;
+            try { surveiIn = typeof b0.survei_toko === 'string' ? JSON.parse(b0.survei_toko) : b0.survei_toko; } catch { surveiIn = null; }
+            if (!surveiIn || typeof surveiIn !== 'object' || !Array.isArray(surveiIn.toko)) return errorResponse('Data survei 3 toko wajib diisi untuk Standar Harga Manual', 400);
+            const tahunHitung = c0.tahun || 2027; // baris lama tanpa tahun dianggap TA 2027 (konvensi filter di atas)
+            const pg = await sql`SELECT persen_pajak, persen_inflasi FROM eplanning_pengaturan_tahunan WHERE tahun = ${tahunHitung}`;
+            const hasil = hitungSurveiHarga(surveiIn, pg[0] || null, tahunHitung);
+            if (hasil.error) return errorResponse(hasil.error, 400);
+            if (hasil.bulat <= 0) return errorResponse('Harga toko wajib diisi', 400);
+            const has0 = (k) => Object.prototype.hasOwnProperty.call(b0, k);
+            const spesifikasi = has0('spesifikasi') ? (b0.spesifikasi || null) : c0.spesifikasi;
+            const satuan = has0('satuan') ? (b0.satuan || null) : c0.satuan;
+            const tkdn = has0('tkdn') ? (b0.tkdn === '' || b0.tkdn == null ? null : Number(b0.tkdn)) : c0.tkdn;
+            const upd = await sql`
+              UPDATE eplanning_standar_harga SET
+                spesifikasi = ${spesifikasi}, satuan = ${satuan}, tkdn = ${tkdn},
+                harga_satuan = ${hasil.bulat}, catatan_survei = ${hasil.catatan}, survei_toko = ${JSON.stringify(hasil.survei)},
+                updated_at = NOW()
+              WHERE id = ${id} RETURNING *`;
+            const terdampak = await sql`
+              UPDATE eplanning_rincian ri
+              SET harga_satuan = ${hasil.bulat}, sub_total = COALESCE(ri.volume, 0) * ${hasil.bulat}, updated_at = NOW()
+              FROM eplanning_usulan u
+              WHERE ri.standar_harga_id = ${id} AND ri.usulan_id = u.id AND u.status IN ('DRAFT', 'DITOLAK')
+              RETURNING ri.usulan_id`;
+            for (const uid of new Set(terdampak.map(x => x.usulan_id))) await recalcTotal(sql, uid);
+            return jsonResponse({ standarharga: upd[0], rincian_diperbarui: terdampak.length });
+          }
+        }
       }
 
       if (!role.isAdmin) return errorResponse('Unauthorized', 401);

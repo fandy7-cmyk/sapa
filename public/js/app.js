@@ -261,13 +261,20 @@ let _hasSpmIndikator   = false;
 async function _cekKinerjaIndikator() {
   if (_user && _user.is_admin) { _hasMonevIndikator = true; _hasIkkIndikator = true; _hasSpmIndikator = true; return; }
   try {
-    
-    const [rAssign, rAll] = await Promise.all([
-      fetch(`/api/users/${_user.id}/indikator`, { headers: authHeaders() }).catch(() => null),
-      fetch('/api/kinerja/indikator',            { headers: authHeaders() }).catch(() => null),
-    ]);
+    const rAssign = await fetch(`/api/users/${_user.id}/indikator`, { headers: authHeaders() }).catch(() => null);
     const dAssign = (rAssign && rAssign.ok) ? await rAssign.json() : {};
-    const dAll    = (rAll    && rAll.ok)    ? await rAll.json()    : {};
+
+    // Jalur cepat: backend sudah ngirim flag jenis -> gak perlu narik seluruh /api/kinerja/indikator (payload besar).
+    if (dAssign.jenis) {
+      _hasMonevIndikator = !!dAssign.jenis.monev;
+      _hasIkkIndikator   = !!dAssign.jenis.ikk;
+      _hasSpmIndikator   = !!dAssign.jenis.spm;
+      return;
+    }
+
+    // Fallback (backend lama yang belum ngirim flag jenis)
+    const rAll = await fetch('/api/kinerja/indikator', { headers: authHeaders() }).catch(() => null);
+    const dAll = (rAll && rAll.ok) ? await rAll.json() : {};
 
     const assignedIds  = new Set((dAssign.indikator_ids || []).map(Number));
     const allIndikator = dAll.indikator || [];
@@ -808,17 +815,14 @@ function buildSidebar() {
     };
     const _closeHover = () => {
       if (_sidebarCollapsed) return;
-      
-      
-      
-      
-      const stillHasActive = sub.querySelector('.nav-sub-item.active, .nav-sub-sub-item.active');
-      if (_openGroups[group.id] && stillHasActive) return;
+      // Kalau grup ini sedang di-pin terbuka (diklik), jangan auto-close
+      // walau mouse sempat keluar dan belum ada sub-item yang aktif.
+      if (_openGroups[group.id]) return;
       _hoverTimer = setTimeout(() => {
         sub.classList.remove('open');
         const chev = document.getElementById('chev-' + group.id);
         if (chev) chev.classList.remove('open');
-      }, 150);
+      }, 400);
     };
     groupItem.addEventListener('mouseenter', _openHover);
     groupItem.addEventListener('mouseleave', _closeHover);
@@ -861,13 +865,14 @@ function buildSidebar() {
         };
         const _closeHoverSub = () => {
           if (_sidebarCollapsed) return;
-          const stillHasActive = subsub.querySelector('.nav-sub-sub-item.active');
-          if (_openGroups[child.id] && stillHasActive) return;
+          // Sama seperti grup induk: kalau branch ini sedang di-pin (diklik),
+          // jangan auto-close duluan sebelum user sempat pilih sub-sub item.
+          if (_openGroups[child.id]) return;
           _hoverTimerSub = setTimeout(() => {
             subsub.classList.remove('open');
             const chevSub = document.getElementById('chev-' + child.id);
             if (chevSub) chevSub.classList.remove('open');
-          }, 150);
+          }, 400);
         };
         branchItem.addEventListener('mouseenter', _openHoverSub);
         branchItem.addEventListener('mouseleave', _closeHoverSub);
@@ -1356,10 +1361,11 @@ async function _bootRefreshTandaTangan() {
   // absensi nggak lambat muncul pas baru login.
   if (typeof _startAbsensiReminderPoll === 'function') _startAbsensiReminderPoll();
 
-  loadPeriodeAktif()
-    .then(() => Promise.all([_bootRefreshUser(), _bootRefreshFoto(), _bootRefreshTandaTangan()]))
-    .then(() => _cekKinerjaIndikator())
-    .finally(() => {
+  // Semua request boot saling independen -> jalan paralel (dulu berantai: periode -> user/foto/ttd -> cek indikator).
+  // Foto tidak ditunggu: avatar dari cache sessionStorage sudah dipasang di awal _bootRefreshFoto().
+  _bootRefreshFoto();
+  Promise.allSettled([loadPeriodeAktif(), _bootRefreshUser(), _bootRefreshTandaTangan(), _cekKinerjaIndikator()])
+    .then(() => {
       buildSidebar();
       _applySidebarCollapse();
       _startPeriodeTimer();
@@ -1916,6 +1922,21 @@ const _PDFJS_WORKER = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pd
 const _MAMMOTH_CDN  = 'https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js';
 const _SHEETJS_CDN  = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
 
+// Loader SheetJS (lazy) - idempotent, dan benar-benar nunggu sampai script selesai dimuat.
+let _xlsxPromise = null;
+function _loadXlsx() {
+  if (window.XLSX) return Promise.resolve();
+  if (!_xlsxPromise) {
+    _xlsxPromise = new Promise((res, rej) => {
+      const sc = document.createElement('script');
+      sc.src = _SHEETJS_CDN; sc.onload = res;
+      sc.onerror = () => { _xlsxPromise = null; sc.remove(); rej(new Error('SheetJS gagal dimuat, cek koneksi internet')); };
+      document.head.appendChild(sc);
+    });
+  }
+  return _xlsxPromise;
+}
+
 function _dpLoadScript(src) {
   return new Promise((res, rej) => {
     if (document.querySelector(`script[src="${src}"]`)) { res(); return; }
@@ -2332,7 +2353,7 @@ async function _dpRenderExcel(proxyUrl, name) {
   body.style.background = '';
   body.innerHTML = _dpLoadingHtml('Memuat spreadsheet…');
 
-  await _dpLoadScript(_SHEETJS_CDN);
+  await _loadXlsx();
   if (!window.XLSX) throw new Error('SheetJS gagal dimuat');
 
   const fetchHeaders = {};

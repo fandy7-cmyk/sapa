@@ -21,6 +21,7 @@ const FOLDER_MAP = {
   foto_profil:  'SAPA/Foto Profil',
   tanda_tangan: 'SAPA/Tanda Tangan',
   eplanning:    'SAPA/E-Planning',
+  eplanning_survei_harga: 'SAPA/E-Planning',
   tema_musiman: 'SAPA/Tema Musiman',
 };
 const DEFAULT_FOLDER = 'SAPA';

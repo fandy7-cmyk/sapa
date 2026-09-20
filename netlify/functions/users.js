@@ -1,6 +1,6 @@
 
 import bcrypt from 'bcryptjs';
-import { getDb, jsonResponse, errorResponse, parseBody } from './_db.js';
+import { getDb, jsonResponse, errorResponse, parseBody, runOnce } from './_db.js';
 import { requireAdmin, requireAuth } from './_auth.js';
 import { logAudit } from './_audit.js';
 
@@ -41,10 +41,22 @@ export const handler = async (event) => {
   if (event.httpMethod === 'GET' && userId && segments[1] === 'indikator') {
     if (auth.id !== userId && !auth.is_admin) return errorResponse('Unauthorized', 401);
     try {
+      // LEFT JOIN supaya indikator_ids tetap identik; flag jenis dipakai frontend buat menentukan
+      // menu Kinerja (IKU/IKK/SPM) tanpa harus narik seluruh daftar indikator.
       const rows = await sql`
-        SELECT indikator_id FROM user_indikator WHERE user_id = ${userId}
+        SELECT ui.indikator_id, ki.jenis_monev, ki.jenis_ikk, ki.jenis_spm
+        FROM user_indikator ui
+        LEFT JOIN kinerja_indikator ki ON ki.id = ui.indikator_id
+        WHERE ui.user_id = ${userId}
       `;
-      return jsonResponse({ indikator_ids: rows.map(r => r.indikator_id) });
+      return jsonResponse({
+        indikator_ids: rows.map(r => r.indikator_id),
+        jenis: {
+          monev: rows.some(r => !!r.jenis_monev),
+          ikk:   rows.some(r => !!r.jenis_ikk),
+          spm:   rows.some(r => !!r.jenis_spm),
+        },
+      });
     } catch (err) {
       console.error('[GET /api/users/:id/indikator]', err);
       return errorResponse('Gagal mengambil data indikator');
@@ -54,7 +66,7 @@ export const handler = async (event) => {
   if (event.httpMethod === 'GET' && userId && segments[1] === 'foto') {
     if (auth.id !== userId && !auth.is_admin) return errorResponse('Unauthorized', 401);
     try {
-      await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar_url TEXT`;
+      await runOnce('users.avatar_url', () => sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar_url TEXT`);
       const rows = await sql`
         SELECT u.avatar_url, p.foto_url AS pegawai_foto_url
         FROM users u
@@ -74,7 +86,7 @@ export const handler = async (event) => {
     if (auth.id !== userId && !auth.is_admin) return errorResponse('Unauthorized', 401);
     const { avatar_url } = parseBody(event);
     try {
-      await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar_url TEXT`;
+      await runOnce('users.avatar_url', () => sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar_url TEXT`);
       const val = (avatar_url && avatar_url.trim()) ? avatar_url.trim() : null;
       await sql`UPDATE users SET avatar_url = ${val} WHERE id = ${userId}`;
       return jsonResponse({ ok: true, avatar_url: val });
@@ -89,7 +101,7 @@ export const handler = async (event) => {
   if (event.httpMethod === 'GET' && userId && segments[1] === 'tanda-tangan') {
     if (auth.id !== userId && !auth.is_admin) return errorResponse('Unauthorized', 401);
     try {
-      await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS tanda_tangan TEXT`;
+      await runOnce('users.tanda_tangan', () => sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS tanda_tangan TEXT`);
       const rows = await sql`SELECT tanda_tangan FROM users WHERE id = ${userId} LIMIT 1`;
       return jsonResponse({ tanda_tangan: rows[0]?.tanda_tangan || null });
     } catch (err) {
@@ -102,7 +114,7 @@ export const handler = async (event) => {
     if (auth.id !== userId && !auth.is_admin) return errorResponse('Unauthorized', 401);
     const { tanda_tangan } = parseBody(event);
     try {
-      await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS tanda_tangan TEXT`;
+      await runOnce('users.tanda_tangan', () => sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS tanda_tangan TEXT`);
       const val = (tanda_tangan && tanda_tangan.trim()) ? tanda_tangan.trim() : null;
       await sql`UPDATE users SET tanda_tangan = ${val} WHERE id = ${userId}`;
       return jsonResponse({ ok: true, tanda_tangan: val });
@@ -141,9 +153,9 @@ export const handler = async (event) => {
         return jsonResponse({ users });
       }
 
-      await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS urutan_laporan INTEGER`;
-      await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar_url TEXT`;
-      await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS tanda_tangan TEXT`;
+      await runOnce('users.urutan_laporan', () => sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS urutan_laporan INTEGER`);
+      await runOnce('users.avatar_url', () => sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar_url TEXT`);
+      await runOnce('users.tanda_tangan', () => sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS tanda_tangan TEXT`);
       const users = await sql`
         SELECT u.id, u.nama, u.nip, u.email, u.is_admin, u.last_login, u.created_at,
                u.bidang_id, b.nama AS bidang_nama, b.singkatan AS bidang_singkatan,
@@ -173,7 +185,7 @@ export const handler = async (event) => {
     const { order } = parseBody(event);
     if (!Array.isArray(order)) return errorResponse('Format urutan tidak valid', 400);
     try {
-      await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS urutan_laporan INTEGER`;
+      await runOnce('users.urutan_laporan', () => sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS urutan_laporan INTEGER`);
       for (let i = 0; i < order.length; i++) {
         await sql`UPDATE users SET urutan_laporan = ${i} WHERE id = ${order[i]}`;
       }

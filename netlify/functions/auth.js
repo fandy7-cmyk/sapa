@@ -1,5 +1,5 @@
 import bcrypt from 'bcryptjs';
-import { getDb, jsonResponse, errorResponse, parseBody } from './_db.js';
+import { getDb, jsonResponse, errorResponse, parseBody, runOnce } from './_db.js';
 import { signToken, requireAuth, generateRefreshToken, hashRefreshToken } from './_auth.js';
 import { logAudit, getReqMeta, checkLoginRateLimit, recordLoginAttempt, clearLoginAttempts, MAX_LOGIN_ATTEMPTS } from './_audit.js';
 
@@ -23,7 +23,7 @@ export const handler = async (event) => {
     }
 
     try {
-      await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS tanda_tangan TEXT`;
+      await runOnce('users.tanda_tangan', () => sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS tanda_tangan TEXT`);
       const rows = await sql`
         SELECT u.*, b.nama AS bidang_nama, b.singkatan AS bidang_singkatan
         FROM users u
@@ -146,7 +146,7 @@ export const handler = async (event) => {
     const auth = requireAuth(event);
     if (!auth) return errorResponse('Unauthorized', 401);
     try {
-      await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS tanda_tangan TEXT`;
+      await runOnce('users.tanda_tangan', () => sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS tanda_tangan TEXT`);
       const rows = await sql`
         SELECT u.id, u.nama, u.email, u.is_admin, u.bidang_id, u.tanda_tangan,
                b.nama AS bidang_nama, b.singkatan AS bidang_singkatan

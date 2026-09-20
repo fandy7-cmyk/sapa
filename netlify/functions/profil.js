@@ -1,5 +1,5 @@
 
-import { getDb, jsonResponse, errorResponse, parseBody } from './_db.js';
+import { getDb, jsonResponse, errorResponse, parseBody, runOnce } from './_db.js';
 import { requireAdmin } from './_auth.js';
 
 export const handler = async (event) => {
@@ -8,11 +8,11 @@ export const handler = async (event) => {
   const sql = getDb();
 
   try {
-    await sql`
+    await runOnce('profil.latlng', () => sql`
       ALTER TABLE profil_instansi
         ADD COLUMN IF NOT EXISTS lat DOUBLE PRECISION,
         ADD COLUMN IF NOT EXISTS lng DOUBLE PRECISION
-    `;
+    `);
   } catch (err) {
     console.error('[profil] migrate lat/lng', err);
   }
