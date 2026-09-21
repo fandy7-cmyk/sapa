@@ -10832,3 +10832,36 @@ body:not(.is-admin) .abs-hariini-flex-wrap .dash-kpi-row .abs-jamkerja-wrap:nth-
 /* Validasi link toko (survei harga 3 toko) - border merah + pesan kecil di bawah field */
 .field input.input-invalid { border-color: var(--merah); box-shadow: 0 0 0 var(--sp-1) rgba(220,38,38,.10); }
 .field-error { font-size: var(--fs-xs); color: var(--merah); margin-top: var(--sp-1); }
+
+
+/* Modal Rincian (Lihat/Edit/Tambah): blur dimatikan karena bikin scroll berat
+   (di belakangnya ada tabel RAB besar). Background digelapkan sedikit sebagai pengganti. */
+#modalEpRincian {
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  background: rgba(0, 0, 0, .62);
+}
+/* Cegah scroll "menular" ke halaman di belakang modal saat mentok atas/bawah */
+#modalEpRincian .modal-body { overscroll-behavior: contain; }
+
+/* Usulanku: switcher Tahun Anggaran dipindah ke pojok kanan atas header halaman (sejajar judul).
+   Markup-nya tetap di tiap tab; cuma dikeluarin dari alur lewat position:absolute.
+   Animasi fadeUp di tab dimatikan karena transform-nya bikin tab jadi acuan posisi absolute
+   (switcher jadi nempel ke tab, bukan ke header halaman). */
+#page-eplanning-usulanku { position: relative; }
+#page-eplanning-usulanku .ep-usulanku-tab.active { animation: none; }
+#page-eplanning-usulanku .ep-usulanku-tab > .ep-tahun-switcher {
+  position: absolute; top: 0; right: 0; margin: 0;
+  background: transparent; border: none; box-shadow: none; padding: 0;
+}
+/* Label "Tahun Anggaran" - huruf biasa (bukan kapital semua) */
+#page-eplanning-usulanku .ep-tahun-switcher-label {
+  text-transform: none; letter-spacing: 0;
+  font-size: var(--fs-base); gap: 8px;
+}
+#page-eplanning-usulanku .ep-tahun-switcher-label svg { width: 16px; height: 16px; }
+@media (max-width: 640px) {
+  #page-eplanning-usulanku .ep-usulanku-tab > .ep-tahun-switcher {
+    position: static; width: 100%; margin-bottom: var(--sp-3);
+  }
+}

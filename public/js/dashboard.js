@@ -3266,11 +3266,17 @@ function _renderKinerjaWatch() {
   const colBg = _kwCapaianBg(_capVal);
   const label = _kwCapaianLabel(_capVal);
 
-  const gap    = (real !== null && target !== null) ? (target - real) : null;
+  // Gap mengikuti polaritas indikator: normal (makin tinggi makin baik) -> gap = target - real,
+  // bermakna_negatif (makin rendah makin baik, mis. AKB) -> gap = real - target.
+  // gap > 0 selalu berarti "belum memenuhi target".
+  const _isNeg = !!ind.bermakna_negatif;
+  const gap    = (real !== null && target !== null) ? (_isNeg ? (real - target) : (target - real)) : null;
   const gapStr = gap !== null
     ? (isPredikatInd
         ? (gap > 0 ? `Kurang ${Math.round(gap)} tingkat menuju ${esc(targetDisplay ?? '')}` : 'Target terpenuhi')
-        : (gap > 0 ? `Kurang ${gap.toFixed(2)} ${esc(ind.satuan||'')}` : 'Target terpenuhi'))
+        : (gap > 0
+            ? (_isNeg ? `Melebihi batas target ${gap.toFixed(2)} ${esc(ind.satuan||'')}` : `Kurang ${gap.toFixed(2)} ${esc(ind.satuan||'')}`)
+            : 'Target terpenuhi'))
     : '-';
 
   
@@ -3447,8 +3453,8 @@ function _renderKinerjaWatch() {
       <div class="kw-kpi-card" style="--kc:${gapColor}">
         <div style="margin-top:0">
           <div style="font-size:0.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#94a3b8;margin-bottom:4px">Gap ke Target</div>
-          <div style="font-size:1.8rem;font-weight:800;color:${gapColor};line-height:1;letter-spacing:-.02em">${gap !== null ? (gap > 0 ? '+'+(isPredikatInd ? Math.round(gap) : parseFloat(gap).toFixed(2)) : '✓') : '-'}</div>
-          <div style="font-size:0.75rem;color:${gapColor};margin-top:4px;font-weight:600">${gap === null ? 'Data kosong' : gap > 0 ? 'Perlu ditingkatkan' : 'Target tercapai'}</div>
+          <div style="font-size:1.8rem;font-weight:800;color:${gapColor};line-height:1;letter-spacing:-.02em">${gap !== null ? (gap > 0 ? '+'+(isPredikatInd ? Math.round(gap) : parseFloat(gap).toFixed(2)) : '<svg xmlns="http://www.w3.org/2000/svg" width="30" height="30" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display:block"><circle cx="12" cy="12" r="10"/><path d="m8 12.5 3 3 5-6"/></svg>') : '-'}</div>
+          <div style="font-size:0.75rem;color:${gapColor};margin-top:4px;font-weight:600">${gap === null ? 'Data kosong' : gap > 0 ? (_isNeg ? 'Perlu diturunkan' : 'Perlu ditingkatkan') : 'Target tercapai'}</div>
         </div>
         <div style="margin-top:10px;padding-top:8px;border-top:1px solid #f1f5f9;display:flex;justify-content:space-between;align-items:center">
           <div style="font-size:0.78rem;color:#94a3b8">Rata-rata capaian</div>
@@ -3513,7 +3519,9 @@ function _renderKinerjaWatch() {
 
           ${gap !== null ? `
           <div style="margin-top:10px;padding:8px 12px;border-radius:10px;font-size:0.75rem;font-weight:600;display:flex;align-items:center;gap:7px;color:${gap > 0 ? '#ef4444' : '#10b981'};background:${gap > 0 ? '#fef2f2' : '#f0fdf4'};border:1px solid ${gap > 0 ? '#fecaca' : '#bbf7d0'}">
-            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>${gapStr}
+            ${gap > 0
+              ? '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m10.29 3.86-8.18 14.14A2 2 0 0 0 3.84 21h16.32a2 2 0 0 0 1.73-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>'
+              : '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="m8 12.5 3 3 5-6"/></svg>'}${gapStr}
           </div>` : ''}
         </div>
 

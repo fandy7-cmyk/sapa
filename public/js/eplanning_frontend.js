@@ -1907,6 +1907,7 @@ async function openRincianItemModal(id = null, readonly = false) {
   document.getElementById('epRincObjekBelanja').value = '';
   delete document.getElementById('epRincObjekBelanja').dataset.manual;
   delete document.getElementById('epRincObjekBelanja').dataset.manualHarga;
+  _epSyncKategoriManualOption();
   _epFillKoefisienRows([]);
   // Baru dokumen baru -> Rekening & sisa field disembunyikan sampe dipilih berjenjang.
   // Buat edit, langsung dibuka semua biar data yang udah ada kelihatan.
@@ -1928,6 +1929,7 @@ async function openRincianItemModal(id = null, readonly = false) {
         : '';
       if (r.kode_rekening) document.getElementById('epRincKodeRekening').dataset.kode = r.kode_rekening;
       _epRincKodeRekeningActive = r.kode_rekening || '';
+      _epSyncKategoriManualOption(r.kategori_standar === 'MANUAL');
       document.getElementById('epRincKategoriStandar').value = r.kategori_standar || '';
       _epSyncKategoriStandarUi();
       _epUpdateKompSearchBtn();
@@ -2936,6 +2938,8 @@ const _epObjekBelanjaCombo = _epMakeLocalCombobox({
     // langsung skip ke Jenis Standar Harga = MANUAL dan buka modal Survei Harga-nya.
     const isManualHarga = x.nama === 'Manual (Survei Harga)';
     input.dataset.manualHarga = isManualHarga ? '1' : '';
+    if (!isManualHarga) _epLepasKategoriManual();
+    _epSyncKategoriManualOption();
     const pengelompokanWrap = document.getElementById('epRincPengelompokanWrap');
     if (isManualHarga) {
       const rekWrap = document.getElementById('epRincRekeningWrap');
@@ -3947,9 +3951,7 @@ function _epUpdateRekeningWrapVisibility(kategoriStandar) {
   }
 }
 
-// Dipanggil dari onchange select Jenis Standar Harga. Kalau user baru milih "Manual (Survei
-// Harga)" dan belum ada komponen kepilih (bukan lagi buka data Edit yang kategorinya emang
-// udah MANUAL dari awal), langsung buka modal kalkulator 3 toko tanpa nunggu klik tombol lagi.
+// Dipanggil dari onchange select Jenis Standar Harga (lihat _epRincKategoriStandarChanged di bawah).
 // <select> Pengelompokan Belanja / Paket Pekerjaan juga dibungkus custom select - sama kayak Jenis
 // Standar Harga, tampilannya gak ikut berubah kalau value-nya di-set lewat kode (mis. buka Edit,
 // reset form), jadi harus disinkronkan manual (dulu tetap "Pilih jenis..." padahal udah keisi).
@@ -3974,10 +3976,48 @@ function _epSyncKategoriStandarUi() {
   }
   if (typeof syncCustomSelect === 'function') syncCustomSelect('epRincKategoriStandar');
 }
+// Opsi "Manual (Survei Harga)" di dropdown Jenis Standar Harga HANYA boleh ada kalau Objek Belanja-nya
+// "Manual (Survei Harga)" - pintu masuk Manual itu lewat Objek Belanja, bukan lewat dropdown ini.
+// Opsinya dicabut/dipasang lagi dari <select> (bukan cuma disembunyiin) karena daftar custom select
+// dirender dari sel.options tiap dibuka.
+let _epKatManualOpt = null;
+function _epSyncKategoriManualOption(paksaTampil) {
+  const sel = document.getElementById('epRincKategoriStandar');
+  if (!sel) return;
+  const objekInput = document.getElementById('epRincObjekBelanja');
+  const tampil = !!paksaTampil || objekInput?.dataset.manualHarga === '1' || sel.value === 'MANUAL';
+  const ada = Array.from(sel.options).find(o => o.value === 'MANUAL');
+  if (ada && !_epKatManualOpt) _epKatManualOpt = ada;
+  if (tampil === !!ada) return;
+  const idxSebelum = sel.selectedIndex;
+  if (tampil) sel.appendChild(_epKatManualOpt || new Option('Manual (Survei Harga)', 'MANUAL'));
+  else ada.remove();
+  // Ubah opsi bikin browser otomatis milih opsi pertama kalau sebelumnya belum ada yang kepilih
+  // (selectedIndex -1) & MutationObserver custom select nimpa teks trigger jadi "-" -> balikin.
+  if (idxSebelum < 0) {
+    sel.selectedIndex = -1;
+    queueMicrotask(_epSyncKategoriStandarUi);
+  }
+}
+// Objek Belanja diganti dari Manual ke yang lain: pilihan Jenis Standar Harga = Manual beserta
+// komponen hasil pilihannya (data Manual) ikut dilepas, biar gak nyangkut di kategori non-Manual.
+function _epLepasKategoriManual() {
+  const sel = document.getElementById('epRincKategoriStandar');
+  if (!sel || sel.value !== 'MANUAL') return;
+  sel.selectedIndex = -1;
+  ['epRincKomponen', 'epRincSpesifikasi', 'epRincSatuan', 'epRincTkdn'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.value = '';
+  });
+  const harga = document.getElementById('epRincHarga');
+  if (harga) { harga.value = ''; delete harga.dataset.raw; }
+  _epSurveiRincianReset();
+  _epRincKategoriStandarChanged();
+  epUpdateKoefisien();
+}
 function _epRincKategoriStandarChanged() {
   _epSyncKategoriStandarUi();
   const kategoriBaru = document.getElementById('epRincKategoriStandar').value;
-  const sudahAdaKomponen = !!document.getElementById('epRincKomponen').value;
   _epResetKomponenPick();
   _epUpdateKompSearchBtn();
   _epUpdateRekeningWrapVisibility(kategoriBaru);
@@ -3987,7 +4027,9 @@ function _epRincKategoriStandarChanged() {
     _epRincKodeRekeningActive = '';
   }
   _epUpdateSaveRincianBtn();
-  if (kategoriBaru === 'MANUAL' && !sudahAdaKomponen) epOpenStandarHargaManualFromRincian();
+  // Modal Standar Harga Manual (Survei 3 Toko) TIDAK lagi kebuka otomatis pas Manual dipilih -
+  // user harus bisa milih dulu dari daftar Manual yang udah pernah diinput (ikon search di
+  // sebelah Komponen). Kalau mau bikin baru, klik tombol "+ Buat Standar Harga Manual".
 }
 
 const _epStandarHargaCombo = _epMakeStandarHargaCombobox('epRincKomponen', 'epRincKategoriStandar', {

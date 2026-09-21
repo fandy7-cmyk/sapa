@@ -129,6 +129,8 @@ export const handler = async (event) => {
     // list ini (dipakai buat isi dropdown "Pilih Pegawai" di modal Tambah/Edit
     // Absensi). Untuk non-admin, field yang dibalikin dibatasin (gak ada
     // email/nip/tanda_tangan/dll) biar gak bocor data sensitif ke staf biasa.
+    // bidang_id ikut dibalikin karena dropdown "Semua Pegawai" di halaman Absensi menyaring
+    // nama per Unit Kerja (kalau kosong, daftar nama jadi kosong pas filter Unit Kerja aktif).
     let isFullAccess = auth.is_admin;
     if (!isFullAccess) {
       const rows = await sql`
@@ -142,7 +144,7 @@ export const handler = async (event) => {
     try {
       if (!auth.is_admin) {
         const users = await sql`
-          SELECT u.id, u.nama, u.is_admin,
+          SELECT u.id, u.nama, u.is_admin, u.bidang_id,
                  COALESCE(
                    (SELECT array_agg(up.menu_key) FROM user_permissions up WHERE up.user_id = u.id),
                    '{}'
