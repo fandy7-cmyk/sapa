@@ -247,7 +247,9 @@ async function savePegawai() {
   if (!jabatan) { toast('Jabatan wajib diisi', 'error'); return; }
 
   const btn = document.getElementById('btnSavePegawai');
+  const _btnOrigHtml = btn.innerHTML;
   btn.disabled = true;
+  btn.innerHTML = `<span class="btn-spin" style="width:11px;height:11px"></span> Menyimpan...`;
   try {
     const method = id ? 'PUT' : 'POST';
     const url    = id ? `/api/pegawai/${id}` : '/api/pegawai';
@@ -271,6 +273,7 @@ async function savePegawai() {
     toast('Gagal: ' + err.message, 'error');
   } finally {
     btn.disabled = false;
+    btn.innerHTML = _btnOrigHtml;
   }
 }
 

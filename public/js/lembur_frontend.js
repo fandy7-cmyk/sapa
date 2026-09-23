@@ -468,7 +468,8 @@ async function _lemburSubmitTambahKegiatan() {
   // modal tetap dibuka & belum ada yang disimpan sama sekali, biar user tinggal ganti/hapus chip
   // tanggal yang bentrok itu tanpa kehilangan isian lain (nama, jam, peserta, tanggal lain yang oke).
   const btn = document.getElementById('btnSaveLemburKegiatan');
-  if (btn) btn.disabled = true;
+  const _btnOrigHtml = btn ? btn.innerHTML : null;
+  if (btn) { btn.disabled = true; btn.innerHTML = `<span class="btn-spin" style="width:11px;height:11px"></span> Mengecek...`; }
   try {
     const hasilCek = await Promise.all(tanggalList.map(async tanggal => {
       try {
@@ -1243,7 +1244,7 @@ async function _lemburEditJam(id) {
 
   if (_lemburFull) {
     _lemburPesertaSelected = new Set();
-    document.getElementById('lemburSesiPesertaGrid').innerHTML = `<div style="text-align:center;color:var(--teks-muted);padding:8px;font-size:.82rem">Memuat peserta...</div>`;
+    document.getElementById('lemburSesiPesertaGrid').innerHTML = `<div style="text-align:center;color:var(--teks-muted);padding:8px;font-size:.82rem"><span class="btn-spin" style="width:11px;height:11px;vertical-align:-2px;margin-right:4px"></span>Memuat peserta...</div>`;
     try {
       const [, entriesRes] = await Promise.all([
         _lemburFetchPegawai(_lemburDateKey(_lemburActiveSesi.tanggal)),

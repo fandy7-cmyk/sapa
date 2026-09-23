@@ -69,7 +69,7 @@ async function loadDashboard() {
     if (jam < 18) return { color: '#f97316', svg: '<path d="M12 10V2"/><path d="m4.93 10.93 1.41 1.41"/><path d="M2 18h2"/><path d="M20 18h2"/><path d="m19.07 10.93-1.41 1.41"/><path d="M22 22H2"/><path d="m16 6-4 4-4-4"/><path d="M16 18a4 4 0 0 0-8 0"/>' };
     return { color: '#6366f1', svg: '<path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/>' };
   })();
-  const greetIconSvg = `<span class="dash-greet-icon" style="color:${_greetIcon.color}"><svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;margin-left:2px">${_greetIcon.svg}</svg></span>`;
+  const greetIconSvg = `<span class="dash-greet-icon" style="color:${_greetIcon.color}"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-left:2px">${_greetIcon.svg}</svg></span>`;
 
   
   
@@ -127,13 +127,14 @@ async function loadDashboard() {
   let html = `
     <div class="dash-welcome">
       <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:nowrap">
-        <div style="flex:1;min-width:0">
-          <div class="dash-welcome-title"><span style="font-weight:400;font-size:.8rem">${salam}</span> ${greetIconSvg}<br><span class="dash-live-clock-wrap"><strong class="dash-welcome-name">${esc(_user?.nama || 'Pengguna')}</strong></span></div>
+        <div class="dash-welcome-col" style="flex:1;min-width:0">
+          <div class="dash-welcome-row"><span class="dash-welcome-salam">${salam}</span>${greetIconSvg}</div>
+          <div class="dash-welcome-row"><strong class="dash-welcome-name">${esc(_user?.nama || 'Pengguna')}</strong></div>
         </div>
         ${quoteHtml}
-        <div style="text-align:right;flex-shrink:0;white-space:nowrap">
-          <div style="font-size:.8rem;font-weight:600;color:#0f172a">${_wTgl}</div>
-          <div class="dash-live-clock-wrap">
+        <div class="dash-welcome-col dash-welcome-col--right" style="flex-shrink:0;white-space:nowrap">
+          <div class="dash-welcome-row"><span class="dash-welcome-date">${_wTgl}</span></div>
+          <div class="dash-welcome-row">
             <span class="dash-live-dot"></span>
             <span id="dash-live-clock" class="dash-live-clock">${_witaJam(_wNow)}</span>
           </div>
@@ -4312,23 +4313,27 @@ const DASH_STYLE_CSS = `
 @media (max-width: 860px) {
   .dash-welcome-mid { display: none !important; }
 }
-/* Jam live - dibikin lebih menonjol + titik "live" berdenyut */
-.dash-live-clock-wrap {
-  display: inline-flex; align-items: center; gap: 6px; margin-top: 3px;
+/* Dua kolom (kiri: sapaan+nama, kanan: tanggal+jam) - tiap baris tingginya
+   DIKUNCI sama (--dw-row) dan isinya di-center vertikal, jadi baris 1 kiri=kanan
+   dan baris 2 kiri=kanan selalu sejajar, gak peduli beda font-size / line-height
+   warisan / metrik font / ikon SVG. */
+.dash-welcome-col { display: flex; flex-direction: column; gap: 3px; --dw-row: 1.4rem; }
+.dash-welcome-col--right { align-items: flex-end; text-align: right; }
+.dash-welcome-row {
+  display: flex; align-items: center; gap: 6px;
+  height: var(--dw-row); line-height: 1 !important; margin: 0 !important;
+  white-space: nowrap;
 }
+.dash-welcome-col--right .dash-welcome-row { justify-content: flex-end; }
+.dash-welcome-salam { font-size: .8rem; font-weight: 400; color: #0f172a; }
+.dash-welcome-date  { font-size: .8rem; font-weight: 600; color: #0f172a; }
 .dash-live-clock {
   font-size: .92rem; font-weight: 700; color: #0f766e;
   font-variant-numeric: tabular-nums; letter-spacing: .02em;
-  line-height: 1.2;
 }
-/* Nama pengguna di baris ke-2 sapaan - disamain ukuran & line-height-nya sama
-   persis kayak .dash-live-clock (baris ke-2 tanggal di sisi kanan), dan dibungkus
-   pakai .dash-live-clock-wrap yang sama biar margin-top-nya identik → kedua baris
-   ini jatuh sejajar satu sama lain. */
-.dash-welcome-name {
-  font-size: .92rem; font-weight: 700; color: #0f172a;
-  line-height: 1.2;
-}
+.dash-welcome-name { font-size: .92rem; font-weight: 700; color: #0f172a; }
+.dash-greet-icon { display: inline-flex; align-items: center; }
+.dash-greet-icon svg { vertical-align: 0 !important; margin-left: 0 !important; }
 .dash-live-dot {
   width: 6px; height: 6px; border-radius: 50%; background: #10b981;
   animation: dashLiveDotPulse 2s infinite;

@@ -79,7 +79,8 @@ async function saveProfil() {
   };
 
   const btn = document.getElementById('btnSaveProfil');
-  if (btn) btn.disabled = true;
+  const _btnOrigHtml = btn ? btn.innerHTML : null;
+  if (btn) { btn.disabled = true; btn.innerHTML = `<span class="btn-spin" style="width:11px;height:11px"></span> Menyimpan...`; }
   try {
     const r = await fetch('/api/profil', {
       method: 'PUT',
@@ -93,7 +94,7 @@ async function saveProfil() {
   } catch (err) {
     toast('Gagal: ' + err.message, 'error');
   } finally {
-    if (btn) btn.disabled = false;
+    if (btn) { btn.disabled = false; btn.innerHTML = _btnOrigHtml; }
   }
 }
 

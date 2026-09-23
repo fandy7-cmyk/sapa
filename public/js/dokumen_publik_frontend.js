@@ -150,7 +150,9 @@ async function saveDokumen() {
   if (!fileUrl) { toast('URL file wajib diisi', 'error'); return; }
 
   const btn = document.getElementById('btnSaveDokumen');
+  const _btnOrigHtml = btn.innerHTML;
   btn.disabled = true;
+  btn.innerHTML = `<span class="btn-spin" style="width:11px;height:11px"></span> Menyimpan...`;
   try {
     const method = id ? 'PUT' : 'POST';
     const url    = id ? `/api/dokumen-publik/${id}` : '/api/dokumen-publik';
@@ -168,6 +170,7 @@ async function saveDokumen() {
     toast('Gagal: ' + err.message, 'error');
   } finally {
     btn.disabled = false;
+    btn.innerHTML = _btnOrigHtml;
   }
 }
 

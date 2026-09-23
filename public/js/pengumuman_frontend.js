@@ -224,7 +224,9 @@ async function savePengumuman() {
     .filter(a => a.label && a.url);
 
   const btn = document.getElementById('btnSavePengumuman');
+  const _btnOrigHtml = btn.innerHTML;
   btn.disabled = true;
+  btn.innerHTML = `<span class="btn-spin" style="width:11px;height:11px"></span> Menyimpan...`;
   try {
     const method = id ? 'PUT' : 'POST';
     const url    = id ? `/api/pengumuman/${id}` : '/api/pengumuman';
@@ -242,6 +244,7 @@ async function savePengumuman() {
     toast('Gagal: ' + err.message, 'error');
   } finally {
     btn.disabled = false;
+    btn.innerHTML = _btnOrigHtml;
   }
 }
 
@@ -430,7 +433,9 @@ async function saveTicker() {
   const warna_bg   = bgInput.dataset.cleared === '1' ? null : (bgInput.value || null);
   if (!teks) { toast('Teks wajib diisi', 'error'); return; }
   const btn = document.getElementById('btnSaveTicker');
+  const _btnOrigHtml = btn.innerHTML;
   btn.disabled = true;
+  btn.innerHTML = `<span class="btn-spin" style="width:11px;height:11px"></span> Menyimpan...`;
   try {
     const method = id ? 'PUT' : 'POST';
     const url    = id ? `/api/ticker/${id}` : '/api/ticker';
@@ -448,6 +453,7 @@ async function saveTicker() {
     toast('Gagal: ' + err.message, 'error');
   } finally {
     btn.disabled = false;
+    btn.innerHTML = _btnOrigHtml;
   }
 }
 

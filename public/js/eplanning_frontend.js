@@ -9,7 +9,7 @@ const EP_ICON_CHECK = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height
 const EP_ICON_REJECT = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>`;
 const EP_ICON_BACK = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 14l-4-4m0 0l4-4m-4 4h11a4 4 0 010 8h-1"/></svg>`;
 const EP_ICON_LIST = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg>`;
-const EP_ICON_SPINNER = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" style="animation:spin 0.7s linear infinite"><path stroke-linecap="round" d="M12 3a9 9 0 1 0 9 9"/></svg>`;
+const EP_ICON_SPINNER = `<span class="btn-spin"></span>`;
 const EP_ICON_COPY = `<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="8" y="8" rx="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>`;
 const EP_ICON_SEND = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/></svg>`;
 const EP_ICON_POWER_ON = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18.36 6.64A9 9 0 0 1 20.77 15"/><path d="M6.16 6.16a9 9 0 1 0 12.68 12.68"/><path d="M12 2v4"/><path d="M2 12h4"/></svg>`;
@@ -1440,7 +1440,9 @@ async function epSaveReferensi() {
   const aktif = document.getElementById('epRefAktif').value === '1';
   if (!nama) { toast('Nama wajib diisi', 'error'); return; }
   const btn = document.getElementById('btnSaveReferensi');
+  const _btnOrigHtml = btn.innerHTML;
   btn.disabled = true;
+  btn.innerHTML = `<span class="btn-spin" style="width:11px;height:11px"></span> Menyimpan...`;
   try {
     const method = id ? 'PUT' : 'POST';
     const url = id ? `/api/eplanning/${_epRefKategori}/${id}` : `/api/eplanning/${_epRefKategori}`;
@@ -1452,7 +1454,7 @@ async function epSaveReferensi() {
     delete _epRefCache[_epRefKategori];
     epLoadMasterReferensi();
   } catch (err) { toast(err.message, 'error'); }
-  finally { btn.disabled = false; }
+  finally { btn.disabled = false; btn.innerHTML = _btnOrigHtml; }
 }
 async function epToggleReferensi(id, currentAktif) {
   try {
@@ -2021,7 +2023,7 @@ async function _epMuatSurveiRincian(r) {
   const token = ++_epSurveiRincianToken;
   box.style.display = '';
   const judul = '<label>Data Survei Harga (3 Toko)</label>';
-  box.innerHTML = `${judul}<div class="field-hint" style="margin-top:0">Memuat data survei...</div>`;
+  box.innerHTML = `${judul}<div class="field-hint" style="margin-top:0"><span class="btn-spin" style="width:11px;height:11px;vertical-align:-2px;margin-right:4px"></span>Memuat data survei...</div>`;
   let item = null;
   try {
     const res = await fetch(`/api/eplanning/standarharga?kategori=MANUAL&q=${encodeURIComponent(r.komponen || '')}`, { headers: authHeaders() });
@@ -3148,7 +3150,9 @@ async function epSaveSubkegiatan() {
   const aktif = document.getElementById('epSubkegiatanAktif').value === '1';
   if (!kode || !nama) { toast('Kode dan nama wajib diisi', 'error'); return; }
   const btn = document.getElementById('btnSaveSubkegiatan');
+  const _btnOrigHtml = btn.innerHTML;
   btn.disabled = true;
+  btn.innerHTML = `<span class="btn-spin" style="width:11px;height:11px"></span> Menyimpan...`;
   try {
     const method = kodeAsli ? 'PUT' : 'POST';
     const url = kodeAsli ? `/api/eplanning/subkegiatan/${encodeURIComponent(kodeAsli)}` : '/api/eplanning/subkegiatan';
@@ -3162,7 +3166,7 @@ async function epSaveSubkegiatan() {
     closeModal('modalSubkegiatan');
     epLoadMasterSubkegiatan();
   } catch (err) { toast(err.message, 'error'); }
-  finally { btn.disabled = false; }
+  finally { btn.disabled = false; btn.innerHTML = _btnOrigHtml; }
 }
 async function epToggleSubkegiatan(kode, currentAktif) {
   try {
@@ -3275,7 +3279,7 @@ async function epSubmitImporSubkegiatan() {
   const progText = document.getElementById('epImpSubkegProgressText');
   btn.disabled = true; btnBatal.disabled = true;
   progWrap.style.display = 'block';
-  progText.textContent = 'Membaca file…';
+  progText.innerHTML = `<span class="btn-spin" style="width:11px;height:11px;vertical-align:-2px;margin-right:4px"></span>Membaca file…`;
 
   try {
     const buf = await file.arrayBuffer();
@@ -3381,7 +3385,9 @@ async function epSaveSumberDana() {
   const aktif = document.getElementById('epSumberDanaAktif').value === '1';
   if (!nama) { toast('Nama wajib diisi', 'error'); return; }
   const btn = document.getElementById('btnSaveSumberDana');
+  const _btnOrigHtml = btn.innerHTML;
   btn.disabled = true;
+  btn.innerHTML = `<span class="btn-spin" style="width:11px;height:11px"></span> Menyimpan...`;
   try {
     const method = id ? 'PUT' : 'POST';
     const url = id ? `/api/eplanning/sumberdana/${id}` : '/api/eplanning/sumberdana';
@@ -3392,7 +3398,7 @@ async function epSaveSumberDana() {
     closeModal('modalSumberDana');
     epLoadMasterSumberDana();
   } catch (err) { toast(err.message, 'error'); }
-  finally { btn.disabled = false; }
+  finally { btn.disabled = false; btn.innerHTML = _btnOrigHtml; }
 }
 async function epToggleSumberDana(id, currentAktif) {
   try {
@@ -3503,7 +3509,7 @@ async function epSubmitImporSumberDana() {
   const progText = document.getElementById('epImpSdProgressText');
   btn.disabled = true; btnBatal.disabled = true;
   progWrap.style.display = 'block';
-  progText.textContent = 'Membaca file…';
+  progText.innerHTML = `<span class="btn-spin" style="width:11px;height:11px;vertical-align:-2px;margin-right:4px"></span>Membaca file…`;
 
   try {
     const buf = await file.arrayBuffer();
@@ -3605,7 +3611,9 @@ async function epSaveSatuan() {
   const aktif = document.getElementById('epSatuanAktif').value === '1';
   if (!nama) { toast('Nama satuan wajib diisi', 'error'); return; }
   const btn = document.getElementById('btnSaveSatuan');
+  const _btnOrigHtml = btn.innerHTML;
   btn.disabled = true;
+  btn.innerHTML = `<span class="btn-spin" style="width:11px;height:11px"></span> Menyimpan...`;
   try {
     const method = id ? 'PUT' : 'POST';
     const url = id ? `/api/eplanning/satuan/${id}` : '/api/eplanning/satuan';
@@ -3616,7 +3624,7 @@ async function epSaveSatuan() {
     closeModal('modalSatuan');
     epLoadMasterSatuan();
   } catch (err) { toast(err.message, 'error'); }
-  finally { btn.disabled = false; }
+  finally { btn.disabled = false; btn.innerHTML = _btnOrigHtml; }
 }
 async function epToggleSatuan(id, currentAktif) {
   try {
@@ -3716,7 +3724,9 @@ async function epSaveRekening() {
   const aktif = document.getElementById('epRekeningAktif').value === '1';
   if (!kode || !nama) { toast('Kode dan nama rekening wajib diisi', 'error'); return; }
   const btn = document.getElementById('btnSaveRekening');
+  const _btnOrigHtml = btn.innerHTML;
   btn.disabled = true;
+  btn.innerHTML = `<span class="btn-spin" style="width:11px;height:11px"></span> Menyimpan...`;
   try {
     const method = isEdit ? 'PUT' : 'POST';
     const url = isEdit ? `/api/eplanning/rekening/${encodeURIComponent(kode)}` : '/api/eplanning/rekening';
@@ -3728,7 +3738,7 @@ async function epSaveRekening() {
     closeModal('modalRekening');
     epLoadMasterRekening(_epRekeningPage);
   } catch (err) { toast(err.message, 'error'); }
-  finally { btn.disabled = false; }
+  finally { btn.disabled = false; btn.innerHTML = _btnOrigHtml; }
 }
 
 async function epToggleRekening(kode, currentAktif) {
@@ -5068,7 +5078,9 @@ async function epOpenPengaturanKalkulator() {
 async function epSavePengaturanKalkulator() {
   const rows = _epPengaturanTahunanCollect();
   const btn = document.getElementById('btnSavePengaturanKalkulator');
+  const _btnOrigHtml = btn.innerHTML;
   btn.disabled = true;
+  btn.innerHTML = `<span class="btn-spin" style="width:11px;height:11px"></span> Menyimpan...`;
   try {
     const r = await fetch('/api/eplanning/pengaturantahunan', {
       method: 'PUT', headers: { ...authHeaders(), 'Content-Type': 'application/json' }, body: JSON.stringify({ rows }),
@@ -5080,7 +5092,7 @@ async function epSavePengaturanKalkulator() {
     closeModal('modalPengaturanKalkulator');
     epHitungShKalkulator();
   } catch (err) { toast(err.message, 'error'); }
-  finally { btn.disabled = false; }
+  finally { btn.disabled = false; btn.innerHTML = _btnOrigHtml; }
 }
 
 // Dipakai waktu user (bukan cuma admin) input harga manual dari form Rincian Belanja - lihat
@@ -5240,7 +5252,9 @@ async function epSaveStandarHarga() {
   if (!body.uraian_barang || !body.harga_satuan) { toast('Uraian barang dan harga satuan wajib diisi', 'error'); return; }
   if (!id && !body.tahun) { toast('Tahun wajib diisi', 'error'); return; }
   const btn = document.getElementById('btnSaveStandarHarga');
+  const _btnOrigHtml = btn.innerHTML;
   btn.disabled = true;
+  btn.innerHTML = `<span class="btn-spin" style="width:11px;height:11px"></span> Menyimpan...`;
   try {
     const method = id ? 'PUT' : 'POST';
     const url = id ? `/api/eplanning/standarharga/${id}` : '/api/eplanning/standarharga';
@@ -5271,7 +5285,7 @@ async function epSaveStandarHarga() {
       epLoadStandarHarga(_epShPage);
     }
   } catch (err) { toast(err.message, 'error'); }
-  finally { btn.disabled = false; }
+  finally { btn.disabled = false; btn.innerHTML = _btnOrigHtml; }
 }
 
 async function epToggleStandarHarga(id, currentAktif) {
@@ -5410,7 +5424,7 @@ async function epSubmitImporStandarHarga() {
   const progText = document.getElementById('epImpProgressText');
   btn.disabled = true; btnBatal.disabled = true;
   progWrap.style.display = 'block';
-  progText.textContent = 'Membaca file…';
+  progText.innerHTML = `<span class="btn-spin" style="width:11px;height:11px;vertical-align:-2px;margin-right:4px"></span>Membaca file…`;
 
   try {
     const buf = await file.arrayBuffer();
