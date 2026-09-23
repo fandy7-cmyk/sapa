@@ -1133,10 +1133,27 @@ function _bindQtips() {
   document.body.addEventListener('scroll', () => {
     if (_qtipEl) _qtipEl.classList.remove('show');
   }, true);
-  
-  
-  
-  document.body.addEventListener('click', () => {
+
+  // Mobile: gak ada hover, jadi tap pertama nampilin tooltip, tap lagi di tempat
+  // yang sama nyembunyiin, tap di luar (handler click di bawah) juga nyembunyiin.
+  document.body.addEventListener('touchstart', (e) => {
+    const target = e.target.closest('[data-tip]');
+    if (!target || !target.dataset.tip) return;
+    const tip = _ensureQtipEl();
+    const alreadyShown = tip.classList.contains('show') && tip.textContent === target.dataset.tip;
+    if (alreadyShown) {
+      tip.classList.remove('show');
+      return;
+    }
+    tip.textContent = target.dataset.tip;
+    tip.classList.remove('qtip-danger', 'qtip-success');
+    if (target.dataset.tipVariant) tip.classList.add('qtip-' + target.dataset.tipVariant);
+    tip.classList.add('show');
+    _qtipPosition(target);
+  }, { passive: true });
+
+  document.body.addEventListener('click', (e) => {
+    if (e.target.closest('[data-tip]')) return;
     if (_qtipEl) _qtipEl.classList.remove('show');
   }, true);
 }

@@ -1078,6 +1078,7 @@ async function openUsulanModal(id = null) {
   document.getElementById('epIndikator').value = '';
   _epAutoGrowIndikator();
   document.getElementById('epSatuan').value = '';
+  document.getElementById('epTargetAngka').value = '';
   await epPrefillSumberDanaKeg('');
   if (!_epPeriodeAktif) await epLoadPeriodeAktif();
   document.getElementById('epTahunAnggaran').value = _epPeriodeAktif?.tahun || (new Date().getFullYear() + 1);
@@ -1108,9 +1109,11 @@ async function openUsulanModal(id = null) {
       skSel.value = u.sub_kegiatan || '';
       if (typeof syncCustomSelect === 'function') syncCustomSelect('epSubKegiatan');
       document.getElementById('epNamaKegiatan').value = u.nama_kegiatan || '';
+      document.getElementById('epSkpdSubUnit').value = u.bidang_nama || '-';
       document.getElementById('epIndikator').value = u.indikator || '';
       _epAutoGrowIndikator();
       document.getElementById('epSatuan').value = _epParseTarget(u.target).satuan;
+      document.getElementById('epTargetAngka').value = _epParseTarget(u.target).angka;
       document.getElementById('epTahunAnggaran').value = u.tahun_anggaran || '';
       _epSelectedTags = (u.tag_belanja || []).slice();
       await epPrefillSumberDanaKeg(u.sumber_dana_pilihan || '');
@@ -1490,7 +1493,9 @@ async function saveUsulan() {
   const skOpt = [...skSelEl.options].find(o => o.value === subKegiatan);
   const kodeSubKegiatan = skOpt?.dataset.kode || '';
 
-  const target = document.getElementById('epSatuan').value.trim();
+  const targetAngka = document.getElementById('epTargetAngka').value.trim();
+  const satuan = document.getElementById('epSatuan').value.trim();
+  const target = targetAngka ? `${targetAngka} ${satuan}`.trim() : satuan;
 
   const body = {
     id,

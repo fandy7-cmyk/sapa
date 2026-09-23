@@ -10207,7 +10207,7 @@ body.is-admin #absRekapBox { grid-template-columns: repeat(6, 0.85fr) 1.5fr; }
 }
 .ep-tahun-switcher-label {
   display: flex; align-items: center; gap: 6px;
-  font-size: var(--fs-xs); font-weight: 700; color: var(--hijau);
+  font-size: var(--fs-xs); font-weight: 400; color: var(--hijau);
   text-transform: uppercase; letter-spacing: .3px; white-space: nowrap;
 }
 .ep-tahun-switcher .tahun-select-wrap { min-width: 96px; }
@@ -10857,7 +10857,7 @@ body:not(.is-admin) .abs-hariini-flex-wrap .dash-kpi-row .abs-jamkerja-wrap:nth-
 /* Label "Tahun Anggaran" - huruf biasa (bukan kapital semua) */
 #page-eplanning-usulanku .ep-tahun-switcher-label {
   text-transform: none; letter-spacing: 0;
-  font-size: var(--fs-base); gap: 8px;
+  font-size: var(--fs-sm); gap: 8px;
 }
 #page-eplanning-usulanku .ep-tahun-switcher-label svg { width: 16px; height: 16px; }
 @media (max-width: 640px) {
