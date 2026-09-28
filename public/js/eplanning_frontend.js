@@ -4620,7 +4620,7 @@ function _epValidasiLinkSemuaToko() {
   }
   return true;
 }
-// Survei harga WAJIB 3 toko: nama, harga, link, dan minimal 1 bukti tiap toko harus terisi.
+// Survei harga WAJIB 3 toko: nama, harga, dan minimal 1 bukti tiap toko harus terisi (link opsional).
 function _epValidasiTigaToko() {
   for (let i = 1; i <= 3; i++) {
     const nama = (document.getElementById(`epShT${i}Nama`).value || '').trim();
@@ -4635,11 +4635,7 @@ function _epValidasiTigaToko() {
       document.getElementById(`epShT${i}Harga`).focus();
       return false;
     }
-    if (!(document.getElementById(`epShT${i}Link`).value || '').trim()) {
-      toast(`Link Toko ${i} wajib diisi (survei harus 3 toko)`, 'error');
-      document.getElementById(`epShT${i}Link`).focus();
-      return false;
-    }
+    // Link toko opsional (bisa toko offline) - validasi format ada di _epValidasiLinkSemuaToko
     const files = _epBuktiToko[i] || [];
     if (files.some(x => x._loading)) {
       toast(`Bukti Harga Toko ${i} masih diupload, tunggu sampai selesai`, 'error');

@@ -529,7 +529,6 @@ function hitungSurveiHarga(input, pengaturanTahun, tahun) {
   for (let i = 0; i < 3; i++) {
     if (!toko[i].nama) return { error: `Nama Toko ${i + 1} wajib diisi (survei harus 3 toko)` };
     if (toko[i].harga <= 0) return { error: `Harga Toko ${i + 1} wajib diisi (survei harus 3 toko)` };
-    if (!toko[i].link) return { error: `Link Toko ${i + 1} wajib diisi (survei harus 3 toko)` };
     if (!toko[i].bukti_url) return { error: `Bukti Harga Toko ${i + 1} wajib diupload (survei harus 3 toko)` };
   }
   for (let i = 0; i < toko.length; i++) {
