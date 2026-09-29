@@ -103,7 +103,7 @@ export const handler = async (event) => {
           AND (${tahunVal}::text IS NULL OR EXTRACT(YEAR FROM tanggal_surat)::text = ${tahunVal}::text)
           AND (${bulanVal}::int IS NULL OR EXTRACT(MONTH FROM tanggal_surat)::int = ${bulanVal}::int)
           AND (${isAdmin} = TRUE OR ${isFull} = TRUE OR pegawai_list @> ${meNama}::jsonb)
-        ORDER BY tanggal_surat ASC, id ASC LIMIT ${parseInt(limit)} OFFSET ${offset}
+        ORDER BY tanggal_surat DESC, id DESC LIMIT ${parseInt(limit)} OFFSET ${offset}
       `;
       const countRows = await sql`
         SELECT COUNT(*)::INT AS total FROM surat_keluar

@@ -116,7 +116,7 @@ export const handler = async (event) => {
           AND (${tahunVal}::text IS NULL OR EXTRACT(YEAR FROM tanggal_terima)::text = ${tahunVal}::text)
           AND (${bulanVal}::int IS NULL OR EXTRACT(MONTH FROM tanggal_terima)::int = ${bulanVal}::int)
           AND (${isAdmin} = TRUE OR ${isFull} = TRUE OR pegawai_list @> ${meNama}::jsonb)
-        ORDER BY tanggal_terima ASC NULLS LAST, id ASC
+        ORDER BY tanggal_terima DESC NULLS LAST, id DESC
         LIMIT ${parseInt(limit)} OFFSET ${offset}`;
       countRows = await sql`
         SELECT COUNT(*)::INT AS total FROM surat_masuk

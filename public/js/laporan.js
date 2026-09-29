@@ -2156,14 +2156,14 @@ function downloadLaporanSuratPDF(btnEl) {
     }
 
     return `<tr style="background:${bg}">
-      <td style="padding:4px 6px;border:1px solid #000;text-align:center;font-size:8px">${i + 1}</td>
-      <td style="padding:4px 6px;border:1px solid #000;font-size:8px;white-space:nowrap">${r.no_surat}</td>
-      <td style="padding:4px 6px;border:1px solid #000;font-size:8px">${r.perihal}</td>
-      <td style="padding:4px 6px;border:1px solid #000;text-align:center">${jenisBadge}</td>
-      <td style="padding:4px 6px;border:1px solid #000;text-align:center;font-size:8px;white-space:nowrap">${tgl}</td>
-      <td style="padding:4px 6px;border:1px solid #000;font-size:8px">${_lapFormatPengirimTujuanPdf(r.pengirim_tujuan)}</td>
-      <td style="padding:4px 6px;border:1px solid #000;text-align:center;font-size:8px;white-space:nowrap;color:${r.terlambat ? '#ef4444' : 'inherit'}">${batas}</td>
-      <td style="padding:4px 6px;border:1px solid #000;text-align:center">${statusBadge}</td>
+      <td style="padding:4px 6px;border:1px solid #000;vertical-align:top;text-align:center;font-size:8px">${i + 1}</td>
+      <td style="padding:4px 6px;border:1px solid #000;vertical-align:top;font-size:8px;white-space:nowrap">${r.no_surat}</td>
+      <td style="padding:4px 6px;border:1px solid #000;vertical-align:top;font-size:8px">${r.perihal}</td>
+      <td style="padding:4px 6px;border:1px solid #000;vertical-align:top;text-align:center">${jenisBadge}</td>
+      <td style="padding:4px 6px;border:1px solid #000;vertical-align:top;text-align:center;font-size:8px;white-space:nowrap">${tgl}</td>
+      <td style="padding:4px 6px;border:1px solid #000;vertical-align:top;font-size:8px">${_lapFormatPengirimTujuanPdf(r.pengirim_tujuan)}</td>
+      <td style="padding:4px 6px;border:1px solid #000;vertical-align:top;text-align:center;font-size:8px;white-space:nowrap;color:${r.terlambat ? '#ef4444' : 'inherit'}">${batas}</td>
+      <td style="padding:4px 6px;border:1px solid #000;vertical-align:top;text-align:center">${statusBadge}</td>
     </tr>`;
   }).join('');
 

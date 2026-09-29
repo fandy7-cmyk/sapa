@@ -8682,6 +8682,11 @@ tr:hover td:not(.td-sticky-no):not(.td-sticky-name) { background: var(--abu-1); 
   vertical-align: middle;
 }
 
+/* ── Laporan Surat, Surat Masuk, Surat Keluar: isi cell rata atas ── */
+#laporanSuratDetailTable td,
+#smTableBody tr:not(.empty-row) td,
+#skTableBody tr:not(.empty-row) td { vertical-align: top; }
+
 /* ── Laporan Absensi: cell gak boleh wrap ke banyak baris di HP - biarin
    tabel yang scroll ke samping (parent .card udah overflow:auto), bukan
    teksnya yang dipepetin sampe numpuk beberapa baris. ── */
