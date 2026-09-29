@@ -20,6 +20,14 @@ async function hasBasic(auth, sql) {
   return rows.length > 0;
 }
 
+function cekMaksHari(v) {
+  if (v === undefined) return { has: false, val: null };
+  if (v === null || String(v).trim() === '') return { has: true, val: null };
+  const n = Number(v);
+  if (!Number.isInteger(n) || n < 1 || n > 365) return { has: true, val: null, err: 'Maksimal hari harus angka bulat 1-365' };
+  return { has: true, val: n };
+}
+
 async function hasFull(auth, sql) {
   if (auth.is_admin) return true;
   const rows = await sql`
@@ -40,6 +48,8 @@ async function ensureLemburSchema(sql) {
   await sql`ALTER TABLE lembur_entries ADD COLUMN IF NOT EXISTS catatan TEXT`;
   await sql`ALTER TABLE lembur_entries ADD COLUMN IF NOT EXISTS jam_mulai TIME`;
   await sql`ALTER TABLE lembur_entries ADD COLUMN IF NOT EXISTS jam_selesai TIME`;
+  // Batas hari lembur per orang per kegiatan - cuma reminder di UI, gak divalidasi. NULL = gak ada batas.
+  await sql`ALTER TABLE lembur_kegiatan ADD COLUMN IF NOT EXISTS maks_hari INT`;
   _lemburSchemaReady = true;
 }
 
@@ -95,30 +105,35 @@ export const handler = async (event) => {
 
     if (event.httpMethod === 'POST' && !id1) {
       if (!full) return errorResponse('Akses ditolak', 403);
-      const { nama_kegiatan } = parseBody(event);
+      const { nama_kegiatan, maks_hari } = parseBody(event);
       if (!nama_kegiatan) return errorResponse('Nama kegiatan wajib diisi', 400);
+      const mh = cekMaksHari(maks_hari);
+      if (mh.err) return errorResponse(mh.err, 400);
       try {
         const dup = await sql`SELECT id FROM lembur_kegiatan WHERE LOWER(TRIM(nama_kegiatan)) = LOWER(TRIM(${nama_kegiatan})) LIMIT 1`;
         if (dup.length) return errorResponse(`Kegiatan "${nama_kegiatan}" sudah ada`, 409);
         const rows = await sql`
-          INSERT INTO lembur_kegiatan (nama_kegiatan, created_by)
-          VALUES (${nama_kegiatan}, ${auth.id}) RETURNING *
+          INSERT INTO lembur_kegiatan (nama_kegiatan, maks_hari, created_by)
+          VALUES (${nama_kegiatan}, ${mh.val}, ${auth.id}) RETURNING *
         `;
-        await logAudit(sql, event, { user_id: auth.id, nama: auth.nama, email: auth.email, aksi: 'create', entitas: 'lembur_kegiatan', entitas_id: rows[0].id, detail: { nama_kegiatan } });
+        await logAudit(sql, event, { user_id: auth.id, nama: auth.nama, email: auth.email, aksi: 'create', entitas: 'lembur_kegiatan', entitas_id: rows[0].id, detail: { nama_kegiatan, maks_hari: mh.val } });
         return jsonResponse({ kegiatan: rows[0] }, 201);
       } catch (err) { return errorResponse('Gagal menyimpan kegiatan: ' + err.message); }
     }
 
     if (event.httpMethod === 'PUT' && id1) {
       if (!full) return errorResponse('Akses ditolak', 403);
-      const { nama_kegiatan } = parseBody(event);
+      const { nama_kegiatan, maks_hari } = parseBody(event);
+      const mh = cekMaksHari(maks_hari);
+      if (mh.err) return errorResponse(mh.err, 400);
       try {
         if (nama_kegiatan) {
           const dup = await sql`SELECT id FROM lembur_kegiatan WHERE LOWER(TRIM(nama_kegiatan)) = LOWER(TRIM(${nama_kegiatan})) AND id != ${id1} LIMIT 1`;
           if (dup.length) return errorResponse(`Kegiatan "${nama_kegiatan}" sudah ada`, 409);
         }
         const rows = await sql`
-          UPDATE lembur_kegiatan SET nama_kegiatan = COALESCE(${nama_kegiatan ?? null}, nama_kegiatan), updated_at = NOW()
+          UPDATE lembur_kegiatan SET nama_kegiatan = COALESCE(${nama_kegiatan ?? null}, nama_kegiatan),
+            maks_hari = CASE WHEN ${mh.has}::boolean THEN ${mh.val}::int ELSE maks_hari END, updated_at = NOW()
           WHERE id = ${id1} RETURNING *
         `;
         if (!rows.length) return errorResponse('Kegiatan tidak ditemukan', 404);

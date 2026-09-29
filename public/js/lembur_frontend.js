@@ -250,12 +250,12 @@ async function _lemburRenderKegiatanList() {
         <tr class="lembur-row-plain">
           <td style="width:48px;text-align:center;color:var(--teks-muted)">${start + i + 1}</td>
           <td>${esc(k.nama_kegiatan)}</td>
-          <td style="text-align:center">${k.jumlah_sesi} hari</td>
+          <td style="text-align:center">${k.jumlah_sesi} hari${k.maks_hari ? `<div style="font-size:.7rem;color:var(--teks-muted);margin-top:2px">maks. ${k.maks_hari} hari/orang</div>` : ''}</td>
           <td style="text-align:center">${k.created_at ? fmtDate(k.created_at) : '-'}</td>
           <td style="text-align:center;white-space:nowrap">
             <button class="btn-buka" data-tip="Buka" onclick="_lemburOpenKegiatan(${k.id})"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 14l1.45-2.9A2 2 0 019.24 10H20a2 2 0 011.94 2.5l-1.54 6a2 2 0 01-1.94 1.5H4a2 2 0 01-2-2V5a2 2 0 012-2h3.9a2 2 0 011.69.9l.81 1.2a2 2 0 001.67.9H18a2 2 0 012 2v2"/></svg></button>
             <button class="btn-download" data-tip="Download Laporan" onclick="_lemburDownloadKegiatan(${k.id})"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-8-4V4m0 8l-3-3m3 3l3-3"/></svg></button>
-            ${_lemburFull ? `<button class="btn-edit" data-tip="Ubah Nama" onclick="_lemburOpenEditKegiatan(${k.id})"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg></button>` : ''}
+            ${_lemburFull ? `<button class="btn-edit" data-tip="Ubah" onclick="_lemburOpenEditKegiatan(${k.id})"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg></button>` : ''}
             ${_lemburFull ? `<button class="btn-hapus" data-tip="Hapus" onclick="_lemburHapusKegiatan(${k.id})"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path stroke-linecap="round" stroke-linejoin="round" d="M19 6l-1 14H6L5 6"/><path stroke-linecap="round" stroke-linejoin="round" d="M10 11v6m4-6v6"/><path stroke-linecap="round" stroke-linejoin="round" d="M9 6V4h6v2"/></svg></button>` : ''}
           </td>
         </tr>
@@ -282,6 +282,7 @@ async function _lemburOpenTambahKegiatan() {
   _lemburKegiatanEditId = null;
   _lemburKegiatanEditSesiId = null;
   document.getElementById('lemburKegiatanNama').value = '';
+  document.getElementById('lemburKegiatanMaksHari').value = '';
   document.querySelector('#modalLemburKegiatan .modal-title').textContent = 'Kegiatan Lembur Baru';
   document.getElementById('lemburKegiatanTanggalWrap').style.display = '';
   document.getElementById('lemburKegiatanJamWrap').style.display = '';
@@ -424,7 +425,8 @@ function _lemburOpenEditKegiatan(id) {
   _lemburKegiatanEditId = id;
   _lemburKegiatanEditSesiId = null;
   document.getElementById('lemburKegiatanNama').value = k.nama_kegiatan;
-  document.querySelector('#modalLemburKegiatan .modal-title').textContent = 'Ubah Nama Kegiatan';
+  document.getElementById('lemburKegiatanMaksHari').value = k.maks_hari || '';
+  document.querySelector('#modalLemburKegiatan .modal-title').textContent = 'Ubah Kegiatan';
   document.getElementById('lemburKegiatanTanggalWrap').style.display = 'none';
   document.getElementById('lemburKegiatanJamWrap').style.display = 'none';
   document.getElementById('lemburKegiatanPesertaWrap').style.display = 'none';
@@ -435,6 +437,9 @@ function _lemburOpenEditKegiatan(id) {
 async function _lemburSubmitTambahKegiatan() {
   const nama = document.getElementById('lemburKegiatanNama').value.trim();
   if (!nama) { toast('Nama kegiatan wajib diisi', 'error'); return; }
+  const maksRaw = document.getElementById('lemburKegiatanMaksHari').value.trim();
+  if (maksRaw !== '' && (!/^\d+$/.test(maksRaw) || +maksRaw < 1 || +maksRaw > 365)) { toast('Maksimal hari harus angka bulat 1-365, atau kosongkan', 'error'); return; }
+  const maks_hari = maksRaw === '' ? null : +maksRaw;
 
   // Nama kegiatan harus unik - kalau mau nambah hari lembur ke kegiatan yang udah ada dengan
   // nama yang sama, pakai "+ Tambah Hari Lembur" di kegiatan itu, bukan bikin kegiatan baru lagi.
@@ -448,7 +453,7 @@ async function _lemburSubmitTambahKegiatan() {
 
   if (_lemburKegiatanEditId) {
     closeModal('modalLemburKegiatan');
-    _lemburUpdateKegiatan(_lemburKegiatanEditId, nama);
+    _lemburUpdateKegiatan(_lemburKegiatanEditId, nama, maks_hari);
     return;
   }
 
@@ -497,16 +502,16 @@ async function _lemburSubmitTambahKegiatan() {
   const peserta_ids = [..._lemburKegiatanPesertaSelected];
   const dokFiles = _lemburKegiatanDokFiles;
   closeModal('modalLemburKegiatan');
-  _lemburCreateKegiatanMulti(nama, tanggalList, jam_mulai, jam_selesai, peserta_ids, dokFiles);
+  _lemburCreateKegiatanMulti(nama, tanggalList, jam_mulai, jam_selesai, peserta_ids, dokFiles, maks_hari);
 }
 
-async function _lemburUpdateKegiatan(id, nama_kegiatan) {
+async function _lemburUpdateKegiatan(id, nama_kegiatan, maks_hari = null) {
   try {
-    const r = await fetch(`/api/lembur/kegiatan/${id}`, { method: 'PUT', headers: { ...authHeaders(), 'Content-Type': 'application/json' }, body: JSON.stringify({ nama_kegiatan }) });
+    const r = await fetch(`/api/lembur/kegiatan/${id}`, { method: 'PUT', headers: { ...authHeaders(), 'Content-Type': 'application/json' }, body: JSON.stringify({ nama_kegiatan, maks_hari }) });
     const d = await r.json();
     if (!r.ok) { toast(d.error || 'Gagal mengubah kegiatan', 'error'); return; }
 
-    toast('Nama kegiatan diperbarui', 'success');
+    toast('Kegiatan diperbarui', 'success');
     if (_lemburActiveKegiatan?.id === id) {
       _lemburActiveKegiatan = d.kegiatan;
       await _lemburRenderSesiList();
@@ -527,9 +532,9 @@ async function _lemburHapusKegiatan(id) {
   } catch { toast('Gagal menghapus kegiatan', 'error'); }
 }
 
-async function _lemburCreateKegiatanMulti(nama_kegiatan, tanggalList, jam_mulai, jam_selesai, peserta_ids = [], dokFiles = []) {
+async function _lemburCreateKegiatanMulti(nama_kegiatan, tanggalList, jam_mulai, jam_selesai, peserta_ids = [], dokFiles = [], maks_hari = null) {
   try {
-    const r = await fetch('/api/lembur/kegiatan', { method: 'POST', headers: { ...authHeaders(), 'Content-Type': 'application/json' }, body: JSON.stringify({ nama_kegiatan }) });
+    const r = await fetch('/api/lembur/kegiatan', { method: 'POST', headers: { ...authHeaders(), 'Content-Type': 'application/json' }, body: JSON.stringify({ nama_kegiatan, maks_hari }) });
     const d = await r.json();
     if (!r.ok) { toast(d.error || 'Gagal menyimpan kegiatan', 'error'); return; }
 
@@ -719,8 +724,9 @@ async function _lemburRenderSesiList() {
     : `<tr><td colspan="6" style="text-align:center;color:var(--teks-muted)">Belum ada hari lembur tercatat.</td></tr>`;
 
   body.innerHTML = `
-    <div class="lembur-toolbar" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+    <div class="lembur-toolbar" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:12px">
       <button class="btn btn-sm lembur-btn-kembali" onclick="_lemburKembaliDaftar()"><svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.4"><path stroke-linecap="round" stroke-linejoin="round" d="M19 12H5m0 0l6-6m-6 6l6 6"/></svg>Kembali</button>
+      ${_lemburActiveKegiatan?.maks_hari ? `<span class="periode-info-bar"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path stroke-linecap="round" stroke-linejoin="round" d="M12 16v-4m0-4h.01"/></svg>Maksimal ${_lemburActiveKegiatan.maks_hari} hari per orang</span>` : ''}
       ${addBtn}
     </div>
     <div class="card" style="padding:0;overflow:auto;-webkit-overflow-scrolling:touch">

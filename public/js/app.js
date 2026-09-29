@@ -159,8 +159,8 @@ async function _doRefreshToken() {
   return result;
 }
 
-const _IDLE_WARNING_MS  = 4.5 * 60 * 1000;  
-const _IDLE_LOGOUT_MS   = 5.0 * 60 * 1000;  
+const _IDLE_WARNING_MS  = 9.5 * 60 * 1000;  
+const _IDLE_LOGOUT_MS   = 10.0 * 60 * 1000;  
 const _IDLE_COUNTDOWN_S = 30;                
 
 let _idleWarningTimer   = null;
