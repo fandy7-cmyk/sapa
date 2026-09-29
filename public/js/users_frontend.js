@@ -383,7 +383,7 @@ async function saveUrutanLaporan() {
 
 async function loadUsers() {
   const tb0 = document.getElementById('userTableBody');
-  if (tb0) tb0.innerHTML = `<tr class="empty-row"><td colspan="6"><span class="btn-spin" style="width:11px;height:11px;vertical-align:-1px;margin-right:6px"></span>Memuat data...</td></tr>`;
+  if (tb0) tb0.innerHTML = `<tr class="empty-row"><td colspan="7"><span class="btn-spin" style="width:11px;height:11px;vertical-align:-1px;margin-right:6px"></span>Memuat data...</td></tr>`;
   await loadBidangList();
   try {
     const r = await fetch('/api/users', { headers: authHeaders() });
@@ -642,7 +642,7 @@ window.goBidangPage = (p) => { _bidangPage = p; renderBidangTable(); };
 
 async function loadBidangPage() {
   const tb0 = document.getElementById('bidangTableBody');
-  if (tb0) tb0.innerHTML = `<tr class="empty-row"><td colspan="2"><span class="btn-spin" style="width:11px;height:11px;vertical-align:-1px;margin-right:6px"></span>Memuat data...</td></tr>`;
+  if (tb0) tb0.innerHTML = `<tr class="empty-row"><td colspan="3"><span class="btn-spin" style="width:11px;height:11px;vertical-align:-1px;margin-right:6px"></span>Memuat data...</td></tr>`;
   try {
     const r = await fetch('/api/bidang', { headers: authHeaders() });
     const d = await r.json();

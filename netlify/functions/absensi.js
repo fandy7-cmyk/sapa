@@ -1188,7 +1188,8 @@ export const handler = async (event) => {
     }
 
     const dowInput = new Date(`${tanggal}T00:00:00`).getDay();
-    if (dowInput === 0 || dowInput === 6) {
+    // Akhir pekan: hanya Tugas Luar/Cuti yang boleh dicatat (baik tanggal lewat maupun belum terjadi); status lain ditolak.
+    if ((dowInput === 0 || dowInput === 6) && !bolehTanggalMasaDepan) {
       return errorResponse('Tanggal tersebut akhir pekan, absensi tidak diperlukan', 400);
     }
     const liburInput = await sql`SELECT keterangan FROM hari_libur WHERE tanggal = ${tanggal} LIMIT 1`;

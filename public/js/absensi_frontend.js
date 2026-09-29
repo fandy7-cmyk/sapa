@@ -57,6 +57,8 @@ async function loadAbsensi() {
   if (thNama) thNama.style.display = isAbsensiFull() ? '' : 'none';
   const thAksi = document.getElementById('absThAksi');
   if (thAksi) thAksi.style.display = isAbsensiFull() ? '' : 'none';
+  const tbAbs0 = document.getElementById('absTableBody');
+  if (tbAbs0) tbAbs0.innerHTML = `<tr class="empty-row"><td colspan="${isAbsensiFull() ? 7 : 5}"><span class="btn-spin" style="width:11px;height:11px;vertical-align:-1px;margin-right:6px"></span>Memuat data...</td></tr>`;
 
   await loadAbsSettings();
   await loadAbsRamadhanPeriods();

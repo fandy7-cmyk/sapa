@@ -347,7 +347,7 @@ async function loadEplanning() {
   
   const btnTambah = document.getElementById('btnTambahEpUsulan');
   const tbody = document.getElementById('epTableBody');
-  if (tbody) tbody.innerHTML = `<tr class="empty-row"><td colspan="7"><span class="btn-spin" style="width:11px;height:11px;vertical-align:-1px;margin-right:6px"></span>Memuat data...</td></tr>`;
+  if (tbody) tbody.innerHTML = `<tr class="empty-row"><td colspan="8"><span class="btn-spin" style="width:11px;height:11px;vertical-align:-1px;margin-right:6px"></span>Memuat data...</td></tr>`;
 
   
   
@@ -380,7 +380,7 @@ async function loadEplanning() {
     renderEplanningTable();
     _epUsulankuRenderTimeline();
   } catch (err) {
-    if (tbody) tbody.innerHTML = `<tr class="empty-row"><td colspan="7">${esc(err.message)}</td></tr>`;
+    if (tbody) tbody.innerHTML = `<tr class="empty-row"><td colspan="8">${esc(err.message)}</td></tr>`;
   }
 }
 

@@ -3,7 +3,7 @@ let _temaList = [];
 
 async function loadTemaMusiman() {
   const tb = document.getElementById('temaMusimanTableBody');
-  if (tb) tb.innerHTML = `<tr class="empty-row"><td colspan="5"><span class="btn-spin" style="width:11px;height:11px;vertical-align:-1px;margin-right:6px"></span>Memuat data...</td></tr>`;
+  if (tb) tb.innerHTML = `<tr class="empty-row"><td colspan="4"><span class="btn-spin" style="width:11px;height:11px;vertical-align:-1px;margin-right:6px"></span>Memuat data...</td></tr>`;
   try {
     const r = await fetch('/api/settings', { headers: authHeaders() });
     const d = await r.json();
@@ -11,7 +11,7 @@ async function loadTemaMusiman() {
     _temaList = parseTemaValue(d.settings ? d.settings.tema_musiman : null);
     renderTemaMusimanTable();
   } catch (err) {
-    if (tb) tb.innerHTML = `<tr class="empty-row"><td colspan="5">Gagal memuat data tema</td></tr>`;
+    if (tb) tb.innerHTML = `<tr class="empty-row"><td colspan="4">Gagal memuat data tema</td></tr>`;
     toast('Gagal memuat tema musiman: ' + err.message, 'error');
   }
 }

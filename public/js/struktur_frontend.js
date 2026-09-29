@@ -17,7 +17,7 @@ function _cldThumb(url, w, h) {
 /* ── Load & render ────────────────────────────────────────────── */
 async function loadPegawai() {
   const tb0 = document.getElementById('pegawaiTableBody');
-  if (tb0) tb0.innerHTML = `<tr class="empty-row"><td colspan="6"><span class="btn-spin" style="width:11px;height:11px;vertical-align:-1px;margin-right:6px"></span>Memuat data...</td></tr>`;
+  if (tb0) tb0.innerHTML = `<tr class="empty-row"><td colspan="7"><span class="btn-spin" style="width:11px;height:11px;vertical-align:-1px;margin-right:6px"></span>Memuat data...</td></tr>`;
   try {
     const r = await fetch('/api/pegawai', { headers: authHeaders() });
     if (!r.ok) throw new Error(await r.text());
@@ -30,7 +30,7 @@ async function loadPegawai() {
   } catch (err) {
     console.error('[loadPegawai]', err);
     const tb = document.getElementById('pegawaiTableBody');
-    if (tb) tb.innerHTML = `<tr class="empty-row"><td colspan="6">Gagal memuat data</td></tr>`;
+    if (tb) tb.innerHTML = `<tr class="empty-row"><td colspan="7">Gagal memuat data</td></tr>`;
   }
 }
 
@@ -65,7 +65,7 @@ function renderPegawaiTable() {
   if (!tb) return;
 
   if (!pageData.length) {
-    tb.innerHTML = `<tr class="empty-row"><td colspan="6">Tidak ada data pegawai</td></tr>`;
+    tb.innerHTML = `<tr class="empty-row"><td colspan="7">Tidak ada data pegawai</td></tr>`;
   } else {
     tb.innerHTML = pageData.map(p => {
       const fotoHtml = p.foto_url

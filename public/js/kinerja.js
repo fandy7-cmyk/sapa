@@ -515,6 +515,12 @@ function setKinerjaBulan(bulan) {
   loadKinerjaRekap();
 }
 
+// Jumlah kolom tabel Kinerja (IKU/IKK/SPM): kolom "Unit Kerja" cuma tampil utk admin.
+function _kinColSpan(tbody) {
+  const total = tbody?.closest('table')?.querySelectorAll('thead th').length || 13;
+  return _user?.is_admin ? total : total - 1;
+}
+
 async function loadKinerjaRekap() {
   const tbody = document.getElementById('kinerjaTableBody');
   if (!tbody) return;
@@ -547,12 +553,12 @@ async function loadKinerjaRekap() {
   const _msgEl = document.getElementById('kinerjaNoperiodeMsg');
   if (_msgEl) _msgEl.style.display = 'none';
 
-  tbody.innerHTML = `<tr class="empty-row"><td colspan="11"><span class="btn-spin" style="width:11px;height:11px;vertical-align:-1px;margin-right:6px"></span>Memuat data...</td></tr>`;
+  tbody.innerHTML = `<tr class="empty-row"><td colspan="${_kinColSpan(tbody)}"><span class="btn-spin" style="width:11px;height:11px;vertical-align:-1px;margin-right:6px"></span>Memuat data...</td></tr>`;
   { const _pg = document.getElementById('ikuPagination'); if (_pg) _pg.innerHTML = ''; }
   try {
     const r = await fetch(`/api/kinerja/rekap?bulan=${_kinerja_bulan}&tahun=${_kinerja_tahun}`, { headers: authHeaders() });
     const d = await r.json();
-    if (!r.ok) { tbody.innerHTML = `<tr class="empty-row"><td colspan="11">${d.error || 'Gagal memuat'}</td></tr>`; return; }
+    if (!r.ok) { tbody.innerHTML = `<tr class="empty-row"><td colspan="${_kinColSpan(tbody)}">${d.error || 'Gagal memuat'}</td></tr>`; return; }
     let rekap = d.rekap || [];
 
     // Filter per assigned indikator user (non-admin hanya lihat indikator yg di-assign)
@@ -568,7 +574,7 @@ async function loadKinerjaRekap() {
     _ikuPage = 1;
     renderKinerjaTable(tbody);
   } catch (err) {
-    tbody.innerHTML = `<tr class="empty-row"><td colspan="11">Error: ${err.message}</td></tr>`;
+    tbody.innerHTML = `<tr class="empty-row"><td colspan="${_kinColSpan(tbody)}">Error: ${err.message}</td></tr>`;
   }
 }
 
@@ -716,7 +722,7 @@ function renderKinerjaTable(tbody) {
         emptyMsg = 'Tidak ada indikator yang di-assign ke akun Anda pada periode ini.';
       }
     }
-    tbody.innerHTML = `<tr class="empty-row"><td colspan="11">${emptyMsg}</td></tr>`;
+    tbody.innerHTML = `<tr class="empty-row"><td colspan="${_kinColSpan(tbody)}">${emptyMsg}</td></tr>`;
     return;
   }
 
@@ -730,7 +736,7 @@ function renderKinerjaTable(tbody) {
     : _kinerjaData;
 
   if (!_filtered.length) {
-    tbody.innerHTML = `<tr class="empty-row"><td colspan="11">Tidak ada indikator yang cocok dengan pencarian "${escHtml(_kinerjaSearch)}".</td></tr>`;
+    tbody.innerHTML = `<tr class="empty-row"><td colspan="${_kinColSpan(tbody)}">Tidak ada indikator yang cocok dengan pencarian "${escHtml(_kinerjaSearch)}".</td></tr>`;
     renderPagination('ikuPagination', 0, 1, _ikuPageSize, '_goIkuPage');
     return;
   }
@@ -751,7 +757,7 @@ function renderKinerjaTable(tbody) {
         const meta  = JENIS_META[row.group_jenis] || { label: row.group_jenis, cls: 'group-sasaran' };
         html += `
           <tr class="group-header-row ${meta.cls}">
-            <td colspan="11">
+            <td colspan="${_kinColSpan(tbody)}">
               <span class="group-jenis-badge">${escHtml(meta.label)}</span>
               ${escHtml(row.group_nama)}
             </td>
@@ -3660,12 +3666,12 @@ async function loadIkkRekap() {
   const _msgEl = document.getElementById('ikkNoperiodeMsg');
   if (_msgEl) _msgEl.style.display = 'none';
 
-  tbody.innerHTML = `<tr class="empty-row"><td colspan="11"><span class="btn-spin" style="width:11px;height:11px;vertical-align:-1px;margin-right:6px"></span>Memuat data...</td></tr>`;
+  tbody.innerHTML = `<tr class="empty-row"><td colspan="${_kinColSpan(tbody)}"><span class="btn-spin" style="width:11px;height:11px;vertical-align:-1px;margin-right:6px"></span>Memuat data...</td></tr>`;
   { const _pg = document.getElementById('ikkPagination'); if (_pg) _pg.innerHTML = ''; }
   try {
     const r = await fetch(`/api/kinerja/rekap?bulan=${_ikk_bulan}&tahun=${_ikk_tahun}&jenis=ikk`, { headers: authHeaders() });
     const d = await r.json();
-    if (!r.ok) { tbody.innerHTML = `<tr class="empty-row"><td colspan="11">${d.error || 'Gagal memuat'}</td></tr>`; return; }
+    if (!r.ok) { tbody.innerHTML = `<tr class="empty-row"><td colspan="${_kinColSpan(tbody)}">${d.error || 'Gagal memuat'}</td></tr>`; return; }
     let rekap = d.rekap || [];
 
     // Filter per assigned indikator user (non-admin hanya lihat indikator yg di-assign)
@@ -3680,7 +3686,7 @@ async function loadIkkRekap() {
     _ikkPage = 1;
     _renderIkkTable(tbody);
   } catch (err) {
-    tbody.innerHTML = `<tr class="empty-row"><td colspan="11">Error: ${err.message}</td></tr>`;
+    tbody.innerHTML = `<tr class="empty-row"><td colspan="${_kinColSpan(tbody)}">Error: ${err.message}</td></tr>`;
   }
 }
 
@@ -3701,7 +3707,7 @@ function _renderIkkTable(tbody) {
         emptyMsg = 'Tidak ada indikator IKK yang di-assign ke akun Anda pada periode ini.';
       }
     }
-    tbody.innerHTML = `<tr class="empty-row"><td colspan="11">${emptyMsg}</td></tr>`;
+    tbody.innerHTML = `<tr class="empty-row"><td colspan="${_kinColSpan(tbody)}">${emptyMsg}</td></tr>`;
     return;
   }
 
@@ -3714,7 +3720,7 @@ function _renderIkkTable(tbody) {
     : _ikkData;
 
   if (!_filtered.length) {
-    tbody.innerHTML = `<tr class="empty-row"><td colspan="11">Tidak ada indikator yang cocok dengan pencarian "${escHtml(_ikkSearch)}".</td></tr>`;
+    tbody.innerHTML = `<tr class="empty-row"><td colspan="${_kinColSpan(tbody)}">Tidak ada indikator yang cocok dengan pencarian "${escHtml(_ikkSearch)}".</td></tr>`;
     renderPagination('ikkPagination', 0, 1, _ikkPageSize, '_goIkkPage');
     return;
   }
@@ -3734,7 +3740,7 @@ function _renderIkkTable(tbody) {
         const meta = JENIS_META[row.group_jenis] || { label: row.group_jenis, cls: 'group-sasaran' };
         html += `
           <tr class="group-header-row ${meta.cls}">
-            <td colspan="11">
+            <td colspan="${_kinColSpan(tbody)}">
               <span class="group-jenis-badge">${escHtml(meta.label)}</span>
               ${escHtml(row.group_nama)}
             </td>
@@ -6002,12 +6008,12 @@ async function loadSpmRekap() {
   const _msgEl = document.getElementById('spmNoperiodeMsg');
   if (_msgEl) _msgEl.style.display = 'none';
 
-  tbody.innerHTML = `<tr class="empty-row"><td colspan="11"><span class="btn-spin" style="width:11px;height:11px;vertical-align:-1px;margin-right:6px"></span>Memuat data...</td></tr>`;
+  tbody.innerHTML = `<tr class="empty-row"><td colspan="${_kinColSpan(tbody)}"><span class="btn-spin" style="width:11px;height:11px;vertical-align:-1px;margin-right:6px"></span>Memuat data...</td></tr>`;
   { const _pg = document.getElementById('spmPagination'); if (_pg) _pg.innerHTML = ''; }
   try {
     const r = await fetch(`/api/kinerja/rekap?bulan=${_spm_bulan}&tahun=${_spm_tahun}&jenis=spm`, { headers: authHeaders() });
     const d = await r.json();
-    if (!r.ok) { tbody.innerHTML = `<tr class="empty-row"><td colspan="11">${d.error || 'Gagal memuat'}</td></tr>`; return; }
+    if (!r.ok) { tbody.innerHTML = `<tr class="empty-row"><td colspan="${_kinColSpan(tbody)}">${d.error || 'Gagal memuat'}</td></tr>`; return; }
     let rekap = d.rekap || [];
 
     // Filter per assigned indikator user (non-admin hanya lihat indikator yg di-assign)
@@ -6022,7 +6028,7 @@ async function loadSpmRekap() {
     _spmPage = 1;
     _renderSpmTable(tbody);
   } catch (err) {
-    tbody.innerHTML = `<tr class="empty-row"><td colspan="11">Error: ${err.message}</td></tr>`;
+    tbody.innerHTML = `<tr class="empty-row"><td colspan="${_kinColSpan(tbody)}">Error: ${err.message}</td></tr>`;
   }
 }
 
@@ -6043,7 +6049,7 @@ function _renderSpmTable(tbody) {
         emptyMsg = 'Tidak ada indikator SPM yang di-assign ke akun Anda pada periode ini.';
       }
     }
-    tbody.innerHTML = `<tr class="empty-row"><td colspan="11">${emptyMsg}</td></tr>`;
+    tbody.innerHTML = `<tr class="empty-row"><td colspan="${_kinColSpan(tbody)}">${emptyMsg}</td></tr>`;
     return;
   }
 
@@ -6056,7 +6062,7 @@ function _renderSpmTable(tbody) {
     : _spmData;
 
   if (!_filtered.length) {
-    tbody.innerHTML = `<tr class="empty-row"><td colspan="11">Tidak ada indikator yang cocok dengan pencarian "${escHtml(_spmSearch)}".</td></tr>`;
+    tbody.innerHTML = `<tr class="empty-row"><td colspan="${_kinColSpan(tbody)}">Tidak ada indikator yang cocok dengan pencarian "${escHtml(_spmSearch)}".</td></tr>`;
     renderPagination('spmPagination', 0, 1, _spmPageSize, '_goSpmPage');
     return;
   }
