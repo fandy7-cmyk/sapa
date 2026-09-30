@@ -1385,6 +1385,23 @@ let _lapKinerjaColspan = 12;
 
 const _LAP_ROMAWI = ['I', 'II', 'III', 'IV'];
 
+function _lapTwOf(m) { return Math.ceil(m / 3); }
+function _lapTwLabel(m, y) { return `TW ${_LAP_ROMAWI[_lapTwOf(m) - 1]} ${y}`; }
+
+// Kolom periode tabel Laporan Kinerja: triwulan yang lengkap (3 bulan masuk rentang)
+// diringkas jadi 1 kolom TW (nilai = bulan akhir TW); triwulan parsial tetap per bulan.
+function _lapBuildDisplayCols(bulanDari, bulanSampai) {
+  const cols = [];
+  [[1,3],[4,6],[7,9],[10,12]].forEach(([s, e], twIdx) => {
+    const inRange = [];
+    for (let b = s; b <= e; b++) if (b >= bulanDari && b <= bulanSampai) inRange.push(b);
+    if (!inRange.length) return;
+    if (inRange.length === 3) cols.push({ type: 'tw', tw: _LAP_ROMAWI[twIdx], lastBulan: e });
+    else inRange.forEach(b => cols.push({ type: 'bulan', bulan: b, tw: _LAP_ROMAWI[twIdx] }));
+  });
+  return cols;
+}
+
 function _lapEscHtml(s) {
   return String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
@@ -1420,8 +1437,8 @@ function _lapMdToHtml(md, flush) {
 }
 
 function _lapKinerjaRowHtml(r, no, bulanTampil) {
-  const bulanCells = bulanTampil.map(b => {
-    const v = r.realisasiPerBulan[b];
+  const bulanCells = bulanTampil.map(c => {
+    const v = c.type === 'tw' ? r.realisasiPerBulan[c.lastBulan] : r.realisasiPerBulan[c.bulan];
     const isEmpty = v === null || v === undefined || v === '';
     return `<td style="text-align:center;font-size:.75rem;color:${isEmpty ? '#000000' : '#1e293b'}">${isEmpty ? '-' : v}</td>`;
   }).join('');
@@ -1439,6 +1456,7 @@ function _lapKinerjaRowHtml(r, no, bulanTampil) {
     r.jenis_monev ? `<span style="background:#dbeafe;color:#1d4ed8;border-radius:4px;padding:1px 5px;font-size:.63rem;font-weight:700">IKU</span>` : '',
     r.jenis_ikk   ? `<span style="background:#ede9fe;color:#7c3aed;border-radius:4px;padding:1px 5px;font-size:.63rem;font-weight:700">IKK</span>`   : '',
     r.jenis_spm   ? `<span style="background:#fef3c7;color:#b45309;border-radius:4px;padding:1px 5px;font-size:.63rem;font-weight:700">SPM</span>`   : '',
+    r._jenis === 'Sub Kegiatan' ? `<span style="background:#ede9fe;color:#6d28d9;border-radius:4px;padding:1px 5px;font-size:.63rem;font-weight:700">Sub Kegiatan</span>` : '',
   ].filter(Boolean).join('');
   return `<tr>
     <td class="td-sticky-no" style="text-align:center;position:sticky;left:0;z-index:3">${no}</td>
@@ -1500,7 +1518,7 @@ function _lapMonthPicker(id, tahunList, activeVal, onPickFn) {
   const activeY = activeVal ? parseInt(activeVal.split('-')[0]) : (tahunList[tahunList.length-1] || new Date().getFullYear());
   const activeM = activeVal ? parseInt(activeVal.split('-')[1]) : 0;
   window._lapMpData[id] = { onPickFn, tahunList, activeVal: activeVal || '', viewYear: activeY };
-  const lbl = activeVal ? `${_BL[activeM]} ${activeY}` : '- Pilih -';
+  const lbl = activeVal ? _lapTwLabel(activeM, activeY) : '- Pilih -';
   return `<div class="lap-mp" id="${id}" onclick="event.stopPropagation();_lapMpToggle('${id}')">
       <span class="lap-mp-label">${lbl}</span>
       <svg class="lap-mp-caret" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
@@ -1532,14 +1550,15 @@ function _lapMpRenderPanel(el) {
   const toKey   = _lapRangeTo   ? _lapRangeTo.tahun   * 100 + _lapRangeTo.bulan   : 9999;
 
   let grid = '';
-  for (let m = 1; m <= 12; m++) {
+  for (let tw = 1; tw <= 4; tw++) {
+    const m       = id === 'lapMpFrom' ? (tw - 1) * 3 + 1 : tw * 3;
     const key     = `${viewYear}-${String(m).padStart(2,'0')}`;
     const thisKey = viewYear * 100 + m;
-    const isActive = (viewYear === activeY && m === activeM);
+    const isActive = (viewYear === activeY && _lapTwOf(m) === _lapTwOf(activeM));
     const isDisabled = id === 'lapMpFrom' ? thisKey > toKey : thisKey < fromKey;
     const cls = isActive ? 'lap-mp-cell active' : isDisabled ? 'lap-mp-cell disabled' : 'lap-mp-cell';
     const handler = !isDisabled ? `onclick="event.stopPropagation();_lapMpPick('${id}','${key}')"` : '';
-    grid += `<div class="${cls}" ${handler}>${_BL[m]}</div>`;
+    grid += `<div class="${cls}" ${handler}>TW ${_LAP_ROMAWI[tw - 1]}</div>`;
   }
 
   const canPrev = viewYear > minYear;
@@ -1578,10 +1597,9 @@ function _lapMpPick(id, key) {
   if (!data) return;
   data.activeVal = key;
   data.viewYear  = parseInt(key.split('-')[0]);
-  const _BL = ['','Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];
   const [y, m] = key.split('-').map(Number);
   const labelEl = el.querySelector('.lap-mp-label');
-  if (labelEl) labelEl.textContent = `${_BL[m]} ${y}`;
+  if (labelEl) labelEl.textContent = _lapTwLabel(m, y);
   const fnRef = window[data.onPickFn];
   if (typeof fnRef === 'function') fnRef(key);
 }
@@ -1590,13 +1608,14 @@ function _lapSetRangeFrom(key) {
   const [y, m] = key.split('-').map(Number);
   _lapRangeFrom = { bulan: m, tahun: y, key };
   if (_lapRangeTo && y * 100 + m > _lapRangeTo.tahun * 100 + _lapRangeTo.bulan) {
-    _lapRangeTo = { ..._lapRangeFrom };
+    const mEnd = _lapTwOf(m) * 3;
+    const keyEnd = `${y}-${String(mEnd).padStart(2,'0')}`;
+    _lapRangeTo = { bulan: mEnd, tahun: y, key: keyEnd };
     const toEl = document.getElementById('lapMpTo');
     if (toEl) {
-      const _BL = ['','Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];
       const lbl = toEl.querySelector('.lap-mp-label');
-      if (lbl) lbl.textContent = `${_BL[m]} ${y}`;
-      if (window._lapMpData['lapMpTo']) { window._lapMpData['lapMpTo'].activeVal = key; window._lapMpData['lapMpTo'].viewYear = y; }
+      if (lbl) lbl.textContent = _lapTwLabel(mEnd, y);
+      if (window._lapMpData['lapMpTo']) { window._lapMpData['lapMpTo'].activeVal = keyEnd; window._lapMpData['lapMpTo'].viewYear = y; }
     }
   }
   const toEl = document.getElementById('lapMpTo');
@@ -1608,13 +1627,14 @@ function _lapSetRangeTo(key) {
   const [y, m] = key.split('-').map(Number);
   _lapRangeTo = { bulan: m, tahun: y, key };
   if (_lapRangeFrom && y * 100 + m < _lapRangeFrom.tahun * 100 + _lapRangeFrom.bulan) {
-    _lapRangeFrom = { ..._lapRangeTo };
+    const mStart = (_lapTwOf(m) - 1) * 3 + 1;
+    const keyStart = `${y}-${String(mStart).padStart(2,'0')}`;
+    _lapRangeFrom = { bulan: mStart, tahun: y, key: keyStart };
     const frEl = document.getElementById('lapMpFrom');
     if (frEl) {
-      const _BL = ['','Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];
       const lbl = frEl.querySelector('.lap-mp-label');
-      if (lbl) lbl.textContent = `${_BL[m]} ${y}`;
-      if (window._lapMpData['lapMpFrom']) { window._lapMpData['lapMpFrom'].activeVal = key; window._lapMpData['lapMpFrom'].viewYear = y; }
+      if (lbl) lbl.textContent = _lapTwLabel(mStart, y);
+      if (window._lapMpData['lapMpFrom']) { window._lapMpData['lapMpFrom'].activeVal = keyStart; window._lapMpData['lapMpFrom'].viewYear = y; }
     }
   }
   const frEl = document.getElementById('lapMpFrom');
@@ -1634,7 +1654,10 @@ function _lapRenderRangeFilter(tahunList) {
     const from = _twStart(periodeAktifBulan);
     _lapRangeFrom = { bulan: from, tahun: tahunAktif, key: `${tahunAktif}-${String(from).padStart(2,'0')}` };
   }
-  if (!_lapRangeTo)   _lapRangeTo   = { bulan: periodeAktifBulan, tahun: tahunAktif, key: `${tahunAktif}-${String(periodeAktifBulan).padStart(2,'0')}` };
+  if (!_lapRangeTo) {
+    const to = _lapTwOf(periodeAktifBulan) * 3;
+    _lapRangeTo = { bulan: to, tahun: tahunAktif, key: `${tahunAktif}-${String(to).padStart(2,'0')}` };
+  }
 
   container.innerHTML = `
     <div class="lap-range-filter">
@@ -1710,8 +1733,18 @@ function _showLaporanLoading() {
     </tr>`;
 }
 
+function _lapEnsureSubkegOption() {
+  const sel = document.getElementById('laporanKinerjaJenis');
+  if (!sel || [...sel.options].some(o => o.value === 'subkeg')) return;
+  const opt = document.createElement('option');
+  opt.value = 'subkeg';
+  opt.textContent = 'Sub Kegiatan';
+  sel.appendChild(opt);
+}
+
 async function loadLaporanKinerja() {
   _showLaporanLoading();
+  _lapEnsureSubkegOption();
   await _initLaporanKinerjaFilter();
   if (!_user?.is_admin && typeof _ensureUserIndikatorIds === 'function') await _ensureUserIndikatorIds();
 
@@ -1736,9 +1769,10 @@ async function loadLaporanKinerja() {
   const allBulanData = {};
 
   const jenisParams = [];
-  if (jenis !== 'ikk' && jenis !== 'spm') jenisParams.push('monev');
-  if (jenis !== 'kinerja' && jenis !== 'spm') jenisParams.push('ikk');
-  if (jenis !== 'kinerja' && jenis !== 'ikk') jenisParams.push('spm');
+  if (jenis === 'semua' || jenis === 'kinerja') jenisParams.push('monev');
+  if (jenis === 'semua' || jenis === 'ikk')     jenisParams.push('ikk');
+  if (jenis === 'semua' || jenis === 'spm')     jenisParams.push('spm');
+  if (jenis === 'semua' || jenis === 'subkeg')  jenisParams.push('subkeg');
 
   for (const jenisParam of jenisParams) {
     const results = await Promise.all(bulanList.map(b => fetchBulan(b, jenisParam)));
@@ -1751,14 +1785,16 @@ async function loadLaporanKinerja() {
         if (!allBulanData[key]) {
           allBulanData[key] = {
             ...row,
-            _jenis: jenisParam === 'ikk' ? 'IKK' : jenisParam === 'spm' ? 'SPM' : 'IKU',
+            _jenis: jenisParam === 'ikk' ? 'IKK' : jenisParam === 'spm' ? 'SPM' : jenisParam === 'subkeg' ? 'Sub Kegiatan' : 'IKU',
             realisasiPerBulan:     {},
             fpenghambatPerBulan:   {},
             solusiPerBulan:        {},
             fpendukungPerBulan:    {},
             rencanaTlPerBulan:     {},
+            targetPerBulan:        {},
           };
         }
+        allBulanData[key].targetPerBulan[b]      = { t: row.target_tahun, d: row.target_display };
         allBulanData[key].realisasiPerBulan[b]   = row.realisasi_display ?? row.realisasi;
         allBulanData[key].fpenghambatPerBulan[b]  = row.f_penghambat;
         allBulanData[key].solusiPerBulan[b]        = row.solusi;
@@ -1831,6 +1867,10 @@ async function loadLaporanKinerja() {
       lastVal = hasVal ? sum : null;
     }
 
+    // Target = target triwulan dari bulan akhir rentang (TW yang dilaporkan)
+    const _tg = row.targetPerBulan?.[bulanSampai];
+    if (_tg) { row.target_tahun = _tg.t; row.target_display = _tg.d; }
+
     row._realisasiSd = lastVal;
     row._fpenghambat  = lastFpenghambat;
     row._solusi       = lastSolusi;
@@ -1860,17 +1900,17 @@ async function loadLaporanKinerja() {
 
   const BULAN_PENDEK  = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];
   const BULAN_PANJANG = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
-  const bulanTampil   = bulanList.filter(b => b >= bulanDari && b <= bulanSampai);
+  const bulanTampil   = _lapBuildDisplayCols(bulanDari, bulanSampai);
 
-  
-  const twRanges = [[1,3],[4,6],[7,9],[10,12]];
-  const twHeaders = twRanges.map(([s, e], twIdx) => {
-    const cols = bulanTampil.filter(b => b >= s && b <= e).length;
-    return cols > 0 ? `<th colspan="${cols}" style="text-align:center;background:var(--hijau);color:#fff">TW ${_LAP_ROMAWI[twIdx]}</th>` : '';
+  const twHeaders = [[1,3],[4,6],[7,9],[10,12]].map(([s, e], twIdx) => {
+    const cs = bulanTampil.filter(c => c.type === 'tw' ? c.lastBulan === e : (c.bulan >= s && c.bulan <= e));
+    if (!cs.length) return '';
+    const lengkap = cs.length === 1 && cs[0].type === 'tw';
+    return `<th ${lengkap ? 'rowspan="2"' : `colspan="${cs.length}"`} style="text-align:center;background:var(--hijau);color:#fff">TW ${_LAP_ROMAWI[twIdx]}</th>`;
   }).join('');
 
-  const bulanSubHeaders = bulanTampil.map(b =>
-    `<th style="width:45px;text-align:center;background:var(--hijau);color:#fff">${BULAN_PANJANG[b-1]}</th>`
+  const bulanSubHeaders = bulanTampil.filter(c => c.type === 'bulan').map(c =>
+    `<th style="width:45px;text-align:center;background:var(--hijau);color:#fff">${BULAN_PANJANG[c.bulan-1]}</th>`
   ).join('');
 
   const colspanTotal = 5 + bulanTampil.length + 6;
@@ -1881,11 +1921,11 @@ async function loadLaporanKinerja() {
       <tr class="lap-th-row1" style="background:var(--hijau)">
         <th rowspan="2" style="width:34px;text-align:center;position:sticky;left:0;z-index:3">No</th>
         <th rowspan="2" style="min-width:220px;position:sticky;left:34px;z-index:3">Indikator Kinerja</th>
-        <th rowspan="2" style="width:65px;text-align:center">Target Tahunan</th>
+        <th rowspan="2" style="width:65px;text-align:center">Target TW ${_LAP_ROMAWI[_lapTwOf(bulanSampai)-1]}</th>
         <th rowspan="2" style="width:55px;text-align:center">Satuan</th>
         <th rowspan="2" style="min-width:130px">Unit Kerja</th>
         ${twHeaders}
-        <th rowspan="2" style="width:75px;text-align:center">Realisasi s.d ${BULAN_PANJANG[bulanSampai-1]}</th>
+        <th rowspan="2" style="width:75px;text-align:center">Realisasi s.d TW ${_LAP_ROMAWI[_lapTwOf(bulanSampai)-1]}</th>
         <th rowspan="2" style="width:65px;text-align:center">Capaian</th>
         <th rowspan="2" style="min-width:100px">Faktor Penghambat</th>
         <th rowspan="2" style="min-width:100px">Solusi</th>
@@ -1926,7 +1966,7 @@ async function loadLaporanKinerja() {
     const jenisSel = document.getElementById('laporanKinerjaJenis');
     if (jenisSel) {
       const present  = new Set(rows.map(r => r._jenis));
-      const optsMap  = [['kinerja', 'IKU'], ['ikk', 'IKK'], ['spm', 'SPM']];
+      const optsMap  = [['kinerja', 'IKU'], ['ikk', 'IKK'], ['spm', 'SPM'], ['subkeg', 'Sub Kegiatan']];
       const relevant = optsMap.filter(([, label]) => present.has(label));
       let optsHtml = relevant.length > 1 ? `<option value="semua">Semua Jenis</option>` : '';
       optsHtml += relevant.map(([val, label]) => `<option value="${val}">${label}</option>`).join('');
@@ -2284,7 +2324,7 @@ function _renderLaporanKinerjaFiltered() {
   const filtered = _applyLaporanKinerjaFilters(rows);
 
   const bulanList   = Array.from({length: 12}, (_, i) => i + 1);
-  const bulanTampil = bulanList.filter(b => b >= bulanDari && b <= bulanSampai);
+  const bulanTampil = _lapBuildDisplayCols(bulanDari, bulanSampai);
   const colspanTotal = 5 + bulanTampil.length + 6;
   _lapKinerjaPage = 1;
   _lapRenderKinerjaTbody(filtered, bulanTampil, colspanTotal, 'Tidak ada data untuk filter ini');
@@ -2481,7 +2521,7 @@ async function downloadLaporanByTSP(btnEl) {
       
       const res = await fetch('/api/kinerja/laporan-template', { headers: authHeaders() });
       const tplData = await res.json();
-      const allTemplates = (tplData.templates || []).filter(t => t.jenis !== 'urusan');
+      const allTemplates = (tplData.templates || []).filter(t => t.jenis !== 'urusan' && !String(t.jenis).startsWith('pk_'));
       if (!allTemplates.length) { toast('Belum ada template TSP. Buat dulu di Master Data → Kelola Indikator → Kelola Laporan.', 'error'); return; }
 
       const tplWithIndikator = await Promise.all(allTemplates.map(async t => {
@@ -2716,5 +2756,186 @@ async function downloadLaporanByTSP(btnEl) {
     toast('Gagal generate laporan: ' + e.message, 'error');
   } finally {
     if (btnEl) { btnEl.disabled = false; btnEl.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline stroke-linecap="round" stroke-linejoin="round" points="7 10 12 15 17 10"/><line stroke-linecap="round" stroke-linejoin="round" x1="12" y1="15" x2="12" y2="3"/></svg> Monev Kinerja`; }
+  }
+}
+
+
+// Download "Pengukuran Kinerja" - mengikuti hierarki yang di-setting di
+// Master Data → Kinerja → Kelola Laporan → tab Pengukuran Kinerja
+// (Sasaran Strategis → Program → Kegiatan → Sub Kegiatan, masing-masing
+// bisa punya indikator sendiri).
+async function downloadLaporanByPengukuran(btnEl) {
+  const data = window._laporanKinerjaData;
+  if (!data || !data.rows) { toast('Muat data laporan terlebih dahulu', 'error'); return; }
+
+  const _btnIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline stroke-linecap="round" stroke-linejoin="round" points="7 10 12 15 17 10"/><line stroke-linecap="round" stroke-linejoin="round" x1="12" y1="15" x2="12" y2="3"/></svg>`;
+  if (btnEl) { btnEl.disabled = true; btnEl.innerHTML = `<span class="btn-spin" style="width:12px;height:12px"></span> Memuat data...`; }
+  try {
+    const { tahun, bulanDari = 1, bulanSampai = 12 } = data;
+
+    // indikator per baris laporan (bisa dicari lewat indikator_id atau id)
+    const rowById = {};
+    data.rows.forEach(r => {
+      if (r.indikator_id != null) rowById[parseInt(r.indikator_id)] = r;
+      if (r.id != null && rowById[parseInt(r.id)] === undefined) rowById[parseInt(r.id)] = r;
+    });
+
+    // ---- ambil hierarki pk_* dari Kelola Laporan (khusus admin, sama seperti Monev Kinerja) ----
+    const PK_LEVELS = ['pk_sasaran', 'pk_program', 'pk_kegiatan', 'pk_subkegiatan'];
+    const PK_CFG = {
+      pk_sasaran:     { label: 'SASARAN STRATEGIS', bg: '#bbf7d0' },
+      pk_program:     { label: 'PROGRAM',           bg: '#fde68a' },
+      pk_kegiatan:    { label: 'KEGIATAN',          bg: '#fecaca' },
+      pk_subkegiatan: { label: 'SUB KEGIATAN',      bg: '#bfdbfe' },
+    };
+
+    let flatNodes = null; // [{tpl, level, no, indikatorRows}]
+    if (_user?.is_admin) {
+      const res = await fetch('/api/kinerja/laporan-template', { headers: authHeaders() });
+      const tplData = await res.json();
+      const pkTemplates = (tplData.templates || []).filter(t => PK_LEVELS.includes(t.jenis));
+      if (!pkTemplates.length) {
+        toast('Belum ada template Pengukuran Kinerja. Buat dulu di Master Data → Kinerja → Kelola Laporan → tab Pengukuran Kinerja.', 'error');
+        return;
+      }
+
+      const withInd = await Promise.all(pkTemplates.map(async t => {
+        const r = await fetch(`/api/kinerja/laporan-template/${t.id}/indikator`, { headers: authHeaders() });
+        const d = await r.json();
+        return { ...t, indikator: d.indikator || [], _children: [] };
+      }));
+
+      const map = {};
+      withInd.forEach(t => { map[t.id] = t; });
+      const roots = [];
+      withInd.forEach(t => {
+        if (t.parent_id && map[t.parent_id]) map[t.parent_id]._children.push(t);
+        else roots.push(t);
+      });
+      const byUrutan = (a, b) => (a.urutan || 0) - (b.urutan || 0) || a.id - b.id;
+
+      // indikator yang benar-benar punya data di laporan (ikut filter Jenis/rentang yang sedang aktif)
+      const attachRows = (t) => {
+        t._rows = t.indikator
+          .map(ind => rowById[parseInt(ind.id)])
+          .filter(Boolean);
+        t._children.sort(byUrutan).forEach(attachRows);
+        t._hasContent = t._rows.length > 0 || t._children.some(c => c._hasContent);
+      };
+      roots.sort(byUrutan).forEach(attachRows);
+
+      flatNodes = [];
+      const walk = (nodes, level) => {
+        // nomor urut dihitung per induk (sama seperti tampilan kolom di Kelola Laporan)
+        nodes.forEach((t, idx) => {
+          if (!t._hasContent) return;
+          flatNodes.push({ tpl: t, level, no: idx + 1 });
+          walk(t._children, level + 1);
+        });
+      };
+      walk(roots, 0);
+
+      if (!flatNodes.length) { toast('Tidak ada indikator Pengukuran Kinerja yang punya data pada filter ini', 'error'); return; }
+    }
+
+    // ---- label periode & kolom bulan/TW (sama dengan Capaian Indikator / Monev) ----
+    const BULAN_FULL = ['','Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
+    const BULAN_PENDEK = ['JAN','FEB','MAR','APR','MEI','JUN','JUL','AGU','SEP','OKT','NOV','DES'];
+    const sdLabel = bulanDari === bulanSampai
+      ? `${BULAN_FULL[bulanSampai]} ${tahun}`
+      : `${BULAN_FULL[bulanDari]} - ${BULAN_FULL[bulanSampai]} ${tahun}`;
+    const twLabel = bulanSampai <= 3 ? 'TW I' : bulanSampai <= 6 ? 'TW II' : bulanSampai <= 9 ? 'TW III' : 'TW IV';
+
+    const bulanList = Array.from({length: bulanSampai - bulanDari + 1}, (_, i) => bulanDari + i);
+    const _twDef = [{tw:'I',s:1,e:3},{tw:'II',s:4,e:6},{tw:'III',s:7,e:9},{tw:'IV',s:10,e:12}];
+    const _twAktif = _twDef.filter(tw => bulanList.some(b => b >= tw.s && b <= tw.e));
+    const _twLengkap = (tw) => [tw.s, tw.s+1, tw.s+2].every(b => bulanList.includes(b));
+    const displayCols = _twAktif.flatMap(tw => {
+      if (_twLengkap(tw)) return [{ type: 'tw', tw: tw.tw, lastBulan: tw.e }];
+      return bulanList.filter(b => b >= tw.s && b <= tw.e).map(b => ({ type: 'bulan', bulan: b }));
+    });
+    const bulanHeaderCells = displayCols.filter(c => c.type === 'bulan').map(c =>
+      `<th style="color:white;padding:4px 2px;border:1px solid #000;text-align:center;font-size:10px;min-width:34px;white-space:nowrap">${BULAN_PENDEK[c.bulan-1]}</th>`
+    ).join('');
+    const twJudulHeader = `<th colspan="${displayCols.length}" style="color:white;padding:4px 3px;border:1px solid #000;text-align:center;font-size:10px;font-weight:700">KINERJA / REALISASI TRIWULAN</th>`;
+    const twHeaders = _twAktif.map(tw => {
+      const cols = displayCols.filter(c => (c.type === 'tw' && c.tw === tw.tw) || (c.type === 'bulan' && c.bulan >= tw.s && c.bulan <= tw.e)).length;
+      return `<th colspan="${cols}" ${_twLengkap(tw) ? 'rowspan="2"' : ''} style="color:white;padding:4px 3px;border:1px solid #000;text-align:center;font-size:10px;min-width:${cols*34}px;white-space:nowrap">${tw.tw}</th>`;
+    }).join('');
+
+    const colspanTotal = 5 + displayCols.length + 6;
+
+    // ---- isi tabel ----
+    let rowsHtml;
+    if (flatNodes) {
+      let no = 0;
+      rowsHtml = flatNodes.map(({ tpl, level, no: nodeNo }) => {
+        const cfg = PK_CFG[tpl.jenis] || { label: String(tpl.jenis).toUpperCase(), bg: '#e2e8f0' };
+        const indent = 8 + level * 16;
+        const headerRow = `<tr style="background:${cfg.bg}">
+          <td colspan="${colspanTotal}" style="padding:5px 8px 5px ${indent}px;font-size:10px;font-weight:700;color:#000;border:1px solid #000;line-height:1.4">
+            <span style="text-transform:uppercase;letter-spacing:.3px">${cfg.label} ${nodeNo}</span> : ${_lapEscHtml(tpl.nama)}
+          </td>
+        </tr>`;
+        const indRows = tpl._rows.map(r => {
+          no++;
+          return _lapKinerjaPdfRowHtml(r, no, displayCols, r.nama_indikator);
+        }).join('');
+        return headerRow + indRows;
+      }).join('');
+    } else {
+      rowsHtml = _lapKinerjaFlatRowsHtml(data.rows, displayCols);
+    }
+
+    const nowStr = new Date().toLocaleDateString('id-ID', { day:'2-digit', month:'long', year:'numeric' });
+    const kepalaDinas = await _fetchKepalaDinas();
+
+    const th = (label, extra = '') => `<th rowspan="3" style="color:white;padding:5px 4px;border:1px solid #000;text-align:center;font-size:10px;${extra}">${label}</th>`;
+    const bodyHtml = `
+      ${_kopSuratHtml()}
+      <table style="border-collapse:collapse;width:100%;margin-bottom:12px;font-size:10px">
+        <tr>
+          <td style="padding:2px 0;width:160px;font-weight:700;font-size:10px">PERANGKAT DAERAH</td>
+          <td style="padding:2px 0;width:10px;font-size:10px">:</td>
+          <td style="padding:2px 0;font-weight:600;font-size:10px">DINAS KESEHATAN, PENGENDALIAN PENDUDUK DAN KELUARGA BERENCANA</td>
+        </tr>
+        <tr>
+          <td style="padding:2px 0;font-weight:700;font-size:10px">BULAN/TRIWULAN</td>
+          <td style="padding:2px 0;font-size:10px">:</td>
+          <td style="padding:2px 0;font-weight:600;font-size:10px">${BULAN_FULL[bulanSampai].toUpperCase()} / ${twLabel}</td>
+        </tr>
+      </table>
+      <div style="text-align:center;margin:16px 0 14px">
+        <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px">PENGUKURAN KINERJA</div>
+        <div style="font-size:10px;color:#475569;margin-top:3px">${sdLabel}</div>
+      </div>
+      <table style="border-collapse:collapse;border-spacing:0;width:100%;table-layout:auto">
+        <thead>
+          <tr style="background:#0d9488">
+            ${th('NO', 'white-space:nowrap;min-width:36px')}
+            ${th('INDIKATOR KINERJA', 'min-width:150px')}
+            ${th('TARGET ' + tahun, 'white-space:nowrap;min-width:40px')}
+            ${th('SATUAN', 'white-space:nowrap;min-width:38px')}
+            ${th('UNIT KERJA', 'min-width:110px')}
+            ${twJudulHeader}
+            ${th('REALISASI S.D ' + BULAN_FULL[bulanSampai].toUpperCase(), 'white-space:nowrap;min-width:50px')}
+            ${th('CAPAIAN', 'white-space:nowrap;min-width:45px')}
+            ${th('FAKTOR PENGHAMBAT', 'min-width:130px')}
+            ${th('SOLUSI', 'min-width:130px')}
+            ${th('FAKTOR PENDUKUNG', 'min-width:130px')}
+            ${th('RENCANA TINDAK LANJUT', 'min-width:130px')}
+          </tr>
+          <tr style="background:#0d9488">${twHeaders}</tr>
+          <tr style="background:#0d9488">${bulanHeaderCells}</tr>
+        </thead>
+        <tbody>${rowsHtml}</tbody>
+      </table>
+      ${_ttdHtml(kepalaDinas, nowStr)}`;
+
+    _bukaPreviewPDF(bodyHtml, `Pengukuran Kinerja ${sdLabel}`, 'landscape');
+  } catch (e) {
+    toast('Gagal generate laporan: ' + e.message, 'error');
+  } finally {
+    if (btnEl) { btnEl.disabled = false; btnEl.innerHTML = `${_btnIcon} Pengukuran Kinerja`; }
   }
 }

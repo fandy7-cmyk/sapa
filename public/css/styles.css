@@ -10632,14 +10632,16 @@ body:not(.is-admin) .abs-hariini-flex-wrap .dash-kpi-row .abs-jamkerja-wrap:nth-
    (search-wrap punya min-width:220px inline yang bikin gak muat & gak wrap). */
 #kinerjaTahunWrap,
 #ikkTahunWrap,
-#spmTahunWrap {
+#spmTahunWrap,
+#subkegTahunWrap {
   flex-wrap: wrap;
   row-gap: 10px;
 }
 @media (max-width: 560px) {
   #kinerjaTahunWrap .search-wrap,
   #ikkTahunWrap .search-wrap,
-  #spmTahunWrap .search-wrap {
+  #spmTahunWrap .search-wrap,
+  #subkegTahunWrap .search-wrap {
     min-width: 0 !important;
     max-width: none !important;
     width: 100% !important;
@@ -10870,3 +10872,59 @@ body:not(.is-admin) .abs-hariini-flex-wrap .dash-kpi-row .abs-jamkerja-wrap:nth-
     position: static; width: 100%; margin-bottom: var(--sp-3);
   }
 }
+
+/* Input link data dukung: kasih ruang kiri-kanan biar teks gak nempel border */
+#dukungLinkInput {
+  padding: var(--sp-3) var(--sp-4);
+  background: var(--abu-1); border: 1.5px solid var(--abu-2);
+  border-radius: var(--r-sm); font-family: inherit; font-size: var(--fs-base); color: var(--teks);
+  outline: none; box-sizing: border-box;
+  transition: all var(--transition);
+}
+#dukungLinkInput:focus { border-color: var(--hijau); background: #fff; }
+
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   PERMISSIONS TREE (hierarki menu › sub-menu) — modal Hak Akses Pengguna
+   ═══════════════════════════════════════════════════════════════════════════ */
+#permsGrid { display: block; }
+.perm-tree-toolbar { display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:10px; font-size:.75rem; color:var(--teks-muted); }
+.perm-tree-count b { color:var(--hijau); font-weight:800; }
+.perm-tree-actions { display:flex; gap:12px; }
+.perm-link-btn { background:none; border:0; padding:0; font:inherit; font-weight:700; color:var(--hijau); cursor:pointer; }
+.perm-link-btn:hover { text-decoration:underline; }
+.perm-link-btn:disabled { opacity:.4; cursor:default; text-decoration:none; }
+.perm-tree { display:flex; flex-direction:column; gap:8px; }
+.perm-group { border:1.5px solid var(--abu-2); border-radius:var(--r-sm,10px); background:var(--abu-1); overflow:hidden; transition:border-color .15s, background .15s; }
+.perm-group.has-sel { border-color:var(--hijau-mid); }
+.perm-group-head { display:flex; align-items:center; gap:10px; padding:9px 11px; }
+.perm-group.has-sel .perm-group-head { background:var(--hijau-light); }
+.perm-group-main { flex:1; min-width:0; display:flex; align-items:center; gap:10px; cursor:pointer; user-select:none; }
+.perm-group-ico { width:28px; height:28px; border-radius:8px; flex-shrink:0; display:flex; align-items:center; justify-content:center; background:#fff; color:var(--hijau); border:1px solid var(--abu-2); }
+.perm-group-txt { flex:1; min-width:0; }
+.perm-group-name { font-size:.86rem; font-weight:700; color:var(--teks); }
+.perm-group-cnt { font-size:.66rem; font-weight:700; padding:2px 8px; border-radius:99px; background:var(--abu-2); color:var(--teks-muted); flex-shrink:0; }
+.perm-group-cnt.on { background:var(--hijau); color:#fff; }
+.perm-chev { flex-shrink:0; color:var(--teks-muted); transition:transform .2s; }
+.perm-group.open .perm-chev { transform:rotate(90deg); }
+.perm-check-lg { width:18px; height:18px; border-radius:6px; flex-shrink:0; cursor:pointer; border:2px solid var(--abu-2); background:#fff; position:relative; transition:all .15s; }
+.perm-check-lg:hover { border-color:var(--hijau-mid); }
+.perm-check-lg.on, .perm-check-lg.mix { background:var(--hijau); border-color:var(--hijau); }
+.perm-check-lg.on::after { content:'✓'; position:absolute; inset:0; display:flex; align-items:center; justify-content:center; font-size:.65rem; color:#fff; font-weight:800; }
+.perm-check-lg.mix::after { content:''; position:absolute; left:3px; right:3px; top:50%; height:2px; margin-top:-1px; background:#fff; border-radius:2px; }
+.perm-group-body { display:grid; grid-template-rows:0fr; transition:grid-template-rows .22s ease; }
+.perm-group.open .perm-group-body { grid-template-rows:1fr; }
+.perm-group-body-in { overflow:hidden; min-height:0; }
+.perm-group.open .perm-group-body-in { padding:2px 11px 10px 30px; margin-left:0; }
+.perm-child { position:relative; display:flex; align-items:flex-start; gap:9px; padding:8px 10px; margin-top:6px; border-radius:var(--r-sm,8px); border:1.5px solid var(--abu-2); background:#fff; cursor:pointer; transition:all .15s; }
+.perm-child::before { content:''; position:absolute; left:-15px; top:-7px; bottom:50%; width:11px; border-left:2px solid var(--abu-2); border-bottom:2px solid var(--abu-2); border-bottom-left-radius:7px; pointer-events:none; }
+.perm-child:hover { border-color:var(--hijau-mid); background:var(--hijau-light); }
+.perm-child.selected { border-color:var(--hijau); background:var(--hijau-light); }
+.perm-child .perm-check { margin-top:2px; }
+.perm-child.selected .perm-check { background:var(--hijau); border-color:var(--hijau); }
+.perm-child.selected .perm-check::after { content:'✓'; font-size:.55rem; color:#fff; font-weight:800; }
+.perm-child-txt { flex:1; min-width:0; }
+.perm-badge-admin { margin-left:6px; font-size:.58rem; font-weight:800; letter-spacing:.4px; text-transform:uppercase; padding:1px 6px; border-radius:99px; background:#fef3c7; color:#b45309; vertical-align:1px; }
+.perm-child.is-admin.selected { border-color:#f59e0b; background:#fffbeb; }
+.perm-child.is-admin.selected .perm-check { background:#f59e0b; border-color:#f59e0b; }
+#permsGrid .perm-desc { font-size:.68rem; line-height:1.35; }

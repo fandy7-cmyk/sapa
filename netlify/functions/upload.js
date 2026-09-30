@@ -14,6 +14,7 @@ const FOLDER_MAP = {
   kinerja_iku:  'SAPA/Kinerja/IKU',
   kinerja_ikk:  'SAPA/Kinerja/IKK',
   kinerja_spm:  'SAPA/Kinerja/SPM',
+  kinerja_subkeg: 'SAPA/Kinerja/SubKegiatan',
   surat_keluar: 'SAPA/Surat/Surat Keluar',
   surat_masuk:  'SAPA/Surat/Surat Masuk',
   absensi:      'SAPA/Absensi',

@@ -6185,7 +6185,9 @@ async function _epLoadKinerjaTarget() {
       _epKinerjaTargetMap = {};
       for (const t of (d.target || [])) {
         if (!_epKinerjaTargetMap[t.indikator_id]) _epKinerjaTargetMap[t.indikator_id] = {};
-        _epKinerjaTargetMap[t.indikator_id][t.tahun] = t;
+        // Target per triwulan: untuk TOR dipakai target TW tertinggi yang terisi (TW IV = target akhir tahun)
+        const _ex = _epKinerjaTargetMap[t.indikator_id][t.tahun];
+        if (!_ex || (t.triwulan || 4) >= (_ex.triwulan || 4)) _epKinerjaTargetMap[t.indikator_id][t.tahun] = t;
       }
       _epKinerjaTargetLoaded = true;
     }

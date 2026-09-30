@@ -507,29 +507,58 @@ async function resetUserPassword(id, nama) {
   } catch { toast('Gagal mereset password', 'error'); }
 }
 
-const PERM_DEFS = [
-  { key: 'dashboard',           name: 'Dashboard Utama',          desc: 'Lihat halaman dashboard' },
-  { key: 'superlink.shortlink', name: 'Superlink › Shortlink',    desc: 'Kelola link pendek' },
-  { key: 'superlink.bundle',    name: 'Superlink › Bundle',       desc: 'Kelola bundle link' },
-  { key: 'surat.masuk',         name: 'Surat Masuk',              desc: 'Kelola surat masuk' },
-  { key: 'surat.masuk.full',    name: 'Surat Masuk › Admin Penuh', desc: 'Bisa edit/hapus/ubah status surat masuk milik siapapun (setara admin)' },
-  { key: 'surat.keluar',        name: 'Surat Keluar',             desc: 'Kelola surat keluar' },
-  { key: 'surat.keluar.full',   name: 'Surat Keluar › Admin Penuh', desc: 'Bisa edit/hapus surat keluar milik siapapun (setara admin)' },
-  { key: 'kinerja.monev',       name: 'IKU (Indikator Kinerja Utama)', desc: 'Input realisasi IKU' },
-  { key: 'kinerja.ikk',         name: 'IKK (Indikator Kinerja Kunci)',    desc: 'Input realisasi IKK' },
-  { key: 'kinerja.spm',         name: 'SPM (Standar Pelayanan Minimal)', desc: 'Input realisasi SPM' },
-  { key: 'absensi',             name: 'Absensi',                  desc: 'Input & lihat absensi harian sendiri' },
-  { key: 'absensi.full',        name: 'Absensi › Admin Penuh',    desc: 'Kelola absensi semua pegawai, atur jam kerja & hari libur (setara admin)' },
-  { key: 'lembur',               name: 'Lembur',                   desc: 'Isi uraian tugas lembur milik sendiri' },
-  { key: 'lembur.full',          name: 'Lembur › Admin Penuh',     desc: 'Kelola kegiatan/sesi lembur, tambah peserta, upload dokumentasi (setara admin)' },
-  { key: 'eplanning.operator',   name: 'E-Planning › Operator',            desc: 'Bikin & edit usulan anggaran milik sendiri' },
-  { key: 'eplanning.kabid',      name: 'E-Planning › Kepala Unit Kerja',   desc: 'Review & setujui semua usulan di unit kerjanya (Puskesmas/Bidang/Sub Bagian)' },
-  { key: 'eplanning.sekretaris', name: 'E-Planning › Sekretaris Dinas',    desc: 'Verifikasi tambahan khusus usulan dari unit kerja tipe Sub Bagian, sebelum ke Admin' },
-  { key: 'eplanning.admin',      name: 'E-Planning › Admin Verifikator',  desc: 'Verifikasi lintas-bidang, sahkan final, kelola master data & pengaturan (setara admin)' },
+// Hierarki hak akses: Menu (grup) › Sub-menu. Key permission TIDAK berubah (kompatibel dgn backend).
+// base   = izin utama menu itu sendiri (kalau ada); items = sub-menu / tingkat akses di bawahnya.
+// admin  = true → tingkat "Admin Penuh" (tidak ikut "Pilih semua", harus dicentang manual).
+const PERM_GROUPS = [
+  { id: 'dashboard', name: 'Dashboard', icon: 'M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z',
+    base: { key: 'dashboard', desc: 'Lihat halaman dashboard' }, items: [] },
+  { id: 'superlink', name: 'Superlink', icon: 'M10 13a5 5 0 007.07 0l3-3a5 5 0 00-7.07-7.07l-1.5 1.5M14 11a5 5 0 00-7.07 0l-3 3a5 5 0 007.07 7.07l1.5-1.5',
+    base: null, items: [
+      { key: 'superlink.shortlink', name: 'Shortlink', desc: 'Kelola link pendek' },
+      { key: 'superlink.bundle',    name: 'Bundle',    desc: 'Kelola bundle link' },
+    ] },
+  { id: 'surat-masuk', name: 'Surat Masuk', icon: 'M3 8l9 6 9-6M5 5h14a2 2 0 012 2v10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2z',
+    base: { key: 'surat.masuk', desc: 'Kelola surat masuk' }, items: [
+      { key: 'surat.masuk.full', name: 'Admin Penuh', admin: true, desc: 'Bisa edit/hapus/ubah status surat masuk milik siapapun (setara admin)' },
+    ] },
+  { id: 'surat-keluar', name: 'Surat Keluar', icon: 'M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z',
+    base: { key: 'surat.keluar', desc: 'Kelola surat keluar' }, items: [
+      { key: 'surat.keluar.full', name: 'Admin Penuh', admin: true, desc: 'Bisa edit/hapus surat keluar milik siapapun (setara admin)' },
+    ] },
+  { id: 'kinerja', name: 'Kinerja', icon: 'M3 3v18h18M7 15l4-4 3 3 5-6',
+    base: null, items: [
+      { key: 'kinerja.monev',  name: 'IKU (Indikator Kinerja Utama)',   desc: 'Input realisasi IKU' },
+      { key: 'kinerja.ikk',    name: 'IKK (Indikator Kinerja Kunci)',   desc: 'Input realisasi IKK' },
+      { key: 'kinerja.spm',    name: 'SPM (Standar Pelayanan Minimal)', desc: 'Input realisasi SPM' },
+      { key: 'kinerja.subkeg', name: 'Sub Kegiatan',                    desc: 'Input realisasi Sub Kegiatan' },
+      { key: 'kinerja.full',   name: 'Admin Penuh', admin: true, desc: 'Kelola indikator, target, jenis kinerja, laporan, periode & monitoring pengisian (setara admin kinerja)' },
+    ] },
+  { id: 'absensi', name: 'Absensi', icon: 'M12 8v4l3 3M21 12a9 9 0 11-18 0 9 9 0 0118 0z',
+    base: { key: 'absensi', desc: 'Input & lihat absensi harian sendiri' }, items: [
+      { key: 'absensi.full', name: 'Admin Penuh', admin: true, desc: 'Kelola absensi semua pegawai, atur jam kerja & hari libur (setara admin)' },
+    ] },
+  { id: 'lembur', name: 'Lembur', icon: 'M12 3v1m0 16v1m9-9h-1M4 12H3m15.36-6.36l-.7.7M6.34 17.66l-.7.7m12.72 0l-.7-.7M6.34 6.34l-.7-.7M16 12a4 4 0 11-8 0 4 4 0 018 0z',
+    base: { key: 'lembur', desc: 'Isi uraian tugas lembur milik sendiri' }, items: [
+      { key: 'lembur.full', name: 'Admin Penuh', admin: true, desc: 'Kelola kegiatan/sesi lembur, tambah peserta, upload dokumentasi (setara admin)' },
+    ] },
+  { id: 'eplanning', name: 'E-Planning', icon: 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4',
+    base: null, items: [
+      { key: 'eplanning.operator',   name: 'Operator',            desc: 'Bikin & edit usulan anggaran milik sendiri' },
+      { key: 'eplanning.kabid',      name: 'Kepala Unit Kerja',   desc: 'Review & setujui semua usulan di unit kerjanya (Puskesmas/Bidang/Sub Bagian)' },
+      { key: 'eplanning.sekretaris', name: 'Sekretaris Dinas',    desc: 'Verifikasi tambahan khusus usulan dari unit kerja tipe Sub Bagian, sebelum ke Admin' },
+      { key: 'eplanning.admin',      name: 'Admin Verifikator', admin: true, desc: 'Verifikasi lintas-bidang, sahkan final, kelola master data & pengaturan (setara admin)' },
+    ] },
 ];
+// Daftar datar (dipertahankan kalau ada kode lain yang butuh)
+const PERM_DEFS = PERM_GROUPS.flatMap(g => [g.base && { key: g.base.key, name: g.name, desc: g.base.desc }, ...g.items].filter(Boolean));
 
 let _editingPermsUserId = null;
 let _selectedPerms = new Set();
+let _permsOpenGroups = new Set();
+
+function _permGroupKeys(g) { return [g.base?.key, ...g.items.map(i => i.key)].filter(Boolean); }
+function _permRegularKeys(g) { return g.items.filter(i => !i.admin).map(i => i.key); }
 
 async function openPermsModal(userId) {
   _editingPermsUserId = userId;
@@ -543,41 +572,130 @@ async function openPermsModal(userId) {
     _selectedPerms = new Set(d.permissions || []);
   } catch { _selectedPerms = new Set(); }
 
+  // Grup yang sudah punya akses dibuka otomatis; sisanya tertutup
+  _permsOpenGroups = new Set(PERM_GROUPS.filter(g => _permGroupKeys(g).some(k => _selectedPerms.has(k))).map(g => g.id));
   renderPermsGrid();
   openModal('modalPerms');
 }
 
 function renderPermsGrid() {
   const grid = document.getElementById('permsGrid');
-  grid.innerHTML = PERM_DEFS.map(p => {
-    const sel = _selectedPerms.has(p.key);
+  const scroller = grid.closest('.modal-body');
+  const top = scroller ? scroller.scrollTop : 0;
+
+  const total = PERM_GROUPS.reduce((n, g) => n + _permGroupKeys(g).length, 0);
+  const picked = PERM_GROUPS.reduce((n, g) => n + _permGroupKeys(g).filter(k => _selectedPerms.has(k)).length, 0);
+  const allOpen = PERM_GROUPS.every(g => !g.items.length || _permsOpenGroups.has(g.id));
+
+  const toolbar = `
+    <div class="perm-tree-toolbar">
+      <span class="perm-tree-count"><b>${picked}</b> dari ${total} hak akses dipilih</span>
+      <span class="perm-tree-actions">
+        <button type="button" class="perm-link-btn" onclick="permsToggleAllGroups(${allOpen ? 'false' : 'true'})">${allOpen ? 'Tutup semua' : 'Buka semua'}</button>
+        <button type="button" class="perm-link-btn" onclick="permsClearAll()" ${picked ? '' : 'disabled'}>Kosongkan</button>
+      </span>
+    </div>`;
+
+  const chev = '<svg class="perm-chev" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>';
+
+  const groups = PERM_GROUPS.map(g => {
+    const keys = _permGroupKeys(g);
+    const cnt = keys.filter(k => _selectedPerms.has(k)).length;
+    const hasKids = g.items.length > 0;
+    const open = hasKids && _permsOpenGroups.has(g.id);
+
+    // State checkbox header
+    let state;
+    if (g.base) state = _selectedPerms.has(g.base.key) ? 'on' : 'off';
+    else {
+      const reg = _permRegularKeys(g);
+      const n = reg.filter(k => _selectedPerms.has(k)).length;
+      state = n === 0 ? 'off' : (n === reg.length ? 'on' : 'mix');
+    }
+    const sub = g.base ? g.base.desc : (hasKids ? `${g.items.length} sub-menu` : '');
+
+    const kids = g.items.map(it => {
+      const sel = _selectedPerms.has(it.key);
+      return `
+        <div class="perm-child ${sel ? 'selected' : ''} ${it.admin ? 'is-admin' : ''}" onclick="togglePerm('${it.key}')">
+          <div class="perm-check"></div>
+          <div class="perm-child-txt">
+            <div class="perm-name">${esc(it.name)}${it.admin ? '<span class="perm-badge-admin">Admin</span>' : ''}</div>
+            <div class="perm-desc">${esc(it.desc)}</div>
+          </div>
+        </div>`;
+    }).join('');
+
     return `
-      <div class="perm-item ${sel ? 'selected' : ''}" onclick="togglePerm('${p.key}', this)">
-        <div class="perm-check"></div>
-        <div>
-          <div class="perm-name">${esc(p.name)}</div>
-          <div class="perm-desc">${esc(p.desc)}</div>
+      <div class="perm-group ${cnt ? 'has-sel' : ''} ${open ? 'open' : ''}">
+        <div class="perm-group-head">
+          <div class="perm-check-lg ${state}" onclick="permsToggleGroup('${g.id}')" title="${g.base ? 'Beri/cabut akses menu ini' : 'Pilih/kosongkan semua sub-menu (kecuali Admin)'}"></div>
+          <div class="perm-group-main" onclick="${hasKids ? `permsToggleOpen('${g.id}')` : `permsToggleGroup('${g.id}')`}">
+            <div class="perm-group-ico"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="${g.icon}"/></svg></div>
+            <div class="perm-group-txt">
+              <div class="perm-group-name">${esc(g.name)}</div>
+              ${sub ? `<div class="perm-desc">${esc(sub)}</div>` : ''}
+            </div>
+            ${hasKids ? `<span class="perm-group-cnt ${cnt ? 'on' : ''}">${cnt}/${keys.length}</span>${chev}` : ''}
+          </div>
         </div>
+        ${hasKids ? `<div class="perm-group-body"><div class="perm-group-body-in">${kids}</div></div>` : ''}
       </div>`;
   }).join('');
+
+  grid.innerHTML = toolbar + `<div class="perm-tree">${groups}</div>`;
+  if (scroller) scroller.scrollTop = top;
 }
 
-function togglePerm(key, el) {
+function permsToggleOpen(id) {
+  _permsOpenGroups.has(id) ? _permsOpenGroups.delete(id) : _permsOpenGroups.add(id);
+  renderPermsGrid();
+}
+
+function permsToggleAllGroups(open) {
+  _permsOpenGroups = open ? new Set(PERM_GROUPS.filter(g => g.items.length).map(g => g.id)) : new Set();
+  renderPermsGrid();
+}
+
+function permsClearAll() {
+  _selectedPerms = new Set();
+  renderPermsGrid();
+}
+
+// Checkbox di header grup
+function permsToggleGroup(id) {
+  const g = PERM_GROUPS.find(x => x.id === id);
+  if (!g) return;
+  if (g.base) {
+    // Menu dengan izin utama: centang = beri akses; cabut = ikut cabut sub-tingkat (Admin Penuh)
+    if (_selectedPerms.has(g.base.key)) _permGroupKeys(g).forEach(k => _selectedPerms.delete(k));
+    else { _selectedPerms.add(g.base.key); _permsOpenGroups.add(g.id); }
+  } else {
+    const reg = _permRegularKeys(g);
+    const allOn = reg.every(k => _selectedPerms.has(k));
+    if (allOn) reg.forEach(k => _selectedPerms.delete(k));
+    else { reg.forEach(k => _selectedPerms.add(k)); _permsOpenGroups.add(g.id); }
+    if (id === 'superlink') _permSyncSuperlink();
+  }
+  renderPermsGrid();
+}
+
+function _permSyncSuperlink() {
+  if (_selectedPerms.has('superlink.shortlink') || _selectedPerms.has('superlink.bundle')) _selectedPerms.add('superlink.link');
+}
+
+function togglePerm(key) {
   if (_selectedPerms.has(key)) {
     _selectedPerms.delete(key);
-    el.classList.remove('selected');
   } else {
     _selectedPerms.add(key);
-    el.classList.add('selected');
-    
-    if (key === 'superlink.shortlink' || key === 'superlink.bundle') {
-      _selectedPerms.add('superlink.link');
-    }
-    
-    if (key === 'surat.masuk.full') _selectedPerms.add('surat.masuk');
+    if (key === 'superlink.shortlink' || key === 'superlink.bundle') _permSyncSuperlink();
+    // Admin Penuh otomatis butuh izin dasar menunya
+    if (key === 'surat.masuk.full')  _selectedPerms.add('surat.masuk');
     if (key === 'surat.keluar.full') _selectedPerms.add('surat.keluar');
+    if (key === 'absensi.full')      _selectedPerms.add('absensi');
+    if (key === 'lembur.full')       _selectedPerms.add('lembur');
   }
-  
   renderPermsGrid();
 }
 

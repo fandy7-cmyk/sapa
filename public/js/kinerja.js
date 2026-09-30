@@ -112,12 +112,42 @@ function _getRealisasiDisplayFromEl(realEl, row, rawVal) {
 
 // State target per tahun untuk modal indikator
 let _targetRows = []; // [{id?, tahun, target, target_display}]
-let _targetMap  = {}; // {indikator_id: [{tahun, target, target_display}]}
+let _targetMap  = {}; // {indikator_id: [{tahun, triwulan, target, target_display}]}  (1 baris per tahun+triwulan)
+
+// Target dikelola per TRIWULAN: tiap baris kinerja_target = (indikator, tahun, triwulan 1-4)
+function _twTargetVal(t) {
+  return t.target_display != null ? String(t.target_display) : (t.target != null ? String(t.target) : '-');
+}
+function _twTargetsOfYear(targets, tahun) {
+  const m = {};
+  for (const t of (targets || [])) if (String(t.tahun) === String(tahun)) m[t.triwulan || 4] = t;
+  return m;
+}
+// "a / b / c / d" untuk TW I-IV (kosong = "-")
+function _twTargetsLabel(targets, tahun) {
+  const m = _twTargetsOfYear(targets, tahun);
+  return [1, 2, 3, 4].map(n => m[n] ? _twTargetVal(m[n]) : '-').join(' / ');
+}
+function _twTargetYears(targets) {
+  return [...new Set((targets || []).map(t => t.tahun))].sort((a, b) => a - b);
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// PERIODE KINERJA = PER TRIWULAN
+// Kolom `bulan` di DB tetap dipakai, tapi isinya bulan AKHIR triwulan:
+//   TW I = 3, TW II = 6, TW III = 9, TW IV = 12
+// Jadi query kumulatif/rata-rata (krc.bulan <= X) di backend tetap jalan apa adanya.
+// ═══════════════════════════════════════════════════════════════════════════
+const TW_BULAN  = [3, 6, 9, 12];
+const TW_ROMAWI = ['', 'I', 'II', 'III', 'IV'];
+function _twBulanSekarang() { return Math.ceil((new Date().getMonth() + 1) / 3) * 3; }
+function _twNo(bulan)       { return Math.min(4, Math.max(1, Math.ceil((parseInt(bulan) || 3) / 3))); }
+function _twNama(bulan)     { return `Triwulan ${TW_ROMAWI[_twNo(bulan)]}`; }
 
 // ═══════════════════════════════════════════════════════════════════════════
 // KINERJA - state
 // ═══════════════════════════════════════════════════════════════════════════
-let _kinerja_bulan  = new Date().getMonth() + 1;   // 1–12
+let _kinerja_bulan  = _twBulanSekarang();   // 3/6/9/12 (akhir triwulan)
 let _kinerja_tahun  = new Date().getFullYear();
 let _kinerjaData    = [];
 let _kinerjaSearch  = '';   // teks pencarian indikator (tabel rekap IKU)
@@ -128,16 +158,22 @@ let _editingIndikatorId = null;
 let _editingGroupId     = null;
 
 // ── IKK state ────────────────────────────────────────────────────────────
-let _ikk_bulan  = new Date().getMonth() + 1;   // 1–12
+let _ikk_bulan  = _twBulanSekarang();   // 3/6/9/12 (akhir triwulan)
 let _ikk_tahun = new Date().getFullYear();
 let _ikkData   = [];
 let _ikkSearch = '';   // teks pencarian indikator (tabel rekap IKK)
 
 // ── SPM state ────────────────────────────────────────────────────────────
-let _spm_bulan  = new Date().getMonth() + 1;   // 1–12
+let _spm_bulan  = _twBulanSekarang();   // 3/6/9/12 (akhir triwulan)
 let _spm_tahun  = new Date().getFullYear();
 let _spmData    = [];
 let _spmSearch  = '';   // teks pencarian indikator (tabel rekap SPM)
+
+// ── Sub Kegiatan state ───────────────────────────────────────────────────
+let _subkeg_bulan  = _twBulanSekarang();   // 3/6/9/12 (akhir triwulan)
+let _subkeg_tahun  = new Date().getFullYear();
+let _subkegData    = [];
+let _subkegSearch  = '';   // teks pencarian indikator (tabel rekap Sub Kegiatan)
 
 // ── Pagination & search - Indikator Admin ────────────────────────────────
 let _indikatorPage      = 1;
@@ -191,7 +227,7 @@ function _rowHasJenis(row, kode) {
 function _isKinerjaInputOpen(bulan, jenis) {
   
   if (_user?.is_admin) return true;
-  const targetBulan = bulan != null ? bulan : jenis === 'spm' ? _spm_bulan : jenis === 'ikk' ? _ikk_bulan : _kinerja_bulan;
+  const targetBulan = bulan != null ? bulan : jenis === 'subkeg' ? _subkeg_bulan : jenis === 'spm' ? _spm_bulan : jenis === 'ikk' ? _ikk_bulan : _kinerja_bulan;
   
   return _periodeListTerbuka.some(p =>
     p.bulan === targetBulan &&
@@ -227,6 +263,7 @@ function _kperiodeJenisMeta(jenis) {
   if (jenis === 'monev') return { label: 'IKU', bg: '#dbeafe', fg: '#1d4ed8', icon: checklistIcon };
   if (jenis === 'ikk') return { label: 'IKK', bg: '#ede9fe', fg: '#7c3aed', icon: checklistIcon };
   if (jenis === 'spm') return { label: 'SPM', bg: '#fef3c7', fg: '#b45309', icon: checklistIcon };
+  if (jenis === 'subkeg') return { label: 'Sub Kegiatan', bg: '#ede9fe', fg: '#6d28d9', icon: checklistIcon };
   return { label: 'INPUT', bg: '#f1f5f9', fg: '#64748b', icon: checklistIcon };
 }
 
@@ -237,8 +274,8 @@ function _renderKinerjaCountdown(containerId, jenis) {
   
   if (_user?.is_admin) { wrap.style.display = 'none'; wrap.innerHTML = ''; return; }
 
-  // Cari periode aktif untuk bulan yg dipilih, filter by jenis
-  const targetBulan = jenis === 'ikk' ? _ikk_bulan : jenis === 'spm' ? _spm_bulan : _kinerja_bulan;
+  // Cari periode aktif untuk triwulan yg dipilih, filter by jenis
+  const targetBulan = jenis === 'ikk' ? _ikk_bulan : jenis === 'spm' ? _spm_bulan : jenis === 'subkeg' ? _subkeg_bulan : _kinerja_bulan;
   const pa = _periodeListTerbuka.find(p => p.bulan === targetBulan && (!jenis || p.jenis === jenis)) ?? null;
 
   
@@ -248,7 +285,7 @@ function _renderKinerjaCountdown(containerId, jenis) {
   const openMs  = pa.open_at ? new Date(pa.open_at).getTime() : null;
   const openLabel  = pa.open_at  ? new Date(pa.open_at).toLocaleString('id-ID', { day:'2-digit', month:'long', year:'numeric', hour:'2-digit', minute:'2-digit', timeZone: 'Asia/Makassar' }).replace(' pukul','') + ' WITA' : '-';
   const closeLabel = new Date(pa.close_at).toLocaleString('id-ID', { day:'2-digit', month:'long', year:'numeric', hour:'2-digit', minute:'2-digit', timeZone: 'Asia/Makassar' }).replace(' pukul','') + ' WITA';
-  const bulanTahunLabel = `${BULAN_FULL[pa.bulan]} ${pa.tahun}`;
+  const bulanTahunLabel = `${_twNama(pa.bulan)} ${pa.tahun}`;
   const jm = _kperiodeJenisMeta(jenis);
 
   wrap.style.display = 'block';
@@ -373,7 +410,7 @@ async function initKinerjaControls() {
   } else if (_user?.is_admin) {
     
     _kinerja_tahun = new Date().getFullYear();
-    _kinerja_bulan = new Date().getMonth() + 1;
+    _kinerja_bulan = _twBulanSekarang();
   }
 
   
@@ -424,7 +461,7 @@ function setKinerjaTahun(tahun) {
       .sort((a, b) => a.bulan - b.bulan);
     if (periodeThnIni.length) _kinerja_bulan = periodeThnIni[0].bulan;
   } else {
-    _kinerja_bulan = 1;
+    _kinerja_bulan = 3;
   }
   _syncBulanButtons();
   _renderPeriodeInfo();
@@ -438,7 +475,7 @@ function setIkkTahun(tahun) {
       .sort((a, b) => a.bulan - b.bulan);
     if (periodeThnIni.length) _ikk_bulan = periodeThnIni[0].bulan;
   } else {
-    _ikk_bulan = 1;
+    _ikk_bulan = 3;
   }
   _syncIkkBulanButtons();
   _renderIkkPeriodeInfo();
@@ -454,7 +491,7 @@ function _syncBulanButtons() {
   
   const bulanTerbuka = new Set(_periodeListTerbuka.filter(p => p.jenis === 'monev').map(p => p.bulan));
   const items = [];
-  for (let bulan = 1; bulan <= 12; bulan++) {
+  for (const bulan of TW_BULAN) {
     
     const isTampil = _user?.is_admin ? true : bulanTerbuka.has(bulan);
     if (!isTampil) continue;
@@ -468,7 +505,7 @@ function _syncBulanButtons() {
   
   items.sort((a, b) => _user?.is_admin ? (a.bulan - b.bulan) : ((a.tahun * 100 + a.bulan) - (b.tahun * 100 + b.bulan)));
   sel.innerHTML = items.map(it =>
-    `<option value="${it.bulan}"${it.bulan === _kinerja_bulan ? ' selected' : ''}>${BULAN_FULL[it.bulan]}</option>`
+    `<option value="${it.bulan}"${it.bulan === _kinerja_bulan ? ' selected' : ''}>${_twNama(it.bulan)}</option>`
   ).join('');
   sel.onchange = () => setKinerjaBulan(parseInt(sel.value));
   if (typeof syncCustomSelect === 'function') syncCustomSelect('bulanSelector');
@@ -578,7 +615,7 @@ async function loadKinerjaRekap() {
   }
 }
 
-// Helper: trigger file picker langsung dari tombol Upload row-baru (baca tw/tahun/source dari data-attr)
+// Helper: buka modal link dari tombol "Isi Link" row-baru (baca tw/tahun/source dari data-attr)
 function _openDukungFromBtn(btn) {
   const id     = parseInt(btn.dataset.indikatorId);
   const tw     = parseInt(btn.dataset.tw);
@@ -599,14 +636,14 @@ function _lockDukungButtons(indikatorId) {
     dukungBtn.disabled = true;
     dukungBtn.style.cursor = 'not-allowed';
     dukungBtn.style.opacity = '.85';
-    dukungBtn.dataset.tip = 'Klik Edit terlebih dahulu untuk mengganti file';
+    dukungBtn.dataset.tip = 'Klik Edit terlebih dahulu untuk mengganti link';
     dukungBtn.onclick = null;
   }
   if (deleteBtn) {
     deleteBtn.disabled = true;
     deleteBtn.style.cursor = 'not-allowed';
     deleteBtn.style.opacity = '.5';
-    deleteBtn.dataset.tip = 'Klik Edit terlebih dahulu untuk menghapus file';
+    deleteBtn.dataset.tip = 'Klik Edit terlebih dahulu untuk menghapus link';
     deleteBtn.onclick = null;
   }
   if (uploadOnlyBtn) {
@@ -617,7 +654,7 @@ function _lockDukungButtons(indikatorId) {
     uploadOnlyBtn.style.borderColor = '#fca5a5';
     uploadOnlyBtn.style.background = '#fee2e2';
     uploadOnlyBtn.style.color = '#991b1b';
-    uploadOnlyBtn.dataset.tip = 'Klik Edit terlebih dahulu untuk mengupload file';
+    uploadOnlyBtn.dataset.tip = 'Klik Edit terlebih dahulu untuk mengisi link';
     uploadOnlyBtn.onclick = null;
   }
 }
@@ -651,7 +688,7 @@ function _renderDukungBtn(row, tw, tahun, source, initialEditable = false) {
   if (fileCount > 0) {
     const previewFn  = `openDukungPreview(${row.id}, ${twVal}, ${tahunVal}, '${source}')`;
     const uploadFnAlt = source === 'ikk' ? `openIkkDukungModal(${row.id}, ${twVal}, ${tahunVal})` : `openDukungModal(${row.id}, ${twVal}, ${tahunVal}, '${source}')`;
-    const label = fileCount > 1 ? `Uploaded (${fileCount})` : 'Uploaded';
+    const label = fileCount > 1 ? `Link (${fileCount})` : 'Link';
     
     
     const isEditable = initialEditable;
@@ -661,19 +698,19 @@ function _renderDukungBtn(row, tw, tahun, source, initialEditable = false) {
       <button
         class="dukung-uploaded-btn"
         data-indikator-id="${row.id}" data-tw="${twVal}" data-tahun="${tahunVal}" data-source="${source}"
-        data-tip="${isEditable ? 'Kelola / ganti file' : 'Klik Edit terlebih dahulu untuk mengganti file'}"
+        data-tip="${isEditable ? 'Kelola / ganti link' : 'Klik Edit terlebih dahulu untuk mengganti link'}"
         ${isEditable ? `onclick="${uploadFnAlt}"` : 'disabled'}
         style="display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:6px;border:none;${isEditable ? 'cursor:pointer' : 'cursor:not-allowed'};font-size:.75rem;font-weight:600;font-family:inherit;background:#d1fae5;color:#065f46;opacity:.85;white-space:nowrap">
         <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
         ${label}
       </button>
-      <button onclick="${previewFn}" data-tip="Preview data dukung"
+      <button onclick="${previewFn}" data-tip="Buka data dukung"
         style="display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;border-radius:6px;border:none;cursor:pointer;background:#dbeafe;color:#1d4ed8">
         <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
       </button>
       <button class="dukung-delete-btn" ${isEditable ? '' : 'disabled'}
         data-indikator-id="${row.id}" data-tw="${twVal}" data-tahun="${tahunVal}" data-source="${source}"
-        data-tip="${isEditable ? 'Hapus file' : 'Klik Edit terlebih dahulu untuk menghapus file'}"
+        data-tip="${isEditable ? 'Hapus link' : 'Klik Edit terlebih dahulu untuk menghapus link'}"
         ${isEditable ? `onclick="deleteDukungAll(${row.id}, ${twVal}, ${tahunVal}, '${source}')"` : ''}
         style="display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;border-radius:6px;border:none;${isEditable ? 'cursor:pointer' : 'cursor:not-allowed'};background:#fee2e2;color:#991b1b;${isEditable ? '' : 'opacity:.5'}">
         <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path stroke-linecap="round" stroke-linejoin="round" d="M19 6l-1 14H6L5 6"/><path stroke-linecap="round" stroke-linejoin="round" d="M10 11v6m4-6v6"/><path stroke-linecap="round" stroke-linejoin="round" d="M9 6V4h6v2"/></svg>
@@ -686,25 +723,27 @@ function _renderDukungBtn(row, tw, tahun, source, initialEditable = false) {
       data-indikator-id="${row.id}" data-tw="${twVal}" data-tahun="${tahunVal}" data-source="${source}"
       data-tip="Isi realisasi dan field wajib terlebih dahulu"
       style="display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:6px;border:1.5px dashed #fca5a5;cursor:not-allowed;font-size:.75rem;font-weight:600;font-family:inherit;background:#fee2e2;color:#991b1b;opacity:.65">
-      <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>
-      Upload
+      <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71"/><path stroke-linecap="round" stroke-linejoin="round" d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71"/></svg>
+      Isi Link
     </button>`;
   }
   return `<button class="dukung-upload-btn" disabled
     data-indikator-id="${row.id}" data-tw="${twVal}" data-tahun="${tahunVal}" data-source="${source}"
-    data-tip="Klik Edit terlebih dahulu untuk mengupload file"
+    data-tip="Klik Edit terlebih dahulu untuk mengisi link"
     style="display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:6px;border:1.5px dashed #fca5a5;cursor:not-allowed;font-size:.75rem;font-weight:600;font-family:inherit;background:#fee2e2;color:#991b1b;opacity:.65">
-    <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>
-    Upload
+    <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71"/><path stroke-linecap="round" stroke-linejoin="round" d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71"/></svg>
+    Isi Link
   </button>`;
 }
 
 let _ikuPage = 1; const _ikuPageSize = 10;
 let _ikkPage = 1; const _ikkPageSize = 10;
 let _spmPage = 1; const _spmPageSize = 10;
+let _subkegPage = 1; const _subkegPageSize = 10;
 function _goIkuPage(p) { _ikuPage = p; renderKinerjaTable(document.getElementById('kinerjaTableBody')); }
 function _goIkkPage(p) { _ikkPage = p; _renderIkkTable(document.getElementById('ikkTableBody')); }
 function _goSpmPage(p) { _spmPage = p; _renderSpmTable(document.getElementById('spmTableBody')); }
+function _goSubkegPage(p) { _subkegPage = p; _renderSubkegTable(document.getElementById('subkegTableBody')); }
 
 function filterKinerjaTable() {
   _kinerjaSearch = (document.getElementById('kinerjaSearch')?.value || '').trim().toLowerCase();
@@ -851,9 +890,9 @@ function renderKinerjaTable(tbody) {
         const dukungCell = document.querySelector(`tr[data-id="${row.id}"] td[data-col="dukung"]`);
         if (dukungCell && !dukungCell.querySelector('.dukung-warning')) {
           dukungCell.insertAdjacentHTML('beforeend', `
-            <div class="dukung-warning" data-tip="Data dukung belum diupload untuk indikator ini">
+            <div class="dukung-warning" data-tip="Link data dukung belum diisi untuk indikator ini">
               <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v4m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/></svg>
-              Belum diupload
+              Belum diisi
             </div>`);
         }
       }
@@ -944,7 +983,7 @@ function toggleEditRow(indikatorId) {
       dukungBtn.disabled = false;
       dukungBtn.style.cursor = 'pointer';
       dukungBtn.style.opacity = '1';
-      dukungBtn.dataset.tip = 'Kelola / ganti file data dukung';
+      dukungBtn.dataset.tip = 'Kelola / ganti link data dukung';
       const twV = dukungBtn.dataset.tw;
       const tahunV = dukungBtn.dataset.tahun;
       dukungBtn.onclick = () => openDukungModal(indikatorId, parseInt(twV), parseInt(tahunV));
@@ -952,7 +991,7 @@ function toggleEditRow(indikatorId) {
       dukungBtn.disabled = true;
       dukungBtn.style.cursor = 'not-allowed';
       dukungBtn.style.opacity = '.85';
-      dukungBtn.dataset.tip = 'Klik Edit terlebih dahulu untuk mengganti file';
+      dukungBtn.dataset.tip = 'Klik Edit terlebih dahulu untuk mengganti link';
       dukungBtn.onclick = null;
     }
   }
@@ -963,7 +1002,7 @@ function toggleEditRow(indikatorId) {
       deleteBtn.disabled = false;
       deleteBtn.style.cursor = 'pointer';
       deleteBtn.style.opacity = '1';
-      deleteBtn.dataset.tip = 'Hapus semua file data dukung';
+      deleteBtn.dataset.tip = 'Hapus link data dukung';
       const twV    = deleteBtn.dataset.tw;
       const tahunV = deleteBtn.dataset.tahun;
       const srcV   = deleteBtn.dataset.source;
@@ -972,7 +1011,7 @@ function toggleEditRow(indikatorId) {
       deleteBtn.disabled = true;
       deleteBtn.style.cursor = 'not-allowed';
       deleteBtn.style.opacity = '.5';
-      deleteBtn.dataset.tip = 'Klik Edit terlebih dahulu untuk menghapus file';
+      deleteBtn.dataset.tip = 'Klik Edit terlebih dahulu untuk menghapus link';
       deleteBtn.onclick = null;
     }
   }
@@ -984,7 +1023,7 @@ function toggleEditRow(indikatorId) {
       uploadOnlyBtn.style.cursor = 'pointer';
       uploadOnlyBtn.style.opacity = '1';
       uploadOnlyBtn.style.borderStyle = 'solid';
-      uploadOnlyBtn.dataset.tip = 'Upload file data dukung';
+      uploadOnlyBtn.dataset.tip = 'Isi link data dukung';
       const twV    = uploadOnlyBtn.dataset.tw;
       const tahunV = uploadOnlyBtn.dataset.tahun;
       const src    = uploadOnlyBtn.dataset.source;
@@ -995,7 +1034,7 @@ function toggleEditRow(indikatorId) {
       uploadOnlyBtn.style.cursor = 'not-allowed';
       uploadOnlyBtn.style.opacity = '.65';
       uploadOnlyBtn.style.borderStyle = 'dashed';
-      uploadOnlyBtn.dataset.tip = 'Klik Edit terlebih dahulu untuk mengupload file';
+      uploadOnlyBtn.dataset.tip = 'Klik Edit terlebih dahulu untuk mengisi link';
       uploadOnlyBtn.onclick = null;
     }
   }
@@ -1126,7 +1165,7 @@ function toggleIkkEditRow(indikatorId) {
       ikkDukungBtn.disabled = false;
       ikkDukungBtn.style.cursor = 'pointer';
       ikkDukungBtn.style.opacity = '1';
-      ikkDukungBtn.dataset.tip = 'Kelola / ganti file data dukung';
+      ikkDukungBtn.dataset.tip = 'Kelola / ganti link data dukung';
       const twV = ikkDukungBtn.dataset.tw;
       const tahunV = ikkDukungBtn.dataset.tahun;
       ikkDukungBtn.onclick = () => openIkkDukungModal(indikatorId, parseInt(twV), parseInt(tahunV));
@@ -1134,7 +1173,7 @@ function toggleIkkEditRow(indikatorId) {
       ikkDukungBtn.disabled = true;
       ikkDukungBtn.style.cursor = 'not-allowed';
       ikkDukungBtn.style.opacity = '.85';
-      ikkDukungBtn.dataset.tip = 'Klik Edit terlebih dahulu untuk mengganti file';
+      ikkDukungBtn.dataset.tip = 'Klik Edit terlebih dahulu untuk mengganti link';
       ikkDukungBtn.onclick = null;
     }
   }
@@ -1145,7 +1184,7 @@ function toggleIkkEditRow(indikatorId) {
       ikkDeleteBtn.disabled = false;
       ikkDeleteBtn.style.cursor = 'pointer';
       ikkDeleteBtn.style.opacity = '1';
-      ikkDeleteBtn.dataset.tip = 'Hapus semua file data dukung';
+      ikkDeleteBtn.dataset.tip = 'Hapus link data dukung';
       const twV    = ikkDeleteBtn.dataset.tw;
       const tahunV = ikkDeleteBtn.dataset.tahun;
       const srcV   = ikkDeleteBtn.dataset.source;
@@ -1154,7 +1193,7 @@ function toggleIkkEditRow(indikatorId) {
       ikkDeleteBtn.disabled = true;
       ikkDeleteBtn.style.cursor = 'not-allowed';
       ikkDeleteBtn.style.opacity = '.5';
-      ikkDeleteBtn.dataset.tip = 'Klik Edit terlebih dahulu untuk menghapus file';
+      ikkDeleteBtn.dataset.tip = 'Klik Edit terlebih dahulu untuk menghapus link';
       ikkDeleteBtn.onclick = null;
     }
   }
@@ -1165,7 +1204,7 @@ function toggleIkkEditRow(indikatorId) {
       ikkUploadOnlyBtn.style.cursor = 'pointer';
       ikkUploadOnlyBtn.style.opacity = '1';
       ikkUploadOnlyBtn.style.borderStyle = 'solid';
-      ikkUploadOnlyBtn.dataset.tip = 'Upload file data dukung';
+      ikkUploadOnlyBtn.dataset.tip = 'Isi link data dukung';
       const twV    = ikkUploadOnlyBtn.dataset.tw;
       const tahunV = ikkUploadOnlyBtn.dataset.tahun;
       const src    = ikkUploadOnlyBtn.dataset.source;
@@ -1175,7 +1214,7 @@ function toggleIkkEditRow(indikatorId) {
       ikkUploadOnlyBtn.style.cursor = 'not-allowed';
       ikkUploadOnlyBtn.style.opacity = '.65';
       ikkUploadOnlyBtn.style.borderStyle = 'dashed';
-      ikkUploadOnlyBtn.dataset.tip = 'Klik Edit terlebih dahulu untuk mengupload file';
+      ikkUploadOnlyBtn.dataset.tip = 'Klik Edit terlebih dahulu untuk mengisi link';
       ikkUploadOnlyBtn.onclick = null;
     }
   }
@@ -1336,7 +1375,7 @@ function _updateSaveBtnState(indikatorId) {
       _uploadBtn_iku.style.borderColor = '#6ee7b7';
       _uploadBtn_iku.style.background = '#ecfdf5';
       _uploadBtn_iku.style.color = '#065f46';
-      _uploadBtn_iku.dataset.tip = 'Upload data dukung';
+      _uploadBtn_iku.dataset.tip = 'Isi link data dukung';
       _uploadBtn_iku.onclick = () => _openDukungFromBtn(_uploadBtn_iku);
     } else {
       _uploadBtn_iku.disabled = true;
@@ -1553,9 +1592,9 @@ async function saveRealisasiRow(indikatorId) {
         const dukungCell = document.querySelector(`tr[data-id="${indikatorId}"] td[data-col="dukung"]`);
         if (dukungCell && !dukungCell.querySelector('.dukung-warning')) {
           dukungCell.insertAdjacentHTML('beforeend', `
-            <div class="dukung-warning" data-tip="Data dukung belum diupload untuk indikator ini">
+            <div class="dukung-warning" data-tip="Link data dukung belum diisi untuk indikator ini">
               <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v4m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/></svg>
-              Belum diupload
+              Belum diisi
             </div>`);
         }
       }
@@ -1766,11 +1805,9 @@ function _indikatorSortTargetVal(row) {
   const targets = _targetMap[row.id] || [];
   if (!targets.length) return null;
   let t;
-  if (_indikatorFilterTahun) {
-    t = targets.find(t => String(t.tahun) === _indikatorFilterTahun);
-  } else {
-    t = [...targets].sort((a, b) => b.tahun - a.tahun)[0];
-  }
+  const _yr = _indikatorFilterTahun || String(_twTargetYears(targets).slice(-1)[0] || '');
+  // Pakai target triwulan tertinggi yang terisi di tahun tsb (TW IV = target akhir tahun)
+  t = targets.filter(x => String(x.tahun) === _yr).sort((a, b) => (b.triwulan || 4) - (a.triwulan || 4))[0];
   if (!t) return null;
   const raw = t.target != null ? t.target : t.target_display;
   const num = parseFloat(String(raw).replace(/[^\d.-]/g, ''));
@@ -1844,9 +1881,9 @@ window._updateJenisPreview  = _updateJenisPreview;
 window._onJenisCbChange     = _onJenisCbChange;
 
 const TIPE_PERHITUNGAN_INFO = {
-  kumulatif:     { label: 'Kumulatif',     bg: '#eff6ff', teks: '#1d4ed8', border: '#bfdbfe', title: 'Nilai capaian dijumlahkan berjalan dari Januari s.d. bulan yang diisi' },
-  rata_rata:     { label: 'Rata-rata',     bg: '#fffbeb', teks: '#b45309', border: '#fde68a', title: 'Nilai capaian dihitung rata-rata dari bulan-bulan yang sudah diisi' },
-  non_kumulatif: { label: 'Non-Kumulatif', bg: '#fdf4ff', teks: '#a21caf', border: '#f5d0fe', title: 'Nilai capaian berdiri sendiri per bulan, tidak dijumlah/dirata-rata' },
+  kumulatif:     { label: 'Kumulatif',     bg: '#eff6ff', teks: '#1d4ed8', border: '#bfdbfe', title: 'Nilai capaian dijumlahkan berjalan dari Triwulan I s.d. triwulan yang diisi' },
+  rata_rata:     { label: 'Rata-rata',     bg: '#fffbeb', teks: '#b45309', border: '#fde68a', title: 'Nilai capaian dihitung rata-rata dari triwulan-triwulan yang sudah diisi' },
+  non_kumulatif: { label: 'Non-Kumulatif', bg: '#fdf4ff', teks: '#a21caf', border: '#f5d0fe', title: 'Nilai capaian berdiri sendiri per triwulan, tidak dijumlah/dirata-rata' },
 };
 function _tipeBadge(tipe) {
   const info = TIPE_PERHITUNGAN_INFO[tipe] || TIPE_PERHITUNGAN_INFO.non_kumulatif;
@@ -1959,7 +1996,7 @@ function renderIndikatorAdmin() {
   
   
   const thTargetEl = document.getElementById('thTarget');
-  if (thTargetEl) thTargetEl.textContent = _indikatorFilterTahun ? `Target ${_indikatorFilterTahun}` : 'Target';
+  if (thTargetEl) thTargetEl.textContent = _indikatorFilterTahun ? `Target ${_indikatorFilterTahun} (TW I-IV)` : 'Target (TW I-IV)';
 
   
   const pjSelect = document.getElementById('indikatorFilterPJ');
@@ -2018,19 +2055,17 @@ function renderIndikatorAdmin() {
           if (!targets.length) return '<span style="color:var(--teks-muted)">-</span>';
           if (_indikatorFilterTahun) {
             // Hanya tampilkan target untuk tahun yang dipilih
-            const t = targets.find(t => String(t.tahun) === _indikatorFilterTahun);
-            if (!t) return '<span style="color:var(--teks-muted);font-size:.72rem">-</span>';
-            const val = t.target_display != null ? String(t.target_display) : (t.target != null ? String(t.target) : '-');
-            return `<span style="display:inline-flex;align-items:center;gap:3px;font-size:.82rem;font-weight:600;color:#0f766e">${escHtml(val)}</span>`;
+            const lbl = _twTargetsLabel(targets, _indikatorFilterTahun);
+            if (lbl === '- / - / - / -') return '<span style="color:var(--teks-muted);font-size:.72rem">-</span>';
+            return `<span data-tip="Target TW I / II / III / IV" style="display:inline-flex;align-items:center;gap:3px;font-size:.82rem;font-weight:600;color:#0f766e">${escHtml(lbl)}</span>`;
           }
           const thisYear = new Date().getFullYear();
           // Urutkan: tahun terdekat dari sekarang ke atas dulu, lalu ke bawah
-          const sorted = [...targets].sort((a, b) => Math.abs(a.tahun - thisYear) - Math.abs(b.tahun - thisYear));
-          const shown  = sorted.slice(0, 3).sort((a, b) => a.tahun - b.tahun);
-          const rest   = targets.length - 3;
-          const badges = shown.map(t => {
-            const val = t.target_display != null ? String(t.target_display) : (t.target != null ? String(t.target) : '-');
-            return `<span style="display:inline-flex;align-items:center;gap:3px;font-size:.72rem;font-weight:600;background:#f0fdfa;color:#0f766e;border:1px solid #99f6e4;border-radius:5px;padding:2px 6px;margin:1px 2px 1px 0">${t.tahun}<span style="color:#64748b;font-weight:400">:</span>${escHtml(val)}</span>`;
+          const years  = _twTargetYears(targets).sort((a, b) => Math.abs(a - thisYear) - Math.abs(b - thisYear));
+          const shown  = years.slice(0, 3).sort((a, b) => a - b);
+          const rest   = years.length - 3;
+          const badges = shown.map(y => {
+            return `<span data-tip="Target ${y} - TW I / II / III / IV" style="display:inline-flex;align-items:center;gap:3px;font-size:.72rem;font-weight:600;background:#f0fdfa;color:#0f766e;border:1px solid #99f6e4;border-radius:5px;padding:2px 6px;margin:1px 2px 1px 0">${y}<span style="color:#64748b;font-weight:400">:</span>${escHtml(_twTargetsLabel(targets, y))}</span>`;
           }).join('');
           const moreBadge = rest > 0
             ? `<span data-tip="Buka edit untuk lihat semua target" style="display:inline-flex;align-items:center;font-size:.72rem;font-weight:600;background:#f1f5f9;color:#64748b;border:1px solid #e2e8f0;border-radius:5px;padding:2px 6px;margin:1px 0;cursor:default">+${rest} lagi</span>`
@@ -2103,19 +2138,17 @@ async function downloadIndikatorPDF(btnEl) {
     if (!filtered.length) { toast('Tidak ada data sesuai filter saat ini.', 'error'); return; }
 
     const tahunLabel = _indikatorFilterTahun || new Date().getFullYear();
-    const targetHeaderLabel = _indikatorFilterTahun ? `TARGET ${_indikatorFilterTahun}` : 'TARGET';
+    const targetHeaderLabel = _indikatorFilterTahun ? `TARGET ${_indikatorFilterTahun} (TW I/II/III/IV)` : 'TARGET (TW I/II/III/IV)';
 
     const bodyRows = filtered.map((row, i) => {
       const targets = _targetMap[row.id] || [];
       let targetStr = '-';
       if (targets.length) {
         if (_indikatorFilterTahun) {
-          const t = targets.find(t => String(t.tahun) === _indikatorFilterTahun);
-          targetStr = t ? String(t.target_display != null ? t.target_display : (t.target != null ? t.target : '-')) : '-';
+          targetStr = _twTargetsLabel(targets, _indikatorFilterTahun);
         } else {
-          targetStr = [...targets]
-            .sort((a, b) => a.tahun - b.tahun)
-            .map(t => `${t.tahun}: ${t.target_display != null ? t.target_display : (t.target != null ? t.target : '-')}`)
+          targetStr = _twTargetYears(targets)
+            .map(y => `${y}: ${_twTargetsLabel(targets, y)}`)
             .join('; ');
         }
       }
@@ -2137,7 +2170,7 @@ async function downloadIndikatorPDF(btnEl) {
         <td style="padding:4px 6px;border:1px solid #000;font-size:9px">${row.indikator_kinerja || ''}</td>
         <td style="padding:4px 4px;border:1px solid #000;text-align:center;font-size:9px">${row.satuan || '-'}</td>
         <td style="padding:4px 4px;border:1px solid #000;text-align:center;font-size:9px;white-space:nowrap">${targetStr}</td>
-        <td style="padding:4px 6px;border:1px solid #000;font-size:9px">${row.penanggung_jawab || '-'}</td>
+        <td style="padding:4px 6px;border:1px solid #000;text-align:center;font-size:9px">${row.penanggung_jawab || '-'}</td>
         <td style="padding:4px 6px;border:1px solid #000;font-size:9px">${pics.length ? pics.join(', ') : '-'}</td>
         <td style="padding:4px 4px;border:1px solid #000;text-align:center;font-size:9px">${jenisBadgeHtml || '-'}</td>
         <td style="padding:4px 4px;border:1px solid #000;text-align:center;font-size:9px">${maknaBadgeHtml}</td>
@@ -2157,7 +2190,7 @@ async function downloadIndikatorPDF(btnEl) {
             <th style="color:white;padding:5px 4px;border:1px solid #000;text-align:center;font-size:9px;min-width:150px">INDIKATOR KINERJA</th>
             <th style="color:white;padding:5px 4px;border:1px solid #000;text-align:center;font-size:9px;width:50px">SATUAN</th>
             <th style="color:white;padding:5px 4px;border:1px solid #000;text-align:center;font-size:9px;width:60px">${targetHeaderLabel}</th>
-            <th style="color:white;padding:5px 4px;border:1px solid #000;text-align:center;font-size:9px;min-width:110px">BIDANG / SUB BAGIAN</th>
+            <th style="color:white;padding:5px 4px;border:1px solid #000;text-align:center;font-size:9px;min-width:110px">UNIT KERJA</th>
             <th style="color:white;padding:5px 4px;border:1px solid #000;text-align:center;font-size:9px;min-width:100px">PENANGGUNG JAWAB (USER)</th>
             <th style="color:white;padding:5px 4px;border:1px solid #000;text-align:center;font-size:9px;width:70px">JENIS KINERJA</th>
             <th style="color:white;padding:5px 4px;border:1px solid #000;text-align:center;font-size:9px;width:60px">MAKNA INDIKATOR</th>
@@ -2480,6 +2513,7 @@ async function saveIndikator() {
     try { if (typeof loadKinerjaRekap === 'function') await loadKinerjaRekap(); } catch (_) {}
     try { if (typeof loadIkkRekap === 'function') await loadIkkRekap(); } catch (_) {}
     try { if (typeof loadSpmRekap === 'function') await loadSpmRekap(); } catch (_) {}
+    try { if (typeof loadSubkegRekap === 'function') await loadSubkegRekap(); } catch (_) {}
     // Ganti tipe_perhitungan/bermakna_negatif dll ngubah capaian_persen di
     // SEMUA tahun buat indikator ini - bersihin cache dashboard biar "Pantau
     // Indikator" & mini chart "Tren Per Bulan" gak nampilin angka basi.
@@ -2499,6 +2533,326 @@ async function deleteIndikator(id) {
   toast('Indikator dihapus');
   loadIndikatorAdmin({ keepFilter: true });
 }
+
+// ═══════════════════════════════════════════════════════════════════════════
+// IMPOR INDIKATOR DARI EXCEL (banyak indikator sekaligus)
+// Pola sama dengan impor Standar Harga di e-Planning: baca Excel di browser (SheetJS),
+// kirim per batch ke /api/kinerja/indikator/import, progress bar per batch.
+// ═══════════════════════════════════════════════════════════════════════════
+const KI_IMP_COLMAP = {
+  'INDIKATOR KINERJA': 'indikator', 'INDIKATOR': 'indikator', 'NAMA INDIKATOR': 'indikator',
+  'SATUAN': 'satuan',
+  'UNIT KERJA': 'unit', 'PENANGGUNG JAWAB': 'unit',
+  'MAKNA': 'makna', 'MAKNA INDIKATOR': 'makna',
+  'TIPE PERHITUNGAN': 'tipe_perhitungan',
+  'TIPE NILAI': 'tipe_nilai',
+  'JENIS KINERJA': 'jenis', 'JENIS': 'jenis',
+  'GROUP': 'group', 'GROUP INDIKATOR': 'group',
+  'NAMA FORMULA': 'formula_nama', 'FORMULA': 'formula_nama',
+  'PEMBILANG': 'pembilang', 'PENYEBUT': 'penyebut', 'PENGALI': 'pengali',
+};
+const KI_IMP_ROMAWI = { I: 1, II: 2, III: 3, IV: 4, '1': 1, '2': 2, '3': 3, '4': 4 };
+const KI_IMP_HEADERS = [
+  'INDIKATOR KINERJA', 'SATUAN', 'UNIT KERJA', 'MAKNA', 'TIPE PERHITUNGAN', 'TIPE NILAI', 'JENIS KINERJA', 'GROUP',
+  'NAMA FORMULA', 'PEMBILANG', 'PENYEBUT', 'PENGALI',
+  'TARGET TW I', 'TARGET TW II', 'TARGET TW III', 'TARGET TW IV',
+];
+
+function _kiNorm(v) { return String(v ?? '').trim().toLowerCase().replace(/\s+/g, ' '); }
+
+function openImporIndikatorModal() {
+  const tahunEl = document.getElementById('kiImpTahun');
+  if (tahunEl) tahunEl.value = _indikatorFilterTahun || new Date().getFullYear();
+  const modeEl = document.getElementById('kiImpMode');
+  if (modeEl) { modeEl.value = 'lewati'; if (typeof syncCustomSelect === 'function') syncCustomSelect('kiImpMode'); }
+  document.getElementById('kiImpFile').value = '';
+  kiImpResetFileText();
+  document.getElementById('kiImpProgress').style.display = 'none';
+  document.getElementById('kiImpProgressBar').style.width = '0%';
+  const res = document.getElementById('kiImpResult');
+  res.style.display = 'none'; res.innerHTML = '';
+  openModal('modalImporIndikator');
+}
+
+function kiImpResetFileText() {
+  const t = document.getElementById('kiImpFileText');
+  if (t) t.innerHTML = '<strong>Klik atau drag &amp; drop</strong> file di sini';
+}
+function kiImpFileChange(input) {
+  const t = document.getElementById('kiImpFileText');
+  if (t) t.innerHTML = input.files?.[0] ? `<strong>${escHtml(input.files[0].name)}</strong>` : '<strong>Klik atau drag &amp; drop</strong> file di sini';
+}
+function kiImpFileDragOver(e) { e.preventDefault(); document.getElementById('kiImpUploadArea')?.classList.add('drag-over'); }
+function kiImpFileDragLeave(e) { e.preventDefault(); document.getElementById('kiImpUploadArea')?.classList.remove('drag-over'); }
+function kiImpFileDrop(e) {
+  e.preventDefault();
+  document.getElementById('kiImpUploadArea')?.classList.remove('drag-over');
+  const input = document.getElementById('kiImpFile');
+  if (e.dataTransfer?.files?.length) { input.files = e.dataTransfer.files; kiImpFileChange(input); }
+}
+
+// Nilai target dari sel Excel -> { num, disp }. Angka koma desimal ("71,04") dinormalkan ke titik;
+// teks seperti "<1" / ">90" disimpan apa adanya di disp, num diambil dari angkanya (sama seperti input manual).
+// Label predikat (AA/A/BB/B/CC/C/D) dipetakan ke tier-nya.
+function _kiParseTarget(raw) {
+  if (raw === '' || raw == null) return null;
+  if (typeof raw === 'number') return isFinite(raw) ? { num: raw, disp: String(raw) } : null;
+  const txt = String(raw).trim();
+  if (!txt) return null;
+  const tier = PREDIKAT_TIER_BY_LABEL[txt.toUpperCase()];
+  if (tier != null) return { num: tier, disp: txt.toUpperCase() };
+  let c = txt.replace(/\s/g, '');
+  if (c.includes(',') && c.includes('.')) c = c.replace(/\./g, '').replace(',', '.');
+  else if (c.includes(',')) c = c.replace(',', '.');
+  const plain = /^-?\d+(\.\d+)?$/.test(c);
+  const n = parseFloat(c.replace(/[^0-9.\-]/g, ''));
+  return { num: isNaN(n) ? null : n, disp: plain ? c : txt };
+}
+
+function _kiParseIndikatorSheet(arrayBuffer) {
+  const wb = XLSX.read(arrayBuffer, { type: 'array' });
+  const ws = wb.Sheets[wb.SheetNames[0]];
+  const raw = XLSX.utils.sheet_to_json(ws, { header: 1, raw: true, defval: '' });
+  const warn = [];
+  if (!raw.length) return { rows: [], warn };
+
+  // cari baris header (10 baris pertama) yang memuat kolom INDIKATOR
+  let hIdx = -1, idx = {}, twIdx = {};
+  for (let i = 0; i < Math.min(raw.length, 10); i++) {
+    const map = {}, tws = {};
+    raw[i].forEach((h, c) => {
+      const key = String(h || '').trim().toUpperCase().replace(/\./g, '').replace(/\s+/g, ' ');
+      if (KI_IMP_COLMAP[key]) map[KI_IMP_COLMAP[key]] = c;
+      const m = key.match(/(?:TW|TRIWULAN)\s*(IV|III|II|I|[1-4])\b/);
+      if (m && /TARGET|^TW|^TRIWULAN/.test(key)) tws[KI_IMP_ROMAWI[m[1]]] = c;
+    });
+    if (map.indikator != null) { hIdx = i; idx = map; twIdx = tws; break; }
+  }
+  if (hIdx < 0) throw new Error('Kolom "INDIKATOR KINERJA" tidak ditemukan. Pakai template dari tombol Download template.');
+  if (idx.satuan == null) throw new Error('Kolom "SATUAN" tidak ditemukan di file.');
+
+  const cell = (r, k) => idx[k] != null ? String(r[idx[k]] ?? '').trim() : '';
+  const bidangAktif = (_bidangListKinerja || []).filter(b => b.aktif);
+  const jenisMap = {};
+  (_jenisList || []).forEach(j => { jenisMap[_kiNorm(j.kode)] = j.kode; jenisMap[_kiNorm(j.label)] = j.kode; });
+  const groupMap = {};
+  (_groupList || []).forEach(g => { groupMap[_kiNorm(g.nama)] = g.id; });
+
+  const rows = [];
+  for (let i = hIdx + 1; i < raw.length; i++) {
+    const r = raw[i];
+    if (!r || !r.some(v => String(v ?? '').trim() !== '')) continue;
+    const excelRow = i + 1;
+    const nama = cell(r, 'indikator');
+    const satuan = cell(r, 'satuan');
+    if (!nama) { warn.push(`Baris ${excelRow}: nama indikator kosong, dilewati`); continue; }
+    if (!satuan) { warn.push(`Baris ${excelRow}: satuan kosong ("${nama.slice(0, 40)}"), dilewati`); continue; }
+
+    // unit kerja -> nama bidang persis seperti di master (biar filter & PJ nyambung)
+    let pj = null;
+    const unitTxt = cell(r, 'unit');
+    if (unitTxt) {
+      const n = _kiNorm(unitTxt);
+      let b = bidangAktif.find(x => _kiNorm(x.nama) === n);
+      if (!b) { const cand = bidangAktif.filter(x => _kiNorm(x.nama).includes(n) || n.includes(_kiNorm(x.nama))); if (cand.length === 1) b = cand[0]; }
+      if (b) pj = b.nama; else warn.push(`Baris ${excelRow}: unit kerja "${unitTxt}" tidak ada di master, dikosongkan`);
+    }
+
+    let negatif = null;
+    const maknaTxt = _kiNorm(cell(r, 'makna'));
+    if (maknaTxt) {
+      if (maknaTxt.startsWith('neg')) negatif = true;
+      else if (maknaTxt.startsWith('pos')) negatif = false;
+      else warn.push(`Baris ${excelRow}: makna "${maknaTxt}" tidak dikenal (isi Positif/Negatif), pakai default`);
+    }
+
+    let tipe = null;
+    const tipeTxt = _kiNorm(cell(r, 'tipe_perhitungan')).replace(/[^a-z]/g, '');
+    if (tipeTxt) {
+      if (tipeTxt.startsWith('non')) tipe = 'non_kumulatif';
+      else if (tipeTxt.startsWith('kum')) tipe = 'kumulatif';
+      else if (tipeTxt.startsWith('rata')) tipe = 'rata_rata';
+      else warn.push(`Baris ${excelRow}: tipe perhitungan "${cell(r, 'tipe_perhitungan')}" tidak dikenal, pakai default`);
+    }
+
+    let nilai = null;
+    const nilaiTxt = _kiNorm(cell(r, 'tipe_nilai'));
+    if (nilaiTxt) {
+      if (nilaiTxt.startsWith('pred')) nilai = 'predikat';
+      else if (nilaiTxt.startsWith('angka')) nilai = 'angka';
+      else warn.push(`Baris ${excelRow}: tipe nilai "${nilaiTxt}" tidak dikenal, pakai default`);
+    }
+
+    const jenisTxt = cell(r, 'jenis');
+    const jenis = [];
+    if (jenisTxt) {
+      jenisTxt.split(/[,;/|]+/).map(t => t.trim()).filter(Boolean).forEach(t => {
+        const kode = jenisMap[_kiNorm(t)];
+        if (kode) { if (!jenis.includes(kode)) jenis.push(kode); }
+        else warn.push(`Baris ${excelRow}: jenis "${t}" tidak ada di Kelola Jenis Kinerja, diabaikan`);
+      });
+    }
+
+    let groupId = null;
+    const groupTxt = cell(r, 'group');
+    if (groupTxt) {
+      groupId = groupMap[_kiNorm(groupTxt)] ?? null;
+      if (groupId == null) warn.push(`Baris ${excelRow}: group "${groupTxt}" tidak ditemukan, dikosongkan`);
+    }
+
+    const fNama = cell(r, 'formula_nama'), fPemb = cell(r, 'pembilang'), fPeny = cell(r, 'penyebut'), fPeng = cell(r, 'pengali');
+    const formula = (fPemb || fPeny || fNama)
+      ? JSON.stringify({ nama: fNama, pembilang: fPemb, penyebut: fPeny, pengali: fPeng }) : null;
+
+    const target = {};
+    for (const tw of [1, 2, 3, 4]) {
+      if (twIdx[tw] == null) continue;
+      const t = _kiParseTarget(r[twIdx[tw]]);
+      if (t) target[tw] = t;
+    }
+
+    rows.push({
+      indikator_kinerja: nama, satuan, penanggung_jawab: pj, bermakna_negatif: negatif,
+      tipe_perhitungan: tipe, tipe_nilai: nilai, jenis, jenis_given: jenis.length > 0,
+      group_id: groupId, formula, target,
+    });
+  }
+  return { rows, warn };
+}
+
+async function kiSubmitImporIndikator() {
+  const fileInput = document.getElementById('kiImpFile');
+  const file = fileInput.files && fileInput.files[0];
+  const tahun = parseInt(document.getElementById('kiImpTahun').value) || null;
+  const mode = document.getElementById('kiImpMode').value || 'lewati';
+  if (!file) { toast('Pilih file Excel dulu', 'error'); return; }
+
+  const btn = document.getElementById('btnMulaiImporKi');
+  const btnBatal = document.getElementById('btnBatalImporKi');
+  const progWrap = document.getElementById('kiImpProgress');
+  const progBar = document.getElementById('kiImpProgressBar');
+  const progText = document.getElementById('kiImpProgressText');
+  const resBox = document.getElementById('kiImpResult');
+  btn.disabled = true; btnBatal.disabled = true;
+  resBox.style.display = 'none'; resBox.innerHTML = '';
+  progBar.style.width = '0%';
+  progWrap.style.display = 'block';
+  progText.innerHTML = `<span class="btn-spin" style="width:11px;height:11px;vertical-align:-2px;margin-right:4px"></span>Membaca file…`;
+
+  let inserted = 0, updated = 0, skipped = 0, targetSaved = 0, warn = [];
+  try {
+    const buf = await file.arrayBuffer();
+    await _loadXlsx();
+    const parsed = _kiParseIndikatorSheet(buf);
+    warn = parsed.warn;
+    const rows = parsed.rows;
+    if (!rows.length) throw new Error('Tidak ada baris indikator yang bisa dibaca dari file ini');
+    const adaTarget = rows.some(r => Object.keys(r.target).length);
+    if (adaTarget && !tahun) throw new Error('Tahun target wajib diisi karena file berisi kolom target');
+
+    const CHUNK = 50;
+    const totalChunks = Math.ceil(rows.length / CHUNK);
+    let done = 0;
+    for (let c = 0; c < totalChunks; c++) {
+      const chunk = rows.slice(c * CHUNK, (c + 1) * CHUNK);
+      const r = await fetch('/api/kinerja/indikator/import', {
+        method: 'POST', headers: authHeaders(),
+        body: JSON.stringify({ tahun, mode, rows: chunk }),
+      });
+      const txt = await r.text();
+      let d;
+      try { d = JSON.parse(txt); }
+      catch (_) { d = { error: `Server error ${r.status}${/timeout/i.test(txt) ? ' (timeout)' : ''} - ${txt.slice(0, 80)}` }; }
+      if (!r.ok) throw new Error((d.error || `Gagal impor batch ke-${c + 1}`) + (done ? ` (${done} baris sebelumnya sudah tersimpan)` : ''));
+      inserted += d.inserted || 0; updated += d.updated || 0; skipped += d.skipped || 0; targetSaved += d.targetSaved || 0;
+      done += chunk.length;
+      progBar.style.width = Math.round((done / rows.length) * 100) + '%';
+      progText.textContent = `Mengimpor… ${done} / ${rows.length} baris`;
+    }
+
+    const ringkas = [`${inserted} indikator baru`, updated ? `${updated} diperbarui` : '', skipped ? `${skipped} dilewati (sudah ada)` : '', targetSaved ? `${targetSaved} target TW tahun ${tahun}` : '']
+      .filter(Boolean).join(', ');
+    toast(`Impor selesai - ${ringkas}`, 'success');
+
+    loadIndikatorAdmin({ keepFilter: true });
+    try { if (typeof loadKinerjaRekap === 'function') await loadKinerjaRekap(); } catch (_) {}
+    try { if (typeof loadIkkRekap === 'function') await loadIkkRekap(); } catch (_) {}
+    try { if (typeof loadSpmRekap === 'function') await loadSpmRekap(); } catch (_) {}
+    try { if (typeof loadSubkegRekap === 'function') await loadSubkegRekap(); } catch (_) {}
+    try { if (typeof _invalidateAllKinerjaDashboardCache === 'function') _invalidateAllKinerjaDashboardCache(); } catch (_) {}
+
+    if (warn.length) {
+      // ada catatan (unit kerja/jenis gak cocok, dll) -> modal dibiarkan kebuka biar bisa dibaca
+      progText.textContent = `Selesai - ${ringkas}`;
+      resBox.style.display = 'block';
+      resBox.innerHTML = `<b>${warn.length} catatan:</b><br>` + warn.slice(0, 40).map(w => escHtml(w)).join('<br>')
+        + (warn.length > 40 ? `<br>… dan ${warn.length - 40} catatan lain` : '');
+    } else {
+      closeModal('modalImporIndikator');
+    }
+  } catch (err) {
+    toast(err.message, 'error');
+    if (warn.length) {
+      resBox.style.display = 'block';
+      resBox.innerHTML = `<b>${warn.length} catatan:</b><br>` + warn.slice(0, 40).map(w => escHtml(w)).join('<br>');
+    }
+  } finally {
+    btn.disabled = false; btnBatal.disabled = false;
+  }
+}
+
+async function kiDownloadTemplateImpor() {
+  try {
+    await _loadXlsx();
+    const bidang = (_bidangListKinerja || []).filter(b => b.aktif).map(b => b.nama);
+    const jenis = (_jenisList || []).map(j => j.label);
+    const groups = (_groupList || []).map(g => g.nama);
+    const unit1 = bidang[0] || 'Sub Bagian Perencanaan';
+    const unit2 = bidang[1] || bidang[0] || 'Sub Bagian Perencanaan';
+
+    const data = [
+      KI_IMP_HEADERS,
+      ['Usia Harapan Hidup (UHH)', 'Tahun', unit1, 'Positif', 'Non-Kumulatif', 'Angka', 'IKU', '', '', '', '', '', '71.04', '71.98', '72.92', '73.87'],
+      ['Angka Kematian Balita', 'Per 1000 KH', unit2, 'Negatif', 'Kumulatif', 'Angka', 'IKU, SPM', '', 'Angka Kematian Balita =', 'Jumlah kematian balita', 'Jumlah kelahiran hidup', '1000 KH', '', '', '', '13.8'],
+    ];
+    const ws = XLSX.utils.aoa_to_sheet(data);
+    ws['!cols'] = KI_IMP_HEADERS.map((h, i) => ({ wch: i === 0 ? 46 : (i === 2 ? 40 : 18) }));
+
+    const maxLen = Math.max(bidang.length, jenis.length, groups.length, 4);
+    const guide = [
+      ['PETUNJUK PENGISIAN'],
+      ['- Wajib diisi: INDIKATOR KINERJA dan SATUAN. Kolom lain boleh dikosongkan.'],
+      ['- UNIT KERJA: tulis persis seperti nama di master (lihat daftar di bawah). Kalau tidak cocok, dikosongkan.'],
+      ['- MAKNA: Positif / Negatif (kosong = Positif).'],
+      ['- TIPE PERHITUNGAN: Non-Kumulatif / Kumulatif / Rata-rata (kosong = Non-Kumulatif).'],
+      ['- TIPE NILAI: Angka / Predikat (kosong = Angka). Untuk Predikat, isi target dengan AA/A/BB/B/CC/C/D.'],
+      ['- JENIS KINERJA: boleh lebih dari satu, pisahkan koma (mis. IKU, SPM).'],
+      ['- GROUP: opsional, harus sama dengan nama group yang sudah ada.'],
+      ['- NAMA FORMULA / PEMBILANG / PENYEBUT / PENGALI: opsional, sama seperti isian Formula Perhitungan di form Tambah Indikator.'],
+      ['- TARGET TW I-IV: opsional, boleh angka atau teks seperti <1 atau >90. Disimpan untuk Tahun Target yang dipilih di form impor.'],
+      [],
+      ['DAFTAR UNIT KERJA', 'DAFTAR JENIS KINERJA', 'DAFTAR GROUP'],
+    ];
+    for (let i = 0; i < maxLen; i++) guide.push([bidang[i] || '', jenis[i] || '', groups[i] || '']);
+    const wsG = XLSX.utils.aoa_to_sheet(guide);
+    wsG['!cols'] = [{ wch: 60 }, { wch: 28 }, { wch: 40 }];
+
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Indikator');
+    XLSX.utils.book_append_sheet(wb, wsG, 'Petunjuk');
+    XLSX.writeFile(wb, 'Template_Import_Indikator_Kinerja.xlsx');
+  } catch (err) {
+    toast(err.message || 'Gagal membuat template', 'error');
+  }
+}
+
+window.openImporIndikatorModal = openImporIndikatorModal;
+window.kiImpFileChange = kiImpFileChange;
+window.kiImpFileDragOver = kiImpFileDragOver;
+window.kiImpFileDragLeave = kiImpFileDragLeave;
+window.kiImpFileDrop = kiImpFileDrop;
+window.kiSubmitImporIndikator = kiSubmitImporIndikator;
+window.kiDownloadTemplateImpor = kiDownloadTemplateImpor;
 
 function _onJenisCbChange(cb) {
   const kode  = cb.dataset.kode;
@@ -2744,7 +3098,7 @@ async function loadKelolaTarget() {
     const tMap = {};
     for (const t of targetList) {
       if (!tMap[t.indikator_id]) tMap[t.indikator_id] = {};
-      tMap[t.indikator_id][t.tahun] = t;
+      tMap[t.indikator_id][`${t.tahun}-${t.triwulan || 4}`] = t;
     }
 
     
@@ -2758,6 +3112,7 @@ async function loadKelolaTarget() {
       jenis_monev:      ind.jenis_monev,
       jenis_ikk:        ind.jenis_ikk,
       jenis_spm:        ind.jenis_spm,
+      jenis_custom:     Array.isArray(ind.jenis_custom) ? ind.jenis_custom : [],
       tipe_nilai:       ind.tipe_nilai,
       targets:          tMap[ind.id] || {},
     }));
@@ -2827,13 +3182,14 @@ function renderKelolaTarget() {
     if (_ktFilterJenis === 'iku' && !ind.jenis_monev) return false;
     if (_ktFilterJenis === 'ikk' && !ind.jenis_ikk)   return false;
     if (_ktFilterJenis === 'spm' && !ind.jenis_spm)   return false;
+    if (_ktFilterJenis === 'subkeg' && !(Array.isArray(ind.jenis_custom) && ind.jenis_custom.includes('subkeg'))) return false;
     return true;
   });
 
   if (!filtered.length) {
-    const _colCount = 2 + visibleTahun.length + 1;
+    const _colCount = 2 + visibleTahun.length * 4 + 1;
     const _tahunHeaders = visibleTahun.map(y =>
-      `<th style="min-width:110px;width:110px;text-align:center;border-left:1px solid rgba(255,255,255,.15)">${y}</th>`
+      `<th colspan="4" style="text-align:center;border-left:1px solid rgba(255,255,255,.15)">${y}</th>`
     ).join('');
     container.innerHTML = `
       <table class="kinerja-table">
@@ -2858,19 +3214,23 @@ function renderKelolaTarget() {
     ind.jenis_monev ? `<span style="font-size:.67rem;font-weight:700;color:#1e40af;background:#dbeafe;padding:1px 5px;border-radius:4px">IKU</span>` : '',
     ind.jenis_ikk   ? `<span style="font-size:.67rem;font-weight:700;color:#065f46;background:#d1fae5;padding:1px 5px;border-radius:4px">IKK</span>` : '',
     ind.jenis_spm   ? `<span style="font-size:.67rem;font-weight:700;color:#b45309;background:#fef3c7;padding:1px 5px;border-radius:4px">SPM</span>` : '',
+    (Array.isArray(ind.jenis_custom) && ind.jenis_custom.includes('subkeg')) ? `<span style="font-size:.67rem;font-weight:700;color:#6d28d9;background:#ede9fe;padding:1px 5px;border-radius:4px">Sub Kegiatan</span>` : '',
   ].filter(Boolean).join(' ') || '<span style="color:var(--teks-muted);font-size:.75rem">-</span>';
 
   // Header kolom tahun - ikut style .kinerja-table th (var(--hijau), #fff)
-  const COL_W = 110; // px per kolom tahun
+  const COL_W = 84; // px per kolom triwulan
   const tahunHeaders = visibleTahun.map(y =>
-    `<th style="min-width:${COL_W}px;width:${COL_W}px;text-align:center;border-left:1px solid rgba(255,255,255,.15)">${y}</th>`
+    `<th colspan="4" style="text-align:center;border-left:1px solid rgba(255,255,255,.15)">${y}</th>`
   ).join('');
-  const addColHeader = `<th style="width:80px;text-align:center;border-left:1px solid rgba(255,255,255,.15)">Aksi</th>`;
+  const twSubHeaders = visibleTahun.map(() => [1, 2, 3, 4].map(n =>
+    `<th style="min-width:${COL_W}px;width:${COL_W}px;text-align:center;${n === 1 ? 'border-left:1px solid rgba(255,255,255,.15)' : ''}">TW ${TW_ROMAWI[n]}</th>`
+  ).join('')).join('');
+  const addColHeader = `<th rowspan="2" style="width:80px;text-align:center;border-left:1px solid rgba(255,255,255,.15)">Aksi</th>`;
 
   const rows = slice.map((ind, i) => {
     const no = start + i + 1;
-    const targetCells = visibleTahun.map(y => {
-      const t = ind.targets[y];
+    const targetCells = visibleTahun.flatMap(y => [1, 2, 3, 4].map(tw => ({ y, tw }))).map(({ y, tw }) => {
+      const t = ind.targets[`${y}-${tw}`];
       const val = t ? (t.target_display != null ? String(t.target_display) : (t.target != null ? String(t.target) : '')) : '';
       const isPredikat = ind.tipe_nilai === 'predikat';
       
@@ -2886,30 +3246,30 @@ function renderKelolaTarget() {
         return `<td style="text-align:center;border-left:1px solid var(--abu-1)">
           <div style="position:relative;display:inline-block">
           ${isPredikat
-            ? `<div class="select-wrap" style="width:82px;display:inline-block">
+            ? `<div class="select-wrap" style="width:72px;display:inline-block">
                  <select data-tid="${t.id}" data-iid="${ind.id}" onchange="saveKtTarget(this)"
-                 style="width:82px;text-align:center;padding:4px 6px;border:1.5px solid ${isStuck ? '#f59e0b' : '#e2e8f0'};border-radius:6px;font-size:.82rem;font-family:inherit">${_predikatOptionsHtml(t.target)}</select>
+                 style="width:72px;text-align:center;padding:4px 6px;border:1.5px solid ${isStuck ? '#f59e0b' : '#e2e8f0'};border-radius:6px;font-size:.82rem;font-family:inherit">${_predikatOptionsHtml(t.target)}</select>
                </div>`
             : `<input type="text" value="${escHtml(val)}"
             data-tid="${t.id}" data-iid="${ind.id}"
             onchange="saveKtTarget(this)"
             onfocus="this.style.borderColor='var(--hijau)'" onblur="this.style.borderColor='${isStuck ? '#f59e0b' : ''}'"
-            style="width:82px;text-align:center;padding:4px 6px;border:1.5px solid ${isStuck ? '#f59e0b' : '#e2e8f0'};border-radius:6px;font-size:.82rem;font-family:inherit;transition:border-color .15s">`}
+            style="width:72px;text-align:center;padding:4px 6px;border:1.5px solid ${isStuck ? '#f59e0b' : '#e2e8f0'};border-radius:6px;font-size:.82rem;font-family:inherit;transition:border-color .15s">`}
           ${isStuck ? `<span onclick="forceSaveKtTarget(${t.id},${ind.id})" data-tip="Belum tersimpan ke database - klik untuk simpan ulang" style="position:absolute;top:-7px;right:-7px;width:16px;height:16px;background:#f59e0b;color:#fff;border-radius:50%;font-size:.62rem;font-weight:700;display:flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 1px 3px rgba(0,0,0,.25)">!</span>` : ''}
           </div>
         </td>`;
       } else {
         return `<td style="text-align:center;border-left:1px solid var(--abu-1)">
           ${isPredikat
-            ? `<div class="select-wrap" style="width:82px;display:inline-block">
-                 <select data-iid="${ind.id}" data-tahun="${y}" onchange="saveKtTargetNew(this)"
-                 style="width:82px;text-align:center;padding:4px 6px;border:1.5px dashed #d1d5db;border-radius:6px;font-size:.82rem;font-family:inherit;color:#94a3b8;background:#f8fafc">${_predikatOptionsHtml(null)}</select>
+            ? `<div class="select-wrap" style="width:72px;display:inline-block">
+                 <select data-iid="${ind.id}" data-tahun="${y}" data-tw="${tw}" onchange="saveKtTargetNew(this)"
+                 style="width:72px;text-align:center;padding:4px 6px;border:1.5px dashed #d1d5db;border-radius:6px;font-size:.82rem;font-family:inherit;color:#94a3b8;background:#f8fafc">${_predikatOptionsHtml(null)}</select>
                </div>`
             : `<input type="text" value="" placeholder="-"
-            data-iid="${ind.id}" data-tahun="${y}"
+            data-iid="${ind.id}" data-tahun="${y}" data-tw="${tw}"
             onchange="saveKtTargetNew(this)"
             onfocus="this.style.borderColor='var(--hijau)';this.placeholder=''" onblur="this.style.borderColor='';this.placeholder='-'"
-            style="width:82px;text-align:center;padding:4px 6px;border:1.5px dashed #d1d5db;border-radius:6px;font-size:.82rem;font-family:inherit;color:#94a3b8;background:#f8fafc;transition:border-color .15s">`}
+            style="width:72px;text-align:center;padding:4px 6px;border:1.5px dashed #d1d5db;border-radius:6px;font-size:.82rem;font-family:inherit;color:#94a3b8;background:#f8fafc;transition:border-color .15s">`}
         </td>`;
       }
     }).join('');
@@ -2940,18 +3300,29 @@ function renderKelolaTarget() {
   container.innerHTML = `
     <table class="kinerja-table">
       <thead>
-        <tr>
-          <th style="width:34px;text-align:center;position:sticky;left:0;z-index:3">No</th>
-          <th style="min-width:220px;position:sticky;left:34px;z-index:3">Indikator Kinerja</th>
+        <tr class="lap-th-row1">
+          <th rowspan="2" style="width:34px;text-align:center;position:sticky;left:0;z-index:3">No</th>
+          <th rowspan="2" style="min-width:220px;position:sticky;left:34px;z-index:3">Indikator Kinerja</th>
           ${tahunHeaders}
           ${addColHeader}
         </tr>
+        <tr class="lap-th-row2">${twSubHeaders}</tr>
       </thead>
       <tbody>${rows || '<tr><td colspan="99" style="text-align:center;padding:24px;color:var(--teks-muted)">Tidak ada data.</td></tr>'}</tbody>
     </table>`;
 
   renderPagination('ktPagination', filtered.length, _ktPage, _ktPageSize, 'goKtPage');
   if (typeof window.initCustomSelects === 'function') window.initCustomSelects();
+
+  // Header 2 baris: baris 2 nempel tepat di bawah baris 1
+  const _r1 = container.querySelector('tr.lap-th-row1');
+  const _r2 = container.querySelector('tr.lap-th-row2');
+  if (_r1 && _r2) {
+    requestAnimationFrame(() => {
+      const h1 = _r1.getBoundingClientRect().height;
+      _r2.querySelectorAll('th').forEach(th => { th.style.top = h1 + 'px'; });
+    });
+  }
 }
 
 window.goKtPage = (p) => { _ktPage = p; renderKelolaTarget(); };
@@ -3018,6 +3389,7 @@ async function forceSaveKtTarget(tid, iid) {
 async function saveKtTargetNew(input) {
   const iid   = parseInt(input.dataset.iid);
   const tahun = parseInt(input.dataset.tahun);
+  const tw    = parseInt(input.dataset.tw);
   let val, tNum;
   if (input.tagName === 'SELECT') {
     if (!input.value) return; 
@@ -3032,7 +3404,7 @@ async function saveKtTargetNew(input) {
     const r = await fetch('/api/kinerja/target', {
       method: 'POST',
       headers: authHeaders(),
-      body: JSON.stringify({ indikator_id: iid, tahun, target: isNaN(tNum) ? null : tNum, target_display: val || null }),
+      body: JSON.stringify({ indikator_id: iid, tahun, triwulan: tw, target: isNaN(tNum) ? null : tNum, target_display: val || null }),
     });
     const d = await r.json();
     if (!r.ok) { toast('Gagal simpan target', 'error'); return; }
@@ -3042,11 +3414,11 @@ async function saveKtTargetNew(input) {
 
     
     const ind = _ktIndList.find(x => x.id === iid);
-    if (ind) ind.targets[tahun] = newRow;
+    if (ind) ind.targets[`${tahun}-${tw}`] = newRow;
 
     
     if (!_targetMap[iid]) _targetMap[iid] = [];
-    const existing = _targetMap[iid].find(x => x.tahun === tahun);
+    const existing = _targetMap[iid].find(x => x.tahun === tahun && (x.triwulan || 4) === tw);
     if (existing) Object.assign(existing, newRow);
     else _targetMap[iid].push(newRow);
 
@@ -3067,7 +3439,7 @@ async function saveKtTargetNew(input) {
 function openKtDeleteTarget(iid) {
   const ind = _ktIndList.find(r => r.id === iid);
   if (!ind) return;
-  const tahunList = Object.keys(ind.targets).map(Number).sort((a, b) => a - b);
+  const tahunList = [...new Set(Object.values(ind.targets).map(t => Number(t.tahun)))].sort((a, b) => a - b);
   if (!tahunList.length) return;
 
   document.getElementById('ktDeleteTargetIndId').value = iid;
@@ -3077,11 +3449,12 @@ function openKtDeleteTarget(iid) {
   const list = document.getElementById('ktDeleteTargetList');
   if (list) {
     list.innerHTML = tahunList.map(y => {
-      const t = ind.targets[y];
-      const val = t.target_display != null ? String(t.target_display) : (t.target != null ? String(t.target) : '-');
+      const rowsY = [1, 2, 3, 4].map(n => ind.targets[`${y}-${n}`]).filter(Boolean);
+      const ids   = rowsY.map(t => t.id).join(',');
+      const val   = [1, 2, 3, 4].map(n => ind.targets[`${y}-${n}`] ? _twTargetVal(ind.targets[`${y}-${n}`]) : '-').join(' / ');
       return `<label style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:8px 10px;border:1.5px solid #e2e8f0;border-radius:6px;cursor:pointer;font-size:.85rem">
         <span style="display:flex;align-items:center;gap:8px">
-          <input type="checkbox" class="ktDelYear" value="${t.id}" data-tahun="${y}" style="width:15px;height:15px;accent-color:var(--merah);cursor:pointer">
+          <input type="checkbox" class="ktDelYear" value="${ids}" data-tahun="${y}" style="width:15px;height:15px;accent-color:var(--merah);cursor:pointer">
           <span style="font-weight:600">${y}</span>
         </span>
         <span style="color:var(--teks-muted)">${escHtml(val)}</span>
@@ -3107,13 +3480,14 @@ async function saveKtDeleteTarget() {
   const tahunStr = checked.map(cb => cb.dataset.tahun).join(', ');
   const ok = await showConfirm({
     title: 'Hapus Target',
-    msg: `Hapus target tahun <b>${tahunStr}</b> untuk <b>${escHtml(ind?.indikator_kinerja || '')}</b>?`,
+    msg: `Hapus seluruh target triwulan tahun <b>${tahunStr}</b> untuk <b>${escHtml(ind?.indikator_kinerja || '')}</b>?`,
     okText: 'Ya, Hapus', icon: 'trash',
   });
   if (!ok) return;
 
-  await Promise.all(checked.map(cb => fetch(`/api/kinerja/target/${cb.value}`, { method: 'DELETE', headers: authHeaders() })));
-  toast(`${checked.length} target dihapus`);
+  const delIds = checked.flatMap(cb => cb.value.split(',').filter(Boolean));
+  await Promise.all(delIds.map(tid => fetch(`/api/kinerja/target/${tid}`, { method: 'DELETE', headers: authHeaders() })));
+  toast(`Target ${checked.length} tahun dihapus`);
   closeModal('modalKtDeleteTarget');
   loadKelolaTarget();
 }
@@ -3123,7 +3497,7 @@ function openKtAddTarget(indikatorId) {
   const nama = ind?.indikator_kinerja || '';
   document.getElementById('ktAddTargetIndId').value      = indikatorId;
   document.getElementById('ktAddTargetTahun').value      = '';
-  document.getElementById('ktAddTargetVal').value        = '';
+  [1, 2, 3, 4].forEach(n => { const el = document.getElementById('ktAddTargetVal' + n); if (el) el.value = ''; });
   const sub = document.getElementById('modalKtAddTargetSubtitle');
   if (sub) sub.textContent = nama;
   openModal('modalKtAddTarget');
@@ -3133,18 +3507,22 @@ function openKtAddTarget(indikatorId) {
 async function saveKtAddTarget() {
   const iid   = parseInt(document.getElementById('ktAddTargetIndId').value);
   const tahun = parseInt(document.getElementById('ktAddTargetTahun').value);
-  const val   = document.getElementById('ktAddTargetVal').value.trim();
   if (!tahun || tahun < 2000 || tahun > 2100) { toast('Tahun tidak valid', 'error'); return; }
-  if (!val) { toast('Target wajib diisi', 'error'); return; }
-  const tNum = parseFloat(val.replace(/[^0-9.\-]/g, ''));
+  const vals = [1, 2, 3, 4]
+    .map(n => ({ tw: n, val: (document.getElementById('ktAddTargetVal' + n)?.value || '').trim() }))
+    .filter(x => x.val);
+  if (!vals.length) { toast('Isi minimal satu target triwulan', 'error'); return; }
   try {
-    const r = await fetch('/api/kinerja/target', {
-      method: 'POST',
-      headers: authHeaders(),
-      body: JSON.stringify({ indikator_id: iid, tahun, target: isNaN(tNum) ? null : tNum, target_display: val }),
-    });
-    const d = await r.json();
-    if (!r.ok) { toast(d.error || 'Gagal tambah target', 'error'); return; }
+    for (const { tw, val } of vals) {
+      const tNum = parseFloat(val.replace(/[^0-9.\-]/g, ''));
+      const r = await fetch('/api/kinerja/target', {
+        method: 'POST',
+        headers: authHeaders(),
+        body: JSON.stringify({ indikator_id: iid, tahun, triwulan: tw, target: isNaN(tNum) ? null : tNum, target_display: val }),
+      });
+      const d = await r.json();
+      if (!r.ok) { toast(d.error || `Gagal tambah target TW ${TW_ROMAWI[tw]}`, 'error'); return; }
+    }
     toast('Target ditambahkan');
     closeModal('modalKtAddTarget');
     loadKelolaTarget();
@@ -3154,41 +3532,24 @@ async function saveKtAddTarget() {
 
 let _dukungState = { indikatorId: null, tw: null, tahun: null, files: [] };
 
+// Tombol "Isi Link" di baris tabel -> buka modal link (IKU/IKK/SPM)
 function triggerDukungUpload(indikatorId, tw, tahun, source) {
-  const dataArr = source === 'ikk' ? _ikkData : source === 'spm' ? _spmData : _kinerjaData;
-  const row = dataArr.find(r => r.id === indikatorId);
-  
-  let existingFiles = [];
-  if (row?.data_dukung_url) {
-    try {
-      const p = JSON.parse(row.data_dukung_url);
-      existingFiles = Array.isArray(p) ? p.filter(f => f && f.url) : [{ url: row.data_dukung_url, name: row.data_dukung_nama || 'Dokumen' }];
-    } catch { existingFiles = [{ url: row.data_dukung_url, name: row.data_dukung_nama || 'Dokumen' }]; }
-  }
-  _dukungState = { indikatorId, tw, tahun, files: existingFiles, _source: source, _autoSave: true };
-
-  
-  const fi = document.getElementById('dukungFileInput');
-  if (!fi) return;
-  fi.value = '';
-  fi.click();
+  if (source === 'ikk')      openIkkDukungModal(indikatorId, tw, tahun);
+  else if (source === 'spm') openSpmDukungModal(indikatorId, tw, tahun);
+  else if (source === 'subkeg') openSubkegDukungModal(indikatorId, tw, tahun);
+  else                       openDukungModal(indikatorId, tw, tahun);
 }
 
 async function openDukungModal(indikatorId, tw, tahun) {
-  _dukungState = { indikatorId, tw, tahun, files: [] };
+  _dukungState = { indikatorId, tw, tahun, files: [], _source: 'monev' };
 
   // Reset UI
-  const area = document.getElementById('dukungUploadArea');
-  const fi   = document.getElementById('dukungFileInput');
-  const pw   = document.getElementById('dukungProgressWrap');
-  if (area) { area.classList.remove('drag-over'); area.style.display = ''; }
-  if (fi)   fi.value = '';
-  if (pw)   pw.style.display = 'none';
+  _resetDukungLinkForm();
 
   
   const row = _kinerjaData.find(r => r.id === indikatorId);
   document.getElementById('dukungIndikatorLabel').textContent = row?.indikator_kinerja || '';
-  document.getElementById('dukungTwLabel').textContent = `TW ${['','I','II','III','IV'][tw]} ${tahun}`;
+  document.getElementById('dukungTwLabel').textContent = `${_twNama(tw)} ${tahun}`;
 
   if (row?.data_dukung_url) {
     try {
@@ -3203,7 +3564,7 @@ async function openDukungModal(indikatorId, tw, tahun) {
 }
 
 function openDukungPreview(indikatorId, tw, tahun, source) {
-  const data = source === 'ikk' ? _ikkData : source === 'spm' ? _spmData : _kinerjaData;
+  const data = source === 'ikk' ? _ikkData : source === 'spm' ? _spmData : source === 'subkeg' ? _subkegData : _kinerjaData;
   const row  = data.find(r => r.id === indikatorId);
   if (!row) return;
 
@@ -3216,11 +3577,32 @@ function openDukungPreview(indikatorId, tw, tahun, source) {
   }
   if (!files.length) return;
 
-  const periodeLabel = `Data Dukung - ${row.indikator_kinerja || ''}`;
-  viewDocMulti(files, 0, periodeLabel);
+  // 1 link -> langsung buka di tab baru
+  if (files.length === 1 && files[0].link) {
+    window.open(files[0].url, '_blank', 'noopener,noreferrer');
+    return;
+  }
+  // File lama (hasil upload sebelumnya) -> previewer lama
+  if (!files.some(f => f.link)) {
+    viewDocMulti(files, 0, `Data Dukung - ${row.indikator_kinerja || ''}`);
+    return;
+  }
+  // Lebih dari 1 / campur link + file lama -> daftar (read-only)
+  const suffix = source === 'ikk' ? ' - IKK' : source === 'spm' ? ' - SPM' : source === 'subkeg' ? ' - Sub Kegiatan' : '';
+  _dukungState = { indikatorId, tw, tahun, files, _source: source, readonly: true };
+  _resetDukungLinkForm(true);
+  document.getElementById('dukungIndikatorLabel').textContent = row.nama_indikator || row.indikator_kinerja || '';
+  document.getElementById('dukungTwLabel').textContent = `${_twNama(tw)} ${tahun}${suffix}`;
+  _renderDukungList();
+  openModal('modalDukung');
 }
 
 function _renderDukungList() {
+  // Data dukung hanya 1 link: form input disembunyikan kalau sudah ada link (hapus dulu untuk mengganti)
+  if (!_dukungState.readonly) {
+    const form = document.getElementById('dukungLinkForm');
+    if (form) form.style.display = _dukungState.files.length >= 1 ? 'none' : '';
+  }
   const container = document.getElementById('dukungFilePreview');
   if (!container) return;
   if (!_dukungState.files.length) {
@@ -3233,20 +3615,24 @@ function _renderDukungList() {
         const ext = (f.name||'').split('.').pop().toLowerCase();
         const iconColor = { pdf:'#ef4444', doc:'#3b82f6', docx:'#3b82f6', xls:'#22c55e', xlsx:'#22c55e', jpg:'#f59e0b', jpeg:'#f59e0b', png:'#f59e0b' }[ext] || '#64748b';
         const isImg = ['jpg','jpeg','png','gif','webp'].includes(ext);
+        const isLink = !!f.link;
         return `
           <div class="multi-file-card">
-            ${isImg && f.url
-              ? `<div class="mfc-thumb" style="background-image:url('${escHtml(f.url)}')"></div>`
-              : `<div class="mfc-icon" style="background:${iconColor}"><span>${ext.toUpperCase()}</span></div>`
+            ${isLink
+              ? `<div class="mfc-icon" style="background:#0f766e"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="#fff" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71"/><path stroke-linecap="round" stroke-linejoin="round" d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71"/></svg></div>`
+              : isImg && f.url
+                ? `<div class="mfc-thumb" style="background-image:url('${escHtml(f.url)}')"></div>`
+                : `<div class="mfc-icon" style="background:${iconColor}"><span>${ext.toUpperCase()}</span></div>`
             }
             <div class="mfc-info">
-              <div class="mfc-name" data-tip="${escHtml(f.name)}">${f._loading ? '<em>Mengupload...</em>' : escHtml(f.name)}</div>
+              <div class="mfc-name" data-tip="${escHtml(f.name)}">${escHtml(f.name)}</div>
+              ${isLink ? `<div style="font-size:.68rem;color:var(--teks-muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:260px" data-tip="${escHtml(f.url)}">${escHtml(f.url)}</div>` : ''}
             </div>
             <div class="mfc-actions">
-              ${f.url && !f._loading ? `<button type="button" class="btn btn-ghost btn-sm" data-tip="Preview" onclick="viewDoc(decodeURIComponent('${encodeURIComponent(f.url)}'), decodeURIComponent('${encodeURIComponent(f.name || "")}'))">
+              ${f.url ? `<button type="button" class="btn btn-ghost btn-sm" data-tip="${isLink ? 'Buka link' : 'Preview'}" onclick="${isLink ? `window.open(decodeURIComponent('${encodeURIComponent(f.url)}'), '_blank', 'noopener,noreferrer')` : `viewDoc(decodeURIComponent('${encodeURIComponent(f.url)}'), decodeURIComponent('${encodeURIComponent(f.name || "")}'))`}">
                 <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
               </button>` : ''}
-              ${!f._loading ? `<button type="button" class="btn btn-ghost btn-sm" data-tip="Hapus" onclick="_removeDukungFile(${idx})">
+              ${!_dukungState.readonly ? `<button type="button" class="btn btn-ghost btn-sm" data-tip="Hapus" onclick="_removeDukungFile(${idx})">
                 <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
               </button>` : ''}
             </div>
@@ -3255,195 +3641,61 @@ function _renderDukungList() {
     </div>`;
 }
 
-// Progress "current/total" per baris (indikatorId) - walau upload jalan paralel (bukan
-// berurutan kayak e-Planning), current dihitung dari jumlah file yang UDAH kelar (sukses/gagal),
-// jadi tetep nunjukin angka "2/5" yang naik seiring proses, format sama kayak e-Planning.
-const _dukungBatchProgress = {};
+// ═══ Data dukung = LINK (bukan upload file) ═══
+const DUKUNG_LINK_MAX = 2000;
 
-// Render status "Mengupload..." di tombol tabel (mode autoSave) - dipanggil tiap kali progress
-// batch berubah. Ring persentase cuma dipakai kalau totalnya 1 file (biar gak ambigu pas paralel).
-function _renderDukungRowUploading(indikatorId) {
-  const tr = document.querySelector(`[data-id="${indikatorId}"]`);
-  const dukungTd = tr?.querySelector('td[data-col="dukung"]');
-  if (!dukungTd) return;
-  const loadingCount = _dukungState.files.filter(f => f._loading).length;
-  if (!loadingCount) return;
-  const prog = _dukungBatchProgress[indikatorId];
-  const single = !prog || prog.total <= 1;
-  dukungTd.innerHTML = `<button disabled style="display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:6px;border:none;font-size:.75rem;font-weight:600;font-family:inherit;background:#fef3c7;color:#92400e;white-space:nowrap">
-    ${single ? `<svg width="12" height="12" viewBox="0 0 36 36" style="display:inline-block;flex-shrink:0">
-      <circle cx="18" cy="18" r="15" fill="none" stroke="#d1e9e4" stroke-width="5"/>
-      <circle id="dukungRing_${indikatorId}" cx="18" cy="18" r="15" fill="none" stroke="#0f766e" stroke-width="5"
-        stroke-linecap="round" pathLength="100" stroke-dasharray="100" stroke-dashoffset="100"
-        transform="rotate(-90 18 18)" style="transition:stroke-dashoffset .15s linear"></circle>
-    </svg>` : `<span class="btn-spin" style="width:12px;height:12px"></span>`}
-    Mengupload…${!single ? ` ${prog.current}/${prog.total}` : ''}
-  </button>`;
-}
-
-function handleDukungFileSelect(e) {
-  const files = Array.from(e.target.files || []);
-  e.target.value = '';
-  _processDukungBatch(files);
-}
-function handleDukungDragOver(e) { e.preventDefault(); document.getElementById('dukungUploadArea')?.classList.add('drag-over'); }
-function handleDukungDragLeave(e) { document.getElementById('dukungUploadArea')?.classList.remove('drag-over'); }
-function handleDukungDrop(e) {
-  e.preventDefault();
-  document.getElementById('dukungUploadArea')?.classList.remove('drag-over');
-  _processDukungBatch(Array.from(e.dataTransfer?.files || []));
-}
-
-async function _processDukungBatch(files) {
-  if (!files.length) return;
-  const isAutoSave = _dukungState._autoSave;
-  const indikatorId = _dukungState.indikatorId;
-  if (isAutoSave) _dukungBatchProgress[indikatorId] = { current: 0, total: files.length };
-  const results = await Promise.all(files.map(f => _processDukungFile(f)));
-  if (isAutoSave) delete _dukungBatchProgress[indikatorId];
-  const failMsgs = results.filter(Boolean);
-  const okCount  = results.length - failMsgs.length;
-  if (isAutoSave) {
-    
-    
-    if (failMsgs.length) {
-      toast(failMsgs.length > 1 ? `${failMsgs.length} file gagal diupload (${failMsgs[0]})` : failMsgs[0], 'error');
-    }
-  } else if (failMsgs.length && okCount) {
-    toast(`${okCount} file berhasil diupload, ${failMsgs.length} gagal (${failMsgs[0]})`, 'error');
-  } else if (failMsgs.length) {
-    toast(failMsgs.length > 1 ? `${failMsgs.length} file gagal diupload (${failMsgs[0]})` : failMsgs[0], 'error');
-  } else if (okCount) {
-    toast(okCount > 1 ? `${okCount} file berhasil diupload` : 'File berhasil diupload');
+// Validasi ketat: harus URL http(s) beneran, bukan teks biasa.
+function _validateDukungLink(raw, existing = []) {
+  const v = String(raw || '').trim();
+  if (!v) return { ok: false, msg: 'Link belum diisi.' };
+  if (/\s/.test(v)) return { ok: false, msg: 'Isi dengan link saja, bukan teks biasa (tidak boleh ada spasi).' };
+  if (v.length > DUKUNG_LINK_MAX) return { ok: false, msg: 'Link terlalu panjang.' };
+  if (!/^https?:\/\//i.test(v)) return { ok: false, msg: 'Link harus diawali http:// atau https:// (contoh: https://drive.google.com/...).' };
+  let u;
+  try { u = new URL(v); } catch { return { ok: false, msg: 'Format link tidak valid.' }; }
+  if (!/^([a-z0-9]([a-z0-9-]*[a-z0-9])?\.)+[a-z]{2,}$/i.test(u.hostname)) {
+    return { ok: false, msg: 'Alamat link tidak valid (contoh: https://drive.google.com/...).' };
   }
+  if (existing.some(f => f && f.url === u.href)) return { ok: false, msg: 'Link ini sudah ditambahkan.' };
+  return { ok: true, url: u.href, name: u.hostname.replace(/^www\./i, '') };
 }
 
-function _uploadFileWithProgress(file, kategori, onProgress) {
-  return new Promise((resolve, reject) => {
-    const xhr = new XMLHttpRequest();
-    const fd  = new FormData();
-    fd.append('file', file);
-    fd.append('kategori', kategori);
-    xhr.open('POST', '/api/upload');
-    const auth = authHeaders()['Authorization'];
-    if (auth) xhr.setRequestHeader('Authorization', auth);
-    xhr.upload.onprogress = (e) => {
-      if (e.lengthComputable && onProgress) onProgress(Math.round((e.loaded / e.total) * 100));
-    };
-    xhr.onload = () => {
-      let data = {};
-      try { data = JSON.parse(xhr.responseText); } catch {}
-      if (xhr.status >= 200 && xhr.status < 300) resolve(data);
-      else reject(new Error(data.error || 'Gagal upload'));
-    };
-    xhr.onerror = () => reject(new Error('Gagal upload (koneksi bermasalah)'));
-    xhr.send(fd);
-  });
+function _showDukungLinkError(msg) {
+  const err = document.getElementById('dukungLinkError');
+  if (!err) return;
+  err.textContent = msg || '';
+  err.style.display = msg ? '' : 'none';
 }
 
-async function _processDukungFile(file) {
-  if (file.size > 2 * 1024 * 1024) return `${file.name}: terlalu besar (maks. 2 MB)`;
-
-  const isAutoSave = _dukungState._autoSave;
-  const { indikatorId, _source } = _dukungState;
-
-  
-  
-  const idx = _dukungState.files.length;
-  _dukungState.files.push({ url: null, name: file.name, _loading: true });
-  if (!isAutoSave) _renderDukungList();
-  else _renderDukungRowUploading(indikatorId);
-
-  const pw = document.getElementById('dukungProgressWrap');
-  const pb = document.getElementById('dukungProgressBar');
-  if (!isAutoSave && pw) pw.style.display = '';
-  if (!isAutoSave && pb) pb.style.width = '0%';
-
-  const onProgress = (pct) => {
-    if (isAutoSave) {
-      const ring = document.getElementById(`dukungRing_${indikatorId}`);
-      if (ring) ring.setAttribute('stroke-dashoffset', String(100 - pct));
-    } else if (pb) {
-      pb.style.width = pct + '%';
-    }
-  };
-
-  try {
-    const kategori = _source === 'ikk' ? 'kinerja_ikk' : _source === 'spm' ? 'kinerja_spm' : 'kinerja_iku';
-    const d = await _uploadFileWithProgress(file, kategori, onProgress);
-    if (!isAutoSave && pb) { pb.style.width = '100%'; setTimeout(() => { if (pw) pw.style.display = 'none'; }, 600); }
-    _dukungState.files[idx] = { url: d.url, name: d.name || file.name };
-    if (!isAutoSave) {
-      _renderDukungList();
-    } else {
-      if (_dukungBatchProgress[indikatorId]) _dukungBatchProgress[indikatorId].current++;
-      
-      const stillLoading = _dukungState.files.some(f => f._loading);
-      if (!stillLoading) await _autoSaveDukung();
-      else _renderDukungRowUploading(indikatorId); 
-    }
-    return null;
-  } catch (err) {
-    if (!isAutoSave && pw) pw.style.display = 'none';
-    _dukungState.files.splice(idx, 1);
-    if (!isAutoSave) _renderDukungList();
-    else {
-      if (_dukungBatchProgress[indikatorId]) _dukungBatchProgress[indikatorId].current++;
-      const stillLoading = _dukungState.files.some(f => f._loading);
-      if (stillLoading) {
-        _renderDukungRowUploading(indikatorId); 
-      } else {
-        
-        const dataArr = _source === 'ikk' ? _ikkData : _source === 'spm' ? _spmData : _kinerjaData;
-        const source  = _source;
-        const { tw, tahun } = _dukungState;
-        const rowObj  = dataArr.find(r => r.id === indikatorId);
-        const tr = document.querySelector(`[data-id="${indikatorId}"]`);
-        const dukungTd = tr?.querySelector('td[data-col="dukung"]');
-        if (dukungTd && rowObj) dukungTd.innerHTML = _renderDukungBtn(rowObj, tw, tahun, source, !rowObj.realisasi_id);
-      }
-    }
-    return err.message || 'Gagal upload';
-  }
+function _resetDukungLinkForm(readonly = false) {
+  const form = document.getElementById('dukungLinkForm');
+  const inp  = document.getElementById('dukungLinkInput');
+  const save = document.getElementById('dukungSaveBtn');
+  if (form) form.style.display = readonly ? 'none' : '';
+  if (save) save.style.display = readonly ? 'none' : '';
+  if (inp)  inp.value = '';
+  _showDukungLinkError('');
+  if (!readonly) setTimeout(() => inp?.focus(), 60);
 }
 
-async function _autoSaveDukung() {
-  const { indikatorId, tw, tahun, files, _source } = _dukungState;
-  const doneFiles = files.filter(f => f.url && !f._loading);
-  const urlJson   = doneFiles.length ? JSON.stringify(doneFiles) : null;
-  const nameStr   = doneFiles.length ? doneFiles.map(f => f.name).join(', ') : null;
-  try {
-    const r = await fetch('/api/kinerja/realisasi', {
-      method: 'POST', headers: authHeaders(),
-      body: JSON.stringify({ indikator_id: indikatorId, bulan: tw, tahun, data_dukung_url: urlJson, data_dukung_nama: nameStr }),
-    });
-    const d = await r.json();
-    if (!r.ok) { toast(d.error || 'Gagal menyimpan', 'error'); return; }
-    toast('Data dukung tersimpan');
-    
-    const dataArr = _source === 'ikk' ? _ikkData : _source === 'spm' ? _spmData : _kinerjaData;
-    const rowIdx  = dataArr.findIndex(x => x.id === indikatorId);
-    if (rowIdx >= 0) {
-      dataArr[rowIdx].data_dukung_url  = urlJson;
-      dataArr[rowIdx].data_dukung_nama = nameStr;
-    }
-    
-    const tr = document.querySelector(`[data-id="${indikatorId}"]`);
-    const dukungTd = tr?.querySelector('td[data-col="dukung"]');
-    if (dukungTd && rowIdx >= 0) {
-      dukungTd.innerHTML = _renderDukungBtn(dataArr[rowIdx], tw, tahun, _source, !dataArr[rowIdx].realisasi_id);
-    }
-    
-    if (_source === 'spm') _updateSpmSaveBtnState(indikatorId);
-    else if (_source === 'ikk') _updateIkkSaveBtnState(indikatorId);
-    else _updateSaveBtnState(indikatorId);
-  } catch { toast('Gagal menyimpan data dukung', 'error'); }
+// Tambah link dari input ke daftar. Return true kalau valid & ditambahkan.
+function tambahDukungLink() {
+  const inp = document.getElementById('dukungLinkInput');
+  if (!inp) return false;
+  if (_dukungState.files.length >= 1) { _showDukungLinkError('Data dukung hanya boleh 1 link. Hapus link yang ada dulu untuk mengganti.'); return false; }
+  const res = _validateDukungLink(inp.value, _dukungState.files);
+  if (!res.ok) { _showDukungLinkError(res.msg); inp.focus(); return false; }
+  _dukungState.files.push({ url: res.url, name: res.name, link: true });
+  inp.value = '';
+  _showDukungLinkError('');
+  _renderDukungList();
+  return true;
 }
 
 async function deleteDukungAll(indikatorId, tw, tahun, source) {
   const ok = await showConfirm({
     title:  'Hapus Data Dukung',
-    msg:    'Semua file data dukung untuk indikator ini akan dihapus permanen.',
+    msg:    'Link data dukung untuk indikator ini akan dihapus permanen.',
     okText: 'Ya, Hapus', icon: 'trash',
   });
   if (!ok) return;
@@ -3459,7 +3711,7 @@ async function deleteDukungAll(indikatorId, tw, tahun, source) {
     const d = await r.json();
     if (!r.ok) { toast(d.error || 'Gagal menghapus', 'error'); return; }
     toast('Data dukung dihapus');
-    const dataArr = source === 'ikk' ? _ikkData : source === 'spm' ? _spmData : _kinerjaData;
+    const dataArr = source === 'ikk' ? _ikkData : source === 'spm' ? _spmData : source === 'subkeg' ? _subkegData : _kinerjaData;
     const rowIdx  = dataArr.findIndex(x => x.id === indikatorId);
     if (rowIdx >= 0) {
       dataArr[rowIdx].data_dukung_url  = null;
@@ -3477,12 +3729,13 @@ async function deleteDukungAll(indikatorId, tw, tahun, source) {
         uploadBtn.style.cursor = 'pointer';
         uploadBtn.style.opacity = '1';
         uploadBtn.style.borderStyle = 'solid';
-        uploadBtn.dataset.tip = 'Upload file data dukung';
+        uploadBtn.dataset.tip = 'Isi link data dukung';
         uploadBtn.onclick = () => triggerDukungUpload(indikatorId, tw, tahun, source);
       }
     }
     
     if (source === 'spm') _updateSpmSaveBtnState(indikatorId);
+    else if (source === 'subkeg') _updateSubkegSaveBtnState(indikatorId);
     else if (source === 'ikk') _updateIkkSaveBtnState(indikatorId);
     else _updateSaveBtnState(indikatorId);
   } catch (err) { toast('Error: ' + err.message, 'error'); }
@@ -3491,14 +3744,22 @@ async function deleteDukungAll(indikatorId, tw, tahun, source) {
 function _removeDukungFile(idx) {
   _dukungState.files.splice(idx, 1);
   _renderDukungList();
-  toast('File dihapus');
+  toast('Link dihapus');
+  setTimeout(() => document.getElementById('dukungLinkInput')?.focus(), 60);
 }
 
 async function saveDukung() {
+  if (_dukungState.readonly) return;
+  // Kalau ada link yang sudah ditempel tapi belum ditekan "Tambah", validasi & tambahkan dulu
+  const inp = document.getElementById('dukungLinkInput');
+  if (inp && inp.value.trim() && !tambahDukungLink()) return;
+
   const { indikatorId, tw, tahun, files, _source } = _dukungState;
-  const doneFiles = files.filter(f => f.url && !f._loading);
-  const urlJson  = doneFiles.length ? JSON.stringify(doneFiles) : null;
-  const nameStr  = doneFiles.length ? doneFiles.map(f => f.name).join(', ') : null;
+  const doneFiles = files.filter(f => f.url);
+  if (!doneFiles.length) { _showDukungLinkError('Isi minimal 1 link data dukung.'); return; }
+  if (doneFiles.length > 1) { toast('Data dukung hanya boleh 1 link. Hapus link yang lain dulu.', 'error'); return; }
+  const urlJson  = JSON.stringify(doneFiles);
+  const nameStr  = doneFiles.map(f => f.name).join(', ');
   try {
     const r = await fetch('/api/kinerja/realisasi', {
       method: 'POST', headers: authHeaders(),
@@ -3512,11 +3773,13 @@ async function saveDukung() {
     if (!r.ok) { toast(d.error || 'Gagal menyimpan', 'error'); return; }
     toast('Data dukung tersimpan');
     
-    const dataArr = _source === 'ikk' ? _ikkData : _source === 'spm' ? _spmData : _kinerjaData;
+    const dataArr = _source === 'ikk' ? _ikkData : _source === 'spm' ? _spmData : _source === 'subkeg' ? _subkegData : _kinerjaData;
     const renderFn = _source === 'ikk'
       ? () => _renderIkkTable(document.getElementById('ikkTableBody'))
       : _source === 'spm'
         ? () => _renderSpmTable(document.getElementById('spmTableBody'))
+        : _source === 'subkeg'
+        ? () => _renderSubkegTable(document.getElementById('subkegTableBody'))
         : () => renderKinerjaTable(document.getElementById('kinerjaTableBody'));
     const idx = dataArr.findIndex(x => x.id === indikatorId);
     if (idx >= 0) {
@@ -3556,7 +3819,7 @@ async function initIkkControls() {
   } else if (_user?.is_admin) {
     
     _ikk_tahun = new Date().getFullYear();
-    _ikk_bulan = new Date().getMonth() + 1;
+    _ikk_bulan = _twBulanSekarang();
   }
   
   if (_user?.is_admin) {
@@ -3577,7 +3840,7 @@ function _syncIkkBulanButtons() {
   
   const bulanTerbuka = new Set(_periodeListTerbuka.filter(p => p.jenis === 'ikk').map(p => p.bulan));
   const items = [];
-  for (let bulan = 1; bulan <= 12; bulan++) {
+  for (const bulan of TW_BULAN) {
     const isTampil = _user?.is_admin ? true : bulanTerbuka.has(bulan);
     if (!isTampil) continue;
     const periodeMatch = _user?.is_admin
@@ -3588,7 +3851,7 @@ function _syncIkkBulanButtons() {
   }
   items.sort((a, b) => _user?.is_admin ? (a.bulan - b.bulan) : ((a.tahun * 100 + a.bulan) - (b.tahun * 100 + b.bulan)));
   sel.innerHTML = items.map(it =>
-    `<option value="${it.bulan}"${it.bulan === _ikk_bulan ? ' selected' : ''}>${BULAN_FULL[it.bulan]}</option>`
+    `<option value="${it.bulan}"${it.bulan === _ikk_bulan ? ' selected' : ''}>${_twNama(it.bulan)}</option>`
   ).join('');
   sel.onchange = () => setIkkBulan(parseInt(sel.value));
   if (typeof syncCustomSelect === 'function') syncCustomSelect('ikkBulanSelector');
@@ -3893,7 +4156,7 @@ function _updateIkkSaveBtnState(indikatorId) {
       _uploadBtn_ikk.style.borderColor = '#6ee7b7';
       _uploadBtn_ikk.style.background = '#ecfdf5';
       _uploadBtn_ikk.style.color = '#065f46';
-      _uploadBtn_ikk.dataset.tip = 'Upload data dukung';
+      _uploadBtn_ikk.dataset.tip = 'Isi link data dukung';
       _uploadBtn_ikk.onclick = () => _openDukungFromBtn(_uploadBtn_ikk);
     } else {
       _uploadBtn_ikk.disabled = true;
@@ -4040,16 +4303,11 @@ async function saveIkkRealisasiRow(indikatorId) {
 
 async function openIkkDukungModal(indikatorId, bulan, tahun) {
   _dukungState = { indikatorId, tw: bulan, tahun, files: [], _source: 'ikk' };
-  const area = document.getElementById('dukungUploadArea');
-  const fi   = document.getElementById('dukungFileInput');
-  const pw   = document.getElementById('dukungProgressWrap');
-  if (area) { area.classList.remove('drag-over'); area.style.display = ''; }
-  if (fi)   fi.value = '';
-  if (pw)   pw.style.display = 'none';
+  _resetDukungLinkForm();
 
   const row = _ikkData.find(r => r.id === indikatorId);
   document.getElementById('dukungIndikatorLabel').textContent = row?.indikator_kinerja || '';
-  document.getElementById('dukungTwLabel').textContent = `${BULAN_FULL[bulan] || bulan} ${tahun} - IKK`;
+  document.getElementById('dukungTwLabel').textContent = `${_twNama(bulan)} ${tahun} - IKK`;
 
   if (row?.data_dukung_url) {
     try {
@@ -5289,7 +5547,7 @@ document.addEventListener('click', function(e) {
 });
 
 function _togglePermasalahanSolusi(prefix, indikatorId, capaian) {
-  const dataArr = prefix === 'ikk' ? _ikkData : prefix === 'spm' ? _spmData : _kinerjaData;
+  const dataArr = prefix === 'ikk' ? _ikkData : prefix === 'spm' ? _spmData : prefix === 'subkeg' ? _subkegData : _kinerjaData;
   const row = dataArr.find(r => r.id === indikatorId);
   const isPredikat = row?.tipe_nilai === 'predikat';
   const tercapai = capaian !== null && !isNaN(capaian) && capaian >= 100;
@@ -5345,7 +5603,7 @@ function _togglePermasalahanSolusi(prefix, indikatorId, capaian) {
 }
 
 
-let _mon_bulan  = new Date().getMonth() + 1;
+let _mon_bulan  = _twBulanSekarang();
 let _mon_tahun  = new Date().getFullYear();
 let _mon_jenis  = 'all';   
 let _mon_status = 'all';     
@@ -5356,8 +5614,7 @@ let _mon_page   = 1;
 const _MON_PER_PAGE = 10;
 let _mon_data   = null;
 
-const _MON_BULAN_NAMA = ['','Januari','Februari','Maret','April','Mei','Juni',
-                         'Juli','Agustus','September','Oktober','November','Desember'];
+const _MON_BULAN_NAMA = (() => { const a = ['']; for (let b = 1; b <= 12; b++) a.push(_twNama(b)); return a; })();
 
 function _monPopulateTahun() {
   const sel = document.getElementById('monTahunSelect');
@@ -5374,19 +5631,16 @@ function _monPopulateBulan() {
   const sel = document.getElementById('monBulanSelect');
   if (!sel) return;
   
-  
-  const bulanSet = _mon_tahun
-    ? new Set(_allPeriodeList.filter(p => p.tahun === _mon_tahun).map(p => p.bulan))
-    : new Set(_allPeriodeList.map(p => p.bulan));
-  const BULAN_NAMES = ['','Januari','Februari','Maret','April','Mei','Juni',
-                       'Juli','Agustus','September','Oktober','November','Desember'];
-  const opts = ['<option value="">Semua Bulan</option>'];
-  for (let b = 1; b <= 12; b++) {
-    if (bulanSet.has(b)) opts.push(`<option value="${b}">${BULAN_NAMES[b]}</option>`);
+  // Monitoring itu baca data realisasi langsung, bukan tabel periode, jadi semua triwulan
+  // (I-IV) selalu ditampilkan. Sebelumnya cuma triwulan yang punya record periode, sehingga
+  // TW yang datanya sudah terisi tapi record periodenya tidak ada ikut hilang dari dropdown.
+  const opts = ['<option value="">Semua Periode</option>'];
+  for (const b of TW_BULAN) {
+    opts.push(`<option value="${b}">${_twNama(b)}</option>`);
   }
   sel.innerHTML = opts.join('');
-  // Pertahankan pilihan bulan sebelumnya jika masih valid
-  if (_mon_bulan && bulanSet.has(_mon_bulan)) {
+  // Pertahankan pilihan triwulan sebelumnya jika masih valid
+  if (_mon_bulan && TW_BULAN.includes(_mon_bulan)) {
     sel.value = _mon_bulan;
   } else {
     _mon_bulan = '';
@@ -5410,8 +5664,7 @@ async function initMonitoringKinerja() {
   _mon_tahun = document.getElementById('monTahunSelect')?.value
     ? parseInt(document.getElementById('monTahunSelect').value) : '';
 
-  // Sync tombol jenis & status
-  _monSyncJenisBtn();
+  // Sync tombol status
   _monSyncStatusBtn();
   // Load
   loadMonitoringKinerja();
@@ -5444,6 +5697,7 @@ async function loadMonitoringKinerja() {
   }
 
   _monRenderSummary();
+  _monPopulatePJSelect();
   _monRenderPJCards();
   _monPopulateUserSelect();
   _monRenderUserCards();
@@ -5488,9 +5742,9 @@ function _monRenderSummary() {
           <div style="width:${pct}%;height:100%;border-radius:99px;background:linear-gradient(90deg,${tone.c},${tone.c2});transition:width .5s cubic-bezier(.4,0,.2,1)"></div>
         </div>
         <div style="font-size:var(--fs-xs);color:var(--teks-muted);margin-top:var(--sp-3);display:flex;align-items:center;gap:5px">
-          <span>${bulan ? _MON_BULAN_NAMA[bulan] : 'Semua Bulan'} ${tahun || 'Semua Tahun'}</span>
+          <span>${bulan ? _MON_BULAN_NAMA[bulan] : 'Semua Periode'} ${tahun || 'Semua Tahun'}</span>
           <span style="color:var(--abu-2)">&bull;</span>
-          <span>${jenis === 'monev' ? 'IKU' : jenis === 'ikk' ? 'IKK' : jenis === 'spm' ? 'SPM' : 'Semua Jenis'}</span>
+          <span>${jenis === 'monev' ? 'IKU' : jenis === 'ikk' ? 'IKK' : jenis === 'spm' ? 'SPM' : jenis === 'subkeg' ? 'Sub Kegiatan' : 'Semua Jenis'}</span>
         </div>
       </div>
     </div>`;
@@ -5666,10 +5920,25 @@ function _monRenderTable() {
       const th = document.createElement('th');
       th.setAttribute('data-bulan-col', '1');
       th.style.cssText = 'width:90px;text-align:center';
-      th.textContent = 'Bulan';
+      th.textContent = 'Triwulan';
       thead.insertBefore(th, thead.children[4]); 
     } else if (!isAllBulan && thead.querySelector('th[data-bulan-col]')) {
       thead.querySelector('th[data-bulan-col]').remove();
+    }
+  }
+
+  // Header kolom Target dinamis: ikut dropdown periode (tahun + triwulan) yang terpilih
+  if (thead) {
+    const thTarget = [...thead.children].find(th => th.dataset.targetCol || /^target/i.test(th.textContent.trim()));
+    if (thTarget) {
+      thTarget.dataset.targetCol = '1';
+      const tw  = isAllBulan ? '' : `TW ${TW_ROMAWI[_twNo(_mon_bulan)]}`;
+      const thn = (_mon_tahun !== '' && _mon_tahun != null) ? String(_mon_tahun) : '';
+      thTarget.textContent = isAllBulan
+        ? (thn ? `Target ${thn} (TW)` : 'Target per TW')
+        : `Target ${tw}`;
+      thTarget.style.whiteSpace = 'normal';
+      thTarget.style.width = '120px';
     }
   }
 
@@ -5744,6 +6013,7 @@ function _monRenderTable() {
       r.jenis_monev ? `<span style="background:#dbeafe;color:#1d4ed8;border-radius:4px;padding:1px 5px;font-size:.63rem;font-weight:700">IKU</span>` : '',
       r.jenis_ikk   ? `<span style="background:#ede9fe;color:#7c3aed;border-radius:4px;padding:1px 5px;font-size:.63rem;font-weight:700">IKK</span>`   : '',
       r.jenis_spm   ? `<span style="background:#fef3c7;color:#b45309;border-radius:4px;padding:1px 5px;font-size:.63rem;font-weight:700">SPM</span>`   : '',
+      (Array.isArray(r.jenis_custom) && r.jenis_custom.includes('subkeg')) ? `<span style="background:#ede9fe;color:#6d28d9;border-radius:4px;padding:1px 5px;font-size:.63rem;font-weight:700">Sub Kegiatan</span>` : '',
     ].filter(Boolean).join(' ');
 
     const capaian = r.capaian_persen != null
@@ -5774,7 +6044,7 @@ function _monRenderTable() {
         <div style="font-size:.82rem;font-weight:600;color:#1e293b;line-height:1.4;white-space:normal;word-break:break-word"><span>${escHtml(r.indikator_kinerja)}</span>${maknaIcon}</div>
         <div style="margin-top:3px;display:flex;align-items:center;gap:3px;flex-wrap:wrap">${tipeBadge}${jenisBadges}</div>
       </td>
-      <td style="font-size:.78rem;color:#64748b;padding:10px 8px;word-break:break-word;white-space:normal;text-align:center">${escHtml(r.penanggung_jawab || '-')}</td>
+      <td style="font-size:.78rem;color:#64748b;padding:10px 8px;word-break:break-word;white-space:normal;text-align:center"><div style="max-width:220px;margin:0 auto;line-height:1.4;white-space:normal;overflow-wrap:anywhere">${escHtml(r.penanggung_jawab || '-')}</div></td>
       <td style="font-size:.78rem;padding:10px 8px;white-space:nowrap;text-align:center">${targetTx}</td>
       ${bulanCell}
       <td style="text-align:center;padding:10px 8px">${statusBadge}</td>
@@ -5803,10 +6073,10 @@ function setMonTahun(t) {
   loadMonitoringKinerja();
 }
 
-function setMonFilterJenis(j) {
-  _mon_jenis = j === '' ? 'all' : j;
-  _monSyncJenisBtn();
-  loadMonitoringKinerja();
+// Dropdown Unit Kerja (sinkron dengan klik kartu "Progress per Unit Kerja")
+function setMonPJSelect(v) {
+  _mon_pj = '';      // setMonPJ itu toggle, jadi kosongkan dulu biar dropdown selalu "set"
+  setMonPJ(v || '');
 }
 
 function setMonFilterStatus(s) {
@@ -5820,6 +6090,7 @@ function setMonPJ(pj) {
   _mon_page = 1;
   _mon_pj = _mon_pj === pj ? '' : pj;
   _mon_user = ''; // reset filter user saat ganti bidang
+  _monPopulatePJSelect();
   _monRenderPJCards();
   _monPopulateUserSelect();
   _monRenderUserCards();
@@ -5847,10 +6118,16 @@ function _monSyncBulanBtn() {
   if (typeof syncCustomSelect === 'function') syncCustomSelect('monBulanSelect');
 }
 
-function _monSyncJenisBtn() {
-  const sel = document.getElementById('monJenisSelect');
-  if (sel) sel.value = (_mon_jenis === 'all') ? '' : _mon_jenis;
-  if (typeof syncCustomSelect === 'function') syncCustomSelect('monJenisSelect');
+function _monPopulatePJSelect() {
+  const sel = document.getElementById('monPJSelect');
+  if (!sel) return;
+  const list = (_mon_data?.summary_pj || []).map(p => p.penanggung_jawab).filter(Boolean);
+  if (_mon_pj && !list.includes(_mon_pj)) _mon_pj = '';
+  sel.innerHTML = '<option value="">Semua Unit Kerja</option>' +
+    list.map(n => `<option value="${escHtml(n)}"${n === _mon_pj ? ' selected' : ''}>${escHtml(n)}</option>`).join('');
+  sel.value = _mon_pj;
+  sel.disabled = !list.length;
+  if (typeof syncCustomSelect === 'function') syncCustomSelect('monPJSelect');
 }
 
 function _monSyncStatusBtn() {
@@ -5888,7 +6165,7 @@ async function initSpmControls() {
     _spm_bulan = _spmTerbuka[0].bulan;
   } else if (_user?.is_admin) {
     _spm_tahun = new Date().getFullYear();
-    _spm_bulan = new Date().getMonth() + 1;
+    _spm_bulan = _twBulanSekarang();
   }
   if (_user?.is_admin) {
     _populateTahunSelector('spmTahunSelect', _spm_tahun, setSpmTahun);
@@ -5939,7 +6216,7 @@ function _syncSpmBulanButtons() {
   if (!sel) return;
   const bulanTerbuka = new Set(_periodeListTerbuka.filter(p => p.jenis === 'spm').map(p => p.bulan));
   const items = [];
-  for (let bulan = 1; bulan <= 12; bulan++) {
+  for (const bulan of TW_BULAN) {
     const isTampil = _user?.is_admin ? true : bulanTerbuka.has(bulan);
     if (!isTampil) continue;
     const periodeMatch = _user?.is_admin
@@ -5950,7 +6227,7 @@ function _syncSpmBulanButtons() {
   }
   items.sort((a, b) => _user?.is_admin ? (a.bulan - b.bulan) : ((a.tahun * 100 + a.bulan) - (b.tahun * 100 + b.bulan)));
   sel.innerHTML = items.map(it =>
-    `<option value="${it.bulan}"${it.bulan === _spm_bulan ? ' selected' : ''}>${BULAN_FULL[it.bulan]}</option>`
+    `<option value="${it.bulan}"${it.bulan === _spm_bulan ? ' selected' : ''}>${_twNama(it.bulan)}</option>`
   ).join('');
   sel.onchange = () => setSpmBulan(parseInt(sel.value));
   if (typeof syncCustomSelect === 'function') syncCustomSelect('spmBulanSelector');
@@ -6155,9 +6432,9 @@ function _renderSpmTable(tbody) {
         const dukungCell = document.querySelector(`tr[data-id="${row.id}"] td[data-col="dukung"]`);
         if (dukungCell && !dukungCell.querySelector('.dukung-warning')) {
           dukungCell.insertAdjacentHTML('beforeend', `
-            <div class="dukung-warning" data-tip="Data dukung belum diupload untuk indikator ini">
+            <div class="dukung-warning" data-tip="Link data dukung belum diisi untuk indikator ini">
               <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v4m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/></svg>
-              Belum diupload
+              Belum diisi
             </div>`);
         }
       }
@@ -6247,7 +6524,7 @@ function toggleSpmEditRow(indikatorId) {
       dukungBtn.disabled = false;
       dukungBtn.style.cursor = 'pointer';
       dukungBtn.style.opacity = '1';
-      dukungBtn.dataset.tip = 'Kelola / ganti file data dukung';
+      dukungBtn.dataset.tip = 'Kelola / ganti link data dukung';
       const twV = dukungBtn.dataset.tw;
       const tahunV = dukungBtn.dataset.tahun;
       dukungBtn.onclick = () => openSpmDukungModal(indikatorId, parseInt(twV), parseInt(tahunV));
@@ -6255,7 +6532,7 @@ function toggleSpmEditRow(indikatorId) {
       dukungBtn.disabled = true;
       dukungBtn.style.cursor = 'not-allowed';
       dukungBtn.style.opacity = '.85';
-      dukungBtn.dataset.tip = 'Klik Edit terlebih dahulu untuk mengganti file';
+      dukungBtn.dataset.tip = 'Klik Edit terlebih dahulu untuk mengganti link';
       dukungBtn.onclick = null;
     }
   }
@@ -6265,7 +6542,7 @@ function toggleSpmEditRow(indikatorId) {
       deleteBtn.disabled = false;
       deleteBtn.style.cursor = 'pointer';
       deleteBtn.style.opacity = '1';
-      deleteBtn.dataset.tip = 'Hapus semua file data dukung';
+      deleteBtn.dataset.tip = 'Hapus link data dukung';
       const twV    = deleteBtn.dataset.tw;
       const tahunV = deleteBtn.dataset.tahun;
       const srcV   = deleteBtn.dataset.source;
@@ -6274,7 +6551,7 @@ function toggleSpmEditRow(indikatorId) {
       deleteBtn.disabled = true;
       deleteBtn.style.cursor = 'not-allowed';
       deleteBtn.style.opacity = '.5';
-      deleteBtn.dataset.tip = 'Klik Edit terlebih dahulu untuk menghapus file';
+      deleteBtn.dataset.tip = 'Klik Edit terlebih dahulu untuk menghapus link';
       deleteBtn.onclick = null;
     }
   }
@@ -6285,7 +6562,7 @@ function toggleSpmEditRow(indikatorId) {
       uploadOnlyBtn.style.cursor = 'pointer';
       uploadOnlyBtn.style.opacity = '1';
       uploadOnlyBtn.style.borderStyle = 'solid';
-      uploadOnlyBtn.dataset.tip = 'Upload file data dukung';
+      uploadOnlyBtn.dataset.tip = 'Isi link data dukung';
       const twV    = uploadOnlyBtn.dataset.tw;
       const tahunV = uploadOnlyBtn.dataset.tahun;
       const src    = uploadOnlyBtn.dataset.source;
@@ -6295,7 +6572,7 @@ function toggleSpmEditRow(indikatorId) {
       uploadOnlyBtn.style.cursor = 'not-allowed';
       uploadOnlyBtn.style.opacity = '.65';
       uploadOnlyBtn.style.borderStyle = 'dashed';
-      uploadOnlyBtn.dataset.tip = 'Klik Edit terlebih dahulu untuk mengupload file';
+      uploadOnlyBtn.dataset.tip = 'Klik Edit terlebih dahulu untuk mengisi link';
       uploadOnlyBtn.onclick = null;
     }
   }
@@ -6370,7 +6647,7 @@ function _updateSpmSaveBtnState(indikatorId) {
       _uploadBtn_spm.style.borderColor = '#6ee7b7';
       _uploadBtn_spm.style.background = '#ecfdf5';
       _uploadBtn_spm.style.color = '#065f46';
-      _uploadBtn_spm.dataset.tip = 'Upload data dukung';
+      _uploadBtn_spm.dataset.tip = 'Isi link data dukung';
       _uploadBtn_spm.onclick = () => _openDukungFromBtn(_uploadBtn_spm);
     } else {
       _uploadBtn_spm.disabled = true;
@@ -6535,9 +6812,694 @@ async function saveSpmRealisasiRow(indikatorId) {
         const dukungCell = document.querySelector(`tr[data-id="${indikatorId}"] td[data-col="dukung"]`);
         if (dukungCell && !dukungCell.querySelector('.dukung-warning')) {
           dukungCell.insertAdjacentHTML('beforeend', `
-            <div class="dukung-warning" data-tip="Data dukung belum diupload untuk indikator ini">
+            <div class="dukung-warning" data-tip="Link data dukung belum diisi untuk indikator ini">
               <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v4m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/></svg>
-              Belum diupload
+              Belum diisi
+            </div>`);
+        }
+      }
+    }
+  } catch (err) {
+    toast('Error: ' + err.message, 'error');
+    if (btn) { btn.disabled = false; btn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/><path d="M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7"/><path d="M7 3v4a1 1 0 0 0 1 1h7"/></svg> Simpan`; }
+  }
+}
+
+async function initSubkegControls() {
+  const isAdmin = _user?.is_admin;
+  // Sama kayak initIkkControls - 3 fetch independen ditembak paralel, bukan berurutan
+  await Promise.all([
+    !_periodeListTerbuka.length
+      ? fetch('/api/periode/aktif')
+          .then(r => r.ok ? r.json() : null)
+          .then(d => { if (d) _periodeListTerbuka = d.periode || []; })
+          .catch(() => { _periodeListTerbuka = []; })
+      : Promise.resolve(),
+    _ensureUserIndikatorIds(),
+    (isAdmin && !_allPeriodeList.length)
+      ? fetch('/api/periode', { headers: authHeaders() })
+          .then(r => r.ok ? r.json() : null)
+          .then(d => { if (d) _allPeriodeList = d.periode || []; })
+          .catch(() => {})
+      : Promise.resolve(),
+  ]);
+  const _subkegTerbuka = _periodeListTerbuka.filter(p => p.jenis === 'subkeg')
+    .sort((a, b) => a.tahun !== b.tahun ? a.tahun - b.tahun : a.bulan - b.bulan);
+  if (_subkegTerbuka.length) {
+    _subkeg_tahun = _subkegTerbuka[0].tahun;
+    _subkeg_bulan = _subkegTerbuka[0].bulan;
+  } else if (_user?.is_admin) {
+    _subkeg_tahun = new Date().getFullYear();
+    _subkeg_bulan = _twBulanSekarang();
+  }
+  if (_user?.is_admin) {
+    _populateTahunSelector('subkegTahunSelect', _subkeg_tahun, setSubkegTahun);
+    const tw = document.getElementById('subkegTahunWrap');
+    if (tw) tw.style.display = 'flex';
+  } else if (_subkegTerbuka.length) {
+    // Non-admin: populate dropdown tahun (hanya tahun-tahun yang punya periode subkeg terbuka)
+    const _tahunNonAdmin = [...new Set(_subkegTerbuka.map(p => p.tahun))].sort((a, b) => a - b);
+    _populateTahunSelector('subkegTahunSelect', _subkeg_tahun, setSubkegTahun, _tahunNonAdmin);
+  }
+  _syncSubkegBulanButtons();
+  _renderSubkegPeriodeInfo();
+  _renderKinerjaCountdown && _renderKinerjaCountdown('subkegCountdownBar', 'subkeg');
+}
+
+function setSubkegTahun(tahun) {
+  _subkeg_tahun = tahun;
+  if (_user?.is_admin) {
+    _populateTahunSelector('subkegTahunSelect', _subkeg_tahun, setSubkegTahun);
+  } else {
+    // Non-admin: pilih bulan pertama yang periodenya terbuka untuk tahun ini
+    const periodeThnIni = _periodeListTerbuka.filter(p => p.jenis === 'subkeg' && p.tahun === tahun)
+      .sort((a, b) => a.bulan - b.bulan);
+    if (periodeThnIni.length) _subkeg_bulan = periodeThnIni[0].bulan;
+  }
+  _syncSubkegBulanButtons();
+  _renderSubkegPeriodeInfo();
+  _renderKinerjaCountdown && _renderKinerjaCountdown('subkegCountdownBar', 'subkeg');
+  loadSubkegRekap();
+}
+
+function setSubkegBulan(bulan) {
+  if (!_user?.is_admin) {
+    const bulanTerbuka = new Set(_periodeListTerbuka.filter(p => p.jenis === 'subkeg').map(p => p.bulan));
+    if (!bulanTerbuka.has(bulan)) return;
+    const periodeMatch = _periodeListTerbuka.find(p => p.jenis === 'subkeg' && p.bulan === bulan);
+    if (periodeMatch) _subkeg_tahun = periodeMatch.tahun;
+  }
+  _subkeg_bulan = bulan;
+  _syncSubkegBulanButtons();
+  _renderSubkegPeriodeInfo();
+  _renderKinerjaCountdown && _renderKinerjaCountdown('subkegCountdownBar', 'subkeg');
+  loadSubkegRekap();
+}
+
+function _syncSubkegBulanButtons() {
+  const sel = document.getElementById('subkegBulanSelector');
+  if (!sel) return;
+  const bulanTerbuka = new Set(_periodeListTerbuka.filter(p => p.jenis === 'subkeg').map(p => p.bulan));
+  const items = [];
+  for (const bulan of TW_BULAN) {
+    const isTampil = _user?.is_admin ? true : bulanTerbuka.has(bulan);
+    if (!isTampil) continue;
+    const periodeMatch = _user?.is_admin
+      ? _allPeriodeList.find(p => p.jenis === 'subkeg' && p.bulan === bulan && p.tahun === _subkeg_tahun)
+      : _periodeListTerbuka.find(p => p.jenis === 'subkeg' && p.bulan === bulan);
+    const tahunLabel = periodeMatch ? periodeMatch.tahun : _subkeg_tahun;
+    items.push({ bulan, tahun: tahunLabel });
+  }
+  items.sort((a, b) => _user?.is_admin ? (a.bulan - b.bulan) : ((a.tahun * 100 + a.bulan) - (b.tahun * 100 + b.bulan)));
+  sel.innerHTML = items.map(it =>
+    `<option value="${it.bulan}"${it.bulan === _subkeg_bulan ? ' selected' : ''}>${_twNama(it.bulan)}</option>`
+  ).join('');
+  sel.onchange = () => setSubkegBulan(parseInt(sel.value));
+  if (typeof syncCustomSelect === 'function') syncCustomSelect('subkegBulanSelector');
+}
+
+function _renderSubkegPeriodeInfo() {
+  const el       = document.getElementById('subkegActivePeriodeInfo');
+  const wrapper  = document.getElementById('subkegBulanWrapper');
+  const tahunWrap = document.getElementById('subkegTahunWrap');
+
+  
+  if (el) el.style.display = 'none';
+
+  if (_user?.is_admin) {
+    if (wrapper) wrapper.style.display = '';
+    if (tahunWrap) tahunWrap.style.display = 'flex';
+    return;
+  }
+
+  const _subkegAktif = _periodeListTerbuka.filter(p => p.jenis === 'subkeg');
+  if (_subkegAktif.length === 0) {
+    if (wrapper) wrapper.style.display = 'none';
+    return;
+  }
+  if (wrapper) wrapper.style.display = '';
+  if (tahunWrap) tahunWrap.style.display = 'flex';
+}
+
+async function loadSubkegRekap() {
+  const tbody = document.getElementById('subkegTableBody');
+  if (!tbody) return;
+
+  if (!_user?.is_admin && !_periodeListTerbuka.some(p => p.jenis === 'subkeg')) {
+    const tableCard = tbody.closest('.card');
+    if (tableCard) tableCard.style.display = 'none';
+    let msgEl = document.getElementById('subkegNoperiodeMsg');
+    if (!msgEl) {
+      msgEl = document.createElement('div');
+      msgEl.id = 'subkegNoperiodeMsg';
+      tableCard ? tableCard.parentNode.insertBefore(msgEl, tableCard) : tbody.parentNode.insertBefore(msgEl, tbody.parentNode.firstChild);
+    }
+    msgEl.innerHTML = `
+      <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;padding:48px 20px;color:#94a3b8;background:#fff;border-radius:12px;border:1.5px solid #f1f5f9">
+        <svg xmlns="http://www.w3.org/2000/svg" width="44" height="44" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.2" opacity=".35">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+        </svg>
+        <div style="font-size:.95rem;font-weight:600;color:#64748b">Belum ada periode input yang aktif</div>
+        <div style="font-size:.82rem;color:#94a3b8;text-align:center">Input data Sub Kegiatan belum dapat dilakukan.<br>Hubungi Admin untuk membuka periode pengisian.</div>
+      </div>`;
+    msgEl.style.display = '';
+    return;
+  }
+  const _tableCard = tbody.closest('.card');
+  if (_tableCard) _tableCard.style.display = '';
+  const _msgEl = document.getElementById('subkegNoperiodeMsg');
+  if (_msgEl) _msgEl.style.display = 'none';
+
+  tbody.innerHTML = `<tr class="empty-row"><td colspan="${_kinColSpan(tbody)}"><span class="btn-spin" style="width:11px;height:11px;vertical-align:-1px;margin-right:6px"></span>Memuat data...</td></tr>`;
+  { const _pg = document.getElementById('subkegPagination'); if (_pg) _pg.innerHTML = ''; }
+  try {
+    const r = await fetch(`/api/kinerja/rekap?bulan=${_subkeg_bulan}&tahun=${_subkeg_tahun}&jenis=subkeg`, { headers: authHeaders() });
+    const d = await r.json();
+    if (!r.ok) { tbody.innerHTML = `<tr class="empty-row"><td colspan="${_kinColSpan(tbody)}">${d.error || 'Gagal memuat'}</td></tr>`; return; }
+    let rekap = d.rekap || [];
+
+    // Filter per assigned indikator user (non-admin hanya lihat indikator yg di-assign)
+    if (!_user?.is_admin) {
+      if (_userIndikatorIds && _userIndikatorIds.size > 0) {
+        rekap = rekap.filter(row => _userIndikatorIds.has(Number(row.id)));
+      } else {
+        rekap = [];
+      }
+    }
+    _subkegData = rekap;
+    _subkegPage = 1;
+    _renderSubkegTable(tbody);
+  } catch (err) {
+    tbody.innerHTML = `<tr class="empty-row"><td colspan="${_kinColSpan(tbody)}">Error: ${err.message}</td></tr>`;
+  }
+}
+
+// Dipanggil dari input #subkegSearch (sejajar Tahun/Bulan) - filter tabel rekap Sub Kegiatan
+function filterSubkegTable() {
+  _subkegSearch = (document.getElementById('subkegSearch')?.value || '').trim().toLowerCase();
+  _subkegPage = 1;
+  _renderSubkegTable(document.getElementById('subkegTableBody'));
+}
+
+function _renderSubkegTable(tbody) {
+  if (!_subkegData.length) {
+    let emptyMsg = 'Belum ada indikator Sub Kegiatan aktif. Admin perlu menambahkan indikator dengan jenis Sub Kegiatan.';
+    if (!_user?.is_admin) {
+      if (!_userIndikatorIds || _userIndikatorIds.size === 0) {
+        emptyMsg = 'Belum ada indikator yang di-assign ke akun Anda. Hubungi Admin untuk mengatur assignment indikator.';
+      } else {
+        emptyMsg = 'Tidak ada indikator Sub Kegiatan yang di-assign ke akun Anda pada periode ini.';
+      }
+    }
+    tbody.innerHTML = `<tr class="empty-row"><td colspan="${_kinColSpan(tbody)}">${emptyMsg}</td></tr>`;
+    return;
+  }
+
+  const _filtered = _subkegSearch
+    ? _subkegData.filter(row =>
+        (row.nama_indikator || row.indikator_kinerja || '').toLowerCase().includes(_subkegSearch) ||
+        (row.satuan || '').toLowerCase().includes(_subkegSearch) ||
+        (row.penanggung_jawab || '').toLowerCase().includes(_subkegSearch)
+      )
+    : _subkegData;
+
+  if (!_filtered.length) {
+    tbody.innerHTML = `<tr class="empty-row"><td colspan="${_kinColSpan(tbody)}">Tidak ada indikator yang cocok dengan pencarian "${escHtml(_subkegSearch)}".</td></tr>`;
+    renderPagination('subkegPagination', 0, 1, _subkegPageSize, '_goSubkegPage');
+    return;
+  }
+
+  const canEdit = _isKinerjaInputOpen(null, 'subkeg');
+  let html = '';
+  const _subkegStart = (_subkegPage - 1) * _subkegPageSize;
+  const _subkegRows  = _filtered.slice(_subkegStart, _subkegStart + _subkegPageSize);
+  let i = _subkegStart;
+
+  _subkegRows.forEach(row => {
+    i++;
+    const capaian = (row.realisasi_id && row.capaian_persen != null) ? Number(row.capaian_persen) : null;
+    let badgeClass = 'na', badgeText = '-';
+    if (capaian !== null && !isNaN(capaian)) {
+      badgeText = capaian.toFixed(1) + '%';
+      badgeClass = capaian >= 91 ? 'st' : capaian >= 76 ? 'ti' : capaian >= 66 ? 'sd' : capaian >= 51 ? 'rd' : 'sr';
+    }
+    const _targetNum = row.target_tahun != null ? Number(row.target_tahun) : null;
+    const targetFmt = row.target_display != null
+      ? String(row.target_display)
+      : (_targetNum != null && !isNaN(_targetNum)
+          ? (Number.isInteger(_targetNum) ? String(_targetNum) : _targetNum.toFixed(2))
+          : '-');
+    const rowStateClass = row.realisasi_id ? 'row-state-saved' : 'row-state-default';
+    html += `<tr data-id="${row.id}" class="${rowStateClass}">
+      <td class="td-sticky-no" style="text-align:center;color:var(--teks-muted);position:sticky;left:0;z-index:3">${i}</td>
+      <td class="td-sticky-name" style="position:sticky;left:34px;z-index:3"><div style="font-weight:600;line-height:1.6"><span>${escHtml(row.nama_indikator || row.indikator_kinerja || '')}</span>${row.bermakna_negatif ? `<span data-tip="Bermakna Negatif" data-tip-variant="danger" style="display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;background:#fee2e2;border-radius:50%;margin-left:5px;vertical-align:middle;flex-shrink:0"><svg xmlns=\"http://www.w3.org/2000/svg\" width=\"9\" height=\"9\" fill=\"none\" viewBox=\"0 0 24 24\" stroke=\"#991b1b\" stroke-width=\"2.8\"><path stroke-linecap=\"round\" stroke-linejoin=\"round\" d=\"M19 14l-7 7m0 0l-7-7m7 7V3\"/></svg></span>` : `<span data-tip="Bermakna Positif" data-tip-variant="success" style="display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;background:#d1fae5;border-radius:50%;margin-left:5px;vertical-align:middle;flex-shrink:0"><svg xmlns=\"http://www.w3.org/2000/svg\" width=\"9\" height=\"9\" fill=\"none\" viewBox=\"0 0 24 24\" stroke=\"#065f46\" stroke-width=\"2.8\"><path stroke-linecap=\"round\" stroke-linejoin=\"round\" d=\"M5 10l7-7m0 0l7 7m-7-7v18\"/></svg></span>`}</div><div style="display:flex;align-items:center;gap:6px;margin-top:5px">${row.formula ? `<div class="fx-wrap"><button style="display:inline-flex;align-items:center;justify-content:center;gap:4px;box-sizing:border-box;height:24px;font-size:0.62rem;font-weight:700;line-height:1;color:#0f766e;background:#f0fdfa;border:1px solid #99f6e4;border-radius:4px;padding:0 8px;cursor:pointer;font-family:inherit;appearance:none;-webkit-appearance:none;margin:0" data-tip="Lihat formula perhitungan" data-formula="${escHtml(row.formula)}" onclick="toggleFormulaPanel(this)"><span>Σ</span><span class=\"fx-arrow\" style=\"display:inline-block;transition:transform .2s;font-style:normal\">▾</span></button></div>` : ''}${_tipeBadge(row.tipe_perhitungan)}</div></td>
+      <td class="td-satuan">${escHtml(row.satuan || '')}</td>
+      <td class="td-target" style="font-weight:700">${targetFmt}</td>
+      ${_user?.is_admin ? `<td class="td-bidang" style="color:var(--teks-mid)">${escHtml(row.penanggung_jawab || '-')}</td>` : ''}
+      <td class="realisasi-input-cell">
+        ${_renderRealisasiInputCell(row, 'subkeg_real', 'markSubkegDirty')}
+      </td>
+      <td style="text-align:center">
+        <span class="capaian-badge ${badgeClass}" id="subkeg_badge_${row.id}">${badgeText}</span>
+      </td>
+      <td class="textarea-cell" style="text-align:left;vertical-align:top">
+        ${_renderPSCell('subkeg_fpenghambat', row.id, row.f_penghambat, capaian, canEdit, 'faktor penghambat', 'markSubkegDirty', !!row.realisasi_id, false, row.tipe_nilai === 'predikat', row.realisasi == null && !row.realisasi_id)}
+      </td>
+      <td class="textarea-cell" style="text-align:left;vertical-align:top">
+        ${_renderPSCell('subkeg_solusi', row.id, row.solusi, capaian, canEdit, 'solusi', 'markSubkegDirty', !!row.realisasi_id, false, row.tipe_nilai === 'predikat', row.realisasi == null && !row.realisasi_id)}
+      </td>
+      <td class="textarea-cell" style="text-align:left;vertical-align:top">
+        ${_renderPSCell('subkeg_fpendukung', row.id, row.f_pendukung, capaian, canEdit, 'faktor pendukung', 'markSubkegDirty', !!row.realisasi_id, true, row.tipe_nilai === 'predikat', row.realisasi == null && !row.realisasi_id)}
+      </td>
+      <td class="textarea-cell" style="text-align:left;vertical-align:top">
+        ${_renderPSCell('subkeg_rencana', row.id, row.rencana_tl, capaian, canEdit, 'rencana tindak lanjut', 'markSubkegDirty', !!row.realisasi_id, true, row.tipe_nilai === 'predikat', row.realisasi == null && !row.realisasi_id)}
+      </td>
+      <td style="text-align:center" data-col="dukung">
+        ${_renderDukungBtn(row, _subkeg_bulan, _subkeg_tahun, 'subkeg', !row.realisasi_id)}
+      </td>
+      <td style="text-align:center;white-space:nowrap">
+        ${canEdit ? `
+          <button class="btn-edit-row" id="subkeg_editbtn_${row.id}" data-tip="Edit baris ini"
+            onclick="toggleSubkegEditRow(${row.id})"
+            style="${row.realisasi_id ? '' : 'display:none'}">
+            <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+            Edit
+          </button>
+          <button class="save-row-btn" id="subkeg_savebtn_${row.id}" disabled
+            onclick="saveSubkegRealisasiRow(${row.id})" data-tip="Simpan"
+            style="font-family:'Plus Jakarta Sans',sans-serif!important;${row.realisasi_id ? 'background:var(--sukses);color:#fff' : ''}">
+            ${row.realisasi_id
+  ? '<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/><path d="M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7"/><path d="M7 3v4a1 1 0 0 0 1 1h7"/></svg> Tersimpan'
+  : '<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/><path d="M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7"/><path d="M7 3v4a1 1 0 0 0 1 1h7"/></svg> Simpan'}
+          </button>
+        ` : ''}
+        ${_user?.is_admin && row.realisasi_id ? `
+          <button class="btn-reset-row" id="subkeg_resetbtn_${row.id}" data-tip="Reset data realisasi baris ini (admin)"
+            onclick="resetRealisasiRow(${row.id}, 'subkeg')">
+            <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+            Reset
+          </button>
+        ` : ''}
+      </td>
+    </tr>`;
+  });
+  tbody.innerHTML = html;
+  if (typeof window.initCustomSelects === 'function') window.initCustomSelects();
+  
+  document.querySelectorAll('.col-bidang-subkeg').forEach(el => {
+    el.style.display = _user?.is_admin ? '' : 'none';
+  });
+  renderPagination('subkegPagination', _filtered.length, _subkegPage, _subkegPageSize, '_goSubkegPage');
+  
+  if (canEdit) {
+    _subkegData.forEach(row => {
+      if (row.realisasi_id && !row.data_dukung_url) {
+        const dukungCell = document.querySelector(`tr[data-id="${row.id}"] td[data-col="dukung"]`);
+        if (dukungCell && !dukungCell.querySelector('.dukung-warning')) {
+          dukungCell.insertAdjacentHTML('beforeend', `
+            <div class="dukung-warning" data-tip="Link data dukung belum diisi untuk indikator ini">
+              <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v4m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/></svg>
+              Belum diisi
+            </div>`);
+        }
+      }
+    });
+  }
+}
+
+function toggleSubkegEditRow(indikatorId) {
+  if (!_user?.is_admin && !_isKinerjaInputOpen(null, 'subkeg')) {
+    const pa = _periodeListTerbuka.find(p => p.jenis === 'subkeg' && p.bulan === _subkeg_bulan) ?? null;
+    const close = pa?.close_at ? new Date(pa.close_at) : null;
+    if (close && new Date() > close) {
+      toast('Periode input sudah ditutup. Data tidak dapat diubah.', 'error');
+    } else {
+      toast('Periode input belum dibuka.', 'info');
+    }
+    return;
+  }
+
+  const realEl  = document.getElementById(`subkeg_real_${indikatorId}`);
+  const probEl  = document.getElementById(`subkeg_fpenghambat_${indikatorId}`);
+  const solEl   = document.getElementById(`subkeg_solusi_${indikatorId}`);
+  const pendEl  = document.getElementById(`subkeg_fpendukung_${indikatorId}`);
+  const rtlEl   = document.getElementById(`subkeg_rencana_${indikatorId}`);
+  const editBtn = document.getElementById(`subkeg_editbtn_${indikatorId}`);
+  const saveBtn = document.getElementById(`subkeg_savebtn_${indikatorId}`);
+  const tr      = document.querySelector(`tr[data-id="${indikatorId}"]`);
+  const isReadonly = realEl?.hasAttribute('readonly');
+
+  [realEl, probEl, solEl, pendEl, rtlEl].forEach(el => {
+    if (!el) return;
+    if (isReadonly) {
+      el.removeAttribute('readonly');
+      if (el.tagName === 'SELECT') el.disabled = false; 
+      if (el.classList.contains('ps-rte')) el.contentEditable = 'true';
+      el.style.background = 'var(--putih)';
+      el.style.cursor = '';
+      el.style.resize = '';
+      el.dataset.tip = '';
+    } else {
+      el.setAttribute('readonly', '');
+      if (el.tagName === 'SELECT') el.disabled = true; 
+      if (el.classList.contains('ps-rte')) el.contentEditable = 'false';
+      el.style.background = '';
+      el.style.cursor = 'not-allowed';
+      if (el.tagName === 'TEXTAREA') el.style.resize = 'none';
+      el.dataset.tip = 'Klik tombol Edit untuk mengisi';
+    }
+  });
+
+  
+  const psCells = document.querySelectorAll(`tr[data-id="${indikatorId}"] .ps-cell-wrap`);
+  psCells.forEach(wrap => {
+    const readEl = wrap.querySelector('.ps-read');
+    const taEl   = wrap.querySelector('.ps-rte');
+    if (!taEl) return;
+    if (isReadonly) {
+      
+      if (wrap.style.display === 'none') return;
+      if (readEl) readEl.style.display = 'none';
+      taEl.style.display = '';
+      taEl.contentEditable = 'true';
+    } else {
+      
+      const val = taEl.value || '';
+      const LIMIT = 80;
+      const shortEl = wrap.querySelector('[id$="short_' + indikatorId + '"]');
+      const fullEl  = wrap.querySelector('[id$="full_' + indikatorId + '"]');
+      const moreBtn = wrap.querySelector('.ps-more-btn');
+      if (shortEl) { shortEl.innerHTML = _mdToHtmlDisplay(val.slice(0, LIMIT)); shortEl.style.display = ''; }
+      if (fullEl)  { fullEl.innerHTML = _mdToHtmlDisplay(val); fullEl.style.display = 'none'; }
+      if (moreBtn) { moreBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>'; moreBtn.setAttribute('data-tip','Selengkapnya'); moreBtn.style.display = val.length > LIMIT ? '' : 'none'; }
+      if (readEl)  { readEl.style.display = val.trim() ? '' : 'none'; }
+      taEl.style.display = 'none';
+      taEl.setAttribute('readonly', '');
+      taEl.contentEditable = 'false';
+      taEl.style.cursor = 'not-allowed';
+    }
+  });
+  
+  const dukungBtn     = document.querySelector(`[data-dukung-id="${indikatorId}"] .dukung-uploaded-btn`);
+  const uploadOnlyBtn = document.querySelector(`tr[data-id="${indikatorId}"] .dukung-upload-btn`);
+  const deleteBtn     = document.querySelector(`tr[data-id="${indikatorId}"] .dukung-delete-btn`);
+
+  if (dukungBtn) {
+    if (isReadonly) {
+      dukungBtn.disabled = false;
+      dukungBtn.style.cursor = 'pointer';
+      dukungBtn.style.opacity = '1';
+      dukungBtn.dataset.tip = 'Kelola / ganti link data dukung';
+      const twV = dukungBtn.dataset.tw;
+      const tahunV = dukungBtn.dataset.tahun;
+      dukungBtn.onclick = () => openSubkegDukungModal(indikatorId, parseInt(twV), parseInt(tahunV));
+    } else {
+      dukungBtn.disabled = true;
+      dukungBtn.style.cursor = 'not-allowed';
+      dukungBtn.style.opacity = '.85';
+      dukungBtn.dataset.tip = 'Klik Edit terlebih dahulu untuk mengganti link';
+      dukungBtn.onclick = null;
+    }
+  }
+
+  if (deleteBtn) {
+    if (isReadonly) {
+      deleteBtn.disabled = false;
+      deleteBtn.style.cursor = 'pointer';
+      deleteBtn.style.opacity = '1';
+      deleteBtn.dataset.tip = 'Hapus link data dukung';
+      const twV    = deleteBtn.dataset.tw;
+      const tahunV = deleteBtn.dataset.tahun;
+      const srcV   = deleteBtn.dataset.source;
+      deleteBtn.onclick = () => deleteDukungAll(indikatorId, parseInt(twV), parseInt(tahunV), srcV);
+    } else {
+      deleteBtn.disabled = true;
+      deleteBtn.style.cursor = 'not-allowed';
+      deleteBtn.style.opacity = '.5';
+      deleteBtn.dataset.tip = 'Klik Edit terlebih dahulu untuk menghapus link';
+      deleteBtn.onclick = null;
+    }
+  }
+
+  if (uploadOnlyBtn) {
+    if (isReadonly) {
+      uploadOnlyBtn.disabled = false;
+      uploadOnlyBtn.style.cursor = 'pointer';
+      uploadOnlyBtn.style.opacity = '1';
+      uploadOnlyBtn.style.borderStyle = 'solid';
+      uploadOnlyBtn.dataset.tip = 'Isi link data dukung';
+      const twV    = uploadOnlyBtn.dataset.tw;
+      const tahunV = uploadOnlyBtn.dataset.tahun;
+      const src    = uploadOnlyBtn.dataset.source;
+      uploadOnlyBtn.onclick = () => triggerDukungUpload(indikatorId, parseInt(twV), parseInt(tahunV), src);
+    } else {
+      uploadOnlyBtn.disabled = true;
+      uploadOnlyBtn.style.cursor = 'not-allowed';
+      uploadOnlyBtn.style.opacity = '.65';
+      uploadOnlyBtn.style.borderStyle = 'dashed';
+      uploadOnlyBtn.dataset.tip = 'Klik Edit terlebih dahulu untuk mengisi link';
+      uploadOnlyBtn.onclick = null;
+    }
+  }
+
+  if (isReadonly) {
+    if (tr) { tr.classList.remove('row-state-default', 'row-state-saved'); tr.classList.add('row-state-editing'); }
+    if (editBtn) {
+      editBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg> Sedang Diedit`;
+      editBtn.classList.add('btn-edit-row--active');
+      editBtn.dataset.tip = 'Klik untuk batalkan edit';
+    }
+    if (saveBtn) {
+      saveBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/><path d="M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7"/><path d="M7 3v4a1 1 0 0 0 1 1h7"/></svg> Simpan`;
+      saveBtn.disabled = true;
+      saveBtn.style.background = '';
+      saveBtn.style.color = '';
+    }
+    if (realEl) realEl.focus();
+    _updateSubkegSaveBtnState(indikatorId);
+  } else {
+    const row = _subkegData.find(r => r.id === indikatorId);
+    if (tr) { tr.classList.remove('row-state-editing'); tr.classList.add(row?.realisasi_id ? 'row-state-saved' : 'row-state-default'); }
+    if (editBtn) {
+      editBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg> Edit`;
+      editBtn.classList.remove('btn-edit-row--active');
+      editBtn.dataset.tip = 'Edit baris ini';
+    }
+    if (saveBtn) {
+      saveBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/><path d="M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7"/><path d="M7 3v4a1 1 0 0 0 1 1h7"/></svg> Simpan`;
+      saveBtn.style.background = '';
+      saveBtn.style.color = '';
+      saveBtn.disabled = true;
+    }
+  }
+}
+
+function markSubkegDirty(indikatorId) {
+  previewSubkegCapaian(indikatorId);
+  _updateSubkegSaveBtnState(indikatorId);
+}
+
+function _updateSubkegSaveBtnState(indikatorId) {
+  const btn = document.getElementById(`subkeg_savebtn_${indikatorId}`);
+  if (!btn) return;
+  const row  = _subkegData.find(r => r.id === indikatorId);
+  const fieldArgs = {
+    row,
+    realVal: document.getElementById(`subkeg_real_${indikatorId}`)?.value,
+    targetVal: _targetNumForRow(row),
+    bermakna_negatif: row?.bermakna_negatif,
+    fpenghambatVal: document.getElementById(`subkeg_fpenghambat_${indikatorId}`)?.value ?? '',
+    solusiVal:      document.getElementById(`subkeg_solusi_${indikatorId}`)?.value ?? '',
+    fpendukungVal:  document.getElementById(`subkeg_fpendukung_${indikatorId}`)?.value ?? '',
+    rencanaVal:     document.getElementById(`subkeg_rencana_${indikatorId}`)?.value ?? '',
+    hasDukung:      !!row?.data_dukung_url,
+  };
+  const ok = _canSaveRow(fieldArgs);
+  const okUpload = _canSaveRow(fieldArgs, false);
+  btn.disabled         = !ok;
+  btn.style.background = ok ? '#0d9488' : '';
+  btn.style.color      = ok ? '#fff'    : '';
+  btn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/><path d="M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7"/><path d="M7 3v4a1 1 0 0 0 1 1h7"/></svg> Simpan`;
+
+  // Enable/disable tombol Upload berdasarkan kondisi field wajib
+  const _uploadBtn_subkeg = document.querySelector(`tr[data-id="${indikatorId}"] .dukung-upload-btn`);
+  if (_uploadBtn_subkeg && !_uploadBtn_subkeg.classList.contains('dukung-uploaded-btn')) {
+    if (okUpload) {
+      _uploadBtn_subkeg.disabled = false;
+      _uploadBtn_subkeg.style.cursor = 'pointer';
+      _uploadBtn_subkeg.style.opacity = '1';
+      _uploadBtn_subkeg.style.borderStyle = 'dashed';
+      _uploadBtn_subkeg.style.borderColor = '#6ee7b7';
+      _uploadBtn_subkeg.style.background = '#ecfdf5';
+      _uploadBtn_subkeg.style.color = '#065f46';
+      _uploadBtn_subkeg.dataset.tip = 'Isi link data dukung';
+      _uploadBtn_subkeg.onclick = () => _openDukungFromBtn(_uploadBtn_subkeg);
+    } else {
+      _uploadBtn_subkeg.disabled = true;
+      _uploadBtn_subkeg.style.cursor = 'not-allowed';
+      _uploadBtn_subkeg.style.opacity = '.65';
+      _uploadBtn_subkeg.style.borderStyle = 'dashed';
+      _uploadBtn_subkeg.style.borderColor = '#fca5a5';
+      _uploadBtn_subkeg.style.background = '#fee2e2';
+      _uploadBtn_subkeg.style.color = '#991b1b';
+      _uploadBtn_subkeg.dataset.tip = 'Isi realisasi dan field wajib terlebih dahulu';
+      _uploadBtn_subkeg.onclick = null;
+    }
+  }
+}
+
+function previewSubkegCapaian(indikatorId) {
+  const row = _subkegData.find(r => r.id === indikatorId);
+  if (!row) return;
+  const realEl = document.getElementById(`subkeg_real_${indikatorId}`);
+  if (!realEl) return;
+  const realisasi = parseFloat(realEl.value);
+  const target    = _targetNumForRow(row);
+  const badge     = document.getElementById(`subkeg_badge_${indikatorId}`);
+  if (!badge) return;
+  if (isNaN(realisasi) || isNaN(target) || target === 0) {
+    badge.textContent = '-'; badge.className = 'capaian-badge na';
+    _togglePermasalahanSolusi('subkeg', indikatorId, null);
+    return;
+  }
+  let capaian = row.bermakna_negatif
+    ? ((target - (_hitungRealisasiEfektifPreview(row, realisasi) - target)) / target) * 100
+    : (_hitungRealisasiEfektifPreview(row, realisasi) / target) * 100;
+  badge.textContent = capaian.toFixed(1) + '%';
+  badge.className = 'capaian-badge ' + (capaian >= 91 ? 'st' : capaian >= 76 ? 'ti' : capaian >= 66 ? 'sd' : capaian >= 51 ? 'rd' : 'sr');
+  _togglePermasalahanSolusi('subkeg', indikatorId, capaian);
+}
+
+async function saveSubkegRealisasiRow(indikatorId) {
+  const btn    = document.getElementById(`subkeg_savebtn_${indikatorId}`);
+  const realEl = document.getElementById(`subkeg_real_${indikatorId}`);
+  const real   = realEl?.value;
+  let fpenghambat = document.getElementById(`subkeg_fpenghambat_${indikatorId}`)?.value?.trim();
+  let solusi      = document.getElementById(`subkeg_solusi_${indikatorId}`)?.value?.trim();
+  let fpendukung  = document.getElementById(`subkeg_fpendukung_${indikatorId}`)?.value?.trim();
+  let rencana     = document.getElementById(`subkeg_rencana_${indikatorId}`)?.value?.trim();
+
+  const row = _subkegData.find(r => r.id === indikatorId);
+  
+  
+  const _realVal   = parseFloat(real);
+  const _targetVal = _targetNumForRow(row);
+  if (!isNaN(_realVal) && !isNaN(_targetVal) && _targetVal !== 0) {
+    const _realEfektif = _hitungRealisasiEfektifPreview(row, _realVal);
+    const _capaian = row?.bermakna_negatif
+      ? ((_targetVal - (_realEfektif - _targetVal)) / _targetVal) * 100
+      : (_realEfektif / _targetVal) * 100;
+    if (_capaian < 100) {
+      if (!fpenghambat || _isSymbolOnly(fpenghambat)) { toast('Faktor Penghambat wajib diisi, tidak boleh hanya simbol/tanda baca.', 'error'); return; }
+      if (!solusi || _isSymbolOnly(solusi))           { toast('Solusi wajib diisi, tidak boleh hanya simbol/tanda baca.', 'error'); return; }
+      fpendukung = ''; rencana = '';
+    } else {
+      if (!fpendukung || _isSymbolOnly(fpendukung)) { toast('Faktor Pendukung wajib diisi, tidak boleh hanya simbol/tanda baca.', 'error'); return; }
+      if (!rencana || _isSymbolOnly(rencana))       { toast('Rencana Tindak Lanjut wajib diisi, tidak boleh hanya simbol/tanda baca.', 'error'); return; }
+      fpenghambat = ''; solusi = '';
+    }
+  }
+
+  if (btn) { btn.disabled = true; btn.innerHTML = `<span class="btn-spin" style="width:11px;height:11px"></span> Menyimpan...`; }
+  try {
+    const r = await fetch('/api/kinerja/realisasi', {
+      method: 'POST', headers: authHeaders(),
+      body: JSON.stringify({
+        indikator_id: indikatorId, bulan: _subkeg_bulan, tahun: _subkeg_tahun,
+        realisasi: real !== '' ? parseFloat(real) : null,
+        realisasi_display: _getRealisasiDisplayFromEl(realEl, row, real),
+        f_penghambat: fpenghambat || null, solusi: solusi || null, f_pendukung: fpendukung || null, rencana_tl: rencana || null,
+      }),
+    });
+    const d = await r.json();
+    if (!r.ok) {
+      toast(d.error || 'Gagal menyimpan', 'error');
+      if (btn) { btn.disabled = false; btn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/><path d="M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7"/><path d="M7 3v4a1 1 0 0 0 1 1h7"/></svg> Simpan`; }
+    } else {
+      toast('Tersimpan');
+      
+      if (typeof _invalidateKinerjaDashboardCache === 'function') _invalidateKinerjaDashboardCache(_subkeg_tahun);
+      ['subkeg_real_', 'subkeg_fpenghambat_', 'subkeg_solusi_', 'subkeg_fpendukung_', 'subkeg_rencana_'].forEach(prefix => {
+        const el = document.getElementById(`${prefix}${indikatorId}`);
+        if (el) {
+          el.setAttribute('readonly', '');
+          if (el.tagName === 'SELECT') el.disabled = true; 
+          el.style.background = '';
+          el.style.cursor = 'not-allowed';
+          if (el.classList.contains('ps-rte')) { el.style.resize = 'none'; el.style.display = 'none'; el.contentEditable = 'false'; }
+          el.dataset.tip = 'Klik tombol Edit untuk mengisi';
+        }
+      });
+      
+      _lockDukungButtons(indikatorId);
+      
+      _ensureResetBtn(indikatorId, 'subkeg_', 'subkeg');
+      const tr = document.querySelector(`tr[data-id="${indikatorId}"]`);
+      if (tr) { tr.classList.remove('row-state-default', 'row-state-editing'); tr.classList.add('row-state-saved'); }
+      const editBtn = document.getElementById(`subkeg_editbtn_${indikatorId}`);
+      if (editBtn) {
+        editBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg> Edit`;
+        editBtn.classList.remove('btn-edit-row--active');
+        editBtn.dataset.tip = 'Edit baris ini';
+        editBtn.style.display = ''; // tampilkan tombol Edit setelah data tersimpan
+      }
+      if (btn) {
+        btn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/><path d="M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7"/><path d="M7 3v4a1 1 0 0 0 1 1h7"/></svg> Tersimpan`;
+        btn.style.background = 'var(--sukses)';
+        btn.style.color = '#fff';
+        btn.disabled = true;
+      }
+      const idx = _subkegData.findIndex(x => x.id === indikatorId);
+      if (idx >= 0) {
+        _subkegData[idx].realisasi         = d.realisasi?.realisasi ?? null;
+        _subkegData[idx].realisasi_display = d.realisasi?.realisasi_display ?? null;
+        _subkegData[idx].f_penghambat      = d.realisasi?.f_penghambat ?? null;
+        _subkegData[idx].solusi            = d.realisasi?.solusi ?? null;
+        _subkegData[idx].f_pendukung       = d.realisasi?.f_pendukung ?? null;
+        _subkegData[idx].rencana_tl        = d.realisasi?.rencana_tl ?? null;
+        _subkegData[idx].realisasi_id      = d.realisasi?.id ?? _subkegData[idx].realisasi_id;
+      }
+      
+      fetch(`/api/kinerja/rekap?bulan=${_subkeg_bulan}&tahun=${_subkeg_tahun}&jenis=subkeg`, { headers: authHeaders() })
+        .then(res => res.ok ? res.json() : null)
+        .then(fresh => {
+          if (!fresh?.rekap) return;
+          for (const freshRow of fresh.rekap) {
+            const i = _subkegData.findIndex(x => x.id === freshRow.id);
+            if (i >= 0) _subkegData[i].capaian_persen = freshRow.capaian_persen;
+            const badge = document.getElementById(`subkeg_badge_${freshRow.id}`);
+            if (badge) {
+              const cap = (freshRow.realisasi_id && freshRow.capaian_persen != null) ? Number(freshRow.capaian_persen) : null;
+              if (cap === null || isNaN(cap)) {
+                badge.textContent = '-'; badge.className = 'capaian-badge na';
+              } else {
+                badge.textContent = cap.toFixed(1) + '%';
+                badge.className = 'capaian-badge ' + (cap >= 91 ? 'st' : cap >= 76 ? 'ti' : cap >= 66 ? 'sd' : cap >= 51 ? 'rd' : 'sr');
+              }
+            }
+          }
+        }).catch(() => {});
+      const _savedSubkeg = _subkegData[idx >= 0 ? idx : -1];
+      const _rSubkeg = parseFloat(_savedSubkeg?.realisasi ?? '');
+      const _tSubkeg = _targetNumForRow(_savedSubkeg);
+      if (!isNaN(_rSubkeg) && !isNaN(_tSubkeg) && _tSubkeg !== 0) {
+        const _cSubkeg = _savedSubkeg?.bermakna_negatif
+          ? ((_tSubkeg - (_rSubkeg - _tSubkeg)) / _tSubkeg) * 100
+          : (_rSubkeg / _tSubkeg) * 100;
+        _togglePermasalahanSolusi('subkeg', indikatorId, _cSubkeg);
+        [['subkeg_fpenghambat', _savedSubkeg?.f_penghambat], ['subkeg_solusi', _savedSubkeg?.solusi],
+         ['subkeg_fpendukung', _savedSubkeg?.f_pendukung], ['subkeg_rencana', _savedSubkeg?.rencana_tl]].forEach(([base, val]) => {
+          _updatePSReadAfterSave(base, indikatorId, val);
+        });
+      }
+      
+      if (!row?.data_dukung_url) {
+        const dukungCell = document.querySelector(`tr[data-id="${indikatorId}"] td[data-col="dukung"]`);
+        if (dukungCell && !dukungCell.querySelector('.dukung-warning')) {
+          dukungCell.insertAdjacentHTML('beforeend', `
+            <div class="dukung-warning" data-tip="Link data dukung belum diisi untuk indikator ini">
+              <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v4m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/></svg>
+              Belum diisi
             </div>`);
         }
       }
@@ -6554,11 +7516,11 @@ async function resetRealisasiRow(indikatorId, jenis) {
   if (!_user?.is_admin) return;
   const ok = await showConfirm({ title: 'Reset Realisasi', msg: 'Data realisasi baris ini akan dihapus dan baris kembali kosong.', okText: 'Ya, Reset', icon: 'trash' }); if (!ok) return;
 
-  const dataArr = jenis === 'ikk' ? _ikkData : jenis === 'spm' ? _spmData : _kinerjaData;
+  const dataArr = jenis === 'ikk' ? _ikkData : jenis === 'spm' ? _spmData : jenis === 'subkeg' ? _subkegData : _kinerjaData;
   const row = dataArr.find(r => r.id === indikatorId);
   if (!row?.realisasi_id) return;
 
-  const prefix = jenis === 'ikk' ? 'ikk_' : jenis === 'spm' ? 'spm_' : '';
+  const prefix = jenis === 'ikk' ? 'ikk_' : jenis === 'spm' ? 'spm_' : jenis === 'subkeg' ? 'subkeg_' : '';
   const resetBtn = document.getElementById(`${prefix}resetbtn_${indikatorId}`);
   if (resetBtn) {
     resetBtn.disabled = true;
@@ -6582,6 +7544,8 @@ async function resetRealisasiRow(indikatorId, jenis) {
       await loadIkkRekap();
     } else if (jenis === 'spm') {
       await loadSpmRekap();
+    } else if (jenis === 'subkeg') {
+      await loadSubkegRekap();
     } else {
       await loadKinerjaRekap();
     }
@@ -6593,16 +7557,31 @@ async function resetRealisasiRow(indikatorId, jenis) {
 
 async function openSpmDukungModal(indikatorId, bulan, tahun) {
   _dukungState = { indikatorId, tw: bulan, tahun, files: [], _source: 'spm' };
-  const area = document.getElementById('dukungUploadArea');
-  const fi   = document.getElementById('dukungFileInput');
-  const pw   = document.getElementById('dukungProgressWrap');
-  if (area) { area.classList.remove('drag-over'); area.style.display = ''; }
-  if (fi)   fi.value = '';
-  if (pw)   pw.style.display = 'none';
+  _resetDukungLinkForm();
 
   const row = _spmData.find(r => r.id === indikatorId);
   document.getElementById('dukungIndikatorLabel').textContent = row?.nama_indikator || row?.indikator_kinerja || '';
-  document.getElementById('dukungTwLabel').textContent = `${BULAN_FULL[bulan] || bulan} ${tahun} - SPM`;
+  document.getElementById('dukungTwLabel').textContent = `${_twNama(bulan)} ${tahun} - SPM`;
+
+  if (row?.data_dukung_url) {
+    try {
+      const parsed = JSON.parse(row.data_dukung_url);
+      _dukungState.files = Array.isArray(parsed) ? parsed.filter(f => f && f.url) : [];
+    } catch {
+      _dukungState.files = [{ url: row.data_dukung_url, name: row.data_dukung_nama || 'Dokumen' }];
+    }
+  }
+  _renderDukungList();
+  openModal('modalDukung');
+}
+
+async function openSubkegDukungModal(indikatorId, bulan, tahun) {
+  _dukungState = { indikatorId, tw: bulan, tahun, files: [], _source: 'subkeg' };
+  _resetDukungLinkForm();
+
+  const row = _subkegData.find(r => r.id === indikatorId);
+  document.getElementById('dukungIndikatorLabel').textContent = row?.nama_indikator || row?.indikator_kinerja || '';
+  document.getElementById('dukungTwLabel').textContent = `${_twNama(bulan)} ${tahun} - Sub Kegiatan`;
 
   if (row?.data_dukung_url) {
     try {

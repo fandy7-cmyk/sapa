@@ -44,7 +44,7 @@ export const handler = async (event) => {
       // LEFT JOIN supaya indikator_ids tetap identik; flag jenis dipakai frontend buat menentukan
       // menu Kinerja (IKU/IKK/SPM) tanpa harus narik seluruh daftar indikator.
       const rows = await sql`
-        SELECT ui.indikator_id, ki.jenis_monev, ki.jenis_ikk, ki.jenis_spm
+        SELECT ui.indikator_id, ki.jenis_monev, ki.jenis_ikk, ki.jenis_spm, ki.jenis_custom
         FROM user_indikator ui
         LEFT JOIN kinerja_indikator ki ON ki.id = ui.indikator_id
         WHERE ui.user_id = ${userId}
@@ -55,6 +55,11 @@ export const handler = async (event) => {
           monev: rows.some(r => !!r.jenis_monev),
           ikk:   rows.some(r => !!r.jenis_ikk),
           spm:   rows.some(r => !!r.jenis_spm),
+          subkeg: rows.some(r => {
+            let jc = r.jenis_custom;
+            if (typeof jc === 'string') { try { jc = JSON.parse(jc); } catch { jc = []; } }
+            return Array.isArray(jc) && jc.includes('subkeg');
+          }),
         },
       });
     } catch (err) {

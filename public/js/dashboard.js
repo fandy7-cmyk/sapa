@@ -1,4 +1,16 @@
 
+// ═══ Kinerja = PER TRIWULAN ═══
+// Kolom `bulan` di DB berisi bulan akhir TW: TW I=3, II=6, III=9, IV=12.
+// Nama diawali _dTw supaya gak bentrok dengan helper di kinerja.js (sama-sama global).
+const _DTW_BULAN = [3, 6, 9, 12];
+const _DTW_ROM   = ['', 'I', 'II', 'III', 'IV'];
+function _dTwSekarang() { return Math.ceil((new Date().getMonth() + 1) / 3) * 3; }
+function _dSnapTw(r) {
+  if (!r || !r.bulan) return r;
+  const b = Math.ceil(r.bulan / 3) * 3;
+  return { ...r, bulan: b, key: `${r.tahun}-${String(b).padStart(2, '0')}` };
+}
+
 // Dedupe GET identik yang lagi in-flight. Beberapa widget dashboard (IKU grid, chart IKU,
 // Pantau Indikator) manggil endpoint yang sama hampir bersamaan - sekarang cuma 1 request
 // jaringan, sisanya dapat clone response-nya. Entry dihapus begitu selesai, jadi tidak ada
@@ -1127,7 +1139,7 @@ function _absensiHeatmapPanel(harian, bulan, tahun, full, spanFull = true, libur
 async function _fetchKinerjaRekapForDash() {
   try {
     const pa    = getPeriodeAktif();
-    const bulan = pa?.bulan || new Date().getMonth() + 1;
+    const bulan = pa?.bulan || _dTwSekarang();
     const tahun = pa?.tahun || new Date().getFullYear();
     const jenisList = ['monev', 'ikk', 'spm'];
     const results = await Promise.all(jenisList.map(j =>
@@ -1203,7 +1215,7 @@ async function loadDashboardKinerja() {
 
   // Progres pengisian bulan ini - baris sendiri bareng Sebaran Jenis Indikator
   panelsTop.push(`<div class="dash-panel">
-    <div class="dash-panel-header">${iconCheck} Progres Pengisian Bulan Ini</div>
+    <div class="dash-panel-header">${iconCheck} Progres Pengisian Triwulan Ini</div>
     <div style="padding:14px 18px">
       <div style="display:flex;align-items:center;justify-content:space-between;font-size:.78rem;color:var(--teks-muted);font-weight:700;margin-bottom:2px">
         <span>Terisi</span><span style="color:#0f172a">${pct}%</span>
@@ -1318,7 +1330,7 @@ async function _fetchSuratDashData() {
 async function _fetchKinerjaStats() {
   try {
     const pa    = getPeriodeAktif();
-    const bulan = pa?.bulan || new Date().getMonth() + 1;
+    const bulan = pa?.bulan || _dTwSekarang();
     const tahun = pa?.tahun || new Date().getFullYear();
     const r = await fetch(`/api/kinerja/stats?bulan=${bulan}&tahun=${tahun}`, { headers: authHeaders() });
     return r.ok ? r.json() : null;
@@ -1353,7 +1365,7 @@ function _ikuSetFilterMode(mode) {
   if (mode === 'tahun') {
     _ikuTahunDari   = _ikuTahunDari   || _ikuTahunList[0] || new Date().getFullYear();
     _ikuTahunSampai = _ikuTahunSampai || _ikuTahunList[_ikuTahunList.length-1] || _ikuTahunDari;
-    _ikuRangeFrom = { bulan:1,  tahun:_ikuTahunDari,   key:`${_ikuTahunDari}-01` };
+    _ikuRangeFrom = { bulan:3,  tahun:_ikuTahunDari,   key:`${_ikuTahunDari}-03` };
     _ikuRangeTo   = { bulan:12, tahun:_ikuTahunSampai,  key:`${_ikuTahunSampai}-12` };
   }
   _ikuApplyFilter();
@@ -1376,7 +1388,7 @@ function _ikuSetRangeTo(key) {
 function _ikuSetTahunDari(val) {
   _ikuTahunDari = Number(val);
   if (!_ikuTahunSampai || _ikuTahunSampai < _ikuTahunDari) _ikuTahunSampai = _ikuTahunDari;
-  _ikuRangeFrom = { bulan:1,  tahun:_ikuTahunDari,   key:`${_ikuTahunDari}-01` };
+  _ikuRangeFrom = { bulan:3,  tahun:_ikuTahunDari,   key:`${_ikuTahunDari}-03` };
   _ikuRangeTo   = { bulan:12, tahun:_ikuTahunSampai,  key:`${_ikuTahunSampai}-12` };
   _ikuApplyFilter();
   _ikuSyncToPantau();
@@ -1384,7 +1396,7 @@ function _ikuSetTahunDari(val) {
 function _ikuSetTahunSampai(val) {
   _ikuTahunSampai = Number(val);
   if (!_ikuTahunDari || _ikuTahunDari > _ikuTahunSampai) _ikuTahunDari = _ikuTahunSampai;
-  _ikuRangeFrom = { bulan:1,  tahun:_ikuTahunDari,   key:`${_ikuTahunDari}-01` };
+  _ikuRangeFrom = { bulan:3,  tahun:_ikuTahunDari,   key:`${_ikuTahunDari}-03` };
   _ikuRangeTo   = { bulan:12, tahun:_ikuTahunSampai,  key:`${_ikuTahunSampai}-12` };
   _ikuApplyFilter();
   _ikuSyncToPantau();
@@ -1414,7 +1426,7 @@ async function _ikuApplyFilter() {
   const el = document.getElementById('ikuGridWidget');
   if (!el) return;
   
-  const bulan = _ikuRangeTo?.bulan || (getPeriodeAktif()?.bulan || new Date().getMonth() + 1);
+  const bulan = _ikuRangeTo?.bulan || (getPeriodeAktif()?.bulan || _dTwSekarang());
   const tahun = _ikuRangeTo?.tahun || (getPeriodeAktif()?.tahun || new Date().getFullYear());
   try {
     const r = await fetch(`/api/kinerja/rekap?bulan=${bulan}&tahun=${tahun}`, { headers: authHeaders() });
@@ -1440,7 +1452,7 @@ async function _initIkuGrid() {
   if (!el) return;
 
   const pa    = getPeriodeAktif();
-  const bulan = pa?.bulan || new Date().getMonth() + 1;
+  const bulan = pa?.bulan || _dTwSekarang();
   const tahun = pa?.tahun || new Date().getFullYear();
 
   
@@ -1481,7 +1493,7 @@ async function _initIkuGrid() {
   _ikuTahunList.sort((a,b)=>a-b);
 
   
-  if (_ikuRangeFrom === null) _ikuRangeFrom = { bulan:1,  tahun, key:`${tahun}-01` };
+  if (_ikuRangeFrom === null) _ikuRangeFrom = { bulan:3,  tahun, key:`${tahun}-03` };
   if (_ikuRangeTo   === null) _ikuRangeTo   = { bulan:12, tahun, key:`${tahun}-12` };
   if (_ikuTahunDari   === null) _ikuTahunDari   = tahun;
   if (_ikuTahunSampai === null) _ikuTahunSampai = tahun;
@@ -1496,8 +1508,8 @@ function _renderIkuGrid(bulan, tahun, pa) {
   const el = document.getElementById('ikuGridWidget');
   if (!el) return;
 
-  const BULAN_NAMA = ['','Jan','Feb','Mar','Apr','Mei','Jun','Jul','Ags','Sep','Okt','Nov','Des'];
-  const _BULAN_FULL_IKU = ['','Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
+  const BULAN_NAMA = _KW_BULAN_LABEL;
+  const _BULAN_FULL_IKU = _KW_BULAN_FULL;
   const periodeLabel = (() => {
     if (_ikuFilterMode === 'tahun' && _ikuTahunDari && _ikuTahunSampai) {
       return _ikuTahunDari === _ikuTahunSampai ? `Tahun ${_ikuTahunDari}` : `${_ikuTahunDari} \u2013 ${_ikuTahunSampai}`;
@@ -1594,13 +1606,13 @@ function _renderIkuGrid(bulan, tahun, pa) {
 
   // ── Filter bar IKU - persis seperti Pantau Indikator ──────────────────────
   const _ikuTahunUnik = (_ikuTahunList.length ? _ikuTahunList : [tahun]);
-  const _ikuFromKey   = _ikuRangeFrom?.key || `${tahun}-01`;
+  const _ikuFromKey   = _ikuRangeFrom?.key || `${tahun}-03`;
   const _ikuToKey     = _ikuRangeTo?.key   || `${tahun}-12`;
 
   
   const _ikuAllPairs = [];
   for (const thn of _ikuTahunUnik) {
-    for (let b = 1; b <= 12; b++) {
+    for (const b of _DTW_BULAN) {
       _ikuAllPairs.push({ bulan:b, tahun:thn, key:`${thn}-${String(b).padStart(2,'0')}` });
     }
   }
@@ -1622,11 +1634,11 @@ function _renderIkuGrid(bulan, tahun, pa) {
         <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
 
         <div class="kw-cdd" id="ikuFilterModeDd" style="min-width:90px" onclick="event.stopPropagation();_kwCddToggle('ikuFilterModeDd')">
-          <span class="kw-cdd-label">${_ikuFilterMode === 'tahun' ? 'Tahun' : 'Bulan'}</span>
+          <span class="kw-cdd-label">${_ikuFilterMode === 'tahun' ? 'Tahun' : 'Triwulan'}</span>
           <svg class="kw-cdd-caret" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
           <div class="kw-cdd-panel" id="ikuFilterModeDd_panel">
             <div class="kw-cdd-opt${_ikuFilterMode === 'tahun' ? ' active' : ''}" onclick="event.stopPropagation();_kwCddToggle('ikuFilterModeDd');_ikuSetFilterMode('tahun')">Tahun</div>
-            <div class="kw-cdd-opt${_ikuFilterMode === 'bulan' ? ' active' : ''}" onclick="event.stopPropagation();_kwCddToggle('ikuFilterModeDd');_ikuSetFilterMode('bulan')">Bulan</div>
+            <div class="kw-cdd-opt${_ikuFilterMode === 'bulan' ? ' active' : ''}" onclick="event.stopPropagation();_kwCddToggle('ikuFilterModeDd');_ikuSetFilterMode('bulan')">Triwulan</div>
           </div>
         </div>
 
@@ -1715,7 +1727,7 @@ function _ikuRenderChartSection() {
     _fetchAll();
     sec.innerHTML = `<div class="iku-chart-section" style="padding:20px;text-align:center;color:#94a3b8;font-size:.84rem">
       <span class="btn-spin" style="width:14px;height:14px;color:#0d9488;vertical-align:-2px;margin-right:6px"></span>
-      Memuat data bulanan...
+      Memuat data triwulan...
     </div>`;
     return;
   }
@@ -1747,12 +1759,12 @@ function _ikuRenderChartSection() {
     return; 
   }
 
-  const BULAN_SHORT = ['','Jan','Feb','Mar','Apr','Mei','Jun','Jul','Ags','Sep','Okt','Nov','Des'];
+  const BULAN_SHORT = _KW_BULAN_LABEL;
 
   
   function _buildChartData(indId, targetTahun, bermaknaNeg) {
-    return Array.from({length: 12}, (_, i) => {
-      const b   = i + 1;
+    return Array.from({length: 4}, (_, i) => {
+      const b   = (i + 1) * 3;
       const rec = rekapTahun ? (rekapTahun['b' + b] || []).find(r => r.id === indId) : null;
       const real = rec && rec.realisasi !== null && rec.realisasi !== '' ? parseFloat(rec.realisasi) : null;
       // Pakai capaian_persen yang udah dihitung backend (SQL CASE per tipe_perhitungan:
@@ -1845,7 +1857,7 @@ function _ikuRenderChartSection() {
     const latest    = hasData.length ? hasData[hasData.length - 1] : null;
     const capLast   = latest?.capaian ?? null;
     const realLast  = latest?.realisasi ?? null;
-    const totalSlots = _ikuYearMode ? data.length : 12;
+    const totalSlots = _ikuYearMode ? data.length : 4;
     const col = _kwCapaianColor(capLast);
     const _svgCheckL  = `<svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1px;margin-right:3px"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>`;
     const _svgWarnL   = `<svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1px;margin-right:3px"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><line x1="12" x2="12" y1="9" y2="13"/><line x1="12" x2="12.01" y1="17" y2="17"/></svg>`;
@@ -1904,7 +1916,7 @@ function _ikuRenderChartSection() {
       <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:12px">
         <div style="display:flex;align-items:center;gap:7px">
           <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="#0d9488" stroke-width="2"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg>
-          <span style="font-size:.78rem;font-weight:700;color:#0f172a">${_ikuYearMode ? `Tren Per Tahun - ${_ikuYrFrom === _ikuYrTo ? _ikuYrFrom : `${_ikuYrFrom}\u2013${_ikuYrTo}`}` : `Tren Per Bulan - ${tahun}`}</span>
+          <span style="font-size:.78rem;font-weight:700;color:#0f172a">${_ikuYearMode ? `Tren Per Tahun - ${_ikuYrFrom === _ikuYrTo ? _ikuYrFrom : `${_ikuYrFrom}\u2013${_ikuYrTo}`}` : `Tren Per Triwulan - ${tahun}`}</span>
         </div>
         <div style="display:flex;align-items:center;gap:6px">
           <span style="font-size:.63rem;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:.06em">Tipe Chart</span>
@@ -2124,15 +2136,15 @@ function _miniDonutPanel({ icon, title, segments, centerVal, centerLbl }) {
 // ═══════════════════════════════════════════════════════════════════════════
 
 // Label bulan untuk widget pantau
-const _KW_BULAN_LABEL = ['','Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];
-const _KW_BULAN_FULL  = ['','Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
+const _KW_BULAN_LABEL = ['', ...Array.from({length: 12}, (_, i) => `TW ${_DTW_ROM[Math.ceil((i + 1) / 3)]}`)];
+const _KW_BULAN_FULL  = ['', ...Array.from({length: 12}, (_, i) => `Triwulan ${_DTW_ROM[Math.ceil((i + 1) / 3)]}`)];
 
 let _kwAllIndikator  = [];
 let _kwAllRekap      = {};   
 let _kwWatchedId     = null;
 let _kwViewMode      = 'bulan';   
 let _kwChartType    = 'line';  
-let _kwBulanPilih    = new Date().getMonth() + 1;   
+let _kwBulanPilih    = _dTwSekarang();   
 let _kwTWPilih       = 1;   
 let _kwSemPilih      = 1;   
 let _kwTahunPilih    = new Date().getFullYear();
@@ -2149,7 +2161,7 @@ function _kwGetPeriodeAdaData(indId) {
   const hasil = [];
   const tahunList = Object.keys(_kwAllRekap).map(Number).sort((a,b) => a-b);
   for (const thn of tahunList) {
-    for (let b = 1; b <= 12; b++) {
+    for (const b of _DTW_BULAN) {
       const rec = (_kwAllRekap[thn]?.['b' + b] || []).find(r => r.id === indId);
       const _hasNonEmpty = v => v !== null && v !== undefined && v !== '';
       if (rec && (
@@ -2179,7 +2191,7 @@ function _kwGetRangePairs(from, to) {
   let thn = from.tahun, bln = from.bulan;
   const toKey = to.tahun * 100 + to.bulan;
   while (thn * 100 + bln <= toKey) {
-    pairs.push({ bulan: bln, tahun: thn });
+    if (_DTW_BULAN.includes(bln)) pairs.push({ bulan: bln, tahun: thn });
     bln++;
     if (bln > 12) { bln = 1; thn++; }
     if (thn > to.tahun + 1) break; // safety
@@ -2398,12 +2410,12 @@ function _kwSetFilterMode(mode) {
     // Default: dari tahun pertama sampai tahun terakhir di list
     if (_kwTahunDari   === null) _kwTahunDari   = _kwTahunList[0] || _kwTahunPilih;
     if (_kwTahunSampai === null) _kwTahunSampai = _kwTahunList[_kwTahunList.length - 1] || _kwTahunPilih;
-    _kwRangeFrom = { bulan: 1,  tahun: _kwTahunDari,  key: `${_kwTahunDari}-01` };
+    _kwRangeFrom = { bulan: 3,  tahun: _kwTahunDari,  key: `${_kwTahunDari}-03` };
     _kwRangeTo   = { bulan: 12, tahun: _kwTahunSampai, key: `${_kwTahunSampai}-12` };
   } else {
     _kwModePerTahun = false;
     const thn = _kwTahunPilih || new Date().getFullYear();
-    if (!_kwRangeFrom) _kwRangeFrom = { bulan: 1,  tahun: thn, key: `${thn}-01` };
+    if (!_kwRangeFrom) _kwRangeFrom = { bulan: 3,  tahun: thn, key: `${thn}-03` };
     if (!_kwRangeTo)   _kwRangeTo   = { bulan: 12, tahun: thn, key: `${thn}-12` };
   }
   _kwSaveFilter();
@@ -2415,7 +2427,7 @@ function _kwSetTahunDari(val) {
   
   if (_kwTahunSampai === null || _kwTahunSampai < _kwTahunDari) _kwTahunSampai = _kwTahunDari;
   
-  _kwRangeFrom = { bulan: 1,  tahun: _kwTahunDari,   key: `${_kwTahunDari}-01` };
+  _kwRangeFrom = { bulan: 3,  tahun: _kwTahunDari,   key: `${_kwTahunDari}-03` };
   _kwRangeTo   = { bulan: 12, tahun: _kwTahunSampai,  key: `${_kwTahunSampai}-12` };
   _kwModePerTahun = true;
   _kwSaveFilter();
@@ -2425,7 +2437,7 @@ function _kwSetTahunSampai(val) {
   _kwTahunSampai = Number(val);
   
   if (_kwTahunDari === null || _kwTahunDari > _kwTahunSampai) _kwTahunDari = _kwTahunSampai;
-  _kwRangeFrom = { bulan: 1,  tahun: _kwTahunDari,   key: `${_kwTahunDari}-01` };
+  _kwRangeFrom = { bulan: 3,  tahun: _kwTahunDari,   key: `${_kwTahunDari}-03` };
   _kwRangeTo   = { bulan: 12, tahun: _kwTahunSampai,  key: `${_kwTahunSampai}-12` };
   _kwModePerTahun = true;
   _kwSaveFilter();
@@ -2434,7 +2446,7 @@ function _kwSetTahunSampai(val) {
 
 function _kwSetTahunPenuh(tahun) {
   
-  _kwRangeFrom = { bulan: 1,  tahun, key: `${tahun}-01` };
+  _kwRangeFrom = { bulan: 3,  tahun, key: `${tahun}-03` };
   _kwRangeTo   = { bulan: 12, tahun, key: `${tahun}-12` };
   _kwSaveFilter();
   _renderKinerjaWatch();
@@ -2511,6 +2523,9 @@ async function _initKinerjaWatch() {
 
   
   if (pa?.bulan) _kwBulanPilih = pa.bulan;
+  _kwBulanPilih = Math.ceil(_kwBulanPilih / 3) * 3;
+  _kwRangeFrom  = _dSnapTw(_kwRangeFrom);
+  _kwRangeTo    = _dSnapTw(_kwRangeTo);
 
   
   el.innerHTML = `<div class="kw-wrap"><div class="skeleton" style="height:280px;border-radius:14px"></div></div>`;
@@ -2827,7 +2842,7 @@ document.addEventListener('click', (e) => {
 window._kwMpData = window._kwMpData || {};
 
 function _kwMonthPicker(id, tahunList, activeVal, onPickFn, availableKeys) {
-  const _BL = ['','Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];
+  const _BL = _KW_BULAN_LABEL;
   const activeY = activeVal ? parseInt(activeVal.split('-')[0]) : (tahunList[tahunList.length-1] || new Date().getFullYear());
   const activeM = activeVal ? parseInt(activeVal.split('-')[1]) : 0;
   
@@ -2856,7 +2871,7 @@ function _kwMpToggle(id) {
 }
 
 function _kwMpRenderPanel(el) {
-  const _BL     = ['','Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];
+  const _BL     = _KW_BULAN_LABEL;
   const id          = el.id;
   const data        = window._kwMpData?.[id] || {};
   const onPickFn    = data.onPickFn || '';
@@ -2870,7 +2885,7 @@ function _kwMpRenderPanel(el) {
   const maxYear     = tahunList[tahunList.length-1] || viewYear;
 
   let grid = '';
-  for (let m = 1; m <= 12; m++) {
+  for (const m of _DTW_BULAN) {
     const key = `${viewYear}-${String(m).padStart(2,'0')}`;
     const isActive    = (viewYear === activeY && m === activeM);
     const isAvail     = !availKeys || availKeys.has(key);
@@ -3003,7 +3018,7 @@ function _renderKinerjaWatch() {
     const tahunSrc = _kwTahunList.length ? _kwTahunList : [];
     for (const thn of tahunSrc) {
       const rekapTahun = _kwAllRekap[thn] || {};
-      for (let b = 1; b <= 12; b++) {
+      for (const b of _DTW_BULAN) {
         const recs = rekapTahun['b' + b] || [];
         if (recs.length) hasil.push({ bulan: b, tahun: thn, key: `${thn}-${String(b).padStart(2,'0')}` });
       }
@@ -3033,7 +3048,7 @@ function _renderKinerjaWatch() {
   
   if (periodeAdaData.length > 0 && !_kwModePerTahun) {
     const _nowYear = new Date().getFullYear();
-    if (!_kwRangeFrom) _kwRangeFrom = { bulan: 1,  tahun: _nowYear, key: `${_nowYear}-01` };  
+    if (!_kwRangeFrom) _kwRangeFrom = { bulan: 3,  tahun: _nowYear, key: `${_nowYear}-03` };  
     if (!_kwRangeTo)   _kwRangeTo   = { bulan: 12, tahun: _nowYear, key: `${_nowYear}-12` };  
     
     if (_kwRangeFrom && _kwRangeTo) {
@@ -3088,7 +3103,7 @@ function _renderKinerjaWatch() {
     if (!_kwRangeFrom || !_kwRangeTo) return 'all';
     
     if (_kwRangeFrom.tahun === _kwRangeTo.tahun &&
-        _kwRangeFrom.bulan === 1 && _kwRangeTo.bulan === 12) return _kwRangeFrom.tahun;
+        _kwRangeFrom.bulan <= 3 && _kwRangeTo.bulan === 12) return _kwRangeFrom.tahun;
     
     return 'all';
   })();
@@ -3112,11 +3127,11 @@ function _renderKinerjaWatch() {
 
         ${/* Dropdown mode utama: Tahun | Bulan - inline onclick agar pasti terpanggil */''}
         <div class="kw-cdd" id="kwFilterModeDd" style="min-width:90px" onclick="event.stopPropagation();_kwCddToggle('kwFilterModeDd')">
-          <span class="kw-cdd-label">${_kwFilterMode === 'tahun' ? 'Tahun' : 'Bulan'}</span>
+          <span class="kw-cdd-label">${_kwFilterMode === 'tahun' ? 'Tahun' : 'Triwulan'}</span>
           <svg class="kw-cdd-caret" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
           <div class="kw-cdd-panel" id="kwFilterModeDd_panel">
             <div class="kw-cdd-opt${_kwFilterMode === 'tahun' ? ' active' : ''}" onclick="event.stopPropagation();_kwCddToggle('kwFilterModeDd');_kwSetFilterMode('tahun')">Tahun</div>
-            <div class="kw-cdd-opt${_kwFilterMode === 'bulan' ? ' active' : ''}" onclick="event.stopPropagation();_kwCddToggle('kwFilterModeDd');_kwSetFilterMode('bulan')">Bulan</div>
+            <div class="kw-cdd-opt${_kwFilterMode === 'bulan' ? ' active' : ''}" onclick="event.stopPropagation();_kwCddToggle('kwFilterModeDd');_kwSetFilterMode('bulan')">Triwulan</div>
           </div>
         </div>
 
@@ -3333,8 +3348,8 @@ function _renderKinerjaWatch() {
     });
   })();
   // Untuk sparkline & proyeksi - pakai semua 12 bulan dari tahun akhir range
-  const bulanChartDataFull = Array.from({length:12}, (_, i) => {
-    const b   = i + 1;
+  const bulanChartDataFull = Array.from({length:4}, (_, i) => {
+    const b   = (i + 1) * 3;
     const rec = (_kwAllRekap[tahun]?.['b' + b] || []).find(r => r.id === ind.id);
     const _rc = v => (v !== null && v !== undefined && v !== '') ? parseFloat(v) : null;
     const _rv = _rc(rec?.realisasi);
@@ -3358,7 +3373,7 @@ function _renderKinerjaWatch() {
   const barChart = _kwBarChart(bulanChartData, bulanList, target);
 
   // ── Tabel per periode ──────────────────────────────────────────────────────
-  const nowBulan = new Date().getMonth() + 1;
+  const nowBulan = _dTwSekarang();
   const nowTahun = new Date().getFullYear();
   const tableRows = bulanChartData
     .map(d => {
@@ -3553,7 +3568,7 @@ function _renderKinerjaWatch() {
                     : _KW_BULAN_FULL[d.bulan];
                 const isFuture = _kwModePerTahun
                   ? d.tahun > new Date().getFullYear()
-                  : d.tahun > new Date().getFullYear() || (d.tahun === new Date().getFullYear() && d.bulan > new Date().getMonth() + 1);
+                  : d.tahun > new Date().getFullYear() || (d.tahun === new Date().getFullYear() && d.bulan > _dTwSekarang());
                 const isActive = d.realisasi !== null;
                 const barPct   = c !== null ? Math.min(parseFloat(c), 100) : 0;
                 return `<tr style="${isActive ? 'background:#f0fdf4' : isFuture ? 'opacity:.45' : ''}">
@@ -3648,7 +3663,7 @@ function _renderKinerjaWatch() {
           ${comboChart}
         </div>
 
-        <!-- Permasalahan & Solusi per Bulan -->
+        <!-- Permasalahan & Solusi per Triwulan -->
         ${(() => {
           
           
@@ -3675,7 +3690,7 @@ function _renderKinerjaWatch() {
             <div style="padding:10px 14px 8px;border-bottom:1px solid #f1f5f9;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:6px">
               <div class="kw-panel-title" style="margin-bottom:0">
                 <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/></svg>
-                Analisis Capaian per Bulan
+                Analisis Capaian per Triwulan
               </div>
               <div style="display:flex;gap:10px;font-size:0.63rem;font-weight:600;color:#64748b;flex-wrap:wrap">
                 <span style="display:flex;align-items:center;gap:4px;color:#f97316">
@@ -4210,7 +4225,7 @@ function _kwChartRadar(data, activeRange, target, targetDisplay, satuan, isPredi
     }
   });
 
-  const titleEl = `<text x="${CX}" y="${H-22}" text-anchor="middle" font-size="${13*_activeChartFs}" fill="#94a3b8">Capaian % per Bulan (Radar)</text>`;
+  const titleEl = `<text x="${CX}" y="${H-22}" text-anchor="middle" font-size="${13*_activeChartFs}" fill="#94a3b8">Capaian % per Triwulan (Radar)</text>`;
 
   return `<svg viewBox="0 0 ${W} ${H}" width="100%" height="${H}" style="overflow:visible;display:block">${grid}${dataEl}${titleEl}</svg>`;
 }

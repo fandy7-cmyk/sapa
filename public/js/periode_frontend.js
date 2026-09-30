@@ -10,8 +10,9 @@ let _periodeSearch   = '';
 let _periodeFilterStatus = '';   // '' | 'aktif' | 'ditutup' | 'belum'
 let _periodeFilterTahun  = '';   // '' | '2026' | '2027' dst
 
-const BULAN_FULL_P  = ['','Januari','Februari','Maret','April','Mei','Juni',
-                        'Juli','Agustus','September','Oktober','November','Desember'];
+// Periode kinerja = per triwulan; kolom `bulan` berisi bulan akhir TW (3/6/9/12)
+const _TW_ROM_P = ['', 'I', 'II', 'III', 'IV'];
+const BULAN_FULL_P = (() => { const a = ['']; for (let b = 1; b <= 12; b++) a.push(`Triwulan ${_TW_ROM_P[Math.ceil(b / 3)]}`); return a; })();
 const BULAN_SHORT_P = ['','Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];
 
 async function loadPeriodeAktif() {
@@ -124,8 +125,35 @@ function _jenisMeta(jenis) {
   if (jenis === 'monev')     return { label: 'IKU', bg: '#dbeafe', fg: '#1d4ed8' };
   if (jenis === 'ikk')       return { label: 'IKK', bg: '#ede9fe', fg: '#7c3aed' };
   if (jenis === 'spm')       return { label: 'SPM', bg: '#fef3c7', fg: '#b45309' };
+  if (jenis === 'subkeg')    return { label: 'Sub Kegiatan', bg: '#ede9fe', fg: '#6d28d9' };
   if (jenis === 'eplanning') return { label: 'e-Planning', bg: '#dcfce7', fg: '#15803d' };
   return { label: '-', bg: '#f1f5f9', fg: '#94a3b8' };
+}
+
+// Jenis kinerja yang dijadikan 1 periode (1 baris) kalau jendela waktunya sama
+const _JENIS_KINERJA = ['monev', 'ikk', 'spm', 'subkeg'];
+const _JENIS_KINERJA_ORDER = { monev: 0, ikk: 1, spm: 2, subkeg: 3 };
+// repId -> [semua id periode dalam 1 baris gabungan]
+let _periodeGroupIds = {};
+
+// Gabungkan periode kinerja (IKU/IKK/SPM/Sub Kegiatan) dengan tahun, triwulan & jendela waktu sama jadi 1 baris
+function _mergePeriodeRows(items) {
+  const rows = [];
+  const buckets = {};
+  items.forEach(p => {
+    if (_JENIS_KINERJA.includes(p.jenis)) {
+      const k = `${p.open_at}|${p.close_at}`;
+      if (!buckets[k]) { buckets[k] = { rep: p, jenisList: [], ids: [] }; rows.push(buckets[k]); }
+      buckets[k].jenisList.push(p.jenis);
+      buckets[k].ids.push(p.id);
+    } else {
+      rows.push({ rep: p, jenisList: [p.jenis], ids: [p.id] });
+    }
+  });
+  rows.forEach(r => {
+    r.jenisList.sort((a, b) => (_JENIS_KINERJA_ORDER[a] ?? 9) - (_JENIS_KINERJA_ORDER[b] ?? 9));
+  });
+  return rows;
 }
 
 const _iconUnlock = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 9.9-1"/></svg>`;
@@ -189,6 +217,7 @@ function renderPeriodeCards() {
   const wrap = document.getElementById('periodeCardsWrap');
   if (!wrap) return;
   _clearPeriodeCardTimers();
+  _periodeGroupIds = {};
 
   const filtered = _periodeList.filter(p => {
     if (_periodeSearch) {
@@ -238,18 +267,21 @@ function renderPeriodeCards() {
   const slice = groupList.slice(start, start + _periodeCardPageSize);
 
   const now = new Date();
-  const isBulanIni = (t, b) => t === now.getFullYear() && b === (now.getMonth() + 1);
+  const isBulanIni = (t, b) => t === now.getFullYear() && b === Math.ceil((now.getMonth() + 1) / 3) * 3;
 
   wrap.innerHTML = slice.map(g => {
-    const jenisRows = [...g.items].sort((a, b) => a.jenis.localeCompare(b.jenis)).map(p => {
-      const meta = _jenisMeta(p.jenis);
+    const jenisRows = _mergePeriodeRows(g.items).map(row => {
+      const p = row.rep;
+      _periodeGroupIds[p.id] = row.ids;
+      const badges = row.jenisList.map(j => {
+        const m = _jenisMeta(j);
+        return `<span class="jenis-badge" style="background:${m.bg};color:${m.fg}">${m.label}</span>`;
+      }).join('');
       const hasWindow = !!(p.open_at || p.close_at);
       return `
         <div class="periode-jenis-row">
           <div class="periode-jenis-top">
-            <div class="periode-jenis-label">
-              <span class="jenis-badge" style="background:${meta.bg};color:${meta.fg}">${meta.label}</span>
-            </div>
+            <div class="periode-jenis-label" style="flex-wrap:wrap;gap:5px">${badges}</div>
             <span class="periode-countdown" id="periodeCountdown_${p.id}">${hasWindow ? '…' : '-'}</span>
           </div>
           ${hasWindow ? `
@@ -855,9 +887,11 @@ function onPeriodeJenisChange() {
   const hint = document.getElementById('periodeJenisHint');
   if (bulanField) bulanField.style.display = isTahunan ? 'none' : '';
   if (hint) hint.textContent = isTahunan
-    ? 'Periode e-Planning berlaku 1 tahun penuh, tanpa pembagian bulan.'
-    : 'Setiap jenis bisa memiliki jendela waktu yang berbeda untuk bulan yang sama.';
+    ? 'Periode e-Planning berlaku 1 tahun penuh, tanpa pembagian triwulan.'
+    : 'Satu periode berlaku untuk IKU, IKK, SPM, dan Sub Kegiatan sekaligus.';
 }
+
+let _periodeEditIds = [];   // diisi kalau yang diedit baris gabungan (banyak id)
 
 function openPeriodeModal(id) {
   const p = id ? _periodeList.find(x => x.id === id) : null;
@@ -867,14 +901,22 @@ function openPeriodeModal(id) {
 
   
   const _bulanEl = document.getElementById('periodeBulan');
-  _bulanEl.value = p?.bulan || (new Date().getMonth() + 1);
+  _bulanEl.value = p?.bulan || (Math.ceil((new Date().getMonth() + 1) / 3) * 3);
   if (typeof syncCustomSelect === 'function') syncCustomSelect('periodeBulan');
 
   
   const _jenisEl = document.getElementById('periodeJenis');
-  _jenisEl.value = p?.jenis || 'monev';
+  const _groupIds = p ? (_periodeGroupIds[p.id] || [p.id]) : [];
+  // Periode kinerja (satu atau gabungan) diedit lewat pilihan "Kinerja"
+  _periodeEditIds = (p && _JENIS_KINERJA.includes(p.jenis)) ? _groupIds : [];
+  _jenisEl.value = _periodeEditIds.length ? 'all' : (p?.jenis || 'all');
+  _jenisEl.disabled = _periodeEditIds.length > 0;   // baris gabungan: jenis dikunci
   if (typeof syncCustomSelect === 'function') syncCustomSelect('periodeJenis');
   onPeriodeJenisChange();
+  if (_periodeEditIds.length) {
+    const hint = document.getElementById('periodeJenisHint');
+    if (hint) hint.textContent = `Perubahan berlaku untuk ${_periodeEditIds.map(i => _jenisMeta(_periodeList.find(x => x.id === i)?.jenis).label).join(', ')} sekaligus.`;
+  }
 
   
   document.getElementById('periodeOpenAt').value  = _isoToLocal(p?.open_at);
@@ -910,7 +952,7 @@ async function savePeriode() {
   const closeAt = document.getElementById('periodeCloseAt').value;
 
   if (!tahun)              { toast('Tahun wajib diisi', 'error'); return; }
-  if (!isTahunan && !bulan) { toast('Bulan wajib diisi', 'error'); return; }
+  if (!isTahunan && !bulan) { toast('Triwulan wajib diisi', 'error'); return; }
   if (!jenis)              { toast('Jenis periode wajib dipilih', 'error'); return; }
   if (!openAt)             { toast('Tanggal/jam dibuka wajib diisi', 'error'); return; }
   if (!closeAt)            { toast('Tanggal/jam ditutup wajib diisi', 'error'); return; }
@@ -920,7 +962,34 @@ async function savePeriode() {
 
   
   
-  const jenisList = (jenis === 'all' && !id) ? ['monev', 'ikk', 'spm'] : [jenis === 'all' ? 'monev' : jenis];
+  // Edit baris gabungan: update semua periode kinerja di dalamnya sekaligus
+  if (id && _periodeEditIds.length > 0) {
+    try {
+      for (const gid of _periodeEditIds) {
+        const r = await fetch(`/api/periode/${gid}`, {
+          method:  'PUT',
+          headers: authHeaders(),
+          body:    JSON.stringify({ tahun, bulan, open_at: new Date(openAt).toISOString(), close_at: new Date(closeAt).toISOString() }),
+        });
+        const d = await r.json();
+        if (!r.ok) { toast(d.error || 'Gagal menyimpan', 'error'); return; }
+      }
+      toast('Periode diperbarui');
+      closeModal('modalPeriode');
+      loadPeriodePage();
+    } catch { toast('Gagal menyimpan periode', 'error'); }
+    return;
+  }
+
+  let jenisList = (jenis === 'all' && !id) ? ['monev', 'ikk', 'spm', 'subkeg'] : [jenis === 'all' ? 'monev' : jenis];
+  // Lewati jenis yang periodenya (tahun + triwulan sama) sudah ada, biar gak gagal separuh jalan
+  let dilewati = [];
+  if (!id && jenisList.length > 1) {
+    const sudahAda = jenisList.filter(j => _periodeList.some(x => x.tahun === tahun && x.bulan === bulan && x.jenis === j));
+    dilewati = sudahAda.map(j => _jenisMeta(j).label);
+    jenisList = jenisList.filter(j => !sudahAda.includes(j));
+    if (!jenisList.length) { toast('Periode IKU, IKK, SPM, dan Sub Kegiatan untuk triwulan ini sudah ada', 'error'); return; }
+  }
 
   try {
     for (const j of jenisList) {
@@ -940,9 +1009,11 @@ async function savePeriode() {
       if (!r.ok) { toast(d.error || 'Gagal menyimpan', 'error'); return; }
     }
     toast(
-      jenisList.length > 1
-        ? 'Tiga periode (IKU + IKK + SPM) berhasil ditambahkan'
-        : (id ? 'Periode diperbarui' : 'Periode ditambahkan')
+      dilewati.length
+        ? `Periode ditambahkan (${dilewati.join(', ')} sudah ada, dilewati)`
+        : jenisList.length > 1
+          ? 'Periode IKU, IKK, SPM, dan Sub Kegiatan berhasil ditambahkan'
+          : (id ? 'Periode diperbarui' : 'Periode ditambahkan')
     );
     closeModal('modalPeriode');
     loadPeriodePage();
@@ -951,7 +1022,10 @@ async function savePeriode() {
 
 async function deletePeriode(id) {
   const p  = _periodeList.find(x => x.id === id);
-  const jenisLabel = p?.jenis === 'monev' ? 'IKU' : p?.jenis === 'ikk' ? 'IKK' : p?.jenis === 'spm' ? 'SPM' : p?.jenis === 'eplanning' ? 'e-Planning' : '';
+  const ids = _periodeGroupIds[id] || [id];
+  const jenisLabel = ids.length > 1
+    ? ids.map(i => _jenisMeta(_periodeList.find(x => x.id === i)?.jenis).label).join(', ')
+    : p?.jenis === 'monev' ? 'IKU' : p?.jenis === 'ikk' ? 'IKK' : p?.jenis === 'spm' ? 'SPM' : p?.jenis === 'subkeg' ? 'Sub Kegiatan' : p?.jenis === 'eplanning' ? 'e-Planning' : '';
   const labelWaktu = p?.bulan == null ? `Tahun ${p?.tahun || ''}` : `${BULAN_FULL_P[p?.bulan] || ''} ${p?.tahun || ''}`;
   const ok = await showConfirm({
     title:  'Hapus Periode',
@@ -961,9 +1035,11 @@ async function deletePeriode(id) {
   });
   if (!ok) return;
 
-  const r = await fetch(`/api/periode/${id}`, { method: 'DELETE', headers: authHeaders() });
-  const d = await r.json();
-  if (!r.ok) { toast(d.error || 'Gagal menghapus', 'error'); return; }
+  for (const did of ids) {
+    const r = await fetch(`/api/periode/${did}`, { method: 'DELETE', headers: authHeaders() });
+    const d = await r.json();
+    if (!r.ok) { toast(d.error || 'Gagal menghapus', 'error'); loadPeriodePage(); return; }
+  }
   toast('Periode berhasil dihapus');
   loadPeriodePage();
 }
