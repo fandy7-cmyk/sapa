@@ -210,7 +210,7 @@ function renderUsersTable() {
       return (
         u.nama.toLowerCase().includes(_userSearch) ||
         (u.nip || '').toLowerCase().includes(_userSearch) ||
-        u.email.toLowerCase().includes(_userSearch) ||
+        (u.email || '').toLowerCase().includes(_userSearch) ||
         getBidangNama(u.bidang_id).toLowerCase().includes(_userSearch)
       );
     });
@@ -219,11 +219,12 @@ function renderUsersTable() {
   const slice = visibleUsers.slice(start, start + _userPageSize);
 
   tb.innerHTML = slice.length
-    ? slice.map(u => `
+    ? slice.map((u, i) => `
       <tr>
-        <td><strong>${esc(u.nama)}</strong></td>
+        <td style="text-align:center">${start + i + 1}</td>
+        <td style="text-align:left"><strong>${esc(u.nama)}</strong></td>
         <td>${esc(u.nip || '-')}</td>
-        <td>${esc(u.email)}</td>
+        <td>${esc(u.email || '-')}</td>
         <td style="max-width:220px;white-space:normal;word-break:break-word;line-height:1.35">${getBidangNama(u.bidang_id)}</td>
         <td><span class="badge badge-blue">User</span></td>
         <td>${u.last_login ? fmtDate(u.last_login) : '-'}</td>
@@ -251,7 +252,7 @@ function renderUsersTable() {
           </button>
         </td>
       </tr>`).join('')
-    : '<tr class="empty-row"><td colspan="7">Tidak ada user</td></tr>';
+    : '<tr class="empty-row"><td colspan="8">Tidak ada user</td></tr>';
 
   renderPagination('userPagination', visibleUsers.length, _userPage, _userPageSize, 'goUserPage');
 }
@@ -383,7 +384,7 @@ async function saveUrutanLaporan() {
 
 async function loadUsers() {
   const tb0 = document.getElementById('userTableBody');
-  if (tb0) tb0.innerHTML = `<tr class="empty-row"><td colspan="7"><span class="btn-spin" style="width:11px;height:11px;vertical-align:-1px;margin-right:6px"></span>Memuat data...</td></tr>`;
+  if (tb0) tb0.innerHTML = `<tr class="empty-row"><td colspan="8"><span class="btn-spin" style="width:11px;height:11px;vertical-align:-1px;margin-right:6px"></span>Memuat data...</td></tr>`;
   await loadBidangList();
   try {
     const r = await fetch('/api/users', { headers: authHeaders() });
@@ -433,7 +434,7 @@ async function editUser(id) {
   document.getElementById('userId').value = u.id;
   document.getElementById('userNama').value = u.nama;
   document.getElementById('userNip').value = u.nip || '';
-  document.getElementById('userEmail').value = u.email;
+  document.getElementById('userEmail').value = (u.email && u.email !== '-') ? u.email : '';
   document.getElementById('modalUserTitle').textContent = 'Edit Pengguna';
   document.getElementById('userBidang').innerHTML = renderBidangOptions(u.bidang_id);
   openModal('modalUser');
@@ -449,7 +450,9 @@ async function saveUser() {
     email:    document.getElementById('userEmail').value.trim(),
     bidang_id: bidangVal ? parseInt(bidangVal) : null,
   };
-  if (!body.nama || !body.nip || !body.email) { toast('Nama, NIP, dan email wajib diisi', 'error'); return; }
+  // Email opsional: kosong atau "-" dianggap tidak diisi.
+  if (body.email === '-') body.email = '';
+  if (!body.nama || !body.nip) { toast('Nama dan NIP wajib diisi', 'error'); return; }
   try {
     const r = await fetch(id ? `/api/users/${id}` : '/api/users', {
       method: id ? 'PUT' : 'POST', headers: authHeaders(), body: JSON.stringify(body),
@@ -828,45 +831,90 @@ let _assignIndikatorUserId = null;
 let _assignIndikatorList   = [];   
 let _assignSelectedIds     = new Set();
 let _assignSearch          = '';
+// Id yang ditaruh di atas daftar. Di-snapshot dari _assignSelectedIds hanya saat modal dibuka
+// atau saat cari/filter berubah, BUKAN saat centang satu item, supaya baris tidak loncat ketika diklik.
+let _assignPinnedIds       = new Set();
+
+// Daftar seluruh indikator cukup berat, jadi di-cache sebentar (per tab). Data assignment per user selalu diambil baru.
+let _assignAllCache = { at: 0, data: null };
+const _ASSIGN_CACHE_MS = 2 * 60 * 1000;
+let _assignLoaded  = false;
+let _assignOpenSeq = 0;   // cegah race kalau modal dibuka berulang cepat
+
+async function _assignGetAllIndikator() {
+  if (_assignAllCache.data && Date.now() - _assignAllCache.at < _ASSIGN_CACHE_MS) return _assignAllCache.data;
+  const r = await fetch('/api/kinerja/indikator', { headers: authHeaders() });
+  if (!r.ok) throw new Error('indikator');
+  const d = await r.json();
+  _assignAllCache = { at: Date.now(), data: d.indikator || [] };
+  return _assignAllCache.data;
+}
+
+function _assignSetLoading(on, errMsg) {
+  const container = document.getElementById('assignIndikatorList');
+  const counter   = document.getElementById('assignIndikatorCounter');
+  const saveBtn   = document.querySelector('#modalAssignIndikator .modal-footer .btn-primary');
+  if (saveBtn) { saveBtn.disabled = on || !!errMsg; saveBtn.style.opacity = (on || errMsg) ? '.6' : ''; }
+  if (on && container) {
+    container.innerHTML = '<div style="padding:28px 20px;text-align:center;color:#94a3b8;font-size:.83rem"><span class="btn-spin" style="width:11px;height:11px;vertical-align:-1px;margin-right:6px"></span>Memuat indikator...</div>';
+    if (counter) counter.textContent = 'Memuat...';
+  } else if (errMsg && container) {
+    container.innerHTML = `<div style="padding:28px 20px;text-align:center;color:#dc2626;font-size:.83rem">${errMsg}</div>`;
+    if (counter) counter.textContent = '';
+  }
+}
 
 async function openAssignIndikatorModal(userId) {
+  const seq = ++_assignOpenSeq;
   _assignIndikatorUserId = userId;
   _assignSearch = '';
+  _assignLoaded = false;
+  _assignIndikatorList = [];
+  _assignSelectedIds   = new Set();
+  _assignPinnedIds     = new Set();
   const u = _users.find(x => x.id === userId);
 
   document.getElementById('assignIndikatorUserInfo').textContent =
-    `${u?.nama || ''} (${u?.email || ''})`;
-
-  
-  try {
-    const [ri, ra] = await Promise.all([
-      fetch('/api/kinerja/indikator', { headers: authHeaders() }),
-      fetch(`/api/users/${userId}/indikator`, { headers: authHeaders() }),
-    ]);
-    const di = await ri.json();
-    const da = await ra.json();
-    const allIndikator = di.indikator || [];
-    const userBidang = _bidang.find(b => b.id === u?.bidang_id);
-    const userBidangNama = userBidang?.nama?.trim() || null;
-    _assignIndikatorList = userBidangNama
-    ? allIndikator.filter(r => (r.penanggung_jawab || '').trim() === userBidangNama)
-    : allIndikator;
-    _assignSelectedIds   = new Set((da.indikator_ids || []).map(Number));
-  } catch {
-    _assignIndikatorList = [];
-    _assignSelectedIds   = new Set();
-  }
-
+    `${u?.nama || ''} (${u?.email || '-'})`;
   const searchEl = document.getElementById('assignIndikatorSearch');
   if (searchEl) searchEl.value = '';
 
-  _renderAssignIndikatorList();
+  // Buka modal langsung, data menyusul (tidak perlu nunggu fetch selesai dulu).
+  _assignSetLoading(true);
   openModal('modalAssignIndikator');
+
+  try {
+    const [allIndikator, ra] = await Promise.all([
+      _assignGetAllIndikator(),
+      fetch(`/api/users/${userId}/indikator`, { headers: authHeaders() }),
+    ]);
+    if (!ra.ok) throw new Error('assign');
+    const da = await ra.json();
+    if (seq !== _assignOpenSeq) return;   // modal sudah dibuka untuk user lain
+
+    const userBidang = _bidang.find(b => b.id === u?.bidang_id);
+    const userBidangNama = userBidang?.nama?.trim() || null;
+    _assignIndikatorList = userBidangNama
+      ? allIndikator.filter(r => (r.penanggung_jawab || '').trim() === userBidangNama)
+      : allIndikator;
+    _assignSelectedIds = new Set((da.indikator_ids || []).map(Number));
+    _assignLoaded = true;
+  } catch {
+    if (seq !== _assignOpenSeq) return;
+    // Gagal muat: Simpan dikunci supaya assignment lama tidak tertimpa daftar kosong.
+    _assignSetLoading(false, 'Gagal memuat indikator. Tutup lalu coba lagi.');
+    return;
+  }
+
+  _assignSetLoading(false);
+  _assignPinnedIds = new Set(_assignSelectedIds);
+  _renderAssignIndikatorList(true);
 }
 
-function _renderAssignIndikatorList() {
+function _renderAssignIndikatorList(resetScroll = false) {
   const container = document.getElementById('assignIndikatorList');
   if (!container) return;
+  const prevScroll = container.scrollTop;
 
   const q = _assignSearch.toLowerCase();
   const filtered = _assignIndikatorList.filter(r => {
@@ -883,8 +931,13 @@ function _renderAssignIndikatorList() {
     return;
   }
 
+  // Indikator yang sudah terpilih (snapshot _assignPinnedIds) tampil paling atas di tiap grup;
+  // urutan asal tetap dijaga di dalam masing-masing kelompok (sort stabil).
+  const ordered = filtered.slice().sort((a, b) =>
+    (_assignPinnedIds.has(b.id) ? 1 : 0) - (_assignPinnedIds.has(a.id) ? 1 : 0));
+
   const groups = {};
-  filtered.forEach(r => {
+  ordered.forEach(r => {
     const pj = r.penanggung_jawab || '- Tanpa PJ';
     if (!groups[pj]) groups[pj] = [];
     groups[pj].push(r);
@@ -896,8 +949,7 @@ function _renderAssignIndikatorList() {
     html += `
       <div style="padding:6px 14px 4px;background:#f8fafc;border-bottom:1px solid #e2e8f0;display:flex;align-items:center;gap:8px;position:sticky;top:0;z-index:1">
         <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:.75rem;font-weight:700;color:#475569">
-          <input type="checkbox" ${allSelected ? 'checked' : ''} onchange="_assignTogglePJ(${esc(JSON.stringify(pj))}, this.checked)"
-            style="width:14px;height:14px;accent-color:var(--primer,#2563eb);cursor:pointer">
+          <input type="checkbox" class="chk" ${allSelected ? 'checked' : ''} onchange="_assignTogglePJ(${esc(JSON.stringify(pj))}, this.checked)">
           ${esc(pj)}
           <span style="font-weight:400;color:#94a3b8">(${items.length})</span>
         </label>
@@ -908,13 +960,14 @@ function _renderAssignIndikatorList() {
         r.jenis_monev ? '<span style="font-size:.62rem;font-weight:700;color:#1e40af;background:#dbeafe;padding:1px 5px;border-radius:4px">IKU</span>' : '',
         r.jenis_ikk   ? '<span style="font-size:.62rem;font-weight:700;color:#065f46;background:#d1fae5;padding:1px 5px;border-radius:4px">IKK</span>'   : '',
         r.jenis_spm   ? '<span style="font-size:.62rem;font-weight:700;color:#92400e;background:#fef3c7;padding:1px 5px;border-radius:4px">SPM</span>'   : '',
+        (Array.isArray(r.jenis_custom) && r.jenis_custom.includes('subkeg')) ? '<span style="font-size:.62rem;font-weight:700;color:#6d28d9;background:#ede9fe;padding:1px 5px;border-radius:4px">Sub Kegiatan</span>' : '',
       ].filter(Boolean).join(' ');
       html += `
-        <label style="display:flex;align-items:flex-start;gap:10px;padding:8px 14px;cursor:pointer;border-bottom:1px solid #f1f5f9;${sel ? 'background:#eff6ff' : ''}" 
-               onmouseenter="this.style.background='${sel ? '#eff6ff' : '#f8fafc'}'" 
-               onmouseleave="this.style.background='${sel ? '#eff6ff' : ''}'">
-          <input type="checkbox" value="${r.id}" ${sel ? 'checked' : ''} onchange="_assignToggle(${r.id}, this.checked)"
-            style="width:14px;height:14px;margin-top:2px;accent-color:var(--primer,#2563eb);cursor:pointer;flex-shrink:0">
+        <label style="display:flex;align-items:flex-start;gap:10px;padding:8px 14px;cursor:pointer;border-bottom:1px solid #f1f5f9;${sel ? 'background:#f0fdfa' : ''}" 
+               onmouseenter="this.style.background='${sel ? '#f0fdfa' : '#f8fafc'}'" 
+               onmouseleave="this.style.background='${sel ? '#f0fdfa' : ''}'">
+          <input type="checkbox" class="chk" value="${r.id}" ${sel ? 'checked' : ''} onchange="_assignToggle(${r.id}, this.checked)"
+            style="margin-top:1px">
           <div style="min-width:0">
             <div style="font-size:.82rem;color:#1e293b;line-height:1.4;word-break:break-word">${esc(r.indikator_kinerja)}</div>
             <div style="display:flex;gap:4px;margin-top:3px;flex-wrap:wrap">
@@ -927,6 +980,7 @@ function _renderAssignIndikatorList() {
   }
 
   container.innerHTML = html;
+  container.scrollTop = resetScroll ? 0 : prevScroll;
 
   const counter = document.getElementById('assignIndikatorCounter');
   if (counter) counter.textContent = `${_assignSelectedIds.size} dipilih`;
@@ -949,12 +1003,13 @@ function _assignTogglePJ(pj, checked) {
 
 function filterAssignIndikator() {
   _assignSearch = document.getElementById('assignIndikatorSearch')?.value || '';
-  _renderAssignIndikatorList();
+  _assignPinnedIds = new Set(_assignSelectedIds);
+  _renderAssignIndikatorList(true);
 }
 
 async function saveAssignIndikator() {
   const userId = _assignIndikatorUserId;
-  if (!userId) return;
+  if (!userId || !_assignLoaded) return;
   try {
     const r = await fetch(`/api/users/${userId}/indikator`, {
       method: 'PUT', headers: authHeaders(),

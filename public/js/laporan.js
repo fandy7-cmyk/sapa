@@ -1506,8 +1506,7 @@ function _lapKinerjaGoPage(p) {
   _lapKinerjaPage = p;
   const data = window._laporanKinerjaData;
   if (!data) return;
-  const bidang = document.getElementById('laporanKinerjaBidang')?.value || '';
-  const rows = bidang ? data.rows.filter(r => r.penanggung_jawab === bidang) : data.rows;
+  const rows = _applyLaporanKinerjaFilters(data.rows);
   _lapRenderKinerjaTbody(rows, _lapKinerjaBulanTampil, _lapKinerjaColspan);
 }
 
@@ -2332,7 +2331,10 @@ function _renderLaporanKinerjaFiltered() {
 
 function _applyLaporanKinerjaFilters(rows) {
   const bidangValue = document.getElementById('laporanKinerjaBidang')?.value || '';
-  return bidangValue ? rows.filter(r => r.penanggung_jawab === bidangValue) : rows;
+  const q = (document.getElementById('laporanKinerjaSearch')?.value || '').trim().toLowerCase();
+  let out = bidangValue ? rows.filter(r => r.penanggung_jawab === bidangValue) : rows;
+  if (q) out = out.filter(r => (r.nama_indikator || '').toLowerCase().includes(q));
+  return out;
 }
 
 

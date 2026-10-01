@@ -228,9 +228,11 @@ function _isKinerjaInputOpen(bulan, jenis) {
   
   if (_isKinerjaAdmin()) return true;
   const targetBulan = bulan != null ? bulan : jenis === 'subkeg' ? _subkeg_bulan : jenis === 'spm' ? _spm_bulan : jenis === 'ikk' ? _ikk_bulan : _kinerja_bulan;
+  const targetTahun = jenis === 'subkeg' ? _subkeg_tahun : jenis === 'spm' ? _spm_tahun : jenis === 'ikk' ? _ikk_tahun : _kinerja_tahun;
   
   return _periodeListTerbuka.some(p =>
     p.bulan === targetBulan &&
+    p.tahun === targetTahun &&
     (jenis ? p.jenis === jenis : true) &&
     isPeriodeInputOpen(p)
   );
@@ -240,6 +242,56 @@ function _isMonevInputOpen(bulan) { return _isKinerjaInputOpen(bulan, 'monev'); 
 function _isIkkInputOpen(bulan)   { return _isKinerjaInputOpen(bulan, 'ikk');   }
 
 let _periodeListTerbuka = [];
+// Semua periode yang sudah dimulai (open_at <= sekarang): yang masih terbuka MAUPUN yang sudah ditutup.
+// Dipakai untuk menentukan apa yang boleh DITAMPILKAN. Boleh/tidaknya EDIT tetap pakai _periodeListTerbuka.
+let _periodeListTampil  = [];
+
+async function _refreshPeriodeKinerja() {
+  let aktif = [], semua = [];
+  await Promise.all([
+    fetch('/api/periode/aktif')
+      .then(r => r.ok ? r.json() : null)
+      .then(d => { aktif = d?.periode || []; })
+      .catch(() => {}),
+    fetch('/api/periode', { headers: authHeaders() })
+      .then(r => r.ok ? r.json() : null)
+      .then(d => { semua = d?.periode || []; })
+      .catch(() => {}),
+  ]);
+  _periodeListTerbuka = aktif;
+  const aktifIds = new Set(aktif.map(p => p.id));
+  const now = Date.now();
+  _periodeListTampil = semua.length
+    ? semua.filter(p => aktifIds.has(p.id) || (p.open_at && new Date(p.open_at).getTime() <= now))
+    : aktif.slice();
+}
+
+function _periodeTampilByJenis(jenis) {
+  return _periodeListTampil.filter(p => p.jenis === jenis)
+    .sort((a, b) => a.tahun !== b.tahun ? a.tahun - b.tahun : a.bulan - b.bulan);
+}
+
+// Pilih periode default: yang masih terbuka dulu (paling awal); kalau semuanya sudah ditutup
+// (non-admin), ambil yang terbaru supaya data tetap bisa dilihat (read only).
+function _pickDefaultPeriode(jenis, tahun) {
+  const all = _periodeTampilByJenis(jenis).filter(p => tahun == null || p.tahun === tahun);
+  const open = all.filter(p => _periodeListTerbuka.some(o => o.id === p.id));
+  if (open.length) return open[0];
+  if (_isKinerjaAdmin()) return null;
+  return all.length ? all[all.length - 1] : null;
+}
+
+function _suffixTutup(jenis, bulan, tahun) {
+  // Teks "(Ditutup)" di dropdown periode dihilangkan; status tetap tampil di kartu periode.
+  return '';
+}
+
+function _reloadKinerjaJenis(jenis) {
+  if (jenis === 'monev')       loadKinerjaRekap();
+  else if (jenis === 'ikk')    loadIkkRekap();
+  else if (jenis === 'spm')    loadSpmRekap();
+  else if (jenis === 'subkeg') loadSubkegRekap();
+}
 let _allPeriodeList     = [];  
 let _userIndikatorIds   = null; 
 
@@ -276,12 +328,15 @@ function _renderKinerjaCountdown(containerId, jenis) {
 
   // Cari periode aktif untuk triwulan yg dipilih, filter by jenis
   const targetBulan = jenis === 'ikk' ? _ikk_bulan : jenis === 'spm' ? _spm_bulan : jenis === 'subkeg' ? _subkeg_bulan : _kinerja_bulan;
-  const pa = _periodeListTerbuka.find(p => p.bulan === targetBulan && (!jenis || p.jenis === jenis)) ?? null;
+  const targetTahun = jenis === 'ikk' ? _ikk_tahun : jenis === 'spm' ? _spm_tahun : jenis === 'subkeg' ? _subkeg_tahun : _kinerja_tahun;
+  // Pakai daftar 'tampil' supaya periode yang sudah ditutup tetap menampilkan kartu status (read only)
+  const pa = _periodeListTampil.find(p => p.bulan === targetBulan && p.tahun === targetTahun && (!jenis || p.jenis === jenis)) ?? null;
 
   
   if (!pa || !pa.close_at) { wrap.style.display = 'none'; wrap.innerHTML = ''; return; }
 
   const closeMs = new Date(pa.close_at).getTime();
+  const _wasOpen = closeMs > Date.now();
   const openMs  = pa.open_at ? new Date(pa.open_at).getTime() : null;
   const openLabel  = pa.open_at  ? new Date(pa.open_at).toLocaleString('id-ID', { day:'2-digit', month:'long', year:'numeric', hour:'2-digit', minute:'2-digit', timeZone: 'Asia/Makassar' }).replace(' pukul','') + ' WITA' : '-';
   const closeLabel = new Date(pa.close_at).toLocaleString('id-ID', { day:'2-digit', month:'long', year:'numeric', hour:'2-digit', minute:'2-digit', timeZone: 'Asia/Makassar' }).replace(' pukul','') + ' WITA';
@@ -318,7 +373,7 @@ function _renderKinerjaCountdown(containerId, jenis) {
           </span>
         </div>
         <div class="kperiode-expired-msg" id="${containerId}_expired" style="display:none">
-          Waktu input telah <strong>ditutup</strong>. Periode ini tidak bisa diisi lagi.
+          Periode input telah <strong>ditutup</strong>. Data tampil dalam mode <strong>read only</strong> sampai Admin membuka kembali periodenya.
         </div>
       </div>
     </div>`;
@@ -341,9 +396,11 @@ function _renderKinerjaCountdown(containerId, jenis) {
       clearInterval(_kinerjaCountdownTimers[containerId]);
       _kinerjaCountdownTimers[containerId] = null;
       
-      _periodeListTerbuka = _periodeListTerbuka.filter(p => p.bulan !== _kinerja_bulan);
-      _syncBulanButtons();
-      _renderPeriodeInfo();
+      // Baru saja ditutup saat halaman terbuka -> kunci tabel jadi read only
+      if (_wasOpen) {
+        _periodeListTerbuka = _periodeListTerbuka.filter(p => !(p.jenis === pa.jenis && p.bulan === pa.bulan && p.tahun === pa.tahun));
+        _reloadKinerjaJenis(jenis);
+      }
       return;
     }
 
@@ -386,10 +443,7 @@ async function initKinerjaControls() {
   
   
   await Promise.all([
-    fetch('/api/periode/aktif')
-      .then(r => r.ok ? r.json() : null)
-      .then(d => { _periodeListTerbuka = d?.periode || []; })
-      .catch(() => { _periodeListTerbuka = []; }),
+    _refreshPeriodeKinerja(),
     _ensureUserIndikatorIds(),
     isAdmin
       ? fetch('/api/periode', { headers: authHeaders() })
@@ -401,12 +455,12 @@ async function initKinerjaControls() {
   if (isAdmin) _populateTahunSelector('kinerjaTahunSelect', _kinerja_tahun, setKinerjaTahun);
 
   
-  const _monevTerbuka = _periodeListTerbuka.filter(p => p.jenis === 'monev')
-    .sort((a, b) => a.tahun !== b.tahun ? a.tahun - b.tahun : a.bulan - b.bulan);
-  if (_monevTerbuka.length) {
-    _kinerja_tahun = _monevTerbuka[0].tahun;
-    _kinerja_bulan = _monevTerbuka[0].bulan;
-    _periodeAktif  = _monevTerbuka[0]; 
+  const _monevTerbuka = _periodeTampilByJenis('monev');
+  const _def_monev = _pickDefaultPeriode('monev');
+  if (_def_monev) {
+    _kinerja_tahun = _def_monev.tahun;
+    _kinerja_bulan = _def_monev.bulan;
+    _periodeAktif  = _periodeListTerbuka.find(p => p.jenis === 'monev' && p.bulan === _def_monev.bulan && p.tahun === _def_monev.tahun) || _periodeAktif;
   } else if (_isKinerjaAdmin()) {
     
     _kinerja_tahun = new Date().getFullYear();
@@ -457,9 +511,8 @@ function setKinerjaTahun(tahun) {
   _kinerja_tahun = tahun;
   if (!_isKinerjaAdmin()) {
     
-    const periodeThnIni = _periodeListTerbuka.filter(p => p.jenis === 'monev' && p.tahun === tahun)
-      .sort((a, b) => a.bulan - b.bulan);
-    if (periodeThnIni.length) _kinerja_bulan = periodeThnIni[0].bulan;
+    const _pp = _pickDefaultPeriode('monev', tahun);
+    if (_pp) _kinerja_bulan = _pp.bulan;
   } else {
     _kinerja_bulan = 3;
   }
@@ -471,9 +524,8 @@ function setKinerjaTahun(tahun) {
 function setIkkTahun(tahun) {
   _ikk_tahun = tahun;
   if (!_isKinerjaAdmin()) {
-    const periodeThnIni = _periodeListTerbuka.filter(p => p.jenis === 'ikk' && p.tahun === tahun)
-      .sort((a, b) => a.bulan - b.bulan);
-    if (periodeThnIni.length) _ikk_bulan = periodeThnIni[0].bulan;
+    const _pp = _pickDefaultPeriode('ikk', tahun);
+    if (_pp) _ikk_bulan = _pp.bulan;
   } else {
     _ikk_bulan = 3;
   }
@@ -489,7 +541,7 @@ function _syncBulanButtons() {
   const sel = document.getElementById('bulanSelector');
   if (!sel) return;
   
-  const bulanTerbuka = new Set(_periodeListTerbuka.filter(p => p.jenis === 'monev').map(p => p.bulan));
+  const bulanTerbuka = new Set(_periodeListTampil.filter(p => p.jenis === 'monev' && p.tahun === _kinerja_tahun).map(p => p.bulan));
   const items = [];
   for (const bulan of TW_BULAN) {
     
@@ -498,14 +550,14 @@ function _syncBulanButtons() {
     
     const periodeMatch = _isKinerjaAdmin()
       ? _allPeriodeList.find(p => p.jenis === 'monev' && p.bulan === bulan && p.tahun === _kinerja_tahun)
-      : _periodeListTerbuka.find(p => p.jenis === 'monev' && p.bulan === bulan);
+      : _periodeListTampil.find(p => p.jenis === 'monev' && p.bulan === bulan && p.tahun === _kinerja_tahun);
     const tahunLabel = periodeMatch ? periodeMatch.tahun : _kinerja_tahun;
     items.push({ bulan, tahun: tahunLabel });
   }
   
   items.sort((a, b) => _isKinerjaAdmin() ? (a.bulan - b.bulan) : ((a.tahun * 100 + a.bulan) - (b.tahun * 100 + b.bulan)));
   sel.innerHTML = items.map(it =>
-    `<option value="${it.bulan}"${it.bulan === _kinerja_bulan ? ' selected' : ''}>${_twNama(it.bulan)}</option>`
+    `<option value="${it.bulan}"${it.bulan === _kinerja_bulan ? ' selected' : ''}>${_twNama(it.bulan)}${_suffixTutup('monev', it.bulan, it.tahun)}</option>`
   ).join('');
   sel.onchange = () => setKinerjaBulan(parseInt(sel.value));
   if (typeof syncCustomSelect === 'function') syncCustomSelect('bulanSelector');
@@ -526,7 +578,7 @@ function _renderPeriodeInfo() {
   }
 
   
-  const _monevAktif = _periodeListTerbuka.filter(p => p.jenis === 'monev');
+  const _monevAktif = _periodeTampilByJenis('monev');
   if (_monevAktif.length === 0) {
     if (kWrapper) kWrapper.style.display = 'none';
     return;
@@ -538,10 +590,10 @@ function _renderPeriodeInfo() {
 function setKinerjaBulan(bulan) {
   
   if (!_isKinerjaAdmin()) {
-    const bulanTerbuka = new Set(_periodeListTerbuka.filter(p => p.jenis === 'monev').map(p => p.bulan));
+    const bulanTerbuka = new Set(_periodeListTampil.filter(p => p.jenis === 'monev' && p.tahun === _kinerja_tahun).map(p => p.bulan));
     if (!bulanTerbuka.has(bulan)) return;
     
-    const periodeMatch = _periodeListTerbuka.find(p => p.jenis === 'monev' && p.bulan === bulan);
+    const periodeMatch = _periodeListTampil.find(p => p.jenis === 'monev' && p.bulan === bulan && p.tahun === _kinerja_tahun);
     if (periodeMatch) _kinerja_tahun = periodeMatch.tahun;
   }
   _kinerja_bulan = bulan;
@@ -563,7 +615,7 @@ async function loadKinerjaRekap() {
   if (!tbody) return;
 
   
-  if (!_isKinerjaAdmin() && !_periodeListTerbuka.some(p => p.jenis === 'monev')) {
+  if (!_isKinerjaAdmin() && !_periodeTampilByJenis('monev').length) {
     
     const tableCard = tbody.closest('.card');
     if (tableCard) tableCard.style.display = 'none';
@@ -848,9 +900,7 @@ function renderKinerjaTable(tbody) {
       <td class="textarea-cell" style="text-align:left;vertical-align:top">
         ${_renderPSCell('rencana', row.id, row.rencana_tl, capaian, canEdit, 'rencana tindak lanjut', 'markDirty', !!row.realisasi_id, true, row.tipe_nilai === 'predikat', row.realisasi == null && !row.realisasi_id)}
       </td>
-      <td style="text-align:center" data-col="dukung">
-        ${_renderDukungBtn(row, _kinerja_bulan, _kinerja_tahun, 'monev', !row.realisasi_id)}
-      </td>
+      <td class="textarea-cell" style="text-align:left;vertical-align:top" data-col="dukung">${_renderDukungInlineCell(row, canEdit, 'monev')}</td>
       <td style="text-align:center;white-space:nowrap">
         ${canEdit ? `
           <button class="btn-edit-row" id="editbtn_${row.id}" data-tip="Edit baris ini"
@@ -903,7 +953,7 @@ function renderKinerjaTable(tbody) {
 function toggleEditRow(indikatorId) {
   
   if (!_isKinerjaAdmin() && !_isMonevInputOpen()) {
-    const pa = _periodeListTerbuka.find(p => p.jenis === 'monev' && p.bulan === _kinerja_bulan) ?? null;
+    const pa = _periodeListTampil.find(p => p.jenis === 'monev' && p.bulan === _kinerja_bulan && p.tahun === _kinerja_tahun) ?? null;
     const close = pa?.close_at ? new Date(pa.close_at) : null;
     const now   = new Date();
     if (close && now > close) {
@@ -975,69 +1025,8 @@ function toggleEditRow(indikatorId) {
     }
   });
   
-  const dukungBtn     = document.querySelector(`[data-dukung-id="${indikatorId}"] .dukung-uploaded-btn`);
-  const uploadOnlyBtn = document.querySelector(`tr[data-id="${indikatorId}"] .dukung-upload-btn`);
-
-  if (dukungBtn) {
-    if (isReadonly) {
-      dukungBtn.disabled = false;
-      dukungBtn.style.cursor = 'pointer';
-      dukungBtn.style.opacity = '1';
-      dukungBtn.dataset.tip = 'Kelola / ganti link data dukung';
-      const twV = dukungBtn.dataset.tw;
-      const tahunV = dukungBtn.dataset.tahun;
-      dukungBtn.onclick = () => openDukungModal(indikatorId, parseInt(twV), parseInt(tahunV));
-    } else {
-      dukungBtn.disabled = true;
-      dukungBtn.style.cursor = 'not-allowed';
-      dukungBtn.style.opacity = '.85';
-      dukungBtn.dataset.tip = 'Klik Edit terlebih dahulu untuk mengganti link';
-      dukungBtn.onclick = null;
-    }
-  }
-
-  const deleteBtn = document.querySelector(`tr[data-id="${indikatorId}"] .dukung-delete-btn`);
-  if (deleteBtn) {
-    if (isReadonly) {
-      deleteBtn.disabled = false;
-      deleteBtn.style.cursor = 'pointer';
-      deleteBtn.style.opacity = '1';
-      deleteBtn.dataset.tip = 'Hapus link data dukung';
-      const twV    = deleteBtn.dataset.tw;
-      const tahunV = deleteBtn.dataset.tahun;
-      const srcV   = deleteBtn.dataset.source;
-      deleteBtn.onclick = () => deleteDukungAll(indikatorId, parseInt(twV), parseInt(tahunV), srcV);
-    } else {
-      deleteBtn.disabled = true;
-      deleteBtn.style.cursor = 'not-allowed';
-      deleteBtn.style.opacity = '.5';
-      deleteBtn.dataset.tip = 'Klik Edit terlebih dahulu untuk menghapus link';
-      deleteBtn.onclick = null;
-    }
-  }
-
-  if (uploadOnlyBtn) {
-    if (isReadonly) {
-      
-      uploadOnlyBtn.disabled = false;
-      uploadOnlyBtn.style.cursor = 'pointer';
-      uploadOnlyBtn.style.opacity = '1';
-      uploadOnlyBtn.style.borderStyle = 'solid';
-      uploadOnlyBtn.dataset.tip = 'Isi link data dukung';
-      const twV    = uploadOnlyBtn.dataset.tw;
-      const tahunV = uploadOnlyBtn.dataset.tahun;
-      const src    = uploadOnlyBtn.dataset.source;
-      uploadOnlyBtn.onclick = () => triggerDukungUpload(indikatorId, parseInt(twV), parseInt(tahunV), src);
-    } else {
-      
-      uploadOnlyBtn.disabled = true;
-      uploadOnlyBtn.style.cursor = 'not-allowed';
-      uploadOnlyBtn.style.opacity = '.65';
-      uploadOnlyBtn.style.borderStyle = 'dashed';
-      uploadOnlyBtn.dataset.tip = 'Klik Edit terlebih dahulu untuk mengisi link';
-      uploadOnlyBtn.onclick = null;
-    }
-  }
+  // Data Dukung (link): buka input saat Edit, kunci + buang isian belum tersimpan saat batal
+  _setDukungCellMode(indikatorId, 'monev', isReadonly);
 
   if (isReadonly) {
     
@@ -1085,7 +1074,7 @@ function toggleEditRow(indikatorId) {
 function toggleIkkEditRow(indikatorId) {
   // Guard: non-admin tidak bisa edit di luar window ikk
   if (!_isKinerjaAdmin() && !_isIkkInputOpen()) {
-    const pa = _periodeListTerbuka.find(p => p.jenis === 'ikk' && p.bulan === _ikk_bulan) ?? null;
+    const pa = _periodeListTampil.find(p => p.jenis === 'ikk' && p.bulan === _ikk_bulan && p.tahun === _ikk_tahun) ?? null;
     const close = pa?.close_at ? new Date(pa.close_at) : null;
     const now   = new Date();
     if (close && now > close) {
@@ -1157,67 +1146,8 @@ function toggleIkkEditRow(indikatorId) {
     }
   });
   
-  const ikkDukungBtn     = document.querySelector(`[data-dukung-id="${indikatorId}"] .dukung-uploaded-btn`);
-  const ikkUploadOnlyBtn = document.querySelector(`tr[data-id="${indikatorId}"] .dukung-upload-btn`);
-
-  if (ikkDukungBtn) {
-    if (isReadonly) {
-      ikkDukungBtn.disabled = false;
-      ikkDukungBtn.style.cursor = 'pointer';
-      ikkDukungBtn.style.opacity = '1';
-      ikkDukungBtn.dataset.tip = 'Kelola / ganti link data dukung';
-      const twV = ikkDukungBtn.dataset.tw;
-      const tahunV = ikkDukungBtn.dataset.tahun;
-      ikkDukungBtn.onclick = () => openIkkDukungModal(indikatorId, parseInt(twV), parseInt(tahunV));
-    } else {
-      ikkDukungBtn.disabled = true;
-      ikkDukungBtn.style.cursor = 'not-allowed';
-      ikkDukungBtn.style.opacity = '.85';
-      ikkDukungBtn.dataset.tip = 'Klik Edit terlebih dahulu untuk mengganti link';
-      ikkDukungBtn.onclick = null;
-    }
-  }
-
-  const ikkDeleteBtn = document.querySelector(`tr[data-id="${indikatorId}"] .dukung-delete-btn`);
-  if (ikkDeleteBtn) {
-    if (isReadonly) {
-      ikkDeleteBtn.disabled = false;
-      ikkDeleteBtn.style.cursor = 'pointer';
-      ikkDeleteBtn.style.opacity = '1';
-      ikkDeleteBtn.dataset.tip = 'Hapus link data dukung';
-      const twV    = ikkDeleteBtn.dataset.tw;
-      const tahunV = ikkDeleteBtn.dataset.tahun;
-      const srcV   = ikkDeleteBtn.dataset.source;
-      ikkDeleteBtn.onclick = () => deleteDukungAll(indikatorId, parseInt(twV), parseInt(tahunV), srcV);
-    } else {
-      ikkDeleteBtn.disabled = true;
-      ikkDeleteBtn.style.cursor = 'not-allowed';
-      ikkDeleteBtn.style.opacity = '.5';
-      ikkDeleteBtn.dataset.tip = 'Klik Edit terlebih dahulu untuk menghapus link';
-      ikkDeleteBtn.onclick = null;
-    }
-  }
-
-  if (ikkUploadOnlyBtn) {
-    if (isReadonly) {
-      ikkUploadOnlyBtn.disabled = false;
-      ikkUploadOnlyBtn.style.cursor = 'pointer';
-      ikkUploadOnlyBtn.style.opacity = '1';
-      ikkUploadOnlyBtn.style.borderStyle = 'solid';
-      ikkUploadOnlyBtn.dataset.tip = 'Isi link data dukung';
-      const twV    = ikkUploadOnlyBtn.dataset.tw;
-      const tahunV = ikkUploadOnlyBtn.dataset.tahun;
-      const src    = ikkUploadOnlyBtn.dataset.source;
-      ikkUploadOnlyBtn.onclick = () => triggerDukungUpload(indikatorId, parseInt(twV), parseInt(tahunV), src);
-    } else {
-      ikkUploadOnlyBtn.disabled = true;
-      ikkUploadOnlyBtn.style.cursor = 'not-allowed';
-      ikkUploadOnlyBtn.style.opacity = '.65';
-      ikkUploadOnlyBtn.style.borderStyle = 'dashed';
-      ikkUploadOnlyBtn.dataset.tip = 'Klik Edit terlebih dahulu untuk mengisi link';
-      ikkUploadOnlyBtn.onclick = null;
-    }
-  }
+  // Data Dukung (link): buka input saat Edit, kunci + buang isian belum tersimpan saat batal
+  _setDukungCellMode(indikatorId, 'ikk', isReadonly);
 
   if (isReadonly) {
     
@@ -1355,7 +1285,7 @@ function _updateSaveBtnState(indikatorId) {
     solusiVal:      document.getElementById(`solusi_${indikatorId}`)?.value ?? '',
     fpendukungVal:  document.getElementById(`fpendukung_${indikatorId}`)?.value ?? '',
     rencanaVal:     document.getElementById(`rencana_${indikatorId}`)?.value ?? '',
-    hasDukung:      !!row?.data_dukung_url,
+    hasDukung:      _dukungHasLink(indikatorId, 'monev', row),
   };
   const ok = _canSaveRow(fieldArgs);
   const okUpload = _canSaveRow(fieldArgs, false);
@@ -1364,31 +1294,8 @@ function _updateSaveBtnState(indikatorId) {
   btn.style.color      = ok ? '#fff'    : '';
   btn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/><path d="M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7"/><path d="M7 3v4a1 1 0 0 0 1 1h7"/></svg> Simpan`;
 
-  // Enable/disable tombol Upload berdasarkan kondisi field wajib
-  const _uploadBtn_iku = document.querySelector(`tr[data-id="${indikatorId}"] .dukung-upload-btn`);
-  if (_uploadBtn_iku && !_uploadBtn_iku.classList.contains('dukung-uploaded-btn')) {
-    if (okUpload) {
-      _uploadBtn_iku.disabled = false;
-      _uploadBtn_iku.style.cursor = 'pointer';
-      _uploadBtn_iku.style.opacity = '1';
-      _uploadBtn_iku.style.borderStyle = 'dashed';
-      _uploadBtn_iku.style.borderColor = '#6ee7b7';
-      _uploadBtn_iku.style.background = '#ecfdf5';
-      _uploadBtn_iku.style.color = '#065f46';
-      _uploadBtn_iku.dataset.tip = 'Isi link data dukung';
-      _uploadBtn_iku.onclick = () => _openDukungFromBtn(_uploadBtn_iku);
-    } else {
-      _uploadBtn_iku.disabled = true;
-      _uploadBtn_iku.style.cursor = 'not-allowed';
-      _uploadBtn_iku.style.opacity = '.65';
-      _uploadBtn_iku.style.borderStyle = 'dashed';
-      _uploadBtn_iku.style.borderColor = '#fca5a5';
-      _uploadBtn_iku.style.background = '#fee2e2';
-      _uploadBtn_iku.style.color = '#991b1b';
-      _uploadBtn_iku.dataset.tip = 'Isi realisasi dan field wajib terlebih dahulu';
-      _uploadBtn_iku.onclick = null;
-    }
-  }
+  _dukungSetEnabled(indikatorId, 'monev', okUpload);
+  _dukungSyncErr(indikatorId, 'monev', false);
 }
 
 function _hitungRealisasiEfektifPreview(row, realisasiInput) {
@@ -1484,6 +1391,10 @@ async function saveRealisasiRow(indikatorId) {
     }
   }
 
+  // Data Dukung (link) - wajib, diisi langsung di sel & ikut tersimpan bersama baris ini
+  const _dk = _dukungPrepareSave(indikatorId, 'monev');
+  if (!_dk) return;
+
   if (btn) {
     btn.disabled = true;
     btn.innerHTML = `<span class="btn-spin" style="width:11px;height:11px"></span> Menyimpan...`;
@@ -1496,6 +1407,7 @@ async function saveRealisasiRow(indikatorId) {
         realisasi: real !== '' ? parseFloat(real) : null,
         realisasi_display: _getRealisasiDisplayFromEl(realEl, row, real),
         f_penghambat: fpenghambat || null, solusi: solusi || null, f_pendukung: fpendukung || null, rencana_tl: rencana || null,
+        ...(_dk.changed ? { data_dukung_url: _dk.json, data_dukung_nama: _dk.name } : {}),
       }),
     });
     const d = await r.json();
@@ -1517,7 +1429,6 @@ async function saveRealisasiRow(indikatorId) {
         }
       });
       
-      _lockDukungButtons(indikatorId);
       
       _ensureResetBtn(indikatorId, '', 'monev');
       
@@ -1548,7 +1459,10 @@ async function saveRealisasiRow(indikatorId) {
         _kinerjaData[idx].f_pendukung       = d.realisasi?.f_pendukung ?? null;
         _kinerjaData[idx].rencana_tl        = d.realisasi?.rencana_tl ?? null;
         _kinerjaData[idx].realisasi_id      = d.realisasi?.id ?? _kinerjaData[idx].realisasi_id;
+        if (_dk.changed) { _kinerjaData[idx].data_dukung_url = _dk.json; _kinerjaData[idx].data_dukung_nama = _dk.name; }
       }
+      // Kunci sel link SETELAH data lokal diperbarui (supaya link baru tampil)
+      _setDukungCellMode(indikatorId, 'monev', false);
       
       
       fetch(`/api/kinerja/rekap?bulan=${_kinerja_bulan}&tahun=${_kinerja_tahun}`, { headers: authHeaders() })
@@ -3748,8 +3662,35 @@ function _removeDukungFile(idx) {
   setTimeout(() => document.getElementById('dukungLinkInput')?.focus(), 60);
 }
 
+let _dukungSaving = false;
+
+// Tampilkan/sembunyikan status "Menyimpan..." di modal Data Dukung (cegah klik ganda & kasih feedback).
+function _setDukungSaving(on) {
+  _dukungSaving = on;
+  const btn = document.getElementById('dukungSaveBtn');
+  if (btn) {
+    if (on) {
+      if (btn.dataset.html === undefined) btn.dataset.html = btn.innerHTML;
+      btn.disabled = true;
+      btn.style.opacity = '.75';
+      btn.style.cursor = 'progress';
+      btn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:6px;vertical-align:-2px;animation:spin .7s linear infinite"><path stroke-linecap="round" d="M12 3a9 9 0 1 0 9 9"/></svg>Menyimpan…';
+    } else {
+      btn.disabled = false;
+      btn.style.opacity = '';
+      btn.style.cursor = '';
+      if (btn.dataset.html !== undefined) { btn.innerHTML = btn.dataset.html; delete btn.dataset.html; }
+    }
+  }
+  const inp = document.getElementById('dukungLinkInput');
+  if (inp) inp.disabled = on;
+  document.querySelectorAll('#modalDukung .modal-footer .btn-ghost, #modalDukung .btn-close, #dukungFilePreview button')
+    .forEach(b => { b.disabled = on; });
+}
+
 async function saveDukung() {
   if (_dukungState.readonly) return;
+  if (_dukungSaving) return;
   // Kalau ada link yang sudah ditempel tapi belum ditekan "Tambah", validasi & tambahkan dulu
   const inp = document.getElementById('dukungLinkInput');
   if (inp && inp.value.trim() && !tambahDukungLink()) return;
@@ -3760,6 +3701,7 @@ async function saveDukung() {
   if (doneFiles.length > 1) { toast('Data dukung hanya boleh 1 link. Hapus link yang lain dulu.', 'error'); return; }
   const urlJson  = JSON.stringify(doneFiles);
   const nameStr  = doneFiles.map(f => f.name).join(', ');
+  _setDukungSaving(true);
   try {
     const r = await fetch('/api/kinerja/realisasi', {
       method: 'POST', headers: authHeaders(),
@@ -3786,6 +3728,7 @@ async function saveDukung() {
       dataArr[idx].data_dukung_url  = urlJson;
       dataArr[idx].data_dukung_nama = nameStr;
     }
+    _setDukungSaving(false);
     closeModal('modalDukung');
 
     // Update HANYA sel Data Dukung + hitung ulang status tombol Simpan. Jangan render ulang
@@ -3806,6 +3749,7 @@ async function saveDukung() {
       renderFn(); // fallback kalau barisnya tidak ditemukan di DOM
     }
   } catch { toast('Gagal menyimpan data dukung', 'error'); }
+  finally { if (_dukungSaving) _setDukungSaving(false); }
 }
 
 async function initIkkControls() {
@@ -3813,12 +3757,7 @@ async function initIkkControls() {
   
   
   await Promise.all([
-    !_periodeListTerbuka.length
-      ? fetch('/api/periode/aktif')
-          .then(r => r.ok ? r.json() : null)
-          .then(d => { if (d) _periodeListTerbuka = d.periode || []; })
-          .catch(() => { _periodeListTerbuka = []; })
-      : Promise.resolve(),
+    _refreshPeriodeKinerja(),
     _ensureUserIndikatorIds(),
     (isAdmin && !_allPeriodeList.length)
       ? fetch('/api/periode', { headers: authHeaders() })
@@ -3828,11 +3767,11 @@ async function initIkkControls() {
       : Promise.resolve(),
   ]);
   
-  const _ikkTerbuka = _periodeListTerbuka.filter(p => p.jenis === 'ikk')
-    .sort((a, b) => a.tahun !== b.tahun ? a.tahun - b.tahun : a.bulan - b.bulan);
-  if (_ikkTerbuka.length) {
-    _ikk_tahun = _ikkTerbuka[0].tahun;
-    _ikk_bulan = _ikkTerbuka[0].bulan;
+  const _ikkTerbuka = _periodeTampilByJenis('ikk');
+  const _def_ikk = _pickDefaultPeriode('ikk');
+  if (_def_ikk) {
+    _ikk_tahun = _def_ikk.tahun;
+    _ikk_bulan = _def_ikk.bulan;
   } else if (_isKinerjaAdmin()) {
     
     _ikk_tahun = new Date().getFullYear();
@@ -3855,20 +3794,20 @@ function _syncIkkBulanButtons() {
   const sel = document.getElementById('ikkBulanSelector');
   if (!sel) return;
   
-  const bulanTerbuka = new Set(_periodeListTerbuka.filter(p => p.jenis === 'ikk').map(p => p.bulan));
+  const bulanTerbuka = new Set(_periodeListTampil.filter(p => p.jenis === 'ikk' && p.tahun === _ikk_tahun).map(p => p.bulan));
   const items = [];
   for (const bulan of TW_BULAN) {
     const isTampil = _isKinerjaAdmin() ? true : bulanTerbuka.has(bulan);
     if (!isTampil) continue;
     const periodeMatch = _isKinerjaAdmin()
       ? _allPeriodeList.find(p => p.jenis === 'ikk' && p.bulan === bulan && p.tahun === _ikk_tahun)
-      : _periodeListTerbuka.find(p => p.jenis === 'ikk' && p.bulan === bulan);
+      : _periodeListTampil.find(p => p.jenis === 'ikk' && p.bulan === bulan && p.tahun === _ikk_tahun);
     const tahunLabel = periodeMatch ? periodeMatch.tahun : _ikk_tahun;
     items.push({ bulan, tahun: tahunLabel });
   }
   items.sort((a, b) => _isKinerjaAdmin() ? (a.bulan - b.bulan) : ((a.tahun * 100 + a.bulan) - (b.tahun * 100 + b.bulan)));
   sel.innerHTML = items.map(it =>
-    `<option value="${it.bulan}"${it.bulan === _ikk_bulan ? ' selected' : ''}>${_twNama(it.bulan)}</option>`
+    `<option value="${it.bulan}"${it.bulan === _ikk_bulan ? ' selected' : ''}>${_twNama(it.bulan)}${_suffixTutup('ikk', it.bulan, it.tahun)}</option>`
   ).join('');
   sel.onchange = () => setIkkBulan(parseInt(sel.value));
   if (typeof syncCustomSelect === 'function') syncCustomSelect('ikkBulanSelector');
@@ -3889,7 +3828,7 @@ function _renderIkkPeriodeInfo() {
   }
 
   
-  const _ikkAktif = _periodeListTerbuka.filter(p => p.jenis === 'ikk');
+  const _ikkAktif = _periodeTampilByJenis('ikk');
   if (_ikkAktif.length === 0) {
     if (iWrapper) iWrapper.style.display = 'none';
     return;
@@ -3901,10 +3840,10 @@ function _renderIkkPeriodeInfo() {
 function setIkkBulan(bulan) {
   
   if (!_isKinerjaAdmin()) {
-    const bulanTerbuka = new Set(_periodeListTerbuka.filter(p => p.jenis === 'ikk').map(p => p.bulan));
+    const bulanTerbuka = new Set(_periodeListTampil.filter(p => p.jenis === 'ikk' && p.tahun === _ikk_tahun).map(p => p.bulan));
     if (!bulanTerbuka.has(bulan)) return;
     
-    const periodeMatch = _periodeListTerbuka.find(p => p.jenis === 'ikk' && p.bulan === bulan);
+    const periodeMatch = _periodeListTampil.find(p => p.jenis === 'ikk' && p.bulan === bulan && p.tahun === _ikk_tahun);
     if (periodeMatch) _ikk_tahun = periodeMatch.tahun;
   }
   _ikk_bulan = bulan;
@@ -3919,7 +3858,7 @@ async function loadIkkRekap() {
   if (!tbody) return;
 
   
-  if (!_isKinerjaAdmin() && !_periodeListTerbuka.some(p => p.jenis === 'ikk')) {
+  if (!_isKinerjaAdmin() && !_periodeTampilByJenis('ikk').length) {
     
     const tableCard = tbody.closest('.card');
     if (tableCard) tableCard.style.display = 'none';
@@ -3975,6 +3914,149 @@ function filterIkkTable() {
   _ikkSearch = (document.getElementById('ikkSearch')?.value || '').trim().toLowerCase();
   _ikkPage = 1;
   _renderIkkTable(document.getElementById('ikkTableBody'));
+}
+
+// ═══ Data Dukung (link) = kolom isian inline (IKU / IKK / SPM / Sub Kegiatan) ═══
+// Tidak ada tombol "Isi Link" / modal lagi: link diketik/ditempel langsung di sel dan
+// ikut tersimpan lewat tombol Simpan baris yang sama. Pakai <input> biasa (bukan .ps-rte)
+// supaya karakter di URL (_ * dst.) tidak diubah oleh markdown-lite.
+// jenis: 'monev' (IKU) | 'ikk' | 'spm' | 'subkeg'
+const _DK_PREFIX = { monev: '', ikk: 'ikk_', spm: 'spm_', subkeg: 'subkeg_' };
+const _DK_MARK   = { monev: 'markDirty', ikk: 'markIkkDirty', spm: 'markSpmDirty', subkeg: 'markSubkegDirty' };
+function _dkArr(jenis) {
+  return jenis === 'ikk' ? _ikkData : jenis === 'spm' ? _spmData : jenis === 'subkeg' ? _subkegData : _kinerjaData;
+}
+
+function _dukungFirstFile(row) {
+  if (!row || !row.data_dukung_url) return null;
+  try {
+    const p = JSON.parse(row.data_dukung_url);
+    const arr = Array.isArray(p)
+      ? p.filter(f => f && f.url)
+      : [{ url: row.data_dukung_url, name: row.data_dukung_nama || 'Dokumen' }];
+    return arr[0] || null;
+  } catch {
+    return { url: row.data_dukung_url, name: row.data_dukung_nama || 'Dokumen' };
+  }
+}
+
+function _dukungReadHtml(url) {
+  if (!url) return '<span style="color:var(--teks-muted)">-</span>';
+  if (!/^https?:\/\//i.test(url)) return `<span>${escHtml(url)}</span>`;
+  return `<a href="${escHtml(url)}" target="_blank" rel="noopener noreferrer" data-tip="${escHtml(url)}">
+    <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.2"><path stroke-linecap="round" stroke-linejoin="round" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"/></svg>
+    <span>Lihat Data Dukung</span></a>`;
+}
+
+function _renderDukungInlineCell(row, canEdit, jenis) {
+  const p      = _DK_PREFIX[jenis] ?? '';
+  const f      = _dukungFirstFile(row);
+  const url    = f?.url || '';
+  const locked = !!row.realisasi_id || !canEdit;
+  return `<div class="dukung-inline" id="${p}dukungwrap_${row.id}">
+    <div class="dukung-inline-read" id="${p}dukungread_${row.id}" style="${locked ? '' : 'display:none'}">${_dukungReadHtml(url)}</div>
+    <input type="text" class="dukung-inline-input" id="${p}dukung_${row.id}"
+      value="${escHtml(url)}" placeholder="Tempel link (https://...)"
+      inputmode="url" autocomplete="off" spellcheck="false"
+      ${locked ? 'readonly' : 'disabled'} style="display:none"
+      oninput="${_DK_MARK[jenis]}(${row.id})" onblur="_dukungSyncErr(${row.id}, '${jenis}', true)">
+    <div class="dukung-inline-err" id="${p}dukungerr_${row.id}" style="display:none"></div>
+  </div>`;
+}
+
+// Status isian link di sel (dipakai untuk enable tombol Simpan & saat simpan)
+function _dukungInputState(indikatorId, jenis) {
+  const el = document.getElementById(`${_DK_PREFIX[jenis] ?? ''}dukung_${indikatorId}`);
+  if (!el) return { exists: false, raw: '', valid: false, empty: true };
+  const raw = (el.value || '').trim();
+  if (!raw) return { exists: true, raw, valid: false, empty: true };
+  const res = _validateDukungLink(raw, []);
+  return res.ok
+    ? { exists: true, raw, valid: true, empty: false, url: res.url, name: res.name }
+    : { exists: true, raw, valid: false, empty: false, msg: res.msg };
+}
+
+// Dipakai _canSaveRow: kalau sel link ada di DOM, nilai isiannya yang menentukan;
+// kalau tidak ada, pakai data tersimpan.
+function _dukungHasLink(indikatorId, jenis, row) {
+  const st = _dukungInputState(indikatorId, jenis);
+  return st.exists ? st.valid : !!row?.data_dukung_url;
+}
+
+// Input link baru aktif setelah realisasi + field wajib (penghambat/solusi atau
+// pendukung/rencana) terisi - sama seperti syarat tombol "Isi Link" sebelumnya.
+function _dukungSetEnabled(indikatorId, jenis, enabled) {
+  const inp = document.getElementById(`${_DK_PREFIX[jenis] ?? ''}dukung_${indikatorId}`);
+  if (!inp || inp.hasAttribute('readonly')) return;
+  inp.disabled = !enabled;
+  // Belum aktif -> field disembunyikan total; muncul setelah isian wajib terpenuhi
+  inp.style.display = enabled ? '' : 'none';
+  if (!enabled) {
+    const err = document.getElementById(`${_DK_PREFIX[jenis] ?? ''}dukungerr_${indikatorId}`);
+    if (err) { err.textContent = ''; err.style.display = 'none'; }
+    inp.classList.remove('is-invalid');
+  }
+}
+
+// Pesan error di bawah input: hanya muncul kalau ada isi tapi bukan link valid
+// (saat blur / saat simpan). Selama mengetik pesan disembunyikan.
+function _dukungSyncErr(indikatorId, jenis, showErrors) {
+  const p   = _DK_PREFIX[jenis] ?? '';
+  const inp = document.getElementById(`${p}dukung_${indikatorId}`);
+  const err = document.getElementById(`${p}dukungerr_${indikatorId}`);
+  if (!inp || !err) return;
+  const st = _dukungInputState(indikatorId, jenis);
+  const showMsg = !!showErrors && !st.valid && !st.empty;
+  err.textContent = showMsg ? (st.msg || 'Link tidak valid.') : '';
+  err.style.display = showMsg ? '' : 'none';
+  inp.classList.toggle('is-invalid', showMsg);
+}
+
+// editing=true -> tampilkan input; false -> kunci & tampilkan link tersimpan
+// (isian yang belum disimpan dibuang / disinkronkan ke data tersimpan)
+function _setDukungCellMode(indikatorId, jenis, editing) {
+  const p   = _DK_PREFIX[jenis] ?? '';
+  const inp = document.getElementById(`${p}dukung_${indikatorId}`);
+  const rd  = document.getElementById(`${p}dukungread_${indikatorId}`);
+  const err = document.getElementById(`${p}dukungerr_${indikatorId}`);
+  if (!inp || !rd) return;
+  if (editing) {
+    rd.style.display = 'none';
+    inp.removeAttribute('readonly');
+    return;
+  }
+  const row = _dkArr(jenis).find(r => r.id === indikatorId);
+  const f   = _dukungFirstFile(row);
+  inp.value = f?.url || '';
+  inp.setAttribute('readonly', '');
+  inp.disabled = false;
+  inp.style.display = 'none';
+  inp.classList.remove('is-invalid');
+  if (err) { err.textContent = ''; err.style.display = 'none'; }
+  rd.innerHTML = _dukungReadHtml(f?.url || '');
+  rd.style.display = '';
+  // Peringatan "link belum diisi" (baris lama tanpa link) dihapus begitu link tersimpan
+  if (f?.url) rd.closest('td')?.querySelectorAll('.dukung-warning').forEach(w => w.remove());
+}
+
+// Validasi + siapkan payload Data Dukung untuk Simpan baris.
+// Return null kalau tidak valid (toast sudah tampil) -> Simpan dibatalkan.
+function _dukungPrepareSave(indikatorId, jenis) {
+  const row = _dkArr(jenis).find(r => r.id === indikatorId);
+  const st  = _dukungInputState(indikatorId, jenis);
+  if (st.exists && !st.valid) {
+    _dukungSyncErr(indikatorId, jenis, true);
+    toast(st.empty ? 'Link Data Dukung wajib diisi.' : (st.msg || 'Link Data Dukung tidak valid.'), 'error');
+    document.getElementById(`${_DK_PREFIX[jenis] ?? ''}dukung_${indikatorId}`)?.focus();
+    return null;
+  }
+  const saved   = _dukungFirstFile(row);
+  const changed = st.exists && (!saved || (st.raw !== saved.url && st.url !== saved.url));
+  return {
+    changed,
+    json: changed ? JSON.stringify([{ url: st.url, name: st.name, link: true }]) : null,
+    name: changed ? st.name : null,
+  };
 }
 
 function _renderIkkTable(tbody) {
@@ -4071,7 +4153,7 @@ function _renderIkkTable(tbody) {
       <td class="textarea-cell" style="text-align:left;vertical-align:top">
         ${_renderPSCell('ikk_rencana', row.id, row.rencana_tl, capaian, canEdit, 'rencana tindak lanjut', 'markIkkDirty', !!row.realisasi_id, true, row.tipe_nilai === 'predikat', row.realisasi == null && !row.realisasi_id)}
       </td>
-      <td style="text-align:center" data-col="dukung">${_renderDukungBtn(row, _ikk_bulan, _ikk_tahun, 'ikk', !row.realisasi_id)}</td>
+      <td class="textarea-cell" style="text-align:left;vertical-align:top" data-col="dukung">${_renderDukungInlineCell(row, canEdit, 'ikk')}</td>
       <td style="text-align:center;white-space:nowrap">
         ${canEdit ? `
           <button class="btn-edit-row" id="ikk_editbtn_${row.id}" data-tip="Edit baris ini"
@@ -4154,7 +4236,7 @@ function _updateIkkSaveBtnState(indikatorId) {
     solusiVal:      document.getElementById(`ikk_solusi_${indikatorId}`)?.value ?? '',
     fpendukungVal:  document.getElementById(`ikk_fpendukung_${indikatorId}`)?.value ?? '',
     rencanaVal:     document.getElementById(`ikk_rencana_${indikatorId}`)?.value ?? '',
-    hasDukung:      !!row?.data_dukung_url,
+    hasDukung:      _dukungHasLink(indikatorId, 'ikk', row),
   };
   const ok = _canSaveRow(fieldArgs);
   const okUpload = _canSaveRow(fieldArgs, false);
@@ -4162,31 +4244,8 @@ function _updateIkkSaveBtnState(indikatorId) {
   btn.style.background = ok ? '#0d9488' : '';
   btn.style.color      = ok ? '#fff'    : '';
 
-  // Enable/disable tombol Upload berdasarkan kondisi field wajib
-  const _uploadBtn_ikk = document.querySelector(`tr[data-id="${indikatorId}"] .dukung-upload-btn`);
-  if (_uploadBtn_ikk && !_uploadBtn_ikk.classList.contains('dukung-uploaded-btn')) {
-    if (okUpload) {
-      _uploadBtn_ikk.disabled = false;
-      _uploadBtn_ikk.style.cursor = 'pointer';
-      _uploadBtn_ikk.style.opacity = '1';
-      _uploadBtn_ikk.style.borderStyle = 'dashed';
-      _uploadBtn_ikk.style.borderColor = '#6ee7b7';
-      _uploadBtn_ikk.style.background = '#ecfdf5';
-      _uploadBtn_ikk.style.color = '#065f46';
-      _uploadBtn_ikk.dataset.tip = 'Isi link data dukung';
-      _uploadBtn_ikk.onclick = () => _openDukungFromBtn(_uploadBtn_ikk);
-    } else {
-      _uploadBtn_ikk.disabled = true;
-      _uploadBtn_ikk.style.cursor = 'not-allowed';
-      _uploadBtn_ikk.style.opacity = '.65';
-      _uploadBtn_ikk.style.borderStyle = 'dashed';
-      _uploadBtn_ikk.style.borderColor = '#fca5a5';
-      _uploadBtn_ikk.style.background = '#fee2e2';
-      _uploadBtn_ikk.style.color = '#991b1b';
-      _uploadBtn_ikk.dataset.tip = 'Isi realisasi dan field wajib terlebih dahulu';
-      _uploadBtn_ikk.onclick = null;
-    }
-  }
+  _dukungSetEnabled(indikatorId, 'ikk', okUpload);
+  _dukungSyncErr(indikatorId, 'ikk', false);
 }
 
 async function saveIkkRealisasiRow(indikatorId) {
@@ -4219,6 +4278,10 @@ async function saveIkkRealisasiRow(indikatorId) {
     }
   }
 
+  // Data Dukung (link) - wajib, diisi langsung di sel & ikut tersimpan bersama baris ini
+  const _dk = _dukungPrepareSave(indikatorId, 'ikk');
+  if (!_dk) return;
+
   if (btn) { btn.disabled = true; btn.innerHTML = `<span class="btn-spin" style="width:11px;height:11px"></span> Menyimpan...`; }
   try {
     const r = await fetch('/api/kinerja/realisasi', {
@@ -4228,6 +4291,7 @@ async function saveIkkRealisasiRow(indikatorId) {
         realisasi: real !== '' ? parseFloat(real) : null,
         realisasi_display: _getRealisasiDisplayFromEl(realEl, rowIkk, real),
         f_penghambat: fpenghambat || null, solusi: solusi || null, f_pendukung: fpendukung || null, rencana_tl: rencana || null,
+        ...(_dk.changed ? { data_dukung_url: _dk.json, data_dukung_nama: _dk.name } : {}),
       }),
     });
     const d = await r.json();
@@ -4276,6 +4340,7 @@ async function saveIkkRealisasiRow(indikatorId) {
         _ikkData[idx].f_pendukung       = d.realisasi?.f_pendukung ?? null;
         _ikkData[idx].rencana_tl        = d.realisasi?.rencana_tl ?? null;
         _ikkData[idx].realisasi_id      = d.realisasi?.id ?? _ikkData[idx].realisasi_id;
+        if (_dk.changed) { _ikkData[idx].data_dukung_url = _dk.json; _ikkData[idx].data_dukung_nama = _dk.name; }
       }
       
       fetch(`/api/kinerja/rekap?bulan=${_ikk_bulan}&tahun=${_ikk_tahun}&jenis=ikk`, { headers: authHeaders() })
@@ -4298,7 +4363,7 @@ async function saveIkkRealisasiRow(indikatorId) {
           }
         }).catch(() => {});
       
-      _lockDukungButtons(indikatorId);
+      _setDukungCellMode(indikatorId, 'ikk', false);
       
       _ensureResetBtn(indikatorId, 'ikk_', 'ikk');
       const _savedIkk = _ikkData[idx >= 0 ? idx : -1];
@@ -6161,12 +6226,7 @@ async function initSpmControls() {
   const isAdmin = _isKinerjaAdmin();
   // Sama kayak initIkkControls - 3 fetch independen ditembak paralel, bukan berurutan
   await Promise.all([
-    !_periodeListTerbuka.length
-      ? fetch('/api/periode/aktif')
-          .then(r => r.ok ? r.json() : null)
-          .then(d => { if (d) _periodeListTerbuka = d.periode || []; })
-          .catch(() => { _periodeListTerbuka = []; })
-      : Promise.resolve(),
+    _refreshPeriodeKinerja(),
     _ensureUserIndikatorIds(),
     (isAdmin && !_allPeriodeList.length)
       ? fetch('/api/periode', { headers: authHeaders() })
@@ -6175,11 +6235,11 @@ async function initSpmControls() {
           .catch(() => {})
       : Promise.resolve(),
   ]);
-  const _spmTerbuka = _periodeListTerbuka.filter(p => p.jenis === 'spm')
-    .sort((a, b) => a.tahun !== b.tahun ? a.tahun - b.tahun : a.bulan - b.bulan);
-  if (_spmTerbuka.length) {
-    _spm_tahun = _spmTerbuka[0].tahun;
-    _spm_bulan = _spmTerbuka[0].bulan;
+  const _spmTerbuka = _periodeTampilByJenis('spm');
+  const _def_spm = _pickDefaultPeriode('spm');
+  if (_def_spm) {
+    _spm_tahun = _def_spm.tahun;
+    _spm_bulan = _def_spm.bulan;
   } else if (_isKinerjaAdmin()) {
     _spm_tahun = new Date().getFullYear();
     _spm_bulan = _twBulanSekarang();
@@ -6204,9 +6264,8 @@ function setSpmTahun(tahun) {
     _populateTahunSelector('spmTahunSelect', _spm_tahun, setSpmTahun);
   } else {
     // Non-admin: pilih bulan pertama yang periodenya terbuka untuk tahun ini
-    const periodeThnIni = _periodeListTerbuka.filter(p => p.jenis === 'spm' && p.tahun === tahun)
-      .sort((a, b) => a.bulan - b.bulan);
-    if (periodeThnIni.length) _spm_bulan = periodeThnIni[0].bulan;
+    const _pp = _pickDefaultPeriode('spm', tahun);
+    if (_pp) _spm_bulan = _pp.bulan;
   }
   _syncSpmBulanButtons();
   _renderSpmPeriodeInfo();
@@ -6216,9 +6275,9 @@ function setSpmTahun(tahun) {
 
 function setSpmBulan(bulan) {
   if (!_isKinerjaAdmin()) {
-    const bulanTerbuka = new Set(_periodeListTerbuka.filter(p => p.jenis === 'spm').map(p => p.bulan));
+    const bulanTerbuka = new Set(_periodeListTampil.filter(p => p.jenis === 'spm' && p.tahun === _spm_tahun).map(p => p.bulan));
     if (!bulanTerbuka.has(bulan)) return;
-    const periodeMatch = _periodeListTerbuka.find(p => p.jenis === 'spm' && p.bulan === bulan);
+    const periodeMatch = _periodeListTampil.find(p => p.jenis === 'spm' && p.bulan === bulan && p.tahun === _spm_tahun);
     if (periodeMatch) _spm_tahun = periodeMatch.tahun;
   }
   _spm_bulan = bulan;
@@ -6231,20 +6290,20 @@ function setSpmBulan(bulan) {
 function _syncSpmBulanButtons() {
   const sel = document.getElementById('spmBulanSelector');
   if (!sel) return;
-  const bulanTerbuka = new Set(_periodeListTerbuka.filter(p => p.jenis === 'spm').map(p => p.bulan));
+  const bulanTerbuka = new Set(_periodeListTampil.filter(p => p.jenis === 'spm' && p.tahun === _spm_tahun).map(p => p.bulan));
   const items = [];
   for (const bulan of TW_BULAN) {
     const isTampil = _isKinerjaAdmin() ? true : bulanTerbuka.has(bulan);
     if (!isTampil) continue;
     const periodeMatch = _isKinerjaAdmin()
       ? _allPeriodeList.find(p => p.jenis === 'spm' && p.bulan === bulan && p.tahun === _spm_tahun)
-      : _periodeListTerbuka.find(p => p.jenis === 'spm' && p.bulan === bulan);
+      : _periodeListTampil.find(p => p.jenis === 'spm' && p.bulan === bulan && p.tahun === _spm_tahun);
     const tahunLabel = periodeMatch ? periodeMatch.tahun : _spm_tahun;
     items.push({ bulan, tahun: tahunLabel });
   }
   items.sort((a, b) => _isKinerjaAdmin() ? (a.bulan - b.bulan) : ((a.tahun * 100 + a.bulan) - (b.tahun * 100 + b.bulan)));
   sel.innerHTML = items.map(it =>
-    `<option value="${it.bulan}"${it.bulan === _spm_bulan ? ' selected' : ''}>${_twNama(it.bulan)}</option>`
+    `<option value="${it.bulan}"${it.bulan === _spm_bulan ? ' selected' : ''}>${_twNama(it.bulan)}${_suffixTutup('spm', it.bulan, it.tahun)}</option>`
   ).join('');
   sel.onchange = () => setSpmBulan(parseInt(sel.value));
   if (typeof syncCustomSelect === 'function') syncCustomSelect('spmBulanSelector');
@@ -6264,7 +6323,7 @@ function _renderSpmPeriodeInfo() {
     return;
   }
 
-  const _spmAktif = _periodeListTerbuka.filter(p => p.jenis === 'spm');
+  const _spmAktif = _periodeTampilByJenis('spm');
   if (_spmAktif.length === 0) {
     if (wrapper) wrapper.style.display = 'none';
     return;
@@ -6277,7 +6336,7 @@ async function loadSpmRekap() {
   const tbody = document.getElementById('spmTableBody');
   if (!tbody) return;
 
-  if (!_isKinerjaAdmin() && !_periodeListTerbuka.some(p => p.jenis === 'spm')) {
+  if (!_isKinerjaAdmin() && !_periodeTampilByJenis('spm').length) {
     const tableCard = tbody.closest('.card');
     if (tableCard) tableCard.style.display = 'none';
     let msgEl = document.getElementById('spmNoperiodeMsg');
@@ -6406,9 +6465,7 @@ function _renderSpmTable(tbody) {
       <td class="textarea-cell" style="text-align:left;vertical-align:top">
         ${_renderPSCell('spm_rencana', row.id, row.rencana_tl, capaian, canEdit, 'rencana tindak lanjut', 'markSpmDirty', !!row.realisasi_id, true, row.tipe_nilai === 'predikat', row.realisasi == null && !row.realisasi_id)}
       </td>
-      <td style="text-align:center" data-col="dukung">
-        ${_renderDukungBtn(row, _spm_bulan, _spm_tahun, 'spm', !row.realisasi_id)}
-      </td>
+      <td class="textarea-cell" style="text-align:left;vertical-align:top" data-col="dukung">${_renderDukungInlineCell(row, canEdit, 'spm')}</td>
       <td style="text-align:center;white-space:nowrap">
         ${canEdit ? `
           <button class="btn-edit-row" id="spm_editbtn_${row.id}" data-tip="Edit baris ini"
@@ -6461,7 +6518,7 @@ function _renderSpmTable(tbody) {
 
 function toggleSpmEditRow(indikatorId) {
   if (!_isKinerjaAdmin() && !_isKinerjaInputOpen(null, 'spm')) {
-    const pa = _periodeListTerbuka.find(p => p.jenis === 'spm' && p.bulan === _spm_bulan) ?? null;
+    const pa = _periodeListTampil.find(p => p.jenis === 'spm' && p.bulan === _spm_bulan && p.tahun === _spm_tahun) ?? null;
     const close = pa?.close_at ? new Date(pa.close_at) : null;
     if (close && new Date() > close) {
       toast('Periode input sudah ditutup. Data tidak dapat diubah.', 'error');
@@ -6532,67 +6589,8 @@ function toggleSpmEditRow(indikatorId) {
     }
   });
   
-  const dukungBtn     = document.querySelector(`[data-dukung-id="${indikatorId}"] .dukung-uploaded-btn`);
-  const uploadOnlyBtn = document.querySelector(`tr[data-id="${indikatorId}"] .dukung-upload-btn`);
-  const deleteBtn     = document.querySelector(`tr[data-id="${indikatorId}"] .dukung-delete-btn`);
-
-  if (dukungBtn) {
-    if (isReadonly) {
-      dukungBtn.disabled = false;
-      dukungBtn.style.cursor = 'pointer';
-      dukungBtn.style.opacity = '1';
-      dukungBtn.dataset.tip = 'Kelola / ganti link data dukung';
-      const twV = dukungBtn.dataset.tw;
-      const tahunV = dukungBtn.dataset.tahun;
-      dukungBtn.onclick = () => openSpmDukungModal(indikatorId, parseInt(twV), parseInt(tahunV));
-    } else {
-      dukungBtn.disabled = true;
-      dukungBtn.style.cursor = 'not-allowed';
-      dukungBtn.style.opacity = '.85';
-      dukungBtn.dataset.tip = 'Klik Edit terlebih dahulu untuk mengganti link';
-      dukungBtn.onclick = null;
-    }
-  }
-
-  if (deleteBtn) {
-    if (isReadonly) {
-      deleteBtn.disabled = false;
-      deleteBtn.style.cursor = 'pointer';
-      deleteBtn.style.opacity = '1';
-      deleteBtn.dataset.tip = 'Hapus link data dukung';
-      const twV    = deleteBtn.dataset.tw;
-      const tahunV = deleteBtn.dataset.tahun;
-      const srcV   = deleteBtn.dataset.source;
-      deleteBtn.onclick = () => deleteDukungAll(indikatorId, parseInt(twV), parseInt(tahunV), srcV);
-    } else {
-      deleteBtn.disabled = true;
-      deleteBtn.style.cursor = 'not-allowed';
-      deleteBtn.style.opacity = '.5';
-      deleteBtn.dataset.tip = 'Klik Edit terlebih dahulu untuk menghapus link';
-      deleteBtn.onclick = null;
-    }
-  }
-
-  if (uploadOnlyBtn) {
-    if (isReadonly) {
-      uploadOnlyBtn.disabled = false;
-      uploadOnlyBtn.style.cursor = 'pointer';
-      uploadOnlyBtn.style.opacity = '1';
-      uploadOnlyBtn.style.borderStyle = 'solid';
-      uploadOnlyBtn.dataset.tip = 'Isi link data dukung';
-      const twV    = uploadOnlyBtn.dataset.tw;
-      const tahunV = uploadOnlyBtn.dataset.tahun;
-      const src    = uploadOnlyBtn.dataset.source;
-      uploadOnlyBtn.onclick = () => triggerDukungUpload(indikatorId, parseInt(twV), parseInt(tahunV), src);
-    } else {
-      uploadOnlyBtn.disabled = true;
-      uploadOnlyBtn.style.cursor = 'not-allowed';
-      uploadOnlyBtn.style.opacity = '.65';
-      uploadOnlyBtn.style.borderStyle = 'dashed';
-      uploadOnlyBtn.dataset.tip = 'Klik Edit terlebih dahulu untuk mengisi link';
-      uploadOnlyBtn.onclick = null;
-    }
-  }
+  // Data Dukung (link): buka input saat Edit, kunci + buang isian belum tersimpan saat batal
+  _setDukungCellMode(indikatorId, 'spm', isReadonly);
 
   if (isReadonly) {
     if (tr) { tr.classList.remove('row-state-default', 'row-state-saved'); tr.classList.add('row-state-editing'); }
@@ -6644,7 +6642,7 @@ function _updateSpmSaveBtnState(indikatorId) {
     solusiVal:      document.getElementById(`spm_solusi_${indikatorId}`)?.value ?? '',
     fpendukungVal:  document.getElementById(`spm_fpendukung_${indikatorId}`)?.value ?? '',
     rencanaVal:     document.getElementById(`spm_rencana_${indikatorId}`)?.value ?? '',
-    hasDukung:      !!row?.data_dukung_url,
+    hasDukung:      _dukungHasLink(indikatorId, 'spm', row),
   };
   const ok = _canSaveRow(fieldArgs);
   const okUpload = _canSaveRow(fieldArgs, false);
@@ -6653,31 +6651,8 @@ function _updateSpmSaveBtnState(indikatorId) {
   btn.style.color      = ok ? '#fff'    : '';
   btn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/><path d="M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7"/><path d="M7 3v4a1 1 0 0 0 1 1h7"/></svg> Simpan`;
 
-  // Enable/disable tombol Upload berdasarkan kondisi field wajib
-  const _uploadBtn_spm = document.querySelector(`tr[data-id="${indikatorId}"] .dukung-upload-btn`);
-  if (_uploadBtn_spm && !_uploadBtn_spm.classList.contains('dukung-uploaded-btn')) {
-    if (okUpload) {
-      _uploadBtn_spm.disabled = false;
-      _uploadBtn_spm.style.cursor = 'pointer';
-      _uploadBtn_spm.style.opacity = '1';
-      _uploadBtn_spm.style.borderStyle = 'dashed';
-      _uploadBtn_spm.style.borderColor = '#6ee7b7';
-      _uploadBtn_spm.style.background = '#ecfdf5';
-      _uploadBtn_spm.style.color = '#065f46';
-      _uploadBtn_spm.dataset.tip = 'Isi link data dukung';
-      _uploadBtn_spm.onclick = () => _openDukungFromBtn(_uploadBtn_spm);
-    } else {
-      _uploadBtn_spm.disabled = true;
-      _uploadBtn_spm.style.cursor = 'not-allowed';
-      _uploadBtn_spm.style.opacity = '.65';
-      _uploadBtn_spm.style.borderStyle = 'dashed';
-      _uploadBtn_spm.style.borderColor = '#fca5a5';
-      _uploadBtn_spm.style.background = '#fee2e2';
-      _uploadBtn_spm.style.color = '#991b1b';
-      _uploadBtn_spm.dataset.tip = 'Isi realisasi dan field wajib terlebih dahulu';
-      _uploadBtn_spm.onclick = null;
-    }
-  }
+  _dukungSetEnabled(indikatorId, 'spm', okUpload);
+  _dukungSyncErr(indikatorId, 'spm', false);
 }
 
 function previewSpmCapaian(indikatorId) {
@@ -6732,6 +6707,10 @@ async function saveSpmRealisasiRow(indikatorId) {
     }
   }
 
+  // Data Dukung (link) - wajib, diisi langsung di sel & ikut tersimpan bersama baris ini
+  const _dk = _dukungPrepareSave(indikatorId, 'spm');
+  if (!_dk) return;
+
   if (btn) { btn.disabled = true; btn.innerHTML = `<span class="btn-spin" style="width:11px;height:11px"></span> Menyimpan...`; }
   try {
     const r = await fetch('/api/kinerja/realisasi', {
@@ -6741,6 +6720,7 @@ async function saveSpmRealisasiRow(indikatorId) {
         realisasi: real !== '' ? parseFloat(real) : null,
         realisasi_display: _getRealisasiDisplayFromEl(realEl, row, real),
         f_penghambat: fpenghambat || null, solusi: solusi || null, f_pendukung: fpendukung || null, rencana_tl: rencana || null,
+        ...(_dk.changed ? { data_dukung_url: _dk.json, data_dukung_nama: _dk.name } : {}),
       }),
     });
     const d = await r.json();
@@ -6763,7 +6743,6 @@ async function saveSpmRealisasiRow(indikatorId) {
         }
       });
       
-      _lockDukungButtons(indikatorId);
       
       _ensureResetBtn(indikatorId, 'spm_', 'spm');
       const tr = document.querySelector(`tr[data-id="${indikatorId}"]`);
@@ -6790,7 +6769,10 @@ async function saveSpmRealisasiRow(indikatorId) {
         _spmData[idx].f_pendukung       = d.realisasi?.f_pendukung ?? null;
         _spmData[idx].rencana_tl        = d.realisasi?.rencana_tl ?? null;
         _spmData[idx].realisasi_id      = d.realisasi?.id ?? _spmData[idx].realisasi_id;
+        if (_dk.changed) { _spmData[idx].data_dukung_url = _dk.json; _spmData[idx].data_dukung_nama = _dk.name; }
       }
+      // Kunci sel link SETELAH data lokal diperbarui (supaya link baru tampil)
+      _setDukungCellMode(indikatorId, 'spm', false);
       
       fetch(`/api/kinerja/rekap?bulan=${_spm_bulan}&tahun=${_spm_tahun}&jenis=spm`, { headers: authHeaders() })
         .then(res => res.ok ? res.json() : null)
@@ -6846,12 +6828,7 @@ async function initSubkegControls() {
   const isAdmin = _isKinerjaAdmin();
   // Sama kayak initIkkControls - 3 fetch independen ditembak paralel, bukan berurutan
   await Promise.all([
-    !_periodeListTerbuka.length
-      ? fetch('/api/periode/aktif')
-          .then(r => r.ok ? r.json() : null)
-          .then(d => { if (d) _periodeListTerbuka = d.periode || []; })
-          .catch(() => { _periodeListTerbuka = []; })
-      : Promise.resolve(),
+    _refreshPeriodeKinerja(),
     _ensureUserIndikatorIds(),
     (isAdmin && !_allPeriodeList.length)
       ? fetch('/api/periode', { headers: authHeaders() })
@@ -6860,11 +6837,11 @@ async function initSubkegControls() {
           .catch(() => {})
       : Promise.resolve(),
   ]);
-  const _subkegTerbuka = _periodeListTerbuka.filter(p => p.jenis === 'subkeg')
-    .sort((a, b) => a.tahun !== b.tahun ? a.tahun - b.tahun : a.bulan - b.bulan);
-  if (_subkegTerbuka.length) {
-    _subkeg_tahun = _subkegTerbuka[0].tahun;
-    _subkeg_bulan = _subkegTerbuka[0].bulan;
+  const _subkegTerbuka = _periodeTampilByJenis('subkeg');
+  const _def_subkeg = _pickDefaultPeriode('subkeg');
+  if (_def_subkeg) {
+    _subkeg_tahun = _def_subkeg.tahun;
+    _subkeg_bulan = _def_subkeg.bulan;
   } else if (_isKinerjaAdmin()) {
     _subkeg_tahun = new Date().getFullYear();
     _subkeg_bulan = _twBulanSekarang();
@@ -6889,9 +6866,8 @@ function setSubkegTahun(tahun) {
     _populateTahunSelector('subkegTahunSelect', _subkeg_tahun, setSubkegTahun);
   } else {
     // Non-admin: pilih bulan pertama yang periodenya terbuka untuk tahun ini
-    const periodeThnIni = _periodeListTerbuka.filter(p => p.jenis === 'subkeg' && p.tahun === tahun)
-      .sort((a, b) => a.bulan - b.bulan);
-    if (periodeThnIni.length) _subkeg_bulan = periodeThnIni[0].bulan;
+    const _pp = _pickDefaultPeriode('subkeg', tahun);
+    if (_pp) _subkeg_bulan = _pp.bulan;
   }
   _syncSubkegBulanButtons();
   _renderSubkegPeriodeInfo();
@@ -6901,9 +6877,9 @@ function setSubkegTahun(tahun) {
 
 function setSubkegBulan(bulan) {
   if (!_isKinerjaAdmin()) {
-    const bulanTerbuka = new Set(_periodeListTerbuka.filter(p => p.jenis === 'subkeg').map(p => p.bulan));
+    const bulanTerbuka = new Set(_periodeListTampil.filter(p => p.jenis === 'subkeg' && p.tahun === _subkeg_tahun).map(p => p.bulan));
     if (!bulanTerbuka.has(bulan)) return;
-    const periodeMatch = _periodeListTerbuka.find(p => p.jenis === 'subkeg' && p.bulan === bulan);
+    const periodeMatch = _periodeListTampil.find(p => p.jenis === 'subkeg' && p.bulan === bulan && p.tahun === _subkeg_tahun);
     if (periodeMatch) _subkeg_tahun = periodeMatch.tahun;
   }
   _subkeg_bulan = bulan;
@@ -6916,20 +6892,20 @@ function setSubkegBulan(bulan) {
 function _syncSubkegBulanButtons() {
   const sel = document.getElementById('subkegBulanSelector');
   if (!sel) return;
-  const bulanTerbuka = new Set(_periodeListTerbuka.filter(p => p.jenis === 'subkeg').map(p => p.bulan));
+  const bulanTerbuka = new Set(_periodeListTampil.filter(p => p.jenis === 'subkeg' && p.tahun === _subkeg_tahun).map(p => p.bulan));
   const items = [];
   for (const bulan of TW_BULAN) {
     const isTampil = _isKinerjaAdmin() ? true : bulanTerbuka.has(bulan);
     if (!isTampil) continue;
     const periodeMatch = _isKinerjaAdmin()
       ? _allPeriodeList.find(p => p.jenis === 'subkeg' && p.bulan === bulan && p.tahun === _subkeg_tahun)
-      : _periodeListTerbuka.find(p => p.jenis === 'subkeg' && p.bulan === bulan);
+      : _periodeListTampil.find(p => p.jenis === 'subkeg' && p.bulan === bulan && p.tahun === _subkeg_tahun);
     const tahunLabel = periodeMatch ? periodeMatch.tahun : _subkeg_tahun;
     items.push({ bulan, tahun: tahunLabel });
   }
   items.sort((a, b) => _isKinerjaAdmin() ? (a.bulan - b.bulan) : ((a.tahun * 100 + a.bulan) - (b.tahun * 100 + b.bulan)));
   sel.innerHTML = items.map(it =>
-    `<option value="${it.bulan}"${it.bulan === _subkeg_bulan ? ' selected' : ''}>${_twNama(it.bulan)}</option>`
+    `<option value="${it.bulan}"${it.bulan === _subkeg_bulan ? ' selected' : ''}>${_twNama(it.bulan)}${_suffixTutup('subkeg', it.bulan, it.tahun)}</option>`
   ).join('');
   sel.onchange = () => setSubkegBulan(parseInt(sel.value));
   if (typeof syncCustomSelect === 'function') syncCustomSelect('subkegBulanSelector');
@@ -6949,7 +6925,7 @@ function _renderSubkegPeriodeInfo() {
     return;
   }
 
-  const _subkegAktif = _periodeListTerbuka.filter(p => p.jenis === 'subkeg');
+  const _subkegAktif = _periodeTampilByJenis('subkeg');
   if (_subkegAktif.length === 0) {
     if (wrapper) wrapper.style.display = 'none';
     return;
@@ -6962,7 +6938,7 @@ async function loadSubkegRekap() {
   const tbody = document.getElementById('subkegTableBody');
   if (!tbody) return;
 
-  if (!_isKinerjaAdmin() && !_periodeListTerbuka.some(p => p.jenis === 'subkeg')) {
+  if (!_isKinerjaAdmin() && !_periodeTampilByJenis('subkeg').length) {
     const tableCard = tbody.closest('.card');
     if (tableCard) tableCard.style.display = 'none';
     let msgEl = document.getElementById('subkegNoperiodeMsg');
@@ -7091,9 +7067,7 @@ function _renderSubkegTable(tbody) {
       <td class="textarea-cell" style="text-align:left;vertical-align:top">
         ${_renderPSCell('subkeg_rencana', row.id, row.rencana_tl, capaian, canEdit, 'rencana tindak lanjut', 'markSubkegDirty', !!row.realisasi_id, true, row.tipe_nilai === 'predikat', row.realisasi == null && !row.realisasi_id)}
       </td>
-      <td style="text-align:center" data-col="dukung">
-        ${_renderDukungBtn(row, _subkeg_bulan, _subkeg_tahun, 'subkeg', !row.realisasi_id)}
-      </td>
+      <td class="textarea-cell" style="text-align:left;vertical-align:top" data-col="dukung">${_renderDukungInlineCell(row, canEdit, 'subkeg')}</td>
       <td style="text-align:center;white-space:nowrap">
         ${canEdit ? `
           <button class="btn-edit-row" id="subkeg_editbtn_${row.id}" data-tip="Edit baris ini"
@@ -7146,7 +7120,7 @@ function _renderSubkegTable(tbody) {
 
 function toggleSubkegEditRow(indikatorId) {
   if (!_isKinerjaAdmin() && !_isKinerjaInputOpen(null, 'subkeg')) {
-    const pa = _periodeListTerbuka.find(p => p.jenis === 'subkeg' && p.bulan === _subkeg_bulan) ?? null;
+    const pa = _periodeListTampil.find(p => p.jenis === 'subkeg' && p.bulan === _subkeg_bulan && p.tahun === _subkeg_tahun) ?? null;
     const close = pa?.close_at ? new Date(pa.close_at) : null;
     if (close && new Date() > close) {
       toast('Periode input sudah ditutup. Data tidak dapat diubah.', 'error');
@@ -7217,67 +7191,8 @@ function toggleSubkegEditRow(indikatorId) {
     }
   });
   
-  const dukungBtn     = document.querySelector(`[data-dukung-id="${indikatorId}"] .dukung-uploaded-btn`);
-  const uploadOnlyBtn = document.querySelector(`tr[data-id="${indikatorId}"] .dukung-upload-btn`);
-  const deleteBtn     = document.querySelector(`tr[data-id="${indikatorId}"] .dukung-delete-btn`);
-
-  if (dukungBtn) {
-    if (isReadonly) {
-      dukungBtn.disabled = false;
-      dukungBtn.style.cursor = 'pointer';
-      dukungBtn.style.opacity = '1';
-      dukungBtn.dataset.tip = 'Kelola / ganti link data dukung';
-      const twV = dukungBtn.dataset.tw;
-      const tahunV = dukungBtn.dataset.tahun;
-      dukungBtn.onclick = () => openSubkegDukungModal(indikatorId, parseInt(twV), parseInt(tahunV));
-    } else {
-      dukungBtn.disabled = true;
-      dukungBtn.style.cursor = 'not-allowed';
-      dukungBtn.style.opacity = '.85';
-      dukungBtn.dataset.tip = 'Klik Edit terlebih dahulu untuk mengganti link';
-      dukungBtn.onclick = null;
-    }
-  }
-
-  if (deleteBtn) {
-    if (isReadonly) {
-      deleteBtn.disabled = false;
-      deleteBtn.style.cursor = 'pointer';
-      deleteBtn.style.opacity = '1';
-      deleteBtn.dataset.tip = 'Hapus link data dukung';
-      const twV    = deleteBtn.dataset.tw;
-      const tahunV = deleteBtn.dataset.tahun;
-      const srcV   = deleteBtn.dataset.source;
-      deleteBtn.onclick = () => deleteDukungAll(indikatorId, parseInt(twV), parseInt(tahunV), srcV);
-    } else {
-      deleteBtn.disabled = true;
-      deleteBtn.style.cursor = 'not-allowed';
-      deleteBtn.style.opacity = '.5';
-      deleteBtn.dataset.tip = 'Klik Edit terlebih dahulu untuk menghapus link';
-      deleteBtn.onclick = null;
-    }
-  }
-
-  if (uploadOnlyBtn) {
-    if (isReadonly) {
-      uploadOnlyBtn.disabled = false;
-      uploadOnlyBtn.style.cursor = 'pointer';
-      uploadOnlyBtn.style.opacity = '1';
-      uploadOnlyBtn.style.borderStyle = 'solid';
-      uploadOnlyBtn.dataset.tip = 'Isi link data dukung';
-      const twV    = uploadOnlyBtn.dataset.tw;
-      const tahunV = uploadOnlyBtn.dataset.tahun;
-      const src    = uploadOnlyBtn.dataset.source;
-      uploadOnlyBtn.onclick = () => triggerDukungUpload(indikatorId, parseInt(twV), parseInt(tahunV), src);
-    } else {
-      uploadOnlyBtn.disabled = true;
-      uploadOnlyBtn.style.cursor = 'not-allowed';
-      uploadOnlyBtn.style.opacity = '.65';
-      uploadOnlyBtn.style.borderStyle = 'dashed';
-      uploadOnlyBtn.dataset.tip = 'Klik Edit terlebih dahulu untuk mengisi link';
-      uploadOnlyBtn.onclick = null;
-    }
-  }
+  // Data Dukung (link): buka input saat Edit, kunci + buang isian belum tersimpan saat batal
+  _setDukungCellMode(indikatorId, 'subkeg', isReadonly);
 
   if (isReadonly) {
     if (tr) { tr.classList.remove('row-state-default', 'row-state-saved'); tr.classList.add('row-state-editing'); }
@@ -7329,7 +7244,7 @@ function _updateSubkegSaveBtnState(indikatorId) {
     solusiVal:      document.getElementById(`subkeg_solusi_${indikatorId}`)?.value ?? '',
     fpendukungVal:  document.getElementById(`subkeg_fpendukung_${indikatorId}`)?.value ?? '',
     rencanaVal:     document.getElementById(`subkeg_rencana_${indikatorId}`)?.value ?? '',
-    hasDukung:      !!row?.data_dukung_url,
+    hasDukung:      _dukungHasLink(indikatorId, 'subkeg', row),
   };
   const ok = _canSaveRow(fieldArgs);
   const okUpload = _canSaveRow(fieldArgs, false);
@@ -7338,31 +7253,8 @@ function _updateSubkegSaveBtnState(indikatorId) {
   btn.style.color      = ok ? '#fff'    : '';
   btn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/><path d="M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7"/><path d="M7 3v4a1 1 0 0 0 1 1h7"/></svg> Simpan`;
 
-  // Enable/disable tombol Upload berdasarkan kondisi field wajib
-  const _uploadBtn_subkeg = document.querySelector(`tr[data-id="${indikatorId}"] .dukung-upload-btn`);
-  if (_uploadBtn_subkeg && !_uploadBtn_subkeg.classList.contains('dukung-uploaded-btn')) {
-    if (okUpload) {
-      _uploadBtn_subkeg.disabled = false;
-      _uploadBtn_subkeg.style.cursor = 'pointer';
-      _uploadBtn_subkeg.style.opacity = '1';
-      _uploadBtn_subkeg.style.borderStyle = 'dashed';
-      _uploadBtn_subkeg.style.borderColor = '#6ee7b7';
-      _uploadBtn_subkeg.style.background = '#ecfdf5';
-      _uploadBtn_subkeg.style.color = '#065f46';
-      _uploadBtn_subkeg.dataset.tip = 'Isi link data dukung';
-      _uploadBtn_subkeg.onclick = () => _openDukungFromBtn(_uploadBtn_subkeg);
-    } else {
-      _uploadBtn_subkeg.disabled = true;
-      _uploadBtn_subkeg.style.cursor = 'not-allowed';
-      _uploadBtn_subkeg.style.opacity = '.65';
-      _uploadBtn_subkeg.style.borderStyle = 'dashed';
-      _uploadBtn_subkeg.style.borderColor = '#fca5a5';
-      _uploadBtn_subkeg.style.background = '#fee2e2';
-      _uploadBtn_subkeg.style.color = '#991b1b';
-      _uploadBtn_subkeg.dataset.tip = 'Isi realisasi dan field wajib terlebih dahulu';
-      _uploadBtn_subkeg.onclick = null;
-    }
-  }
+  _dukungSetEnabled(indikatorId, 'subkeg', okUpload);
+  _dukungSyncErr(indikatorId, 'subkeg', false);
 }
 
 function previewSubkegCapaian(indikatorId) {
@@ -7417,6 +7309,10 @@ async function saveSubkegRealisasiRow(indikatorId) {
     }
   }
 
+  // Data Dukung (link) - wajib, diisi langsung di sel & ikut tersimpan bersama baris ini
+  const _dk = _dukungPrepareSave(indikatorId, 'subkeg');
+  if (!_dk) return;
+
   if (btn) { btn.disabled = true; btn.innerHTML = `<span class="btn-spin" style="width:11px;height:11px"></span> Menyimpan...`; }
   try {
     const r = await fetch('/api/kinerja/realisasi', {
@@ -7426,6 +7322,7 @@ async function saveSubkegRealisasiRow(indikatorId) {
         realisasi: real !== '' ? parseFloat(real) : null,
         realisasi_display: _getRealisasiDisplayFromEl(realEl, row, real),
         f_penghambat: fpenghambat || null, solusi: solusi || null, f_pendukung: fpendukung || null, rencana_tl: rencana || null,
+        ...(_dk.changed ? { data_dukung_url: _dk.json, data_dukung_nama: _dk.name } : {}),
       }),
     });
     const d = await r.json();
@@ -7448,7 +7345,6 @@ async function saveSubkegRealisasiRow(indikatorId) {
         }
       });
       
-      _lockDukungButtons(indikatorId);
       
       _ensureResetBtn(indikatorId, 'subkeg_', 'subkeg');
       const tr = document.querySelector(`tr[data-id="${indikatorId}"]`);
@@ -7475,7 +7371,10 @@ async function saveSubkegRealisasiRow(indikatorId) {
         _subkegData[idx].f_pendukung       = d.realisasi?.f_pendukung ?? null;
         _subkegData[idx].rencana_tl        = d.realisasi?.rencana_tl ?? null;
         _subkegData[idx].realisasi_id      = d.realisasi?.id ?? _subkegData[idx].realisasi_id;
+        if (_dk.changed) { _subkegData[idx].data_dukung_url = _dk.json; _subkegData[idx].data_dukung_nama = _dk.name; }
       }
+      // Kunci sel link SETELAH data lokal diperbarui (supaya link baru tampil)
+      _setDukungCellMode(indikatorId, 'subkeg', false);
       
       fetch(`/api/kinerja/rekap?bulan=${_subkeg_bulan}&tahun=${_subkeg_tahun}&jenis=subkeg`, { headers: authHeaders() })
         .then(res => res.ok ? res.json() : null)

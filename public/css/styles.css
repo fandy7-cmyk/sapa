@@ -2578,6 +2578,36 @@ ol.lap-md-list--alpha > li::before { content:counter(lapmdnum, lower-alpha) ".";
 }
 .dukung-warning svg { flex-shrink:0; color:#d97706; }
 
+/* ── IKK: Data Dukung = isian link inline (gaya sama dgn Faktor Penghambat dll) ── */
+.dukung-inline { display:flex; flex-direction:column; gap:4px; min-width:190px; text-align:left; }
+.dukung-inline-input {
+  width:100%; box-sizing:border-box; padding:6px 9px; min-height:36px;
+  border:1.5px solid var(--abu-2); border-radius:7px;
+  font-size:.75rem; font-family:inherit; color:var(--teks); background:transparent;
+  transition:border-color var(--transition), background-color .25s ease;
+}
+.dukung-inline-input:focus { outline:none; border-color:var(--hijau); background:#fff; }
+.dukung-inline-input.is-invalid { border-color:#f87171; background:#fff5f5; }
+.dukung-inline-input::placeholder { color:var(--teks-muted); }
+.kinerja-table tr.row-state-editing .dukung-inline-input { background:#fff7ed; border-color:#fed7aa; }
+.kinerja-table tr.row-state-editing .dukung-inline-input:focus { background:#fff; border-color:var(--hijau); }
+.kinerja-table tr.row-state-editing .dukung-inline-input.is-invalid { border-color:#f87171; background:#fff5f5; }
+/* Nonaktif sampai realisasi + field wajib terisi (gaya sama dgn tombol "Isi Link" lama) */
+.dukung-inline-input:disabled,
+.kinerja-table tr.row-state-editing .dukung-inline-input:disabled {
+  cursor:not-allowed; border-style:dashed; border-color:#fca5a5; background:#fef2f2; opacity:.85;
+}
+.dukung-inline-input:disabled::placeholder { color:#991b1b; opacity:.75; }
+.dukung-inline-err { font-size:.68rem; line-height:1.35; color:#b91c1c; }
+.dukung-inline-read { font-size:.75rem; line-height:1.5; word-break:break-all; }
+.dukung-inline-read a {
+  display:inline-flex; align-items:center; gap:5px;
+  font-weight:600; color:#1d4ed8; text-decoration:none;
+}
+.dukung-inline-read a:hover { text-decoration:underline; }
+/* Kolom Data Dukung rata tengah vertikal (IKU / IKK / SPM / Sub Kegiatan) - !important karena <td> punya inline vertical-align:top */
+.kinerja-table td[data-col="dukung"] { vertical-align:middle !important; }
+
 /* Periode aktif info */
 .periode-info-bar {
   display:inline-flex; align-items:center; gap:7px;
@@ -10143,7 +10173,7 @@ body.is-admin #absRekapBox { grid-template-columns: repeat(6, 0.85fr) 1.5fr; }
 }
 .kperiode-header-title {
   display: flex; align-items: center; gap: var(--sp-2);
-  font-weight: 700; font-size: var(--fs-base);
+  font-weight: 700; font-size: var(--fs-sm);
 }
 .kperiode-header-timer {
   background: rgba(0,0,0,.18);

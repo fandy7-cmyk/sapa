@@ -220,14 +220,24 @@ export const handler = async (event) => {
     }
   }
 
+  // Email opsional: kosong / "-" dianggap tidak diisi -> disimpan NULL (cek duplikat dilewati).
+  const normEmail = (v) => {
+    const e = (v == null ? '' : String(v)).trim().toLowerCase();
+    return (!e || e === '-') ? null : e;
+  };
+
   if (event.httpMethod === 'POST' && !userId) {
-    const { nama, nip, email, bidang_id } = parseBody(event);
-    if (!nama || !nip || !email) {
-      return errorResponse('Nama, NIP, dan email wajib diisi', 400);
+    const { nama, nip, bidang_id } = parseBody(event);
+    const emailVal = normEmail(parseBody(event).email);
+    if (!nama || !nip) {
+      return errorResponse('Nama dan NIP wajib diisi', 400);
     }
     try {
-      const exist = await sql`SELECT id FROM users WHERE email = ${email.toLowerCase().trim()} LIMIT 1`;
-      if (exist.length) return errorResponse('Email sudah terdaftar', 409);
+      await runOnce('users.email_nullable', () => sql`ALTER TABLE users ALTER COLUMN email DROP NOT NULL`);
+      if (emailVal) {
+        const exist = await sql`SELECT id FROM users WHERE email = ${emailVal} LIMIT 1`;
+        if (exist.length) return errorResponse('Email sudah terdaftar', 409);
+      }
 
       const existNip = await sql`SELECT id FROM users WHERE nip = ${nip.trim()} LIMIT 1`;
       if (existNip.length) return errorResponse('NIP sudah terdaftar', 409);
@@ -236,13 +246,13 @@ export const handler = async (event) => {
       const bidangVal = bidang_id ? parseInt(bidang_id) : null;
       const rows = await sql`
         INSERT INTO users (nama, nip, email, password_hash, is_admin, bidang_id)
-        VALUES (${nama.trim()}, ${nip.trim()}, ${email.toLowerCase().trim()}, ${hash}, FALSE, ${bidangVal})
+        VALUES (${nama.trim()}, ${nip.trim()}, ${emailVal}, ${hash}, FALSE, ${bidangVal})
         RETURNING id, nama, nip, email, is_admin, last_login, created_at, bidang_id
       `;
       await logAudit(sql, event, {
         user_id: admin.id, nama: admin.nama, email: admin.email,
         aksi: 'create_user', entitas: 'user', entitas_id: rows[0].id,
-        detail: { nama: nama.trim(), nip: nip.trim(), email: email.toLowerCase().trim() }
+        detail: { nama: nama.trim(), nip: nip.trim(), email: emailVal }
       });
       return jsonResponse({ user: rows[0] }, 201);
     } catch (err) {
@@ -252,11 +262,15 @@ export const handler = async (event) => {
   }
 
   if (event.httpMethod === 'PUT' && userId && !isPermissions && segments[1] !== 'indikator') {
-    const { nama, nip, email, bidang_id } = parseBody(event);
+    const { nama, nip, bidang_id } = parseBody(event);
+    const bodyPut        = parseBody(event);
+    const emailProvided  = bodyPut.email !== undefined;   // undefined = jangan diubah; ''/'-' = kosongkan
+    const emailVal       = normEmail(bodyPut.email);
     try {
-      if (email) {
+      await runOnce('users.email_nullable', () => sql`ALTER TABLE users ALTER COLUMN email DROP NOT NULL`);
+      if (emailVal) {
         const exist = await sql`
-          SELECT id FROM users WHERE email = ${email.toLowerCase().trim()} AND id != ${userId} LIMIT 1
+          SELECT id FROM users WHERE email = ${emailVal} AND id != ${userId} LIMIT 1
         `;
         if (exist.length) return errorResponse('Email sudah digunakan', 409);
       }
@@ -275,7 +289,7 @@ export const handler = async (event) => {
         UPDATE users SET
           nama      = COALESCE(${nama?.trim() || null}, nama),
           nip       = COALESCE(${nip?.trim() || null}, nip),
-          email     = COALESCE(${email?.toLowerCase().trim() || null}, email),
+          email     = ${emailProvided ? emailVal : sql`email`},
           bidang_id = ${bidangVal !== undefined ? bidangVal : sql`bidang_id`}
         WHERE id = ${userId} AND is_admin = FALSE
         RETURNING id, nama, nip, email, is_admin, last_login, created_at, bidang_id
