@@ -3787,7 +3787,24 @@ async function saveDukung() {
       dataArr[idx].data_dukung_nama = nameStr;
     }
     closeModal('modalDukung');
-    renderFn();
+
+    // Update HANYA sel Data Dukung + hitung ulang status tombol Simpan. Jangan render ulang
+    // seluruh tabel: isian yang belum disimpan (realisasi, faktor penghambat, solusi, dst.)
+    // akan hilang dan tombol Simpan kembali disabled walau link sudah terisi.
+    const tbodyId = _source === 'ikk' ? 'ikkTableBody' : _source === 'spm' ? 'spmTableBody' : _source === 'subkeg' ? 'subkegTableBody' : 'kinerjaTableBody';
+    const tr = document.getElementById(tbodyId)?.querySelector(`tr[data-id="${indikatorId}"]`);
+    const dukungTd = tr?.querySelector('td[data-col="dukung"]');
+    if (idx >= 0 && tr && dukungTd) {
+      // Baris yang sudah tersimpan hanya boleh diubah link-nya saat sedang mode Edit
+      const editable = !dataArr[idx].realisasi_id || tr.classList.contains('row-state-editing');
+      dukungTd.innerHTML = _renderDukungBtn(dataArr[idx], tw, tahun, _source, editable);
+      if (_source === 'spm') _updateSpmSaveBtnState(indikatorId);
+      else if (_source === 'subkeg') _updateSubkegSaveBtnState(indikatorId);
+      else if (_source === 'ikk') _updateIkkSaveBtnState(indikatorId);
+      else _updateSaveBtnState(indikatorId);
+    } else {
+      renderFn(); // fallback kalau barisnya tidak ditemukan di DOM
+    }
   } catch { toast('Gagal menyimpan data dukung', 'error'); }
 }
 
