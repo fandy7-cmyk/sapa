@@ -1841,7 +1841,7 @@ async function loadLaporanKinerja() {
   };
 
   rows.forEach(row => {
-    const isJumlah = (row.indikator_kinerja || row.nama_indikator || '').toLowerCase().startsWith('jumlah');
+    const tipeHitung = row.tipe_perhitungan || 'non_kumulatif';
 
     let lastVal = null, lastFpenghambat = null, lastSolusi = null, lastFpendukung = null, lastRencanaTl = null;
     for (let b = bulanSampai; b >= bulanDari; b--) {
@@ -1851,19 +1851,20 @@ async function loadLaporanKinerja() {
         lastSolusi      = row.solusiPerBulan[b];
         lastFpendukung  = row.fpendukungPerBulan[b];
         lastRencanaTl   = row.rencanaTlPerBulan[b];
-        if (!isJumlah) { lastVal = v; break; }
-        if (lastVal === null) lastVal = v;
+        lastVal = v;
+        break;
       }
     }
 
-    if (isJumlah) {
-      let sum = 0, hasVal = false;
+    // Non-Kumulatif = tiap TW berdiri sendiri -> dijumlah; Rata-rata = dirata-rata;
+    // Kumulatif = isian TW sudah akumulasi -> ambil nilai TW terakhir yang terisi
+    if (tipeHitung === 'non_kumulatif' || tipeHitung === 'rata_rata') {
+      let sum = 0, cnt = 0;
       for (let b = bulanDari; b <= bulanSampai; b++) {
-        const v = row.realisasiPerBulan[b];
-        const n = parseFloat(v);
-        if (!isNaN(n)) { sum += n; hasVal = true; }
+        const n = parseFloat(row.realisasiPerBulan[b]);
+        if (!isNaN(n)) { sum += n; cnt++; }
       }
-      lastVal = hasVal ? sum : null;
+      lastVal = cnt ? (tipeHitung === 'rata_rata' ? sum / cnt : sum) : null;
     }
 
     // Target = target triwulan dari bulan akhir rentang (TW yang dilaporkan)

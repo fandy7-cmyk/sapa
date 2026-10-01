@@ -136,7 +136,7 @@ function _twTargetYears(targets) {
 // PERIODE KINERJA = PER TRIWULAN
 // Kolom `bulan` di DB tetap dipakai, tapi isinya bulan AKHIR triwulan:
 //   TW I = 3, TW II = 6, TW III = 9, TW IV = 12
-// Jadi query kumulatif/rata-rata (krc.bulan <= X) di backend tetap jalan apa adanya.
+// Jadi query non-kumulatif/rata-rata (krc.bulan <= X) di backend tetap jalan apa adanya.
 // ═══════════════════════════════════════════════════════════════════════════
 const TW_BULAN  = [3, 6, 9, 12];
 const TW_ROMAWI = ['', 'I', 'II', 'III', 'IV'];
@@ -1300,7 +1300,7 @@ function _updateSaveBtnState(indikatorId) {
 
 function _hitungRealisasiEfektifPreview(row, realisasiInput) {
   const tipe = row.tipe_perhitungan;
-  if (tipe !== 'kumulatif' && tipe !== 'rata_rata') return realisasiInput;
+  if (tipe !== 'non_kumulatif' && tipe !== 'rata_rata') return realisasiInput;
 
   const target = _targetNumForRow(row);
   const capPersenRaw = row.capaian_persen != null ? Number(row.capaian_persen) : null;
@@ -1316,7 +1316,7 @@ function _hitungRealisasiEfektifPreview(row, realisasiInput) {
     ? target * (2 - capPersen / 100)
     : (capPersen / 100) * target;
 
-  if (tipe === 'kumulatif') {
+  if (tipe === 'non_kumulatif') {
     let basisBulanLain = 0;
     if (capPersenRaw != null && !isNaN(capPersenRaw) && !isNaN(target) && target !== 0) {
       basisBulanLain = _reconstructActual(capPersenRaw) - savedThisMonth;
@@ -1372,7 +1372,7 @@ async function saveRealisasiRow(indikatorId) {
   const row = _kinerjaData.find(r => r.id === indikatorId);
 
   // Validasi field wajib - hitung capaian dari nilai input vs target
-  // (untuk kumulatif/rata_rata, pakai basis efektif lintas bulan, bukan angka bulan ini saja)
+  // (untuk non_kumulatif/rata_rata, pakai basis efektif lintas bulan, bukan angka bulan ini saja)
   const _realVal  = parseFloat(real);
   const _targetVal = _targetNumForRow(row);
   if (!isNaN(_realVal) && !isNaN(_targetVal) && _targetVal !== 0) {
@@ -1795,9 +1795,9 @@ window._updateJenisPreview  = _updateJenisPreview;
 window._onJenisCbChange     = _onJenisCbChange;
 
 const TIPE_PERHITUNGAN_INFO = {
-  kumulatif:     { label: 'Kumulatif',     bg: '#eff6ff', teks: '#1d4ed8', border: '#bfdbfe', title: 'Nilai capaian dijumlahkan berjalan dari Triwulan I s.d. triwulan yang diisi' },
+  kumulatif:     { label: 'Kumulatif',     bg: '#eff6ff', teks: '#1d4ed8', border: '#bfdbfe', title: 'Nilai yang diisi sudah akumulasi dari Triwulan I s.d. triwulan tersebut; yang dilaporkan nilai triwulan terakhir' },
   rata_rata:     { label: 'Rata-rata',     bg: '#fffbeb', teks: '#b45309', border: '#fde68a', title: 'Nilai capaian dihitung rata-rata dari triwulan-triwulan yang sudah diisi' },
-  non_kumulatif: { label: 'Non-Kumulatif', bg: '#fdf4ff', teks: '#a21caf', border: '#f5d0fe', title: 'Nilai capaian berdiri sendiri per triwulan, tidak dijumlah/dirata-rata' },
+  non_kumulatif: { label: 'Non-Kumulatif', bg: '#fdf4ff', teks: '#a21caf', border: '#f5d0fe', title: 'Nilai tiap triwulan berdiri sendiri; realisasi s.d. dihitung dengan menjumlahkan semua triwulan' },
 };
 function _tipeBadge(tipe) {
   const info = TIPE_PERHITUNGAN_INFO[tipe] || TIPE_PERHITUNGAN_INFO.non_kumulatif;
