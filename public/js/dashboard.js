@@ -1168,8 +1168,8 @@ async function loadDashboardKinerja() {
   
   
   
-  if (!_user?.is_admin && typeof _ensureUserIndikatorIds === 'function') await _ensureUserIndikatorIds();
-  const rekap = !_user?.is_admin
+  if (!_isKinerjaAdmin() && typeof _ensureUserIndikatorIds === 'function') await _ensureUserIndikatorIds();
+  const rekap = !_isKinerjaAdmin()
     ? rekapRaw.filter(x => _userIndikatorIds && _userIndikatorIds.has(Number(x.id)))
     : rekapRaw;
 

@@ -1,5 +1,13 @@
 import { getDb, jsonResponse, errorResponse, parseBody, runOnce } from './_db.js';
-import { requireAuth, requireAdmin, requireKinerjaAdmin } from './_auth.js';
+import { requireAuth as _baseRequireAuth, requireAdmin, requireKinerjaAdmin } from './_auth.js';
+
+// Admin Kinerja (permission 'kinerja.full') diperlakukan setara Super Admin di seluruh modul kinerja:
+// melihat semua indikator & mengisi/mengubah/menghapus capaian. Flag di-set sekali per request di handler.
+function requireAuth(event) {
+  const u = _baseRequireAuth(event);
+  if (u && !u.is_admin && event.__kinerjaAdmin) return { ...u, is_admin: true, kinerja_admin: true };
+  return u;
+}
 import { deleteFromCloudinary } from './_cloudinary.js';
 
 function parseDukungUrls(raw) {
@@ -120,6 +128,14 @@ export const handler = async (event) => {
   } catch (migErr) {
     console.error('[migrate target_triwulan]', migErr);
   }
+
+  // Tentukan sekali apakah user ini Admin Kinerja (kinerja.full); dipakai oleh requireAuth lokal di atas.
+  try {
+    const _u0 = _baseRequireAuth(event);
+    if (_u0 && !_u0.is_admin) {
+      event.__kinerjaAdmin = !!(await requireKinerjaAdmin(event, sql));
+    }
+  } catch { event.__kinerjaAdmin = false; }
 
   if (sub === 'group') {
     const auth = requireAuth(event);

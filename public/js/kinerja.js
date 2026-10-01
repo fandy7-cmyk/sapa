@@ -226,7 +226,7 @@ function _rowHasJenis(row, kode) {
 
 function _isKinerjaInputOpen(bulan, jenis) {
   
-  if (_user?.is_admin) return true;
+  if (_isKinerjaAdmin()) return true;
   const targetBulan = bulan != null ? bulan : jenis === 'subkeg' ? _subkeg_bulan : jenis === 'spm' ? _spm_bulan : jenis === 'ikk' ? _ikk_bulan : _kinerja_bulan;
   
   return _periodeListTerbuka.some(p =>
@@ -244,7 +244,7 @@ let _allPeriodeList     = [];
 let _userIndikatorIds   = null; 
 
 async function _ensureUserIndikatorIds() {
-  if (_user?.is_admin) return;                 
+  if (_isKinerjaAdmin()) return;                 
   if (_userIndikatorIds !== null) return;      
   if (!_user?.id) { _userIndikatorIds = new Set(); return; }
   try {
@@ -272,7 +272,7 @@ function _renderKinerjaCountdown(containerId, jenis) {
   if (!wrap) return;
 
   
-  if (_user?.is_admin) { wrap.style.display = 'none'; wrap.innerHTML = ''; return; }
+  if (_isKinerjaAdmin()) { wrap.style.display = 'none'; wrap.innerHTML = ''; return; }
 
   // Cari periode aktif untuk triwulan yg dipilih, filter by jenis
   const targetBulan = jenis === 'ikk' ? _ikk_bulan : jenis === 'spm' ? _spm_bulan : jenis === 'subkeg' ? _subkeg_bulan : _kinerja_bulan;
@@ -382,7 +382,7 @@ function _renderKinerjaCountdown(containerId, jenis) {
 }
 
 async function initKinerjaControls() {
-  const isAdmin = _user?.is_admin;
+  const isAdmin = _isKinerjaAdmin();
   
   
   await Promise.all([
@@ -407,14 +407,14 @@ async function initKinerjaControls() {
     _kinerja_tahun = _monevTerbuka[0].tahun;
     _kinerja_bulan = _monevTerbuka[0].bulan;
     _periodeAktif  = _monevTerbuka[0]; 
-  } else if (_user?.is_admin) {
+  } else if (_isKinerjaAdmin()) {
     
     _kinerja_tahun = new Date().getFullYear();
     _kinerja_bulan = _twBulanSekarang();
   }
 
   
-  if (!_user?.is_admin && _monevTerbuka.length) {
+  if (!_isKinerjaAdmin() && _monevTerbuka.length) {
     const _tahunNonAdmin = [...new Set(_monevTerbuka.map(p => p.tahun))].sort((a, b) => a - b);
     _populateTahunSelector('kinerjaTahunSelect', _kinerja_tahun, setKinerjaTahun, _tahunNonAdmin);
   }
@@ -455,7 +455,7 @@ function _populateTahunSelector(elId, currentTahun, onChangeFn, tahunListOverrid
 
 function setKinerjaTahun(tahun) {
   _kinerja_tahun = tahun;
-  if (!_user?.is_admin) {
+  if (!_isKinerjaAdmin()) {
     
     const periodeThnIni = _periodeListTerbuka.filter(p => p.jenis === 'monev' && p.tahun === tahun)
       .sort((a, b) => a.bulan - b.bulan);
@@ -470,7 +470,7 @@ function setKinerjaTahun(tahun) {
 
 function setIkkTahun(tahun) {
   _ikk_tahun = tahun;
-  if (!_user?.is_admin) {
+  if (!_isKinerjaAdmin()) {
     const periodeThnIni = _periodeListTerbuka.filter(p => p.jenis === 'ikk' && p.tahun === tahun)
       .sort((a, b) => a.bulan - b.bulan);
     if (periodeThnIni.length) _ikk_bulan = periodeThnIni[0].bulan;
@@ -493,17 +493,17 @@ function _syncBulanButtons() {
   const items = [];
   for (const bulan of TW_BULAN) {
     
-    const isTampil = _user?.is_admin ? true : bulanTerbuka.has(bulan);
+    const isTampil = _isKinerjaAdmin() ? true : bulanTerbuka.has(bulan);
     if (!isTampil) continue;
     
-    const periodeMatch = _user?.is_admin
+    const periodeMatch = _isKinerjaAdmin()
       ? _allPeriodeList.find(p => p.jenis === 'monev' && p.bulan === bulan && p.tahun === _kinerja_tahun)
       : _periodeListTerbuka.find(p => p.jenis === 'monev' && p.bulan === bulan);
     const tahunLabel = periodeMatch ? periodeMatch.tahun : _kinerja_tahun;
     items.push({ bulan, tahun: tahunLabel });
   }
   
-  items.sort((a, b) => _user?.is_admin ? (a.bulan - b.bulan) : ((a.tahun * 100 + a.bulan) - (b.tahun * 100 + b.bulan)));
+  items.sort((a, b) => _isKinerjaAdmin() ? (a.bulan - b.bulan) : ((a.tahun * 100 + a.bulan) - (b.tahun * 100 + b.bulan)));
   sel.innerHTML = items.map(it =>
     `<option value="${it.bulan}"${it.bulan === _kinerja_bulan ? ' selected' : ''}>${_twNama(it.bulan)}</option>`
   ).join('');
@@ -519,7 +519,7 @@ function _renderPeriodeInfo() {
   
   if (el) el.style.display = 'none';
 
-  if (_user?.is_admin) {
+  if (_isKinerjaAdmin()) {
     if (kWrapper) kWrapper.style.display = '';
     if (tahunWrap) tahunWrap.style.display = 'flex';
     return;
@@ -537,7 +537,7 @@ function _renderPeriodeInfo() {
 
 function setKinerjaBulan(bulan) {
   
-  if (!_user?.is_admin) {
+  if (!_isKinerjaAdmin()) {
     const bulanTerbuka = new Set(_periodeListTerbuka.filter(p => p.jenis === 'monev').map(p => p.bulan));
     if (!bulanTerbuka.has(bulan)) return;
     
@@ -555,7 +555,7 @@ function setKinerjaBulan(bulan) {
 // Jumlah kolom tabel Kinerja (IKU/IKK/SPM): kolom "Unit Kerja" cuma tampil utk admin.
 function _kinColSpan(tbody) {
   const total = tbody?.closest('table')?.querySelectorAll('thead th').length || 13;
-  return _user?.is_admin ? total : total - 1;
+  return _isKinerjaAdmin() ? total : total - 1;
 }
 
 async function loadKinerjaRekap() {
@@ -563,7 +563,7 @@ async function loadKinerjaRekap() {
   if (!tbody) return;
 
   
-  if (!_user?.is_admin && !_periodeListTerbuka.some(p => p.jenis === 'monev')) {
+  if (!_isKinerjaAdmin() && !_periodeListTerbuka.some(p => p.jenis === 'monev')) {
     
     const tableCard = tbody.closest('.card');
     if (tableCard) tableCard.style.display = 'none';
@@ -599,7 +599,7 @@ async function loadKinerjaRekap() {
     let rekap = d.rekap || [];
 
     // Filter per assigned indikator user (non-admin hanya lihat indikator yg di-assign)
-    if (!_user?.is_admin) {
+    if (!_isKinerjaAdmin()) {
       if (_userIndikatorIds && _userIndikatorIds.size > 0) {
         rekap = rekap.filter(row => _userIndikatorIds.has(Number(row.id)));
       } else {
@@ -660,7 +660,7 @@ function _lockDukungButtons(indikatorId) {
 }
 
 function _ensureResetBtn(indikatorId, prefix, jenis) {
-  if (!_user?.is_admin) return;
+  if (!_isKinerjaAdmin()) return;
   if (document.getElementById(`${prefix}resetbtn_${indikatorId}`)) return;
   const saveBtn = document.getElementById(`${prefix}savebtn_${indikatorId}`);
   if (!saveBtn) return;
@@ -754,7 +754,7 @@ function filterKinerjaTable() {
 function renderKinerjaTable(tbody) {
   if (!_kinerjaData.length) {
     let emptyMsg = 'Belum ada indikator aktif. Admin perlu menambahkan indikator terlebih dahulu.';
-    if (!_user?.is_admin) {
+    if (!_isKinerjaAdmin()) {
       if (!_userIndikatorIds || _userIndikatorIds.size === 0) {
         emptyMsg = 'Belum ada indikator yang di-assign ke akun Anda. Hubungi Admin untuk mengatur assignment indikator.';
       } else {
@@ -829,7 +829,7 @@ function renderKinerjaTable(tbody) {
       <td class="td-sticky-name" style="position:sticky;left:34px;z-index:3"><div style="font-weight:600;line-height:1.6"><span>${escHtml(row.indikator_kinerja)}</span>${negBadge}</div><div style="display:flex;align-items:center;gap:6px;margin-top:5px">${row.formula ? `<div class="fx-wrap"><button style="display:inline-flex;align-items:center;justify-content:center;gap:4px;box-sizing:border-box;height:24px;font-size:0.62rem;font-weight:700;line-height:1;color:#0f766e;background:#f0fdfa;border:1px solid #99f6e4;border-radius:4px;padding:0 8px;cursor:pointer;font-family:inherit;appearance:none;-webkit-appearance:none;margin:0" data-tip="Lihat formula perhitungan" data-formula="${escHtml(row.formula)}" onclick="toggleFormulaPanel(this)"><span>Σ</span><span class=\"fx-arrow\" style=\"display:inline-block;transition:transform .2s;font-style:normal\">▾</span></button></div>` : ''}${_tipeBadge(row.tipe_perhitungan)}</div></td>
       <td class="td-satuan">${escHtml(row.satuan || '')}</td>
       <td class="td-target" style="font-weight:700">${targetFmt}</td>
-      ${_user?.is_admin ? `<td class="td-bidang" style="color:var(--teks-mid)">${escHtml(row.penanggung_jawab || '-')}</td>` : ''}
+      ${_isKinerjaAdmin() ? `<td class="td-bidang" style="color:var(--teks-mid)">${escHtml(row.penanggung_jawab || '-')}</td>` : ''}
       <td class="realisasi-input-cell">
         ${_renderRealisasiInputCell(row, 'real', 'markDirty')}
       </td>
@@ -867,7 +867,7 @@ function renderKinerjaTable(tbody) {
   : '<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/><path d="M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7"/><path d="M7 3v4a1 1 0 0 0 1 1h7"/></svg> Simpan'}
           </button>
         ` : ''}
-        ${_user?.is_admin && row.realisasi_id ? `
+        ${_isKinerjaAdmin() && row.realisasi_id ? `
           <button class="btn-reset-row" id="resetbtn_${row.id}" data-tip="Reset data realisasi baris ini (admin)"
             onclick="resetRealisasiRow(${row.id}, 'monev')">
             <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
@@ -880,7 +880,7 @@ function renderKinerjaTable(tbody) {
   tbody.innerHTML = html;
   if (typeof window.initCustomSelects === 'function') window.initCustomSelects();
   
-  document.querySelectorAll('.col-bidang-iku').forEach(el => { el.style.display = _user?.is_admin ? '' : 'none'; });
+  document.querySelectorAll('.col-bidang-iku').forEach(el => { el.style.display = _isKinerjaAdmin() ? '' : 'none'; });
   renderPagination('ikuPagination', _filtered.length, _ikuPage, _ikuPageSize, '_goIkuPage');
   
   
@@ -902,7 +902,7 @@ function renderKinerjaTable(tbody) {
 
 function toggleEditRow(indikatorId) {
   
-  if (!_user?.is_admin && !_isMonevInputOpen()) {
+  if (!_isKinerjaAdmin() && !_isMonevInputOpen()) {
     const pa = _periodeListTerbuka.find(p => p.jenis === 'monev' && p.bulan === _kinerja_bulan) ?? null;
     const close = pa?.close_at ? new Date(pa.close_at) : null;
     const now   = new Date();
@@ -1084,7 +1084,7 @@ function toggleEditRow(indikatorId) {
 
 function toggleIkkEditRow(indikatorId) {
   // Guard: non-admin tidak bisa edit di luar window ikk
-  if (!_user?.is_admin && !_isIkkInputOpen()) {
+  if (!_isKinerjaAdmin() && !_isIkkInputOpen()) {
     const pa = _periodeListTerbuka.find(p => p.jenis === 'ikk' && p.bulan === _ikk_bulan) ?? null;
     const close = pa?.close_at ? new Date(pa.close_at) : null;
     const now   = new Date();
@@ -3792,7 +3792,7 @@ async function saveDukung() {
 }
 
 async function initIkkControls() {
-  const isAdmin = _user?.is_admin;
+  const isAdmin = _isKinerjaAdmin();
   
   
   await Promise.all([
@@ -3816,13 +3816,13 @@ async function initIkkControls() {
   if (_ikkTerbuka.length) {
     _ikk_tahun = _ikkTerbuka[0].tahun;
     _ikk_bulan = _ikkTerbuka[0].bulan;
-  } else if (_user?.is_admin) {
+  } else if (_isKinerjaAdmin()) {
     
     _ikk_tahun = new Date().getFullYear();
     _ikk_bulan = _twBulanSekarang();
   }
   
-  if (_user?.is_admin) {
+  if (_isKinerjaAdmin()) {
     _populateTahunSelector('ikkTahunSelect', _ikk_tahun, setIkkTahun);
   } else if (_ikkTerbuka.length) {
     
@@ -3841,15 +3841,15 @@ function _syncIkkBulanButtons() {
   const bulanTerbuka = new Set(_periodeListTerbuka.filter(p => p.jenis === 'ikk').map(p => p.bulan));
   const items = [];
   for (const bulan of TW_BULAN) {
-    const isTampil = _user?.is_admin ? true : bulanTerbuka.has(bulan);
+    const isTampil = _isKinerjaAdmin() ? true : bulanTerbuka.has(bulan);
     if (!isTampil) continue;
-    const periodeMatch = _user?.is_admin
+    const periodeMatch = _isKinerjaAdmin()
       ? _allPeriodeList.find(p => p.jenis === 'ikk' && p.bulan === bulan && p.tahun === _ikk_tahun)
       : _periodeListTerbuka.find(p => p.jenis === 'ikk' && p.bulan === bulan);
     const tahunLabel = periodeMatch ? periodeMatch.tahun : _ikk_tahun;
     items.push({ bulan, tahun: tahunLabel });
   }
-  items.sort((a, b) => _user?.is_admin ? (a.bulan - b.bulan) : ((a.tahun * 100 + a.bulan) - (b.tahun * 100 + b.bulan)));
+  items.sort((a, b) => _isKinerjaAdmin() ? (a.bulan - b.bulan) : ((a.tahun * 100 + a.bulan) - (b.tahun * 100 + b.bulan)));
   sel.innerHTML = items.map(it =>
     `<option value="${it.bulan}"${it.bulan === _ikk_bulan ? ' selected' : ''}>${_twNama(it.bulan)}</option>`
   ).join('');
@@ -3865,7 +3865,7 @@ function _renderIkkPeriodeInfo() {
   
   if (el) el.style.display = 'none';
 
-  if (_user?.is_admin) {
+  if (_isKinerjaAdmin()) {
     if (iWrapper) iWrapper.style.display = '';
     if (tahunWrap) tahunWrap.style.display = 'flex';
     return;
@@ -3883,7 +3883,7 @@ function _renderIkkPeriodeInfo() {
 
 function setIkkBulan(bulan) {
   
-  if (!_user?.is_admin) {
+  if (!_isKinerjaAdmin()) {
     const bulanTerbuka = new Set(_periodeListTerbuka.filter(p => p.jenis === 'ikk').map(p => p.bulan));
     if (!bulanTerbuka.has(bulan)) return;
     
@@ -3902,7 +3902,7 @@ async function loadIkkRekap() {
   if (!tbody) return;
 
   
-  if (!_user?.is_admin && !_periodeListTerbuka.some(p => p.jenis === 'ikk')) {
+  if (!_isKinerjaAdmin() && !_periodeListTerbuka.some(p => p.jenis === 'ikk')) {
     
     const tableCard = tbody.closest('.card');
     if (tableCard) tableCard.style.display = 'none';
@@ -3938,7 +3938,7 @@ async function loadIkkRekap() {
     let rekap = d.rekap || [];
 
     // Filter per assigned indikator user (non-admin hanya lihat indikator yg di-assign)
-    if (!_user?.is_admin) {
+    if (!_isKinerjaAdmin()) {
       if (_userIndikatorIds && _userIndikatorIds.size > 0) {
         rekap = rekap.filter(row => _userIndikatorIds.has(Number(row.id)));
       } else {
@@ -3963,7 +3963,7 @@ function filterIkkTable() {
 function _renderIkkTable(tbody) {
   if (!_ikkData.length) {
     let emptyMsg = 'Belum ada indikator IKK aktif. Admin perlu menambahkan indikator dengan jenis IKK.';
-    if (!_user?.is_admin) {
+    if (!_isKinerjaAdmin()) {
       if (!_userIndikatorIds || _userIndikatorIds.size === 0) {
         emptyMsg = 'Belum ada indikator yang di-assign ke akun Anda. Hubungi Admin untuk mengatur assignment indikator.';
       } else {
@@ -4035,7 +4035,7 @@ function _renderIkkTable(tbody) {
       <td class="td-sticky-name" style="position:sticky;left:34px;z-index:3"><div style="font-weight:600;line-height:1.6"><span>${escHtml(row.indikator_kinerja)}</span>${row.bermakna_negatif ? `<span data-tip="Bermakna Negatif" data-tip-variant="danger" style="display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;background:#fee2e2;border-radius:50%;margin-left:5px;vertical-align:middle;flex-shrink:0"><svg xmlns=\"http://www.w3.org/2000/svg\" width=\"9\" height=\"9\" fill=\"none\" viewBox=\"0 0 24 24\" stroke=\"#991b1b\" stroke-width=\"2.8\"><path stroke-linecap=\"round\" stroke-linejoin=\"round\" d=\"M19 14l-7 7m0 0l-7-7m7 7V3\"/></svg></span>` : `<span data-tip="Bermakna Positif" data-tip-variant="success" style="display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;background:#d1fae5;border-radius:50%;margin-left:5px;vertical-align:middle;flex-shrink:0"><svg xmlns=\"http://www.w3.org/2000/svg\" width=\"9\" height=\"9\" fill=\"none\" viewBox=\"0 0 24 24\" stroke=\"#065f46\" stroke-width=\"2.8\"><path stroke-linecap=\"round\" stroke-linejoin=\"round\" d=\"M5 10l7-7m0 0l7 7m-7-7v18\"/></svg></span>`}</div><div style="display:flex;align-items:center;gap:6px;margin-top:5px">${row.formula ? `<div class="fx-wrap"><button style="display:inline-flex;align-items:center;justify-content:center;gap:4px;box-sizing:border-box;height:24px;font-size:0.62rem;font-weight:700;line-height:1;color:#0f766e;background:#f0fdfa;border:1px solid #99f6e4;border-radius:4px;padding:0 8px;cursor:pointer;font-family:inherit;appearance:none;-webkit-appearance:none;margin:0" data-tip="Lihat formula perhitungan" data-formula="${escHtml(row.formula)}" onclick="toggleFormulaPanel(this)"><span>Σ</span><span class=\"fx-arrow\" style=\"display:inline-block;transition:transform .2s;font-style:normal\">▾</span></button></div>` : ''}${_tipeBadge(row.tipe_perhitungan)}</div></td>
       <td class="td-satuan">${escHtml(row.satuan || '')}</td>
       <td class="td-target" style="font-weight:700">${targetFmt}</td>
-      ${_user?.is_admin ? `<td class="td-bidang" style="color:var(--teks-mid)">${escHtml(row.penanggung_jawab || '-')}</td>` : ''}
+      ${_isKinerjaAdmin() ? `<td class="td-bidang" style="color:var(--teks-mid)">${escHtml(row.penanggung_jawab || '-')}</td>` : ''}
       <td class="realisasi-input-cell">
         ${_renderRealisasiInputCell(row, 'ikk_real', 'markIkkDirty')}
       </td>
@@ -4071,7 +4071,7 @@ function _renderIkkTable(tbody) {
   : '<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/><path d="M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7"/><path d="M7 3v4a1 1 0 0 0 1 1h7"/></svg> Simpan'}
           </button>
         ` : ''}
-        ${_user?.is_admin && row.realisasi_id ? `
+        ${_isKinerjaAdmin() && row.realisasi_id ? `
           <button class="btn-reset-row" id="ikk_resetbtn_${row.id}" data-tip="Reset data realisasi baris ini (admin)"
             onclick="resetRealisasiRow(${row.id}, 'ikk')">
             <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
@@ -4084,7 +4084,7 @@ function _renderIkkTable(tbody) {
   tbody.innerHTML = html;
   if (typeof window.initCustomSelects === 'function') window.initCustomSelects();
   
-  document.querySelectorAll('.col-bidang-ikk').forEach(el => { el.style.display = _user?.is_admin ? '' : 'none'; });
+  document.querySelectorAll('.col-bidang-ikk').forEach(el => { el.style.display = _isKinerjaAdmin() ? '' : 'none'; });
   renderPagination('ikkPagination', _filtered.length, _ikkPage, _ikkPageSize, '_goIkkPage');
   
   
@@ -6141,7 +6141,7 @@ function _monSyncStatusBtn() {
 // ═══════════════════════════════════════════════════════════════════════════
 
 async function initSpmControls() {
-  const isAdmin = _user?.is_admin;
+  const isAdmin = _isKinerjaAdmin();
   // Sama kayak initIkkControls - 3 fetch independen ditembak paralel, bukan berurutan
   await Promise.all([
     !_periodeListTerbuka.length
@@ -6163,11 +6163,11 @@ async function initSpmControls() {
   if (_spmTerbuka.length) {
     _spm_tahun = _spmTerbuka[0].tahun;
     _spm_bulan = _spmTerbuka[0].bulan;
-  } else if (_user?.is_admin) {
+  } else if (_isKinerjaAdmin()) {
     _spm_tahun = new Date().getFullYear();
     _spm_bulan = _twBulanSekarang();
   }
-  if (_user?.is_admin) {
+  if (_isKinerjaAdmin()) {
     _populateTahunSelector('spmTahunSelect', _spm_tahun, setSpmTahun);
     const tw = document.getElementById('spmTahunWrap');
     if (tw) tw.style.display = 'flex';
@@ -6183,7 +6183,7 @@ async function initSpmControls() {
 
 function setSpmTahun(tahun) {
   _spm_tahun = tahun;
-  if (_user?.is_admin) {
+  if (_isKinerjaAdmin()) {
     _populateTahunSelector('spmTahunSelect', _spm_tahun, setSpmTahun);
   } else {
     // Non-admin: pilih bulan pertama yang periodenya terbuka untuk tahun ini
@@ -6198,7 +6198,7 @@ function setSpmTahun(tahun) {
 }
 
 function setSpmBulan(bulan) {
-  if (!_user?.is_admin) {
+  if (!_isKinerjaAdmin()) {
     const bulanTerbuka = new Set(_periodeListTerbuka.filter(p => p.jenis === 'spm').map(p => p.bulan));
     if (!bulanTerbuka.has(bulan)) return;
     const periodeMatch = _periodeListTerbuka.find(p => p.jenis === 'spm' && p.bulan === bulan);
@@ -6217,15 +6217,15 @@ function _syncSpmBulanButtons() {
   const bulanTerbuka = new Set(_periodeListTerbuka.filter(p => p.jenis === 'spm').map(p => p.bulan));
   const items = [];
   for (const bulan of TW_BULAN) {
-    const isTampil = _user?.is_admin ? true : bulanTerbuka.has(bulan);
+    const isTampil = _isKinerjaAdmin() ? true : bulanTerbuka.has(bulan);
     if (!isTampil) continue;
-    const periodeMatch = _user?.is_admin
+    const periodeMatch = _isKinerjaAdmin()
       ? _allPeriodeList.find(p => p.jenis === 'spm' && p.bulan === bulan && p.tahun === _spm_tahun)
       : _periodeListTerbuka.find(p => p.jenis === 'spm' && p.bulan === bulan);
     const tahunLabel = periodeMatch ? periodeMatch.tahun : _spm_tahun;
     items.push({ bulan, tahun: tahunLabel });
   }
-  items.sort((a, b) => _user?.is_admin ? (a.bulan - b.bulan) : ((a.tahun * 100 + a.bulan) - (b.tahun * 100 + b.bulan)));
+  items.sort((a, b) => _isKinerjaAdmin() ? (a.bulan - b.bulan) : ((a.tahun * 100 + a.bulan) - (b.tahun * 100 + b.bulan)));
   sel.innerHTML = items.map(it =>
     `<option value="${it.bulan}"${it.bulan === _spm_bulan ? ' selected' : ''}>${_twNama(it.bulan)}</option>`
   ).join('');
@@ -6241,7 +6241,7 @@ function _renderSpmPeriodeInfo() {
   
   if (el) el.style.display = 'none';
 
-  if (_user?.is_admin) {
+  if (_isKinerjaAdmin()) {
     if (wrapper) wrapper.style.display = '';
     if (tahunWrap) tahunWrap.style.display = 'flex';
     return;
@@ -6260,7 +6260,7 @@ async function loadSpmRekap() {
   const tbody = document.getElementById('spmTableBody');
   if (!tbody) return;
 
-  if (!_user?.is_admin && !_periodeListTerbuka.some(p => p.jenis === 'spm')) {
+  if (!_isKinerjaAdmin() && !_periodeListTerbuka.some(p => p.jenis === 'spm')) {
     const tableCard = tbody.closest('.card');
     if (tableCard) tableCard.style.display = 'none';
     let msgEl = document.getElementById('spmNoperiodeMsg');
@@ -6294,7 +6294,7 @@ async function loadSpmRekap() {
     let rekap = d.rekap || [];
 
     // Filter per assigned indikator user (non-admin hanya lihat indikator yg di-assign)
-    if (!_user?.is_admin) {
+    if (!_isKinerjaAdmin()) {
       if (_userIndikatorIds && _userIndikatorIds.size > 0) {
         rekap = rekap.filter(row => _userIndikatorIds.has(Number(row.id)));
       } else {
@@ -6319,7 +6319,7 @@ function filterSpmTable() {
 function _renderSpmTable(tbody) {
   if (!_spmData.length) {
     let emptyMsg = 'Belum ada indikator SPM aktif. Admin perlu menambahkan indikator dengan jenis SPM.';
-    if (!_user?.is_admin) {
+    if (!_isKinerjaAdmin()) {
       if (!_userIndikatorIds || _userIndikatorIds.size === 0) {
         emptyMsg = 'Belum ada indikator yang di-assign ke akun Anda. Hubungi Admin untuk mengatur assignment indikator.';
       } else {
@@ -6370,7 +6370,7 @@ function _renderSpmTable(tbody) {
       <td class="td-sticky-name" style="position:sticky;left:34px;z-index:3"><div style="font-weight:600;line-height:1.6"><span>${escHtml(row.nama_indikator || row.indikator_kinerja || '')}</span>${row.bermakna_negatif ? `<span data-tip="Bermakna Negatif" data-tip-variant="danger" style="display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;background:#fee2e2;border-radius:50%;margin-left:5px;vertical-align:middle;flex-shrink:0"><svg xmlns=\"http://www.w3.org/2000/svg\" width=\"9\" height=\"9\" fill=\"none\" viewBox=\"0 0 24 24\" stroke=\"#991b1b\" stroke-width=\"2.8\"><path stroke-linecap=\"round\" stroke-linejoin=\"round\" d=\"M19 14l-7 7m0 0l-7-7m7 7V3\"/></svg></span>` : `<span data-tip="Bermakna Positif" data-tip-variant="success" style="display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;background:#d1fae5;border-radius:50%;margin-left:5px;vertical-align:middle;flex-shrink:0"><svg xmlns=\"http://www.w3.org/2000/svg\" width=\"9\" height=\"9\" fill=\"none\" viewBox=\"0 0 24 24\" stroke=\"#065f46\" stroke-width=\"2.8\"><path stroke-linecap=\"round\" stroke-linejoin=\"round\" d=\"M5 10l7-7m0 0l7 7m-7-7v18\"/></svg></span>`}</div><div style="display:flex;align-items:center;gap:6px;margin-top:5px">${row.formula ? `<div class="fx-wrap"><button style="display:inline-flex;align-items:center;justify-content:center;gap:4px;box-sizing:border-box;height:24px;font-size:0.62rem;font-weight:700;line-height:1;color:#0f766e;background:#f0fdfa;border:1px solid #99f6e4;border-radius:4px;padding:0 8px;cursor:pointer;font-family:inherit;appearance:none;-webkit-appearance:none;margin:0" data-tip="Lihat formula perhitungan" data-formula="${escHtml(row.formula)}" onclick="toggleFormulaPanel(this)"><span>Σ</span><span class=\"fx-arrow\" style=\"display:inline-block;transition:transform .2s;font-style:normal\">▾</span></button></div>` : ''}${_tipeBadge(row.tipe_perhitungan)}</div></td>
       <td class="td-satuan">${escHtml(row.satuan || '')}</td>
       <td class="td-target" style="font-weight:700">${targetFmt}</td>
-      ${_user?.is_admin ? `<td class="td-bidang" style="color:var(--teks-mid)">${escHtml(row.penanggung_jawab || '-')}</td>` : ''}
+      ${_isKinerjaAdmin() ? `<td class="td-bidang" style="color:var(--teks-mid)">${escHtml(row.penanggung_jawab || '-')}</td>` : ''}
       <td class="realisasi-input-cell">
         ${_renderRealisasiInputCell(row, 'spm_real', 'markSpmDirty')}
       </td>
@@ -6408,7 +6408,7 @@ function _renderSpmTable(tbody) {
   : '<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/><path d="M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7"/><path d="M7 3v4a1 1 0 0 0 1 1h7"/></svg> Simpan'}
           </button>
         ` : ''}
-        ${_user?.is_admin && row.realisasi_id ? `
+        ${_isKinerjaAdmin() && row.realisasi_id ? `
           <button class="btn-reset-row" id="spm_resetbtn_${row.id}" data-tip="Reset data realisasi baris ini (admin)"
             onclick="resetRealisasiRow(${row.id}, 'spm')">
             <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
@@ -6422,7 +6422,7 @@ function _renderSpmTable(tbody) {
   if (typeof window.initCustomSelects === 'function') window.initCustomSelects();
   
   document.querySelectorAll('.col-bidang-spm').forEach(el => {
-    el.style.display = _user?.is_admin ? '' : 'none';
+    el.style.display = _isKinerjaAdmin() ? '' : 'none';
   });
   renderPagination('spmPagination', _filtered.length, _spmPage, _spmPageSize, '_goSpmPage');
   
@@ -6443,7 +6443,7 @@ function _renderSpmTable(tbody) {
 }
 
 function toggleSpmEditRow(indikatorId) {
-  if (!_user?.is_admin && !_isKinerjaInputOpen(null, 'spm')) {
+  if (!_isKinerjaAdmin() && !_isKinerjaInputOpen(null, 'spm')) {
     const pa = _periodeListTerbuka.find(p => p.jenis === 'spm' && p.bulan === _spm_bulan) ?? null;
     const close = pa?.close_at ? new Date(pa.close_at) : null;
     if (close && new Date() > close) {
@@ -6826,7 +6826,7 @@ async function saveSpmRealisasiRow(indikatorId) {
 }
 
 async function initSubkegControls() {
-  const isAdmin = _user?.is_admin;
+  const isAdmin = _isKinerjaAdmin();
   // Sama kayak initIkkControls - 3 fetch independen ditembak paralel, bukan berurutan
   await Promise.all([
     !_periodeListTerbuka.length
@@ -6848,11 +6848,11 @@ async function initSubkegControls() {
   if (_subkegTerbuka.length) {
     _subkeg_tahun = _subkegTerbuka[0].tahun;
     _subkeg_bulan = _subkegTerbuka[0].bulan;
-  } else if (_user?.is_admin) {
+  } else if (_isKinerjaAdmin()) {
     _subkeg_tahun = new Date().getFullYear();
     _subkeg_bulan = _twBulanSekarang();
   }
-  if (_user?.is_admin) {
+  if (_isKinerjaAdmin()) {
     _populateTahunSelector('subkegTahunSelect', _subkeg_tahun, setSubkegTahun);
     const tw = document.getElementById('subkegTahunWrap');
     if (tw) tw.style.display = 'flex';
@@ -6868,7 +6868,7 @@ async function initSubkegControls() {
 
 function setSubkegTahun(tahun) {
   _subkeg_tahun = tahun;
-  if (_user?.is_admin) {
+  if (_isKinerjaAdmin()) {
     _populateTahunSelector('subkegTahunSelect', _subkeg_tahun, setSubkegTahun);
   } else {
     // Non-admin: pilih bulan pertama yang periodenya terbuka untuk tahun ini
@@ -6883,7 +6883,7 @@ function setSubkegTahun(tahun) {
 }
 
 function setSubkegBulan(bulan) {
-  if (!_user?.is_admin) {
+  if (!_isKinerjaAdmin()) {
     const bulanTerbuka = new Set(_periodeListTerbuka.filter(p => p.jenis === 'subkeg').map(p => p.bulan));
     if (!bulanTerbuka.has(bulan)) return;
     const periodeMatch = _periodeListTerbuka.find(p => p.jenis === 'subkeg' && p.bulan === bulan);
@@ -6902,15 +6902,15 @@ function _syncSubkegBulanButtons() {
   const bulanTerbuka = new Set(_periodeListTerbuka.filter(p => p.jenis === 'subkeg').map(p => p.bulan));
   const items = [];
   for (const bulan of TW_BULAN) {
-    const isTampil = _user?.is_admin ? true : bulanTerbuka.has(bulan);
+    const isTampil = _isKinerjaAdmin() ? true : bulanTerbuka.has(bulan);
     if (!isTampil) continue;
-    const periodeMatch = _user?.is_admin
+    const periodeMatch = _isKinerjaAdmin()
       ? _allPeriodeList.find(p => p.jenis === 'subkeg' && p.bulan === bulan && p.tahun === _subkeg_tahun)
       : _periodeListTerbuka.find(p => p.jenis === 'subkeg' && p.bulan === bulan);
     const tahunLabel = periodeMatch ? periodeMatch.tahun : _subkeg_tahun;
     items.push({ bulan, tahun: tahunLabel });
   }
-  items.sort((a, b) => _user?.is_admin ? (a.bulan - b.bulan) : ((a.tahun * 100 + a.bulan) - (b.tahun * 100 + b.bulan)));
+  items.sort((a, b) => _isKinerjaAdmin() ? (a.bulan - b.bulan) : ((a.tahun * 100 + a.bulan) - (b.tahun * 100 + b.bulan)));
   sel.innerHTML = items.map(it =>
     `<option value="${it.bulan}"${it.bulan === _subkeg_bulan ? ' selected' : ''}>${_twNama(it.bulan)}</option>`
   ).join('');
@@ -6926,7 +6926,7 @@ function _renderSubkegPeriodeInfo() {
   
   if (el) el.style.display = 'none';
 
-  if (_user?.is_admin) {
+  if (_isKinerjaAdmin()) {
     if (wrapper) wrapper.style.display = '';
     if (tahunWrap) tahunWrap.style.display = 'flex';
     return;
@@ -6945,7 +6945,7 @@ async function loadSubkegRekap() {
   const tbody = document.getElementById('subkegTableBody');
   if (!tbody) return;
 
-  if (!_user?.is_admin && !_periodeListTerbuka.some(p => p.jenis === 'subkeg')) {
+  if (!_isKinerjaAdmin() && !_periodeListTerbuka.some(p => p.jenis === 'subkeg')) {
     const tableCard = tbody.closest('.card');
     if (tableCard) tableCard.style.display = 'none';
     let msgEl = document.getElementById('subkegNoperiodeMsg');
@@ -6979,7 +6979,7 @@ async function loadSubkegRekap() {
     let rekap = d.rekap || [];
 
     // Filter per assigned indikator user (non-admin hanya lihat indikator yg di-assign)
-    if (!_user?.is_admin) {
+    if (!_isKinerjaAdmin()) {
       if (_userIndikatorIds && _userIndikatorIds.size > 0) {
         rekap = rekap.filter(row => _userIndikatorIds.has(Number(row.id)));
       } else {
@@ -7004,7 +7004,7 @@ function filterSubkegTable() {
 function _renderSubkegTable(tbody) {
   if (!_subkegData.length) {
     let emptyMsg = 'Belum ada indikator Sub Kegiatan aktif. Admin perlu menambahkan indikator dengan jenis Sub Kegiatan.';
-    if (!_user?.is_admin) {
+    if (!_isKinerjaAdmin()) {
       if (!_userIndikatorIds || _userIndikatorIds.size === 0) {
         emptyMsg = 'Belum ada indikator yang di-assign ke akun Anda. Hubungi Admin untuk mengatur assignment indikator.';
       } else {
@@ -7055,7 +7055,7 @@ function _renderSubkegTable(tbody) {
       <td class="td-sticky-name" style="position:sticky;left:34px;z-index:3"><div style="font-weight:600;line-height:1.6"><span>${escHtml(row.nama_indikator || row.indikator_kinerja || '')}</span>${row.bermakna_negatif ? `<span data-tip="Bermakna Negatif" data-tip-variant="danger" style="display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;background:#fee2e2;border-radius:50%;margin-left:5px;vertical-align:middle;flex-shrink:0"><svg xmlns=\"http://www.w3.org/2000/svg\" width=\"9\" height=\"9\" fill=\"none\" viewBox=\"0 0 24 24\" stroke=\"#991b1b\" stroke-width=\"2.8\"><path stroke-linecap=\"round\" stroke-linejoin=\"round\" d=\"M19 14l-7 7m0 0l-7-7m7 7V3\"/></svg></span>` : `<span data-tip="Bermakna Positif" data-tip-variant="success" style="display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;background:#d1fae5;border-radius:50%;margin-left:5px;vertical-align:middle;flex-shrink:0"><svg xmlns=\"http://www.w3.org/2000/svg\" width=\"9\" height=\"9\" fill=\"none\" viewBox=\"0 0 24 24\" stroke=\"#065f46\" stroke-width=\"2.8\"><path stroke-linecap=\"round\" stroke-linejoin=\"round\" d=\"M5 10l7-7m0 0l7 7m-7-7v18\"/></svg></span>`}</div><div style="display:flex;align-items:center;gap:6px;margin-top:5px">${row.formula ? `<div class="fx-wrap"><button style="display:inline-flex;align-items:center;justify-content:center;gap:4px;box-sizing:border-box;height:24px;font-size:0.62rem;font-weight:700;line-height:1;color:#0f766e;background:#f0fdfa;border:1px solid #99f6e4;border-radius:4px;padding:0 8px;cursor:pointer;font-family:inherit;appearance:none;-webkit-appearance:none;margin:0" data-tip="Lihat formula perhitungan" data-formula="${escHtml(row.formula)}" onclick="toggleFormulaPanel(this)"><span>Σ</span><span class=\"fx-arrow\" style=\"display:inline-block;transition:transform .2s;font-style:normal\">▾</span></button></div>` : ''}${_tipeBadge(row.tipe_perhitungan)}</div></td>
       <td class="td-satuan">${escHtml(row.satuan || '')}</td>
       <td class="td-target" style="font-weight:700">${targetFmt}</td>
-      ${_user?.is_admin ? `<td class="td-bidang" style="color:var(--teks-mid)">${escHtml(row.penanggung_jawab || '-')}</td>` : ''}
+      ${_isKinerjaAdmin() ? `<td class="td-bidang" style="color:var(--teks-mid)">${escHtml(row.penanggung_jawab || '-')}</td>` : ''}
       <td class="realisasi-input-cell">
         ${_renderRealisasiInputCell(row, 'subkeg_real', 'markSubkegDirty')}
       </td>
@@ -7093,7 +7093,7 @@ function _renderSubkegTable(tbody) {
   : '<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/><path d="M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7"/><path d="M7 3v4a1 1 0 0 0 1 1h7"/></svg> Simpan'}
           </button>
         ` : ''}
-        ${_user?.is_admin && row.realisasi_id ? `
+        ${_isKinerjaAdmin() && row.realisasi_id ? `
           <button class="btn-reset-row" id="subkeg_resetbtn_${row.id}" data-tip="Reset data realisasi baris ini (admin)"
             onclick="resetRealisasiRow(${row.id}, 'subkeg')">
             <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
@@ -7107,7 +7107,7 @@ function _renderSubkegTable(tbody) {
   if (typeof window.initCustomSelects === 'function') window.initCustomSelects();
   
   document.querySelectorAll('.col-bidang-subkeg').forEach(el => {
-    el.style.display = _user?.is_admin ? '' : 'none';
+    el.style.display = _isKinerjaAdmin() ? '' : 'none';
   });
   renderPagination('subkegPagination', _filtered.length, _subkegPage, _subkegPageSize, '_goSubkegPage');
   
@@ -7128,7 +7128,7 @@ function _renderSubkegTable(tbody) {
 }
 
 function toggleSubkegEditRow(indikatorId) {
-  if (!_user?.is_admin && !_isKinerjaInputOpen(null, 'subkeg')) {
+  if (!_isKinerjaAdmin() && !_isKinerjaInputOpen(null, 'subkeg')) {
     const pa = _periodeListTerbuka.find(p => p.jenis === 'subkeg' && p.bulan === _subkeg_bulan) ?? null;
     const close = pa?.close_at ? new Date(pa.close_at) : null;
     if (close && new Date() > close) {
@@ -7513,7 +7513,7 @@ async function saveSubkegRealisasiRow(indikatorId) {
 const _RESET_BTN_IDLE_HTML = `<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>\n      Reset`;
 
 async function resetRealisasiRow(indikatorId, jenis) {
-  if (!_user?.is_admin) return;
+  if (!_isKinerjaAdmin()) return;
   const ok = await showConfirm({ title: 'Reset Realisasi', msg: 'Data realisasi baris ini akan dihapus dan baris kembali kosong.', okText: 'Ya, Reset', icon: 'trash' }); if (!ok) return;
 
   const dataArr = jenis === 'ikk' ? _ikkData : jenis === 'spm' ? _spmData : jenis === 'subkeg' ? _subkegData : _kinerjaData;

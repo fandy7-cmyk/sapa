@@ -1746,7 +1746,7 @@ async function loadLaporanKinerja() {
   _showLaporanLoading();
   _lapEnsureSubkegOption();
   await _initLaporanKinerjaFilter();
-  if (!_user?.is_admin && typeof _ensureUserIndikatorIds === 'function') await _ensureUserIndikatorIds();
+  if (!_isKinerjaAdmin() && typeof _ensureUserIndikatorIds === 'function') await _ensureUserIndikatorIds();
 
   const bulanDari   = _lapRangeFrom?.bulan   ?? 1;
   const bulanSampai = _lapRangeTo?.bulan     ?? 12;
@@ -1810,7 +1810,7 @@ async function loadLaporanKinerja() {
   
   
   
-  if (!_user?.is_admin) {
+  if (!_isKinerjaAdmin()) {
     const bidangRows = rows; 
     const myRows = (_userIndikatorIds && _userIndikatorIds.size > 0)
       ? bidangRows.filter(row => _userIndikatorIds.has(Number(row.id)))
@@ -1962,7 +1962,7 @@ async function loadLaporanKinerja() {
   
   
   
-  if (!_user?.is_admin && jenis === 'semua') {
+  if (!_isKinerjaAdmin() && jenis === 'semua') {
     const jenisSel = document.getElementById('laporanKinerjaJenis');
     if (jenisSel) {
       const present  = new Set(rows.map(r => r._jenis));
@@ -1980,7 +1980,7 @@ async function loadLaporanKinerja() {
       jenisSel.disabled = relevant.length <= 1;
       if (typeof syncCustomSelect === 'function') syncCustomSelect('laporanKinerjaJenis');
     }
-  } else if (_user?.is_admin) {
+  } else if (_isKinerjaAdmin()) {
     const jenisSel = document.getElementById('laporanKinerjaJenis');
     if (jenisSel) jenisSel.disabled = false;
   }
@@ -1992,7 +1992,7 @@ async function loadLaporanKinerja() {
   
   
   const bidangWrapEl = bidangSel?.closest('.select-wrap');
-  if (!_user?.is_admin) {
+  if (!_isKinerjaAdmin()) {
     if (bidangWrapEl) bidangWrapEl.style.display = 'none';
   } else {
     if (bidangWrapEl) bidangWrapEl.style.display = '';
@@ -2006,7 +2006,7 @@ async function loadLaporanKinerja() {
       bidangSel.innerHTML = optsHtml;
       if ([...bidangSel.options].some(o => o.value === currentBidang)) bidangSel.value = currentBidang;
     }
-    if (!_user?.is_admin) {
+    if (!_isKinerjaAdmin()) {
       if (bidangList.length <= 1) bidangSel.value = bidangList[0] || '';
       bidangSel.disabled = bidangList.length <= 1;
     } else {
@@ -2027,7 +2027,7 @@ async function loadLaporanKinerja() {
   const filteredRows = _applyLaporanKinerjaFilters(rows);
 
   _lapKinerjaPage = 1;
-  const emptyMsg = (!_user?.is_admin && (!_userIndikatorIds || _userIndikatorIds.size === 0))
+  const emptyMsg = (!_isKinerjaAdmin() && (!_userIndikatorIds || _userIndikatorIds.size === 0))
     ? 'Belum ada indikator yang di-assign ke akun Anda. Hubungi Admin untuk mengatur assignment indikator.'
     : 'Tidak ada data untuk filter ini';
   if (typeof syncCustomSelect === 'function') syncCustomSelect('laporanKinerjaScope');
@@ -2396,7 +2396,7 @@ async function downloadLaporanByUrusan(btnEl) {
   if (btnEl) { btnEl.disabled = true; btnEl.innerHTML = `<span class="btn-spin" style="width:12px;height:12px"></span> Memuat data...`; }
   try {
     let tplWithIndikator = null;
-    if (_user?.is_admin) {
+    if (_isKinerjaAdmin()) {
       const res = await fetch('/api/kinerja/laporan-template?jenis=urusan', { headers: authHeaders() });
       const tplData = await res.json();
       const templates = tplData.templates || [];
@@ -2517,7 +2517,7 @@ async function downloadLaporanByTSP(btnEl) {
     
     
     let orderedTpl = null;
-    if (_user?.is_admin) {
+    if (_isKinerjaAdmin()) {
       
       const res = await fetch('/api/kinerja/laporan-template', { headers: authHeaders() });
       const tplData = await res.json();
@@ -2790,7 +2790,7 @@ async function downloadLaporanByPengukuran(btnEl) {
     };
 
     let flatNodes = null; // [{tpl, level, no, indikatorRows}]
-    if (_user?.is_admin) {
+    if (_isKinerjaAdmin()) {
       const res = await fetch('/api/kinerja/laporan-template', { headers: authHeaders() });
       const tplData = await res.json();
       const pkTemplates = (tplData.templates || []).filter(t => PK_LEVELS.includes(t.jenis));

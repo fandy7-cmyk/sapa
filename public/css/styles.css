@@ -9657,7 +9657,6 @@ tr:hover td:not(.td-sticky-no):not(.td-sticky-name) { background: var(--abu-1); 
 .lap-cascade-col {
   flex: 1;
   min-width: 220px;
-  max-width: 300px;
   background: var(--bg-card, #fff);
   border: 1.5px solid var(--border, #e2e8f0);
   border-radius: 12px;
@@ -10024,12 +10023,20 @@ body.is-admin #absRekapBox { grid-template-columns: repeat(6, 0.85fr) 1.5fr; }
    KELOLA PERIODE - card style (gantiin tabel lama, ala "Periode Aktif")
    ═══════════════════════════════════════════════════════════════════════ */
 #periodeCardsWrap {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;   /* kartu otomatis di tengah, berapa pun jumlahnya */
   gap: var(--sp-4);
   align-items: stretch;
 }
+/* Teks "Memuat data..." / kosong / hasil pencarian: selalu selebar penuh & rata tengah */
+#periodeCardsWrap > :not(.periode-group-card) {
+  flex: 1 1 100%;
+  text-align: center;
+}
 .periode-group-card {
+  flex: 1 1 340px;
+  max-width: 420px;
   background: rgba(255,255,255,.92);
   border-radius: var(--radius);
   overflow: hidden;
@@ -10106,17 +10113,17 @@ body.is-admin #absRekapBox { grid-template-columns: repeat(6, 0.85fr) 1.5fr; }
 .periode-jenis-actions .btn-sm, .periode-jenis-actions .btn-hapus { padding: 4px 9px; font-size: 12px; }
 
 .periode-empty {
-  grid-column: 1 / -1;
+  flex: 1 1 100%;
   background: rgba(255,255,255,.88); border-radius: var(--radius);
   padding: var(--sp-7) var(--sp-5); text-align: center;
   color: var(--teks-muted); font-style: italic; box-shadow: var(--shadow-md);
 }
 
 @media (max-width: 1400px) {
-  #periodeCardsWrap { grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); }
+  .periode-group-card { flex-basis: 300px; }
 }
 @media (max-width: 640px) {
-  #periodeCardsWrap { grid-template-columns: 1fr; }
+  .periode-group-card { flex-basis: 100%; max-width: none; }
   .periode-group-header { padding: var(--sp-3) var(--sp-4); }
   .periode-jenis-row { padding: var(--sp-3) var(--sp-4); }
 }

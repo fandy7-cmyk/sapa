@@ -252,6 +252,11 @@ function hasAccess(key) {
   return Array.isArray(_user.permissions) && _user.permissions.includes(key);
 }
 
+// Admin Kinerja: Super Admin ATAU user dengan permission 'kinerja.full' (setara admin di modul kinerja).
+function _isKinerjaAdmin() {
+  return !!(_user && (_user.is_admin || (Array.isArray(_user.permissions) && _user.permissions.includes('kinerja.full'))));
+}
+
 const hasPermission = hasAccess;  
 
 let _hasMonevIndikator = false;
@@ -260,7 +265,7 @@ let _hasSpmIndikator   = false;
 let _hasSubkegIndikator = false;
 
 async function _cekKinerjaIndikator() {
-  if (_user && _user.is_admin) { _hasMonevIndikator = true; _hasIkkIndikator = true; _hasSpmIndikator = true; _hasSubkegIndikator = true; return; }
+  if (_isKinerjaAdmin()) { _hasMonevIndikator = true; _hasIkkIndikator = true; _hasSpmIndikator = true; _hasSubkegIndikator = true; return; }
   try {
     const rAssign = await fetch(`/api/users/${_user.id}/indikator`, { headers: authHeaders() }).catch(() => null);
     const dAssign = (rAssign && rAssign.ok) ? await rAssign.json() : {};
