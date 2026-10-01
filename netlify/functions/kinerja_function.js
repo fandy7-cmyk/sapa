@@ -1015,7 +1015,7 @@ export const handler = async (event) => {
               kr.updated_at AS realisasi_updated_at,
               CASE
                 WHEN COALESCE(
-                       CASE WHEN ki.tipe_perhitungan = 'kumulatif'
+                       CASE WHEN ki.tipe_perhitungan = 'non_kumulatif'
                              THEN (SELECT SUM(krc.realisasi) FROM kinerja_realisasi krc
                                    WHERE krc.indikator_id = ki.id
                                      AND krc.tahun = ${tahun}
@@ -1033,7 +1033,7 @@ export const handler = async (event) => {
                   THEN ROUND(
                     (kt.target::NUMERIC - (
                       COALESCE(
-                        CASE WHEN ki.tipe_perhitungan = 'kumulatif'
+                        CASE WHEN ki.tipe_perhitungan = 'non_kumulatif'
                              THEN (SELECT SUM(krc.realisasi) FROM kinerja_realisasi krc
                                    WHERE krc.indikator_id = ki.id
                                      AND krc.tahun = ${tahun}
@@ -1052,7 +1052,7 @@ export const handler = async (event) => {
                 ELSE
                   ROUND(
                     COALESCE(
-                      CASE WHEN ki.tipe_perhitungan = 'kumulatif'
+                      CASE WHEN ki.tipe_perhitungan = 'non_kumulatif'
                              THEN (SELECT SUM(krc.realisasi) FROM kinerja_realisasi krc
                                    WHERE krc.indikator_id = ki.id
                                      AND krc.tahun = ${tahun}
@@ -1131,7 +1131,7 @@ export const handler = async (event) => {
               kr.updated_at AS realisasi_updated_at,
               CASE
                 WHEN COALESCE(
-                       CASE WHEN ki.tipe_perhitungan = 'kumulatif'
+                       CASE WHEN ki.tipe_perhitungan = 'non_kumulatif'
                              THEN (SELECT SUM(krc.realisasi) FROM kinerja_realisasi krc
                                    WHERE krc.indikator_id = ki.id
                                      AND krc.tahun = ${tahun}
@@ -1149,7 +1149,7 @@ export const handler = async (event) => {
                   THEN ROUND(
                     (kt.target::NUMERIC - (
                       COALESCE(
-                        CASE WHEN ki.tipe_perhitungan = 'kumulatif'
+                        CASE WHEN ki.tipe_perhitungan = 'non_kumulatif'
                              THEN (SELECT SUM(krc.realisasi) FROM kinerja_realisasi krc
                                    WHERE krc.indikator_id = ki.id
                                      AND krc.tahun = ${tahun}
@@ -1168,7 +1168,7 @@ export const handler = async (event) => {
                 ELSE
                   ROUND(
                     COALESCE(
-                      CASE WHEN ki.tipe_perhitungan = 'kumulatif'
+                      CASE WHEN ki.tipe_perhitungan = 'non_kumulatif'
                              THEN (SELECT SUM(krc.realisasi) FROM kinerja_realisasi krc
                                    WHERE krc.indikator_id = ki.id
                                      AND krc.tahun = ${tahun}
@@ -1247,7 +1247,7 @@ export const handler = async (event) => {
               kr.updated_at AS realisasi_updated_at,
               CASE
                 WHEN COALESCE(
-                       CASE WHEN ki.tipe_perhitungan = 'kumulatif'
+                       CASE WHEN ki.tipe_perhitungan = 'non_kumulatif'
                              THEN (SELECT SUM(krc.realisasi) FROM kinerja_realisasi krc
                                    WHERE krc.indikator_id = ki.id
                                      AND krc.tahun = ${tahun}
@@ -1265,7 +1265,7 @@ export const handler = async (event) => {
                   THEN ROUND(
                     (kt.target::NUMERIC - (
                       COALESCE(
-                        CASE WHEN ki.tipe_perhitungan = 'kumulatif'
+                        CASE WHEN ki.tipe_perhitungan = 'non_kumulatif'
                              THEN (SELECT SUM(krc.realisasi) FROM kinerja_realisasi krc
                                    WHERE krc.indikator_id = ki.id
                                      AND krc.tahun = ${tahun}
@@ -1284,7 +1284,7 @@ export const handler = async (event) => {
                 ELSE
                   ROUND(
                     COALESCE(
-                      CASE WHEN ki.tipe_perhitungan = 'kumulatif'
+                      CASE WHEN ki.tipe_perhitungan = 'non_kumulatif'
                              THEN (SELECT SUM(krc.realisasi) FROM kinerja_realisasi krc
                                    WHERE krc.indikator_id = ki.id
                                      AND krc.tahun = ${tahun}
@@ -1365,7 +1365,7 @@ export const handler = async (event) => {
               kr.updated_at AS realisasi_updated_at,
               CASE
                 WHEN COALESCE(
-                       CASE WHEN ki.tipe_perhitungan = 'kumulatif'
+                       CASE WHEN ki.tipe_perhitungan = 'non_kumulatif'
                              THEN (SELECT SUM(krc.realisasi) FROM kinerja_realisasi krc
                                    WHERE krc.indikator_id = ki.id
                                      AND krc.tahun = ${tahun}
@@ -1383,7 +1383,7 @@ export const handler = async (event) => {
                   THEN ROUND(
                     (kt.target::NUMERIC - (
                       COALESCE(
-                        CASE WHEN ki.tipe_perhitungan = 'kumulatif'
+                        CASE WHEN ki.tipe_perhitungan = 'non_kumulatif'
                              THEN (SELECT SUM(krc.realisasi) FROM kinerja_realisasi krc
                                    WHERE krc.indikator_id = ki.id
                                      AND krc.tahun = ${tahun}
@@ -1402,7 +1402,7 @@ export const handler = async (event) => {
                 ELSE
                   ROUND(
                     COALESCE(
-                      CASE WHEN ki.tipe_perhitungan = 'kumulatif'
+                      CASE WHEN ki.tipe_perhitungan = 'non_kumulatif'
                              THEN (SELECT SUM(krc.realisasi) FROM kinerja_realisasi krc
                                    WHERE krc.indikator_id = ki.id
                                      AND krc.tahun = ${tahun}
@@ -1481,7 +1481,7 @@ export const handler = async (event) => {
               kr.updated_at AS realisasi_updated_at,
               CASE
                 WHEN COALESCE(
-                       CASE WHEN ki.tipe_perhitungan = 'kumulatif'
+                       CASE WHEN ki.tipe_perhitungan = 'non_kumulatif'
                              THEN (SELECT SUM(krc.realisasi) FROM kinerja_realisasi krc
                                    WHERE krc.indikator_id = ki.id
                                      AND krc.tahun = ${tahun}
@@ -1499,7 +1499,7 @@ export const handler = async (event) => {
                   THEN ROUND(
                     (kt.target::NUMERIC - (
                       COALESCE(
-                        CASE WHEN ki.tipe_perhitungan = 'kumulatif'
+                        CASE WHEN ki.tipe_perhitungan = 'non_kumulatif'
                              THEN (SELECT SUM(krc.realisasi) FROM kinerja_realisasi krc
                                    WHERE krc.indikator_id = ki.id
                                      AND krc.tahun = ${tahun}
@@ -1518,7 +1518,7 @@ export const handler = async (event) => {
                 ELSE
                   ROUND(
                     COALESCE(
-                      CASE WHEN ki.tipe_perhitungan = 'kumulatif'
+                      CASE WHEN ki.tipe_perhitungan = 'non_kumulatif'
                              THEN (SELECT SUM(krc.realisasi) FROM kinerja_realisasi krc
                                    WHERE krc.indikator_id = ki.id
                                      AND krc.tahun = ${tahun}
@@ -1597,7 +1597,7 @@ export const handler = async (event) => {
               kr.updated_at AS realisasi_updated_at,
               CASE
                 WHEN COALESCE(
-                       CASE WHEN ki.tipe_perhitungan = 'kumulatif'
+                       CASE WHEN ki.tipe_perhitungan = 'non_kumulatif'
                              THEN (SELECT SUM(krc.realisasi) FROM kinerja_realisasi krc
                                    WHERE krc.indikator_id = ki.id
                                      AND krc.tahun = ${tahun}
@@ -1615,7 +1615,7 @@ export const handler = async (event) => {
                   THEN ROUND(
                     (kt.target::NUMERIC - (
                       COALESCE(
-                        CASE WHEN ki.tipe_perhitungan = 'kumulatif'
+                        CASE WHEN ki.tipe_perhitungan = 'non_kumulatif'
                              THEN (SELECT SUM(krc.realisasi) FROM kinerja_realisasi krc
                                    WHERE krc.indikator_id = ki.id
                                      AND krc.tahun = ${tahun}
@@ -1634,7 +1634,7 @@ export const handler = async (event) => {
                 ELSE
                   ROUND(
                     COALESCE(
-                      CASE WHEN ki.tipe_perhitungan = 'kumulatif'
+                      CASE WHEN ki.tipe_perhitungan = 'non_kumulatif'
                              THEN (SELECT SUM(krc.realisasi) FROM kinerja_realisasi krc
                                    WHERE krc.indikator_id = ki.id
                                      AND krc.tahun = ${tahun}
@@ -1715,7 +1715,7 @@ export const handler = async (event) => {
               kr.updated_at AS realisasi_updated_at,
               CASE
                 WHEN COALESCE(
-                       CASE WHEN ki.tipe_perhitungan = 'kumulatif'
+                       CASE WHEN ki.tipe_perhitungan = 'non_kumulatif'
                              THEN (SELECT SUM(krc.realisasi) FROM kinerja_realisasi krc
                                    WHERE krc.indikator_id = ki.id
                                      AND krc.tahun = ${tahun}
@@ -1733,7 +1733,7 @@ export const handler = async (event) => {
                   THEN ROUND(
                     (kt.target::NUMERIC - (
                       COALESCE(
-                        CASE WHEN ki.tipe_perhitungan = 'kumulatif'
+                        CASE WHEN ki.tipe_perhitungan = 'non_kumulatif'
                              THEN (SELECT SUM(krc.realisasi) FROM kinerja_realisasi krc
                                    WHERE krc.indikator_id = ki.id
                                      AND krc.tahun = ${tahun}
@@ -1752,7 +1752,7 @@ export const handler = async (event) => {
                 ELSE
                   ROUND(
                     COALESCE(
-                      CASE WHEN ki.tipe_perhitungan = 'kumulatif'
+                      CASE WHEN ki.tipe_perhitungan = 'non_kumulatif'
                              THEN (SELECT SUM(krc.realisasi) FROM kinerja_realisasi krc
                                    WHERE krc.indikator_id = ki.id
                                      AND krc.tahun = ${tahun}
@@ -1831,7 +1831,7 @@ export const handler = async (event) => {
               kr.updated_at AS realisasi_updated_at,
               CASE
                 WHEN COALESCE(
-                       CASE WHEN ki.tipe_perhitungan = 'kumulatif'
+                       CASE WHEN ki.tipe_perhitungan = 'non_kumulatif'
                              THEN (SELECT SUM(krc.realisasi) FROM kinerja_realisasi krc
                                    WHERE krc.indikator_id = ki.id
                                      AND krc.tahun = ${tahun}
@@ -1849,7 +1849,7 @@ export const handler = async (event) => {
                   THEN ROUND(
                     (kt.target::NUMERIC - (
                       COALESCE(
-                        CASE WHEN ki.tipe_perhitungan = 'kumulatif'
+                        CASE WHEN ki.tipe_perhitungan = 'non_kumulatif'
                              THEN (SELECT SUM(krc.realisasi) FROM kinerja_realisasi krc
                                    WHERE krc.indikator_id = ki.id
                                      AND krc.tahun = ${tahun}
@@ -1868,7 +1868,7 @@ export const handler = async (event) => {
                 ELSE
                   ROUND(
                     COALESCE(
-                      CASE WHEN ki.tipe_perhitungan = 'kumulatif'
+                      CASE WHEN ki.tipe_perhitungan = 'non_kumulatif'
                              THEN (SELECT SUM(krc.realisasi) FROM kinerja_realisasi krc
                                    WHERE krc.indikator_id = ki.id
                                      AND krc.tahun = ${tahun}
@@ -1947,7 +1947,7 @@ export const handler = async (event) => {
               kr.updated_at AS realisasi_updated_at,
               CASE
                 WHEN COALESCE(
-                       CASE WHEN ki.tipe_perhitungan = 'kumulatif'
+                       CASE WHEN ki.tipe_perhitungan = 'non_kumulatif'
                              THEN (SELECT SUM(krc.realisasi) FROM kinerja_realisasi krc
                                    WHERE krc.indikator_id = ki.id
                                      AND krc.tahun = ${tahun}
@@ -1965,7 +1965,7 @@ export const handler = async (event) => {
                   THEN ROUND(
                     (kt.target::NUMERIC - (
                       COALESCE(
-                        CASE WHEN ki.tipe_perhitungan = 'kumulatif'
+                        CASE WHEN ki.tipe_perhitungan = 'non_kumulatif'
                              THEN (SELECT SUM(krc.realisasi) FROM kinerja_realisasi krc
                                    WHERE krc.indikator_id = ki.id
                                      AND krc.tahun = ${tahun}
@@ -1984,7 +1984,7 @@ export const handler = async (event) => {
                 ELSE
                   ROUND(
                     COALESCE(
-                      CASE WHEN ki.tipe_perhitungan = 'kumulatif'
+                      CASE WHEN ki.tipe_perhitungan = 'non_kumulatif'
                              THEN (SELECT SUM(krc.realisasi) FROM kinerja_realisasi krc
                                    WHERE krc.indikator_id = ki.id
                                      AND krc.tahun = ${tahun}
@@ -2064,7 +2064,7 @@ export const handler = async (event) => {
               kr.updated_at AS realisasi_updated_at,
               CASE
                 WHEN COALESCE(
-                       CASE WHEN ki.tipe_perhitungan = 'kumulatif'
+                       CASE WHEN ki.tipe_perhitungan = 'non_kumulatif'
                              THEN (SELECT SUM(krc.realisasi) FROM kinerja_realisasi krc
                                    WHERE krc.indikator_id = ki.id
                                      AND krc.tahun = ${tahun}
@@ -2082,7 +2082,7 @@ export const handler = async (event) => {
                   THEN ROUND(
                     (kt.target::NUMERIC - (
                       COALESCE(
-                        CASE WHEN ki.tipe_perhitungan = 'kumulatif'
+                        CASE WHEN ki.tipe_perhitungan = 'non_kumulatif'
                              THEN (SELECT SUM(krc.realisasi) FROM kinerja_realisasi krc
                                    WHERE krc.indikator_id = ki.id
                                      AND krc.tahun = ${tahun}
@@ -2101,7 +2101,7 @@ export const handler = async (event) => {
                 ELSE
                   ROUND(
                     COALESCE(
-                      CASE WHEN ki.tipe_perhitungan = 'kumulatif'
+                      CASE WHEN ki.tipe_perhitungan = 'non_kumulatif'
                              THEN (SELECT SUM(krc.realisasi) FROM kinerja_realisasi krc
                                    WHERE krc.indikator_id = ki.id
                                      AND krc.tahun = ${tahun}
@@ -2180,7 +2180,7 @@ export const handler = async (event) => {
               kr.updated_at AS realisasi_updated_at,
               CASE
                 WHEN COALESCE(
-                       CASE WHEN ki.tipe_perhitungan = 'kumulatif'
+                       CASE WHEN ki.tipe_perhitungan = 'non_kumulatif'
                              THEN (SELECT SUM(krc.realisasi) FROM kinerja_realisasi krc
                                    WHERE krc.indikator_id = ki.id
                                      AND krc.tahun = ${tahun}
@@ -2198,7 +2198,7 @@ export const handler = async (event) => {
                   THEN ROUND(
                     (kt.target::NUMERIC - (
                       COALESCE(
-                        CASE WHEN ki.tipe_perhitungan = 'kumulatif'
+                        CASE WHEN ki.tipe_perhitungan = 'non_kumulatif'
                              THEN (SELECT SUM(krc.realisasi) FROM kinerja_realisasi krc
                                    WHERE krc.indikator_id = ki.id
                                      AND krc.tahun = ${tahun}
@@ -2217,7 +2217,7 @@ export const handler = async (event) => {
                 ELSE
                   ROUND(
                     COALESCE(
-                      CASE WHEN ki.tipe_perhitungan = 'kumulatif'
+                      CASE WHEN ki.tipe_perhitungan = 'non_kumulatif'
                              THEN (SELECT SUM(krc.realisasi) FROM kinerja_realisasi krc
                                    WHERE krc.indikator_id = ki.id
                                      AND krc.tahun = ${tahun}
@@ -2296,7 +2296,7 @@ export const handler = async (event) => {
               kr.updated_at AS realisasi_updated_at,
               CASE
                 WHEN COALESCE(
-                       CASE WHEN ki.tipe_perhitungan = 'kumulatif'
+                       CASE WHEN ki.tipe_perhitungan = 'non_kumulatif'
                              THEN (SELECT SUM(krc.realisasi) FROM kinerja_realisasi krc
                                    WHERE krc.indikator_id = ki.id
                                      AND krc.tahun = ${tahun}
@@ -2314,7 +2314,7 @@ export const handler = async (event) => {
                   THEN ROUND(
                     (kt.target::NUMERIC - (
                       COALESCE(
-                        CASE WHEN ki.tipe_perhitungan = 'kumulatif'
+                        CASE WHEN ki.tipe_perhitungan = 'non_kumulatif'
                              THEN (SELECT SUM(krc.realisasi) FROM kinerja_realisasi krc
                                    WHERE krc.indikator_id = ki.id
                                      AND krc.tahun = ${tahun}
@@ -2333,7 +2333,7 @@ export const handler = async (event) => {
                 ELSE
                   ROUND(
                     COALESCE(
-                      CASE WHEN ki.tipe_perhitungan = 'kumulatif'
+                      CASE WHEN ki.tipe_perhitungan = 'non_kumulatif'
                              THEN (SELECT SUM(krc.realisasi) FROM kinerja_realisasi krc
                                    WHERE krc.indikator_id = ki.id
                                      AND krc.tahun = ${tahun}
@@ -2476,7 +2476,7 @@ export const handler = async (event) => {
               kr.updated_at AS realisasi_updated_at,
               CASE
                 WHEN COALESCE(
-                       CASE WHEN ki.tipe_perhitungan = 'kumulatif'
+                       CASE WHEN ki.tipe_perhitungan = 'non_kumulatif'
                              THEN (SELECT SUM(krc.realisasi) FROM kinerja_realisasi krc
                                    WHERE krc.indikator_id = ki.id
                                      AND krc.tahun = ${tahun}
@@ -2494,7 +2494,7 @@ export const handler = async (event) => {
                   THEN ROUND(
                     (kt.target::NUMERIC - (
                       COALESCE(
-                        CASE WHEN ki.tipe_perhitungan = 'kumulatif'
+                        CASE WHEN ki.tipe_perhitungan = 'non_kumulatif'
                              THEN (SELECT SUM(krc.realisasi) FROM kinerja_realisasi krc
                                    WHERE krc.indikator_id = ki.id
                                      AND krc.tahun = ${tahun}
@@ -2513,7 +2513,7 @@ export const handler = async (event) => {
                 ELSE
                   ROUND(
                     COALESCE(
-                      CASE WHEN ki.tipe_perhitungan = 'kumulatif'
+                      CASE WHEN ki.tipe_perhitungan = 'non_kumulatif'
                              THEN (SELECT SUM(krc.realisasi) FROM kinerja_realisasi krc
                                    WHERE krc.indikator_id = ki.id
                                      AND krc.tahun = ${tahun}
@@ -2590,7 +2590,7 @@ export const handler = async (event) => {
               kr.updated_at AS realisasi_updated_at,
               CASE
                 WHEN COALESCE(
-                       CASE WHEN ki.tipe_perhitungan = 'kumulatif'
+                       CASE WHEN ki.tipe_perhitungan = 'non_kumulatif'
                              THEN (SELECT SUM(krc.realisasi) FROM kinerja_realisasi krc
                                    WHERE krc.indikator_id = ki.id
                                      AND krc.tahun = ${tahun}
@@ -2608,7 +2608,7 @@ export const handler = async (event) => {
                   THEN ROUND(
                     (kt.target::NUMERIC - (
                       COALESCE(
-                        CASE WHEN ki.tipe_perhitungan = 'kumulatif'
+                        CASE WHEN ki.tipe_perhitungan = 'non_kumulatif'
                              THEN (SELECT SUM(krc.realisasi) FROM kinerja_realisasi krc
                                    WHERE krc.indikator_id = ki.id
                                      AND krc.tahun = ${tahun}
@@ -2627,7 +2627,7 @@ export const handler = async (event) => {
                 ELSE
                   ROUND(
                     COALESCE(
-                      CASE WHEN ki.tipe_perhitungan = 'kumulatif'
+                      CASE WHEN ki.tipe_perhitungan = 'non_kumulatif'
                              THEN (SELECT SUM(krc.realisasi) FROM kinerja_realisasi krc
                                    WHERE krc.indikator_id = ki.id
                                      AND krc.tahun = ${tahun}
@@ -2704,7 +2704,7 @@ export const handler = async (event) => {
               kr.updated_at AS realisasi_updated_at,
               CASE
                 WHEN COALESCE(
-                       CASE WHEN ki.tipe_perhitungan = 'kumulatif'
+                       CASE WHEN ki.tipe_perhitungan = 'non_kumulatif'
                              THEN (SELECT SUM(krc.realisasi) FROM kinerja_realisasi krc
                                    WHERE krc.indikator_id = ki.id
                                      AND krc.tahun = ${tahun}
@@ -2722,7 +2722,7 @@ export const handler = async (event) => {
                   THEN ROUND(
                     (kt.target::NUMERIC - (
                       COALESCE(
-                        CASE WHEN ki.tipe_perhitungan = 'kumulatif'
+                        CASE WHEN ki.tipe_perhitungan = 'non_kumulatif'
                              THEN (SELECT SUM(krc.realisasi) FROM kinerja_realisasi krc
                                    WHERE krc.indikator_id = ki.id
                                      AND krc.tahun = ${tahun}
@@ -2741,7 +2741,7 @@ export const handler = async (event) => {
                 ELSE
                   ROUND(
                     COALESCE(
-                      CASE WHEN ki.tipe_perhitungan = 'kumulatif'
+                      CASE WHEN ki.tipe_perhitungan = 'non_kumulatif'
                              THEN (SELECT SUM(krc.realisasi) FROM kinerja_realisasi krc
                                    WHERE krc.indikator_id = ki.id
                                      AND krc.tahun = ${tahun}
@@ -2820,7 +2820,7 @@ export const handler = async (event) => {
               kr.updated_at AS realisasi_updated_at,
               CASE
                 WHEN COALESCE(
-                       CASE WHEN ki.tipe_perhitungan = 'kumulatif'
+                       CASE WHEN ki.tipe_perhitungan = 'non_kumulatif'
                              THEN (SELECT SUM(krc.realisasi) FROM kinerja_realisasi krc
                                    WHERE krc.indikator_id = ki.id
                                      AND krc.tahun = ${tahun}
@@ -2838,7 +2838,7 @@ export const handler = async (event) => {
                   THEN ROUND(
                     (kt.target::NUMERIC - (
                       COALESCE(
-                        CASE WHEN ki.tipe_perhitungan = 'kumulatif'
+                        CASE WHEN ki.tipe_perhitungan = 'non_kumulatif'
                              THEN (SELECT SUM(krc.realisasi) FROM kinerja_realisasi krc
                                    WHERE krc.indikator_id = ki.id
                                      AND krc.tahun = ${tahun}
@@ -2857,7 +2857,7 @@ export const handler = async (event) => {
                 ELSE
                   ROUND(
                     COALESCE(
-                      CASE WHEN ki.tipe_perhitungan = 'kumulatif'
+                      CASE WHEN ki.tipe_perhitungan = 'non_kumulatif'
                              THEN (SELECT SUM(krc.realisasi) FROM kinerja_realisasi krc
                                    WHERE krc.indikator_id = ki.id
                                      AND krc.tahun = ${tahun}
@@ -2934,7 +2934,7 @@ export const handler = async (event) => {
               kr.updated_at AS realisasi_updated_at,
               CASE
                 WHEN COALESCE(
-                       CASE WHEN ki.tipe_perhitungan = 'kumulatif'
+                       CASE WHEN ki.tipe_perhitungan = 'non_kumulatif'
                              THEN (SELECT SUM(krc.realisasi) FROM kinerja_realisasi krc
                                    WHERE krc.indikator_id = ki.id
                                      AND krc.tahun = ${tahun}
@@ -2952,7 +2952,7 @@ export const handler = async (event) => {
                   THEN ROUND(
                     (kt.target::NUMERIC - (
                       COALESCE(
-                        CASE WHEN ki.tipe_perhitungan = 'kumulatif'
+                        CASE WHEN ki.tipe_perhitungan = 'non_kumulatif'
                              THEN (SELECT SUM(krc.realisasi) FROM kinerja_realisasi krc
                                    WHERE krc.indikator_id = ki.id
                                      AND krc.tahun = ${tahun}
@@ -2971,7 +2971,7 @@ export const handler = async (event) => {
                 ELSE
                   ROUND(
                     COALESCE(
-                      CASE WHEN ki.tipe_perhitungan = 'kumulatif'
+                      CASE WHEN ki.tipe_perhitungan = 'non_kumulatif'
                              THEN (SELECT SUM(krc.realisasi) FROM kinerja_realisasi krc
                                    WHERE krc.indikator_id = ki.id
                                      AND krc.tahun = ${tahun}
@@ -3048,7 +3048,7 @@ export const handler = async (event) => {
               kr.updated_at AS realisasi_updated_at,
               CASE
                 WHEN COALESCE(
-                       CASE WHEN ki.tipe_perhitungan = 'kumulatif'
+                       CASE WHEN ki.tipe_perhitungan = 'non_kumulatif'
                              THEN (SELECT SUM(krc.realisasi) FROM kinerja_realisasi krc
                                    WHERE krc.indikator_id = ki.id
                                      AND krc.tahun = ${tahun}
@@ -3066,7 +3066,7 @@ export const handler = async (event) => {
                   THEN ROUND(
                     (kt.target::NUMERIC - (
                       COALESCE(
-                        CASE WHEN ki.tipe_perhitungan = 'kumulatif'
+                        CASE WHEN ki.tipe_perhitungan = 'non_kumulatif'
                              THEN (SELECT SUM(krc.realisasi) FROM kinerja_realisasi krc
                                    WHERE krc.indikator_id = ki.id
                                      AND krc.tahun = ${tahun}
@@ -3085,7 +3085,7 @@ export const handler = async (event) => {
                 ELSE
                   ROUND(
                     COALESCE(
-                      CASE WHEN ki.tipe_perhitungan = 'kumulatif'
+                      CASE WHEN ki.tipe_perhitungan = 'non_kumulatif'
                              THEN (SELECT SUM(krc.realisasi) FROM kinerja_realisasi krc
                                    WHERE krc.indikator_id = ki.id
                                      AND krc.tahun = ${tahun}
@@ -3164,7 +3164,7 @@ export const handler = async (event) => {
               kr.updated_at AS realisasi_updated_at,
               CASE
                 WHEN COALESCE(
-                       CASE WHEN ki.tipe_perhitungan = 'kumulatif'
+                       CASE WHEN ki.tipe_perhitungan = 'non_kumulatif'
                              THEN (SELECT SUM(krc.realisasi) FROM kinerja_realisasi krc
                                    WHERE krc.indikator_id = ki.id
                                      AND krc.tahun = ${tahun}
@@ -3182,7 +3182,7 @@ export const handler = async (event) => {
                   THEN ROUND(
                     (kt.target::NUMERIC - (
                       COALESCE(
-                        CASE WHEN ki.tipe_perhitungan = 'kumulatif'
+                        CASE WHEN ki.tipe_perhitungan = 'non_kumulatif'
                              THEN (SELECT SUM(krc.realisasi) FROM kinerja_realisasi krc
                                    WHERE krc.indikator_id = ki.id
                                      AND krc.tahun = ${tahun}
@@ -3201,7 +3201,7 @@ export const handler = async (event) => {
                 ELSE
                   ROUND(
                     COALESCE(
-                      CASE WHEN ki.tipe_perhitungan = 'kumulatif'
+                      CASE WHEN ki.tipe_perhitungan = 'non_kumulatif'
                              THEN (SELECT SUM(krc.realisasi) FROM kinerja_realisasi krc
                                    WHERE krc.indikator_id = ki.id
                                      AND krc.tahun = ${tahun}
@@ -3278,7 +3278,7 @@ export const handler = async (event) => {
               kr.updated_at AS realisasi_updated_at,
               CASE
                 WHEN COALESCE(
-                       CASE WHEN ki.tipe_perhitungan = 'kumulatif'
+                       CASE WHEN ki.tipe_perhitungan = 'non_kumulatif'
                              THEN (SELECT SUM(krc.realisasi) FROM kinerja_realisasi krc
                                    WHERE krc.indikator_id = ki.id
                                      AND krc.tahun = ${tahun}
@@ -3296,7 +3296,7 @@ export const handler = async (event) => {
                   THEN ROUND(
                     (kt.target::NUMERIC - (
                       COALESCE(
-                        CASE WHEN ki.tipe_perhitungan = 'kumulatif'
+                        CASE WHEN ki.tipe_perhitungan = 'non_kumulatif'
                              THEN (SELECT SUM(krc.realisasi) FROM kinerja_realisasi krc
                                    WHERE krc.indikator_id = ki.id
                                      AND krc.tahun = ${tahun}
@@ -3315,7 +3315,7 @@ export const handler = async (event) => {
                 ELSE
                   ROUND(
                     COALESCE(
-                      CASE WHEN ki.tipe_perhitungan = 'kumulatif'
+                      CASE WHEN ki.tipe_perhitungan = 'non_kumulatif'
                              THEN (SELECT SUM(krc.realisasi) FROM kinerja_realisasi krc
                                    WHERE krc.indikator_id = ki.id
                                      AND krc.tahun = ${tahun}
@@ -3392,7 +3392,7 @@ export const handler = async (event) => {
               kr.updated_at AS realisasi_updated_at,
               CASE
                 WHEN COALESCE(
-                       CASE WHEN ki.tipe_perhitungan = 'kumulatif'
+                       CASE WHEN ki.tipe_perhitungan = 'non_kumulatif'
                              THEN (SELECT SUM(krc.realisasi) FROM kinerja_realisasi krc
                                    WHERE krc.indikator_id = ki.id
                                      AND krc.tahun = ${tahun}
@@ -3410,7 +3410,7 @@ export const handler = async (event) => {
                   THEN ROUND(
                     (kt.target::NUMERIC - (
                       COALESCE(
-                        CASE WHEN ki.tipe_perhitungan = 'kumulatif'
+                        CASE WHEN ki.tipe_perhitungan = 'non_kumulatif'
                              THEN (SELECT SUM(krc.realisasi) FROM kinerja_realisasi krc
                                    WHERE krc.indikator_id = ki.id
                                      AND krc.tahun = ${tahun}
@@ -3429,7 +3429,7 @@ export const handler = async (event) => {
                 ELSE
                   ROUND(
                     COALESCE(
-                      CASE WHEN ki.tipe_perhitungan = 'kumulatif'
+                      CASE WHEN ki.tipe_perhitungan = 'non_kumulatif'
                              THEN (SELECT SUM(krc.realisasi) FROM kinerja_realisasi krc
                                    WHERE krc.indikator_id = ki.id
                                      AND krc.tahun = ${tahun}
@@ -3507,7 +3507,7 @@ export const handler = async (event) => {
               kr.updated_at AS realisasi_updated_at,
               CASE
                 WHEN COALESCE(
-                       CASE WHEN ki.tipe_perhitungan = 'kumulatif'
+                       CASE WHEN ki.tipe_perhitungan = 'non_kumulatif'
                              THEN (SELECT SUM(krc.realisasi) FROM kinerja_realisasi krc
                                    WHERE krc.indikator_id = ki.id
                                      AND krc.tahun = ${tahun}
@@ -3525,7 +3525,7 @@ export const handler = async (event) => {
                   THEN ROUND(
                     (kt.target::NUMERIC - (
                       COALESCE(
-                        CASE WHEN ki.tipe_perhitungan = 'kumulatif'
+                        CASE WHEN ki.tipe_perhitungan = 'non_kumulatif'
                              THEN (SELECT SUM(krc.realisasi) FROM kinerja_realisasi krc
                                    WHERE krc.indikator_id = ki.id
                                      AND krc.tahun = ${tahun}
@@ -3544,7 +3544,7 @@ export const handler = async (event) => {
                 ELSE
                   ROUND(
                     COALESCE(
-                      CASE WHEN ki.tipe_perhitungan = 'kumulatif'
+                      CASE WHEN ki.tipe_perhitungan = 'non_kumulatif'
                              THEN (SELECT SUM(krc.realisasi) FROM kinerja_realisasi krc
                                    WHERE krc.indikator_id = ki.id
                                      AND krc.tahun = ${tahun}
@@ -3621,7 +3621,7 @@ export const handler = async (event) => {
               kr.updated_at AS realisasi_updated_at,
               CASE
                 WHEN COALESCE(
-                       CASE WHEN ki.tipe_perhitungan = 'kumulatif'
+                       CASE WHEN ki.tipe_perhitungan = 'non_kumulatif'
                              THEN (SELECT SUM(krc.realisasi) FROM kinerja_realisasi krc
                                    WHERE krc.indikator_id = ki.id
                                      AND krc.tahun = ${tahun}
@@ -3639,7 +3639,7 @@ export const handler = async (event) => {
                   THEN ROUND(
                     (kt.target::NUMERIC - (
                       COALESCE(
-                        CASE WHEN ki.tipe_perhitungan = 'kumulatif'
+                        CASE WHEN ki.tipe_perhitungan = 'non_kumulatif'
                              THEN (SELECT SUM(krc.realisasi) FROM kinerja_realisasi krc
                                    WHERE krc.indikator_id = ki.id
                                      AND krc.tahun = ${tahun}
@@ -3658,7 +3658,7 @@ export const handler = async (event) => {
                 ELSE
                   ROUND(
                     COALESCE(
-                      CASE WHEN ki.tipe_perhitungan = 'kumulatif'
+                      CASE WHEN ki.tipe_perhitungan = 'non_kumulatif'
                              THEN (SELECT SUM(krc.realisasi) FROM kinerja_realisasi krc
                                    WHERE krc.indikator_id = ki.id
                                      AND krc.tahun = ${tahun}
@@ -3735,7 +3735,7 @@ export const handler = async (event) => {
               kr.updated_at AS realisasi_updated_at,
               CASE
                 WHEN COALESCE(
-                       CASE WHEN ki.tipe_perhitungan = 'kumulatif'
+                       CASE WHEN ki.tipe_perhitungan = 'non_kumulatif'
                              THEN (SELECT SUM(krc.realisasi) FROM kinerja_realisasi krc
                                    WHERE krc.indikator_id = ki.id
                                      AND krc.tahun = ${tahun}
@@ -3753,7 +3753,7 @@ export const handler = async (event) => {
                   THEN ROUND(
                     (kt.target::NUMERIC - (
                       COALESCE(
-                        CASE WHEN ki.tipe_perhitungan = 'kumulatif'
+                        CASE WHEN ki.tipe_perhitungan = 'non_kumulatif'
                              THEN (SELECT SUM(krc.realisasi) FROM kinerja_realisasi krc
                                    WHERE krc.indikator_id = ki.id
                                      AND krc.tahun = ${tahun}
@@ -3772,7 +3772,7 @@ export const handler = async (event) => {
                 ELSE
                   ROUND(
                     COALESCE(
-                      CASE WHEN ki.tipe_perhitungan = 'kumulatif'
+                      CASE WHEN ki.tipe_perhitungan = 'non_kumulatif'
                              THEN (SELECT SUM(krc.realisasi) FROM kinerja_realisasi krc
                                    WHERE krc.indikator_id = ki.id
                                      AND krc.tahun = ${tahun}
@@ -3948,7 +3948,7 @@ export const handler = async (event) => {
             CASE WHEN kr.realisasi IS NOT NULL THEN 'terisi' ELSE 'belum' END AS status,
             CASE
               WHEN COALESCE(
-                     CASE WHEN ki.tipe_perhitungan = 'kumulatif'
+                     CASE WHEN ki.tipe_perhitungan = 'non_kumulatif'
                              THEN (SELECT SUM(krc.realisasi) FROM kinerja_realisasi krc
                                    WHERE krc.indikator_id = ki.id
                                      AND krc.tahun = ${tahun}
@@ -3962,7 +3962,7 @@ export const handler = async (event) => {
                      kr.realisasi
                    ) IS NULL OR kt.target IS NULL OR kt.target = 0 THEN NULL
               WHEN ki.bermakna_negatif = TRUE
-                THEN ROUND((kt.target::NUMERIC - (COALESCE(CASE WHEN ki.tipe_perhitungan = 'kumulatif'
+                THEN ROUND((kt.target::NUMERIC - (COALESCE(CASE WHEN ki.tipe_perhitungan = 'non_kumulatif'
                              THEN (SELECT SUM(krc.realisasi) FROM kinerja_realisasi krc
                                    WHERE krc.indikator_id = ki.id
                                      AND krc.tahun = ${tahun}
@@ -3973,7 +3973,7 @@ export const handler = async (event) => {
                                      AND krc.tahun = ${tahun}
                                      AND krc.bulan <= ${bulan})::NUMERIC
                              ELSE kr.realisasi::NUMERIC END, kr.realisasi::NUMERIC) - kt.target::NUMERIC)) / kt.target::NUMERIC * 100, 2)
-              ELSE ROUND(COALESCE(CASE WHEN ki.tipe_perhitungan = 'kumulatif'
+              ELSE ROUND(COALESCE(CASE WHEN ki.tipe_perhitungan = 'non_kumulatif'
                              THEN (SELECT SUM(krc.realisasi) FROM kinerja_realisasi krc
                                    WHERE krc.indikator_id = ki.id
                                      AND krc.tahun = ${tahun}
@@ -4032,7 +4032,7 @@ export const handler = async (event) => {
             CASE WHEN kr.realisasi IS NOT NULL THEN 'terisi' ELSE 'belum' END AS status,
             CASE
               WHEN COALESCE(
-                     CASE WHEN ki.tipe_perhitungan = 'kumulatif'
+                     CASE WHEN ki.tipe_perhitungan = 'non_kumulatif'
                              THEN (SELECT SUM(krc.realisasi) FROM kinerja_realisasi krc
                                    WHERE krc.indikator_id = ki.id
                                      AND krc.tahun = ${tahun}
@@ -4046,7 +4046,7 @@ export const handler = async (event) => {
                      kr.realisasi
                    ) IS NULL OR kt.target IS NULL OR kt.target = 0 THEN NULL
               WHEN ki.bermakna_negatif = TRUE
-                THEN ROUND((kt.target::NUMERIC - (COALESCE(CASE WHEN ki.tipe_perhitungan = 'kumulatif'
+                THEN ROUND((kt.target::NUMERIC - (COALESCE(CASE WHEN ki.tipe_perhitungan = 'non_kumulatif'
                              THEN (SELECT SUM(krc.realisasi) FROM kinerja_realisasi krc
                                    WHERE krc.indikator_id = ki.id
                                      AND krc.tahun = ${tahun}
@@ -4057,7 +4057,7 @@ export const handler = async (event) => {
                                      AND krc.tahun = ${tahun}
                                      AND krc.bulan <= ${bulan})::NUMERIC
                              ELSE kr.realisasi::NUMERIC END, kr.realisasi::NUMERIC) - kt.target::NUMERIC)) / kt.target::NUMERIC * 100, 2)
-              ELSE ROUND(COALESCE(CASE WHEN ki.tipe_perhitungan = 'kumulatif'
+              ELSE ROUND(COALESCE(CASE WHEN ki.tipe_perhitungan = 'non_kumulatif'
                              THEN (SELECT SUM(krc.realisasi) FROM kinerja_realisasi krc
                                    WHERE krc.indikator_id = ki.id
                                      AND krc.tahun = ${tahun}
