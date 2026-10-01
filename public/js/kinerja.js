@@ -281,6 +281,33 @@ function _pickDefaultPeriode(jenis, tahun) {
   return all.length ? all[all.length - 1] : null;
 }
 
+// Ingat Tahun + TW terakhir yang dipilih per jenis (monev/ikk/spm/subkeg) supaya reload halaman
+// tidak melempar balik ke TW aktif. Disimpan per tab (sessionStorage) dan per user.
+function _periodeIngatKey(jenis) {
+  const uid = (typeof _user !== 'undefined' && _user && _user.id) ? _user.id : 'x';
+  return `sapa_kperiode_${uid}_${jenis}`;
+}
+function _periodeIngatSimpan(jenis, tahun, bulan) {
+  try { sessionStorage.setItem(_periodeIngatKey(jenis), JSON.stringify({ tahun, bulan })); } catch (e) {}
+}
+// Kembalikan {tahun, bulan} tersimpan kalau masih valid, selain itu null (-> pakai default biasa).
+function _periodeIngatBaca(jenis) {
+  try {
+    const raw = sessionStorage.getItem(_periodeIngatKey(jenis));
+    if (!raw) return null;
+    const sv = JSON.parse(raw);
+    const tahun = parseInt(sv && sv.tahun), bulan = parseInt(sv && sv.bulan);
+    if (!tahun || !TW_BULAN.includes(bulan)) return null;
+    if (_isKinerjaAdmin()) {
+      const tahunAda = new Set(_allPeriodeList.map(p => p.tahun));
+      tahunAda.add(new Date().getFullYear());
+      return tahunAda.has(tahun) ? { tahun, bulan } : null;
+    }
+    const ada = _periodeListTampil.some(p => p.jenis === jenis && p.tahun === tahun && p.bulan === bulan);
+    return ada ? { tahun, bulan } : null;
+  } catch (e) { return null; }
+}
+
 function _suffixTutup(jenis, bulan, tahun) {
   // Teks "(Ditutup)" di dropdown periode dihilangkan; status tetap tampil di kartu periode.
   return '';
@@ -466,6 +493,14 @@ async function initKinerjaControls() {
     _kinerja_tahun = new Date().getFullYear();
     _kinerja_bulan = _twBulanSekarang();
   }
+  {
+    const _sv = _periodeIngatBaca('monev');
+    if (_sv) {
+      _kinerja_tahun = _sv.tahun;
+      _kinerja_bulan = _sv.bulan;
+      _periodeAktif  = _periodeListTerbuka.find(p => p.jenis === 'monev' && p.bulan === _sv.bulan && p.tahun === _sv.tahun) || _periodeAktif;
+    }
+  }
 
   
   if (!_isKinerjaAdmin() && _monevTerbuka.length) {
@@ -516,6 +551,7 @@ function setKinerjaTahun(tahun) {
   } else {
     _kinerja_bulan = 3;
   }
+  _periodeIngatSimpan('monev', _kinerja_tahun, _kinerja_bulan);
   _syncBulanButtons();
   _renderPeriodeInfo();
   loadKinerjaRekap();
@@ -529,6 +565,7 @@ function setIkkTahun(tahun) {
   } else {
     _ikk_bulan = 3;
   }
+  _periodeIngatSimpan('ikk', _ikk_tahun, _ikk_bulan);
   _syncIkkBulanButtons();
   _renderIkkPeriodeInfo();
   loadIkkRekap();
@@ -597,6 +634,7 @@ function setKinerjaBulan(bulan) {
     if (periodeMatch) _kinerja_tahun = periodeMatch.tahun;
   }
   _kinerja_bulan = bulan;
+  _periodeIngatSimpan('monev', _kinerja_tahun, _kinerja_bulan);
   _syncBulanButtons();
   _renderPeriodeInfo();   
   _renderKinerjaCountdown('kinerjaCountdownBar', 'monev');
@@ -3777,6 +3815,10 @@ async function initIkkControls() {
     _ikk_tahun = new Date().getFullYear();
     _ikk_bulan = _twBulanSekarang();
   }
+  {
+    const _sv = _periodeIngatBaca('ikk');
+    if (_sv) { _ikk_tahun = _sv.tahun; _ikk_bulan = _sv.bulan; }
+  }
   
   if (_isKinerjaAdmin()) {
     _populateTahunSelector('ikkTahunSelect', _ikk_tahun, setIkkTahun);
@@ -3847,6 +3889,7 @@ function setIkkBulan(bulan) {
     if (periodeMatch) _ikk_tahun = periodeMatch.tahun;
   }
   _ikk_bulan = bulan;
+  _periodeIngatSimpan('ikk', _ikk_tahun, _ikk_bulan);
   _syncIkkBulanButtons();
   _renderIkkPeriodeInfo();
   _renderKinerjaCountdown('ikkCountdownBar', 'ikk');
@@ -6244,6 +6287,10 @@ async function initSpmControls() {
     _spm_tahun = new Date().getFullYear();
     _spm_bulan = _twBulanSekarang();
   }
+  {
+    const _sv = _periodeIngatBaca('spm');
+    if (_sv) { _spm_tahun = _sv.tahun; _spm_bulan = _sv.bulan; }
+  }
   if (_isKinerjaAdmin()) {
     _populateTahunSelector('spmTahunSelect', _spm_tahun, setSpmTahun);
     const tw = document.getElementById('spmTahunWrap');
@@ -6267,6 +6314,7 @@ function setSpmTahun(tahun) {
     const _pp = _pickDefaultPeriode('spm', tahun);
     if (_pp) _spm_bulan = _pp.bulan;
   }
+  _periodeIngatSimpan('spm', _spm_tahun, _spm_bulan);
   _syncSpmBulanButtons();
   _renderSpmPeriodeInfo();
   _renderKinerjaCountdown && _renderKinerjaCountdown('spmCountdownBar', 'spm');
@@ -6281,6 +6329,7 @@ function setSpmBulan(bulan) {
     if (periodeMatch) _spm_tahun = periodeMatch.tahun;
   }
   _spm_bulan = bulan;
+  _periodeIngatSimpan('spm', _spm_tahun, _spm_bulan);
   _syncSpmBulanButtons();
   _renderSpmPeriodeInfo();
   _renderKinerjaCountdown && _renderKinerjaCountdown('spmCountdownBar', 'spm');
@@ -6846,6 +6895,10 @@ async function initSubkegControls() {
     _subkeg_tahun = new Date().getFullYear();
     _subkeg_bulan = _twBulanSekarang();
   }
+  {
+    const _sv = _periodeIngatBaca('subkeg');
+    if (_sv) { _subkeg_tahun = _sv.tahun; _subkeg_bulan = _sv.bulan; }
+  }
   if (_isKinerjaAdmin()) {
     _populateTahunSelector('subkegTahunSelect', _subkeg_tahun, setSubkegTahun);
     const tw = document.getElementById('subkegTahunWrap');
@@ -6869,6 +6922,7 @@ function setSubkegTahun(tahun) {
     const _pp = _pickDefaultPeriode('subkeg', tahun);
     if (_pp) _subkeg_bulan = _pp.bulan;
   }
+  _periodeIngatSimpan('subkeg', _subkeg_tahun, _subkeg_bulan);
   _syncSubkegBulanButtons();
   _renderSubkegPeriodeInfo();
   _renderKinerjaCountdown && _renderKinerjaCountdown('subkegCountdownBar', 'subkeg');
@@ -6883,6 +6937,7 @@ function setSubkegBulan(bulan) {
     if (periodeMatch) _subkeg_tahun = periodeMatch.tahun;
   }
   _subkeg_bulan = bulan;
+  _periodeIngatSimpan('subkeg', _subkeg_tahun, _subkeg_bulan);
   _syncSubkegBulanButtons();
   _renderSubkegPeriodeInfo();
   _renderKinerjaCountdown && _renderKinerjaCountdown('subkegCountdownBar', 'subkeg');

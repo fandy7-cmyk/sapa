@@ -1001,7 +1001,7 @@ export const handler = async (event) => {
               ki.tipe_nilai,
               (SELECT COUNT(*) FROM kinerja_realisasi krc
                WHERE krc.indikator_id = ki.id AND krc.tahun = ${tahun}
-                 AND krc.bulan <= gs.bulan AND krc.realisasi IS NOT NULL) AS bulan_terisi_count,
+                 AND krc.bulan <= gs.bulan AND krc.bulan IN (3, 6, 9, 12) AND krc.realisasi IS NOT NULL) AS bulan_terisi_count,
               kr.id         AS realisasi_id,
               kr.realisasi,
               kr.realisasi_display,
@@ -1019,12 +1019,12 @@ export const handler = async (event) => {
                              THEN (SELECT SUM(krc.realisasi) FROM kinerja_realisasi krc
                                    WHERE krc.indikator_id = ki.id
                                      AND krc.tahun = ${tahun}
-                                     AND krc.bulan <= gs.bulan)
+                                     AND krc.bulan <= gs.bulan AND krc.bulan IN (3, 6, 9, 12))
                              WHEN ki.tipe_perhitungan = 'rata_rata'
                              THEN (SELECT AVG(krc.realisasi) FROM kinerja_realisasi krc
                                    WHERE krc.indikator_id = ki.id
                                      AND krc.tahun = ${tahun}
-                                     AND krc.bulan <= gs.bulan)
+                                     AND krc.bulan <= gs.bulan AND krc.bulan IN (3, 6, 9, 12))
                              ELSE kr.realisasi END,
                        kr.realisasi
                      ) IS NULL OR kt.target IS NULL OR kt.target = 0
@@ -1037,12 +1037,12 @@ export const handler = async (event) => {
                              THEN (SELECT SUM(krc.realisasi) FROM kinerja_realisasi krc
                                    WHERE krc.indikator_id = ki.id
                                      AND krc.tahun = ${tahun}
-                                     AND krc.bulan <= gs.bulan)::NUMERIC
+                                     AND krc.bulan <= gs.bulan AND krc.bulan IN (3, 6, 9, 12))::NUMERIC
                              WHEN ki.tipe_perhitungan = 'rata_rata'
                              THEN (SELECT AVG(krc.realisasi) FROM kinerja_realisasi krc
                                    WHERE krc.indikator_id = ki.id
                                      AND krc.tahun = ${tahun}
-                                     AND krc.bulan <= gs.bulan)::NUMERIC
+                                     AND krc.bulan <= gs.bulan AND krc.bulan IN (3, 6, 9, 12))::NUMERIC
                              ELSE kr.realisasi::NUMERIC END,
                         kr.realisasi::NUMERIC
                       ) - kt.target::NUMERIC
@@ -1056,12 +1056,12 @@ export const handler = async (event) => {
                              THEN (SELECT SUM(krc.realisasi) FROM kinerja_realisasi krc
                                    WHERE krc.indikator_id = ki.id
                                      AND krc.tahun = ${tahun}
-                                     AND krc.bulan <= gs.bulan)::NUMERIC
+                                     AND krc.bulan <= gs.bulan AND krc.bulan IN (3, 6, 9, 12))::NUMERIC
                              WHEN ki.tipe_perhitungan = 'rata_rata'
                              THEN (SELECT AVG(krc.realisasi) FROM kinerja_realisasi krc
                                    WHERE krc.indikator_id = ki.id
                                      AND krc.tahun = ${tahun}
-                                     AND krc.bulan <= gs.bulan)::NUMERIC
+                                     AND krc.bulan <= gs.bulan AND krc.bulan IN (3, 6, 9, 12))::NUMERIC
                              ELSE kr.realisasi::NUMERIC END,
                       kr.realisasi::NUMERIC
                     ) / kt.target::NUMERIC * 100, 2
@@ -1117,7 +1117,7 @@ export const handler = async (event) => {
               ki.tipe_nilai,
               (SELECT COUNT(*) FROM kinerja_realisasi krc
                WHERE krc.indikator_id = ki.id AND krc.tahun = ${tahun}
-                 AND krc.bulan <= gs.bulan AND krc.realisasi IS NOT NULL) AS bulan_terisi_count,
+                 AND krc.bulan <= gs.bulan AND krc.bulan IN (3, 6, 9, 12) AND krc.realisasi IS NOT NULL) AS bulan_terisi_count,
               kr.id         AS realisasi_id,
               kr.realisasi,
               kr.realisasi_display,
@@ -1135,12 +1135,12 @@ export const handler = async (event) => {
                              THEN (SELECT SUM(krc.realisasi) FROM kinerja_realisasi krc
                                    WHERE krc.indikator_id = ki.id
                                      AND krc.tahun = ${tahun}
-                                     AND krc.bulan <= gs.bulan)
+                                     AND krc.bulan <= gs.bulan AND krc.bulan IN (3, 6, 9, 12))
                              WHEN ki.tipe_perhitungan = 'rata_rata'
                              THEN (SELECT AVG(krc.realisasi) FROM kinerja_realisasi krc
                                    WHERE krc.indikator_id = ki.id
                                      AND krc.tahun = ${tahun}
-                                     AND krc.bulan <= gs.bulan)
+                                     AND krc.bulan <= gs.bulan AND krc.bulan IN (3, 6, 9, 12))
                              ELSE kr.realisasi END,
                        kr.realisasi
                      ) IS NULL OR kt.target IS NULL OR kt.target = 0
@@ -1153,12 +1153,12 @@ export const handler = async (event) => {
                              THEN (SELECT SUM(krc.realisasi) FROM kinerja_realisasi krc
                                    WHERE krc.indikator_id = ki.id
                                      AND krc.tahun = ${tahun}
-                                     AND krc.bulan <= gs.bulan)::NUMERIC
+                                     AND krc.bulan <= gs.bulan AND krc.bulan IN (3, 6, 9, 12))::NUMERIC
                              WHEN ki.tipe_perhitungan = 'rata_rata'
                              THEN (SELECT AVG(krc.realisasi) FROM kinerja_realisasi krc
                                    WHERE krc.indikator_id = ki.id
                                      AND krc.tahun = ${tahun}
-                                     AND krc.bulan <= gs.bulan)::NUMERIC
+                                     AND krc.bulan <= gs.bulan AND krc.bulan IN (3, 6, 9, 12))::NUMERIC
                              ELSE kr.realisasi::NUMERIC END,
                         kr.realisasi::NUMERIC
                       ) - kt.target::NUMERIC
@@ -1172,12 +1172,12 @@ export const handler = async (event) => {
                              THEN (SELECT SUM(krc.realisasi) FROM kinerja_realisasi krc
                                    WHERE krc.indikator_id = ki.id
                                      AND krc.tahun = ${tahun}
-                                     AND krc.bulan <= gs.bulan)::NUMERIC
+                                     AND krc.bulan <= gs.bulan AND krc.bulan IN (3, 6, 9, 12))::NUMERIC
                              WHEN ki.tipe_perhitungan = 'rata_rata'
                              THEN (SELECT AVG(krc.realisasi) FROM kinerja_realisasi krc
                                    WHERE krc.indikator_id = ki.id
                                      AND krc.tahun = ${tahun}
-                                     AND krc.bulan <= gs.bulan)::NUMERIC
+                                     AND krc.bulan <= gs.bulan AND krc.bulan IN (3, 6, 9, 12))::NUMERIC
                              ELSE kr.realisasi::NUMERIC END,
                       kr.realisasi::NUMERIC
                     ) / kt.target::NUMERIC * 100, 2
@@ -1233,7 +1233,7 @@ export const handler = async (event) => {
               ki.tipe_nilai,
               (SELECT COUNT(*) FROM kinerja_realisasi krc
                WHERE krc.indikator_id = ki.id AND krc.tahun = ${tahun}
-                 AND krc.bulan <= gs.bulan AND krc.realisasi IS NOT NULL) AS bulan_terisi_count,
+                 AND krc.bulan <= gs.bulan AND krc.bulan IN (3, 6, 9, 12) AND krc.realisasi IS NOT NULL) AS bulan_terisi_count,
               kr.id         AS realisasi_id,
               kr.realisasi,
               kr.realisasi_display,
@@ -1251,12 +1251,12 @@ export const handler = async (event) => {
                              THEN (SELECT SUM(krc.realisasi) FROM kinerja_realisasi krc
                                    WHERE krc.indikator_id = ki.id
                                      AND krc.tahun = ${tahun}
-                                     AND krc.bulan <= gs.bulan)
+                                     AND krc.bulan <= gs.bulan AND krc.bulan IN (3, 6, 9, 12))
                              WHEN ki.tipe_perhitungan = 'rata_rata'
                              THEN (SELECT AVG(krc.realisasi) FROM kinerja_realisasi krc
                                    WHERE krc.indikator_id = ki.id
                                      AND krc.tahun = ${tahun}
-                                     AND krc.bulan <= gs.bulan)
+                                     AND krc.bulan <= gs.bulan AND krc.bulan IN (3, 6, 9, 12))
                              ELSE kr.realisasi END,
                        kr.realisasi
                      ) IS NULL OR kt.target IS NULL OR kt.target = 0
@@ -1269,12 +1269,12 @@ export const handler = async (event) => {
                              THEN (SELECT SUM(krc.realisasi) FROM kinerja_realisasi krc
                                    WHERE krc.indikator_id = ki.id
                                      AND krc.tahun = ${tahun}
-                                     AND krc.bulan <= gs.bulan)::NUMERIC
+                                     AND krc.bulan <= gs.bulan AND krc.bulan IN (3, 6, 9, 12))::NUMERIC
                              WHEN ki.tipe_perhitungan = 'rata_rata'
                              THEN (SELECT AVG(krc.realisasi) FROM kinerja_realisasi krc
                                    WHERE krc.indikator_id = ki.id
                                      AND krc.tahun = ${tahun}
-                                     AND krc.bulan <= gs.bulan)::NUMERIC
+                                     AND krc.bulan <= gs.bulan AND krc.bulan IN (3, 6, 9, 12))::NUMERIC
                              ELSE kr.realisasi::NUMERIC END,
                         kr.realisasi::NUMERIC
                       ) - kt.target::NUMERIC
@@ -1288,12 +1288,12 @@ export const handler = async (event) => {
                              THEN (SELECT SUM(krc.realisasi) FROM kinerja_realisasi krc
                                    WHERE krc.indikator_id = ki.id
                                      AND krc.tahun = ${tahun}
-                                     AND krc.bulan <= gs.bulan)::NUMERIC
+                                     AND krc.bulan <= gs.bulan AND krc.bulan IN (3, 6, 9, 12))::NUMERIC
                              WHEN ki.tipe_perhitungan = 'rata_rata'
                              THEN (SELECT AVG(krc.realisasi) FROM kinerja_realisasi krc
                                    WHERE krc.indikator_id = ki.id
                                      AND krc.tahun = ${tahun}
-                                     AND krc.bulan <= gs.bulan)::NUMERIC
+                                     AND krc.bulan <= gs.bulan AND krc.bulan IN (3, 6, 9, 12))::NUMERIC
                              ELSE kr.realisasi::NUMERIC END,
                       kr.realisasi::NUMERIC
                     ) / kt.target::NUMERIC * 100, 2
@@ -1351,7 +1351,7 @@ export const handler = async (event) => {
               ki.tipe_nilai,
               (SELECT COUNT(*) FROM kinerja_realisasi krc
                WHERE krc.indikator_id = ki.id AND krc.tahun = ${tahun}
-                 AND krc.bulan <= gs.bulan AND krc.realisasi IS NOT NULL) AS bulan_terisi_count,
+                 AND krc.bulan <= gs.bulan AND krc.bulan IN (3, 6, 9, 12) AND krc.realisasi IS NOT NULL) AS bulan_terisi_count,
               kr.id         AS realisasi_id,
               kr.realisasi,
               kr.realisasi_display,
@@ -1369,12 +1369,12 @@ export const handler = async (event) => {
                              THEN (SELECT SUM(krc.realisasi) FROM kinerja_realisasi krc
                                    WHERE krc.indikator_id = ki.id
                                      AND krc.tahun = ${tahun}
-                                     AND krc.bulan <= gs.bulan)
+                                     AND krc.bulan <= gs.bulan AND krc.bulan IN (3, 6, 9, 12))
                              WHEN ki.tipe_perhitungan = 'rata_rata'
                              THEN (SELECT AVG(krc.realisasi) FROM kinerja_realisasi krc
                                    WHERE krc.indikator_id = ki.id
                                      AND krc.tahun = ${tahun}
-                                     AND krc.bulan <= gs.bulan)
+                                     AND krc.bulan <= gs.bulan AND krc.bulan IN (3, 6, 9, 12))
                              ELSE kr.realisasi END,
                        kr.realisasi
                      ) IS NULL OR kt.target IS NULL OR kt.target = 0
@@ -1387,12 +1387,12 @@ export const handler = async (event) => {
                              THEN (SELECT SUM(krc.realisasi) FROM kinerja_realisasi krc
                                    WHERE krc.indikator_id = ki.id
                                      AND krc.tahun = ${tahun}
-                                     AND krc.bulan <= gs.bulan)::NUMERIC
+                                     AND krc.bulan <= gs.bulan AND krc.bulan IN (3, 6, 9, 12))::NUMERIC
                              WHEN ki.tipe_perhitungan = 'rata_rata'
                              THEN (SELECT AVG(krc.realisasi) FROM kinerja_realisasi krc
                                    WHERE krc.indikator_id = ki.id
                                      AND krc.tahun = ${tahun}
-                                     AND krc.bulan <= gs.bulan)::NUMERIC
+                                     AND krc.bulan <= gs.bulan AND krc.bulan IN (3, 6, 9, 12))::NUMERIC
                              ELSE kr.realisasi::NUMERIC END,
                         kr.realisasi::NUMERIC
                       ) - kt.target::NUMERIC
@@ -1406,12 +1406,12 @@ export const handler = async (event) => {
                              THEN (SELECT SUM(krc.realisasi) FROM kinerja_realisasi krc
                                    WHERE krc.indikator_id = ki.id
                                      AND krc.tahun = ${tahun}
-                                     AND krc.bulan <= gs.bulan)::NUMERIC
+                                     AND krc.bulan <= gs.bulan AND krc.bulan IN (3, 6, 9, 12))::NUMERIC
                              WHEN ki.tipe_perhitungan = 'rata_rata'
                              THEN (SELECT AVG(krc.realisasi) FROM kinerja_realisasi krc
                                    WHERE krc.indikator_id = ki.id
                                      AND krc.tahun = ${tahun}
-                                     AND krc.bulan <= gs.bulan)::NUMERIC
+                                     AND krc.bulan <= gs.bulan AND krc.bulan IN (3, 6, 9, 12))::NUMERIC
                              ELSE kr.realisasi::NUMERIC END,
                       kr.realisasi::NUMERIC
                     ) / kt.target::NUMERIC * 100, 2
@@ -1467,7 +1467,7 @@ export const handler = async (event) => {
               ki.tipe_nilai,
               (SELECT COUNT(*) FROM kinerja_realisasi krc
                WHERE krc.indikator_id = ki.id AND krc.tahun = ${tahun}
-                 AND krc.bulan <= gs.bulan AND krc.realisasi IS NOT NULL) AS bulan_terisi_count,
+                 AND krc.bulan <= gs.bulan AND krc.bulan IN (3, 6, 9, 12) AND krc.realisasi IS NOT NULL) AS bulan_terisi_count,
               kr.id         AS realisasi_id,
               kr.realisasi,
               kr.realisasi_display,
@@ -1485,12 +1485,12 @@ export const handler = async (event) => {
                              THEN (SELECT SUM(krc.realisasi) FROM kinerja_realisasi krc
                                    WHERE krc.indikator_id = ki.id
                                      AND krc.tahun = ${tahun}
-                                     AND krc.bulan <= gs.bulan)
+                                     AND krc.bulan <= gs.bulan AND krc.bulan IN (3, 6, 9, 12))
                              WHEN ki.tipe_perhitungan = 'rata_rata'
                              THEN (SELECT AVG(krc.realisasi) FROM kinerja_realisasi krc
                                    WHERE krc.indikator_id = ki.id
                                      AND krc.tahun = ${tahun}
-                                     AND krc.bulan <= gs.bulan)
+                                     AND krc.bulan <= gs.bulan AND krc.bulan IN (3, 6, 9, 12))
                              ELSE kr.realisasi END,
                        kr.realisasi
                      ) IS NULL OR kt.target IS NULL OR kt.target = 0
@@ -1503,12 +1503,12 @@ export const handler = async (event) => {
                              THEN (SELECT SUM(krc.realisasi) FROM kinerja_realisasi krc
                                    WHERE krc.indikator_id = ki.id
                                      AND krc.tahun = ${tahun}
-                                     AND krc.bulan <= gs.bulan)::NUMERIC
+                                     AND krc.bulan <= gs.bulan AND krc.bulan IN (3, 6, 9, 12))::NUMERIC
                              WHEN ki.tipe_perhitungan = 'rata_rata'
                              THEN (SELECT AVG(krc.realisasi) FROM kinerja_realisasi krc
                                    WHERE krc.indikator_id = ki.id
                                      AND krc.tahun = ${tahun}
-                                     AND krc.bulan <= gs.bulan)::NUMERIC
+                                     AND krc.bulan <= gs.bulan AND krc.bulan IN (3, 6, 9, 12))::NUMERIC
                              ELSE kr.realisasi::NUMERIC END,
                         kr.realisasi::NUMERIC
                       ) - kt.target::NUMERIC
@@ -1522,12 +1522,12 @@ export const handler = async (event) => {
                              THEN (SELECT SUM(krc.realisasi) FROM kinerja_realisasi krc
                                    WHERE krc.indikator_id = ki.id
                                      AND krc.tahun = ${tahun}
-                                     AND krc.bulan <= gs.bulan)::NUMERIC
+                                     AND krc.bulan <= gs.bulan AND krc.bulan IN (3, 6, 9, 12))::NUMERIC
                              WHEN ki.tipe_perhitungan = 'rata_rata'
                              THEN (SELECT AVG(krc.realisasi) FROM kinerja_realisasi krc
                                    WHERE krc.indikator_id = ki.id
                                      AND krc.tahun = ${tahun}
-                                     AND krc.bulan <= gs.bulan)::NUMERIC
+                                     AND krc.bulan <= gs.bulan AND krc.bulan IN (3, 6, 9, 12))::NUMERIC
                              ELSE kr.realisasi::NUMERIC END,
                       kr.realisasi::NUMERIC
                     ) / kt.target::NUMERIC * 100, 2
@@ -1583,7 +1583,7 @@ export const handler = async (event) => {
               ki.tipe_nilai,
               (SELECT COUNT(*) FROM kinerja_realisasi krc
                WHERE krc.indikator_id = ki.id AND krc.tahun = ${tahun}
-                 AND krc.bulan <= gs.bulan AND krc.realisasi IS NOT NULL) AS bulan_terisi_count,
+                 AND krc.bulan <= gs.bulan AND krc.bulan IN (3, 6, 9, 12) AND krc.realisasi IS NOT NULL) AS bulan_terisi_count,
               kr.id         AS realisasi_id,
               kr.realisasi,
               kr.realisasi_display,
@@ -1601,12 +1601,12 @@ export const handler = async (event) => {
                              THEN (SELECT SUM(krc.realisasi) FROM kinerja_realisasi krc
                                    WHERE krc.indikator_id = ki.id
                                      AND krc.tahun = ${tahun}
-                                     AND krc.bulan <= gs.bulan)
+                                     AND krc.bulan <= gs.bulan AND krc.bulan IN (3, 6, 9, 12))
                              WHEN ki.tipe_perhitungan = 'rata_rata'
                              THEN (SELECT AVG(krc.realisasi) FROM kinerja_realisasi krc
                                    WHERE krc.indikator_id = ki.id
                                      AND krc.tahun = ${tahun}
-                                     AND krc.bulan <= gs.bulan)
+                                     AND krc.bulan <= gs.bulan AND krc.bulan IN (3, 6, 9, 12))
                              ELSE kr.realisasi END,
                        kr.realisasi
                      ) IS NULL OR kt.target IS NULL OR kt.target = 0
@@ -1619,12 +1619,12 @@ export const handler = async (event) => {
                              THEN (SELECT SUM(krc.realisasi) FROM kinerja_realisasi krc
                                    WHERE krc.indikator_id = ki.id
                                      AND krc.tahun = ${tahun}
-                                     AND krc.bulan <= gs.bulan)::NUMERIC
+                                     AND krc.bulan <= gs.bulan AND krc.bulan IN (3, 6, 9, 12))::NUMERIC
                              WHEN ki.tipe_perhitungan = 'rata_rata'
                              THEN (SELECT AVG(krc.realisasi) FROM kinerja_realisasi krc
                                    WHERE krc.indikator_id = ki.id
                                      AND krc.tahun = ${tahun}
-                                     AND krc.bulan <= gs.bulan)::NUMERIC
+                                     AND krc.bulan <= gs.bulan AND krc.bulan IN (3, 6, 9, 12))::NUMERIC
                              ELSE kr.realisasi::NUMERIC END,
                         kr.realisasi::NUMERIC
                       ) - kt.target::NUMERIC
@@ -1638,12 +1638,12 @@ export const handler = async (event) => {
                              THEN (SELECT SUM(krc.realisasi) FROM kinerja_realisasi krc
                                    WHERE krc.indikator_id = ki.id
                                      AND krc.tahun = ${tahun}
-                                     AND krc.bulan <= gs.bulan)::NUMERIC
+                                     AND krc.bulan <= gs.bulan AND krc.bulan IN (3, 6, 9, 12))::NUMERIC
                              WHEN ki.tipe_perhitungan = 'rata_rata'
                              THEN (SELECT AVG(krc.realisasi) FROM kinerja_realisasi krc
                                    WHERE krc.indikator_id = ki.id
                                      AND krc.tahun = ${tahun}
-                                     AND krc.bulan <= gs.bulan)::NUMERIC
+                                     AND krc.bulan <= gs.bulan AND krc.bulan IN (3, 6, 9, 12))::NUMERIC
                              ELSE kr.realisasi::NUMERIC END,
                       kr.realisasi::NUMERIC
                     ) / kt.target::NUMERIC * 100, 2
@@ -1701,7 +1701,7 @@ export const handler = async (event) => {
               ki.tipe_nilai,
               (SELECT COUNT(*) FROM kinerja_realisasi krc
                WHERE krc.indikator_id = ki.id AND krc.tahun = ${tahun}
-                 AND krc.bulan <= gs.bulan AND krc.realisasi IS NOT NULL) AS bulan_terisi_count,
+                 AND krc.bulan <= gs.bulan AND krc.bulan IN (3, 6, 9, 12) AND krc.realisasi IS NOT NULL) AS bulan_terisi_count,
               kr.id         AS realisasi_id,
               kr.realisasi,
               kr.realisasi_display,
@@ -1719,12 +1719,12 @@ export const handler = async (event) => {
                              THEN (SELECT SUM(krc.realisasi) FROM kinerja_realisasi krc
                                    WHERE krc.indikator_id = ki.id
                                      AND krc.tahun = ${tahun}
-                                     AND krc.bulan <= gs.bulan)
+                                     AND krc.bulan <= gs.bulan AND krc.bulan IN (3, 6, 9, 12))
                              WHEN ki.tipe_perhitungan = 'rata_rata'
                              THEN (SELECT AVG(krc.realisasi) FROM kinerja_realisasi krc
                                    WHERE krc.indikator_id = ki.id
                                      AND krc.tahun = ${tahun}
-                                     AND krc.bulan <= gs.bulan)
+                                     AND krc.bulan <= gs.bulan AND krc.bulan IN (3, 6, 9, 12))
                              ELSE kr.realisasi END,
                        kr.realisasi
                      ) IS NULL OR kt.target IS NULL OR kt.target = 0
@@ -1737,12 +1737,12 @@ export const handler = async (event) => {
                              THEN (SELECT SUM(krc.realisasi) FROM kinerja_realisasi krc
                                    WHERE krc.indikator_id = ki.id
                                      AND krc.tahun = ${tahun}
-                                     AND krc.bulan <= gs.bulan)::NUMERIC
+                                     AND krc.bulan <= gs.bulan AND krc.bulan IN (3, 6, 9, 12))::NUMERIC
                              WHEN ki.tipe_perhitungan = 'rata_rata'
                              THEN (SELECT AVG(krc.realisasi) FROM kinerja_realisasi krc
                                    WHERE krc.indikator_id = ki.id
                                      AND krc.tahun = ${tahun}
-                                     AND krc.bulan <= gs.bulan)::NUMERIC
+                                     AND krc.bulan <= gs.bulan AND krc.bulan IN (3, 6, 9, 12))::NUMERIC
                              ELSE kr.realisasi::NUMERIC END,
                         kr.realisasi::NUMERIC
                       ) - kt.target::NUMERIC
@@ -1756,12 +1756,12 @@ export const handler = async (event) => {
                              THEN (SELECT SUM(krc.realisasi) FROM kinerja_realisasi krc
                                    WHERE krc.indikator_id = ki.id
                                      AND krc.tahun = ${tahun}
-                                     AND krc.bulan <= gs.bulan)::NUMERIC
+                                     AND krc.bulan <= gs.bulan AND krc.bulan IN (3, 6, 9, 12))::NUMERIC
                              WHEN ki.tipe_perhitungan = 'rata_rata'
                              THEN (SELECT AVG(krc.realisasi) FROM kinerja_realisasi krc
                                    WHERE krc.indikator_id = ki.id
                                      AND krc.tahun = ${tahun}
-                                     AND krc.bulan <= gs.bulan)::NUMERIC
+                                     AND krc.bulan <= gs.bulan AND krc.bulan IN (3, 6, 9, 12))::NUMERIC
                              ELSE kr.realisasi::NUMERIC END,
                       kr.realisasi::NUMERIC
                     ) / kt.target::NUMERIC * 100, 2
@@ -1817,7 +1817,7 @@ export const handler = async (event) => {
               ki.tipe_nilai,
               (SELECT COUNT(*) FROM kinerja_realisasi krc
                WHERE krc.indikator_id = ki.id AND krc.tahun = ${tahun}
-                 AND krc.bulan <= gs.bulan AND krc.realisasi IS NOT NULL) AS bulan_terisi_count,
+                 AND krc.bulan <= gs.bulan AND krc.bulan IN (3, 6, 9, 12) AND krc.realisasi IS NOT NULL) AS bulan_terisi_count,
               kr.id         AS realisasi_id,
               kr.realisasi,
               kr.realisasi_display,
@@ -1835,12 +1835,12 @@ export const handler = async (event) => {
                              THEN (SELECT SUM(krc.realisasi) FROM kinerja_realisasi krc
                                    WHERE krc.indikator_id = ki.id
                                      AND krc.tahun = ${tahun}
-                                     AND krc.bulan <= gs.bulan)
+                                     AND krc.bulan <= gs.bulan AND krc.bulan IN (3, 6, 9, 12))
                              WHEN ki.tipe_perhitungan = 'rata_rata'
                              THEN (SELECT AVG(krc.realisasi) FROM kinerja_realisasi krc
                                    WHERE krc.indikator_id = ki.id
                                      AND krc.tahun = ${tahun}
-                                     AND krc.bulan <= gs.bulan)
+                                     AND krc.bulan <= gs.bulan AND krc.bulan IN (3, 6, 9, 12))
                              ELSE kr.realisasi END,
                        kr.realisasi
                      ) IS NULL OR kt.target IS NULL OR kt.target = 0
@@ -1853,12 +1853,12 @@ export const handler = async (event) => {
                              THEN (SELECT SUM(krc.realisasi) FROM kinerja_realisasi krc
                                    WHERE krc.indikator_id = ki.id
                                      AND krc.tahun = ${tahun}
-                                     AND krc.bulan <= gs.bulan)::NUMERIC
+                                     AND krc.bulan <= gs.bulan AND krc.bulan IN (3, 6, 9, 12))::NUMERIC
                              WHEN ki.tipe_perhitungan = 'rata_rata'
                              THEN (SELECT AVG(krc.realisasi) FROM kinerja_realisasi krc
                                    WHERE krc.indikator_id = ki.id
                                      AND krc.tahun = ${tahun}
-                                     AND krc.bulan <= gs.bulan)::NUMERIC
+                                     AND krc.bulan <= gs.bulan AND krc.bulan IN (3, 6, 9, 12))::NUMERIC
                              ELSE kr.realisasi::NUMERIC END,
                         kr.realisasi::NUMERIC
                       ) - kt.target::NUMERIC
@@ -1872,12 +1872,12 @@ export const handler = async (event) => {
                              THEN (SELECT SUM(krc.realisasi) FROM kinerja_realisasi krc
                                    WHERE krc.indikator_id = ki.id
                                      AND krc.tahun = ${tahun}
-                                     AND krc.bulan <= gs.bulan)::NUMERIC
+                                     AND krc.bulan <= gs.bulan AND krc.bulan IN (3, 6, 9, 12))::NUMERIC
                              WHEN ki.tipe_perhitungan = 'rata_rata'
                              THEN (SELECT AVG(krc.realisasi) FROM kinerja_realisasi krc
                                    WHERE krc.indikator_id = ki.id
                                      AND krc.tahun = ${tahun}
-                                     AND krc.bulan <= gs.bulan)::NUMERIC
+                                     AND krc.bulan <= gs.bulan AND krc.bulan IN (3, 6, 9, 12))::NUMERIC
                              ELSE kr.realisasi::NUMERIC END,
                       kr.realisasi::NUMERIC
                     ) / kt.target::NUMERIC * 100, 2
@@ -1933,7 +1933,7 @@ export const handler = async (event) => {
               ki.tipe_nilai,
               (SELECT COUNT(*) FROM kinerja_realisasi krc
                WHERE krc.indikator_id = ki.id AND krc.tahun = ${tahun}
-                 AND krc.bulan <= gs.bulan AND krc.realisasi IS NOT NULL) AS bulan_terisi_count,
+                 AND krc.bulan <= gs.bulan AND krc.bulan IN (3, 6, 9, 12) AND krc.realisasi IS NOT NULL) AS bulan_terisi_count,
               kr.id         AS realisasi_id,
               kr.realisasi,
               kr.realisasi_display,
@@ -1951,12 +1951,12 @@ export const handler = async (event) => {
                              THEN (SELECT SUM(krc.realisasi) FROM kinerja_realisasi krc
                                    WHERE krc.indikator_id = ki.id
                                      AND krc.tahun = ${tahun}
-                                     AND krc.bulan <= gs.bulan)
+                                     AND krc.bulan <= gs.bulan AND krc.bulan IN (3, 6, 9, 12))
                              WHEN ki.tipe_perhitungan = 'rata_rata'
                              THEN (SELECT AVG(krc.realisasi) FROM kinerja_realisasi krc
                                    WHERE krc.indikator_id = ki.id
                                      AND krc.tahun = ${tahun}
-                                     AND krc.bulan <= gs.bulan)
+                                     AND krc.bulan <= gs.bulan AND krc.bulan IN (3, 6, 9, 12))
                              ELSE kr.realisasi END,
                        kr.realisasi
                      ) IS NULL OR kt.target IS NULL OR kt.target = 0
@@ -1969,12 +1969,12 @@ export const handler = async (event) => {
                              THEN (SELECT SUM(krc.realisasi) FROM kinerja_realisasi krc
                                    WHERE krc.indikator_id = ki.id
                                      AND krc.tahun = ${tahun}
-                                     AND krc.bulan <= gs.bulan)::NUMERIC
+                                     AND krc.bulan <= gs.bulan AND krc.bulan IN (3, 6, 9, 12))::NUMERIC
                              WHEN ki.tipe_perhitungan = 'rata_rata'
                              THEN (SELECT AVG(krc.realisasi) FROM kinerja_realisasi krc
                                    WHERE krc.indikator_id = ki.id
                                      AND krc.tahun = ${tahun}
-                                     AND krc.bulan <= gs.bulan)::NUMERIC
+                                     AND krc.bulan <= gs.bulan AND krc.bulan IN (3, 6, 9, 12))::NUMERIC
                              ELSE kr.realisasi::NUMERIC END,
                         kr.realisasi::NUMERIC
                       ) - kt.target::NUMERIC
@@ -1988,12 +1988,12 @@ export const handler = async (event) => {
                              THEN (SELECT SUM(krc.realisasi) FROM kinerja_realisasi krc
                                    WHERE krc.indikator_id = ki.id
                                      AND krc.tahun = ${tahun}
-                                     AND krc.bulan <= gs.bulan)::NUMERIC
+                                     AND krc.bulan <= gs.bulan AND krc.bulan IN (3, 6, 9, 12))::NUMERIC
                              WHEN ki.tipe_perhitungan = 'rata_rata'
                              THEN (SELECT AVG(krc.realisasi) FROM kinerja_realisasi krc
                                    WHERE krc.indikator_id = ki.id
                                      AND krc.tahun = ${tahun}
-                                     AND krc.bulan <= gs.bulan)::NUMERIC
+                                     AND krc.bulan <= gs.bulan AND krc.bulan IN (3, 6, 9, 12))::NUMERIC
                              ELSE kr.realisasi::NUMERIC END,
                       kr.realisasi::NUMERIC
                     ) / kt.target::NUMERIC * 100, 2
@@ -2050,7 +2050,7 @@ export const handler = async (event) => {
               ki.tipe_nilai,
               (SELECT COUNT(*) FROM kinerja_realisasi krc
                WHERE krc.indikator_id = ki.id AND krc.tahun = ${tahun}
-                 AND krc.bulan <= gs.bulan AND krc.realisasi IS NOT NULL) AS bulan_terisi_count,
+                 AND krc.bulan <= gs.bulan AND krc.bulan IN (3, 6, 9, 12) AND krc.realisasi IS NOT NULL) AS bulan_terisi_count,
               kr.id         AS realisasi_id,
               kr.realisasi,
               kr.realisasi_display,
@@ -2068,12 +2068,12 @@ export const handler = async (event) => {
                              THEN (SELECT SUM(krc.realisasi) FROM kinerja_realisasi krc
                                    WHERE krc.indikator_id = ki.id
                                      AND krc.tahun = ${tahun}
-                                     AND krc.bulan <= gs.bulan)
+                                     AND krc.bulan <= gs.bulan AND krc.bulan IN (3, 6, 9, 12))
                              WHEN ki.tipe_perhitungan = 'rata_rata'
                              THEN (SELECT AVG(krc.realisasi) FROM kinerja_realisasi krc
                                    WHERE krc.indikator_id = ki.id
                                      AND krc.tahun = ${tahun}
-                                     AND krc.bulan <= gs.bulan)
+                                     AND krc.bulan <= gs.bulan AND krc.bulan IN (3, 6, 9, 12))
                              ELSE kr.realisasi END,
                        kr.realisasi
                      ) IS NULL OR kt.target IS NULL OR kt.target = 0
@@ -2086,12 +2086,12 @@ export const handler = async (event) => {
                              THEN (SELECT SUM(krc.realisasi) FROM kinerja_realisasi krc
                                    WHERE krc.indikator_id = ki.id
                                      AND krc.tahun = ${tahun}
-                                     AND krc.bulan <= gs.bulan)::NUMERIC
+                                     AND krc.bulan <= gs.bulan AND krc.bulan IN (3, 6, 9, 12))::NUMERIC
                              WHEN ki.tipe_perhitungan = 'rata_rata'
                              THEN (SELECT AVG(krc.realisasi) FROM kinerja_realisasi krc
                                    WHERE krc.indikator_id = ki.id
                                      AND krc.tahun = ${tahun}
-                                     AND krc.bulan <= gs.bulan)::NUMERIC
+                                     AND krc.bulan <= gs.bulan AND krc.bulan IN (3, 6, 9, 12))::NUMERIC
                              ELSE kr.realisasi::NUMERIC END,
                         kr.realisasi::NUMERIC
                       ) - kt.target::NUMERIC
@@ -2105,12 +2105,12 @@ export const handler = async (event) => {
                              THEN (SELECT SUM(krc.realisasi) FROM kinerja_realisasi krc
                                    WHERE krc.indikator_id = ki.id
                                      AND krc.tahun = ${tahun}
-                                     AND krc.bulan <= gs.bulan)::NUMERIC
+                                     AND krc.bulan <= gs.bulan AND krc.bulan IN (3, 6, 9, 12))::NUMERIC
                              WHEN ki.tipe_perhitungan = 'rata_rata'
                              THEN (SELECT AVG(krc.realisasi) FROM kinerja_realisasi krc
                                    WHERE krc.indikator_id = ki.id
                                      AND krc.tahun = ${tahun}
-                                     AND krc.bulan <= gs.bulan)::NUMERIC
+                                     AND krc.bulan <= gs.bulan AND krc.bulan IN (3, 6, 9, 12))::NUMERIC
                              ELSE kr.realisasi::NUMERIC END,
                       kr.realisasi::NUMERIC
                     ) / kt.target::NUMERIC * 100, 2
@@ -2166,7 +2166,7 @@ export const handler = async (event) => {
               ki.tipe_nilai,
               (SELECT COUNT(*) FROM kinerja_realisasi krc
                WHERE krc.indikator_id = ki.id AND krc.tahun = ${tahun}
-                 AND krc.bulan <= gs.bulan AND krc.realisasi IS NOT NULL) AS bulan_terisi_count,
+                 AND krc.bulan <= gs.bulan AND krc.bulan IN (3, 6, 9, 12) AND krc.realisasi IS NOT NULL) AS bulan_terisi_count,
               kr.id         AS realisasi_id,
               kr.realisasi,
               kr.realisasi_display,
@@ -2184,12 +2184,12 @@ export const handler = async (event) => {
                              THEN (SELECT SUM(krc.realisasi) FROM kinerja_realisasi krc
                                    WHERE krc.indikator_id = ki.id
                                      AND krc.tahun = ${tahun}
-                                     AND krc.bulan <= gs.bulan)
+                                     AND krc.bulan <= gs.bulan AND krc.bulan IN (3, 6, 9, 12))
                              WHEN ki.tipe_perhitungan = 'rata_rata'
                              THEN (SELECT AVG(krc.realisasi) FROM kinerja_realisasi krc
                                    WHERE krc.indikator_id = ki.id
                                      AND krc.tahun = ${tahun}
-                                     AND krc.bulan <= gs.bulan)
+                                     AND krc.bulan <= gs.bulan AND krc.bulan IN (3, 6, 9, 12))
                              ELSE kr.realisasi END,
                        kr.realisasi
                      ) IS NULL OR kt.target IS NULL OR kt.target = 0
@@ -2202,12 +2202,12 @@ export const handler = async (event) => {
                              THEN (SELECT SUM(krc.realisasi) FROM kinerja_realisasi krc
                                    WHERE krc.indikator_id = ki.id
                                      AND krc.tahun = ${tahun}
-                                     AND krc.bulan <= gs.bulan)::NUMERIC
+                                     AND krc.bulan <= gs.bulan AND krc.bulan IN (3, 6, 9, 12))::NUMERIC
                              WHEN ki.tipe_perhitungan = 'rata_rata'
                              THEN (SELECT AVG(krc.realisasi) FROM kinerja_realisasi krc
                                    WHERE krc.indikator_id = ki.id
                                      AND krc.tahun = ${tahun}
-                                     AND krc.bulan <= gs.bulan)::NUMERIC
+                                     AND krc.bulan <= gs.bulan AND krc.bulan IN (3, 6, 9, 12))::NUMERIC
                              ELSE kr.realisasi::NUMERIC END,
                         kr.realisasi::NUMERIC
                       ) - kt.target::NUMERIC
@@ -2221,12 +2221,12 @@ export const handler = async (event) => {
                              THEN (SELECT SUM(krc.realisasi) FROM kinerja_realisasi krc
                                    WHERE krc.indikator_id = ki.id
                                      AND krc.tahun = ${tahun}
-                                     AND krc.bulan <= gs.bulan)::NUMERIC
+                                     AND krc.bulan <= gs.bulan AND krc.bulan IN (3, 6, 9, 12))::NUMERIC
                              WHEN ki.tipe_perhitungan = 'rata_rata'
                              THEN (SELECT AVG(krc.realisasi) FROM kinerja_realisasi krc
                                    WHERE krc.indikator_id = ki.id
                                      AND krc.tahun = ${tahun}
-                                     AND krc.bulan <= gs.bulan)::NUMERIC
+                                     AND krc.bulan <= gs.bulan AND krc.bulan IN (3, 6, 9, 12))::NUMERIC
                              ELSE kr.realisasi::NUMERIC END,
                       kr.realisasi::NUMERIC
                     ) / kt.target::NUMERIC * 100, 2
@@ -2282,7 +2282,7 @@ export const handler = async (event) => {
               ki.tipe_nilai,
               (SELECT COUNT(*) FROM kinerja_realisasi krc
                WHERE krc.indikator_id = ki.id AND krc.tahun = ${tahun}
-                 AND krc.bulan <= gs.bulan AND krc.realisasi IS NOT NULL) AS bulan_terisi_count,
+                 AND krc.bulan <= gs.bulan AND krc.bulan IN (3, 6, 9, 12) AND krc.realisasi IS NOT NULL) AS bulan_terisi_count,
               kr.id         AS realisasi_id,
               kr.realisasi,
               kr.realisasi_display,
@@ -2300,12 +2300,12 @@ export const handler = async (event) => {
                              THEN (SELECT SUM(krc.realisasi) FROM kinerja_realisasi krc
                                    WHERE krc.indikator_id = ki.id
                                      AND krc.tahun = ${tahun}
-                                     AND krc.bulan <= gs.bulan)
+                                     AND krc.bulan <= gs.bulan AND krc.bulan IN (3, 6, 9, 12))
                              WHEN ki.tipe_perhitungan = 'rata_rata'
                              THEN (SELECT AVG(krc.realisasi) FROM kinerja_realisasi krc
                                    WHERE krc.indikator_id = ki.id
                                      AND krc.tahun = ${tahun}
-                                     AND krc.bulan <= gs.bulan)
+                                     AND krc.bulan <= gs.bulan AND krc.bulan IN (3, 6, 9, 12))
                              ELSE kr.realisasi END,
                        kr.realisasi
                      ) IS NULL OR kt.target IS NULL OR kt.target = 0
@@ -2318,12 +2318,12 @@ export const handler = async (event) => {
                              THEN (SELECT SUM(krc.realisasi) FROM kinerja_realisasi krc
                                    WHERE krc.indikator_id = ki.id
                                      AND krc.tahun = ${tahun}
-                                     AND krc.bulan <= gs.bulan)::NUMERIC
+                                     AND krc.bulan <= gs.bulan AND krc.bulan IN (3, 6, 9, 12))::NUMERIC
                              WHEN ki.tipe_perhitungan = 'rata_rata'
                              THEN (SELECT AVG(krc.realisasi) FROM kinerja_realisasi krc
                                    WHERE krc.indikator_id = ki.id
                                      AND krc.tahun = ${tahun}
-                                     AND krc.bulan <= gs.bulan)::NUMERIC
+                                     AND krc.bulan <= gs.bulan AND krc.bulan IN (3, 6, 9, 12))::NUMERIC
                              ELSE kr.realisasi::NUMERIC END,
                         kr.realisasi::NUMERIC
                       ) - kt.target::NUMERIC
@@ -2337,12 +2337,12 @@ export const handler = async (event) => {
                              THEN (SELECT SUM(krc.realisasi) FROM kinerja_realisasi krc
                                    WHERE krc.indikator_id = ki.id
                                      AND krc.tahun = ${tahun}
-                                     AND krc.bulan <= gs.bulan)::NUMERIC
+                                     AND krc.bulan <= gs.bulan AND krc.bulan IN (3, 6, 9, 12))::NUMERIC
                              WHEN ki.tipe_perhitungan = 'rata_rata'
                              THEN (SELECT AVG(krc.realisasi) FROM kinerja_realisasi krc
                                    WHERE krc.indikator_id = ki.id
                                      AND krc.tahun = ${tahun}
-                                     AND krc.bulan <= gs.bulan)::NUMERIC
+                                     AND krc.bulan <= gs.bulan AND krc.bulan IN (3, 6, 9, 12))::NUMERIC
                              ELSE kr.realisasi::NUMERIC END,
                       kr.realisasi::NUMERIC
                     ) / kt.target::NUMERIC * 100, 2
@@ -2462,7 +2462,7 @@ export const handler = async (event) => {
               ki.tipe_nilai,
               (SELECT COUNT(*) FROM kinerja_realisasi krc
                WHERE krc.indikator_id = ki.id AND krc.tahun = ${tahun}
-                 AND krc.bulan <= ${bulan} AND krc.realisasi IS NOT NULL) AS bulan_terisi_count,
+                 AND krc.bulan <= ${bulan} AND krc.bulan IN (3, 6, 9, 12) AND krc.realisasi IS NOT NULL) AS bulan_terisi_count,
               kr.id         AS realisasi_id,
               kr.realisasi,
               kr.realisasi_display,
@@ -2480,12 +2480,12 @@ export const handler = async (event) => {
                              THEN (SELECT SUM(krc.realisasi) FROM kinerja_realisasi krc
                                    WHERE krc.indikator_id = ki.id
                                      AND krc.tahun = ${tahun}
-                                     AND krc.bulan <= ${bulan})
+                                     AND krc.bulan <= ${bulan} AND krc.bulan IN (3, 6, 9, 12))
                              WHEN ki.tipe_perhitungan = 'rata_rata'
                              THEN (SELECT AVG(krc.realisasi) FROM kinerja_realisasi krc
                                    WHERE krc.indikator_id = ki.id
                                      AND krc.tahun = ${tahun}
-                                     AND krc.bulan <= ${bulan})
+                                     AND krc.bulan <= ${bulan} AND krc.bulan IN (3, 6, 9, 12))
                              ELSE kr.realisasi END,
                        kr.realisasi
                      ) IS NULL OR kt.target IS NULL OR kt.target = 0
@@ -2498,12 +2498,12 @@ export const handler = async (event) => {
                              THEN (SELECT SUM(krc.realisasi) FROM kinerja_realisasi krc
                                    WHERE krc.indikator_id = ki.id
                                      AND krc.tahun = ${tahun}
-                                     AND krc.bulan <= ${bulan})::NUMERIC
+                                     AND krc.bulan <= ${bulan} AND krc.bulan IN (3, 6, 9, 12))::NUMERIC
                              WHEN ki.tipe_perhitungan = 'rata_rata'
                              THEN (SELECT AVG(krc.realisasi) FROM kinerja_realisasi krc
                                    WHERE krc.indikator_id = ki.id
                                      AND krc.tahun = ${tahun}
-                                     AND krc.bulan <= ${bulan})::NUMERIC
+                                     AND krc.bulan <= ${bulan} AND krc.bulan IN (3, 6, 9, 12))::NUMERIC
                              ELSE kr.realisasi::NUMERIC END,
                         kr.realisasi::NUMERIC
                       ) - kt.target::NUMERIC
@@ -2517,12 +2517,12 @@ export const handler = async (event) => {
                              THEN (SELECT SUM(krc.realisasi) FROM kinerja_realisasi krc
                                    WHERE krc.indikator_id = ki.id
                                      AND krc.tahun = ${tahun}
-                                     AND krc.bulan <= ${bulan})::NUMERIC
+                                     AND krc.bulan <= ${bulan} AND krc.bulan IN (3, 6, 9, 12))::NUMERIC
                              WHEN ki.tipe_perhitungan = 'rata_rata'
                              THEN (SELECT AVG(krc.realisasi) FROM kinerja_realisasi krc
                                    WHERE krc.indikator_id = ki.id
                                      AND krc.tahun = ${tahun}
-                                     AND krc.bulan <= ${bulan})::NUMERIC
+                                     AND krc.bulan <= ${bulan} AND krc.bulan IN (3, 6, 9, 12))::NUMERIC
                              ELSE kr.realisasi::NUMERIC END,
                       kr.realisasi::NUMERIC
                     ) / kt.target::NUMERIC * 100, 2
@@ -2576,7 +2576,7 @@ export const handler = async (event) => {
               ki.tipe_nilai,
               (SELECT COUNT(*) FROM kinerja_realisasi krc
                WHERE krc.indikator_id = ki.id AND krc.tahun = ${tahun}
-                 AND krc.bulan <= ${bulan} AND krc.realisasi IS NOT NULL) AS bulan_terisi_count,
+                 AND krc.bulan <= ${bulan} AND krc.bulan IN (3, 6, 9, 12) AND krc.realisasi IS NOT NULL) AS bulan_terisi_count,
               kr.id         AS realisasi_id,
               kr.realisasi,
               kr.realisasi_display,
@@ -2594,12 +2594,12 @@ export const handler = async (event) => {
                              THEN (SELECT SUM(krc.realisasi) FROM kinerja_realisasi krc
                                    WHERE krc.indikator_id = ki.id
                                      AND krc.tahun = ${tahun}
-                                     AND krc.bulan <= ${bulan})
+                                     AND krc.bulan <= ${bulan} AND krc.bulan IN (3, 6, 9, 12))
                              WHEN ki.tipe_perhitungan = 'rata_rata'
                              THEN (SELECT AVG(krc.realisasi) FROM kinerja_realisasi krc
                                    WHERE krc.indikator_id = ki.id
                                      AND krc.tahun = ${tahun}
-                                     AND krc.bulan <= ${bulan})
+                                     AND krc.bulan <= ${bulan} AND krc.bulan IN (3, 6, 9, 12))
                              ELSE kr.realisasi END,
                        kr.realisasi
                      ) IS NULL OR kt.target IS NULL OR kt.target = 0
@@ -2612,12 +2612,12 @@ export const handler = async (event) => {
                              THEN (SELECT SUM(krc.realisasi) FROM kinerja_realisasi krc
                                    WHERE krc.indikator_id = ki.id
                                      AND krc.tahun = ${tahun}
-                                     AND krc.bulan <= ${bulan})::NUMERIC
+                                     AND krc.bulan <= ${bulan} AND krc.bulan IN (3, 6, 9, 12))::NUMERIC
                              WHEN ki.tipe_perhitungan = 'rata_rata'
                              THEN (SELECT AVG(krc.realisasi) FROM kinerja_realisasi krc
                                    WHERE krc.indikator_id = ki.id
                                      AND krc.tahun = ${tahun}
-                                     AND krc.bulan <= ${bulan})::NUMERIC
+                                     AND krc.bulan <= ${bulan} AND krc.bulan IN (3, 6, 9, 12))::NUMERIC
                              ELSE kr.realisasi::NUMERIC END,
                         kr.realisasi::NUMERIC
                       ) - kt.target::NUMERIC
@@ -2631,12 +2631,12 @@ export const handler = async (event) => {
                              THEN (SELECT SUM(krc.realisasi) FROM kinerja_realisasi krc
                                    WHERE krc.indikator_id = ki.id
                                      AND krc.tahun = ${tahun}
-                                     AND krc.bulan <= ${bulan})::NUMERIC
+                                     AND krc.bulan <= ${bulan} AND krc.bulan IN (3, 6, 9, 12))::NUMERIC
                              WHEN ki.tipe_perhitungan = 'rata_rata'
                              THEN (SELECT AVG(krc.realisasi) FROM kinerja_realisasi krc
                                    WHERE krc.indikator_id = ki.id
                                      AND krc.tahun = ${tahun}
-                                     AND krc.bulan <= ${bulan})::NUMERIC
+                                     AND krc.bulan <= ${bulan} AND krc.bulan IN (3, 6, 9, 12))::NUMERIC
                              ELSE kr.realisasi::NUMERIC END,
                       kr.realisasi::NUMERIC
                     ) / kt.target::NUMERIC * 100, 2
@@ -2690,7 +2690,7 @@ export const handler = async (event) => {
               ki.tipe_nilai,
               (SELECT COUNT(*) FROM kinerja_realisasi krc
                WHERE krc.indikator_id = ki.id AND krc.tahun = ${tahun}
-                 AND krc.bulan <= ${bulan} AND krc.realisasi IS NOT NULL) AS bulan_terisi_count,
+                 AND krc.bulan <= ${bulan} AND krc.bulan IN (3, 6, 9, 12) AND krc.realisasi IS NOT NULL) AS bulan_terisi_count,
               kr.id         AS realisasi_id,
               kr.realisasi,
               kr.realisasi_display,
@@ -2708,12 +2708,12 @@ export const handler = async (event) => {
                              THEN (SELECT SUM(krc.realisasi) FROM kinerja_realisasi krc
                                    WHERE krc.indikator_id = ki.id
                                      AND krc.tahun = ${tahun}
-                                     AND krc.bulan <= ${bulan})
+                                     AND krc.bulan <= ${bulan} AND krc.bulan IN (3, 6, 9, 12))
                              WHEN ki.tipe_perhitungan = 'rata_rata'
                              THEN (SELECT AVG(krc.realisasi) FROM kinerja_realisasi krc
                                    WHERE krc.indikator_id = ki.id
                                      AND krc.tahun = ${tahun}
-                                     AND krc.bulan <= ${bulan})
+                                     AND krc.bulan <= ${bulan} AND krc.bulan IN (3, 6, 9, 12))
                              ELSE kr.realisasi END,
                        kr.realisasi
                      ) IS NULL OR kt.target IS NULL OR kt.target = 0
@@ -2726,12 +2726,12 @@ export const handler = async (event) => {
                              THEN (SELECT SUM(krc.realisasi) FROM kinerja_realisasi krc
                                    WHERE krc.indikator_id = ki.id
                                      AND krc.tahun = ${tahun}
-                                     AND krc.bulan <= ${bulan})::NUMERIC
+                                     AND krc.bulan <= ${bulan} AND krc.bulan IN (3, 6, 9, 12))::NUMERIC
                              WHEN ki.tipe_perhitungan = 'rata_rata'
                              THEN (SELECT AVG(krc.realisasi) FROM kinerja_realisasi krc
                                    WHERE krc.indikator_id = ki.id
                                      AND krc.tahun = ${tahun}
-                                     AND krc.bulan <= ${bulan})::NUMERIC
+                                     AND krc.bulan <= ${bulan} AND krc.bulan IN (3, 6, 9, 12))::NUMERIC
                              ELSE kr.realisasi::NUMERIC END,
                         kr.realisasi::NUMERIC
                       ) - kt.target::NUMERIC
@@ -2745,12 +2745,12 @@ export const handler = async (event) => {
                              THEN (SELECT SUM(krc.realisasi) FROM kinerja_realisasi krc
                                    WHERE krc.indikator_id = ki.id
                                      AND krc.tahun = ${tahun}
-                                     AND krc.bulan <= ${bulan})::NUMERIC
+                                     AND krc.bulan <= ${bulan} AND krc.bulan IN (3, 6, 9, 12))::NUMERIC
                              WHEN ki.tipe_perhitungan = 'rata_rata'
                              THEN (SELECT AVG(krc.realisasi) FROM kinerja_realisasi krc
                                    WHERE krc.indikator_id = ki.id
                                      AND krc.tahun = ${tahun}
-                                     AND krc.bulan <= ${bulan})::NUMERIC
+                                     AND krc.bulan <= ${bulan} AND krc.bulan IN (3, 6, 9, 12))::NUMERIC
                              ELSE kr.realisasi::NUMERIC END,
                       kr.realisasi::NUMERIC
                     ) / kt.target::NUMERIC * 100, 2
@@ -2806,7 +2806,7 @@ export const handler = async (event) => {
               ki.tipe_nilai,
               (SELECT COUNT(*) FROM kinerja_realisasi krc
                WHERE krc.indikator_id = ki.id AND krc.tahun = ${tahun}
-                 AND krc.bulan <= ${bulan} AND krc.realisasi IS NOT NULL) AS bulan_terisi_count,
+                 AND krc.bulan <= ${bulan} AND krc.bulan IN (3, 6, 9, 12) AND krc.realisasi IS NOT NULL) AS bulan_terisi_count,
               kr.id         AS realisasi_id,
               kr.realisasi,
               kr.realisasi_display,
@@ -2824,12 +2824,12 @@ export const handler = async (event) => {
                              THEN (SELECT SUM(krc.realisasi) FROM kinerja_realisasi krc
                                    WHERE krc.indikator_id = ki.id
                                      AND krc.tahun = ${tahun}
-                                     AND krc.bulan <= ${bulan})
+                                     AND krc.bulan <= ${bulan} AND krc.bulan IN (3, 6, 9, 12))
                              WHEN ki.tipe_perhitungan = 'rata_rata'
                              THEN (SELECT AVG(krc.realisasi) FROM kinerja_realisasi krc
                                    WHERE krc.indikator_id = ki.id
                                      AND krc.tahun = ${tahun}
-                                     AND krc.bulan <= ${bulan})
+                                     AND krc.bulan <= ${bulan} AND krc.bulan IN (3, 6, 9, 12))
                              ELSE kr.realisasi END,
                        kr.realisasi
                      ) IS NULL OR kt.target IS NULL OR kt.target = 0
@@ -2842,12 +2842,12 @@ export const handler = async (event) => {
                              THEN (SELECT SUM(krc.realisasi) FROM kinerja_realisasi krc
                                    WHERE krc.indikator_id = ki.id
                                      AND krc.tahun = ${tahun}
-                                     AND krc.bulan <= ${bulan})::NUMERIC
+                                     AND krc.bulan <= ${bulan} AND krc.bulan IN (3, 6, 9, 12))::NUMERIC
                              WHEN ki.tipe_perhitungan = 'rata_rata'
                              THEN (SELECT AVG(krc.realisasi) FROM kinerja_realisasi krc
                                    WHERE krc.indikator_id = ki.id
                                      AND krc.tahun = ${tahun}
-                                     AND krc.bulan <= ${bulan})::NUMERIC
+                                     AND krc.bulan <= ${bulan} AND krc.bulan IN (3, 6, 9, 12))::NUMERIC
                              ELSE kr.realisasi::NUMERIC END,
                         kr.realisasi::NUMERIC
                       ) - kt.target::NUMERIC
@@ -2861,12 +2861,12 @@ export const handler = async (event) => {
                              THEN (SELECT SUM(krc.realisasi) FROM kinerja_realisasi krc
                                    WHERE krc.indikator_id = ki.id
                                      AND krc.tahun = ${tahun}
-                                     AND krc.bulan <= ${bulan})::NUMERIC
+                                     AND krc.bulan <= ${bulan} AND krc.bulan IN (3, 6, 9, 12))::NUMERIC
                              WHEN ki.tipe_perhitungan = 'rata_rata'
                              THEN (SELECT AVG(krc.realisasi) FROM kinerja_realisasi krc
                                    WHERE krc.indikator_id = ki.id
                                      AND krc.tahun = ${tahun}
-                                     AND krc.bulan <= ${bulan})::NUMERIC
+                                     AND krc.bulan <= ${bulan} AND krc.bulan IN (3, 6, 9, 12))::NUMERIC
                              ELSE kr.realisasi::NUMERIC END,
                       kr.realisasi::NUMERIC
                     ) / kt.target::NUMERIC * 100, 2
@@ -2920,7 +2920,7 @@ export const handler = async (event) => {
               ki.tipe_nilai,
               (SELECT COUNT(*) FROM kinerja_realisasi krc
                WHERE krc.indikator_id = ki.id AND krc.tahun = ${tahun}
-                 AND krc.bulan <= ${bulan} AND krc.realisasi IS NOT NULL) AS bulan_terisi_count,
+                 AND krc.bulan <= ${bulan} AND krc.bulan IN (3, 6, 9, 12) AND krc.realisasi IS NOT NULL) AS bulan_terisi_count,
               kr.id         AS realisasi_id,
               kr.realisasi,
               kr.realisasi_display,
@@ -2938,12 +2938,12 @@ export const handler = async (event) => {
                              THEN (SELECT SUM(krc.realisasi) FROM kinerja_realisasi krc
                                    WHERE krc.indikator_id = ki.id
                                      AND krc.tahun = ${tahun}
-                                     AND krc.bulan <= ${bulan})
+                                     AND krc.bulan <= ${bulan} AND krc.bulan IN (3, 6, 9, 12))
                              WHEN ki.tipe_perhitungan = 'rata_rata'
                              THEN (SELECT AVG(krc.realisasi) FROM kinerja_realisasi krc
                                    WHERE krc.indikator_id = ki.id
                                      AND krc.tahun = ${tahun}
-                                     AND krc.bulan <= ${bulan})
+                                     AND krc.bulan <= ${bulan} AND krc.bulan IN (3, 6, 9, 12))
                              ELSE kr.realisasi END,
                        kr.realisasi
                      ) IS NULL OR kt.target IS NULL OR kt.target = 0
@@ -2956,12 +2956,12 @@ export const handler = async (event) => {
                              THEN (SELECT SUM(krc.realisasi) FROM kinerja_realisasi krc
                                    WHERE krc.indikator_id = ki.id
                                      AND krc.tahun = ${tahun}
-                                     AND krc.bulan <= ${bulan})::NUMERIC
+                                     AND krc.bulan <= ${bulan} AND krc.bulan IN (3, 6, 9, 12))::NUMERIC
                              WHEN ki.tipe_perhitungan = 'rata_rata'
                              THEN (SELECT AVG(krc.realisasi) FROM kinerja_realisasi krc
                                    WHERE krc.indikator_id = ki.id
                                      AND krc.tahun = ${tahun}
-                                     AND krc.bulan <= ${bulan})::NUMERIC
+                                     AND krc.bulan <= ${bulan} AND krc.bulan IN (3, 6, 9, 12))::NUMERIC
                              ELSE kr.realisasi::NUMERIC END,
                         kr.realisasi::NUMERIC
                       ) - kt.target::NUMERIC
@@ -2975,12 +2975,12 @@ export const handler = async (event) => {
                              THEN (SELECT SUM(krc.realisasi) FROM kinerja_realisasi krc
                                    WHERE krc.indikator_id = ki.id
                                      AND krc.tahun = ${tahun}
-                                     AND krc.bulan <= ${bulan})::NUMERIC
+                                     AND krc.bulan <= ${bulan} AND krc.bulan IN (3, 6, 9, 12))::NUMERIC
                              WHEN ki.tipe_perhitungan = 'rata_rata'
                              THEN (SELECT AVG(krc.realisasi) FROM kinerja_realisasi krc
                                    WHERE krc.indikator_id = ki.id
                                      AND krc.tahun = ${tahun}
-                                     AND krc.bulan <= ${bulan})::NUMERIC
+                                     AND krc.bulan <= ${bulan} AND krc.bulan IN (3, 6, 9, 12))::NUMERIC
                              ELSE kr.realisasi::NUMERIC END,
                       kr.realisasi::NUMERIC
                     ) / kt.target::NUMERIC * 100, 2
@@ -3034,7 +3034,7 @@ export const handler = async (event) => {
               ki.tipe_nilai,
               (SELECT COUNT(*) FROM kinerja_realisasi krc
                WHERE krc.indikator_id = ki.id AND krc.tahun = ${tahun}
-                 AND krc.bulan <= ${bulan} AND krc.realisasi IS NOT NULL) AS bulan_terisi_count,
+                 AND krc.bulan <= ${bulan} AND krc.bulan IN (3, 6, 9, 12) AND krc.realisasi IS NOT NULL) AS bulan_terisi_count,
               kr.id         AS realisasi_id,
               kr.realisasi,
               kr.realisasi_display,
@@ -3052,12 +3052,12 @@ export const handler = async (event) => {
                              THEN (SELECT SUM(krc.realisasi) FROM kinerja_realisasi krc
                                    WHERE krc.indikator_id = ki.id
                                      AND krc.tahun = ${tahun}
-                                     AND krc.bulan <= ${bulan})
+                                     AND krc.bulan <= ${bulan} AND krc.bulan IN (3, 6, 9, 12))
                              WHEN ki.tipe_perhitungan = 'rata_rata'
                              THEN (SELECT AVG(krc.realisasi) FROM kinerja_realisasi krc
                                    WHERE krc.indikator_id = ki.id
                                      AND krc.tahun = ${tahun}
-                                     AND krc.bulan <= ${bulan})
+                                     AND krc.bulan <= ${bulan} AND krc.bulan IN (3, 6, 9, 12))
                              ELSE kr.realisasi END,
                        kr.realisasi
                      ) IS NULL OR kt.target IS NULL OR kt.target = 0
@@ -3070,12 +3070,12 @@ export const handler = async (event) => {
                              THEN (SELECT SUM(krc.realisasi) FROM kinerja_realisasi krc
                                    WHERE krc.indikator_id = ki.id
                                      AND krc.tahun = ${tahun}
-                                     AND krc.bulan <= ${bulan})::NUMERIC
+                                     AND krc.bulan <= ${bulan} AND krc.bulan IN (3, 6, 9, 12))::NUMERIC
                              WHEN ki.tipe_perhitungan = 'rata_rata'
                              THEN (SELECT AVG(krc.realisasi) FROM kinerja_realisasi krc
                                    WHERE krc.indikator_id = ki.id
                                      AND krc.tahun = ${tahun}
-                                     AND krc.bulan <= ${bulan})::NUMERIC
+                                     AND krc.bulan <= ${bulan} AND krc.bulan IN (3, 6, 9, 12))::NUMERIC
                              ELSE kr.realisasi::NUMERIC END,
                         kr.realisasi::NUMERIC
                       ) - kt.target::NUMERIC
@@ -3089,12 +3089,12 @@ export const handler = async (event) => {
                              THEN (SELECT SUM(krc.realisasi) FROM kinerja_realisasi krc
                                    WHERE krc.indikator_id = ki.id
                                      AND krc.tahun = ${tahun}
-                                     AND krc.bulan <= ${bulan})::NUMERIC
+                                     AND krc.bulan <= ${bulan} AND krc.bulan IN (3, 6, 9, 12))::NUMERIC
                              WHEN ki.tipe_perhitungan = 'rata_rata'
                              THEN (SELECT AVG(krc.realisasi) FROM kinerja_realisasi krc
                                    WHERE krc.indikator_id = ki.id
                                      AND krc.tahun = ${tahun}
-                                     AND krc.bulan <= ${bulan})::NUMERIC
+                                     AND krc.bulan <= ${bulan} AND krc.bulan IN (3, 6, 9, 12))::NUMERIC
                              ELSE kr.realisasi::NUMERIC END,
                       kr.realisasi::NUMERIC
                     ) / kt.target::NUMERIC * 100, 2
@@ -3150,7 +3150,7 @@ export const handler = async (event) => {
               ki.tipe_nilai,
               (SELECT COUNT(*) FROM kinerja_realisasi krc
                WHERE krc.indikator_id = ki.id AND krc.tahun = ${tahun}
-                 AND krc.bulan <= ${bulan} AND krc.realisasi IS NOT NULL) AS bulan_terisi_count,
+                 AND krc.bulan <= ${bulan} AND krc.bulan IN (3, 6, 9, 12) AND krc.realisasi IS NOT NULL) AS bulan_terisi_count,
               kr.id         AS realisasi_id,
               kr.realisasi,
               kr.realisasi_display,
@@ -3168,12 +3168,12 @@ export const handler = async (event) => {
                              THEN (SELECT SUM(krc.realisasi) FROM kinerja_realisasi krc
                                    WHERE krc.indikator_id = ki.id
                                      AND krc.tahun = ${tahun}
-                                     AND krc.bulan <= ${bulan})
+                                     AND krc.bulan <= ${bulan} AND krc.bulan IN (3, 6, 9, 12))
                              WHEN ki.tipe_perhitungan = 'rata_rata'
                              THEN (SELECT AVG(krc.realisasi) FROM kinerja_realisasi krc
                                    WHERE krc.indikator_id = ki.id
                                      AND krc.tahun = ${tahun}
-                                     AND krc.bulan <= ${bulan})
+                                     AND krc.bulan <= ${bulan} AND krc.bulan IN (3, 6, 9, 12))
                              ELSE kr.realisasi END,
                        kr.realisasi
                      ) IS NULL OR kt.target IS NULL OR kt.target = 0
@@ -3186,12 +3186,12 @@ export const handler = async (event) => {
                              THEN (SELECT SUM(krc.realisasi) FROM kinerja_realisasi krc
                                    WHERE krc.indikator_id = ki.id
                                      AND krc.tahun = ${tahun}
-                                     AND krc.bulan <= ${bulan})::NUMERIC
+                                     AND krc.bulan <= ${bulan} AND krc.bulan IN (3, 6, 9, 12))::NUMERIC
                              WHEN ki.tipe_perhitungan = 'rata_rata'
                              THEN (SELECT AVG(krc.realisasi) FROM kinerja_realisasi krc
                                    WHERE krc.indikator_id = ki.id
                                      AND krc.tahun = ${tahun}
-                                     AND krc.bulan <= ${bulan})::NUMERIC
+                                     AND krc.bulan <= ${bulan} AND krc.bulan IN (3, 6, 9, 12))::NUMERIC
                              ELSE kr.realisasi::NUMERIC END,
                         kr.realisasi::NUMERIC
                       ) - kt.target::NUMERIC
@@ -3205,12 +3205,12 @@ export const handler = async (event) => {
                              THEN (SELECT SUM(krc.realisasi) FROM kinerja_realisasi krc
                                    WHERE krc.indikator_id = ki.id
                                      AND krc.tahun = ${tahun}
-                                     AND krc.bulan <= ${bulan})::NUMERIC
+                                     AND krc.bulan <= ${bulan} AND krc.bulan IN (3, 6, 9, 12))::NUMERIC
                              WHEN ki.tipe_perhitungan = 'rata_rata'
                              THEN (SELECT AVG(krc.realisasi) FROM kinerja_realisasi krc
                                    WHERE krc.indikator_id = ki.id
                                      AND krc.tahun = ${tahun}
-                                     AND krc.bulan <= ${bulan})::NUMERIC
+                                     AND krc.bulan <= ${bulan} AND krc.bulan IN (3, 6, 9, 12))::NUMERIC
                              ELSE kr.realisasi::NUMERIC END,
                       kr.realisasi::NUMERIC
                     ) / kt.target::NUMERIC * 100, 2
@@ -3264,7 +3264,7 @@ export const handler = async (event) => {
               ki.tipe_nilai,
               (SELECT COUNT(*) FROM kinerja_realisasi krc
                WHERE krc.indikator_id = ki.id AND krc.tahun = ${tahun}
-                 AND krc.bulan <= ${bulan} AND krc.realisasi IS NOT NULL) AS bulan_terisi_count,
+                 AND krc.bulan <= ${bulan} AND krc.bulan IN (3, 6, 9, 12) AND krc.realisasi IS NOT NULL) AS bulan_terisi_count,
               kr.id         AS realisasi_id,
               kr.realisasi,
               kr.realisasi_display,
@@ -3282,12 +3282,12 @@ export const handler = async (event) => {
                              THEN (SELECT SUM(krc.realisasi) FROM kinerja_realisasi krc
                                    WHERE krc.indikator_id = ki.id
                                      AND krc.tahun = ${tahun}
-                                     AND krc.bulan <= ${bulan})
+                                     AND krc.bulan <= ${bulan} AND krc.bulan IN (3, 6, 9, 12))
                              WHEN ki.tipe_perhitungan = 'rata_rata'
                              THEN (SELECT AVG(krc.realisasi) FROM kinerja_realisasi krc
                                    WHERE krc.indikator_id = ki.id
                                      AND krc.tahun = ${tahun}
-                                     AND krc.bulan <= ${bulan})
+                                     AND krc.bulan <= ${bulan} AND krc.bulan IN (3, 6, 9, 12))
                              ELSE kr.realisasi END,
                        kr.realisasi
                      ) IS NULL OR kt.target IS NULL OR kt.target = 0
@@ -3300,12 +3300,12 @@ export const handler = async (event) => {
                              THEN (SELECT SUM(krc.realisasi) FROM kinerja_realisasi krc
                                    WHERE krc.indikator_id = ki.id
                                      AND krc.tahun = ${tahun}
-                                     AND krc.bulan <= ${bulan})::NUMERIC
+                                     AND krc.bulan <= ${bulan} AND krc.bulan IN (3, 6, 9, 12))::NUMERIC
                              WHEN ki.tipe_perhitungan = 'rata_rata'
                              THEN (SELECT AVG(krc.realisasi) FROM kinerja_realisasi krc
                                    WHERE krc.indikator_id = ki.id
                                      AND krc.tahun = ${tahun}
-                                     AND krc.bulan <= ${bulan})::NUMERIC
+                                     AND krc.bulan <= ${bulan} AND krc.bulan IN (3, 6, 9, 12))::NUMERIC
                              ELSE kr.realisasi::NUMERIC END,
                         kr.realisasi::NUMERIC
                       ) - kt.target::NUMERIC
@@ -3319,12 +3319,12 @@ export const handler = async (event) => {
                              THEN (SELECT SUM(krc.realisasi) FROM kinerja_realisasi krc
                                    WHERE krc.indikator_id = ki.id
                                      AND krc.tahun = ${tahun}
-                                     AND krc.bulan <= ${bulan})::NUMERIC
+                                     AND krc.bulan <= ${bulan} AND krc.bulan IN (3, 6, 9, 12))::NUMERIC
                              WHEN ki.tipe_perhitungan = 'rata_rata'
                              THEN (SELECT AVG(krc.realisasi) FROM kinerja_realisasi krc
                                    WHERE krc.indikator_id = ki.id
                                      AND krc.tahun = ${tahun}
-                                     AND krc.bulan <= ${bulan})::NUMERIC
+                                     AND krc.bulan <= ${bulan} AND krc.bulan IN (3, 6, 9, 12))::NUMERIC
                              ELSE kr.realisasi::NUMERIC END,
                       kr.realisasi::NUMERIC
                     ) / kt.target::NUMERIC * 100, 2
@@ -3378,7 +3378,7 @@ export const handler = async (event) => {
               ki.tipe_nilai,
               (SELECT COUNT(*) FROM kinerja_realisasi krc
                WHERE krc.indikator_id = ki.id AND krc.tahun = ${tahun}
-                 AND krc.bulan <= ${bulan} AND krc.realisasi IS NOT NULL) AS bulan_terisi_count,
+                 AND krc.bulan <= ${bulan} AND krc.bulan IN (3, 6, 9, 12) AND krc.realisasi IS NOT NULL) AS bulan_terisi_count,
               kr.id         AS realisasi_id,
               kr.realisasi,
               kr.realisasi_display,
@@ -3396,12 +3396,12 @@ export const handler = async (event) => {
                              THEN (SELECT SUM(krc.realisasi) FROM kinerja_realisasi krc
                                    WHERE krc.indikator_id = ki.id
                                      AND krc.tahun = ${tahun}
-                                     AND krc.bulan <= ${bulan})
+                                     AND krc.bulan <= ${bulan} AND krc.bulan IN (3, 6, 9, 12))
                              WHEN ki.tipe_perhitungan = 'rata_rata'
                              THEN (SELECT AVG(krc.realisasi) FROM kinerja_realisasi krc
                                    WHERE krc.indikator_id = ki.id
                                      AND krc.tahun = ${tahun}
-                                     AND krc.bulan <= ${bulan})
+                                     AND krc.bulan <= ${bulan} AND krc.bulan IN (3, 6, 9, 12))
                              ELSE kr.realisasi END,
                        kr.realisasi
                      ) IS NULL OR kt.target IS NULL OR kt.target = 0
@@ -3414,12 +3414,12 @@ export const handler = async (event) => {
                              THEN (SELECT SUM(krc.realisasi) FROM kinerja_realisasi krc
                                    WHERE krc.indikator_id = ki.id
                                      AND krc.tahun = ${tahun}
-                                     AND krc.bulan <= ${bulan})::NUMERIC
+                                     AND krc.bulan <= ${bulan} AND krc.bulan IN (3, 6, 9, 12))::NUMERIC
                              WHEN ki.tipe_perhitungan = 'rata_rata'
                              THEN (SELECT AVG(krc.realisasi) FROM kinerja_realisasi krc
                                    WHERE krc.indikator_id = ki.id
                                      AND krc.tahun = ${tahun}
-                                     AND krc.bulan <= ${bulan})::NUMERIC
+                                     AND krc.bulan <= ${bulan} AND krc.bulan IN (3, 6, 9, 12))::NUMERIC
                              ELSE kr.realisasi::NUMERIC END,
                         kr.realisasi::NUMERIC
                       ) - kt.target::NUMERIC
@@ -3433,12 +3433,12 @@ export const handler = async (event) => {
                              THEN (SELECT SUM(krc.realisasi) FROM kinerja_realisasi krc
                                    WHERE krc.indikator_id = ki.id
                                      AND krc.tahun = ${tahun}
-                                     AND krc.bulan <= ${bulan})::NUMERIC
+                                     AND krc.bulan <= ${bulan} AND krc.bulan IN (3, 6, 9, 12))::NUMERIC
                              WHEN ki.tipe_perhitungan = 'rata_rata'
                              THEN (SELECT AVG(krc.realisasi) FROM kinerja_realisasi krc
                                    WHERE krc.indikator_id = ki.id
                                      AND krc.tahun = ${tahun}
-                                     AND krc.bulan <= ${bulan})::NUMERIC
+                                     AND krc.bulan <= ${bulan} AND krc.bulan IN (3, 6, 9, 12))::NUMERIC
                              ELSE kr.realisasi::NUMERIC END,
                       kr.realisasi::NUMERIC
                     ) / kt.target::NUMERIC * 100, 2
@@ -3493,7 +3493,7 @@ export const handler = async (event) => {
               ki.tipe_nilai,
               (SELECT COUNT(*) FROM kinerja_realisasi krc
                WHERE krc.indikator_id = ki.id AND krc.tahun = ${tahun}
-                 AND krc.bulan <= ${bulan} AND krc.realisasi IS NOT NULL) AS bulan_terisi_count,
+                 AND krc.bulan <= ${bulan} AND krc.bulan IN (3, 6, 9, 12) AND krc.realisasi IS NOT NULL) AS bulan_terisi_count,
               kr.id         AS realisasi_id,
               kr.realisasi,
               kr.realisasi_display,
@@ -3511,12 +3511,12 @@ export const handler = async (event) => {
                              THEN (SELECT SUM(krc.realisasi) FROM kinerja_realisasi krc
                                    WHERE krc.indikator_id = ki.id
                                      AND krc.tahun = ${tahun}
-                                     AND krc.bulan <= ${bulan})
+                                     AND krc.bulan <= ${bulan} AND krc.bulan IN (3, 6, 9, 12))
                              WHEN ki.tipe_perhitungan = 'rata_rata'
                              THEN (SELECT AVG(krc.realisasi) FROM kinerja_realisasi krc
                                    WHERE krc.indikator_id = ki.id
                                      AND krc.tahun = ${tahun}
-                                     AND krc.bulan <= ${bulan})
+                                     AND krc.bulan <= ${bulan} AND krc.bulan IN (3, 6, 9, 12))
                              ELSE kr.realisasi END,
                        kr.realisasi
                      ) IS NULL OR kt.target IS NULL OR kt.target = 0
@@ -3529,12 +3529,12 @@ export const handler = async (event) => {
                              THEN (SELECT SUM(krc.realisasi) FROM kinerja_realisasi krc
                                    WHERE krc.indikator_id = ki.id
                                      AND krc.tahun = ${tahun}
-                                     AND krc.bulan <= ${bulan})::NUMERIC
+                                     AND krc.bulan <= ${bulan} AND krc.bulan IN (3, 6, 9, 12))::NUMERIC
                              WHEN ki.tipe_perhitungan = 'rata_rata'
                              THEN (SELECT AVG(krc.realisasi) FROM kinerja_realisasi krc
                                    WHERE krc.indikator_id = ki.id
                                      AND krc.tahun = ${tahun}
-                                     AND krc.bulan <= ${bulan})::NUMERIC
+                                     AND krc.bulan <= ${bulan} AND krc.bulan IN (3, 6, 9, 12))::NUMERIC
                              ELSE kr.realisasi::NUMERIC END,
                         kr.realisasi::NUMERIC
                       ) - kt.target::NUMERIC
@@ -3548,12 +3548,12 @@ export const handler = async (event) => {
                              THEN (SELECT SUM(krc.realisasi) FROM kinerja_realisasi krc
                                    WHERE krc.indikator_id = ki.id
                                      AND krc.tahun = ${tahun}
-                                     AND krc.bulan <= ${bulan})::NUMERIC
+                                     AND krc.bulan <= ${bulan} AND krc.bulan IN (3, 6, 9, 12))::NUMERIC
                              WHEN ki.tipe_perhitungan = 'rata_rata'
                              THEN (SELECT AVG(krc.realisasi) FROM kinerja_realisasi krc
                                    WHERE krc.indikator_id = ki.id
                                      AND krc.tahun = ${tahun}
-                                     AND krc.bulan <= ${bulan})::NUMERIC
+                                     AND krc.bulan <= ${bulan} AND krc.bulan IN (3, 6, 9, 12))::NUMERIC
                              ELSE kr.realisasi::NUMERIC END,
                       kr.realisasi::NUMERIC
                     ) / kt.target::NUMERIC * 100, 2
@@ -3607,7 +3607,7 @@ export const handler = async (event) => {
               ki.tipe_nilai,
               (SELECT COUNT(*) FROM kinerja_realisasi krc
                WHERE krc.indikator_id = ki.id AND krc.tahun = ${tahun}
-                 AND krc.bulan <= ${bulan} AND krc.realisasi IS NOT NULL) AS bulan_terisi_count,
+                 AND krc.bulan <= ${bulan} AND krc.bulan IN (3, 6, 9, 12) AND krc.realisasi IS NOT NULL) AS bulan_terisi_count,
               kr.id         AS realisasi_id,
               kr.realisasi,
               kr.realisasi_display,
@@ -3625,12 +3625,12 @@ export const handler = async (event) => {
                              THEN (SELECT SUM(krc.realisasi) FROM kinerja_realisasi krc
                                    WHERE krc.indikator_id = ki.id
                                      AND krc.tahun = ${tahun}
-                                     AND krc.bulan <= ${bulan})
+                                     AND krc.bulan <= ${bulan} AND krc.bulan IN (3, 6, 9, 12))
                              WHEN ki.tipe_perhitungan = 'rata_rata'
                              THEN (SELECT AVG(krc.realisasi) FROM kinerja_realisasi krc
                                    WHERE krc.indikator_id = ki.id
                                      AND krc.tahun = ${tahun}
-                                     AND krc.bulan <= ${bulan})
+                                     AND krc.bulan <= ${bulan} AND krc.bulan IN (3, 6, 9, 12))
                              ELSE kr.realisasi END,
                        kr.realisasi
                      ) IS NULL OR kt.target IS NULL OR kt.target = 0
@@ -3643,12 +3643,12 @@ export const handler = async (event) => {
                              THEN (SELECT SUM(krc.realisasi) FROM kinerja_realisasi krc
                                    WHERE krc.indikator_id = ki.id
                                      AND krc.tahun = ${tahun}
-                                     AND krc.bulan <= ${bulan})::NUMERIC
+                                     AND krc.bulan <= ${bulan} AND krc.bulan IN (3, 6, 9, 12))::NUMERIC
                              WHEN ki.tipe_perhitungan = 'rata_rata'
                              THEN (SELECT AVG(krc.realisasi) FROM kinerja_realisasi krc
                                    WHERE krc.indikator_id = ki.id
                                      AND krc.tahun = ${tahun}
-                                     AND krc.bulan <= ${bulan})::NUMERIC
+                                     AND krc.bulan <= ${bulan} AND krc.bulan IN (3, 6, 9, 12))::NUMERIC
                              ELSE kr.realisasi::NUMERIC END,
                         kr.realisasi::NUMERIC
                       ) - kt.target::NUMERIC
@@ -3662,12 +3662,12 @@ export const handler = async (event) => {
                              THEN (SELECT SUM(krc.realisasi) FROM kinerja_realisasi krc
                                    WHERE krc.indikator_id = ki.id
                                      AND krc.tahun = ${tahun}
-                                     AND krc.bulan <= ${bulan})::NUMERIC
+                                     AND krc.bulan <= ${bulan} AND krc.bulan IN (3, 6, 9, 12))::NUMERIC
                              WHEN ki.tipe_perhitungan = 'rata_rata'
                              THEN (SELECT AVG(krc.realisasi) FROM kinerja_realisasi krc
                                    WHERE krc.indikator_id = ki.id
                                      AND krc.tahun = ${tahun}
-                                     AND krc.bulan <= ${bulan})::NUMERIC
+                                     AND krc.bulan <= ${bulan} AND krc.bulan IN (3, 6, 9, 12))::NUMERIC
                              ELSE kr.realisasi::NUMERIC END,
                       kr.realisasi::NUMERIC
                     ) / kt.target::NUMERIC * 100, 2
@@ -3721,7 +3721,7 @@ export const handler = async (event) => {
               ki.tipe_nilai,
               (SELECT COUNT(*) FROM kinerja_realisasi krc
                WHERE krc.indikator_id = ki.id AND krc.tahun = ${tahun}
-                 AND krc.bulan <= ${bulan} AND krc.realisasi IS NOT NULL) AS bulan_terisi_count,
+                 AND krc.bulan <= ${bulan} AND krc.bulan IN (3, 6, 9, 12) AND krc.realisasi IS NOT NULL) AS bulan_terisi_count,
               kr.id         AS realisasi_id,
               kr.realisasi,
               kr.realisasi_display,
@@ -3739,12 +3739,12 @@ export const handler = async (event) => {
                              THEN (SELECT SUM(krc.realisasi) FROM kinerja_realisasi krc
                                    WHERE krc.indikator_id = ki.id
                                      AND krc.tahun = ${tahun}
-                                     AND krc.bulan <= ${bulan})
+                                     AND krc.bulan <= ${bulan} AND krc.bulan IN (3, 6, 9, 12))
                              WHEN ki.tipe_perhitungan = 'rata_rata'
                              THEN (SELECT AVG(krc.realisasi) FROM kinerja_realisasi krc
                                    WHERE krc.indikator_id = ki.id
                                      AND krc.tahun = ${tahun}
-                                     AND krc.bulan <= ${bulan})
+                                     AND krc.bulan <= ${bulan} AND krc.bulan IN (3, 6, 9, 12))
                              ELSE kr.realisasi END,
                        kr.realisasi
                      ) IS NULL OR kt.target IS NULL OR kt.target = 0
@@ -3757,12 +3757,12 @@ export const handler = async (event) => {
                              THEN (SELECT SUM(krc.realisasi) FROM kinerja_realisasi krc
                                    WHERE krc.indikator_id = ki.id
                                      AND krc.tahun = ${tahun}
-                                     AND krc.bulan <= ${bulan})::NUMERIC
+                                     AND krc.bulan <= ${bulan} AND krc.bulan IN (3, 6, 9, 12))::NUMERIC
                              WHEN ki.tipe_perhitungan = 'rata_rata'
                              THEN (SELECT AVG(krc.realisasi) FROM kinerja_realisasi krc
                                    WHERE krc.indikator_id = ki.id
                                      AND krc.tahun = ${tahun}
-                                     AND krc.bulan <= ${bulan})::NUMERIC
+                                     AND krc.bulan <= ${bulan} AND krc.bulan IN (3, 6, 9, 12))::NUMERIC
                              ELSE kr.realisasi::NUMERIC END,
                         kr.realisasi::NUMERIC
                       ) - kt.target::NUMERIC
@@ -3776,12 +3776,12 @@ export const handler = async (event) => {
                              THEN (SELECT SUM(krc.realisasi) FROM kinerja_realisasi krc
                                    WHERE krc.indikator_id = ki.id
                                      AND krc.tahun = ${tahun}
-                                     AND krc.bulan <= ${bulan})::NUMERIC
+                                     AND krc.bulan <= ${bulan} AND krc.bulan IN (3, 6, 9, 12))::NUMERIC
                              WHEN ki.tipe_perhitungan = 'rata_rata'
                              THEN (SELECT AVG(krc.realisasi) FROM kinerja_realisasi krc
                                    WHERE krc.indikator_id = ki.id
                                      AND krc.tahun = ${tahun}
-                                     AND krc.bulan <= ${bulan})::NUMERIC
+                                     AND krc.bulan <= ${bulan} AND krc.bulan IN (3, 6, 9, 12))::NUMERIC
                              ELSE kr.realisasi::NUMERIC END,
                       kr.realisasi::NUMERIC
                     ) / kt.target::NUMERIC * 100, 2
@@ -3952,12 +3952,12 @@ export const handler = async (event) => {
                              THEN (SELECT SUM(krc.realisasi) FROM kinerja_realisasi krc
                                    WHERE krc.indikator_id = ki.id
                                      AND krc.tahun = ${tahun}
-                                     AND krc.bulan <= ${bulan})
+                                     AND krc.bulan <= ${bulan} AND krc.bulan IN (3, 6, 9, 12))
                              WHEN ki.tipe_perhitungan = 'rata_rata'
                              THEN (SELECT AVG(krc.realisasi) FROM kinerja_realisasi krc
                                    WHERE krc.indikator_id = ki.id
                                      AND krc.tahun = ${tahun}
-                                     AND krc.bulan <= ${bulan})
+                                     AND krc.bulan <= ${bulan} AND krc.bulan IN (3, 6, 9, 12))
                              ELSE kr.realisasi END,
                      kr.realisasi
                    ) IS NULL OR kt.target IS NULL OR kt.target = 0 THEN NULL
@@ -3966,23 +3966,23 @@ export const handler = async (event) => {
                              THEN (SELECT SUM(krc.realisasi) FROM kinerja_realisasi krc
                                    WHERE krc.indikator_id = ki.id
                                      AND krc.tahun = ${tahun}
-                                     AND krc.bulan <= ${bulan})::NUMERIC
+                                     AND krc.bulan <= ${bulan} AND krc.bulan IN (3, 6, 9, 12))::NUMERIC
                              WHEN ki.tipe_perhitungan = 'rata_rata'
                              THEN (SELECT AVG(krc.realisasi) FROM kinerja_realisasi krc
                                    WHERE krc.indikator_id = ki.id
                                      AND krc.tahun = ${tahun}
-                                     AND krc.bulan <= ${bulan})::NUMERIC
+                                     AND krc.bulan <= ${bulan} AND krc.bulan IN (3, 6, 9, 12))::NUMERIC
                              ELSE kr.realisasi::NUMERIC END, kr.realisasi::NUMERIC) - kt.target::NUMERIC)) / kt.target::NUMERIC * 100, 2)
               ELSE ROUND(COALESCE(CASE WHEN ki.tipe_perhitungan = 'non_kumulatif'
                              THEN (SELECT SUM(krc.realisasi) FROM kinerja_realisasi krc
                                    WHERE krc.indikator_id = ki.id
                                      AND krc.tahun = ${tahun}
-                                     AND krc.bulan <= ${bulan})::NUMERIC
+                                     AND krc.bulan <= ${bulan} AND krc.bulan IN (3, 6, 9, 12))::NUMERIC
                              WHEN ki.tipe_perhitungan = 'rata_rata'
                              THEN (SELECT AVG(krc.realisasi) FROM kinerja_realisasi krc
                                    WHERE krc.indikator_id = ki.id
                                      AND krc.tahun = ${tahun}
-                                     AND krc.bulan <= ${bulan})::NUMERIC
+                                     AND krc.bulan <= ${bulan} AND krc.bulan IN (3, 6, 9, 12))::NUMERIC
                              ELSE kr.realisasi::NUMERIC END, kr.realisasi::NUMERIC) / kt.target::NUMERIC * 100, 2)
             END AS capaian_persen
           FROM kinerja_indikator ki
@@ -4036,12 +4036,12 @@ export const handler = async (event) => {
                              THEN (SELECT SUM(krc.realisasi) FROM kinerja_realisasi krc
                                    WHERE krc.indikator_id = ki.id
                                      AND krc.tahun = ${tahun}
-                                     AND krc.bulan <= ${bulan})
+                                     AND krc.bulan <= ${bulan} AND krc.bulan IN (3, 6, 9, 12))
                              WHEN ki.tipe_perhitungan = 'rata_rata'
                              THEN (SELECT AVG(krc.realisasi) FROM kinerja_realisasi krc
                                    WHERE krc.indikator_id = ki.id
                                      AND krc.tahun = ${tahun}
-                                     AND krc.bulan <= ${bulan})
+                                     AND krc.bulan <= ${bulan} AND krc.bulan IN (3, 6, 9, 12))
                              ELSE kr.realisasi END,
                      kr.realisasi
                    ) IS NULL OR kt.target IS NULL OR kt.target = 0 THEN NULL
@@ -4050,23 +4050,23 @@ export const handler = async (event) => {
                              THEN (SELECT SUM(krc.realisasi) FROM kinerja_realisasi krc
                                    WHERE krc.indikator_id = ki.id
                                      AND krc.tahun = ${tahun}
-                                     AND krc.bulan <= ${bulan})::NUMERIC
+                                     AND krc.bulan <= ${bulan} AND krc.bulan IN (3, 6, 9, 12))::NUMERIC
                              WHEN ki.tipe_perhitungan = 'rata_rata'
                              THEN (SELECT AVG(krc.realisasi) FROM kinerja_realisasi krc
                                    WHERE krc.indikator_id = ki.id
                                      AND krc.tahun = ${tahun}
-                                     AND krc.bulan <= ${bulan})::NUMERIC
+                                     AND krc.bulan <= ${bulan} AND krc.bulan IN (3, 6, 9, 12))::NUMERIC
                              ELSE kr.realisasi::NUMERIC END, kr.realisasi::NUMERIC) - kt.target::NUMERIC)) / kt.target::NUMERIC * 100, 2)
               ELSE ROUND(COALESCE(CASE WHEN ki.tipe_perhitungan = 'non_kumulatif'
                              THEN (SELECT SUM(krc.realisasi) FROM kinerja_realisasi krc
                                    WHERE krc.indikator_id = ki.id
                                      AND krc.tahun = ${tahun}
-                                     AND krc.bulan <= ${bulan})::NUMERIC
+                                     AND krc.bulan <= ${bulan} AND krc.bulan IN (3, 6, 9, 12))::NUMERIC
                              WHEN ki.tipe_perhitungan = 'rata_rata'
                              THEN (SELECT AVG(krc.realisasi) FROM kinerja_realisasi krc
                                    WHERE krc.indikator_id = ki.id
                                      AND krc.tahun = ${tahun}
-                                     AND krc.bulan <= ${bulan})::NUMERIC
+                                     AND krc.bulan <= ${bulan} AND krc.bulan IN (3, 6, 9, 12))::NUMERIC
                              ELSE kr.realisasi::NUMERIC END, kr.realisasi::NUMERIC) / kt.target::NUMERIC * 100, 2)
             END AS capaian_persen
           FROM kinerja_indikator ki

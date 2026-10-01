@@ -1744,8 +1744,11 @@ function _lapEnsureSubkegOption() {
 async function loadLaporanKinerja() {
   _showLaporanLoading();
   _lapEnsureSubkegOption();
-  await _initLaporanKinerjaFilter();
-  if (!_isKinerjaAdmin() && typeof _ensureUserIndikatorIds === 'function') await _ensureUserIndikatorIds();
+  // Dua langkah ini saling lepas, jadi jalan bersamaan
+  await Promise.all([
+    _initLaporanKinerjaFilter(),
+    (!_isKinerjaAdmin() && typeof _ensureUserIndikatorIds === 'function') ? _ensureUserIndikatorIds() : null,
+  ]);
 
   const bulanDari   = _lapRangeFrom?.bulan   ?? 1;
   const bulanSampai = _lapRangeTo?.bulan     ?? 12;
@@ -1753,7 +1756,11 @@ async function loadLaporanKinerja() {
   const bulanPelaporan = bulanSampai;
   const jenis          = document.getElementById('laporanKinerjaJenis')?.value || 'semua';
 
-  const bulanList = [1,2,3,4,5,6,7,8,9,10,11,12];
+  // Isian kinerja hanya ada di akhir triwulan (bulan 3/6/9/12), jadi cukup ambil bulan itu
+  // yang masuk rentang terpilih - bukan 12 bulan (8 di antaranya selalu kosong).
+  let bulanList = [3, 6, 9, 12].filter(b => b >= bulanDari && b <= bulanSampai);
+  if (!bulanList.includes(bulanSampai)) bulanList.push(bulanSampai);
+  bulanList = [...new Set(bulanList)].sort((a, b) => a - b);
 
   const fetchBulan = async (b, jenisParam) => {
     try {
@@ -1773,8 +1780,14 @@ async function loadLaporanKinerja() {
   if (jenis === 'semua' || jenis === 'spm')     jenisParams.push('spm');
   if (jenis === 'semua' || jenis === 'subkeg')  jenisParams.push('subkeg');
 
-  for (const jenisParam of jenisParams) {
-    const results = await Promise.all(bulanList.map(b => fetchBulan(b, jenisParam)));
+  // Semua jenis x bulan ditembak sekaligus (sebelumnya berurutan per jenis). Hasil tetap diolah
+  // sesuai urutan jenis supaya penentuan _jenis untuk indikator ganda tidak berubah.
+  const hasilPerJenis = await Promise.all(
+    jenisParams.map(jp => Promise.all(bulanList.map(b => fetchBulan(b, jp))))
+  );
+
+  jenisParams.forEach((jenisParam, jIdx) => {
+    const results = hasilPerJenis[jIdx];
     results.forEach((bulanRows, idx) => {
       const b = bulanList[idx];
       bulanRows.forEach(row => {
@@ -1801,7 +1814,7 @@ async function loadLaporanKinerja() {
         allBulanData[key].rencanaTlPerBulan[b]    = row.rencana_tl;
       });
     });
-  }
+  });
 
   let rows = Object.values(allBulanData);
 
