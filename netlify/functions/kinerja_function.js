@@ -1,5 +1,6 @@
 import { getDb, jsonResponse, errorResponse, parseBody, runOnce } from './_db.js';
 import { requireAuth as _baseRequireAuth, requireAdmin, requireKinerjaAdmin } from './_auth.js';
+import { logAudit } from './_audit.js';
 
 // Admin Kinerja (permission 'kinerja.full') diperlakukan setara Super Admin di seluruh modul kinerja:
 // melihat semua indikator & mengisi/mengubah/menghapus capaian. Flag di-set sekali per request di handler.
@@ -350,6 +351,68 @@ export const handler = async (event) => {
   }
 
   if (sub === 'indikator') {
+    // GET/PUT /api/kinerja/indikator/:id/users - assign user per indikator (tabel user_indikator,
+    // sama dengan "Assign Indikator" di halaman Pengguna). Harus di atas handler GET list / PUT umum.
+    if (id && segments[2] === 'users') {
+      const adminU = await requireKinerjaAdmin(event, sql);
+      if (!adminU) return errorResponse('Unauthorized', 401);
+
+      if (event.httpMethod === 'GET') {
+        try {
+          await runOnce('users.is_active', () => sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS is_active BOOLEAN NOT NULL DEFAULT TRUE`);
+          const ind = await sql`SELECT id, penanggung_jawab FROM kinerja_indikator WHERE id = ${id} LIMIT 1`;
+          if (!ind.length) return errorResponse('Indikator tidak ditemukan', 404);
+          const pj = (ind[0].penanggung_jawab || '').trim();
+          const assigned = await sql`SELECT user_id FROM user_indikator WHERE indikator_id = ${id}`;
+          const userIds = assigned.map(r => Number(r.user_id));
+          // Kandidat = user non-admin dari unit kerja yg sama dgn PJ indikator (sama dgn aturan di
+          // halaman Pengguna). Yang sudah ter-assign tetap ditampilkan supaya bisa dilepas.
+          const users = await sql`
+            SELECT u.id, u.nama, u.nip, b.nama AS bidang_nama, u.is_active
+            FROM users u
+            LEFT JOIN bidang b ON b.id = u.bidang_id
+            WHERE u.is_admin = FALSE
+              AND (
+                ${pj} = '' OR TRIM(COALESCE(b.nama, '')) = ${pj}
+                OR u.id = ANY(${userIds}::int[])
+              )
+            ORDER BY u.nama ASC
+          `;
+          return jsonResponse({ user_ids: userIds, users, penanggung_jawab: pj || null });
+        } catch (err) {
+          console.error('[GET kinerja/indikator/:id/users]', err);
+          return errorResponse('Gagal mengambil data user: ' + err.message);
+        }
+      }
+
+      if (event.httpMethod === 'PUT') {
+        const { user_ids } = parseBody(event);
+        if (!Array.isArray(user_ids)) return errorResponse('Format user_ids tidak valid', 400);
+        try {
+          const ids = [...new Set(user_ids.map(Number).filter(n => Number.isInteger(n) && n > 0))];
+          const ind = await sql`SELECT id, indikator_kinerja FROM kinerja_indikator WHERE id = ${id} LIMIT 1`;
+          if (!ind.length) return errorResponse('Indikator tidak ditemukan', 404);
+          await sql`DELETE FROM user_indikator WHERE indikator_id = ${id}`;
+          for (const uid of ids) {
+            await sql`
+              INSERT INTO user_indikator (user_id, indikator_id)
+              VALUES (${uid}, ${id})
+              ON CONFLICT DO NOTHING
+            `;
+          }
+          await logAudit(sql, event, {
+            user_id: adminU.id, nama: adminU.nama, email: adminU.email,
+            aksi: 'update_indikator_users', entitas: 'indikator', entitas_id: id,
+            detail: { indikator: ind[0].indikator_kinerja, user_ids: ids }
+          });
+          return jsonResponse({ ok: true, user_ids: ids });
+        } catch (err) {
+          console.error('[PUT kinerja/indikator/:id/users]', err);
+          return errorResponse('Gagal menyimpan assign user: ' + err.message);
+        }
+      }
+    }
+
     if (event.httpMethod === 'GET') {
       const auth = requireAuth(event);
       if (!auth) return errorResponse('Unauthorized', 401);
@@ -642,7 +705,12 @@ export const handler = async (event) => {
           const rows = await sql`
             SELECT * FROM kinerja_target ORDER BY indikator_id ASC, tahun ASC, triwulan ASC
           `;
-          return jsonResponse({ target: rows.map(r => ({ ...r, target: r.target != null ? parseFloat(r.target) : null })) });
+          const _fmt = r => ({ ...r, target: r.target != null ? parseFloat(r.target) : null });
+          // triwulan = 0 → target tahunan (dipisah supaya tidak tercampur dengan target TW I-IV)
+          return jsonResponse({
+            target:  rows.filter(r => r.triwulan >= 1 && r.triwulan <= 4).map(_fmt),
+            tahunan: rows.filter(r => r.triwulan === 0).map(_fmt),
+          });
         } catch (err) {
           return errorResponse('Gagal mengambil semua target: ' + err.message);
         }
@@ -654,7 +722,11 @@ export const handler = async (event) => {
         const rows = await sql`
           SELECT * FROM kinerja_target WHERE indikator_id = ${indId} ORDER BY tahun ASC, triwulan ASC
         `;
-        return jsonResponse({ target: rows.map(r => ({ ...r, target: r.target != null ? parseFloat(r.target) : null })) });
+        const _fmt = r => ({ ...r, target: r.target != null ? parseFloat(r.target) : null });
+        return jsonResponse({
+          target:  rows.filter(r => r.triwulan >= 1 && r.triwulan <= 4).map(_fmt),
+          tahunan: rows.filter(r => r.triwulan === 0).map(_fmt),
+        });
       } catch (err) {
         return errorResponse('Gagal mengambil target: ' + err.message);
       }
@@ -667,7 +739,7 @@ export const handler = async (event) => {
       const { indikator_id, tahun, triwulan, target, target_display } = parseBody(event);
       if (!indikator_id || !tahun) return errorResponse('indikator_id dan tahun wajib', 400);
       const tw = parseInt(triwulan);
-      if (!(tw >= 1 && tw <= 4)) return errorResponse('triwulan wajib (1-4)', 400);
+      if (!(tw >= 0 && tw <= 4)) return errorResponse('triwulan wajib (0 = tahunan, 1-4)', 400);
       const targetNum = target !== undefined && target !== '' ? parseFloat(String(target).replace(/[^0-9.\-]/g,'')) : null;
       const targetDisp = target_display != null && String(target_display).trim() !== '' ? String(target_display).trim() : null;
       try {
@@ -1075,15 +1147,35 @@ export const handler = async (event) => {
              AND kr.bulan  = gs.bulan
              AND kr.tahun  = ${tahun}
             LEFT JOIN (
-            SELECT id, indikator_id, tahun, triwulan, target_display,
-                   COALESCE(
-                     target,
-                     CASE UPPER(TRIM(target_display))
-                       WHEN 'D'  THEN 1 WHEN 'C'  THEN 2 WHEN 'CC' THEN 3 WHEN 'B'  THEN 4
-                       WHEN 'BB' THEN 5 WHEN 'A'  THEN 6 WHEN 'AA' THEN 7
-                     END
-                   ) AS target
-            FROM kinerja_target
+            -- Target tahunan (triwulan = 0) jadi pembagi realisasi tiap TW; kalau kosong, pakai target TW.
+            SELECT tw.id, ti.indikator_id, ti.tahun, gs.n AS triwulan,
+                   -- teks target ikut target tahunan kalau ada, supaya tampilan = pembagi
+                   CASE WHEN ta.indikator_id IS NOT NULL THEN ta.target_display ELSE tw.target_display END AS target_display,
+                   COALESCE(ta.target_num, tw.target_num) AS target
+            FROM (SELECT DISTINCT indikator_id, tahun FROM kinerja_target) ti
+            CROSS JOIN generate_series(1, 4) AS gs(n)
+            LEFT JOIN (
+              SELECT id, indikator_id, tahun, triwulan, target_display,
+                     COALESCE(
+                       target,
+                       CASE UPPER(TRIM(target_display))
+                         WHEN 'D'  THEN 1 WHEN 'C'  THEN 2 WHEN 'CC' THEN 3 WHEN 'B'  THEN 4
+                         WHEN 'BB' THEN 5 WHEN 'A'  THEN 6 WHEN 'AA' THEN 7
+                       END
+                     ) AS target_num
+              FROM kinerja_target WHERE triwulan BETWEEN 1 AND 4
+            ) tw ON tw.indikator_id = ti.indikator_id AND tw.tahun = ti.tahun AND tw.triwulan = gs.n
+            LEFT JOIN (
+              SELECT indikator_id, tahun, target_display,
+                     COALESCE(
+                       target,
+                       CASE UPPER(TRIM(target_display))
+                         WHEN 'D'  THEN 1 WHEN 'C'  THEN 2 WHEN 'CC' THEN 3 WHEN 'B'  THEN 4
+                         WHEN 'BB' THEN 5 WHEN 'A'  THEN 6 WHEN 'AA' THEN 7
+                       END
+                     ) AS target_num
+              FROM kinerja_target WHERE triwulan = 0
+            ) ta ON ta.indikator_id = ti.indikator_id AND ta.tahun = ti.tahun
           ) kt
               ON kt.indikator_id = ki.id
              AND kt.tahun        = ${tahun}
@@ -1191,15 +1283,35 @@ export const handler = async (event) => {
              AND kr.bulan  = gs.bulan
              AND kr.tahun  = ${tahun}
             LEFT JOIN (
-            SELECT id, indikator_id, tahun, triwulan, target_display,
-                   COALESCE(
-                     target,
-                     CASE UPPER(TRIM(target_display))
-                       WHEN 'D'  THEN 1 WHEN 'C'  THEN 2 WHEN 'CC' THEN 3 WHEN 'B'  THEN 4
-                       WHEN 'BB' THEN 5 WHEN 'A'  THEN 6 WHEN 'AA' THEN 7
-                     END
-                   ) AS target
-            FROM kinerja_target
+            -- Target tahunan (triwulan = 0) jadi pembagi realisasi tiap TW; kalau kosong, pakai target TW.
+            SELECT tw.id, ti.indikator_id, ti.tahun, gs.n AS triwulan,
+                   -- teks target ikut target tahunan kalau ada, supaya tampilan = pembagi
+                   CASE WHEN ta.indikator_id IS NOT NULL THEN ta.target_display ELSE tw.target_display END AS target_display,
+                   COALESCE(ta.target_num, tw.target_num) AS target
+            FROM (SELECT DISTINCT indikator_id, tahun FROM kinerja_target) ti
+            CROSS JOIN generate_series(1, 4) AS gs(n)
+            LEFT JOIN (
+              SELECT id, indikator_id, tahun, triwulan, target_display,
+                     COALESCE(
+                       target,
+                       CASE UPPER(TRIM(target_display))
+                         WHEN 'D'  THEN 1 WHEN 'C'  THEN 2 WHEN 'CC' THEN 3 WHEN 'B'  THEN 4
+                         WHEN 'BB' THEN 5 WHEN 'A'  THEN 6 WHEN 'AA' THEN 7
+                       END
+                     ) AS target_num
+              FROM kinerja_target WHERE triwulan BETWEEN 1 AND 4
+            ) tw ON tw.indikator_id = ti.indikator_id AND tw.tahun = ti.tahun AND tw.triwulan = gs.n
+            LEFT JOIN (
+              SELECT indikator_id, tahun, target_display,
+                     COALESCE(
+                       target,
+                       CASE UPPER(TRIM(target_display))
+                         WHEN 'D'  THEN 1 WHEN 'C'  THEN 2 WHEN 'CC' THEN 3 WHEN 'B'  THEN 4
+                         WHEN 'BB' THEN 5 WHEN 'A'  THEN 6 WHEN 'AA' THEN 7
+                       END
+                     ) AS target_num
+              FROM kinerja_target WHERE triwulan = 0
+            ) ta ON ta.indikator_id = ti.indikator_id AND ta.tahun = ti.tahun
           ) kt
               ON kt.indikator_id = ki.id
              AND kt.tahun        = ${tahun}
@@ -1307,15 +1419,35 @@ export const handler = async (event) => {
              AND kr.bulan  = gs.bulan
              AND kr.tahun  = ${tahun}
             LEFT JOIN (
-            SELECT id, indikator_id, tahun, triwulan, target_display,
-                   COALESCE(
-                     target,
-                     CASE UPPER(TRIM(target_display))
-                       WHEN 'D'  THEN 1 WHEN 'C'  THEN 2 WHEN 'CC' THEN 3 WHEN 'B'  THEN 4
-                       WHEN 'BB' THEN 5 WHEN 'A'  THEN 6 WHEN 'AA' THEN 7
-                     END
-                   ) AS target
-            FROM kinerja_target
+            -- Target tahunan (triwulan = 0) jadi pembagi realisasi tiap TW; kalau kosong, pakai target TW.
+            SELECT tw.id, ti.indikator_id, ti.tahun, gs.n AS triwulan,
+                   -- teks target ikut target tahunan kalau ada, supaya tampilan = pembagi
+                   CASE WHEN ta.indikator_id IS NOT NULL THEN ta.target_display ELSE tw.target_display END AS target_display,
+                   COALESCE(ta.target_num, tw.target_num) AS target
+            FROM (SELECT DISTINCT indikator_id, tahun FROM kinerja_target) ti
+            CROSS JOIN generate_series(1, 4) AS gs(n)
+            LEFT JOIN (
+              SELECT id, indikator_id, tahun, triwulan, target_display,
+                     COALESCE(
+                       target,
+                       CASE UPPER(TRIM(target_display))
+                         WHEN 'D'  THEN 1 WHEN 'C'  THEN 2 WHEN 'CC' THEN 3 WHEN 'B'  THEN 4
+                         WHEN 'BB' THEN 5 WHEN 'A'  THEN 6 WHEN 'AA' THEN 7
+                       END
+                     ) AS target_num
+              FROM kinerja_target WHERE triwulan BETWEEN 1 AND 4
+            ) tw ON tw.indikator_id = ti.indikator_id AND tw.tahun = ti.tahun AND tw.triwulan = gs.n
+            LEFT JOIN (
+              SELECT indikator_id, tahun, target_display,
+                     COALESCE(
+                       target,
+                       CASE UPPER(TRIM(target_display))
+                         WHEN 'D'  THEN 1 WHEN 'C'  THEN 2 WHEN 'CC' THEN 3 WHEN 'B'  THEN 4
+                         WHEN 'BB' THEN 5 WHEN 'A'  THEN 6 WHEN 'AA' THEN 7
+                       END
+                     ) AS target_num
+              FROM kinerja_target WHERE triwulan = 0
+            ) ta ON ta.indikator_id = ti.indikator_id AND ta.tahun = ti.tahun
           ) kt
               ON kt.indikator_id = ki.id
              AND kt.tahun        = ${tahun}
@@ -1425,15 +1557,35 @@ export const handler = async (event) => {
              AND kr.bulan  = gs.bulan
              AND kr.tahun  = ${tahun}
             LEFT JOIN (
-            SELECT id, indikator_id, tahun, triwulan, target_display,
-                   COALESCE(
-                     target,
-                     CASE UPPER(TRIM(target_display))
-                       WHEN 'D'  THEN 1 WHEN 'C'  THEN 2 WHEN 'CC' THEN 3 WHEN 'B'  THEN 4
-                       WHEN 'BB' THEN 5 WHEN 'A'  THEN 6 WHEN 'AA' THEN 7
-                     END
-                   ) AS target
-            FROM kinerja_target
+            -- Target tahunan (triwulan = 0) jadi pembagi realisasi tiap TW; kalau kosong, pakai target TW.
+            SELECT tw.id, ti.indikator_id, ti.tahun, gs.n AS triwulan,
+                   -- teks target ikut target tahunan kalau ada, supaya tampilan = pembagi
+                   CASE WHEN ta.indikator_id IS NOT NULL THEN ta.target_display ELSE tw.target_display END AS target_display,
+                   COALESCE(ta.target_num, tw.target_num) AS target
+            FROM (SELECT DISTINCT indikator_id, tahun FROM kinerja_target) ti
+            CROSS JOIN generate_series(1, 4) AS gs(n)
+            LEFT JOIN (
+              SELECT id, indikator_id, tahun, triwulan, target_display,
+                     COALESCE(
+                       target,
+                       CASE UPPER(TRIM(target_display))
+                         WHEN 'D'  THEN 1 WHEN 'C'  THEN 2 WHEN 'CC' THEN 3 WHEN 'B'  THEN 4
+                         WHEN 'BB' THEN 5 WHEN 'A'  THEN 6 WHEN 'AA' THEN 7
+                       END
+                     ) AS target_num
+              FROM kinerja_target WHERE triwulan BETWEEN 1 AND 4
+            ) tw ON tw.indikator_id = ti.indikator_id AND tw.tahun = ti.tahun AND tw.triwulan = gs.n
+            LEFT JOIN (
+              SELECT indikator_id, tahun, target_display,
+                     COALESCE(
+                       target,
+                       CASE UPPER(TRIM(target_display))
+                         WHEN 'D'  THEN 1 WHEN 'C'  THEN 2 WHEN 'CC' THEN 3 WHEN 'B'  THEN 4
+                         WHEN 'BB' THEN 5 WHEN 'A'  THEN 6 WHEN 'AA' THEN 7
+                       END
+                     ) AS target_num
+              FROM kinerja_target WHERE triwulan = 0
+            ) ta ON ta.indikator_id = ti.indikator_id AND ta.tahun = ti.tahun
           ) kt
               ON kt.indikator_id = ki.id
              AND kt.tahun        = ${tahun}
@@ -1541,15 +1693,35 @@ export const handler = async (event) => {
              AND kr.bulan  = gs.bulan
              AND kr.tahun  = ${tahun}
             LEFT JOIN (
-            SELECT id, indikator_id, tahun, triwulan, target_display,
-                   COALESCE(
-                     target,
-                     CASE UPPER(TRIM(target_display))
-                       WHEN 'D'  THEN 1 WHEN 'C'  THEN 2 WHEN 'CC' THEN 3 WHEN 'B'  THEN 4
-                       WHEN 'BB' THEN 5 WHEN 'A'  THEN 6 WHEN 'AA' THEN 7
-                     END
-                   ) AS target
-            FROM kinerja_target
+            -- Target tahunan (triwulan = 0) jadi pembagi realisasi tiap TW; kalau kosong, pakai target TW.
+            SELECT tw.id, ti.indikator_id, ti.tahun, gs.n AS triwulan,
+                   -- teks target ikut target tahunan kalau ada, supaya tampilan = pembagi
+                   CASE WHEN ta.indikator_id IS NOT NULL THEN ta.target_display ELSE tw.target_display END AS target_display,
+                   COALESCE(ta.target_num, tw.target_num) AS target
+            FROM (SELECT DISTINCT indikator_id, tahun FROM kinerja_target) ti
+            CROSS JOIN generate_series(1, 4) AS gs(n)
+            LEFT JOIN (
+              SELECT id, indikator_id, tahun, triwulan, target_display,
+                     COALESCE(
+                       target,
+                       CASE UPPER(TRIM(target_display))
+                         WHEN 'D'  THEN 1 WHEN 'C'  THEN 2 WHEN 'CC' THEN 3 WHEN 'B'  THEN 4
+                         WHEN 'BB' THEN 5 WHEN 'A'  THEN 6 WHEN 'AA' THEN 7
+                       END
+                     ) AS target_num
+              FROM kinerja_target WHERE triwulan BETWEEN 1 AND 4
+            ) tw ON tw.indikator_id = ti.indikator_id AND tw.tahun = ti.tahun AND tw.triwulan = gs.n
+            LEFT JOIN (
+              SELECT indikator_id, tahun, target_display,
+                     COALESCE(
+                       target,
+                       CASE UPPER(TRIM(target_display))
+                         WHEN 'D'  THEN 1 WHEN 'C'  THEN 2 WHEN 'CC' THEN 3 WHEN 'B'  THEN 4
+                         WHEN 'BB' THEN 5 WHEN 'A'  THEN 6 WHEN 'AA' THEN 7
+                       END
+                     ) AS target_num
+              FROM kinerja_target WHERE triwulan = 0
+            ) ta ON ta.indikator_id = ti.indikator_id AND ta.tahun = ti.tahun
           ) kt
               ON kt.indikator_id = ki.id
              AND kt.tahun        = ${tahun}
@@ -1657,15 +1829,35 @@ export const handler = async (event) => {
              AND kr.bulan  = gs.bulan
              AND kr.tahun  = ${tahun}
             LEFT JOIN (
-            SELECT id, indikator_id, tahun, triwulan, target_display,
-                   COALESCE(
-                     target,
-                     CASE UPPER(TRIM(target_display))
-                       WHEN 'D'  THEN 1 WHEN 'C'  THEN 2 WHEN 'CC' THEN 3 WHEN 'B'  THEN 4
-                       WHEN 'BB' THEN 5 WHEN 'A'  THEN 6 WHEN 'AA' THEN 7
-                     END
-                   ) AS target
-            FROM kinerja_target
+            -- Target tahunan (triwulan = 0) jadi pembagi realisasi tiap TW; kalau kosong, pakai target TW.
+            SELECT tw.id, ti.indikator_id, ti.tahun, gs.n AS triwulan,
+                   -- teks target ikut target tahunan kalau ada, supaya tampilan = pembagi
+                   CASE WHEN ta.indikator_id IS NOT NULL THEN ta.target_display ELSE tw.target_display END AS target_display,
+                   COALESCE(ta.target_num, tw.target_num) AS target
+            FROM (SELECT DISTINCT indikator_id, tahun FROM kinerja_target) ti
+            CROSS JOIN generate_series(1, 4) AS gs(n)
+            LEFT JOIN (
+              SELECT id, indikator_id, tahun, triwulan, target_display,
+                     COALESCE(
+                       target,
+                       CASE UPPER(TRIM(target_display))
+                         WHEN 'D'  THEN 1 WHEN 'C'  THEN 2 WHEN 'CC' THEN 3 WHEN 'B'  THEN 4
+                         WHEN 'BB' THEN 5 WHEN 'A'  THEN 6 WHEN 'AA' THEN 7
+                       END
+                     ) AS target_num
+              FROM kinerja_target WHERE triwulan BETWEEN 1 AND 4
+            ) tw ON tw.indikator_id = ti.indikator_id AND tw.tahun = ti.tahun AND tw.triwulan = gs.n
+            LEFT JOIN (
+              SELECT indikator_id, tahun, target_display,
+                     COALESCE(
+                       target,
+                       CASE UPPER(TRIM(target_display))
+                         WHEN 'D'  THEN 1 WHEN 'C'  THEN 2 WHEN 'CC' THEN 3 WHEN 'B'  THEN 4
+                         WHEN 'BB' THEN 5 WHEN 'A'  THEN 6 WHEN 'AA' THEN 7
+                       END
+                     ) AS target_num
+              FROM kinerja_target WHERE triwulan = 0
+            ) ta ON ta.indikator_id = ti.indikator_id AND ta.tahun = ti.tahun
           ) kt
               ON kt.indikator_id = ki.id
              AND kt.tahun        = ${tahun}
@@ -1775,15 +1967,35 @@ export const handler = async (event) => {
              AND kr.bulan  = gs.bulan
              AND kr.tahun  = ${tahun}
             LEFT JOIN (
-            SELECT id, indikator_id, tahun, triwulan, target_display,
-                   COALESCE(
-                     target,
-                     CASE UPPER(TRIM(target_display))
-                       WHEN 'D'  THEN 1 WHEN 'C'  THEN 2 WHEN 'CC' THEN 3 WHEN 'B'  THEN 4
-                       WHEN 'BB' THEN 5 WHEN 'A'  THEN 6 WHEN 'AA' THEN 7
-                     END
-                   ) AS target
-            FROM kinerja_target
+            -- Target tahunan (triwulan = 0) jadi pembagi realisasi tiap TW; kalau kosong, pakai target TW.
+            SELECT tw.id, ti.indikator_id, ti.tahun, gs.n AS triwulan,
+                   -- teks target ikut target tahunan kalau ada, supaya tampilan = pembagi
+                   CASE WHEN ta.indikator_id IS NOT NULL THEN ta.target_display ELSE tw.target_display END AS target_display,
+                   COALESCE(ta.target_num, tw.target_num) AS target
+            FROM (SELECT DISTINCT indikator_id, tahun FROM kinerja_target) ti
+            CROSS JOIN generate_series(1, 4) AS gs(n)
+            LEFT JOIN (
+              SELECT id, indikator_id, tahun, triwulan, target_display,
+                     COALESCE(
+                       target,
+                       CASE UPPER(TRIM(target_display))
+                         WHEN 'D'  THEN 1 WHEN 'C'  THEN 2 WHEN 'CC' THEN 3 WHEN 'B'  THEN 4
+                         WHEN 'BB' THEN 5 WHEN 'A'  THEN 6 WHEN 'AA' THEN 7
+                       END
+                     ) AS target_num
+              FROM kinerja_target WHERE triwulan BETWEEN 1 AND 4
+            ) tw ON tw.indikator_id = ti.indikator_id AND tw.tahun = ti.tahun AND tw.triwulan = gs.n
+            LEFT JOIN (
+              SELECT indikator_id, tahun, target_display,
+                     COALESCE(
+                       target,
+                       CASE UPPER(TRIM(target_display))
+                         WHEN 'D'  THEN 1 WHEN 'C'  THEN 2 WHEN 'CC' THEN 3 WHEN 'B'  THEN 4
+                         WHEN 'BB' THEN 5 WHEN 'A'  THEN 6 WHEN 'AA' THEN 7
+                       END
+                     ) AS target_num
+              FROM kinerja_target WHERE triwulan = 0
+            ) ta ON ta.indikator_id = ti.indikator_id AND ta.tahun = ti.tahun
           ) kt
               ON kt.indikator_id = ki.id
              AND kt.tahun        = ${tahun}
@@ -1891,15 +2103,35 @@ export const handler = async (event) => {
              AND kr.bulan  = gs.bulan
              AND kr.tahun  = ${tahun}
             LEFT JOIN (
-            SELECT id, indikator_id, tahun, triwulan, target_display,
-                   COALESCE(
-                     target,
-                     CASE UPPER(TRIM(target_display))
-                       WHEN 'D'  THEN 1 WHEN 'C'  THEN 2 WHEN 'CC' THEN 3 WHEN 'B'  THEN 4
-                       WHEN 'BB' THEN 5 WHEN 'A'  THEN 6 WHEN 'AA' THEN 7
-                     END
-                   ) AS target
-            FROM kinerja_target
+            -- Target tahunan (triwulan = 0) jadi pembagi realisasi tiap TW; kalau kosong, pakai target TW.
+            SELECT tw.id, ti.indikator_id, ti.tahun, gs.n AS triwulan,
+                   -- teks target ikut target tahunan kalau ada, supaya tampilan = pembagi
+                   CASE WHEN ta.indikator_id IS NOT NULL THEN ta.target_display ELSE tw.target_display END AS target_display,
+                   COALESCE(ta.target_num, tw.target_num) AS target
+            FROM (SELECT DISTINCT indikator_id, tahun FROM kinerja_target) ti
+            CROSS JOIN generate_series(1, 4) AS gs(n)
+            LEFT JOIN (
+              SELECT id, indikator_id, tahun, triwulan, target_display,
+                     COALESCE(
+                       target,
+                       CASE UPPER(TRIM(target_display))
+                         WHEN 'D'  THEN 1 WHEN 'C'  THEN 2 WHEN 'CC' THEN 3 WHEN 'B'  THEN 4
+                         WHEN 'BB' THEN 5 WHEN 'A'  THEN 6 WHEN 'AA' THEN 7
+                       END
+                     ) AS target_num
+              FROM kinerja_target WHERE triwulan BETWEEN 1 AND 4
+            ) tw ON tw.indikator_id = ti.indikator_id AND tw.tahun = ti.tahun AND tw.triwulan = gs.n
+            LEFT JOIN (
+              SELECT indikator_id, tahun, target_display,
+                     COALESCE(
+                       target,
+                       CASE UPPER(TRIM(target_display))
+                         WHEN 'D'  THEN 1 WHEN 'C'  THEN 2 WHEN 'CC' THEN 3 WHEN 'B'  THEN 4
+                         WHEN 'BB' THEN 5 WHEN 'A'  THEN 6 WHEN 'AA' THEN 7
+                       END
+                     ) AS target_num
+              FROM kinerja_target WHERE triwulan = 0
+            ) ta ON ta.indikator_id = ti.indikator_id AND ta.tahun = ti.tahun
           ) kt
               ON kt.indikator_id = ki.id
              AND kt.tahun        = ${tahun}
@@ -2007,15 +2239,35 @@ export const handler = async (event) => {
              AND kr.bulan  = gs.bulan
              AND kr.tahun  = ${tahun}
             LEFT JOIN (
-            SELECT id, indikator_id, tahun, triwulan, target_display,
-                   COALESCE(
-                     target,
-                     CASE UPPER(TRIM(target_display))
-                       WHEN 'D'  THEN 1 WHEN 'C'  THEN 2 WHEN 'CC' THEN 3 WHEN 'B'  THEN 4
-                       WHEN 'BB' THEN 5 WHEN 'A'  THEN 6 WHEN 'AA' THEN 7
-                     END
-                   ) AS target
-            FROM kinerja_target
+            -- Target tahunan (triwulan = 0) jadi pembagi realisasi tiap TW; kalau kosong, pakai target TW.
+            SELECT tw.id, ti.indikator_id, ti.tahun, gs.n AS triwulan,
+                   -- teks target ikut target tahunan kalau ada, supaya tampilan = pembagi
+                   CASE WHEN ta.indikator_id IS NOT NULL THEN ta.target_display ELSE tw.target_display END AS target_display,
+                   COALESCE(ta.target_num, tw.target_num) AS target
+            FROM (SELECT DISTINCT indikator_id, tahun FROM kinerja_target) ti
+            CROSS JOIN generate_series(1, 4) AS gs(n)
+            LEFT JOIN (
+              SELECT id, indikator_id, tahun, triwulan, target_display,
+                     COALESCE(
+                       target,
+                       CASE UPPER(TRIM(target_display))
+                         WHEN 'D'  THEN 1 WHEN 'C'  THEN 2 WHEN 'CC' THEN 3 WHEN 'B'  THEN 4
+                         WHEN 'BB' THEN 5 WHEN 'A'  THEN 6 WHEN 'AA' THEN 7
+                       END
+                     ) AS target_num
+              FROM kinerja_target WHERE triwulan BETWEEN 1 AND 4
+            ) tw ON tw.indikator_id = ti.indikator_id AND tw.tahun = ti.tahun AND tw.triwulan = gs.n
+            LEFT JOIN (
+              SELECT indikator_id, tahun, target_display,
+                     COALESCE(
+                       target,
+                       CASE UPPER(TRIM(target_display))
+                         WHEN 'D'  THEN 1 WHEN 'C'  THEN 2 WHEN 'CC' THEN 3 WHEN 'B'  THEN 4
+                         WHEN 'BB' THEN 5 WHEN 'A'  THEN 6 WHEN 'AA' THEN 7
+                       END
+                     ) AS target_num
+              FROM kinerja_target WHERE triwulan = 0
+            ) ta ON ta.indikator_id = ti.indikator_id AND ta.tahun = ti.tahun
           ) kt
               ON kt.indikator_id = ki.id
              AND kt.tahun        = ${tahun}
@@ -2124,15 +2376,35 @@ export const handler = async (event) => {
              AND kr.bulan  = gs.bulan
              AND kr.tahun  = ${tahun}
             LEFT JOIN (
-            SELECT id, indikator_id, tahun, triwulan, target_display,
-                   COALESCE(
-                     target,
-                     CASE UPPER(TRIM(target_display))
-                       WHEN 'D'  THEN 1 WHEN 'C'  THEN 2 WHEN 'CC' THEN 3 WHEN 'B'  THEN 4
-                       WHEN 'BB' THEN 5 WHEN 'A'  THEN 6 WHEN 'AA' THEN 7
-                     END
-                   ) AS target
-            FROM kinerja_target
+            -- Target tahunan (triwulan = 0) jadi pembagi realisasi tiap TW; kalau kosong, pakai target TW.
+            SELECT tw.id, ti.indikator_id, ti.tahun, gs.n AS triwulan,
+                   -- teks target ikut target tahunan kalau ada, supaya tampilan = pembagi
+                   CASE WHEN ta.indikator_id IS NOT NULL THEN ta.target_display ELSE tw.target_display END AS target_display,
+                   COALESCE(ta.target_num, tw.target_num) AS target
+            FROM (SELECT DISTINCT indikator_id, tahun FROM kinerja_target) ti
+            CROSS JOIN generate_series(1, 4) AS gs(n)
+            LEFT JOIN (
+              SELECT id, indikator_id, tahun, triwulan, target_display,
+                     COALESCE(
+                       target,
+                       CASE UPPER(TRIM(target_display))
+                         WHEN 'D'  THEN 1 WHEN 'C'  THEN 2 WHEN 'CC' THEN 3 WHEN 'B'  THEN 4
+                         WHEN 'BB' THEN 5 WHEN 'A'  THEN 6 WHEN 'AA' THEN 7
+                       END
+                     ) AS target_num
+              FROM kinerja_target WHERE triwulan BETWEEN 1 AND 4
+            ) tw ON tw.indikator_id = ti.indikator_id AND tw.tahun = ti.tahun AND tw.triwulan = gs.n
+            LEFT JOIN (
+              SELECT indikator_id, tahun, target_display,
+                     COALESCE(
+                       target,
+                       CASE UPPER(TRIM(target_display))
+                         WHEN 'D'  THEN 1 WHEN 'C'  THEN 2 WHEN 'CC' THEN 3 WHEN 'B'  THEN 4
+                         WHEN 'BB' THEN 5 WHEN 'A'  THEN 6 WHEN 'AA' THEN 7
+                       END
+                     ) AS target_num
+              FROM kinerja_target WHERE triwulan = 0
+            ) ta ON ta.indikator_id = ti.indikator_id AND ta.tahun = ti.tahun
           ) kt
               ON kt.indikator_id = ki.id
              AND kt.tahun        = ${tahun}
@@ -2240,15 +2512,35 @@ export const handler = async (event) => {
              AND kr.bulan  = gs.bulan
              AND kr.tahun  = ${tahun}
             LEFT JOIN (
-            SELECT id, indikator_id, tahun, triwulan, target_display,
-                   COALESCE(
-                     target,
-                     CASE UPPER(TRIM(target_display))
-                       WHEN 'D'  THEN 1 WHEN 'C'  THEN 2 WHEN 'CC' THEN 3 WHEN 'B'  THEN 4
-                       WHEN 'BB' THEN 5 WHEN 'A'  THEN 6 WHEN 'AA' THEN 7
-                     END
-                   ) AS target
-            FROM kinerja_target
+            -- Target tahunan (triwulan = 0) jadi pembagi realisasi tiap TW; kalau kosong, pakai target TW.
+            SELECT tw.id, ti.indikator_id, ti.tahun, gs.n AS triwulan,
+                   -- teks target ikut target tahunan kalau ada, supaya tampilan = pembagi
+                   CASE WHEN ta.indikator_id IS NOT NULL THEN ta.target_display ELSE tw.target_display END AS target_display,
+                   COALESCE(ta.target_num, tw.target_num) AS target
+            FROM (SELECT DISTINCT indikator_id, tahun FROM kinerja_target) ti
+            CROSS JOIN generate_series(1, 4) AS gs(n)
+            LEFT JOIN (
+              SELECT id, indikator_id, tahun, triwulan, target_display,
+                     COALESCE(
+                       target,
+                       CASE UPPER(TRIM(target_display))
+                         WHEN 'D'  THEN 1 WHEN 'C'  THEN 2 WHEN 'CC' THEN 3 WHEN 'B'  THEN 4
+                         WHEN 'BB' THEN 5 WHEN 'A'  THEN 6 WHEN 'AA' THEN 7
+                       END
+                     ) AS target_num
+              FROM kinerja_target WHERE triwulan BETWEEN 1 AND 4
+            ) tw ON tw.indikator_id = ti.indikator_id AND tw.tahun = ti.tahun AND tw.triwulan = gs.n
+            LEFT JOIN (
+              SELECT indikator_id, tahun, target_display,
+                     COALESCE(
+                       target,
+                       CASE UPPER(TRIM(target_display))
+                         WHEN 'D'  THEN 1 WHEN 'C'  THEN 2 WHEN 'CC' THEN 3 WHEN 'B'  THEN 4
+                         WHEN 'BB' THEN 5 WHEN 'A'  THEN 6 WHEN 'AA' THEN 7
+                       END
+                     ) AS target_num
+              FROM kinerja_target WHERE triwulan = 0
+            ) ta ON ta.indikator_id = ti.indikator_id AND ta.tahun = ti.tahun
           ) kt
               ON kt.indikator_id = ki.id
              AND kt.tahun        = ${tahun}
@@ -2356,15 +2648,35 @@ export const handler = async (event) => {
              AND kr.bulan  = gs.bulan
              AND kr.tahun  = ${tahun}
             LEFT JOIN (
-            SELECT id, indikator_id, tahun, triwulan, target_display,
-                   COALESCE(
-                     target,
-                     CASE UPPER(TRIM(target_display))
-                       WHEN 'D'  THEN 1 WHEN 'C'  THEN 2 WHEN 'CC' THEN 3 WHEN 'B'  THEN 4
-                       WHEN 'BB' THEN 5 WHEN 'A'  THEN 6 WHEN 'AA' THEN 7
-                     END
-                   ) AS target
-            FROM kinerja_target
+            -- Target tahunan (triwulan = 0) jadi pembagi realisasi tiap TW; kalau kosong, pakai target TW.
+            SELECT tw.id, ti.indikator_id, ti.tahun, gs.n AS triwulan,
+                   -- teks target ikut target tahunan kalau ada, supaya tampilan = pembagi
+                   CASE WHEN ta.indikator_id IS NOT NULL THEN ta.target_display ELSE tw.target_display END AS target_display,
+                   COALESCE(ta.target_num, tw.target_num) AS target
+            FROM (SELECT DISTINCT indikator_id, tahun FROM kinerja_target) ti
+            CROSS JOIN generate_series(1, 4) AS gs(n)
+            LEFT JOIN (
+              SELECT id, indikator_id, tahun, triwulan, target_display,
+                     COALESCE(
+                       target,
+                       CASE UPPER(TRIM(target_display))
+                         WHEN 'D'  THEN 1 WHEN 'C'  THEN 2 WHEN 'CC' THEN 3 WHEN 'B'  THEN 4
+                         WHEN 'BB' THEN 5 WHEN 'A'  THEN 6 WHEN 'AA' THEN 7
+                       END
+                     ) AS target_num
+              FROM kinerja_target WHERE triwulan BETWEEN 1 AND 4
+            ) tw ON tw.indikator_id = ti.indikator_id AND tw.tahun = ti.tahun AND tw.triwulan = gs.n
+            LEFT JOIN (
+              SELECT indikator_id, tahun, target_display,
+                     COALESCE(
+                       target,
+                       CASE UPPER(TRIM(target_display))
+                         WHEN 'D'  THEN 1 WHEN 'C'  THEN 2 WHEN 'CC' THEN 3 WHEN 'B'  THEN 4
+                         WHEN 'BB' THEN 5 WHEN 'A'  THEN 6 WHEN 'AA' THEN 7
+                       END
+                     ) AS target_num
+              FROM kinerja_target WHERE triwulan = 0
+            ) ta ON ta.indikator_id = ti.indikator_id AND ta.tahun = ti.tahun
           ) kt
               ON kt.indikator_id = ki.id
              AND kt.tahun        = ${tahun}
@@ -2535,15 +2847,35 @@ export const handler = async (event) => {
              AND kr.bulan  = ${bulan}
              AND kr.tahun  = ${tahun}
             LEFT JOIN (
-            SELECT id, indikator_id, tahun, triwulan, target_display,
-                   COALESCE(
-                     target,
-                     CASE UPPER(TRIM(target_display))
-                       WHEN 'D'  THEN 1 WHEN 'C'  THEN 2 WHEN 'CC' THEN 3 WHEN 'B'  THEN 4
-                       WHEN 'BB' THEN 5 WHEN 'A'  THEN 6 WHEN 'AA' THEN 7
-                     END
-                   ) AS target
-            FROM kinerja_target
+            -- Target tahunan (triwulan = 0) jadi pembagi realisasi tiap TW; kalau kosong, pakai target TW.
+            SELECT tw.id, ti.indikator_id, ti.tahun, gs.n AS triwulan,
+                   -- teks target ikut target tahunan kalau ada, supaya tampilan = pembagi
+                   CASE WHEN ta.indikator_id IS NOT NULL THEN ta.target_display ELSE tw.target_display END AS target_display,
+                   COALESCE(ta.target_num, tw.target_num) AS target
+            FROM (SELECT DISTINCT indikator_id, tahun FROM kinerja_target) ti
+            CROSS JOIN generate_series(1, 4) AS gs(n)
+            LEFT JOIN (
+              SELECT id, indikator_id, tahun, triwulan, target_display,
+                     COALESCE(
+                       target,
+                       CASE UPPER(TRIM(target_display))
+                         WHEN 'D'  THEN 1 WHEN 'C'  THEN 2 WHEN 'CC' THEN 3 WHEN 'B'  THEN 4
+                         WHEN 'BB' THEN 5 WHEN 'A'  THEN 6 WHEN 'AA' THEN 7
+                       END
+                     ) AS target_num
+              FROM kinerja_target WHERE triwulan BETWEEN 1 AND 4
+            ) tw ON tw.indikator_id = ti.indikator_id AND tw.tahun = ti.tahun AND tw.triwulan = gs.n
+            LEFT JOIN (
+              SELECT indikator_id, tahun, target_display,
+                     COALESCE(
+                       target,
+                       CASE UPPER(TRIM(target_display))
+                         WHEN 'D'  THEN 1 WHEN 'C'  THEN 2 WHEN 'CC' THEN 3 WHEN 'B'  THEN 4
+                         WHEN 'BB' THEN 5 WHEN 'A'  THEN 6 WHEN 'AA' THEN 7
+                       END
+                     ) AS target_num
+              FROM kinerja_target WHERE triwulan = 0
+            ) ta ON ta.indikator_id = ti.indikator_id AND ta.tahun = ti.tahun
           ) kt
               ON kt.indikator_id = ki.id
              AND kt.tahun        = ${tahun}
@@ -2649,15 +2981,35 @@ export const handler = async (event) => {
              AND kr.bulan  = ${bulan}
              AND kr.tahun  = ${tahun}
             LEFT JOIN (
-            SELECT id, indikator_id, tahun, triwulan, target_display,
-                   COALESCE(
-                     target,
-                     CASE UPPER(TRIM(target_display))
-                       WHEN 'D'  THEN 1 WHEN 'C'  THEN 2 WHEN 'CC' THEN 3 WHEN 'B'  THEN 4
-                       WHEN 'BB' THEN 5 WHEN 'A'  THEN 6 WHEN 'AA' THEN 7
-                     END
-                   ) AS target
-            FROM kinerja_target
+            -- Target tahunan (triwulan = 0) jadi pembagi realisasi tiap TW; kalau kosong, pakai target TW.
+            SELECT tw.id, ti.indikator_id, ti.tahun, gs.n AS triwulan,
+                   -- teks target ikut target tahunan kalau ada, supaya tampilan = pembagi
+                   CASE WHEN ta.indikator_id IS NOT NULL THEN ta.target_display ELSE tw.target_display END AS target_display,
+                   COALESCE(ta.target_num, tw.target_num) AS target
+            FROM (SELECT DISTINCT indikator_id, tahun FROM kinerja_target) ti
+            CROSS JOIN generate_series(1, 4) AS gs(n)
+            LEFT JOIN (
+              SELECT id, indikator_id, tahun, triwulan, target_display,
+                     COALESCE(
+                       target,
+                       CASE UPPER(TRIM(target_display))
+                         WHEN 'D'  THEN 1 WHEN 'C'  THEN 2 WHEN 'CC' THEN 3 WHEN 'B'  THEN 4
+                         WHEN 'BB' THEN 5 WHEN 'A'  THEN 6 WHEN 'AA' THEN 7
+                       END
+                     ) AS target_num
+              FROM kinerja_target WHERE triwulan BETWEEN 1 AND 4
+            ) tw ON tw.indikator_id = ti.indikator_id AND tw.tahun = ti.tahun AND tw.triwulan = gs.n
+            LEFT JOIN (
+              SELECT indikator_id, tahun, target_display,
+                     COALESCE(
+                       target,
+                       CASE UPPER(TRIM(target_display))
+                         WHEN 'D'  THEN 1 WHEN 'C'  THEN 2 WHEN 'CC' THEN 3 WHEN 'B'  THEN 4
+                         WHEN 'BB' THEN 5 WHEN 'A'  THEN 6 WHEN 'AA' THEN 7
+                       END
+                     ) AS target_num
+              FROM kinerja_target WHERE triwulan = 0
+            ) ta ON ta.indikator_id = ti.indikator_id AND ta.tahun = ti.tahun
           ) kt
               ON kt.indikator_id = ki.id
              AND kt.tahun        = ${tahun}
@@ -2763,15 +3115,35 @@ export const handler = async (event) => {
              AND kr.bulan  = ${bulan}
              AND kr.tahun  = ${tahun}
             LEFT JOIN (
-            SELECT id, indikator_id, tahun, triwulan, target_display,
-                   COALESCE(
-                     target,
-                     CASE UPPER(TRIM(target_display))
-                       WHEN 'D'  THEN 1 WHEN 'C'  THEN 2 WHEN 'CC' THEN 3 WHEN 'B'  THEN 4
-                       WHEN 'BB' THEN 5 WHEN 'A'  THEN 6 WHEN 'AA' THEN 7
-                     END
-                   ) AS target
-            FROM kinerja_target
+            -- Target tahunan (triwulan = 0) jadi pembagi realisasi tiap TW; kalau kosong, pakai target TW.
+            SELECT tw.id, ti.indikator_id, ti.tahun, gs.n AS triwulan,
+                   -- teks target ikut target tahunan kalau ada, supaya tampilan = pembagi
+                   CASE WHEN ta.indikator_id IS NOT NULL THEN ta.target_display ELSE tw.target_display END AS target_display,
+                   COALESCE(ta.target_num, tw.target_num) AS target
+            FROM (SELECT DISTINCT indikator_id, tahun FROM kinerja_target) ti
+            CROSS JOIN generate_series(1, 4) AS gs(n)
+            LEFT JOIN (
+              SELECT id, indikator_id, tahun, triwulan, target_display,
+                     COALESCE(
+                       target,
+                       CASE UPPER(TRIM(target_display))
+                         WHEN 'D'  THEN 1 WHEN 'C'  THEN 2 WHEN 'CC' THEN 3 WHEN 'B'  THEN 4
+                         WHEN 'BB' THEN 5 WHEN 'A'  THEN 6 WHEN 'AA' THEN 7
+                       END
+                     ) AS target_num
+              FROM kinerja_target WHERE triwulan BETWEEN 1 AND 4
+            ) tw ON tw.indikator_id = ti.indikator_id AND tw.tahun = ti.tahun AND tw.triwulan = gs.n
+            LEFT JOIN (
+              SELECT indikator_id, tahun, target_display,
+                     COALESCE(
+                       target,
+                       CASE UPPER(TRIM(target_display))
+                         WHEN 'D'  THEN 1 WHEN 'C'  THEN 2 WHEN 'CC' THEN 3 WHEN 'B'  THEN 4
+                         WHEN 'BB' THEN 5 WHEN 'A'  THEN 6 WHEN 'AA' THEN 7
+                       END
+                     ) AS target_num
+              FROM kinerja_target WHERE triwulan = 0
+            ) ta ON ta.indikator_id = ti.indikator_id AND ta.tahun = ti.tahun
           ) kt
               ON kt.indikator_id = ki.id
              AND kt.tahun        = ${tahun}
@@ -2879,15 +3251,35 @@ export const handler = async (event) => {
              AND kr.bulan  = ${bulan}
              AND kr.tahun  = ${tahun}
             LEFT JOIN (
-            SELECT id, indikator_id, tahun, triwulan, target_display,
-                   COALESCE(
-                     target,
-                     CASE UPPER(TRIM(target_display))
-                       WHEN 'D'  THEN 1 WHEN 'C'  THEN 2 WHEN 'CC' THEN 3 WHEN 'B'  THEN 4
-                       WHEN 'BB' THEN 5 WHEN 'A'  THEN 6 WHEN 'AA' THEN 7
-                     END
-                   ) AS target
-            FROM kinerja_target
+            -- Target tahunan (triwulan = 0) jadi pembagi realisasi tiap TW; kalau kosong, pakai target TW.
+            SELECT tw.id, ti.indikator_id, ti.tahun, gs.n AS triwulan,
+                   -- teks target ikut target tahunan kalau ada, supaya tampilan = pembagi
+                   CASE WHEN ta.indikator_id IS NOT NULL THEN ta.target_display ELSE tw.target_display END AS target_display,
+                   COALESCE(ta.target_num, tw.target_num) AS target
+            FROM (SELECT DISTINCT indikator_id, tahun FROM kinerja_target) ti
+            CROSS JOIN generate_series(1, 4) AS gs(n)
+            LEFT JOIN (
+              SELECT id, indikator_id, tahun, triwulan, target_display,
+                     COALESCE(
+                       target,
+                       CASE UPPER(TRIM(target_display))
+                         WHEN 'D'  THEN 1 WHEN 'C'  THEN 2 WHEN 'CC' THEN 3 WHEN 'B'  THEN 4
+                         WHEN 'BB' THEN 5 WHEN 'A'  THEN 6 WHEN 'AA' THEN 7
+                       END
+                     ) AS target_num
+              FROM kinerja_target WHERE triwulan BETWEEN 1 AND 4
+            ) tw ON tw.indikator_id = ti.indikator_id AND tw.tahun = ti.tahun AND tw.triwulan = gs.n
+            LEFT JOIN (
+              SELECT indikator_id, tahun, target_display,
+                     COALESCE(
+                       target,
+                       CASE UPPER(TRIM(target_display))
+                         WHEN 'D'  THEN 1 WHEN 'C'  THEN 2 WHEN 'CC' THEN 3 WHEN 'B'  THEN 4
+                         WHEN 'BB' THEN 5 WHEN 'A'  THEN 6 WHEN 'AA' THEN 7
+                       END
+                     ) AS target_num
+              FROM kinerja_target WHERE triwulan = 0
+            ) ta ON ta.indikator_id = ti.indikator_id AND ta.tahun = ti.tahun
           ) kt
               ON kt.indikator_id = ki.id
              AND kt.tahun        = ${tahun}
@@ -2993,15 +3385,35 @@ export const handler = async (event) => {
              AND kr.bulan  = ${bulan}
              AND kr.tahun  = ${tahun}
             LEFT JOIN (
-            SELECT id, indikator_id, tahun, triwulan, target_display,
-                   COALESCE(
-                     target,
-                     CASE UPPER(TRIM(target_display))
-                       WHEN 'D'  THEN 1 WHEN 'C'  THEN 2 WHEN 'CC' THEN 3 WHEN 'B'  THEN 4
-                       WHEN 'BB' THEN 5 WHEN 'A'  THEN 6 WHEN 'AA' THEN 7
-                     END
-                   ) AS target
-            FROM kinerja_target
+            -- Target tahunan (triwulan = 0) jadi pembagi realisasi tiap TW; kalau kosong, pakai target TW.
+            SELECT tw.id, ti.indikator_id, ti.tahun, gs.n AS triwulan,
+                   -- teks target ikut target tahunan kalau ada, supaya tampilan = pembagi
+                   CASE WHEN ta.indikator_id IS NOT NULL THEN ta.target_display ELSE tw.target_display END AS target_display,
+                   COALESCE(ta.target_num, tw.target_num) AS target
+            FROM (SELECT DISTINCT indikator_id, tahun FROM kinerja_target) ti
+            CROSS JOIN generate_series(1, 4) AS gs(n)
+            LEFT JOIN (
+              SELECT id, indikator_id, tahun, triwulan, target_display,
+                     COALESCE(
+                       target,
+                       CASE UPPER(TRIM(target_display))
+                         WHEN 'D'  THEN 1 WHEN 'C'  THEN 2 WHEN 'CC' THEN 3 WHEN 'B'  THEN 4
+                         WHEN 'BB' THEN 5 WHEN 'A'  THEN 6 WHEN 'AA' THEN 7
+                       END
+                     ) AS target_num
+              FROM kinerja_target WHERE triwulan BETWEEN 1 AND 4
+            ) tw ON tw.indikator_id = ti.indikator_id AND tw.tahun = ti.tahun AND tw.triwulan = gs.n
+            LEFT JOIN (
+              SELECT indikator_id, tahun, target_display,
+                     COALESCE(
+                       target,
+                       CASE UPPER(TRIM(target_display))
+                         WHEN 'D'  THEN 1 WHEN 'C'  THEN 2 WHEN 'CC' THEN 3 WHEN 'B'  THEN 4
+                         WHEN 'BB' THEN 5 WHEN 'A'  THEN 6 WHEN 'AA' THEN 7
+                       END
+                     ) AS target_num
+              FROM kinerja_target WHERE triwulan = 0
+            ) ta ON ta.indikator_id = ti.indikator_id AND ta.tahun = ti.tahun
           ) kt
               ON kt.indikator_id = ki.id
              AND kt.tahun        = ${tahun}
@@ -3107,15 +3519,35 @@ export const handler = async (event) => {
              AND kr.bulan  = ${bulan}
              AND kr.tahun  = ${tahun}
             LEFT JOIN (
-            SELECT id, indikator_id, tahun, triwulan, target_display,
-                   COALESCE(
-                     target,
-                     CASE UPPER(TRIM(target_display))
-                       WHEN 'D'  THEN 1 WHEN 'C'  THEN 2 WHEN 'CC' THEN 3 WHEN 'B'  THEN 4
-                       WHEN 'BB' THEN 5 WHEN 'A'  THEN 6 WHEN 'AA' THEN 7
-                     END
-                   ) AS target
-            FROM kinerja_target
+            -- Target tahunan (triwulan = 0) jadi pembagi realisasi tiap TW; kalau kosong, pakai target TW.
+            SELECT tw.id, ti.indikator_id, ti.tahun, gs.n AS triwulan,
+                   -- teks target ikut target tahunan kalau ada, supaya tampilan = pembagi
+                   CASE WHEN ta.indikator_id IS NOT NULL THEN ta.target_display ELSE tw.target_display END AS target_display,
+                   COALESCE(ta.target_num, tw.target_num) AS target
+            FROM (SELECT DISTINCT indikator_id, tahun FROM kinerja_target) ti
+            CROSS JOIN generate_series(1, 4) AS gs(n)
+            LEFT JOIN (
+              SELECT id, indikator_id, tahun, triwulan, target_display,
+                     COALESCE(
+                       target,
+                       CASE UPPER(TRIM(target_display))
+                         WHEN 'D'  THEN 1 WHEN 'C'  THEN 2 WHEN 'CC' THEN 3 WHEN 'B'  THEN 4
+                         WHEN 'BB' THEN 5 WHEN 'A'  THEN 6 WHEN 'AA' THEN 7
+                       END
+                     ) AS target_num
+              FROM kinerja_target WHERE triwulan BETWEEN 1 AND 4
+            ) tw ON tw.indikator_id = ti.indikator_id AND tw.tahun = ti.tahun AND tw.triwulan = gs.n
+            LEFT JOIN (
+              SELECT indikator_id, tahun, target_display,
+                     COALESCE(
+                       target,
+                       CASE UPPER(TRIM(target_display))
+                         WHEN 'D'  THEN 1 WHEN 'C'  THEN 2 WHEN 'CC' THEN 3 WHEN 'B'  THEN 4
+                         WHEN 'BB' THEN 5 WHEN 'A'  THEN 6 WHEN 'AA' THEN 7
+                       END
+                     ) AS target_num
+              FROM kinerja_target WHERE triwulan = 0
+            ) ta ON ta.indikator_id = ti.indikator_id AND ta.tahun = ti.tahun
           ) kt
               ON kt.indikator_id = ki.id
              AND kt.tahun        = ${tahun}
@@ -3223,15 +3655,35 @@ export const handler = async (event) => {
              AND kr.bulan  = ${bulan}
              AND kr.tahun  = ${tahun}
             LEFT JOIN (
-            SELECT id, indikator_id, tahun, triwulan, target_display,
-                   COALESCE(
-                     target,
-                     CASE UPPER(TRIM(target_display))
-                       WHEN 'D'  THEN 1 WHEN 'C'  THEN 2 WHEN 'CC' THEN 3 WHEN 'B'  THEN 4
-                       WHEN 'BB' THEN 5 WHEN 'A'  THEN 6 WHEN 'AA' THEN 7
-                     END
-                   ) AS target
-            FROM kinerja_target
+            -- Target tahunan (triwulan = 0) jadi pembagi realisasi tiap TW; kalau kosong, pakai target TW.
+            SELECT tw.id, ti.indikator_id, ti.tahun, gs.n AS triwulan,
+                   -- teks target ikut target tahunan kalau ada, supaya tampilan = pembagi
+                   CASE WHEN ta.indikator_id IS NOT NULL THEN ta.target_display ELSE tw.target_display END AS target_display,
+                   COALESCE(ta.target_num, tw.target_num) AS target
+            FROM (SELECT DISTINCT indikator_id, tahun FROM kinerja_target) ti
+            CROSS JOIN generate_series(1, 4) AS gs(n)
+            LEFT JOIN (
+              SELECT id, indikator_id, tahun, triwulan, target_display,
+                     COALESCE(
+                       target,
+                       CASE UPPER(TRIM(target_display))
+                         WHEN 'D'  THEN 1 WHEN 'C'  THEN 2 WHEN 'CC' THEN 3 WHEN 'B'  THEN 4
+                         WHEN 'BB' THEN 5 WHEN 'A'  THEN 6 WHEN 'AA' THEN 7
+                       END
+                     ) AS target_num
+              FROM kinerja_target WHERE triwulan BETWEEN 1 AND 4
+            ) tw ON tw.indikator_id = ti.indikator_id AND tw.tahun = ti.tahun AND tw.triwulan = gs.n
+            LEFT JOIN (
+              SELECT indikator_id, tahun, target_display,
+                     COALESCE(
+                       target,
+                       CASE UPPER(TRIM(target_display))
+                         WHEN 'D'  THEN 1 WHEN 'C'  THEN 2 WHEN 'CC' THEN 3 WHEN 'B'  THEN 4
+                         WHEN 'BB' THEN 5 WHEN 'A'  THEN 6 WHEN 'AA' THEN 7
+                       END
+                     ) AS target_num
+              FROM kinerja_target WHERE triwulan = 0
+            ) ta ON ta.indikator_id = ti.indikator_id AND ta.tahun = ti.tahun
           ) kt
               ON kt.indikator_id = ki.id
              AND kt.tahun        = ${tahun}
@@ -3337,15 +3789,35 @@ export const handler = async (event) => {
              AND kr.bulan  = ${bulan}
              AND kr.tahun  = ${tahun}
             LEFT JOIN (
-            SELECT id, indikator_id, tahun, triwulan, target_display,
-                   COALESCE(
-                     target,
-                     CASE UPPER(TRIM(target_display))
-                       WHEN 'D'  THEN 1 WHEN 'C'  THEN 2 WHEN 'CC' THEN 3 WHEN 'B'  THEN 4
-                       WHEN 'BB' THEN 5 WHEN 'A'  THEN 6 WHEN 'AA' THEN 7
-                     END
-                   ) AS target
-            FROM kinerja_target
+            -- Target tahunan (triwulan = 0) jadi pembagi realisasi tiap TW; kalau kosong, pakai target TW.
+            SELECT tw.id, ti.indikator_id, ti.tahun, gs.n AS triwulan,
+                   -- teks target ikut target tahunan kalau ada, supaya tampilan = pembagi
+                   CASE WHEN ta.indikator_id IS NOT NULL THEN ta.target_display ELSE tw.target_display END AS target_display,
+                   COALESCE(ta.target_num, tw.target_num) AS target
+            FROM (SELECT DISTINCT indikator_id, tahun FROM kinerja_target) ti
+            CROSS JOIN generate_series(1, 4) AS gs(n)
+            LEFT JOIN (
+              SELECT id, indikator_id, tahun, triwulan, target_display,
+                     COALESCE(
+                       target,
+                       CASE UPPER(TRIM(target_display))
+                         WHEN 'D'  THEN 1 WHEN 'C'  THEN 2 WHEN 'CC' THEN 3 WHEN 'B'  THEN 4
+                         WHEN 'BB' THEN 5 WHEN 'A'  THEN 6 WHEN 'AA' THEN 7
+                       END
+                     ) AS target_num
+              FROM kinerja_target WHERE triwulan BETWEEN 1 AND 4
+            ) tw ON tw.indikator_id = ti.indikator_id AND tw.tahun = ti.tahun AND tw.triwulan = gs.n
+            LEFT JOIN (
+              SELECT indikator_id, tahun, target_display,
+                     COALESCE(
+                       target,
+                       CASE UPPER(TRIM(target_display))
+                         WHEN 'D'  THEN 1 WHEN 'C'  THEN 2 WHEN 'CC' THEN 3 WHEN 'B'  THEN 4
+                         WHEN 'BB' THEN 5 WHEN 'A'  THEN 6 WHEN 'AA' THEN 7
+                       END
+                     ) AS target_num
+              FROM kinerja_target WHERE triwulan = 0
+            ) ta ON ta.indikator_id = ti.indikator_id AND ta.tahun = ti.tahun
           ) kt
               ON kt.indikator_id = ki.id
              AND kt.tahun        = ${tahun}
@@ -3451,15 +3923,35 @@ export const handler = async (event) => {
              AND kr.bulan  = ${bulan}
              AND kr.tahun  = ${tahun}
             LEFT JOIN (
-            SELECT id, indikator_id, tahun, triwulan, target_display,
-                   COALESCE(
-                     target,
-                     CASE UPPER(TRIM(target_display))
-                       WHEN 'D'  THEN 1 WHEN 'C'  THEN 2 WHEN 'CC' THEN 3 WHEN 'B'  THEN 4
-                       WHEN 'BB' THEN 5 WHEN 'A'  THEN 6 WHEN 'AA' THEN 7
-                     END
-                   ) AS target
-            FROM kinerja_target
+            -- Target tahunan (triwulan = 0) jadi pembagi realisasi tiap TW; kalau kosong, pakai target TW.
+            SELECT tw.id, ti.indikator_id, ti.tahun, gs.n AS triwulan,
+                   -- teks target ikut target tahunan kalau ada, supaya tampilan = pembagi
+                   CASE WHEN ta.indikator_id IS NOT NULL THEN ta.target_display ELSE tw.target_display END AS target_display,
+                   COALESCE(ta.target_num, tw.target_num) AS target
+            FROM (SELECT DISTINCT indikator_id, tahun FROM kinerja_target) ti
+            CROSS JOIN generate_series(1, 4) AS gs(n)
+            LEFT JOIN (
+              SELECT id, indikator_id, tahun, triwulan, target_display,
+                     COALESCE(
+                       target,
+                       CASE UPPER(TRIM(target_display))
+                         WHEN 'D'  THEN 1 WHEN 'C'  THEN 2 WHEN 'CC' THEN 3 WHEN 'B'  THEN 4
+                         WHEN 'BB' THEN 5 WHEN 'A'  THEN 6 WHEN 'AA' THEN 7
+                       END
+                     ) AS target_num
+              FROM kinerja_target WHERE triwulan BETWEEN 1 AND 4
+            ) tw ON tw.indikator_id = ti.indikator_id AND tw.tahun = ti.tahun AND tw.triwulan = gs.n
+            LEFT JOIN (
+              SELECT indikator_id, tahun, target_display,
+                     COALESCE(
+                       target,
+                       CASE UPPER(TRIM(target_display))
+                         WHEN 'D'  THEN 1 WHEN 'C'  THEN 2 WHEN 'CC' THEN 3 WHEN 'B'  THEN 4
+                         WHEN 'BB' THEN 5 WHEN 'A'  THEN 6 WHEN 'AA' THEN 7
+                       END
+                     ) AS target_num
+              FROM kinerja_target WHERE triwulan = 0
+            ) ta ON ta.indikator_id = ti.indikator_id AND ta.tahun = ti.tahun
           ) kt
               ON kt.indikator_id = ki.id
              AND kt.tahun        = ${tahun}
@@ -3566,15 +4058,35 @@ export const handler = async (event) => {
              AND kr.bulan  = ${bulan}
              AND kr.tahun  = ${tahun}
             LEFT JOIN (
-            SELECT id, indikator_id, tahun, triwulan, target_display,
-                   COALESCE(
-                     target,
-                     CASE UPPER(TRIM(target_display))
-                       WHEN 'D'  THEN 1 WHEN 'C'  THEN 2 WHEN 'CC' THEN 3 WHEN 'B'  THEN 4
-                       WHEN 'BB' THEN 5 WHEN 'A'  THEN 6 WHEN 'AA' THEN 7
-                     END
-                   ) AS target
-            FROM kinerja_target
+            -- Target tahunan (triwulan = 0) jadi pembagi realisasi tiap TW; kalau kosong, pakai target TW.
+            SELECT tw.id, ti.indikator_id, ti.tahun, gs.n AS triwulan,
+                   -- teks target ikut target tahunan kalau ada, supaya tampilan = pembagi
+                   CASE WHEN ta.indikator_id IS NOT NULL THEN ta.target_display ELSE tw.target_display END AS target_display,
+                   COALESCE(ta.target_num, tw.target_num) AS target
+            FROM (SELECT DISTINCT indikator_id, tahun FROM kinerja_target) ti
+            CROSS JOIN generate_series(1, 4) AS gs(n)
+            LEFT JOIN (
+              SELECT id, indikator_id, tahun, triwulan, target_display,
+                     COALESCE(
+                       target,
+                       CASE UPPER(TRIM(target_display))
+                         WHEN 'D'  THEN 1 WHEN 'C'  THEN 2 WHEN 'CC' THEN 3 WHEN 'B'  THEN 4
+                         WHEN 'BB' THEN 5 WHEN 'A'  THEN 6 WHEN 'AA' THEN 7
+                       END
+                     ) AS target_num
+              FROM kinerja_target WHERE triwulan BETWEEN 1 AND 4
+            ) tw ON tw.indikator_id = ti.indikator_id AND tw.tahun = ti.tahun AND tw.triwulan = gs.n
+            LEFT JOIN (
+              SELECT indikator_id, tahun, target_display,
+                     COALESCE(
+                       target,
+                       CASE UPPER(TRIM(target_display))
+                         WHEN 'D'  THEN 1 WHEN 'C'  THEN 2 WHEN 'CC' THEN 3 WHEN 'B'  THEN 4
+                         WHEN 'BB' THEN 5 WHEN 'A'  THEN 6 WHEN 'AA' THEN 7
+                       END
+                     ) AS target_num
+              FROM kinerja_target WHERE triwulan = 0
+            ) ta ON ta.indikator_id = ti.indikator_id AND ta.tahun = ti.tahun
           ) kt
               ON kt.indikator_id = ki.id
              AND kt.tahun        = ${tahun}
@@ -3680,15 +4192,35 @@ export const handler = async (event) => {
              AND kr.bulan  = ${bulan}
              AND kr.tahun  = ${tahun}
             LEFT JOIN (
-            SELECT id, indikator_id, tahun, triwulan, target_display,
-                   COALESCE(
-                     target,
-                     CASE UPPER(TRIM(target_display))
-                       WHEN 'D'  THEN 1 WHEN 'C'  THEN 2 WHEN 'CC' THEN 3 WHEN 'B'  THEN 4
-                       WHEN 'BB' THEN 5 WHEN 'A'  THEN 6 WHEN 'AA' THEN 7
-                     END
-                   ) AS target
-            FROM kinerja_target
+            -- Target tahunan (triwulan = 0) jadi pembagi realisasi tiap TW; kalau kosong, pakai target TW.
+            SELECT tw.id, ti.indikator_id, ti.tahun, gs.n AS triwulan,
+                   -- teks target ikut target tahunan kalau ada, supaya tampilan = pembagi
+                   CASE WHEN ta.indikator_id IS NOT NULL THEN ta.target_display ELSE tw.target_display END AS target_display,
+                   COALESCE(ta.target_num, tw.target_num) AS target
+            FROM (SELECT DISTINCT indikator_id, tahun FROM kinerja_target) ti
+            CROSS JOIN generate_series(1, 4) AS gs(n)
+            LEFT JOIN (
+              SELECT id, indikator_id, tahun, triwulan, target_display,
+                     COALESCE(
+                       target,
+                       CASE UPPER(TRIM(target_display))
+                         WHEN 'D'  THEN 1 WHEN 'C'  THEN 2 WHEN 'CC' THEN 3 WHEN 'B'  THEN 4
+                         WHEN 'BB' THEN 5 WHEN 'A'  THEN 6 WHEN 'AA' THEN 7
+                       END
+                     ) AS target_num
+              FROM kinerja_target WHERE triwulan BETWEEN 1 AND 4
+            ) tw ON tw.indikator_id = ti.indikator_id AND tw.tahun = ti.tahun AND tw.triwulan = gs.n
+            LEFT JOIN (
+              SELECT indikator_id, tahun, target_display,
+                     COALESCE(
+                       target,
+                       CASE UPPER(TRIM(target_display))
+                         WHEN 'D'  THEN 1 WHEN 'C'  THEN 2 WHEN 'CC' THEN 3 WHEN 'B'  THEN 4
+                         WHEN 'BB' THEN 5 WHEN 'A'  THEN 6 WHEN 'AA' THEN 7
+                       END
+                     ) AS target_num
+              FROM kinerja_target WHERE triwulan = 0
+            ) ta ON ta.indikator_id = ti.indikator_id AND ta.tahun = ti.tahun
           ) kt
               ON kt.indikator_id = ki.id
              AND kt.tahun        = ${tahun}
@@ -3794,15 +4326,35 @@ export const handler = async (event) => {
              AND kr.bulan  = ${bulan}
              AND kr.tahun  = ${tahun}
             LEFT JOIN (
-            SELECT id, indikator_id, tahun, triwulan, target_display,
-                   COALESCE(
-                     target,
-                     CASE UPPER(TRIM(target_display))
-                       WHEN 'D'  THEN 1 WHEN 'C'  THEN 2 WHEN 'CC' THEN 3 WHEN 'B'  THEN 4
-                       WHEN 'BB' THEN 5 WHEN 'A'  THEN 6 WHEN 'AA' THEN 7
-                     END
-                   ) AS target
-            FROM kinerja_target
+            -- Target tahunan (triwulan = 0) jadi pembagi realisasi tiap TW; kalau kosong, pakai target TW.
+            SELECT tw.id, ti.indikator_id, ti.tahun, gs.n AS triwulan,
+                   -- teks target ikut target tahunan kalau ada, supaya tampilan = pembagi
+                   CASE WHEN ta.indikator_id IS NOT NULL THEN ta.target_display ELSE tw.target_display END AS target_display,
+                   COALESCE(ta.target_num, tw.target_num) AS target
+            FROM (SELECT DISTINCT indikator_id, tahun FROM kinerja_target) ti
+            CROSS JOIN generate_series(1, 4) AS gs(n)
+            LEFT JOIN (
+              SELECT id, indikator_id, tahun, triwulan, target_display,
+                     COALESCE(
+                       target,
+                       CASE UPPER(TRIM(target_display))
+                         WHEN 'D'  THEN 1 WHEN 'C'  THEN 2 WHEN 'CC' THEN 3 WHEN 'B'  THEN 4
+                         WHEN 'BB' THEN 5 WHEN 'A'  THEN 6 WHEN 'AA' THEN 7
+                       END
+                     ) AS target_num
+              FROM kinerja_target WHERE triwulan BETWEEN 1 AND 4
+            ) tw ON tw.indikator_id = ti.indikator_id AND tw.tahun = ti.tahun AND tw.triwulan = gs.n
+            LEFT JOIN (
+              SELECT indikator_id, tahun, target_display,
+                     COALESCE(
+                       target,
+                       CASE UPPER(TRIM(target_display))
+                         WHEN 'D'  THEN 1 WHEN 'C'  THEN 2 WHEN 'CC' THEN 3 WHEN 'B'  THEN 4
+                         WHEN 'BB' THEN 5 WHEN 'A'  THEN 6 WHEN 'AA' THEN 7
+                       END
+                     ) AS target_num
+              FROM kinerja_target WHERE triwulan = 0
+            ) ta ON ta.indikator_id = ti.indikator_id AND ta.tahun = ti.tahun
           ) kt
               ON kt.indikator_id = ki.id
              AND kt.tahun        = ${tahun}
@@ -3989,15 +4541,35 @@ export const handler = async (event) => {
           LEFT JOIN kinerja_group kg ON kg.id = ki.group_id
           LEFT JOIN kinerja_realisasi kr ON kr.indikator_id = ki.id AND kr.bulan = ${bulan} AND kr.tahun = ${tahun}
           LEFT JOIN (
-            SELECT id, indikator_id, tahun, triwulan, target_display,
-                   COALESCE(
-                     target,
-                     CASE UPPER(TRIM(target_display))
-                       WHEN 'D'  THEN 1 WHEN 'C'  THEN 2 WHEN 'CC' THEN 3 WHEN 'B'  THEN 4
-                       WHEN 'BB' THEN 5 WHEN 'A'  THEN 6 WHEN 'AA' THEN 7
-                     END
-                   ) AS target
-            FROM kinerja_target
+            -- Target tahunan (triwulan = 0) jadi pembagi realisasi tiap TW; kalau kosong, pakai target TW.
+            SELECT tw.id, ti.indikator_id, ti.tahun, gs.n AS triwulan,
+                   -- teks target ikut target tahunan kalau ada, supaya tampilan = pembagi
+                   CASE WHEN ta.indikator_id IS NOT NULL THEN ta.target_display ELSE tw.target_display END AS target_display,
+                   COALESCE(ta.target_num, tw.target_num) AS target
+            FROM (SELECT DISTINCT indikator_id, tahun FROM kinerja_target) ti
+            CROSS JOIN generate_series(1, 4) AS gs(n)
+            LEFT JOIN (
+              SELECT id, indikator_id, tahun, triwulan, target_display,
+                     COALESCE(
+                       target,
+                       CASE UPPER(TRIM(target_display))
+                         WHEN 'D'  THEN 1 WHEN 'C'  THEN 2 WHEN 'CC' THEN 3 WHEN 'B'  THEN 4
+                         WHEN 'BB' THEN 5 WHEN 'A'  THEN 6 WHEN 'AA' THEN 7
+                       END
+                     ) AS target_num
+              FROM kinerja_target WHERE triwulan BETWEEN 1 AND 4
+            ) tw ON tw.indikator_id = ti.indikator_id AND tw.tahun = ti.tahun AND tw.triwulan = gs.n
+            LEFT JOIN (
+              SELECT indikator_id, tahun, target_display,
+                     COALESCE(
+                       target,
+                       CASE UPPER(TRIM(target_display))
+                         WHEN 'D'  THEN 1 WHEN 'C'  THEN 2 WHEN 'CC' THEN 3 WHEN 'B'  THEN 4
+                         WHEN 'BB' THEN 5 WHEN 'A'  THEN 6 WHEN 'AA' THEN 7
+                       END
+                     ) AS target_num
+              FROM kinerja_target WHERE triwulan = 0
+            ) ta ON ta.indikator_id = ti.indikator_id AND ta.tahun = ti.tahun
           ) kt ON kt.indikator_id = ki.id AND kt.tahun = ${tahun}
              AND kt.triwulan = CEIL(${bulan}::int / 3.0)::int
           LEFT JOIN users u ON u.id = kr.diisi_oleh
@@ -4073,15 +4645,35 @@ export const handler = async (event) => {
           LEFT JOIN kinerja_group kg ON kg.id = ki.group_id
           LEFT JOIN kinerja_realisasi kr ON kr.indikator_id = ki.id AND kr.bulan = ${bulan}
           LEFT JOIN (
-            SELECT id, indikator_id, tahun, triwulan, target_display,
-                   COALESCE(
-                     target,
-                     CASE UPPER(TRIM(target_display))
-                       WHEN 'D'  THEN 1 WHEN 'C'  THEN 2 WHEN 'CC' THEN 3 WHEN 'B'  THEN 4
-                       WHEN 'BB' THEN 5 WHEN 'A'  THEN 6 WHEN 'AA' THEN 7
-                     END
-                   ) AS target
-            FROM kinerja_target
+            -- Target tahunan (triwulan = 0) jadi pembagi realisasi tiap TW; kalau kosong, pakai target TW.
+            SELECT tw.id, ti.indikator_id, ti.tahun, gs.n AS triwulan,
+                   -- teks target ikut target tahunan kalau ada, supaya tampilan = pembagi
+                   CASE WHEN ta.indikator_id IS NOT NULL THEN ta.target_display ELSE tw.target_display END AS target_display,
+                   COALESCE(ta.target_num, tw.target_num) AS target
+            FROM (SELECT DISTINCT indikator_id, tahun FROM kinerja_target) ti
+            CROSS JOIN generate_series(1, 4) AS gs(n)
+            LEFT JOIN (
+              SELECT id, indikator_id, tahun, triwulan, target_display,
+                     COALESCE(
+                       target,
+                       CASE UPPER(TRIM(target_display))
+                         WHEN 'D'  THEN 1 WHEN 'C'  THEN 2 WHEN 'CC' THEN 3 WHEN 'B'  THEN 4
+                         WHEN 'BB' THEN 5 WHEN 'A'  THEN 6 WHEN 'AA' THEN 7
+                       END
+                     ) AS target_num
+              FROM kinerja_target WHERE triwulan BETWEEN 1 AND 4
+            ) tw ON tw.indikator_id = ti.indikator_id AND tw.tahun = ti.tahun AND tw.triwulan = gs.n
+            LEFT JOIN (
+              SELECT indikator_id, tahun, target_display,
+                     COALESCE(
+                       target,
+                       CASE UPPER(TRIM(target_display))
+                         WHEN 'D'  THEN 1 WHEN 'C'  THEN 2 WHEN 'CC' THEN 3 WHEN 'B'  THEN 4
+                         WHEN 'BB' THEN 5 WHEN 'A'  THEN 6 WHEN 'AA' THEN 7
+                       END
+                     ) AS target_num
+              FROM kinerja_target WHERE triwulan = 0
+            ) ta ON ta.indikator_id = ti.indikator_id AND ta.tahun = ti.tahun
           ) kt ON kt.indikator_id = ki.id
              AND kt.tahun = COALESCE(kr.tahun, ${tahun})
              AND kt.triwulan = CEIL(${bulan}::int / 3.0)::int
@@ -4125,15 +4717,35 @@ export const handler = async (event) => {
           LEFT JOIN kinerja_group kg ON kg.id = ki.group_id
           LEFT JOIN kinerja_realisasi kr ON kr.indikator_id = ki.id AND kr.tahun = ${tahun}
           LEFT JOIN (
-            SELECT id, indikator_id, tahun, triwulan, target_display,
-                   COALESCE(
-                     target,
-                     CASE UPPER(TRIM(target_display))
-                       WHEN 'D'  THEN 1 WHEN 'C'  THEN 2 WHEN 'CC' THEN 3 WHEN 'B'  THEN 4
-                       WHEN 'BB' THEN 5 WHEN 'A'  THEN 6 WHEN 'AA' THEN 7
-                     END
-                   ) AS target
-            FROM kinerja_target
+            -- Target tahunan (triwulan = 0) jadi pembagi realisasi tiap TW; kalau kosong, pakai target TW.
+            SELECT tw.id, ti.indikator_id, ti.tahun, gs.n AS triwulan,
+                   -- teks target ikut target tahunan kalau ada, supaya tampilan = pembagi
+                   CASE WHEN ta.indikator_id IS NOT NULL THEN ta.target_display ELSE tw.target_display END AS target_display,
+                   COALESCE(ta.target_num, tw.target_num) AS target
+            FROM (SELECT DISTINCT indikator_id, tahun FROM kinerja_target) ti
+            CROSS JOIN generate_series(1, 4) AS gs(n)
+            LEFT JOIN (
+              SELECT id, indikator_id, tahun, triwulan, target_display,
+                     COALESCE(
+                       target,
+                       CASE UPPER(TRIM(target_display))
+                         WHEN 'D'  THEN 1 WHEN 'C'  THEN 2 WHEN 'CC' THEN 3 WHEN 'B'  THEN 4
+                         WHEN 'BB' THEN 5 WHEN 'A'  THEN 6 WHEN 'AA' THEN 7
+                       END
+                     ) AS target_num
+              FROM kinerja_target WHERE triwulan BETWEEN 1 AND 4
+            ) tw ON tw.indikator_id = ti.indikator_id AND tw.tahun = ti.tahun AND tw.triwulan = gs.n
+            LEFT JOIN (
+              SELECT indikator_id, tahun, target_display,
+                     COALESCE(
+                       target,
+                       CASE UPPER(TRIM(target_display))
+                         WHEN 'D'  THEN 1 WHEN 'C'  THEN 2 WHEN 'CC' THEN 3 WHEN 'B'  THEN 4
+                         WHEN 'BB' THEN 5 WHEN 'A'  THEN 6 WHEN 'AA' THEN 7
+                       END
+                     ) AS target_num
+              FROM kinerja_target WHERE triwulan = 0
+            ) ta ON ta.indikator_id = ti.indikator_id AND ta.tahun = ti.tahun
           ) kt ON kt.indikator_id = ki.id AND kt.tahun = ${tahun}
              AND kt.triwulan = COALESCE(CEIL(kr.bulan / 3.0)::int, 4)
           LEFT JOIN users u ON u.id = kr.diisi_oleh
@@ -4176,15 +4788,35 @@ export const handler = async (event) => {
           LEFT JOIN kinerja_group kg ON kg.id = ki.group_id
           LEFT JOIN kinerja_realisasi kr ON kr.indikator_id = ki.id
           LEFT JOIN (
-            SELECT id, indikator_id, tahun, triwulan, target_display,
-                   COALESCE(
-                     target,
-                     CASE UPPER(TRIM(target_display))
-                       WHEN 'D'  THEN 1 WHEN 'C'  THEN 2 WHEN 'CC' THEN 3 WHEN 'B'  THEN 4
-                       WHEN 'BB' THEN 5 WHEN 'A'  THEN 6 WHEN 'AA' THEN 7
-                     END
-                   ) AS target
-            FROM kinerja_target
+            -- Target tahunan (triwulan = 0) jadi pembagi realisasi tiap TW; kalau kosong, pakai target TW.
+            SELECT tw.id, ti.indikator_id, ti.tahun, gs.n AS triwulan,
+                   -- teks target ikut target tahunan kalau ada, supaya tampilan = pembagi
+                   CASE WHEN ta.indikator_id IS NOT NULL THEN ta.target_display ELSE tw.target_display END AS target_display,
+                   COALESCE(ta.target_num, tw.target_num) AS target
+            FROM (SELECT DISTINCT indikator_id, tahun FROM kinerja_target) ti
+            CROSS JOIN generate_series(1, 4) AS gs(n)
+            LEFT JOIN (
+              SELECT id, indikator_id, tahun, triwulan, target_display,
+                     COALESCE(
+                       target,
+                       CASE UPPER(TRIM(target_display))
+                         WHEN 'D'  THEN 1 WHEN 'C'  THEN 2 WHEN 'CC' THEN 3 WHEN 'B'  THEN 4
+                         WHEN 'BB' THEN 5 WHEN 'A'  THEN 6 WHEN 'AA' THEN 7
+                       END
+                     ) AS target_num
+              FROM kinerja_target WHERE triwulan BETWEEN 1 AND 4
+            ) tw ON tw.indikator_id = ti.indikator_id AND tw.tahun = ti.tahun AND tw.triwulan = gs.n
+            LEFT JOIN (
+              SELECT indikator_id, tahun, target_display,
+                     COALESCE(
+                       target,
+                       CASE UPPER(TRIM(target_display))
+                         WHEN 'D'  THEN 1 WHEN 'C'  THEN 2 WHEN 'CC' THEN 3 WHEN 'B'  THEN 4
+                         WHEN 'BB' THEN 5 WHEN 'A'  THEN 6 WHEN 'AA' THEN 7
+                       END
+                     ) AS target_num
+              FROM kinerja_target WHERE triwulan = 0
+            ) ta ON ta.indikator_id = ti.indikator_id AND ta.tahun = ti.tahun
           ) kt ON kt.indikator_id = ki.id
              AND kt.tahun = COALESCE(kr.tahun, ${tahun})
              AND kt.triwulan = COALESCE(CEIL(kr.bulan / 3.0)::int, 4)

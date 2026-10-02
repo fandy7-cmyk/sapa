@@ -163,10 +163,11 @@ export const handler = async (event) => {
       await runOnce('users.urutan_laporan', () => sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS urutan_laporan INTEGER`);
       await runOnce('users.avatar_url', () => sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar_url TEXT`);
       await runOnce('users.tanda_tangan', () => sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS tanda_tangan TEXT`);
+      await runOnce('users.is_active', () => sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS is_active BOOLEAN NOT NULL DEFAULT TRUE`);
       const users = await sql`
         SELECT u.id, u.nama, u.nip, u.email, u.is_admin, u.last_login, u.created_at,
                u.bidang_id, b.nama AS bidang_nama, b.singkatan AS bidang_singkatan,
-               u.urutan_laporan,
+               u.urutan_laporan, u.is_active,
                u.tanda_tangan,
                COALESCE(u.avatar_url, p.foto_url) AS foto_url,
                COALESCE(
@@ -261,7 +262,7 @@ export const handler = async (event) => {
     }
   }
 
-  if (event.httpMethod === 'PUT' && userId && !isPermissions && segments[1] !== 'indikator') {
+  if (event.httpMethod === 'PUT' && userId && !isPermissions && segments[1] !== 'indikator' && segments[1] !== 'status') {
     const { nama, nip, bidang_id } = parseBody(event);
     const bodyPut        = parseBody(event);
     const emailProvided  = bodyPut.email !== undefined;   // undefined = jangan diubah; ''/'-' = kosongkan
@@ -357,6 +358,32 @@ export const handler = async (event) => {
     } catch (err) {
       console.error('[POST /api/users/:id/reset-password]', err);
       return errorResponse('Gagal mereset password');
+    }
+  }
+
+  if (event.httpMethod === 'PUT' && userId && segments[1] === 'status') {
+    const { is_active } = parseBody(event);
+    if (typeof is_active !== 'boolean') return errorResponse('Format status tidak valid', 400);
+    try {
+      await runOnce('users.is_active', () => sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS is_active BOOLEAN NOT NULL DEFAULT TRUE`);
+      const check = await sql`SELECT id, nama, is_admin FROM users WHERE id = ${userId} LIMIT 1`;
+      if (!check.length) return errorResponse('Pengguna tidak ditemukan', 404);
+      if (check[0].is_admin) return errorResponse('Tidak dapat menonaktifkan Super Admin', 403);
+
+      await sql`UPDATE users SET is_active = ${is_active} WHERE id = ${userId}`;
+      // Nonaktif -> cabut semua sesi (refresh token) biar gak bisa perpanjang sesi.
+      if (!is_active) {
+        await sql`UPDATE refresh_tokens SET revoked_at = NOW() WHERE user_id = ${userId} AND revoked_at IS NULL`;
+      }
+      await logAudit(sql, event, {
+        user_id: admin.id, nama: admin.nama, email: admin.email,
+        aksi: is_active ? 'activate_user' : 'deactivate_user', entitas: 'user', entitas_id: userId,
+        detail: { target_nama: check[0].nama }
+      });
+      return jsonResponse({ ok: true, is_active });
+    } catch (err) {
+      console.error('[PUT /api/users/:id/status]', err);
+      return errorResponse('Gagal mengubah status pengguna');
     }
   }
 

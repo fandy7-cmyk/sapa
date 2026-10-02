@@ -1880,7 +1880,8 @@ async function loadLaporanKinerja() {
       lastVal = cnt ? (tipeHitung === 'rata_rata' ? sum / cnt : sum) : null;
     }
 
-    // Target = target triwulan dari bulan akhir rentang (TW yang dilaporkan)
+    // Target = target tahunan (pembagi realisasi); backend sudah mengirim target tahunan di tiap bulan,
+    // fallback ke target TW kalau target tahunan belum diisi
     const _tg = row.targetPerBulan?.[bulanSampai];
     if (_tg) { row.target_tahun = _tg.t; row.target_display = _tg.d; }
 
@@ -1934,7 +1935,7 @@ async function loadLaporanKinerja() {
       <tr class="lap-th-row1" style="background:var(--hijau)">
         <th rowspan="2" style="width:34px;text-align:center;position:sticky;left:0;z-index:3">No</th>
         <th rowspan="2" style="min-width:220px;position:sticky;left:34px;z-index:3">Indikator Kinerja</th>
-        <th rowspan="2" style="width:65px;text-align:center">Target TW ${_LAP_ROMAWI[_lapTwOf(bulanSampai)-1]}</th>
+        <th rowspan="2" style="width:80px;text-align:center;white-space:normal">Target Tahunan</th>
         <th rowspan="2" style="width:55px;text-align:center">Satuan</th>
         <th rowspan="2" style="min-width:130px">Unit Kerja</th>
         ${twHeaders}

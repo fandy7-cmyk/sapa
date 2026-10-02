@@ -226,7 +226,7 @@ function renderUsersTable() {
         <td>${esc(u.nip || '-')}</td>
         <td>${esc(u.email || '-')}</td>
         <td style="max-width:220px;white-space:normal;word-break:break-word;line-height:1.35">${getBidangNama(u.bidang_id)}</td>
-        <td><span class="badge badge-blue">User</span></td>
+        <td><span class="badge ${u.is_active === false ? 'badge-abu' : 'badge-hijau'}">${u.is_active === false ? 'Nonaktif' : 'Aktif'}</span></td>
         <td>${u.last_login ? fmtDate(u.last_login) : '-'}</td>
         <td style="white-space:nowrap">
           <button class="btn btn-ghost btn-sm" data-tip="Edit" onclick="editUser(${u.id})">
@@ -243,6 +243,9 @@ function renderUsersTable() {
           </button>
           <button class="btn btn-ghost btn-sm" data-tip="Reset Password" onclick="resetUserPassword(${u.id}, '${esc(u.nama)}')">
             <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 7a2 2 0 012 2m0 0a2 2 0 01-2 2m2-2h3M9 7H6a2 2 0 00-2 2v9a2 2 0 002 2h9a2 2 0 002-2v-3"/></svg>
+          </button>
+          <button class="btn btn-ghost btn-sm" data-tip="${u.is_active === false ? 'Aktifkan' : 'Nonaktifkan'}" onclick="toggleUserStatus(${u.id}, ${u.is_active !== false}, '${esc(u.nama)}')">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${u.is_active === false ? '<path d="M9 12l2 2 4-4"/><circle cx="12" cy="12" r="10"/>' : '<path d="M18.36 6.64A9 9 0 0 1 20.77 15"/><path d="M6.16 6.16a9 9 0 1 0 12.68 12.68"/><path d="M12 2v4"/><path d="M2 12h4"/>'}</svg>
           </button>
           <button class="btn btn-ghost btn-sm" data-tip="Paksa Logout" onclick="forceLogoutUser(${u.id}, '${esc(u.nama)}')">
             <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
@@ -474,6 +477,30 @@ async function deleteUser(id) {
   if (!ok) return;
   await fetch(`/api/users/${id}`, { method: 'DELETE', headers: authHeaders() });
   toast('Pengguna berhasil dihapus'); loadUsers();
+}
+
+async function toggleUserStatus(id, currentAktif, nama) {
+  const ok = await showConfirm({
+    title: currentAktif ? 'Nonaktifkan Pengguna' : 'Aktifkan Pengguna',
+    msg: currentAktif
+      ? `<strong>${nama}</strong> tidak akan bisa login dan semua sesinya dicabut. Data tetap tersimpan.`
+      : `<strong>${nama}</strong> akan bisa login kembali.`,
+    okText: currentAktif ? 'Ya, Nonaktifkan' : 'Ya, Aktifkan',
+    icon: 'person',
+    type: 'warning',
+  });
+  if (!ok) return;
+  try {
+    const r = await fetch(`/api/users/${id}/status`, {
+      method: 'PUT',
+      headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+      body: JSON.stringify({ is_active: !currentAktif }),
+    });
+    const d = await r.json();
+    if (!r.ok) { toast(d.error || 'Gagal mengubah status', 'error'); return; }
+    toast(!currentAktif ? 'Pengguna diaktifkan' : 'Pengguna dinonaktifkan', 'success');
+    loadUsers();
+  } catch { toast('Gagal mengubah status', 'error'); }
 }
 
 async function forceLogoutUser(id, nama) {

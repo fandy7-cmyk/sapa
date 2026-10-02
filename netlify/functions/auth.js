@@ -24,6 +24,7 @@ export const handler = async (event) => {
 
     try {
       await runOnce('users.tanda_tangan', () => sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS tanda_tangan TEXT`);
+      await runOnce('users.is_active', () => sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS is_active BOOLEAN NOT NULL DEFAULT TRUE`);
       const rows = await sql`
         SELECT u.*, b.nama AS bidang_nama, b.singkatan AS bidang_singkatan
         FROM users u
@@ -38,6 +39,10 @@ export const handler = async (event) => {
 
       const user = rows[0];
       const valid = await bcrypt.compare(password, user.password_hash);
+      if (valid && user.is_active === false) {
+        await logAudit(sql, event, { user_id: user.id, nama: user.nama, email: user.email, aksi: 'login_failed', detail: { nip: nipNorm, reason: 'user_inactive' }, lokasi_client: lokasi });
+        return errorResponse('Akun Anda dinonaktifkan, hubungi admin', 403);
+      }
       if (!valid) {
         await recordLoginAttempt(sql, nipNorm, ip);
         await logAudit(sql, event, { user_id: user.id, nama: user.nama, email: user.email, aksi: 'login_failed', detail: { nip: nipNorm, reason: 'wrong_password' }, lokasi_client: lokasi });
@@ -99,9 +104,10 @@ export const handler = async (event) => {
         return errorResponse('Refresh token kedaluwarsa, silakan login ulang', 401);
       }
 
-      const userRows = await sql`SELECT id, nama, email, is_admin FROM users WHERE id = ${rt.user_id} LIMIT 1`;
+      const userRows = await sql`SELECT id, nama, email, is_admin, is_active FROM users WHERE id = ${rt.user_id} LIMIT 1`;
       if (!userRows.length) return errorResponse('User tidak ditemukan', 404);
       const user = userRows[0];
+      if (user.is_active === false) return errorResponse('Akun Anda dinonaktifkan, hubungi admin', 403);
 
       const { token: newRefreshToken, hash: newHash, expires_at } = generateRefreshToken();
       await sql`

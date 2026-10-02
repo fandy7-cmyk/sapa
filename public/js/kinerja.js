@@ -2044,6 +2044,7 @@ function renderIndikatorAdmin() {
           }
         </td>
         <td style="white-space:nowrap">
+          <button class="btn btn-ghost btn-sm" data-tip="Assign User" onclick="openAssignUserIndikator(${row.id})"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M19 8v6M22 11h-6"/></svg></button>
           <button class="btn btn-ghost btn-sm" data-tip="Edit" onclick="openIndikatorModal(${row.id})"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg></button>
           <button class="btn-hapus" data-tip="Hapus" onclick="deleteIndikator(${row.id})"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path stroke-linecap="round" stroke-linejoin="round" d="M19 6l-1 14H6L5 6"/><path stroke-linecap="round" stroke-linejoin="round" d="M10 11v6m4-6v6"/><path stroke-linecap="round" stroke-linejoin="round" d="M9 6V4h6v2"/></svg></button>
         </td>
@@ -2471,6 +2472,112 @@ async function saveIndikator() {
     // Indikator" & mini chart "Tren Per Bulan" gak nampilin angka basi.
     try { if (typeof _invalidateAllKinerjaDashboardCache === 'function') _invalidateAllKinerjaDashboardCache(); } catch (_) {}
   } catch (err) { toast('Error: ' + err.message, 'error'); }
+}
+
+// ── Assign User per Indikator (tabel user_indikator, sama dgn "Assign Indikator" di halaman Pengguna) ──
+let _auiIndikatorId = null, _auiUsers = [], _auiSelected = new Set(), _auiPinned = new Set(), _auiLoaded = false, _auiSeq = 0;
+
+function _auiEnsureModal() {
+  if (document.getElementById('modalAssignUserIndikator')) return;
+  const m = document.createElement('div');
+  m.className = 'modal-overlay';
+  m.id = 'modalAssignUserIndikator';
+  m.innerHTML = `
+    <div class="modal" style="max-width:560px;width:95%">
+      <div class="modal-header">
+        <div class="modal-title-wrap"><span class="modal-icon-badge"><svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M19 8v6M22 11h-6"/></svg></span><div class="modal-title">Assign User</div></div>
+        <button class="btn-close" onclick="closeModal('modalAssignUserIndikator')"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg></button>
+      </div>
+      <div class="modal-body" style="padding-bottom:0">
+        <div style="font-size:.82rem;color:#64748b;margin-bottom:10px">Indikator: <strong id="auiInfo"></strong></div>
+        <div class="search-wrap" style="margin-bottom:6px;min-width:0">
+          <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-4.35-4.35"/></svg>
+          <input type="text" id="auiSearch" placeholder="Cari nama atau NIP..." oninput="_auiRender()" style="width:100%;box-sizing:border-box">
+        </div>
+        <div style="font-size:.75rem;color:var(--hijau);font-weight:600;margin-bottom:4px;text-align:right"><span id="auiCounter">0 dipilih</span></div>
+      </div>
+      <div id="auiList" style="max-height:380px;overflow-y:auto;border-top:1px solid #e2e8f0;border-bottom:1px solid #e2e8f0"></div>
+      <div class="modal-footer">
+        <button class="btn btn-ghost" onclick="closeModal('modalAssignUserIndikator')">Batal</button>
+        <button class="btn btn-primary" id="auiSaveBtn" onclick="saveAssignUserIndikator()">Simpan</button>
+      </div>
+    </div>`;
+  m.addEventListener('click', (e) => { if (e.target === m) closeModal('modalAssignUserIndikator'); });
+  document.body.appendChild(m);
+}
+
+async function openAssignUserIndikator(id) {
+  _auiEnsureModal();
+  const seq = ++_auiSeq;
+  const row = _indikatorList.find(r => r.id === id);
+  _auiIndikatorId = id; _auiUsers = []; _auiSelected = new Set(); _auiPinned = new Set(); _auiLoaded = false;
+  document.getElementById('auiInfo').textContent = row?.indikator_kinerja || '';
+  document.getElementById('auiSearch').value = '';
+  document.getElementById('auiSaveBtn').disabled = true;
+  document.getElementById('auiList').innerHTML = '<div style="padding:18px;text-align:center;color:var(--teks-muted);font-size:.85rem">Memuat data...</div>';
+  document.getElementById('auiCounter').textContent = '0 dipilih';
+  openModal('modalAssignUserIndikator');
+  try {
+    const r = await fetch(`/api/kinerja/indikator/${id}/users`, { headers: authHeaders() });
+    const d = await r.json();
+    if (seq !== _auiSeq) return;
+    if (!r.ok) throw new Error(d.error || 'gagal');
+    _auiUsers = d.users || [];
+    _auiSelected = new Set((d.user_ids || []).map(Number));
+    // Yang sudah ter-assign dinaikkan ke atas saat modal dibuka (urutan tidak loncat saat centang/uncentang).
+    _auiPinned = new Set(_auiSelected);
+    _auiLoaded = true;
+    document.getElementById('auiSaveBtn').disabled = false;
+    _auiRender();
+  } catch {
+    if (seq !== _auiSeq) return;
+    // Gagal muat: Simpan tetap terkunci supaya assignment lama tidak tertimpa daftar kosong.
+    document.getElementById('auiList').innerHTML = '<div style="padding:18px;text-align:center;color:var(--merah);font-size:.85rem">Gagal memuat user. Tutup lalu coba lagi.</div>';
+  }
+}
+
+function _auiRender() {
+  const q = (document.getElementById('auiSearch')?.value || '').toLowerCase().trim();
+  const list = _auiUsers
+    .filter(u => !q || (u.nama || '').toLowerCase().includes(q) || (u.nip || '').toLowerCase().includes(q))
+    .sort((a, b) => (_auiPinned.has(Number(b.id)) - _auiPinned.has(Number(a.id))) || (a.nama || '').localeCompare(b.nama || ''));
+  document.getElementById('auiCounter').textContent = `${_auiSelected.size} dipilih`;
+  document.getElementById('auiList').innerHTML = list.length
+    ? list.map(u => `
+      <label style="display:flex;align-items:center;gap:10px;padding:9px 16px;border-bottom:1px solid #f1f5f9;cursor:pointer;${_auiSelected.has(Number(u.id)) ? 'background:#f0fdfa' : ''}"
+             onmouseenter="this.style.background=this.querySelector('input').checked?'#f0fdfa':'#f8fafc'"
+             onmouseleave="this.style.background=this.querySelector('input').checked?'#f0fdfa':''">
+        <input type="checkbox" class="chk" ${_auiSelected.has(Number(u.id)) ? 'checked' : ''} onchange="_auiToggle(${u.id}, this.checked); this.closest('label').style.background = this.checked ? '#f0fdfa' : ''">
+        <span style="flex:1;min-width:0">
+          <span style="font-weight:600;font-size:.85rem">${escHtml(u.nama)}</span>${u.is_active === false ? ' <span class="badge badge-abu" style="margin-left:4px">Nonaktif</span>' : ''}
+          <span style="display:block;font-size:.72rem;color:var(--teks-muted)">${escHtml(u.nip || '-')}${u.bidang_nama ? ' · ' + escHtml(u.bidang_nama) : ''}</span>
+        </span>
+      </label>`).join('')
+    : '<div style="padding:18px;text-align:center;color:var(--teks-muted);font-size:.85rem">Tidak ada user untuk unit kerja ini</div>';
+}
+
+function _auiToggle(uid, on) {
+  uid = Number(uid);
+  if (on) _auiSelected.add(uid); else _auiSelected.delete(uid);
+  document.getElementById('auiCounter').textContent = `${_auiSelected.size} dipilih`;
+}
+
+async function saveAssignUserIndikator() {
+  if (!_auiLoaded || !_auiIndikatorId) return;
+  const btn = document.getElementById('auiSaveBtn');
+  btn.disabled = true;
+  try {
+    const r = await fetch(`/api/kinerja/indikator/${_auiIndikatorId}/users`, {
+      method: 'PUT',
+      headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+      body: JSON.stringify({ user_ids: [..._auiSelected] }),
+    });
+    const d = await r.json();
+    if (!r.ok) { toast(d.error || 'Gagal menyimpan', 'error'); btn.disabled = false; return; }
+    toast('Assign user berhasil disimpan', 'success');
+    closeModal('modalAssignUserIndikator');
+    loadIndikatorAdmin({ keepFilter: true });
+  } catch { toast('Gagal menyimpan', 'error'); btn.disabled = false; }
 }
 
 async function deleteIndikator(id) {
@@ -3045,6 +3152,7 @@ async function loadKelolaTarget() {
     const dt = await rt.json();
     const indikatorList = di.indikator || [];
     const targetList    = dt.target    || [];
+    const tahunanList   = dt.tahunan   || [];
 
     
     const tMap = {};
@@ -3052,9 +3160,14 @@ async function loadKelolaTarget() {
       if (!tMap[t.indikator_id]) tMap[t.indikator_id] = {};
       tMap[t.indikator_id][`${t.tahun}-${t.triwulan || 4}`] = t;
     }
+    // Target tahunan disimpan dengan key `${tahun}-0`
+    for (const t of tahunanList) {
+      if (!tMap[t.indikator_id]) tMap[t.indikator_id] = {};
+      tMap[t.indikator_id][`${t.tahun}-0`] = t;
+    }
 
     
-    _ktAllTahun = [...new Set(targetList.map(t => t.tahun))].sort((a, b) => a - b);
+    _ktAllTahun = [...new Set([...targetList, ...tahunanList].map(t => t.tahun))].sort((a, b) => a - b);
 
     
     _ktIndList = indikatorList.map(ind => ({
@@ -3139,9 +3252,9 @@ function renderKelolaTarget() {
   });
 
   if (!filtered.length) {
-    const _colCount = 2 + visibleTahun.length * 4 + 1;
+    const _colCount = 2 + visibleTahun.length * 5 + 1;
     const _tahunHeaders = visibleTahun.map(y =>
-      `<th colspan="4" style="text-align:center;border-left:1px solid rgba(255,255,255,.15)">${y}</th>`
+      `<th colspan="5" style="text-align:center;border-left:1px solid rgba(255,255,255,.15)">${y}</th>`
     ).join('');
     container.innerHTML = `
       <table class="kinerja-table">
@@ -3172,16 +3285,18 @@ function renderKelolaTarget() {
   // Header kolom tahun - ikut style .kinerja-table th (var(--hijau), #fff)
   const COL_W = 84; // px per kolom triwulan
   const tahunHeaders = visibleTahun.map(y =>
-    `<th colspan="4" style="text-align:center;border-left:1px solid rgba(255,255,255,.15)">${y}</th>`
+    `<th colspan="5" style="text-align:center;border-left:1px solid rgba(255,255,255,.15)">${y}</th>`
   ).join('');
-  const twSubHeaders = visibleTahun.map(() => [1, 2, 3, 4].map(n =>
-    `<th style="min-width:${COL_W}px;width:${COL_W}px;text-align:center;${n === 1 ? 'border-left:1px solid rgba(255,255,255,.15)' : ''}">TW ${TW_ROMAWI[n]}</th>`
+  const twSubHeaders = visibleTahun.map(() => [0, 1, 2, 3, 4].map(n =>
+    n === 0
+      ? `<th style="min-width:${COL_W}px;width:${COL_W}px;text-align:center;border-left:1px solid rgba(255,255,255,.15)" data-tip="Target tahunan = pembagi realisasi TW I-IV">Tahunan</th>`
+      : `<th style="min-width:${COL_W}px;width:${COL_W}px;text-align:center">TW ${TW_ROMAWI[n]}</th>`
   ).join('')).join('');
   const addColHeader = `<th rowspan="2" style="width:80px;text-align:center;border-left:1px solid rgba(255,255,255,.15)">Aksi</th>`;
 
   const rows = slice.map((ind, i) => {
     const no = start + i + 1;
-    const targetCells = visibleTahun.flatMap(y => [1, 2, 3, 4].map(tw => ({ y, tw }))).map(({ y, tw }) => {
+    const targetCells = visibleTahun.flatMap(y => [0, 1, 2, 3, 4].map(tw => ({ y, tw }))).map(({ y, tw }) => {
       const t = ind.targets[`${y}-${tw}`];
       const val = t ? (t.target_display != null ? String(t.target_display) : (t.target != null ? String(t.target) : '')) : '';
       const isPredikat = ind.tipe_nilai === 'predikat';
@@ -3195,7 +3310,7 @@ function renderKelolaTarget() {
       
       const isStuck = t && t.target == null && t.target_display != null && String(t.target_display).trim() !== '';
       if (t) {
-        return `<td style="text-align:center;border-left:1px solid var(--abu-1)">
+        return `<td style="text-align:center;border-left:1px solid var(--abu-1)${tw === 0 ? ';background:rgba(13,148,136,.06)' : ''}">
           <div style="position:relative;display:inline-block">
           ${isPredikat
             ? `<div class="select-wrap" style="width:72px;display:inline-block">
@@ -3211,7 +3326,7 @@ function renderKelolaTarget() {
           </div>
         </td>`;
       } else {
-        return `<td style="text-align:center;border-left:1px solid var(--abu-1)">
+        return `<td style="text-align:center;border-left:1px solid var(--abu-1)${tw === 0 ? ';background:rgba(13,148,136,.06)' : ''}">
           ${isPredikat
             ? `<div class="select-wrap" style="width:72px;display:inline-block">
                  <select data-iid="${ind.id}" data-tahun="${y}" data-tw="${tw}" onchange="saveKtTargetNew(this)"
@@ -3369,10 +3484,12 @@ async function saveKtTargetNew(input) {
     if (ind) ind.targets[`${tahun}-${tw}`] = newRow;
 
     
-    if (!_targetMap[iid]) _targetMap[iid] = [];
-    const existing = _targetMap[iid].find(x => x.tahun === tahun && (x.triwulan || 4) === tw);
-    if (existing) Object.assign(existing, newRow);
-    else _targetMap[iid].push(newRow);
+    if (tw >= 1) {
+      if (!_targetMap[iid]) _targetMap[iid] = [];
+      const existing = _targetMap[iid].find(x => x.tahun === tahun && (x.triwulan || 4) === tw);
+      if (existing) Object.assign(existing, newRow);
+      else _targetMap[iid].push(newRow);
+    }
 
     
     if (!_ktAllTahun.includes(tahun)) {
@@ -3401,9 +3518,10 @@ function openKtDeleteTarget(iid) {
   const list = document.getElementById('ktDeleteTargetList');
   if (list) {
     list.innerHTML = tahunList.map(y => {
-      const rowsY = [1, 2, 3, 4].map(n => ind.targets[`${y}-${n}`]).filter(Boolean);
+      const rowsY = [0, 1, 2, 3, 4].map(n => ind.targets[`${y}-${n}`]).filter(Boolean);
       const ids   = rowsY.map(t => t.id).join(',');
-      const val   = [1, 2, 3, 4].map(n => ind.targets[`${y}-${n}`] ? _twTargetVal(ind.targets[`${y}-${n}`]) : '-').join(' / ');
+      const thn   = ind.targets[`${y}-0`] ? `Thn ${_twTargetVal(ind.targets[`${y}-0`])} · ` : '';
+      const val   = thn + [1, 2, 3, 4].map(n => ind.targets[`${y}-${n}`] ? _twTargetVal(ind.targets[`${y}-${n}`]) : '-').join(' / ');
       return `<label style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:8px 10px;border:1.5px solid #e2e8f0;border-radius:6px;cursor:pointer;font-size:.85rem">
         <span style="display:flex;align-items:center;gap:8px">
           <input type="checkbox" class="ktDelYear" value="${ids}" data-tahun="${y}" style="width:15px;height:15px;accent-color:var(--merah);cursor:pointer">
@@ -6059,9 +6177,7 @@ function _monRenderTable() {
       thTarget.dataset.targetCol = '1';
       const tw  = isAllBulan ? '' : `TW ${TW_ROMAWI[_twNo(_mon_bulan)]}`;
       const thn = (_mon_tahun !== '' && _mon_tahun != null) ? String(_mon_tahun) : '';
-      thTarget.textContent = isAllBulan
-        ? (thn ? `Target ${thn} (TW)` : 'Target per TW')
-        : `Target ${tw}`;
+      thTarget.textContent = thn ? `Target Tahunan ${thn}` : 'Target Tahunan';
       thTarget.style.whiteSpace = 'normal';
       thTarget.style.width = '120px';
     }

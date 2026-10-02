@@ -1728,6 +1728,12 @@ tr:hover td:not(.td-sticky-no):not(.td-sticky-name) { background: var(--abu-1); 
 .btn-ghost[data-tip="Assign Indikator"]:hover {
   background: #4338ca; color: #fff; border-color: #4338ca;
 }
+.btn-ghost[data-tip="Assign User"] {
+  background: #dbeafe; color: #1d4ed8; border-color: #93c5fd;
+}
+.btn-ghost[data-tip="Assign User"]:hover {
+  background: #1d4ed8; color: #fff; border-color: #1d4ed8;
+}
 .btn-ghost[data-tip="Reset Password"] {
   background: #ccfbf1; color: #0f766e; border-color: #5eead4;
 }
