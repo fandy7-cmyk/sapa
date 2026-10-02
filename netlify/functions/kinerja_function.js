@@ -68,6 +68,44 @@ function canInput(user, jenis) {
   return perms.includes('kinerja.monev') || perms.includes('kinerja.ikk') || perms.includes('kinerja.spm') || perms.includes('kinerja.subkeg');
 }
 
+// Akun pimpinan (Kepala Bidang / Kepala Sub Bagian / Sekretaris Dinas) biasanya tidak punya indikator
+// ter-assign. Hanya-lihat (input tetap butuh permission kinerja.monev/ikk/spm/subkeg):
+//  - 'kinerja.pantau'       -> semua indikator aktif di unit kerjanya (penanggung_jawab = nama bidang user)
+//  - 'kinerja.pantau.semua' -> indikator aktif di unit kerja PILIHAN (Sekretaris Dinas); unit dipilih lewat
+//                              permission 'kinerja.pantau.unit.<bidang_id>' (satu per unit). Tanpa unit terpilih = tidak ada.
+async function getAssignedIndikatorIds(sql, userId) {
+  const rows = await sql`SELECT indikator_id FROM user_indikator WHERE user_id = ${userId}`;
+  if (rows.length) return rows.map(r => r.indikator_id);
+  const perm = await sql`
+    SELECT menu_key FROM user_permissions
+    WHERE user_id = ${userId}
+      AND (menu_key IN ('kinerja.pantau', 'kinerja.pantau.semua') OR menu_key LIKE 'kinerja.pantau.unit.%')
+  `;
+  const keys = perm.map(r => r.menu_key);
+  if (keys.includes('kinerja.pantau.semua')) {
+    const unitIds = keys
+      .filter(k => k.startsWith('kinerja.pantau.unit.'))
+      .map(k => parseInt(k.slice('kinerja.pantau.unit.'.length), 10))
+      .filter(n => Number.isInteger(n) && n > 0);
+    if (unitIds.length) {
+      const ind = await sql`
+        SELECT ki.id FROM kinerja_indikator ki
+        WHERE ki.aktif = TRUE
+          AND TRIM(ki.penanggung_jawab) IN (SELECT TRIM(b.nama) FROM bidang b WHERE b.id = ANY(${unitIds}::int[]))
+      `;
+      return ind.map(r => r.id);
+    }
+  }
+  if (!keys.includes('kinerja.pantau')) return [];
+  const ind = await sql`
+    SELECT ki.id FROM kinerja_indikator ki
+    JOIN users u ON u.id = ${userId}
+    JOIN bidang b ON b.id = u.bidang_id
+    WHERE ki.aktif = TRUE AND TRIM(ki.penanggung_jawab) = TRIM(b.nama)
+  `;
+  return ind.map(r => r.id);
+}
+
 export const handler = async (event) => {
   if (event.httpMethod === 'OPTIONS') return jsonResponse({});
 
@@ -1002,14 +1040,10 @@ export const handler = async (event) => {
     let userIndikatorIds = null;
     if (!auth.is_admin && jenis !== 'monev') {
       try {
-        const assignRows = await sql`
-          SELECT indikator_id FROM user_indikator WHERE user_id = ${auth.id}
-        `;
-        if (assignRows.length === 0) {
+        const myIds = await getAssignedIndikatorIds(sql, auth.id);
+        if (myIds.length === 0) {
           return jsonResponse({ rekap: [], tahun, jenis, no_assignment: true });
         }
-
-        const myIds = assignRows.map(r => r.indikator_id);
 
         if (scope === 'bidang') {
           const bidangRows = await sql`
@@ -2704,14 +2738,10 @@ export const handler = async (event) => {
     let userIndikatorIds = null;
     if (!auth.is_admin && jenis !== 'monev') {
       try {
-        const assignRows = await sql`
-          SELECT indikator_id FROM user_indikator WHERE user_id = ${auth.id}
-        `;
-        if (assignRows.length === 0) {
+        const myIds = await getAssignedIndikatorIds(sql, auth.id);
+        if (myIds.length === 0) {
           return jsonResponse({ rekap: [], bulan, tahun, no_assignment: true });
         }
-
-        const myIds = assignRows.map(r => r.indikator_id);
 
         if (scope === 'bidang') {
           const bidangRows = await sql`
@@ -4410,13 +4440,10 @@ export const handler = async (event) => {
           LIMIT 200
         `;
       } else {
-        const assignRows = await sql`
-          SELECT indikator_id FROM user_indikator WHERE user_id = ${auth.id}
-        `;
-        if (assignRows.length === 0) {
+        const ids = await getAssignedIndikatorIds(sql, auth.id);
+        if (ids.length === 0) {
           return jsonResponse({ total_indikator: 0, sudah_diisi: 0, belum_diisi: 0, belum_isi_list: [], no_assignment: true });
         }
-        const ids = assignRows.map(r => r.indikator_id);
 
         rows = await sql`
           SELECT

@@ -593,6 +593,8 @@ const PERM_GROUPS = [
       { key: 'kinerja.ikk',    name: 'IKK (Indikator Kinerja Kunci)',   desc: 'Input realisasi IKK' },
       { key: 'kinerja.spm',    name: 'SPM (Standar Pelayanan Minimal)', desc: 'Input realisasi SPM' },
       { key: 'kinerja.subkeg', name: 'Sub Kegiatan',                    desc: 'Input realisasi Sub Kegiatan' },
+      { key: 'kinerja.pantau', manual: true, name: 'Pantau Unit Kerja', desc: 'Hanya lihat & pantau semua indikator di unit kerjanya (untuk Kepala Bidang / Kepala Sub Bagian / Sekretaris Dinas yang tidak punya indikator sendiri)' },
+      { key: 'kinerja.pantau.semua', manual: true, name: 'Pantau Beberapa Unit Kerja', desc: 'Hanya lihat & pantau indikator di unit kerja yang dipilih (untuk Sekretaris Dinas) — pilih unitnya setelah dicentang' },
       { key: 'kinerja.full',   name: 'Admin Penuh', admin: true, desc: 'Kelola indikator, target, jenis kinerja, laporan, periode & monitoring pengisian (setara admin kinerja)' },
     ] },
   { id: 'absensi', name: 'Absensi', icon: 'M12 8v4l3 3M21 12a9 9 0 11-18 0 9 9 0 0118 0z',
@@ -619,7 +621,7 @@ let _selectedPerms = new Set();
 let _permsOpenGroups = new Set();
 
 function _permGroupKeys(g) { return [g.base?.key, ...g.items.map(i => i.key)].filter(Boolean); }
-function _permRegularKeys(g) { return g.items.filter(i => !i.admin).map(i => i.key); }
+function _permRegularKeys(g) { return g.items.filter(i => !i.admin && !i.manual).map(i => i.key); }
 
 async function openPermsModal(userId) {
   _editingPermsUserId = userId;
@@ -685,7 +687,7 @@ function renderPermsGrid() {
             <div class="perm-desc">${esc(it.desc)}</div>
           </div>
         </div>`;
-    }).join('');
+    }).join('') + _permUnitPickerHtml(g);
 
     return `
       <div class="perm-group ${cnt ? 'has-sel' : ''} ${open ? 'open' : ''}">
@@ -706,6 +708,25 @@ function renderPermsGrid() {
 
   grid.innerHTML = toolbar + `<div class="perm-tree">${groups}</div>`;
   if (scroller) scroller.scrollTop = top;
+}
+
+// Daftar unit kerja yang boleh dipantau (muncul saat "Pantau Beberapa Unit Kerja" dicentang).
+// Disimpan sebagai permission 'kinerja.pantau.unit.<bidang_id>'.
+function _permUnitPickerHtml(g) {
+  if (g.id !== 'kinerja' || !_selectedPerms.has('kinerja.pantau.semua')) return '';
+  const units = (typeof _bidang !== 'undefined' && Array.isArray(_bidang)) ? _bidang : [];
+  const rows = units.map(b => {
+    const key = `kinerja.pantau.unit.${b.id}`;
+    const sel = _selectedPerms.has(key);
+    return `
+        <div class="perm-child ${sel ? 'selected' : ''}" onclick="togglePerm('${key}')">
+          <div class="perm-check"></div>
+          <div class="perm-child-txt"><div class="perm-name">${esc(b.nama)}</div></div>
+        </div>`;
+  }).join('');
+  return `
+        <div class="perm-desc" style="padding:10px 4px 4px;font-weight:700">Unit kerja yang boleh dipantau</div>
+        ${rows || '<div class="perm-desc" style="padding:4px">Daftar unit kerja belum termuat</div>'}`;
 }
 
 function permsToggleOpen(id) {
@@ -748,6 +769,7 @@ function _permSyncSuperlink() {
 function togglePerm(key) {
   if (_selectedPerms.has(key)) {
     _selectedPerms.delete(key);
+    if (key === 'kinerja.pantau.semua') [..._selectedPerms].filter(k => k.startsWith('kinerja.pantau.unit.')).forEach(k => _selectedPerms.delete(k));
   } else {
     _selectedPerms.add(key);
     if (key === 'superlink.shortlink' || key === 'superlink.bundle') _permSyncSuperlink();

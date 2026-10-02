@@ -43,12 +43,43 @@ export const handler = async (event) => {
     try {
       // LEFT JOIN supaya indikator_ids tetap identik; flag jenis dipakai frontend buat menentukan
       // menu Kinerja (IKU/IKK/SPM) tanpa harus narik seluruh daftar indikator.
-      const rows = await sql`
+      let rows = await sql`
         SELECT ui.indikator_id, ki.jenis_monev, ki.jenis_ikk, ki.jenis_spm, ki.jenis_custom
         FROM user_indikator ui
         LEFT JOIN kinerja_indikator ki ON ki.id = ui.indikator_id
         WHERE ui.user_id = ${userId}
       `;
+      // Pimpinan tanpa indikator ter-assign (hanya-lihat):
+      //  'kinerja.pantau' = indikator aktif di unit kerjanya; 'kinerja.pantau.semua' = unit kerja pilihan
+      //  (Sekretaris Dinas), dipilih lewat permission 'kinerja.pantau.unit.<bidang_id>'.
+      if (rows.length === 0) {
+        const perm = await sql`
+          SELECT menu_key FROM user_permissions
+          WHERE user_id = ${userId}
+            AND (menu_key IN ('kinerja.pantau', 'kinerja.pantau.semua') OR menu_key LIKE 'kinerja.pantau.unit.%')
+        `;
+        const keys = perm.map(r => r.menu_key);
+        const unitIds = keys
+          .filter(k => k.startsWith('kinerja.pantau.unit.'))
+          .map(k => parseInt(k.slice('kinerja.pantau.unit.'.length), 10))
+          .filter(n => Number.isInteger(n) && n > 0);
+        if (keys.includes('kinerja.pantau.semua') && unitIds.length) {
+          rows = await sql`
+            SELECT ki.id AS indikator_id, ki.jenis_monev, ki.jenis_ikk, ki.jenis_spm, ki.jenis_custom
+            FROM kinerja_indikator ki
+            WHERE ki.aktif = TRUE
+              AND TRIM(ki.penanggung_jawab) IN (SELECT TRIM(b.nama) FROM bidang b WHERE b.id = ANY(${unitIds}::int[]))
+          `;
+        } else if (keys.includes('kinerja.pantau')) {
+          rows = await sql`
+            SELECT ki.id AS indikator_id, ki.jenis_monev, ki.jenis_ikk, ki.jenis_spm, ki.jenis_custom
+            FROM kinerja_indikator ki
+            JOIN users u ON u.id = ${userId}
+            JOIN bidang b ON b.id = u.bidang_id
+            WHERE ki.aktif = TRUE AND TRIM(ki.penanggung_jawab) = TRIM(b.nama)
+          `;
+        }
+      }
       return jsonResponse({
         indikator_ids: rows.map(r => r.indikator_id),
         jenis: {

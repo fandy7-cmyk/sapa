@@ -1744,6 +1744,19 @@ function _lapEnsureSubkegOption() {
 async function loadLaporanKinerja() {
   _showLaporanLoading();
   _lapEnsureSubkegOption();
+  // Non-admin tidak pernah memakai filter Unit Kerja: sembunyikan dari awal supaya tidak sempat berkedip
+  // saat data masih dimuat (sebelumnya baru disembunyikan setelah data selesai dirender).
+  {
+    const _bw = document.getElementById('laporanKinerjaBidang')?.closest('.select-wrap');
+    if (_bw) _bw.style.display = _isKinerjaAdmin() ? '' : 'none';
+  }
+  // Non-admin hanya melihat tombol "Capaian Indikator"; admin tetap 3 tombol
+  // (Pengukuran Kinerja & Monev Kinerja bergantung pada setting Kelola Laporan yang khusus admin)
+  const _lapIsAdm = _isKinerjaAdmin();
+  ['btnDownloadLaporanPengukuran', 'btnDownloadLaporanTSP'].forEach(id => {
+    const b = document.getElementById(id);
+    if (b) b.style.display = _lapIsAdm ? 'inline-flex' : 'none';
+  });
   // Dua langkah ini saling lepas, jadi jalan bersamaan
   await Promise.all([
     _initLaporanKinerjaFilter(),
@@ -1829,7 +1842,11 @@ async function loadLaporanKinerja() {
       : [];
 
     const scopeSel = document.getElementById('laporanKinerjaScope');
-    const scope = scopeSel?.value || 'mine';
+    // Akun pimpinan (Kabid / Kasubag / Sekretaris Dinas, permission Pantau) atau akun tanpa indikator sendiri
+    // langsung lihat indikator unitnya, tanpa dropdown "Indikator Saya".
+    const tanpaIndikatorSendiri = myRows.length === 0
+      || (typeof _isPantauKinerja === 'function' && _isPantauKinerja());
+    const scope = tanpaIndikatorSendiri ? 'bidang' : (scopeSel?.value || 'mine');
     rows = scope === 'bidang' ? bidangRows : myRows;
 
     
@@ -1837,7 +1854,7 @@ async function loadLaporanKinerja() {
     
     const scopeWrap = document.getElementById('laporanKinerjaScopeWrap');
     if (scopeWrap) {
-      const showScope = bidangRows.length > myRows.length;
+      const showScope = !tanpaIndikatorSendiri && bidangRows.length > myRows.length;
       scopeWrap.style.display = showScope ? '' : 'none';
       if (!showScope && scopeSel) scopeSel.value = 'mine';
     }
@@ -2436,6 +2453,15 @@ async function downloadLaporanByUrusan(btnEl) {
     const sdLabel = bulanDari === bulanSampai
       ? `${BULAN_FULL[bulanSampai]} ${tahun}`
       : `${BULAN_FULL[bulanDari]} - ${BULAN_FULL[bulanSampai]} ${tahun}`;
+    const _twMulai = _lapTwOf(bulanDari), _twAkhir = _lapTwOf(bulanSampai);
+    const periodeLabel = (bulanDari % 3 === 1 && bulanSampai % 3 === 0)
+      ? (_twMulai === _twAkhir
+          ? `TRIWULAN ${_LAP_ROMAWI[_twAkhir-1]} ${tahun}`
+          : `TRIWULAN ${_LAP_ROMAWI[_twMulai-1]} - ${_LAP_ROMAWI[_twAkhir-1]} ${tahun}`)
+      : sdLabel;
+    const _unitFilter = document.getElementById('laporanKinerjaBidang')?.value || '';
+    const unitKerjaLabel = _unitFilter || 'Semua Unit Kerja';
+    const _rowsLap = _unitFilter ? data.rows.filter(r => r.penanggung_jawab === _unitFilter) : data.rows;
 
     const _twDef = [{tw:'I',s:1,e:3},{tw:'II',s:4,e:6},{tw:'III',s:7,e:9},{tw:'IV',s:10,e:12}];
     const _twPdfAktif = _twDef.filter(tw => bulanList.some(b => b >= tw.s && b <= tw.e));
@@ -2452,7 +2478,7 @@ async function downloadLaporanByUrusan(btnEl) {
       `<th style="color:white;padding:4px 2px;border:1px solid #000;text-align:center;font-size:10px;min-width:34px;white-space:nowrap">${BULAN_PENDEK[c.bulan-1]}</th>`
     ).join('');
     const twJudulColspan = displayCols.length;
-    const twJudulHeader = `<th colspan="${twJudulColspan}" style="color:white;padding:4px 3px;border:1px solid #000;text-align:center;font-size:10px;font-weight:700">KINERJA / REALISASI TRIWULAN</th>`;
+    const twJudulHeader = `<th colspan="${twJudulColspan}" style="color:white;padding:4px 3px;border:1px solid #000;text-align:center;font-size:10px;font-weight:700;min-width:${Math.max(twJudulColspan * 34, 90)}px">KINERJA / REALISASI TRIWULAN</th>`;
     const twHeaders = _twPdfAktif.map(tw => {
         const cols = displayCols.filter(c => (c.type === 'tw' && c.tw === tw.tw) || (c.type === 'bulan' && c.bulan >= tw.s && c.bulan <= tw.e)).length;
         const isLengkapTw = _twLengkap(tw);
@@ -2470,7 +2496,7 @@ async function downloadLaporanByUrusan(btnEl) {
         </tr>`;
 
         const indRows = tpl.indikator.map(ind => {
-          const r = data.rows.find(row => row.indikator_id === ind.id || row.id === ind.id);
+          const r = _rowsLap.find(row => row.indikator_id === ind.id || row.id === ind.id);
           if (!r) return '';
           no++;
           return _lapKinerjaPdfRowHtml(r, no, displayCols, r.nama_indikator || ind.indikator_kinerja);
@@ -2479,7 +2505,7 @@ async function downloadLaporanByUrusan(btnEl) {
         return headerRow + indRows;
       }).join('');
     } else {
-      rowsHtml = _lapKinerjaFlatRowsHtml(data.rows, displayCols);
+      rowsHtml = _lapKinerjaFlatRowsHtml(_rowsLap, displayCols);
     }
 
     const _witaOffset = new Date(new Date().getTime() + new Date().getTimezoneOffset() * 60000 + 8 * 3600000);
@@ -2492,7 +2518,8 @@ async function downloadLaporanByUrusan(btnEl) {
       ${_kopSuratHtml()}
       <div style="text-align:center;margin:18px 0 14px">
         <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px">MONITORING DAN EVALUASI CAPAIAN KINERJA</div>
-        <div style="font-size:10px;color:#475569;margin-top:3px">${sdLabel}</div>
+        <div style="font-size:10px;color:#475569;margin-top:3px">${periodeLabel}</div>
+        <div style="font-size:10px;color:#475569;margin-top:2px">Unit Kerja : ${unitKerjaLabel}</div>
       </div>
       <table style="border-collapse:collapse;border-spacing:0;width:100%;table-layout:auto">
         <thead>
@@ -2503,7 +2530,7 @@ async function downloadLaporanByUrusan(btnEl) {
             <th rowspan="3" style="color:white;padding:5px 3px;border:1px solid #000;text-align:center;font-size:10px;white-space:nowrap;min-width:38px">SATUAN</th>
             <th rowspan="3" style="color:white;padding:5px 3px;border:1px solid #000;text-align:center;font-size:10px;min-width:110px">UNIT KERJA</th>
             ${twJudulHeader}
-            <th rowspan="3" style="color:white;padding:5px 3px;border:1px solid #000;text-align:center;font-size:10px;white-space:nowrap;min-width:50px">REALISASI S.D ${BULAN_FULL[bulanSampai].toUpperCase()}</th>
+            <th rowspan="3" style="color:white;padding:5px 3px;border:1px solid #000;text-align:center;font-size:10px;white-space:nowrap;min-width:50px">REALISASI S.D TW ${_LAP_ROMAWI[_lapTwOf(bulanSampai)-1]}</th>
             <th rowspan="3" style="color:white;padding:5px 3px;border:1px solid #000;text-align:center;font-size:10px;white-space:nowrap;min-width:45px">CAPAIAN</th>
             <th rowspan="3" style="color:white;padding:5px 4px;border:1px solid #000;text-align:center;font-size:10px;min-width:130px">FAKTOR PENGHAMBAT</th>
             <th rowspan="3" style="color:white;padding:5px 4px;border:1px solid #000;text-align:center;font-size:10px;min-width:130px">SOLUSI</th>
@@ -2593,7 +2620,7 @@ async function downloadLaporanByTSP(btnEl) {
       `<th style="color:white;padding:4px 2px;border:1px solid #000;text-align:center;font-size:10px;min-width:34px;white-space:nowrap">${BULAN_PENDEK[c.bulan-1]}</th>`
     ).join('');
     const twJudulColspan = displayCols.length;
-    const twJudulHeader = `<th colspan="${twJudulColspan}" style="color:white;padding:4px 3px;border:1px solid #000;text-align:center;font-size:10px;font-weight:700">KINERJA / REALISASI TRIWULAN</th>`;
+    const twJudulHeader = `<th colspan="${twJudulColspan}" style="color:white;padding:4px 3px;border:1px solid #000;text-align:center;font-size:10px;font-weight:700;min-width:${Math.max(twJudulColspan * 34, 90)}px">KINERJA / REALISASI TRIWULAN</th>`;
     const twHeaders = _twPdfAktif2.map(tw => {
         const cols = displayCols.filter(c => (c.type === 'tw' && c.tw === tw.tw) || (c.type === 'bulan' && c.bulan >= tw.s && c.bulan <= tw.e)).length;
         const isLengkapTw = _twLengkap2(tw);
@@ -2718,7 +2745,7 @@ async function downloadLaporanByTSP(btnEl) {
             <th rowspan="3" style="color:white;padding:6px 5px;border:1px solid #000;text-align:center;font-size:10px;white-space:nowrap;min-width:55px">TARGET ${tahun}</th>
             <th rowspan="3" style="color:white;padding:6px 5px;border:1px solid #000;text-align:center;font-size:10px;min-width:110px">UNIT KERJA</th>
             ${twJudulHeader}
-            <th rowspan="3" style="color:white;padding:6px 5px;border:1px solid #000;text-align:center;font-size:10px;white-space:nowrap;min-width:55px">REALISASI S.D ${BULAN_FULL[bulanSampai].toUpperCase()}</th>
+            <th rowspan="3" style="color:white;padding:6px 5px;border:1px solid #000;text-align:center;font-size:10px;white-space:nowrap;min-width:55px">REALISASI S.D TW ${_LAP_ROMAWI[_lapTwOf(bulanSampai)-1]}</th>
             <th rowspan="3" style="color:white;padding:6px 5px;border:1px solid #000;text-align:center;font-size:10px;white-space:nowrap;min-width:50px">CAPAIAN</th>
             <th rowspan="3" style="color:white;padding:6px 6px;border:1px solid #000;text-align:center;font-size:10px;min-width:140px">FAKTOR PENGHAMBAT</th>
             <th rowspan="3" style="color:white;padding:6px 6px;border:1px solid #000;text-align:center;font-size:10px;min-width:140px">SOLUSI</th>
@@ -2734,7 +2761,7 @@ async function downloadLaporanByTSP(btnEl) {
             <th rowspan="3" style="color:white;padding:5px 3px;border:1px solid #000;text-align:center;font-size:10px;white-space:nowrap;min-width:38px">SATUAN</th>
             <th rowspan="3" style="color:white;padding:5px 3px;border:1px solid #000;text-align:center;font-size:10px;min-width:110px">UNIT KERJA</th>
             ${twJudulHeader}
-            <th rowspan="3" style="color:white;padding:5px 3px;border:1px solid #000;text-align:center;font-size:10px;white-space:nowrap;min-width:50px">REALISASI S.D ${BULAN_FULL[bulanSampai].toUpperCase()}</th>
+            <th rowspan="3" style="color:white;padding:5px 3px;border:1px solid #000;text-align:center;font-size:10px;white-space:nowrap;min-width:50px">REALISASI S.D TW ${_LAP_ROMAWI[_lapTwOf(bulanSampai)-1]}</th>
             <th rowspan="3" style="color:white;padding:5px 3px;border:1px solid #000;text-align:center;font-size:10px;white-space:nowrap;min-width:45px">CAPAIAN</th>
             <th rowspan="3" style="color:white;padding:5px 4px;border:1px solid #000;text-align:center;font-size:10px;min-width:130px">FAKTOR PENGHAMBAT</th>
             <th rowspan="3" style="color:white;padding:5px 4px;border:1px solid #000;text-align:center;font-size:10px;min-width:130px">SOLUSI</th>
@@ -2874,7 +2901,7 @@ async function downloadLaporanByPengukuran(btnEl) {
     const bulanHeaderCells = displayCols.filter(c => c.type === 'bulan').map(c =>
       `<th style="color:white;padding:4px 2px;border:1px solid #000;text-align:center;font-size:10px;min-width:34px;white-space:nowrap">${BULAN_PENDEK[c.bulan-1]}</th>`
     ).join('');
-    const twJudulHeader = `<th colspan="${displayCols.length}" style="color:white;padding:4px 3px;border:1px solid #000;text-align:center;font-size:10px;font-weight:700">KINERJA / REALISASI TRIWULAN</th>`;
+    const twJudulHeader = `<th colspan="${displayCols.length}" style="color:white;padding:4px 3px;border:1px solid #000;text-align:center;font-size:10px;font-weight:700;min-width:${Math.max(displayCols.length * 34, 90)}px">KINERJA / REALISASI TRIWULAN</th>`;
     const twHeaders = _twAktif.map(tw => {
       const cols = displayCols.filter(c => (c.type === 'tw' && c.tw === tw.tw) || (c.type === 'bulan' && c.bulan >= tw.s && c.bulan <= tw.e)).length;
       return `<th colspan="${cols}" ${_twLengkap(tw) ? 'rowspan="2"' : ''} style="color:white;padding:4px 3px;border:1px solid #000;text-align:center;font-size:10px;min-width:${cols*34}px;white-space:nowrap">${tw.tw}</th>`;
@@ -2935,7 +2962,7 @@ async function downloadLaporanByPengukuran(btnEl) {
             ${th('SATUAN', 'white-space:nowrap;min-width:38px')}
             ${th('UNIT KERJA', 'min-width:110px')}
             ${twJudulHeader}
-            ${th('REALISASI S.D ' + BULAN_FULL[bulanSampai].toUpperCase(), 'white-space:nowrap;min-width:50px')}
+            ${th('REALISASI S.D TW ' + _LAP_ROMAWI[_lapTwOf(bulanSampai)-1], 'white-space:nowrap;min-width:50px')}
             ${th('CAPAIAN', 'white-space:nowrap;min-width:45px')}
             ${th('FAKTOR PENGHAMBAT', 'min-width:130px')}
             ${th('SOLUSI', 'min-width:130px')}
