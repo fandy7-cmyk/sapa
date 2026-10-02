@@ -196,11 +196,9 @@ function filterUsers() {
   renderUsersTable();
 }
 
-function renderUsersTable() {
-  const tb = document.getElementById('userTableBody');
-  if (!tb) return;
-
-  const visibleUsers = _users
+// Daftar pengguna sesuai pencarian + filter unit kerja yang sedang aktif (dipakai tabel & download)
+function _getVisibleUsers() {
+  return _users
     .filter(u => !u.is_admin)
     .filter(u => {
       if (_userFilterBidang) {
@@ -214,6 +212,39 @@ function renderUsersTable() {
         getBidangNama(u.bidang_id).toLowerCase().includes(_userSearch)
       );
     });
+}
+
+async function downloadUsersExcel() {
+  const list = _getVisibleUsers();
+  if (!list.length) { toast('Tidak ada data pengguna untuk diunduh', 'error'); return; }
+  try {
+    await _loadXlsx();
+    const header = ['No', 'Nama', 'NIP', 'Email', 'Unit Kerja', 'Status', 'Login Terakhir'];
+    const rows = list.map((u, i) => [
+      i + 1,
+      u.nama || '',
+      String(u.nip || ''),   // teks supaya NIP 18 digit tidak berubah jadi notasi ilmiah
+      u.email || '',
+      (_bidang.find(x => x.id === u.bidang_id)?.nama) || '',   // nama mentah (getBidangNama sudah di-escape HTML)
+      u.is_active === false ? 'Nonaktif' : 'Aktif',
+      u.last_login ? fmtDate(u.last_login) : '',
+    ]);
+    const ws = XLSX.utils.aoa_to_sheet([header, ...rows]);
+    ws['!cols'] = [{ wch: 5 }, { wch: 36 }, { wch: 22 }, { wch: 28 }, { wch: 44 }, { wch: 10 }, { wch: 20 }];
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Pengguna');
+    const d = new Date();
+    const tgl = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    XLSX.writeFile(wb, `Data_Pengguna_${tgl}.xlsx`);
+    toast(`${list.length} pengguna diunduh`);
+  } catch (err) { toast('Gagal mengunduh: ' + err.message, 'error'); }
+}
+
+function renderUsersTable() {
+  const tb = document.getElementById('userTableBody');
+  if (!tb) return;
+
+  const visibleUsers = _getVisibleUsers();
 
   const start = (_userPage - 1) * _userPageSize;
   const slice = visibleUsers.slice(start, start + _userPageSize);

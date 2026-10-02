@@ -363,7 +363,13 @@ function _renderKinerjaCountdown(containerId, jenis) {
   if (!pa || !pa.close_at) { wrap.style.display = 'none'; wrap.innerHTML = ''; return; }
 
   const closeMs = new Date(pa.close_at).getTime();
-  const _wasOpen = closeMs > Date.now();
+  // Periode sudah ditutup -> kartu periode tidak ditampilkan (tabel tetap read only lewat _periodeListTerbuka)
+  if (closeMs <= Date.now()) {
+    if (_kinerjaCountdownTimers[containerId]) { clearInterval(_kinerjaCountdownTimers[containerId]); _kinerjaCountdownTimers[containerId] = null; }
+    wrap.style.display = 'none'; wrap.innerHTML = '';
+    return;
+  }
+  const _wasOpen = true;
   const openMs  = pa.open_at ? new Date(pa.open_at).getTime() : null;
   const openLabel  = pa.open_at  ? new Date(pa.open_at).toLocaleString('id-ID', { day:'2-digit', month:'long', year:'numeric', hour:'2-digit', minute:'2-digit', timeZone: 'Asia/Makassar' }).replace(' pukul','') + ' WITA' : '-';
   const closeLabel = new Date(pa.close_at).toLocaleString('id-ID', { day:'2-digit', month:'long', year:'numeric', hour:'2-digit', minute:'2-digit', timeZone: 'Asia/Makassar' }).replace(' pukul','') + ' WITA';
@@ -416,12 +422,11 @@ function _renderKinerjaCountdown(containerId, jenis) {
 
     if (diff <= 0) {
       
-      timerEl.textContent = 'Ditutup';
-      cardEl.className = 'kperiode-card expired';
-      fillEl.style.width = '100%';
-      if (expiredEl) expiredEl.style.display = 'block';
+      // Baru saja ditutup saat halaman terbuka -> sembunyikan kartu periode
       clearInterval(_kinerjaCountdownTimers[containerId]);
       _kinerjaCountdownTimers[containerId] = null;
+      const _wrapEl = document.getElementById(containerId);
+      if (_wrapEl) { _wrapEl.style.display = 'none'; _wrapEl.innerHTML = ''; }
       
       // Baru saja ditutup saat halaman terbuka -> kunci tabel jadi read only
       if (_wasOpen) {
