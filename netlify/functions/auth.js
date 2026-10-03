@@ -3,11 +3,36 @@ import { getDb, jsonResponse, errorResponse, parseBody, runOnce } from './_db.js
 import { signToken, requireAuth, generateRefreshToken, hashRefreshToken } from './_auth.js';
 import { logAudit, getReqMeta, checkLoginRateLimit, recordLoginAttempt, clearLoginAttempts, MAX_LOGIN_ATTEMPTS } from './_audit.js';
 
+// 125 detik -> "3 menit", 3700 detik -> "1 jam 2 menit"
+function _fmtTunggu(sec) {
+  const m = Math.max(1, Math.ceil(sec / 60));
+  if (m < 60) return `${m} menit`;
+  const j = Math.floor(m / 60), r = m % 60;
+  return r ? `${j} jam ${r} menit` : `${j} jam`;
+}
+function _blokir(sec, menit) {
+  return errorResponse(`Terlalu banyak percobaan login. Coba lagi dalam ${_fmtTunggu(sec)}.`, 429, { retry_after_detik: sec, lock_menit: menit });
+}
+
 export const handler = async (event) => {
   if (event.httpMethod === 'OPTIONS') return jsonResponse({});
 
   const sql = getDb();
   const path = event.path.replace(/.*\/auth/, '');
+
+  // Cek status kunci login suatu NIP (tanpa cek password). Dipakai halaman login buat nyinkronin
+  // hitung mundur: kalau admin sudah buka kunci, tombol Login langsung aktif lagi.
+  if (event.httpMethod === 'POST' && path === '/lock-status') {
+    const { nip } = parseBody(event);
+    if (!nip) return jsonResponse({ terkunci: false, retry_after_detik: 0 });
+    try {
+      const st = await checkLoginRateLimit(sql, String(nip).trim(), '');
+      return jsonResponse({ terkunci: !st.allowed, retry_after_detik: st.allowed ? 0 : st.retryAfterSec });
+    } catch (err) {
+      console.error('[POST /api/auth/lock-status]', err);
+      return errorResponse('Server error', 500);
+    }
+  }
 
   if (event.httpMethod === 'POST' && path === '/login') {
     const { nip, password, lokasi } = parseBody(event);
@@ -19,7 +44,7 @@ export const handler = async (event) => {
     const rateCheck = await checkLoginRateLimit(sql, nipNorm, ip);
     if (!rateCheck.allowed) {
       await logAudit(sql, event, { aksi: 'login_blocked', detail: { nip: nipNorm }, lokasi_client: lokasi });
-      return errorResponse('Terlalu banyak percobaan login. Coba lagi dalam 15 menit.', 429);
+      return _blokir(rateCheck.retryAfterSec, rateCheck.lockMinutes);
     }
 
     try {
@@ -34,6 +59,8 @@ export const handler = async (event) => {
       if (!rows.length) {
         await recordLoginAttempt(sql, nipNorm, ip);
         await logAudit(sql, event, { aksi: 'login_failed', detail: { nip: nipNorm, reason: 'nip_not_found' }, lokasi_client: lokasi });
+        const after = await checkLoginRateLimit(sql, nipNorm, ip);
+        if (!after.allowed) return _blokir(after.retryAfterSec, after.lockMinutes);
         return errorResponse('Akun tidak terdaftar, hubungi admin', 401);
       }
 
@@ -46,8 +73,10 @@ export const handler = async (event) => {
       if (!valid) {
         await recordLoginAttempt(sql, nipNorm, ip);
         await logAudit(sql, event, { user_id: user.id, nama: user.nama, email: user.email, aksi: 'login_failed', detail: { nip: nipNorm, reason: 'wrong_password' }, lokasi_client: lokasi });
-        const sisa = Math.max(0, MAX_LOGIN_ATTEMPTS - (rateCheck.count + 1));
-        return errorResponse('Username atau password salah', 401, { sisa_percobaan: sisa });
+        // Hitung ulang setelah percobaan ini tercatat: kalau ini percobaan yang memicu kunci, langsung kunci.
+        const after = await checkLoginRateLimit(sql, nipNorm, ip);
+        if (!after.allowed) return _blokir(after.retryAfterSec, after.lockMinutes);
+        return errorResponse('Username atau password salah', 401, { sisa_percobaan: after.remaining });
       }
 
       await sql`UPDATE users SET last_login = NOW() WHERE id = ${user.id}`;

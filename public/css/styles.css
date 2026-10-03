@@ -1746,6 +1746,12 @@ tr:hover td:not(.td-sticky-no):not(.td-sticky-name) { background: var(--abu-1); 
 .btn-ghost[data-tip="Paksa Logout"]:hover {
   background: #c2410c; color: #fff; border-color: #c2410c;
 }
+.btn-ghost[data-tip="Buka Kunci Login"] {
+  background: #e0f2fe; color: #0369a1; border-color: #7dd3fc;
+}
+.btn-ghost[data-tip="Buka Kunci Login"]:hover {
+  background: #0369a1; color: #fff; border-color: #0369a1;
+}
 
 /* Tombol Salin kode (kolom Tampilkan Rekening e-Planning) - satu-satunya
    tombol di kolomnya, tapi tetap disamakan biar nggak polos sendirian. */
@@ -2154,9 +2160,9 @@ ol.lap-md-list > li::before {
 ol.lap-md-list--alpha > li::before { content:counter(lapmdnum, lower-alpha) "."; }
 .lap-md-list li:last-child { margin-bottom:0; }
 .kinerja-table tbody tr { background:#fff; }
-.kinerja-table td.td-sticky-no, .kinerja-table td.td-sticky-name { background:#fff !important; z-index:3 !important; transition:background-color .25s ease; }
+.kinerja-table td.td-sticky-no, .kinerja-table td.td-sticky-name { background:#fff !important; z-index:3 !important; }
 .kinerja-table td.td-sticky-no  { box-shadow:none; width:44px; min-width:44px; max-width:44px; overflow:hidden; }
-.kinerja-table td.td-sticky-name { border-right:1px solid var(--abu-1); max-width:220px; width:220px; overflow:hidden; left:44px !important; background:#fff; }
+.kinerja-table td.td-sticky-name { border-right:none; max-width:220px; width:220px; overflow:hidden; left:44px !important; background:#fff; }
 .kinerja-table td.td-sticky-name > div { overflow:hidden; max-width:200px; white-space:normal; word-break:break-word; }
 .kinerja-table tr.row-state-saved td.td-sticky-no,
 .kinerja-table tr.row-state-saved td.td-sticky-name   { background:#ecfdf5 !important; z-index:3 !important; }
@@ -10971,3 +10977,47 @@ body:not(.is-admin) .abs-hariini-flex-wrap .dash-kpi-row .abs-jamkerja-wrap:nth-
 .perm-child.is-admin.selected { border-color:#f59e0b; background:#fffbeb; }
 .perm-child.is-admin.selected .perm-check { background:#f59e0b; border-color:#f59e0b; }
 #permsGrid .perm-desc { font-size:.68rem; line-height:1.35; }
+
+
+/* Sidebar: warna "selected" muncul instan. Transition dipakai dari state tujuan, jadi cukup
+   matikan di state .active (masuk active = langsung, keluar active tetap fade halus). */
+.nav-item.active,
+.nav-sub-item.active,
+.nav-sub-sub-item.active,
+.nav-item.active .nav-icon-box,
+.nav-sub-item.active .nav-icon-box,
+.nav-sub-sub-item.active .nav-icon-box {
+  transition: none;
+}
+
+
+/* Modal Kelola Indikator Template: tombol "Pilih Semua" & "Hapus Semua" disamakan dengan
+   gaya tombol aksi tema (tint + border, solid saat hover). Color pakai !important karena
+   tombol Hapus Semua punya inline color. */
+#modalLapTemplateIndikator button[onclick="_lapTplSelectAll()"],
+#modalLapTemplateIndikator button[onclick="_lapTplClearAll()"] {
+  display: inline-flex; align-items: center; gap: 6px;
+  height: var(--btn-h-md);   /* sama dengan input Cari & dropdown Jenis (42px) */
+  padding: 0 var(--sp-4);
+  border-radius: var(--r-sm);
+  font-weight: 700;
+  transition: background-color .15s ease, color .15s ease, border-color .15s ease;
+}
+#modalLapTemplateIndikator button[onclick="_lapTplSelectAll()"] {
+  background: var(--hijau-light); color: var(--hijau) !important; border: 1px solid #5eead4;
+}
+#modalLapTemplateIndikator button[onclick="_lapTplSelectAll()"]:hover {
+  background: var(--hijau); color: #fff !important; border-color: var(--hijau);
+}
+#modalLapTemplateIndikator button[onclick="_lapTplClearAll()"] {
+  background: #fee2e2; color: var(--merah) !important; border: 1px solid #fca5a5;
+}
+#modalLapTemplateIndikator button[onclick="_lapTplClearAll()"]:hover {
+  background: var(--merah); color: #fff !important; border-color: var(--merah);
+}
+
+
+/* Kelola Laporan TSP: garis penghubung (SVG overlay) antar card kolom cascade */
+#lapCascadeWrap { position: relative; }
+.lap-cascade-gap { width: 48px; flex-shrink: 0; }
+.lap-cascade-svg { position: absolute; top: 0; left: 0; pointer-events: none; overflow: visible; z-index: 2; }

@@ -3399,6 +3399,92 @@ function renderKelolaTarget() {
 
 window.goKtPage = (p) => { _ktPage = p; renderKelolaTarget(); };
 
+// ══════════════════════════════════════════════════════
+//  DOWNLOAD KELOLA TARGET - PDF (gaya sama dengan downloadIndikatorPDF:
+//  kop surat + tabel, ikut filter tahun/jenis/pencarian yang aktif di halaman)
+// ══════════════════════════════════════════════════════
+async function downloadKelolaTargetPDF(btnEl) {
+  if (!_ktIndList.length) { toast('Belum ada data target untuk didownload.', 'error'); return; }
+
+  const originalHtml = btnEl ? btnEl.innerHTML : null;
+  if (btnEl) { btnEl.disabled = true; btnEl.innerHTML = `<span class="btn-spin" style="width:12px;height:12px"></span> Memuat data...`; }
+
+  try {
+    const visibleTahun = _ktAllTahun.filter(y => {
+      if (_ktTahunDari   && y < _ktTahunDari)   return false;
+      if (_ktTahunSampai && y > _ktTahunSampai) return false;
+      return true;
+    });
+    if (!visibleTahun.length) { toast('Tidak ada tahun target untuk didownload.', 'error'); return; }
+
+    const filtered = _ktIndList.filter(ind => {
+      if (_ktSearch && !ind.indikator_kinerja.toLowerCase().includes(_ktSearch)) return false;
+      if (_ktFilterJenis === 'iku' && !ind.jenis_monev) return false;
+      if (_ktFilterJenis === 'ikk' && !ind.jenis_ikk)   return false;
+      if (_ktFilterJenis === 'spm' && !ind.jenis_spm)   return false;
+      if (_ktFilterJenis === 'subkeg' && !(Array.isArray(ind.jenis_custom) && ind.jenis_custom.includes('subkeg'))) return false;
+      return true;
+    });
+    if (!filtered.length) { toast('Tidak ada data sesuai filter saat ini.', 'error'); return; }
+
+    const tahunLabel = visibleTahun.length === 1
+      ? String(visibleTahun[0])
+      : `${visibleTahun[0]} - ${visibleTahun[visibleTahun.length - 1]}`;
+    const fs = visibleTahun.length > 2 ? 8 : 9;
+    const th = 'color:white;padding:5px 3px;border:1px solid #000;text-align:center;font-size:' + fs + 'px';
+
+    const cellVal = (ind, y, tw) => {
+      const t = ind.targets[`${y}-${tw}`];
+      if (!t) return '-';
+      const v = t.target_display != null ? String(t.target_display) : (t.target != null ? String(t.target) : '');
+      return v.trim() !== '' ? escHtml(v) : '-';
+    };
+
+    const headRow1 = visibleTahun.map(y =>
+      `<th colspan="5" style="${th}">${y}</th>`).join('');
+    const headRow2 = visibleTahun.map(() =>
+      ['TAHUNAN', 'TW I', 'TW II', 'TW III', 'TW IV'].map(l => `<th style="${th}">${l}</th>`).join('')).join('');
+
+    const bodyRows = filtered.map((ind, i) => {
+      const cells = visibleTahun.flatMap(y => [0, 1, 2, 3, 4].map(tw =>
+        `<td style="padding:4px 3px;border:1px solid #000;text-align:center;font-size:${fs}px;white-space:nowrap${tw === 0 ? ';background:#f0fdfa' : ''}">${cellVal(ind, y, tw)}</td>`
+      )).join('');
+      return `<tr style="background:white">
+        <td style="padding:4px 5px;border:1px solid #000;text-align:center;font-size:${fs}px">${i + 1}</td>
+        <td style="padding:4px 6px;border:1px solid #000;font-size:${fs}px">${escHtml(ind.indikator_kinerja || '')}</td>
+        <td style="padding:4px 4px;border:1px solid #000;text-align:center;font-size:${fs}px">${escHtml(ind.satuan || '-')}</td>
+        ${cells}
+      </tr>`;
+    }).join('');
+
+    const bodyHtml = `
+      ${_kopSuratHtml()}
+      <div style="text-align:center;margin:18px 0 14px">
+        <div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.5px">Target Indikator Kinerja</div>
+        <div style="font-size:10px;color:#475569;margin-top:3px">Tahun ${tahunLabel}</div>
+      </div>
+      <table style="border-collapse:collapse;border-spacing:0;width:100%;table-layout:auto">
+        <thead>
+          <tr style="background:#0d9488">
+            <th rowspan="2" style="${th};width:32px">NO</th>
+            <th rowspan="2" style="${th};min-width:150px">INDIKATOR KINERJA</th>
+            <th rowspan="2" style="${th};width:50px">SATUAN</th>
+            ${headRow1}
+          </tr>
+          <tr style="background:#0d9488">${headRow2}</tr>
+        </thead>
+        <tbody>${bodyRows}</tbody>
+      </table>`;
+
+    _bukaPreviewPDF(bodyHtml, `Target Indikator Kinerja Tahun ${tahunLabel}`, 'landscape');
+  } catch (err) {
+    toast('Gagal membuat PDF: ' + err.message, 'error');
+  } finally {
+    if (btnEl) { btnEl.disabled = false; btnEl.innerHTML = originalHtml; }
+  }
+}
+window.downloadKelolaTargetPDF = downloadKelolaTargetPDF;
+
 async function saveKtTarget(input) {
   const tid  = parseInt(input.dataset.tid);
   const iid  = parseInt(input.dataset.iid);
@@ -3540,6 +3626,61 @@ function openKtDeleteTarget(iid) {
   if (all) all.checked = false;
 
   openModal('modalKtDeleteTarget');
+}
+
+// ── Hapus Tahun: hapus semua target di satu/lebih tahun untuk SEMUA indikator sekaligus ──
+function openKtHapusTahun() {
+  const list = document.getElementById('ktHapusTahunList');
+  if (!list) return;
+  const stat = {}; // tahun -> { baris, indikator }
+  _ktIndList.forEach(ind => {
+    Object.values(ind.targets || {}).forEach(t => {
+      const y = Number(t.tahun);
+      if (!stat[y]) stat[y] = { baris: 0, ind: new Set() };
+      stat[y].baris++;
+      stat[y].ind.add(ind.id);
+    });
+  });
+  const tahunList = Object.keys(stat).map(Number).sort((a, b) => a - b);
+  if (!tahunList.length) { toast('Belum ada target di tahun mana pun', 'error'); return; }
+  list.innerHTML = tahunList.map(y => `<label style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:8px 10px;border:1.5px solid #e2e8f0;border-radius:6px;cursor:pointer;font-size:.85rem">
+      <span style="display:flex;align-items:center;gap:8px">
+        <input type="checkbox" class="ktHapusThn" value="${y}" data-baris="${stat[y].baris}" data-ind="${stat[y].ind.size}" style="width:15px;height:15px;accent-color:var(--merah);cursor:pointer">
+        <span style="font-weight:600">${y}</span>
+      </span>
+      <span style="color:var(--teks-muted)">${stat[y].ind.size} indikator · ${stat[y].baris} target</span>
+    </label>`).join('');
+  const all = document.getElementById('ktHapusTahunAll');
+  if (all) all.checked = false;
+  openModal('modalKtHapusTahun');
+}
+
+function toggleKtHapusTahunAll(checked) {
+  document.querySelectorAll('.ktHapusThn').forEach(cb => { cb.checked = checked; });
+}
+
+async function saveKtHapusTahun() {
+  const checked = [...document.querySelectorAll('.ktHapusThn:checked')];
+  if (!checked.length) { toast('Pilih minimal 1 tahun', 'error'); return; }
+  const tahunStr = checked.map(cb => cb.value).join(', ');
+  const totalBaris = checked.reduce((n, cb) => n + (parseInt(cb.dataset.baris) || 0), 0);
+  const ok = await showConfirm({
+    title: 'Hapus Tahun',
+    msg: `Hapus <b>seluruh target</b> tahun <b>${tahunStr}</b> untuk <b>semua indikator</b> (${totalBaris} data target)? Realisasi tidak ikut terhapus. Tindakan ini tidak bisa dibatalkan.`,
+    okText: 'Ya, Hapus', icon: 'trash',
+  });
+  if (!ok) return;
+  try {
+    const hasil = await Promise.all(checked.map(cb =>
+      fetch(`/api/kinerja/target?tahun=${encodeURIComponent(cb.value)}`, { method: 'DELETE', headers: authHeaders() })
+        .then(async r => ({ r, d: await r.json().catch(() => ({})), y: cb.value }))
+    ));
+    const gagal = hasil.filter(x => !x.r.ok);
+    if (gagal.length) { toast(gagal[0].d.error || `Gagal menghapus tahun ${gagal[0].y}`, 'error'); }
+    else toast(`Tahun ${tahunStr} dihapus`);
+  } catch (err) { toast('Error: ' + err.message, 'error'); }
+  closeModal('modalKtHapusTahun');
+  loadKelolaTarget();
 }
 
 function toggleKtDeleteTargetAll(checked) {
@@ -5955,7 +6096,16 @@ async function loadMonitoringKinerja() {
 function _monRenderSummary() {
   const el = document.getElementById('monSummaryCards');
   if (!el || !_mon_data) return;
-  const { summary, bulan, tahun, jenis } = _mon_data;
+  const { bulan, tahun, jenis } = _mon_data;
+  // Kartu ikut filter Unit Kerja & User (kalau tidak ada filter, pakai summary dari server)
+  let summary = _mon_data.summary;
+  if (_mon_pj || _mon_user) {
+    let rows = _mon_data.indikator || [];
+    if (_mon_pj)   rows = rows.filter(r => r.penanggung_jawab === _mon_pj);
+    if (_mon_user) rows = rows.filter(r => Array.isArray(r.pic_users) && r.pic_users.includes(_mon_user));
+    const terisi = rows.filter(r => r.status === 'terisi').length;
+    summary = { total: rows.length, terisi, belum: rows.length - terisi };
+  }
   const pct = summary.total ? Math.round(summary.terisi / summary.total * 100) : 0;
   const tone = pct >= 80 ? { c: '#16a34a', c2: '#22c55e', bg: 'rgba(22,163,74,.1)' }
              : pct >= 50 ? { c: '#d97706', c2: '#f59e0b', bg: 'rgba(217,119,6,.1)' }
@@ -6337,6 +6487,7 @@ function setMonPJ(pj) {
   _mon_pj = _mon_pj === pj ? '' : pj;
   _mon_user = ''; // reset filter user saat ganti bidang
   _monPopulatePJSelect();
+  _monRenderSummary();
   _monRenderPJCards();
   _monPopulateUserSelect();
   _monRenderUserCards();
@@ -6347,6 +6498,7 @@ function setMonUser(u) {
   _mon_page = 1;
   _mon_user = u || '';
   _monPopulateUserSelect();
+  _monRenderSummary();
   _monRenderUserCards();
   _monRenderTable();
 }

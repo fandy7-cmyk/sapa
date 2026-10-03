@@ -705,7 +705,7 @@ const MENUS = [
       { id: 'realisasi-ikk', key: null, showIf: () => _isKinerjaAdmin() || (_hasIkkIndikator && (hasAccess('kinerja.ikk') || _isPantauKinerja())), label: 'IKK (Indikator Kinerja Kunci)', page: 'page-realisasi-ikk', loader: () => { initIkkControls().then(() => loadIkkRekap()); }, icon: `<svg class="ic-line" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M7.2,11.5 V8.3 A4.8,4.8 0 0,1 16.8,8.3 V11.5" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><path d="M6.1,9.5 H17.9 A1.6,1.6 0 0,1 19.5,11.1 V20.4 A1.6,1.6 0 0,1 17.9,22 H6.1 A1.6,1.6 0 0,1 4.5,20.4 V11.1 A1.6,1.6 0 0,1 6.1,9.5 Z" fill="none" stroke="currentColor" stroke-width="1.5"/><path fill-rule="evenodd" clip-rule="evenodd" d="M13.4,14.6 A1.4,1.4 0 1,0 10.6,14.6 A1.4,1.4 0 1,0 13.4,14.6 Z M11.3,15.7 H12.7 L13.2,19 H10.8 Z"/></svg><svg class="ic-fill" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path fill-rule="evenodd" clip-rule="evenodd" d="M7.2,11.5 L7.2,8.3 A4.8,4.8 0 0 1 16.8,8.3 L16.8,11.5 L14.9,11.5 L14.9,8.3 A2.9,2.9 0 0 0 9.1,8.3 L9.1,11.5 Z M4.5,10.8 A1.6,1.6 0 0,1 6.1,9.2 H17.9 A1.6,1.6 0 0,1 19.5,10.8 V20.4 A1.6,1.6 0 0,1 17.9,22 H6.1 A1.6,1.6 0 0,1 4.5,20.4 Z M13.4,14.6 A1.4,1.4 0 1,0 10.6,14.6 A1.4,1.4 0 1,0 13.4,14.6 Z M11.3,15.7 H12.7 L13.2,19 H10.8 Z"/></svg>` },
       { id: 'spm-kinerja', key: null, showIf: () => _isKinerjaAdmin() || (_hasSpmIndikator && (hasAccess('kinerja.spm') || _isPantauKinerja())), label: 'Indikator SPM (Standar Pelayanan Minimal)', page: 'page-spm', loader: () => { initSpmControls().then(() => loadSpmRekap()); }, icon: `<svg class="ic-line" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M12 2L4 5V11C4 16.5 7.5 21.26 12 22.5C16.5 21.26 20 16.5 20 11V5L12 2Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M8.5 12L10.75 14.25L15.5 9.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg><svg class="ic-fill" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2L4 5V11C4 16.5 7.5 21.26 12 22.5C16.5 21.26 20 16.5 20 11V5L12 2ZM16.2071 10.2071L11.4571 14.9571C11.0666 15.3476 10.4334 15.3476 10.0429 14.9571L7.79289 12.7071C7.40237 12.3166 7.40237 11.6834 7.79289 11.2929C8.18342 10.9024 8.81658 10.9024 9.20711 11.2929L10.75 12.8358L14.7929 8.79289C15.1834 8.40237 15.8166 8.40237 16.2071 8.79289C16.5976 9.18342 16.5976 9.81658 16.2071 10.2071Z"/></svg>` },
       { id: 'subkeg-kinerja', key: null, showIf: () => _isKinerjaAdmin() || (_hasSubkegIndikator && (hasAccess('kinerja.subkeg') || _isPantauKinerja())), label: 'Indikator Sub Kegiatan', page: 'page-subkeg', loader: () => { initSubkegControls().then(() => loadSubkegRekap()); }, icon: `<svg class="ic-line" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none"><circle cx="6" cy="19" r="2.5" stroke="currentColor" stroke-width="1.6"/><circle cx="18" cy="5" r="2.5" stroke="currentColor" stroke-width="1.6"/><path d="M8.5 19H16a3.5 3.5 0 000-7H8a3.5 3.5 0 010-7h7.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg><svg class="ic-fill" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><circle cx="6" cy="19" r="2.7"/><circle cx="18" cy="5" r="2.7"/><path d="M8.5 19H16a3.5 3.5 0 000-7H8a3.5 3.5 0 010-7h7.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>` },
-      { id: 'monitoring-kinerja', key: null, showIf: () => _user.is_admin || hasAccess('kinerja.full'), label: 'Monitoring Pengisian', page: 'page-monitoring-kinerja', loader: () => initMonitoringKinerja(), icon: `<svg class="ic-line" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12.5065 3.62326L11.4835 5.39501C8.57378 4.51629 5.96968 4.94531 5.07207 6.50001C3.89477 8.53915 5.86239 12.1524 9.75027 14.3971C13.6382 16.6418 17.7512 16.5392 18.9285 14.5C19.8261 12.9453 18.8956 10.4756 16.6797 8.39501L17.7026 6.62326C20.7847 9.33196 22.1654 12.8934 20.6605 15.5C18.8003 18.7221 13.4717 18.8551 8.75027 16.1292C4.0289 13.4033 1.47976 8.72208 3.34002 5.50001C4.84492 2.89344 8.61964 2.30849 12.5065 3.62326ZM15.8842 1.77277L17.6163 2.77277L12.6163 11.433L10.8842 10.433L15.8842 1.77277ZM6.73233 20H17.0003V22H5.01761C4.94008 22.0014 4.86194 21.9938 4.78481 21.9768C4.77025 21.9735 4.7558 21.97 4.74147 21.9662C4.6589 21.944 4.57784 21.9108 4.50028 21.866C4.47106 21.8492 4.44301 21.831 4.41616 21.8118C4.30161 21.7292 4.20524 21.623 4.1342 21.5003C4.06328 21.3772 4.01939 21.2404 4.00518 21.0997C4.00446 21.0924 4.00381 21.085 4.00325 21.0777C3.98786 20.883 4.02924 20.6819 4.13425 20.5L6.38425 16.6029L8.1163 17.6029L6.73233 20Z"/></svg><svg class="ic-fill" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M14.3685 4.39807L10.8842 10.433L12.6163 11.433L16.1006 5.39807C20.27 8.17002 22.4058 12.4771 20.6605 15.5C18.8003 18.7221 13.4717 18.8551 8.75027 16.1292C4.0289 13.4033 1.47976 8.72208 3.34002 5.50001C5.08527 2.47715 9.88324 2.17321 14.3685 4.39807ZM15.8842 1.77277L17.6163 2.77277L16.1163 5.37084L14.3842 4.37084L15.8842 1.77277ZM6.73233 20H17.0003V22H5.01761C4.94008 22.0014 4.86194 21.9938 4.78481 21.9768C4.77025 21.9735 4.7558 21.97 4.74147 21.9662C4.6589 21.944 4.57784 21.9108 4.50028 21.866C4.47106 21.8492 4.44301 21.831 4.41616 21.8118C4.30161 21.7292 4.20524 21.623 4.1342 21.5003C4.06328 21.3772 4.01939 21.2404 4.00518 21.0997C4.00446 21.0924 4.00381 21.085 4.00325 21.0777C3.98786 20.883 4.02924 20.6819 4.13425 20.5L6.38425 16.6029L8.1163 17.6029L6.73233 20Z"/></svg>` },
+      { id: 'monitoring-kinerja', key: null, showIf: () => _user.is_admin || hasAccess('kinerja.full'), label: 'Monitoring Pengisian', page: 'page-monitoring-kinerja', loader: () => initMonitoringKinerja(), icon: `<svg class="ic-line" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M4 16H20V5H4V16ZM13 18V20H17V22H7V20H11V18H2.9918C2.44405 18 2 17.5511 2 16.9925V4.00748C2 3.45107 2.45531 3 2.9918 3H21.0082C21.556 3 22 3.44892 22 4.00748V16.9925C22 17.5489 21.5447 18 21.0082 18H13Z"/></svg><svg class="ic-fill" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M13 18V20H17V22H7V20H11V18H2.9918C2.44405 18 2 17.5511 2 16.9925V4.00748C2 3.45107 2.45531 3 2.9918 3H21.0082C21.556 3 22 3.44892 22 4.00748V16.9925C22 17.5489 21.5447 18 21.0082 18H13Z"/></svg>` },
       { id: 'laporan-kinerja', key: null, showIf: () => _punyaMenuKinerja(), label: 'Laporan', page: 'page-laporan-kinerja', loader: () => loadLaporanKinerja(), icon: `<svg class="ic-line" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M11 7H13V17H11V7ZM15 11H17V17H15V11ZM7 13H9V17H7V13ZM15 4H5V20H19V8H15V4ZM3 2.9918C3 2.44405 3.44749 2 3.9985 2H16L20.9997 7L21 20.9925C21 21.5489 20.5551 22 20.0066 22H3.9934C3.44476 22 3 21.5447 3 21.0082V2.9918Z"/></svg><svg class="ic-fill" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M16 2L21 7V21.0082C21 21.556 20.5551 22 20.0066 22H3.9934C3.44476 22 3 21.5447 3 21.0082V2.9918C3 2.44405 3.44495 2 3.9934 2H16ZM11 7V17H13V7H11ZM15 11V17H17V11H15ZM7 13V17H9V13H7Z"/></svg>` },
     ],
   },
@@ -2653,7 +2653,7 @@ async function _loadCascadeLevel(level, parentId) {
 function _renderCascade() {
   const wrap = document.getElementById('lapCascadeWrap');
   if (!wrap) return;
-  wrap.innerHTML = LAP_CASCADE_LEVELS.map((jenis, level) => {
+  wrap.innerHTML = '<svg id="lapCascadeSvg" class="lap-cascade-svg" xmlns="http://www.w3.org/2000/svg"></svg>' + LAP_CASCADE_LEVELS.map((jenis, level) => {
     const c = LAP_JENIS_COLOR[jenis];
     return `
       <div class="lap-cascade-col" id="lapCol_${level}">
@@ -2663,14 +2663,70 @@ function _renderCascade() {
             <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>
           </button>
         </div>
-        <div class="lap-col-list" id="lapColList_${level}">
+        <div class="lap-col-list" id="lapColList_${level}" onscroll="_lapDrawConnectors()">
           ${level > 0 ? '<div class="lap-col-hint">← Pilih item di kiri</div>' : '<div class="lap-col-loading"><span class="btn-spin" style="width:11px;height:11px;vertical-align:-1px;margin-right:6px"></span>Memuat data...</div>'}
         </div>
       </div>
-      ${level < LAP_CASCADE_LEVELS.length - 1 ? '<div class="lap-cascade-arrow">›</div>' : ''}
+      ${level < LAP_CASCADE_LEVELS.length - 1 ? '<div class="lap-cascade-gap"></div>' : ''}
     `;
   }).join('');
+  _lapObserveConnectors(wrap);
+  _lapDrawConnectors();
 }
+
+// ── Garis penghubung antar card (item terpilih -> semua item anak di kolom sebelah) ──
+let _lapConnRaf = null, _lapConnObs = null;
+function _lapObserveConnectors(wrap) {
+  if (_lapConnObs) _lapConnObs.disconnect();
+  if (typeof ResizeObserver === 'undefined') return;
+  _lapConnObs = new ResizeObserver(() => _lapDrawConnectors());
+  _lapConnObs.observe(wrap);
+  wrap.querySelectorAll('.lap-cascade-col').forEach(c => _lapConnObs.observe(c));
+}
+function _lapDrawConnectors() {
+  if (_lapConnRaf) cancelAnimationFrame(_lapConnRaf);
+  _lapConnRaf = requestAnimationFrame(() => { _lapConnRaf = null; _lapDrawConnectorsNow(); });
+}
+function _lapDrawConnectorsNow() {
+  const wrap = document.getElementById('lapCascadeWrap');
+  const svg  = document.getElementById('lapCascadeSvg');
+  if (!wrap || !svg || !wrap.offsetParent) return;
+  const wr = wrap.getBoundingClientRect();
+  svg.setAttribute('width',  wrap.scrollWidth);
+  svg.setAttribute('height', wrap.scrollHeight);
+  let defs = '', paths = '';
+  for (let l = 0; l < LAP_CASCADE_LEVELS.length - 1; l++) {
+    const selId = _lapCascadeSel[l];
+    const src   = selId && document.getElementById(`lapItem_${l}_${selId}`);
+    const list  = document.getElementById(`lapColList_${l}`);
+    const nList = document.getElementById(`lapColList_${l + 1}`);
+    if (!src || !list || !nList) continue;
+    const color = LAP_JENIS_COLOR[LAP_CASCADE_LEVELS[l]].hdr;
+    const sr = src.getBoundingClientRect(), lr = list.getBoundingClientRect();
+    const sy = Math.min(Math.max(sr.top + sr.height / 2, lr.top + 6), lr.bottom - 6) - wr.top;   // tetap nempel walau card tergulir keluar
+    const sx = sr.right - wr.left;
+    defs += `<marker id="lapArr_${l}" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" markerUnits="userSpaceOnUse" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="${color}"/></marker>`;
+    const nr = nList.getBoundingClientRect();
+    nList.querySelectorAll('.lap-col-item').forEach(ch => {
+      const cr = ch.getBoundingClientRect();
+      const cyRaw = cr.top + cr.height / 2;
+      if (cyRaw < nr.top - 4 || cyRaw > nr.bottom + 4) return;   // anak yang tergulir keluar: garis disembunyikan
+      const ex = cr.left - wr.left - 1, ey = cyRaw - wr.top;
+      // Jalur siku (elbow) dengan sudut membulat: keluar horizontal -> batang vertikal bersama (tx) -> masuk horizontal
+      // ke card anak, jadi semua anak panah selalu lurus horizontal & rapi walau anaknya banyak.
+      const tx = sx + (ex - sx) * 0.45;
+      const dy = ey - sy, d = dy >= 0 ? 1 : -1;
+      const r  = Math.min(8, Math.abs(dy) / 2);
+      const dpath = Math.abs(dy) < 1
+        ? `M${sx} ${sy} L${ex} ${ey}`
+        : `M${sx} ${sy} L${tx - r} ${sy} Q${tx} ${sy} ${tx} ${sy + d * r} L${tx} ${ey - d * r} Q${tx} ${ey} ${tx + r} ${ey} L${ex} ${ey}`;
+      paths += `<path d="${dpath}" fill="none" stroke="${color}" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#lapArr_${l})"/>`;
+    });
+    paths += `<circle cx="${sx}" cy="${sy}" r="3.5" fill="${color}"/>`;
+  }
+  svg.innerHTML = `<defs>${defs}</defs>${paths}`;
+}
+window.addEventListener('resize', () => _lapDrawConnectors());
 
 function _renderCascadeLevel(level, items) {
   const list = document.getElementById(`lapColList_${level}`);
@@ -2681,6 +2737,7 @@ function _renderCascadeLevel(level, items) {
 
   if (!items.length) {
     list.innerHTML = `<div class="lap-col-empty">Belum ada ${LAP_JENIS_LABEL[jenis]}</div>`;
+    _lapDrawConnectors();
     return;
   }
 
@@ -2708,6 +2765,7 @@ function _renderCascadeLevel(level, items) {
       </div>
     </div>`;
   }).join('');
+  _lapDrawConnectors();
 }
 
 async function _selectCascadeItem(level, id) {
@@ -2735,6 +2793,7 @@ async function _selectCascadeItem(level, id) {
     }
     await _loadCascadeLevel(l, parentId);
   }
+  _lapDrawConnectors();
 }
 
 function _openCascadeAdd(level) {
@@ -3028,6 +3087,7 @@ async function openLapTemplateIndikatorModal(templateId, templateNama, templateJ
   document.getElementById('modalLapTemplateIndSub').textContent = 'Template ' + (LAP_JENIS_LABEL[templateJenis] || templateJenis);
   document.getElementById('lapTplIndSearch').value = '';
   document.getElementById('lapTplIndFilterJenis').value = '';
+  { const _info = document.getElementById('lapTplIndSelectedInfo'); if (_info) _info.textContent = ''; }  // buang sisa hitungan modal sebelumnya
   document.getElementById('lapTplIndList').innerHTML = '<div style="text-align:center;padding:20px;color:#94a3b8"><span class="btn-spin" style="width:11px;height:11px;vertical-align:-1px;margin-right:6px"></span>Memuat data...</div>';
   openModal('modalLapTemplateIndikator');
 

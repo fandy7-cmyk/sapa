@@ -2,7 +2,7 @@
 import bcrypt from 'bcryptjs';
 import { getDb, jsonResponse, errorResponse, parseBody, runOnce } from './_db.js';
 import { requireAdmin, requireAuth } from './_auth.js';
-import { logAudit } from './_audit.js';
+import { logAudit, _hitungKunci, LOGIN_HISTORY_HOURS } from './_audit.js';
 
 const DEFAULT_PASSWORD = 'Balut2026';
 
@@ -19,6 +19,7 @@ export const handler = async (event) => {
   const isPermissions = segments[1] === 'permissions';
   const isResetPassword = segments[1] === 'reset-password';
   const isForceLogout = segments[1] === 'force-logout';
+  const isUnlockLogin = segments[1] === 'unlock-login';
   const isPerencanaan = segments[0] === 'perencanaan';
   const userId = segments[0] && !isNaN(segments[0]) ? parseInt(segments[0]) : null;
 
@@ -210,6 +211,21 @@ export const handler = async (event) => {
         LEFT JOIN pegawai p ON REGEXP_REPLACE(p.nip, '[^0-9]', '', 'g') = REGEXP_REPLACE(u.nip, '[^0-9]', '', 'g') AND p.aktif = TRUE
         ORDER BY u.is_admin DESC, u.nama ASC
       `;
+      // Status kunci login (rate limit bertingkat) - gagal di sini jangan sampai bikin list user ikut gagal.
+      try {
+        const att = await sql`
+          SELECT email, EXTRACT(EPOCH FROM (NOW() - attempted_at))::float AS age_sec
+          FROM login_attempts
+          WHERE attempted_at >= NOW() - (${LOGIN_HISTORY_HOURS}::text || ' hours')::interval
+          ORDER BY email, attempted_at ASC
+        `;
+        const byNip = {};
+        for (const a of att) (byNip[a.email] ||= []).push(Number(a.age_sec));
+        for (const u of users) {
+          const st = u.nip && byNip[u.nip] ? _hitungKunci(byNip[u.nip]) : null;
+          u.login_terkunci_detik = st && !st.allowed ? st.retryAfterSec : 0;
+        }
+      } catch (e) { console.error('[GET /api/users lock-status]', e); }
       return jsonResponse({ users });
     } catch (err) {
       console.error('[GET /api/users]', err);
@@ -381,6 +397,11 @@ export const handler = async (event) => {
 
       const hash = await bcrypt.hash(DEFAULT_PASSWORD, 10);
       await sql`UPDATE users SET password_hash = ${hash} WHERE id = ${userId}`;
+      // Password baru = kesempatan baru: hapus riwayat salah login user ini
+      try {
+        const u = await sql`SELECT nip FROM users WHERE id = ${userId} LIMIT 1`;
+        if (u[0]?.nip) await sql`DELETE FROM login_attempts WHERE email = ${String(u[0].nip).trim()}`;
+      } catch (e) { console.error('[reset-password clear login_attempts]', e); }
       await logAudit(sql, event, {
         user_id: admin.id, nama: admin.nama, email: admin.email,
         aksi: 'reset_password', entitas: 'user', entitas_id: userId
@@ -415,6 +436,27 @@ export const handler = async (event) => {
     } catch (err) {
       console.error('[PUT /api/users/:id/status]', err);
       return errorResponse('Gagal mengubah status pengguna');
+    }
+  }
+
+  if (event.httpMethod === 'POST' && userId && isUnlockLogin) {
+    try {
+      const check = await sql`SELECT id, nama, nip, email FROM users WHERE id = ${userId} LIMIT 1`;
+      if (!check.length) return errorResponse('Pengguna tidak ditemukan', 404);
+      if (!check[0].nip) return errorResponse('Pengguna ini tidak punya NIP/username', 400);
+
+      const dihapus = await sql`
+        DELETE FROM login_attempts WHERE email = ${String(check[0].nip).trim()} RETURNING 1
+      `;
+      await logAudit(sql, event, {
+        user_id: admin.id, nama: admin.nama, email: admin.email,
+        aksi: 'unlock_login', entitas: 'user', entitas_id: userId,
+        detail: { target_nama: check[0].nama, target_email: check[0].email, percobaan_dihapus: dihapus.length }
+      });
+      return jsonResponse({ ok: true, percobaan_dihapus: dihapus.length });
+    } catch (err) {
+      console.error('[POST /api/users/:id/unlock-login]', err);
+      return errorResponse('Gagal membuka kunci login');
     }
   }
 

@@ -22,6 +22,7 @@ const AKSI_LABEL = {
   delete_user:         'Hapus Pengguna',
   update_indikator:    'Update Indikator Pengguna',
   force_logout:         'Paksa Logout Pengguna',
+  unlock_login:         'Buka Kunci Login Pengguna',
   logout_all:           'Logout Semua Sesi',
   refresh_token_reuse_detected: 'Sesi Dicurigai Dibajak',
 };
@@ -43,6 +44,7 @@ function _auditAksiBadge(aksi) {
     delete_user:          'badge-merah',
     update_indikator:     'badge-kuning',
     force_logout:         'badge-merah',
+    unlock_login:         'badge-kuning',
     logout_all:           'badge-abu',
     refresh_token_reuse_detected: 'badge-merah',
   };
@@ -144,6 +146,8 @@ function _auditDetailText(aksi, detail) {
       return Array.isArray(detail.permissions) ? `${detail.permissions.length} hak akses` : '-';
     case 'update_indikator':
       return Array.isArray(detail.indikator_ids) ? `${detail.indikator_ids.length} indikator` : '-';
+    case 'unlock_login':
+      return detail.target_nama ? `${detail.target_nama} - ${detail.percobaan_dihapus ?? 0} percobaan dihapus` : '-';
     case 'force_logout':
       return detail.target_nama ? `${detail.target_nama} - ${detail.sesi_dicabut ?? 0} sesi dicabut` : '-';
     default:

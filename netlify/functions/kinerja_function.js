@@ -816,6 +816,19 @@ export const handler = async (event) => {
       }
     }
 
+    // Hapus SEMUA target (TW I-IV + tahunan) pada satu tahun, untuk semua indikator sekaligus.
+    // DELETE /api/kinerja/target?tahun=2030  -> hanya menghapus kinerja_target, realisasi tidak disentuh.
+    if (event.httpMethod === 'DELETE' && !id && qs.tahun) {
+      const th = parseInt(qs.tahun);
+      if (!(th >= 2000 && th <= 2100)) return errorResponse('Tahun tidak valid', 400);
+      try {
+        const rows = await sql`DELETE FROM kinerja_target WHERE tahun = ${th} RETURNING id`;
+        return jsonResponse({ ok: true, tahun: th, dihapus: rows.length });
+      } catch (err) {
+        return errorResponse('Gagal menghapus target tahun ' + th + ': ' + err.message);
+      }
+    }
+
     if (event.httpMethod === 'DELETE' && id) {
       try {
         await sql`DELETE FROM kinerja_target WHERE id = ${id}`;

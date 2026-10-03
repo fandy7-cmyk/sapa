@@ -257,7 +257,7 @@ function renderUsersTable() {
         <td>${esc(u.nip || '-')}</td>
         <td>${esc(u.email || '-')}</td>
         <td style="max-width:220px;white-space:normal;word-break:break-word;line-height:1.35">${getBidangNama(u.bidang_id)}</td>
-        <td><span class="badge ${u.is_active === false ? 'badge-abu' : 'badge-hijau'}">${u.is_active === false ? 'Nonaktif' : 'Aktif'}</span></td>
+        <td><span class="badge ${u.is_active === false ? 'badge-abu' : 'badge-hijau'}">${u.is_active === false ? 'Nonaktif' : 'Aktif'}</span>${u.login_terkunci_detik > 0 ? ` <span class="badge badge-merah" data-tip="Login terkunci karena terlalu banyak salah password. Sisa ± ${_fmtSisaKunci(u.login_terkunci_detik)}">Terkunci</span>` : ''}</td>
         <td>${u.last_login ? fmtDate(u.last_login) : '-'}</td>
         <td style="white-space:nowrap">
           <button class="btn btn-ghost btn-sm" data-tip="Edit" onclick="editUser(${u.id})">
@@ -278,6 +278,9 @@ function renderUsersTable() {
           <button class="btn btn-ghost btn-sm" data-tip="${u.is_active === false ? 'Aktifkan' : 'Nonaktifkan'}" onclick="toggleUserStatus(${u.id}, ${u.is_active !== false}, '${esc(u.nama)}')">
             <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${u.is_active === false ? '<path d="M9 12l2 2 4-4"/><circle cx="12" cy="12" r="10"/>' : '<path d="M18.36 6.64A9 9 0 0 1 20.77 15"/><path d="M6.16 6.16a9 9 0 1 0 12.68 12.68"/><path d="M12 2v4"/><path d="M2 12h4"/>'}</svg>
           </button>
+          ${u.login_terkunci_detik > 0 ? `<button class="btn btn-ghost btn-sm" data-tip="Buka Kunci Login" onclick="unlockLoginUser(${u.id}, '${esc(u.nama)}')">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 9.9-1"/></svg>
+          </button>` : ''}
           <button class="btn btn-ghost btn-sm" data-tip="Paksa Logout" onclick="forceLogoutUser(${u.id}, '${esc(u.nama)}')">
             <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
           </button>
@@ -533,6 +536,32 @@ async function toggleUserStatus(id, currentAktif, nama) {
     loadUsers();
   } catch { toast('Gagal mengubah status', 'error'); }
 }
+
+function _fmtSisaKunci(sec) {
+  const m = Math.max(1, Math.ceil(sec / 60));
+  if (m < 60) return m + ' menit';
+  const j = Math.floor(m / 60), r = m % 60;
+  return r ? `${j} jam ${r} menit` : `${j} jam`;
+}
+
+async function unlockLoginUser(id, nama) {
+  const ok = await showConfirm({
+    title: 'Buka Kunci Login',
+    msg: `Kunci login <strong>${nama}</strong> akan dibuka dan hitungan salah password diulang dari nol. Pastikan yang mencoba login memang pegawai yang bersangkutan.`,
+    okText: 'Ya, Buka Kunci',
+    icon: 'person',
+    type: 'warning',
+  });
+  if (!ok) return;
+  try {
+    const r = await fetch(`/api/users/${id}/unlock-login`, { method: 'POST', headers: authHeaders() });
+    const d = await r.json();
+    if (!r.ok) { toast(d.error || 'Gagal membuka kunci login', 'error'); return; }
+    toast('Kunci login dibuka', 'success');
+    loadUsers();
+  } catch { toast('Gagal membuka kunci login', 'error'); }
+}
+window.unlockLoginUser = unlockLoginUser;
 
 async function forceLogoutUser(id, nama) {
   const ok = await showConfirm({

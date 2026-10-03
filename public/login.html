@@ -94,10 +94,10 @@
   <!-- Preload file theme-engine.js juga, biar downloadnya paralel dari
        awal - bukan nunggu parser sampe ke <script> di akhir body baru
        mulai narik filenya. Ini yang bikin tema kerasa lambat muncul. -->
-  <link rel="preload" as="script" href="js/theme-engine.js?v=1.8.4" />
+  <link rel="preload" as="script" href="js/theme-engine.js?v=1.8.5" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>SAPA Perencanaan</title>
-  <meta name="app-version" content="1.8.4" />
+  <meta name="app-version" content="1.8.5" />
   <link rel="icon" type="image/png" href="/favicon.png" />
   <link rel="manifest" href="/manifest.json" />
   <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
@@ -108,7 +108,7 @@
   <meta name="apple-mobile-web-app-title" content="SAPA" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="css/styles.css?v=1.8.4" />
+  <link rel="stylesheet" href="css/styles.css?v=1.8.5" />
   <style>
     
     #loginOverlay {
@@ -186,6 +186,10 @@
     #loginOverlay .panel-right { background: #f8fafa !important; }
     #loginOverlay .forgot-row  { margin-bottom: 20px !important; }
     #loginOverlay .btn-login   { margin-top: 4px; }
+    /* Tombol disabled (terkunci/loading) harus kelihatan mati. !important dipakai karena animasi
+       lpFadeUp (fill-mode both) memaksa opacity:1 dan menimpa opacity dari :disabled. */
+    .btn-login:disabled,
+    #loginOverlay .btn-login:disabled { opacity: .45 !important; cursor: not-allowed !important; filter: grayscale(.6); box-shadow: none !important; transform: none !important; }
     #loginOverlay .info-banner { margin-top: 14px; }
 
     
@@ -374,12 +378,46 @@ function _getLoginLock() {
   } catch { return null; }
 }
 
+// ms -> "HH:MM:SS" (hitung mundur per detik)
+function _fmtTunggu(ms) {
+  const t = Math.max(1, Math.ceil(ms / 1000));
+  const p2 = n => String(n).padStart(2, '0');
+  return `${p2(Math.floor(t / 3600))}:${p2(Math.floor((t % 3600) / 60))}:${p2(t % 60)}`;
+}
+
 function _setLoginLock(nip, untilTs) {
   try { sessionStorage.setItem(LOGIN_LOCK_KEY, JSON.stringify({ nip: nip.trim(), until: untilTs })); } catch {}
 }
 
 function _clearLoginLock() {
   try { sessionStorage.removeItem(LOGIN_LOCK_KEY); } catch {}
+}
+
+// Kunci di sessionStorage cuma cache buat hitung mundur. Sumber kebenaran = server, jadi selama
+// terkunci kita tanya server tiap beberapa detik: kalau admin sudah buka kunci, kunci lokal dibuang.
+let _lockCheckAt = 0, _lockChecking = false;
+async function _verifyLockWithServer(nip) {
+  if (_lockChecking) return;
+  _lockChecking = true;
+  try {
+    const r = await fetch('/api/auth/lock-status', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ nip }),
+    });
+    if (r.ok) {
+      const d = await r.json();
+      if (d.terkunci && Number(d.retry_after_detik) > 0) {
+        _setLoginLock(nip, Date.now() + Number(d.retry_after_detik) * 1000);
+      } else {
+        _clearLoginLock();
+      }
+    }
+  } catch {} finally {
+    _lockChecking = false;
+    _lockCheckAt = Date.now();
+  }
+  _syncLoginLockUI();
 }
 
 function _syncLoginLockUI() {
@@ -391,10 +429,16 @@ function _syncLoginLockUI() {
 
   if (lock && lock.nip === curNip) {
     btn.disabled = true;
-    const menit = Math.max(1, Math.ceil((lock.until - Date.now()) / 60000));
-    _loginShowErr(`Terlalu banyak percobaan login. Coba lagi dalam ${menit} menit.`, 'lock');
+    _loginShowErr(`Terlalu banyak percobaan login. Coba lagi dalam ${_fmtTunggu(lock.until - Date.now())}.`, 'lock');
+    if (Date.now() - _lockCheckAt > 5000) { _lockCheckAt = Date.now(); _verifyLockWithServer(curNip); }
   } else {
     btn.disabled = false;
+    // Kunci sudah lepas (habis waktu / dibuka admin): hapus pesan kunci + tanda merah di input
+    const errEl = document.getElementById('loginErrMsg');
+    if (errEl && errEl.innerHTML.includes('Terlalu banyak percobaan login')) {
+      errEl.innerHTML = '';
+      nipEl.classList.remove('error');
+    }
   }
 }
 
@@ -573,7 +617,8 @@ async function doLogin() {
     const data = await r.json();
     if (!r.ok) {
       if (r.status === 429) {
-        const _lockUntil = Date.now() + 15 * 60 * 1000;
+        // Lama kunci ditentukan server (bertingkat), fallback 1 jam kalau field-nya gak ada
+        const _lockUntil = Date.now() + (Number(data.retry_after_detik) > 0 ? Number(data.retry_after_detik) * 1000 : 60 * 60 * 1000);
         _setLoginLock(nip, _lockUntil);
         _syncLoginLockUI();
         _rateLimited = true;
@@ -627,7 +672,7 @@ function _loginShowErr(msg, type = 'warn') {
   if (type !== 'lock') {
     _loginErrTimerId = setTimeout(() => {
       if (_myToken === _loginErrToken) el.innerHTML = '';
-    }, 5000);
+    }, 3000);
   }
 }
 
@@ -652,6 +697,6 @@ function _loginShowErr(msg, type = 'warn') {
 </script>
 
 
-<script src="js/theme-engine.js?v=1.8.4"></script>
+<script src="js/theme-engine.js?v=1.8.5"></script>
 </body>
 </html>

@@ -1386,6 +1386,15 @@ let _lapKinerjaColspan = 12;
 const _LAP_ROMAWI = ['I', 'II', 'III', 'IV'];
 
 function _lapTwOf(m) { return Math.ceil(m / 3); }
+// Label periode untuk judul/nama file laporan kinerja: "Triwulan III 2026" / "Triwulan I - II 2026"
+// kalau rentang bulan pas per triwulan, selain itu pakai label bulan (fallback).
+function _lapJudulPeriode(bulanDari, bulanSampai, tahun, fallback) {
+  if (bulanDari % 3 !== 1 || bulanSampai % 3 !== 0) return fallback;
+  const a = _lapTwOf(bulanDari), b = _lapTwOf(bulanSampai);
+  return a === b
+    ? `Triwulan ${_LAP_ROMAWI[b - 1]} ${tahun}`
+    : `Triwulan ${_LAP_ROMAWI[a - 1]} - ${_LAP_ROMAWI[b - 1]} ${tahun}`;
+}
 function _lapTwLabel(m, y) { return `TW ${_LAP_ROMAWI[_lapTwOf(m) - 1]} ${y}`; }
 
 // Kolom periode tabel Laporan Kinerja: triwulan yang lengkap (3 bulan masuk rentang)
@@ -1603,6 +1612,30 @@ function _lapMpPick(id, key) {
   if (typeof fnRef === 'function') fnRef(key);
 }
 
+// Simpan pilihan rentang (Dari/Sampai) supaya tidak balik ke default saat halaman di-refresh
+const _LAP_RANGE_LS_KEY = 'sapa_lap_kinerja_range';
+function _lapSaveRange() {
+  try {
+    if (!_lapRangeFrom || !_lapRangeTo) return;
+    localStorage.setItem(_LAP_RANGE_LS_KEY, JSON.stringify({ from: _lapRangeFrom.key, to: _lapRangeTo.key }));
+  } catch (_) {}
+}
+function _lapLoadRange(tahunList) {
+  try {
+    const raw = localStorage.getItem(_LAP_RANGE_LS_KEY);
+    if (!raw) return;
+    const { from, to } = JSON.parse(raw) || {};
+    const re = /^(\d{4})-(0[1-9]|1[0-2])$/;
+    const mf = re.exec(from || ''), mt = re.exec(to || '');
+    if (!mf || !mt) return;
+    const yf = +mf[1], bf = +mf[2], yt = +mt[1], bt = +mt[2];
+    if (tahunList.length && (!tahunList.includes(yf) || !tahunList.includes(yt))) return;
+    if (yf * 100 + bf > yt * 100 + bt) return;
+    _lapRangeFrom = { bulan: bf, tahun: yf, key: from };
+    _lapRangeTo   = { bulan: bt, tahun: yt, key: to };
+  } catch (_) {}
+}
+
 function _lapSetRangeFrom(key) {
   const [y, m] = key.split('-').map(Number);
   _lapRangeFrom = { bulan: m, tahun: y, key };
@@ -1619,6 +1652,7 @@ function _lapSetRangeFrom(key) {
   }
   const toEl = document.getElementById('lapMpTo');
   if (toEl?.classList.contains('open')) _lapMpRenderPanel(toEl);
+  _lapSaveRange();
   loadLaporanKinerja();
 }
 
@@ -1638,6 +1672,7 @@ function _lapSetRangeTo(key) {
   }
   const frEl = document.getElementById('lapMpFrom');
   if (frEl?.classList.contains('open')) _lapMpRenderPanel(frEl);
+  _lapSaveRange();
   loadLaporanKinerja();
 }
 
@@ -1649,6 +1684,7 @@ function _lapRenderRangeFilter(tahunList) {
   const periodeAktifBulan = aktif?.bulan ?? 12;
 
   const _twStart = bulan => bulan <= 3 ? 1 : bulan <= 6 ? 4 : bulan <= 9 ? 7 : 10;
+  if (!_lapRangeFrom && !_lapRangeTo) _lapLoadRange(tahunList);
   if (!_lapRangeFrom) {
     const from = _twStart(periodeAktifBulan);
     _lapRangeFrom = { bulan: from, tahun: tahunAktif, key: `${tahunAktif}-${String(from).padStart(2,'0')}` };
@@ -2130,6 +2166,7 @@ function _bukaPreviewPDF(htmlBody, judulDokumen, orientation) {
     .sheet { margin:0; padding:0; box-shadow:none; width:100%; border-radius:0; }
   }
   table { border-collapse:collapse; width:100%; }
+  thead { display:table-header-group; }
   th, td { font-size:10px; }
   td { word-break:break-word; overflow-wrap:break-word; }
   p, span, li, div { overflow-wrap:break-word; word-break:break-word; }
@@ -2544,7 +2581,7 @@ async function downloadLaporanByUrusan(btnEl) {
       </table>
       ${_ttdHtml(kepalaDinas, nowStr)}`;
 
-    _bukaPreviewPDF(bodyHtml, `Capaian Indikator ${sdLabel}`, 'landscape');
+    _bukaPreviewPDF(bodyHtml, `Capaian Indikator ${_lapJudulPeriode(bulanDari, bulanSampai, tahun, sdLabel)}`, 'landscape');
   } catch (e) {
     toast('Gagal generate laporan: ' + e.message, 'error');
   } finally {
@@ -2795,7 +2832,7 @@ async function downloadLaporanByTSP(btnEl) {
       </table>
       ${_ttdHtml(kepalaDinas, nowStr)}`;
 
-    _bukaPreviewPDF(bodyHtml, `Monev Kinerja ${sdLabel}`, 'landscape');
+    _bukaPreviewPDF(bodyHtml, `Monev Kinerja ${_lapJudulPeriode(bulanDari, bulanSampai, tahun, sdLabel)}`, 'landscape');
   } catch (e) {
     toast('Gagal generate laporan: ' + e.message, 'error');
   } finally {
@@ -2888,7 +2925,16 @@ async function downloadLaporanByPengukuran(btnEl) {
     const sdLabel = bulanDari === bulanSampai
       ? `${BULAN_FULL[bulanSampai]} ${tahun}`
       : `${BULAN_FULL[bulanDari]} - ${BULAN_FULL[bulanSampai]} ${tahun}`;
-    const twLabel = bulanSampai <= 3 ? 'TW I' : bulanSampai <= 6 ? 'TW II' : bulanSampai <= 9 ? 'TW III' : 'TW IV';
+    const _twMulai = _lapTwOf(bulanDari), _twAkhir = _lapTwOf(bulanSampai);
+    // Label TRIWULAN mengikuti range yang dipilih: 'TW III' atau 'TW I - TW III'
+    const twLabel = _twMulai === _twAkhir
+      ? `TW ${_LAP_ROMAWI[_twAkhir-1]}`
+      : `TW ${_LAP_ROMAWI[_twMulai-1]} - TW ${_LAP_ROMAWI[_twAkhir-1]}`;
+    const periodeLabel = (bulanDari % 3 === 1 && bulanSampai % 3 === 0)
+      ? (_twMulai === _twAkhir
+          ? `TRIWULAN ${_LAP_ROMAWI[_twAkhir-1]} ${tahun}`
+          : `TRIWULAN ${_LAP_ROMAWI[_twMulai-1]} - ${_LAP_ROMAWI[_twAkhir-1]} ${tahun}`)
+      : sdLabel;
 
     const bulanList = Array.from({length: bulanSampai - bulanDari + 1}, (_, i) => bulanDari + i);
     const _twDef = [{tw:'I',s:1,e:3},{tw:'II',s:4,e:6},{tw:'III',s:7,e:9},{tw:'IV',s:10,e:12}];
@@ -2909,32 +2955,93 @@ async function downloadLaporanByPengukuran(btnEl) {
 
     const colspanTotal = 5 + displayCols.length + 6;
 
-    // ---- isi tabel ----
+    // ---- target per triwulan (TW 1-4) dari Master Target ----
+    const tgtMap = {}; // indikator_id -> { 1: {d, n}, 2: ..., 3: ..., 4: ... }
+    try {
+      const rt = await fetch('/api/kinerja/target?all=1', { headers: authHeaders() });
+      if (rt.ok) {
+        const dt = await rt.json();
+        (dt.target || []).forEach(t => {
+          if (parseInt(t.tahun) !== parseInt(tahun)) return;
+          const d = (t.target_display != null && String(t.target_display).trim() !== '') ? String(t.target_display).trim() : null;
+          const n = (t.target != null && !isNaN(Number(t.target))) ? String(parseFloat(Number(t.target).toFixed(4))) : null;
+          (tgtMap[t.indikator_id] = tgtMap[t.indikator_id] || {})[t.triwulan] = { d, n };
+        });
+      }
+    } catch (e) { console.warn('[pengukuran] target TW gagal dimuat', e); }
+
+    const _idOf = r => parseInt(r.indikator_id ?? r.id);
+    const targetTw = (r, k) => {
+      const t = tgtMap[_idOf(r)]?.[k];
+      if (!t) return null;
+      if (t.d) return t.d;
+      if (t.n === null) return null;
+      return r.satuan ? (r.satuan === '%' ? t.n + '%' : `${t.n} ${r.satuan}`) : t.n;
+    };
+    // Capaian per TW = realisasi di akhir TW itu; TW di luar rentang laporan = '-'
+    const capaianTw = (r, k) => {
+      const e = k * 3, st = e - 2;
+      if (bulanSampai < st || bulanDari > e) return null;
+      let v = r.realisasiPerBulan?.[e];
+      if ((v === null || v === undefined || v === '') && bulanSampai >= st && bulanSampai < e) v = r.realisasiPerBulan?.[bulanSampai];
+      return (v === null || v === undefined || v === '') ? null : v;
+    };
+
+    // ---- isi tabel (format Rencana Aksi: Sasaran Strategi | Sasaran Program/Kegiatan, target & capaian per TW) ----
+    const CELL = 'border:1px solid #000;padding:3px 3px;font-size:8px;vertical-align:top;word-break:break-word;overflow-wrap:anywhere;';
+    const LEVEL_BG = { pk_sasaran: '#00ffff', pk_program: '#ffe799', pk_kegiatan: '#c5e0b2', pk_subkegiatan: '' };
+    // Warna per BARIS (seluruh sel di baris), seperti di Excel; sub kegiatan tanpa warna
+    const rowStyle = tpl => (tpl && LEVEL_BG[tpl.jenis]) ? ` style="background:${LEVEL_BG[tpl.jenis]};font-weight:700"` : '';
+    const blankTd = n => `<td style="${CELL}"></td>`.repeat(n);
+    const valTd = v => `<td style="${CELL}text-align:center">${(v === null || v === undefined || v === '') ? '-' : _lapEscHtml(String(v))}</td>`;
+    const twTds = fn => [1, 2, 3, 4].map(k => valTd(fn(k))).join('');
+    // Kolom Analisa/Evaluasi (Dialog Kinerja) sengaja dikosongkan ('-'), tidak diambil dari
+    // faktor penghambat / solusi / faktor pendukung / rencana tindak lanjut.
+    const analisaHtml = () => `<td style="${CELL}text-align:center">-</td>`;
+    const sasaranTd = (tpl, span) => {
+      const bg = LEVEL_BG[tpl.jenis] ? `background:${LEVEL_BG[tpl.jenis]};` : '';
+      // Sub kegiatan (tanpa warna level) tidak di-bold, sama seperti baris indikatornya
+      const fw = LEVEL_BG[tpl.jenis] ? 'font-weight:700;' : '';
+      return `<td rowspan="${span}" style="${CELL}${bg}${fw}text-align:left">${_lapEscHtml(tpl.nama)}</td>`;
+    };
+    // tpl = node hierarki (null untuk akun non-admin tanpa hierarki)
+    const indikatorRowHtml = (r, tpl, first, span) => {
+      const strategis = !!tpl && tpl.jenis === 'pk_sasaran';
+      const sasaran = (tpl && first) ? sasaranTd(tpl, span) : (tpl ? '' : blankTd(1));
+      const indikator = `<td style="${CELL}text-align:left">${_lapEscHtml(r.nama_indikator)}</td>`;
+      const pj = `<td style="${CELL}text-align:center">${_lapEscHtml(r.penanggung_jawab || '-')}</td>`;
+      if (strategis) {
+        return `<tr${rowStyle(tpl)}>${sasaran}${indikator}${twTds(k => targetTw(r, k))}${blankTd(6)}${pj}${twTds(k => capaianTw(r, k))}${blankTd(4)}${analisaHtml(r)}</tr>`;
+      }
+      return `<tr${rowStyle(tpl)}>${blankTd(6)}${sasaran}${indikator}${twTds(k => targetTw(r, k))}${pj}${blankTd(4)}${twTds(k => capaianTw(r, k))}${analisaHtml(r)}</tr>`;
+    };
+    // node tanpa indikator sendiri (hanya induk dari node lain): tampilkan baris sasarannya saja
+    const nodeKosongHtml = tpl => {
+      const strategis = tpl.jenis === 'pk_sasaran';
+      return strategis
+        ? `<tr${rowStyle(tpl)}>${sasaranTd(tpl, 1)}${blankTd(21)}</tr>`
+        : `<tr${rowStyle(tpl)}>${blankTd(6)}${sasaranTd(tpl, 1)}${blankTd(15)}</tr>`;
+    };
+
+    // Tiap grup (node + indikatornya) dibungkus <tbody> sendiri & dilarang terpotong
+    // di batas halaman, supaya sel rowspan + warna baris tidak meleset saat print/PDF.
+    const grupHtml = rows => `<tbody style="break-inside:avoid;page-break-inside:avoid">${rows}</tbody>`;
     let rowsHtml;
     if (flatNodes) {
-      let no = 0;
-      rowsHtml = flatNodes.map(({ tpl, level, no: nodeNo }) => {
-        const cfg = PK_CFG[tpl.jenis] || { label: String(tpl.jenis).toUpperCase(), bg: '#e2e8f0' };
-        const indent = 8 + level * 16;
-        const headerRow = `<tr style="background:${cfg.bg}">
-          <td colspan="${colspanTotal}" style="padding:5px 8px 5px ${indent}px;font-size:10px;font-weight:700;color:#000;border:1px solid #000;line-height:1.4">
-            <span style="text-transform:uppercase;letter-spacing:.3px">${cfg.label} ${nodeNo}</span> : ${_lapEscHtml(tpl.nama)}
-          </td>
-        </tr>`;
-        const indRows = tpl._rows.map(r => {
-          no++;
-          return _lapKinerjaPdfRowHtml(r, no, displayCols, r.nama_indikator);
-        }).join('');
-        return headerRow + indRows;
-      }).join('');
+      rowsHtml = flatNodes.map(({ tpl }) => grupHtml(
+        !tpl._rows.length
+          ? nodeKosongHtml(tpl)
+          : tpl._rows.map((r, i) => indikatorRowHtml(r, tpl, i === 0, tpl._rows.length)).join('')
+      )).join('');
     } else {
-      rowsHtml = _lapKinerjaFlatRowsHtml(data.rows, displayCols);
+      rowsHtml = data.rows.map(r => grupHtml(indikatorRowHtml(r, null, true, 1))).join('');
     }
 
     const nowStr = new Date().toLocaleDateString('id-ID', { day:'2-digit', month:'long', year:'numeric' });
     const kepalaDinas = await _fetchKepalaDinas();
 
-    const th = (label, extra = '') => `<th rowspan="3" style="color:white;padding:5px 4px;border:1px solid #000;text-align:center;font-size:10px;${extra}">${label}</th>`;
+    const HDR = 'color:#fff;padding:4px 3px;border:1px solid #000;text-align:center;font-size:8px;font-weight:700;text-transform:uppercase;vertical-align:middle;word-break:break-word';
+    const TW_HDR = [1, 2, 3, 4].map(k => `<th style="${HDR}">TW ${_LAP_ROMAWI[k-1]}</th>`).join('');
     const bodyHtml = `
       ${_kopSuratHtml()}
       <table style="border-collapse:collapse;width:100%;margin-bottom:12px;font-size:10px">
@@ -2944,39 +3051,44 @@ async function downloadLaporanByPengukuran(btnEl) {
           <td style="padding:2px 0;font-weight:600;font-size:10px">DINAS KESEHATAN, PENGENDALIAN PENDUDUK DAN KELUARGA BERENCANA</td>
         </tr>
         <tr>
-          <td style="padding:2px 0;font-weight:700;font-size:10px">BULAN/TRIWULAN</td>
+          <td style="padding:2px 0;font-weight:700;font-size:10px">PERIODE</td>
           <td style="padding:2px 0;font-size:10px">:</td>
-          <td style="padding:2px 0;font-weight:600;font-size:10px">${BULAN_FULL[bulanSampai].toUpperCase()} / ${twLabel}</td>
+          <td style="padding:2px 0;font-weight:600;font-size:10px">${twLabel}</td>
         </tr>
       </table>
       <div style="text-align:center;margin:16px 0 14px">
         <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px">PENGUKURAN KINERJA</div>
-        <div style="font-size:10px;color:#475569;margin-top:3px">${sdLabel}</div>
+        <div style="font-size:10px;color:#475569;margin-top:3px">Unit Kerja : ${_lapEscHtml(document.getElementById('laporanKinerjaBidang')?.value || 'Semua Unit Kerja')}</div>
       </div>
-      <table style="border-collapse:collapse;border-spacing:0;width:100%;table-layout:auto">
+      <table style="border-collapse:collapse;border-spacing:0;width:100%;table-layout:fixed">
+        <colgroup>
+          <col style="width:8%"><col style="width:7.5%"><col style="width:3.4%"><col style="width:3.4%"><col style="width:3.4%"><col style="width:3.4%">
+          <col style="width:8%"><col style="width:7.5%"><col style="width:3.4%"><col style="width:3.4%"><col style="width:3.4%"><col style="width:3.4%">
+          <col style="width:8%">
+          <col style="width:3%"><col style="width:3%"><col style="width:3%"><col style="width:3%">
+          <col style="width:3%"><col style="width:3%"><col style="width:3%"><col style="width:3%">
+          <col style="width:9.2%">
+        </colgroup>
         <thead>
-          <tr style="background:#0d9488">
-            ${th('NO', 'white-space:nowrap;min-width:36px')}
-            ${th('INDIKATOR KINERJA', 'min-width:150px')}
-            ${th('TARGET ' + tahun, 'white-space:nowrap;min-width:40px')}
-            ${th('SATUAN', 'white-space:nowrap;min-width:38px')}
-            ${th('UNIT KERJA', 'min-width:110px')}
-            ${twJudulHeader}
-            ${th('REALISASI S.D TW ' + _LAP_ROMAWI[_lapTwOf(bulanSampai)-1], 'white-space:nowrap;min-width:50px')}
-            ${th('CAPAIAN', 'white-space:nowrap;min-width:45px')}
-            ${th('FAKTOR PENGHAMBAT', 'min-width:130px')}
-            ${th('SOLUSI', 'min-width:130px')}
-            ${th('FAKTOR PENDUKUNG', 'min-width:130px')}
-            ${th('RENCANA TINDAK LANJUT', 'min-width:130px')}
+          <tr style="background:#155f82;color:#fff">
+            <th rowspan="2" style="${HDR}">Sasaran Strategi</th>
+            <th rowspan="2" style="${HDR}">Indikator Kinerja</th>
+            <th colspan="4" style="${HDR}">Target Kinerja</th>
+            <th rowspan="2" style="${HDR}">Sasaran Program/ Kegiatan</th>
+            <th rowspan="2" style="${HDR}">Indikator Kinerja</th>
+            <th colspan="4" style="${HDR}">Target Program/ Kegiatan/ Sub Kegiatan</th>
+            <th rowspan="2" style="${HDR}white-space:nowrap">Penanggung<br>Jawab</th>
+            <th colspan="4" style="${HDR}">Capaian Kinerja</th>
+            <th colspan="4" style="${HDR}">Capaian Program/ Kegiatan/ Sub Kegiatan</th>
+            <th rowspan="2" style="${HDR}">Analisa/Evaluasi (Dialog Kinerja)</th>
           </tr>
-          <tr style="background:#0d9488">${twHeaders}</tr>
-          <tr style="background:#0d9488">${bulanHeaderCells}</tr>
+          <tr style="background:#155f82;color:#fff">${TW_HDR.repeat(4)}</tr>
         </thead>
-        <tbody>${rowsHtml}</tbody>
+        ${rowsHtml}
       </table>
       ${_ttdHtml(kepalaDinas, nowStr)}`;
 
-    _bukaPreviewPDF(bodyHtml, `Pengukuran Kinerja ${sdLabel}`, 'landscape');
+    _bukaPreviewPDF(bodyHtml, `Pengukuran Kinerja ${_lapJudulPeriode(bulanDari, bulanSampai, tahun, sdLabel)}`, 'landscape');
   } catch (e) {
     toast('Gagal generate laporan: ' + e.message, 'error');
   } finally {

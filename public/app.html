@@ -66,11 +66,11 @@
   </script>
   <!-- Preload file theme-engine.js juga, paralel dari awal - jangan
        nunggu parser sampe ke <script> di akhir body baru mulai narik. -->
-  <link rel="preload" as="script" href="js/theme-engine.js?v=1.8.4" />
+  <link rel="preload" as="script" href="js/theme-engine.js?v=1.8.5" />
   <script>history.replaceState(null, '', location.origin);</script>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>SAPA Perencanaan</title>
-  <meta name="app-version" content="1.8.4" />
+  <meta name="app-version" content="1.8.5" />
   <link rel="icon" type="image/png" href="/favicon.png" />
   <link rel="manifest" href="/manifest.json" />
   <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
@@ -81,7 +81,7 @@
   <meta name="apple-mobile-web-app-title" content="SAPA" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="css/styles.css?v=1.8.4" />
+  <link rel="stylesheet" href="css/styles.css?v=1.8.5" />
   <style>
     
     .filter-bar {
@@ -293,7 +293,7 @@
       <div class="topbar-constellation" id="topbarConstellation" aria-hidden="true">
         <canvas id="topbarConstellationCanvas"></canvas>
       </div>
-      <script src="js/topbar_constellation.js?v=1.8.4"></script>
+      <script src="js/topbar_constellation.js?v=1.8.5"></script>
 
       <div class="topbar-profile">
         <div class="topbar-user-info">
@@ -1577,6 +1577,8 @@
             <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-4.35-4.35"/></svg>
             <input type="text" placeholder="Cari indikator…" id="ktSearch" oninput="debounceInput('ktSearch', () => filterKelolaTarget(), 180)" />
           </div>
+          <button class="btn btn-primary btn-sm" onclick="downloadKelolaTargetPDF(this)" data-tip="Download target indikator (sesuai filter tahun, jenis &amp; pencarian) sebagai PDF"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline stroke-linecap="round" stroke-linejoin="round" points="7 10 12 15 17 10"/><line stroke-linecap="round" stroke-linejoin="round" x1="12" y1="15" x2="12" y2="3"/></svg>Target Indikator</button>
+          <button class="btn btn-primary btn-sm" onclick="openKtHapusTahun()"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" style="margin-right:5px;vertical-align:-2px"><polyline points="3 6 5 6 21 6"/><path stroke-linecap="round" stroke-linejoin="round" d="M19 6l-1 14H6L5 6"/><path stroke-linecap="round" stroke-linejoin="round" d="M10 11v6m4-6v6"/></svg>Hapus Tahun</button>
         </div>
 
         
@@ -1589,7 +1591,7 @@
       
       <div class="page" id="page-monitoring-kinerja">
         <div class="page-title" style="display:flex;align-items:center;gap:10px">
-          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor" style="flex-shrink:0;opacity:.85"><path d="M12.5065 3.62326L11.4835 5.39501C8.57378 4.51629 5.96968 4.94531 5.07207 6.50001C3.89477 8.53915 5.86239 12.1524 9.75027 14.3971C13.6382 16.6418 17.7512 16.5392 18.9285 14.5C19.8261 12.9453 18.8956 10.4756 16.6797 8.39501L17.7026 6.62326C20.7847 9.33196 22.1654 12.8934 20.6605 15.5C18.8003 18.7221 13.4717 18.8551 8.75027 16.1292C4.0289 13.4033 1.47976 8.72208 3.34002 5.50001C4.84492 2.89344 8.61964 2.30849 12.5065 3.62326ZM15.8842 1.77277L17.6163 2.77277L12.6163 11.433L10.8842 10.433L15.8842 1.77277ZM6.73233 20H17.0003V22H5.01761C4.94008 22.0014 4.86194 21.9938 4.78481 21.9768C4.77025 21.9735 4.7558 21.97 4.74147 21.9662C4.6589 21.944 4.57784 21.9108 4.50028 21.866C4.47106 21.8492 4.44301 21.831 4.41616 21.8118C4.30161 21.7292 4.20524 21.623 4.1342 21.5003C4.06328 21.3772 4.01939 21.2404 4.00518 21.0997C4.00446 21.0924 4.00381 21.085 4.00325 21.0777C3.98786 20.883 4.02924 20.6819 4.13425 20.5L6.38425 16.6029L8.1163 17.6029L6.73233 20Z"/></svg>
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor" style="flex-shrink:0;opacity:.85"><path d="M4 16H20V5H4V16ZM13 18V20H17V22H7V20H11V18H2.9918C2.44405 18 2 17.5511 2 16.9925V4.00748C2 3.45107 2.45531 3 2.9918 3H21.0082C21.556 3 22 3.44892 22 4.00748V16.9925C22 17.5489 21.5447 18 21.0082 18H13Z"/></svg>
           Monitoring Pengisian Kinerja
         </div>
         <div class="page-subtitle">Pantau indikator mana yang belum diisi dan siapa yang menginput</div>
@@ -1681,7 +1683,7 @@
               <option value="">Semua Unit Kerja</option>
             </select>
           </div>
-          <button class="btn btn-primary btn-sm" onclick="downloadUsersExcel()"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>Download</button>
+          <button class="btn btn-primary btn-sm" onclick="downloadUsersExcel()"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>Data Pengguna</button>
           <button class="btn btn-primary btn-sm" onclick="openUrutanLaporanModal()"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg>Atur Urutan Laporan</button>
           <button class="btn btn-primary btn-sm" onclick="openUserModal()"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>Tambah Pengguna</button>
         </div>
@@ -2033,6 +2035,7 @@
               <option value="delete_user">Hapus Pengguna</option>
               <option value="update_indikator">Update Indikator Pengguna</option>
               <option value="force_logout">Paksa Logout Pengguna</option>
+              <option value="unlock_login">Buka Kunci Login Pengguna</option>
               <option value="logout_all">Logout Semua Sesi</option>
               <option value="refresh_token_reuse_detected">Sesi Dicurigai Dibajak</option>
             </select>
@@ -4699,6 +4702,32 @@
   </div>
 </div>
 
+<div class="modal-overlay" id="modalKtHapusTahun">
+  <div class="modal" style="max-width:420px">
+    <div class="modal-header">
+      <div class="modal-title-wrap">
+        <span class="modal-icon-badge modal-icon-badge--red"><svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6m4-6v6"/></svg></span>
+        <div>
+          <div class="modal-title">Hapus Tahun</div>
+          <div style="font-size:var(--fs-sm);color:var(--teks-muted);margin-top:2px">Hapus semua target di tahun terpilih untuk semua indikator</div>
+        </div>
+      </div>
+      <button class="btn-close" onclick="closeModal('modalKtHapusTahun')"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg></button>
+    </div>
+    <div class="modal-body">
+      <label style="display:flex;align-items:center;gap:8px;font-size:.8rem;color:var(--teks-muted);margin-bottom:10px;cursor:pointer">
+        <input type="checkbox" id="ktHapusTahunAll" onchange="toggleKtHapusTahunAll(this.checked)" style="width:15px;height:15px;accent-color:var(--merah);cursor:pointer">
+        Pilih semua tahun
+      </label>
+      <div id="ktHapusTahunList" style="display:flex;flex-direction:column;gap:6px;max-height:280px;overflow-y:auto"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('modalKtHapusTahun')">Batal</button>
+      <button class="btn btn-danger" onclick="saveKtHapusTahun()">Ya, Hapus</button>
+    </div>
+  </div>
+</div>
+
 <div class="modal-overlay" id="modalGroup">
   <div class="modal">
     <div class="modal-header">
@@ -5019,7 +5048,7 @@
 </div>
 
 
-<script src="js/periode_frontend.js?v=1.8.4"></script>
+<script src="js/periode_frontend.js?v=1.8.5"></script>
 <script>
 (function() {
   'use strict';
@@ -5162,24 +5191,24 @@
 })();
 </script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/quill/1.3.7/quill.min.js"></script>
-  <script src="js/app.js?v=1.8.4"></script>
-<script src="js/dashboard.js?v=1.8.4"></script>
+  <script src="js/app.js?v=1.8.5"></script>
+<script src="js/dashboard.js?v=1.8.5"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
-<script src="js/superlink.js?v=1.8.4"></script>
-<script src="js/pengumuman_frontend.js?v=1.8.4"></script>
-<script src="js/surat.js?v=1.8.4"></script>
-<script src="js/eplanning_frontend.js?v=1.8.4"></script>
-<script src="js/absensi_frontend.js?v=1.8.4"></script>
-<script src="js/lembur_frontend.js?v=1.8.4"></script>
-<script src="js/users_frontend.js?v=1.8.4"></script>
-<script src="js/kinerja.js?v=1.8.4"></script>
-<script src="js/laporan.js?v=1.8.4"></script>
-<script src="js/struktur_frontend.js?v=1.8.4"></script>
-<script src="js/audit_frontend.js?v=1.8.4"></script>
-<script src="js/dokumen_publik_frontend.js?v=1.8.4"></script>
-<script src="js/profil_frontend.js?v=1.8.4"></script>
-<script src="js/tema_musiman_frontend.js?v=1.8.4"></script>
-<script src="js/theme-engine.js?v=1.8.4"></script>
+<script src="js/superlink.js?v=1.8.5"></script>
+<script src="js/pengumuman_frontend.js?v=1.8.5"></script>
+<script src="js/surat.js?v=1.8.5"></script>
+<script src="js/eplanning_frontend.js?v=1.8.5"></script>
+<script src="js/absensi_frontend.js?v=1.8.5"></script>
+<script src="js/lembur_frontend.js?v=1.8.5"></script>
+<script src="js/users_frontend.js?v=1.8.5"></script>
+<script src="js/kinerja.js?v=1.8.5"></script>
+<script src="js/laporan.js?v=1.8.5"></script>
+<script src="js/struktur_frontend.js?v=1.8.5"></script>
+<script src="js/audit_frontend.js?v=1.8.5"></script>
+<script src="js/dokumen_publik_frontend.js?v=1.8.5"></script>
+<script src="js/profil_frontend.js?v=1.8.5"></script>
+<script src="js/tema_musiman_frontend.js?v=1.8.5"></script>
+<script src="js/theme-engine.js?v=1.8.5"></script>
 
 <script>
 (function () {
