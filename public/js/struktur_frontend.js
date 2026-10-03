@@ -15,7 +15,7 @@ function _cldThumb(url, w, h) {
 }
 
 /* ── Load & render ────────────────────────────────────────────── */
-async function loadPegawai() {
+async function loadPegawai({ keepPage = false } = {}) {
   const tb0 = document.getElementById('pegawaiTableBody');
   if (tb0) tb0.innerHTML = `<tr class="empty-row"><td colspan="7"><span class="btn-spin" style="width:11px;height:11px;vertical-align:-1px;margin-right:6px"></span>Memuat data...</td></tr>`;
   try {
@@ -23,7 +23,7 @@ async function loadPegawai() {
     if (!r.ok) throw new Error(await r.text());
     const { pegawai } = await r.json();
     _pegawaiAll  = pegawai || [];
-    _pegawaiPage = 1;
+    if (!keepPage) _pegawaiPage = 1;
     buildPegawaiJabatanFilter();
     buildPegawaiStatusFilter();
     renderPegawaiTable();
@@ -197,6 +197,7 @@ async function onPegawaiFotoFileChange(input) {
   try {
     const formData = new FormData();
     formData.append('file', file);
+    formData.append('kategori', 'struktur');
     const r = await fetch('/api/upload', {
       method: 'POST',
       headers: { 'Authorization': authHeaders()['Authorization'] },
@@ -268,7 +269,7 @@ async function savePegawai() {
     if (!r.ok) { toast(data.error || 'Gagal menyimpan', 'error'); return; }
     toast(id ? 'Data pegawai diperbarui' : 'Pegawai ditambahkan', 'success');
     closeModal('modalPegawai');
-    loadPegawai();
+    loadPegawai({ keepPage: true });
   } catch (err) {
     toast('Gagal: ' + err.message, 'error');
   } finally {
@@ -286,7 +287,7 @@ async function togglePegawai(id, currentAktif) {
     });
     if (!r.ok) throw new Error();
     toast(!currentAktif ? 'Pegawai diaktifkan' : 'Pegawai dinonaktifkan', 'success');
-    loadPegawai();
+    loadPegawai({ keepPage: true });
   } catch {
     toast('Gagal mengubah status', 'error');
   }
@@ -302,7 +303,7 @@ async function deletePegawai(id) {
     });
     if (!r.ok) throw new Error();
     toast('Pegawai dihapus', 'success');
-    loadPegawai();
+    loadPegawai({ keepPage: true });
   } catch {
     toast('Gagal menghapus', 'error');
   }

@@ -59,7 +59,7 @@ function _fmtDT(iso) {
   return `${tgl}, ${jam}`;
 }
 
-async function loadPeriodePage() {
+async function loadPeriodePage({ keepFilter = false } = {}) {
   const wrap0 = document.getElementById('periodeCardsWrap');
   if (wrap0) wrap0.innerHTML = `<div style="text-align:center;padding:32px;color:var(--teks-muted)"><span class="btn-spin" style="width:11px;height:11px;vertical-align:-1px;margin-right:6px"></span>Memuat data...</div>`;
   await loadPeriodeAktif();
@@ -67,18 +67,20 @@ async function loadPeriodePage() {
     const r = await fetch('/api/periode', { headers: authHeaders() });
     const d = await r.json();
     _periodeList  = d.periode || [];
-    _periodePage  = 1;
-    _periodeSearch = '';
-    _periodeFilterStatus = '';
-    _periodeFilterTahun  = '';
-    const searchEl = document.getElementById('periodeSearch');
-    if (searchEl) searchEl.value = '';
-    const statusEl = document.getElementById('periodeFilterStatus');
-    if (statusEl) statusEl.value = '';
+    if (!keepFilter) {
+      _periodePage  = 1;
+      _periodeSearch = '';
+      _periodeFilterStatus = '';
+      _periodeFilterTahun  = '';
+      const searchEl = document.getElementById('periodeSearch');
+      if (searchEl) searchEl.value = '';
+      const statusEl = document.getElementById('periodeFilterStatus');
+      if (statusEl) statusEl.value = '';
+    }
     // Populate tahun options
     _populatePeriodeTahunFilter();
     const tahunEl = document.getElementById('periodeFilterTahun');
-    if (tahunEl) tahunEl.value = '';
+    if (tahunEl) tahunEl.value = keepFilter ? (_periodeFilterTahun || '') : '';
     renderPeriodeCards();
   } catch {
     toast('Gagal memuat daftar periode', 'error');
@@ -263,6 +265,7 @@ function renderPeriodeCards() {
     return a.bulan - b.bulan;
   });
 
+  _periodePage = Math.min(_periodePage, Math.max(1, Math.ceil(groupList.length / _periodeCardPageSize)));
   const start = (_periodePage - 1) * _periodeCardPageSize;
   const slice = groupList.slice(start, start + _periodeCardPageSize);
 
@@ -976,7 +979,7 @@ async function savePeriode() {
       }
       toast('Periode diperbarui');
       closeModal('modalPeriode');
-      loadPeriodePage();
+      loadPeriodePage({ keepFilter: true });
     } catch { toast('Gagal menyimpan periode', 'error'); }
     return;
   }
@@ -1016,7 +1019,7 @@ async function savePeriode() {
           : (id ? 'Periode diperbarui' : 'Periode ditambahkan')
     );
     closeModal('modalPeriode');
-    loadPeriodePage();
+    loadPeriodePage({ keepFilter: true });
   } catch { toast('Gagal menyimpan periode', 'error'); }
 }
 
@@ -1038,10 +1041,10 @@ async function deletePeriode(id) {
   for (const did of ids) {
     const r = await fetch(`/api/periode/${did}`, { method: 'DELETE', headers: authHeaders() });
     const d = await r.json();
-    if (!r.ok) { toast(d.error || 'Gagal menghapus', 'error'); loadPeriodePage(); return; }
+    if (!r.ok) { toast(d.error || 'Gagal menghapus', 'error'); loadPeriodePage({ keepFilter: true }); return; }
   }
   toast('Periode berhasil dihapus');
-  loadPeriodePage();
+  loadPeriodePage({ keepFilter: true });
 }
 
 (function () {

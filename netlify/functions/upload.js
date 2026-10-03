@@ -24,6 +24,7 @@ const FOLDER_MAP = {
   eplanning:    'SAPA/E-Planning',
   eplanning_survei_harga: 'SAPA/E-Planning',
   tema_musiman: 'SAPA/Tema Musiman',
+  struktur:     'SAPA/Struktur Organisasi',
 };
 const DEFAULT_FOLDER = 'SAPA';
 

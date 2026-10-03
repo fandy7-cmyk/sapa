@@ -327,14 +327,14 @@ let _bundles = [], _bundlesFiltered = [], _bundlePage = 1, _bundlePageSize = 10;
 let _currentBundleId = null;
 let _currentBundleItems = [];
 
-async function loadBundles() {
+async function loadBundles({ keepPage = false } = {}) {
   const tb0 = document.getElementById('bundleTableBody');
   if (tb0) tb0.innerHTML = `<tr class="empty-row"><td colspan="5"><span class="btn-spin" style="width:11px;height:11px;vertical-align:-1px;margin-right:6px"></span>Memuat data...</td></tr>`;
   try {
     const r = await fetch('/api/bundles', { headers: authHeaders() });
     const d = await r.json();
     _bundles = d.bundles || [];
-    _bundlesFiltered = [..._bundles]; _bundlePage = 1;
+    _bundlesFiltered = [..._bundles]; if (!keepPage) _bundlePage = 1;
     renderBundles();
     
     const bfs = document.getElementById('bundleFilterStatus');
@@ -357,6 +357,7 @@ function filterBundles() {
 }
 
 function renderBundles() {
+  _bundlePage = Math.min(_bundlePage, Math.max(1, Math.ceil(_bundlesFiltered.length / _bundlePageSize)));
   const start = (_bundlePage - 1) * _bundlePageSize;
   const slice = _bundlesFiltered.slice(start, start + _bundlePageSize);
   const tb = document.getElementById('bundleTableBody');
@@ -581,7 +582,7 @@ async function saveBundle() {
     const d = await r.json();
     if (!r.ok) { toast(d.error || 'Gagal', 'error'); return; }
     toast(id ? 'Bundle diperbarui' : 'Bundle dibuat');
-    loadBundles();
+    loadBundles({ keepPage: true });
     if (id) {
       
       closeModal('modalBundle');
@@ -604,7 +605,7 @@ async function deleteBundle(id) {
   const ok = await showConfirm({ title: 'Hapus Bundle', msg: 'Bundle beserta semua item di dalamnya akan dihapus permanen.', okText: 'Ya, Hapus', icon: 'trash' });
   if (!ok) return;
   await fetch(`/api/bundles/${id}`, { method: 'DELETE', headers: authHeaders() });
-  toast('Bundle berhasil dihapus'); loadBundles();
+  toast('Bundle berhasil dihapus'); loadBundles({ keepPage: true });
 }
 
 function showInlineItemForm() {
@@ -649,7 +650,7 @@ async function saveBundleItem() {
     const dd = await rr.json();
     _currentBundleItems = dd.items || [];
     renderBundleItems();
-    loadBundles();
+    loadBundles({ keepPage: true });
   } catch { toast('Gagal menyimpan', 'error'); }
 }
 
@@ -662,7 +663,7 @@ async function deleteBundleItem(itemId) {
   const dd = await rr.json();
   _currentBundleItems = dd.items || [];
   renderBundleItems();
-  loadBundles();
+  loadBundles({ keepPage: true });
 }
 
 let _shareUrl = '';

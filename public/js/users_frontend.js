@@ -246,6 +246,7 @@ function renderUsersTable() {
 
   const visibleUsers = _getVisibleUsers();
 
+  _userPage = Math.min(_userPage, Math.max(1, Math.ceil(visibleUsers.length / _userPageSize)));
   const start = (_userPage - 1) * _userPageSize;
   const slice = visibleUsers.slice(start, start + _userPageSize);
 
@@ -415,11 +416,11 @@ async function saveUrutanLaporan() {
     if (!r.ok) { toast(d.error || 'Gagal menyimpan urutan', 'error'); return; }
     toast('Urutan laporan disimpan');
     closeModal('modalUrutanLaporan');
-    loadUsers();
+    loadUsers({ keepFilter: true });
   } catch { toast('Gagal menyimpan urutan', 'error'); }
 }
 
-async function loadUsers() {
+async function loadUsers({ keepFilter = false } = {}) {
   const tb0 = document.getElementById('userTableBody');
   if (tb0) tb0.innerHTML = `<tr class="empty-row"><td colspan="8"><span class="btn-spin" style="width:11px;height:11px;vertical-align:-1px;margin-right:6px"></span>Memuat data...</td></tr>`;
   await loadBidangList();
@@ -427,14 +428,20 @@ async function loadUsers() {
     const r = await fetch('/api/users', { headers: authHeaders() });
     const d = await r.json();
     _users = d.users || [];
-    _userPage         = 1;
-    _userSearch       = '';
-    _userFilterBidang = '';
-    const searchEl = document.getElementById('userSearch');
-    if (searchEl) searchEl.value = '';
-    const bidangFilterEl = document.getElementById('userFilterBidang');
-    if (bidangFilterEl) bidangFilterEl.value = '';
+    if (!keepFilter) {
+      _userPage         = 1;
+      _userSearch       = '';
+      _userFilterBidang = '';
+      const searchEl = document.getElementById('userSearch');
+      if (searchEl) searchEl.value = '';
+      const bidangFilterEl = document.getElementById('userFilterBidang');
+      if (bidangFilterEl) bidangFilterEl.value = '';
+    }
     _populateUserBidangFilter();
+    if (keepFilter) {
+      const bidangFilterEl = document.getElementById('userFilterBidang');
+      if (bidangFilterEl && _userFilterBidang) bidangFilterEl.value = _userFilterBidang;
+    }
     renderUsersTable();
   } catch {}
 }
@@ -497,7 +504,7 @@ async function saveUser() {
     const d = await r.json();
     if (!r.ok) { toast(d.error || 'Gagal', 'error'); return; }
     toast(id ? 'Pengguna diperbarui' : 'Pengguna ditambahkan');
-    closeModal('modalUser'); loadUsers();
+    closeModal('modalUser'); loadUsers({ keepFilter: true });
   } catch { toast('Gagal menyimpan', 'error'); }
 }
 
@@ -510,7 +517,7 @@ async function deleteUser(id) {
   });
   if (!ok) return;
   await fetch(`/api/users/${id}`, { method: 'DELETE', headers: authHeaders() });
-  toast('Pengguna berhasil dihapus'); loadUsers();
+  toast('Pengguna berhasil dihapus'); loadUsers({ keepFilter: true });
 }
 
 async function toggleUserStatus(id, currentAktif, nama) {
@@ -533,7 +540,7 @@ async function toggleUserStatus(id, currentAktif, nama) {
     const d = await r.json();
     if (!r.ok) { toast(d.error || 'Gagal mengubah status', 'error'); return; }
     toast(!currentAktif ? 'Pengguna diaktifkan' : 'Pengguna dinonaktifkan', 'success');
-    loadUsers();
+    loadUsers({ keepFilter: true });
   } catch { toast('Gagal mengubah status', 'error'); }
 }
 
@@ -558,7 +565,7 @@ async function unlockLoginUser(id, nama) {
     const d = await r.json();
     if (!r.ok) { toast(d.error || 'Gagal membuka kunci login', 'error'); return; }
     toast('Kunci login dibuka', 'success');
-    loadUsers();
+    loadUsers({ keepFilter: true });
   } catch { toast('Gagal membuka kunci login', 'error'); }
 }
 window.unlockLoginUser = unlockLoginUser;
@@ -845,6 +852,7 @@ function renderBidangTable() {
     return b.nama.toLowerCase().includes(_bidangSearch);
   });
 
+  _bidangPage = Math.min(_bidangPage, Math.max(1, Math.ceil(filtered.length / _bidangPageSize)));
   const start = (_bidangPage - 1) * _bidangPageSize;
   const slice = filtered.slice(start, start + _bidangPageSize);
 
@@ -870,17 +878,19 @@ function renderBidangTable() {
 
 window.goBidangPage = (p) => { _bidangPage = p; renderBidangTable(); };
 
-async function loadBidangPage() {
+async function loadBidangPage({ keepFilter = false } = {}) {
   const tb0 = document.getElementById('bidangTableBody');
   if (tb0) tb0.innerHTML = `<tr class="empty-row"><td colspan="3"><span class="btn-spin" style="width:11px;height:11px;vertical-align:-1px;margin-right:6px"></span>Memuat data...</td></tr>`;
   try {
     const r = await fetch('/api/bidang', { headers: authHeaders() });
     const d = await r.json();
     _bidangList   = d.bidang || [];
-    _bidangPage   = 1;
-    _bidangSearch = '';
-    const searchEl = document.getElementById('bidangSearch');
-    if (searchEl) searchEl.value = '';
+    if (!keepFilter) {
+      _bidangPage   = 1;
+      _bidangSearch = '';
+      const searchEl = document.getElementById('bidangSearch');
+      if (searchEl) searchEl.value = '';
+    }
     renderBidangTable();
   } catch { toast('Gagal memuat bidang', 'error'); }
 }
@@ -918,7 +928,7 @@ async function saveBidang() {
     const d = await r.json();
     if (!r.ok) { toast(d.error || 'Gagal', 'error'); return; }
     toast(id ? 'Bidang diperbarui' : 'Bidang ditambahkan');
-    closeModal('modalBidang'); loadBidangPage();
+    closeModal('modalBidang'); loadBidangPage({ keepFilter: true });
   } catch { toast('Gagal menyimpan bidang', 'error'); }
 }
 
@@ -933,7 +943,7 @@ async function deleteBidang(id) {
   const r = await fetch(`/api/bidang/${id}`, { method: 'DELETE', headers: authHeaders() });
   const d = await r.json();
   if (!r.ok) { toast(d.error || 'Gagal menghapus', 'error'); return; }
-  toast('Bidang berhasil dihapus'); loadBidangPage();
+  toast('Bidang berhasil dihapus'); loadBidangPage({ keepFilter: true });
 }
 
 let _assignIndikatorUserId = null;

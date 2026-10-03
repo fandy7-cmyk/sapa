@@ -132,6 +132,21 @@ function _twTargetYears(targets) {
   return [...new Set((targets || []).map(t => t.tahun))].sort((a, b) => a - b);
 }
 
+// Target TAHUNAN (kinerja_target.triwulan = 0) - dipakai di tabel Kelola Indikator
+let _tahunanMap = {}; // {indikator_id: [{tahun, target, target_display}]}
+function _tahunanOf(indikatorId, tahun) {
+  return (_tahunanMap[indikatorId] || []).find(t => String(t.tahun) === String(tahun)) || null;
+}
+function _tahunanLabel(indikatorId, tahun) {
+  const t = _tahunanOf(indikatorId, tahun);
+  if (!t) return '-';
+  const v = _twTargetVal(t);
+  return (v === '' || v === 'null') ? '-' : v;
+}
+function _tahunanYears(indikatorId) {
+  return [...new Set((_tahunanMap[indikatorId] || []).map(t => t.tahun))].sort((a, b) => a - b);
+}
+
 // ═══════════════════════════════════════════════════════════════════════════
 // PERIODE KINERJA = PER TRIWULAN
 // Kolom `bulan` di DB tetap dipakai, tapi isinya bulan AKHIR triwulan:
@@ -181,6 +196,7 @@ const _indikatorPageSize = 15;
 let _indikatorSearch    = '';
 let _indikatorFilterJenis = '';   // '', 'monev', 'ikk', 'none'
 let _indikatorFilterMakna = '';   // '', 'positif', 'negatif'
+let _indikatorFilterTipe  = '';   // '', 'kumulatif', 'rata_rata', 'non_kumulatif' (jenis perhitungan)
 let _indikatorFilterPJ    = '';   // '' atau nama PJ
 let _indikatorFilterTahun = '';   // '' atau tahun (string)
 let _indikatorSort        = 'urutan'; 
@@ -314,10 +330,10 @@ function _suffixTutup(jenis, bulan, tahun) {
 }
 
 function _reloadKinerjaJenis(jenis) {
-  if (jenis === 'monev')       loadKinerjaRekap();
-  else if (jenis === 'ikk')    loadIkkRekap();
-  else if (jenis === 'spm')    loadSpmRekap();
-  else if (jenis === 'subkeg') loadSubkegRekap();
+  if (jenis === 'monev')       loadKinerjaRekap({ keepPage: true });
+  else if (jenis === 'ikk')    loadIkkRekap({ keepPage: true });
+  else if (jenis === 'spm')    loadSpmRekap({ keepPage: true });
+  else if (jenis === 'subkeg') loadSubkegRekap({ keepPage: true });
 }
 let _allPeriodeList     = [];  
 let _userIndikatorIds   = null; 
@@ -653,7 +669,7 @@ function _kinColSpan(tbody) {
   return _isKinerjaAdmin() ? total : total - 1;
 }
 
-async function loadKinerjaRekap() {
+async function loadKinerjaRekap({ keepPage = false } = {}) {
   const tbody = document.getElementById('kinerjaTableBody');
   if (!tbody) return;
 
@@ -703,7 +719,7 @@ async function loadKinerjaRekap() {
     }
 
     _kinerjaData = rekap;
-    _ikuPage = 1;
+    if (!keepPage) _ikuPage = 1;
     renderKinerjaTable(tbody);
   } catch (err) {
     tbody.innerHTML = `<tr class="empty-row"><td colspan="${_kinColSpan(tbody)}">Error: ${err.message}</td></tr>`;
@@ -879,6 +895,7 @@ function renderKinerjaTable(tbody) {
   let html = '';
   let lastGroupId = null;
 
+  _ikuPage = Math.min(_ikuPage, Math.max(1, Math.ceil(_filtered.length / _ikuPageSize)));
   const _ikuStart = (_ikuPage - 1) * _ikuPageSize;
   const _ikuRows  = _filtered.slice(_ikuStart, _ikuStart + _ikuPageSize);
   let no = _ikuStart;
@@ -1107,8 +1124,8 @@ function toggleEditRow(indikatorId) {
     }
     if (saveBtn) {
       saveBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/><path d="M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7"/><path d="M7 3v4a1 1 0 0 0 1 1h7"/></svg> Simpan`;
-      saveBtn.style.background = '';
-      saveBtn.style.color = '';
+      saveBtn.style.background = row?.realisasi_id ? 'var(--sukses)' : '';
+      saveBtn.style.color = row?.realisasi_id ? '#fff' : '';
       saveBtn.disabled = true;
     }
   }
@@ -1225,8 +1242,8 @@ function toggleIkkEditRow(indikatorId) {
     }
     if (saveBtn) {
       saveBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/><path d="M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7"/><path d="M7 3v4a1 1 0 0 0 1 1h7"/></svg> Simpan`;
-      saveBtn.style.background = '';
-      saveBtn.style.color = '';
+      saveBtn.style.background = row?.realisasi_id ? 'var(--sukses)' : '';
+      saveBtn.style.color = row?.realisasi_id ? '#fff' : '';
       saveBtn.disabled = true;
     }
   }
@@ -1333,8 +1350,9 @@ function _updateSaveBtnState(indikatorId) {
   const ok = _canSaveRow(fieldArgs);
   const okUpload = _canSaveRow(fieldArgs, false);
   btn.disabled         = !ok;
-  btn.style.background = ok ? '#0d9488' : '';
-  btn.style.color      = ok ? '#fff'    : '';
+  const _saved = !ok && !!row?.realisasi_id && !document.querySelector(`tr[data-id="${indikatorId}"]`)?.classList.contains('row-state-editing');
+  btn.style.background = ok ? '#0d9488' : (_saved ? 'var(--sukses)' : '');
+  btn.style.color      = (ok || _saved) ? '#fff' : '';
   btn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/><path d="M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7"/><path d="M7 3v4a1 1 0 0 0 1 1h7"/></svg> Simpan`;
 
   _dukungSetEnabled(indikatorId, 'monev', okUpload);
@@ -1533,17 +1551,19 @@ async function saveRealisasiRow(indikatorId) {
       const _savedRow = _kinerjaData[idx >= 0 ? idx : -1];
       const _realVal2  = parseFloat(_savedRow?.realisasi ?? '');
       const _targetVal2 = _targetNumForRow(_savedRow);
-      if (!isNaN(_realVal2) && !isNaN(_targetVal2) && _targetVal2 !== 0) {
-        const _capaianFinal = _savedRow?.bermakna_negatif
+      let _capaianFinal = NaN;
+if (!isNaN(_realVal2) && !isNaN(_targetVal2) && _targetVal2 !== 0) {
+_capaianFinal = _savedRow?.bermakna_negatif
           ? ((_targetVal2 - (_realVal2 - _targetVal2)) / _targetVal2) * 100
           : (_realVal2 / _targetVal2) * 100;
-        _togglePermasalahanSolusi('', indikatorId, _capaianFinal);
+}
+_togglePermasalahanSolusi('', indikatorId, _capaianFinal);
         // Update ps-read content & visibility (dengan truncation + tombol Selengkapnya)
         [['fpenghambat', _savedRow?.f_penghambat], ['solusi', _savedRow?.solusi],
          ['fpendukung', _savedRow?.f_pendukung], ['rencana', _savedRow?.rencana_tl]].forEach(([base, val]) => {
           _updatePSReadAfterSave(base, indikatorId, val);
         });
-      }
+      
       
       if (!row?.data_dukung_url) {
         const dukungCell = document.querySelector(`tr[data-id="${indikatorId}"] td[data-col="dukung"]`);
@@ -1562,7 +1582,7 @@ async function saveRealisasiRow(indikatorId) {
   }
 }
 
-async function loadGroupAdmin() {
+async function loadGroupAdmin({ keepFilter = false } = {}) {
   const tbody = document.getElementById('groupAdminBody');
   if (!tbody) return;
   tbody.innerHTML = `<tr class="empty-row"><td colspan="5"><span class="btn-spin" style="width:11px;height:11px;vertical-align:-1px;margin-right:6px"></span>Memuat data...</td></tr>`;
@@ -1571,10 +1591,12 @@ async function loadGroupAdmin() {
     const r = await fetch('/api/kinerja/group', { headers: authHeaders() });
     const d = await r.json();
     _groupList   = d.group || [];
-    _groupPage   = 1;
-    _groupSearch = '';
-    const searchEl = document.getElementById('groupSearch');
-    if (searchEl) searchEl.value = '';
+    if (!keepFilter) {
+      _groupPage   = 1;
+      _groupSearch = '';
+      const searchEl = document.getElementById('groupSearch');
+      if (searchEl) searchEl.value = '';
+    }
     renderGroupAdmin();
   } catch (err) {
     tbody.innerHTML = `<tr class="empty-row"><td colspan="6">Gagal: ${err.message}</td></tr>`;
@@ -1602,6 +1624,8 @@ function renderGroupAdmin() {
     return;
   }
 
+  const _groupMaxPage = Math.max(1, Math.ceil(filtered.length / _groupPageSize));
+  if (_groupPage > _groupMaxPage) _groupPage = _groupMaxPage;
   const start = (_groupPage - 1) * _groupPageSize;
   const slice = filtered.slice(start, start + _groupPageSize);
 
@@ -1649,7 +1673,7 @@ async function saveGroup() {
     if (!r.ok) { toast(d.error || 'Gagal simpan', 'error'); return; }
     toast(id ? 'Group diperbarui' : 'Group ditambahkan');
     closeModal('modalGroup');
-    loadGroupAdmin();
+    loadGroupAdmin({ keepFilter: true });
   } catch (err) { toast('Error: ' + err.message, 'error'); }
 }
 
@@ -1663,7 +1687,7 @@ async function deleteGroup(id) {
   if (!ok) return;
   await fetch(`/api/kinerja/group/${id}`, { method: 'DELETE', headers: authHeaders() });
   toast('Group dihapus');
-  loadGroupAdmin();
+  loadGroupAdmin({ keepFilter: true });
 }
 
 async function loadIndikatorAdmin({ keepFilter = false } = {}) {
@@ -1695,11 +1719,17 @@ async function loadIndikatorAdmin({ keepFilter = false } = {}) {
       if (!_targetMap[t.indikator_id]) _targetMap[t.indikator_id] = [];
       _targetMap[t.indikator_id].push(t);
     }
-    _indikatorPage = 1;
+    _tahunanMap = {};
+    for (const t of (dt.tahunan || [])) {
+      if (!_tahunanMap[t.indikator_id]) _tahunanMap[t.indikator_id] = [];
+      _tahunanMap[t.indikator_id].push(t);
+    }
     if (!keepFilter) {
+      _indikatorPage        = 1;
       _indikatorSearch      = '';
       _indikatorFilterJenis = '';
       _indikatorFilterMakna = '';
+      _indikatorFilterTipe  = '';
       _indikatorFilterPJ    = '';
       _indikatorFilterTahun = '';
       _indikatorSort        = 'urutan';
@@ -1709,6 +1739,8 @@ async function loadIndikatorAdmin({ keepFilter = false } = {}) {
       if (jenisEl) jenisEl.value = '';
       const maknaEl = document.getElementById('indikatorFilterMakna');
       if (maknaEl) maknaEl.value = '';
+      const tipeEl = document.getElementById('indikatorFilterTipe');
+      if (tipeEl) tipeEl.value = '';
       const sortEl = document.getElementById('indikatorSort');
       if (sortEl) sortEl.value = 'urutan';
     } else {
@@ -1718,16 +1750,43 @@ async function loadIndikatorAdmin({ keepFilter = false } = {}) {
     
     const jenisFilterEl = document.getElementById('indikatorFilterJenis');
     if (jenisFilterEl) {
-      const all = (dj.jenis || []).filter(j => j.aktif);
+      // Hanya tampilkan opsi yang punya data
+      const all = (dj.jenis || []).filter(j => j.aktif && _indikatorList.some(r => _rowHasJenis(r, j.kode)));
+      const adaTanpaJenis = _indikatorList.some(r => !_jenisList.some(j => _rowHasJenis(r, j.kode)));
       jenisFilterEl.innerHTML =
         '<option value="">Semua Jenis</option>' +
         all.map(j => `<option value="${escHtml(j.kode)}">${escHtml(j.label)}</option>`).join('') +
-        '<option value="none">Tanpa Jenis</option>';
-      if (keepFilter && _indikatorFilterJenis) jenisFilterEl.value = _indikatorFilterJenis;
+        (adaTanpaJenis ? '<option value="none">Tanpa Jenis</option>' : '');
+      const jenisMasihAda = _indikatorFilterJenis === 'none' ? adaTanpaJenis : all.some(j => j.kode === _indikatorFilterJenis);
+      if (keepFilter && _indikatorFilterJenis && jenisMasihAda) jenisFilterEl.value = _indikatorFilterJenis;
+      else _indikatorFilterJenis = '';
+    }
+    // Makna: sembunyikan Positif/Negatif kalau tidak ada datanya
+    const maknaFilterEl = document.getElementById('indikatorFilterMakna');
+    if (maknaFilterEl) {
+      const adaPositif = _indikatorList.some(r => !r.bermakna_negatif);
+      const adaNegatif = _indikatorList.some(r => r.bermakna_negatif);
+      maknaFilterEl.innerHTML =
+        '<option value="">Semua Makna</option>' +
+        (adaPositif ? '<option value="positif">Positif</option>' : '') +
+        (adaNegatif ? '<option value="negatif">Negatif</option>' : '');
+      const maknaMasihAda = (_indikatorFilterMakna === 'positif' && adaPositif) || (_indikatorFilterMakna === 'negatif' && adaNegatif);
+      if (keepFilter && maknaMasihAda) maknaFilterEl.value = _indikatorFilterMakna;
+      else _indikatorFilterMakna = '';
+    }
+    // Jenis Perhitungan: hanya tampilkan tipe yang ada datanya
+    const tipeFilterEl = document.getElementById('indikatorFilterTipe');
+    if (tipeFilterEl) {
+      const tipeAda = Object.keys(TIPE_PERHITUNGAN_INFO).filter(k => _indikatorList.some(r => _tipeOfRow(r) === k));
+      tipeFilterEl.innerHTML =
+        '<option value="">Semua Perhitungan</option>' +
+        tipeAda.map(k => `<option value="${k}">${escHtml(TIPE_PERHITUNGAN_INFO[k].label)}</option>`).join('');
+      if (keepFilter && _indikatorFilterTipe && tipeAda.includes(_indikatorFilterTipe)) tipeFilterEl.value = _indikatorFilterTipe;
+      else _indikatorFilterTipe = '';
     }
     // Populate tahun dropdown dari targetMap
     const tahunSet = new Set();
-    for (const targets of Object.values(_targetMap)) {
+    for (const targets of Object.values(_tahunanMap)) {
       for (const t of targets) if (t.tahun) tahunSet.add(t.tahun);
     }
     const tahunEl = document.getElementById('indikatorFilterTahun');
@@ -1749,6 +1808,7 @@ function filterIndikator() {
   _indikatorSearch      = document.getElementById('indikatorSearch')?.value?.toLowerCase() || '';
   _indikatorFilterJenis = document.getElementById('indikatorFilterJenis')?.value || '';
   _indikatorFilterMakna = document.getElementById('indikatorFilterMakna')?.value || '';
+  _indikatorFilterTipe  = document.getElementById('indikatorFilterTipe')?.value || '';
   _indikatorFilterPJ    = document.getElementById('indikatorFilterPJ')?.value || '';
   _indikatorFilterTahun = document.getElementById('indikatorFilterTahun')?.value || '';
   _indikatorSort        = document.getElementById('indikatorSort')?.value || 'urutan';
@@ -1759,12 +1819,10 @@ function filterIndikator() {
 // Helper: ambil nilai target numerik indikator untuk kebutuhan sort
 // (pakai target tahun filter kalau ada, kalau tidak pakai tahun terbaru yang tersedia)
 function _indikatorSortTargetVal(row) {
-  const targets = _targetMap[row.id] || [];
-  if (!targets.length) return null;
-  let t;
-  const _yr = _indikatorFilterTahun || String(_twTargetYears(targets).slice(-1)[0] || '');
-  // Pakai target triwulan tertinggi yang terisi di tahun tsb (TW IV = target akhir tahun)
-  t = targets.filter(x => String(x.tahun) === _yr).sort((a, b) => (b.triwulan || 4) - (a.triwulan || 4))[0];
+  const years = _tahunanYears(row.id);
+  if (!years.length) return null;
+  const _yr = _indikatorFilterTahun || String(years.slice(-1)[0] || '');
+  const t = _tahunanOf(row.id, _yr);
   if (!t) return null;
   const raw = t.target != null ? t.target : t.target_display;
   const num = parseFloat(String(raw).replace(/[^\d.-]/g, ''));
@@ -1842,6 +1900,10 @@ const TIPE_PERHITUNGAN_INFO = {
   rata_rata:     { label: 'Rata-rata',     bg: '#fffbeb', teks: '#b45309', border: '#fde68a', title: 'Nilai capaian dihitung rata-rata dari triwulan-triwulan yang sudah diisi' },
   non_kumulatif: { label: 'Non-Kumulatif', bg: '#fdf4ff', teks: '#a21caf', border: '#f5d0fe', title: 'Nilai tiap triwulan berdiri sendiri; realisasi s.d. dihitung dengan menjumlahkan semua triwulan' },
 };
+// Tipe perhitungan baris (fallback sama dengan _tipeBadge: non_kumulatif)
+function _tipeOfRow(row) {
+  return TIPE_PERHITUNGAN_INFO[row.tipe_perhitungan] ? row.tipe_perhitungan : 'non_kumulatif';
+}
 function _tipeBadge(tipe) {
   const info = TIPE_PERHITUNGAN_INFO[tipe] || TIPE_PERHITUNGAN_INFO.non_kumulatif;
   return `<span data-tip="${escHtml(info.title)}" style="display:inline-flex;align-items:center;justify-content:center;box-sizing:border-box;height:24px;font-size:.62rem;font-weight:600;line-height:1;padding:0 8px;border-radius:5px;background:${info.bg};color:${info.teks};border:1px solid ${info.border};white-space:nowrap;flex-shrink:0;cursor:default">${info.label}</span>`;
@@ -1953,7 +2015,7 @@ function renderIndikatorAdmin() {
   
   
   const thTargetEl = document.getElementById('thTarget');
-  if (thTargetEl) thTargetEl.textContent = _indikatorFilterTahun ? `Target ${_indikatorFilterTahun} (TW I-IV)` : 'Target (TW I-IV)';
+  if (thTargetEl) thTargetEl.textContent = _indikatorFilterTahun ? `Target Tahunan ${_indikatorFilterTahun}` : 'Target Tahunan';
 
   
   const pjSelect = document.getElementById('indikatorFilterPJ');
@@ -1984,6 +2046,7 @@ function renderIndikatorAdmin() {
     
     if (_indikatorFilterMakna === 'negatif' && !row.bermakna_negatif)  return false;
     if (_indikatorFilterMakna === 'positif' &&  row.bermakna_negatif)  return false;
+    if (_indikatorFilterTipe && _tipeOfRow(row) !== _indikatorFilterTipe) return false;
     
     if (_indikatorFilterPJ && (row.penanggung_jawab || '') !== _indikatorFilterPJ) return false;
     return true;
@@ -1996,6 +2059,8 @@ function renderIndikatorAdmin() {
   }
 
   const sortedFiltered = _sortIndikatorRows(filtered);
+  const _indikatorMaxPage = Math.max(1, Math.ceil(filtered.length / _indikatorPageSize));
+  if (_indikatorPage > _indikatorMaxPage) _indikatorPage = _indikatorMaxPage;
   const start  = (_indikatorPage - 1) * _indikatorPageSize;
   const slice  = sortedFiltered.slice(start, start + _indikatorPageSize);
   
@@ -2008,21 +2073,21 @@ function renderIndikatorAdmin() {
         <td class="td-sticky-name" style="position:sticky;left:34px;z-index:3"><div style="font-weight:600">${escHtml(row.indikator_kinerja)}</div><div style="display:flex;align-items:center;gap:6px;margin-top:5px">${row.formula ? `<div class="fx-wrap"><button style="display:inline-flex;align-items:center;justify-content:center;gap:4px;box-sizing:border-box;height:24px;font-size:0.62rem;font-weight:700;line-height:1;color:#0f766e;background:#f0fdfa;border:1px solid #99f6e4;border-radius:4px;padding:0 8px;cursor:pointer;font-family:inherit;appearance:none;-webkit-appearance:none;margin:0" data-tip="Lihat formula perhitungan" data-formula="${escHtml(row.formula)}" onclick="toggleFormulaPanel(this)"><span>Σ</span><span class="fx-arrow" style="display:inline-block;transition:transform .2s;font-style:normal">▾</span></button></div>` : ''}${_tipeBadge(row.tipe_perhitungan)}</div></td>
         <td class="td-satuan">${escHtml(row.satuan)}</td>
         <td style="white-space:nowrap">${(() => {
-          const targets = _targetMap[row.id] || [];
-          if (!targets.length) return '<span style="color:var(--teks-muted)">-</span>';
+          const allYears = _tahunanYears(row.id);
+          if (!allYears.length) return '<span style="color:var(--teks-muted)">-</span>';
           if (_indikatorFilterTahun) {
-            // Hanya tampilkan target untuk tahun yang dipilih
-            const lbl = _twTargetsLabel(targets, _indikatorFilterTahun);
-            if (lbl === '- / - / - / -') return '<span style="color:var(--teks-muted);font-size:.72rem">-</span>';
-            return `<span data-tip="Target TW I / II / III / IV" style="display:inline-flex;align-items:center;gap:3px;font-size:.82rem;font-weight:600;color:#0f766e">${escHtml(lbl)}</span>`;
+            // Hanya tampilkan target tahunan untuk tahun yang dipilih
+            const lbl = _tahunanLabel(row.id, _indikatorFilterTahun);
+            if (lbl === '-') return '<span style="color:var(--teks-muted);font-size:.72rem">-</span>';
+            return `<span data-tip="Target tahunan ${escHtml(String(_indikatorFilterTahun))}" style="display:inline-flex;align-items:center;gap:3px;font-size:.82rem;font-weight:600;color:#0f766e">${escHtml(lbl)}</span>`;
           }
           const thisYear = new Date().getFullYear();
           // Urutkan: tahun terdekat dari sekarang ke atas dulu, lalu ke bawah
-          const years  = _twTargetYears(targets).sort((a, b) => Math.abs(a - thisYear) - Math.abs(b - thisYear));
+          const years  = allYears.slice().sort((a, b) => Math.abs(a - thisYear) - Math.abs(b - thisYear));
           const shown  = years.slice(0, 3).sort((a, b) => a - b);
           const rest   = years.length - 3;
           const badges = shown.map(y => {
-            return `<span data-tip="Target ${y} - TW I / II / III / IV" style="display:inline-flex;align-items:center;gap:3px;font-size:.72rem;font-weight:600;background:#f0fdfa;color:#0f766e;border:1px solid #99f6e4;border-radius:5px;padding:2px 6px;margin:1px 2px 1px 0">${y}<span style="color:#64748b;font-weight:400">:</span>${escHtml(_twTargetsLabel(targets, y))}</span>`;
+            return `<span data-tip="Target tahunan ${y}" style="display:inline-flex;align-items:center;gap:3px;font-size:.72rem;font-weight:600;background:#f0fdfa;color:#0f766e;border:1px solid #99f6e4;border-radius:5px;padding:2px 6px;margin:1px 2px 1px 0">${y}<span style="color:#64748b;font-weight:400">:</span>${escHtml(_tahunanLabel(row.id, y))}</span>`;
           }).join('');
           const moreBadge = rest > 0
             ? `<span data-tip="Buka edit untuk lihat semua target" style="display:inline-flex;align-items:center;font-size:.72rem;font-weight:600;background:#f1f5f9;color:#64748b;border:1px solid #e2e8f0;border-radius:5px;padding:2px 6px;margin:1px 0;cursor:default">+${rest} lagi</span>`
@@ -2075,6 +2140,7 @@ function _getFilteredIndikatorRows() {
     }
     if (_indikatorFilterMakna === 'negatif' && !row.bermakna_negatif)  return false;
     if (_indikatorFilterMakna === 'positif' &&  row.bermakna_negatif)  return false;
+    if (_indikatorFilterTipe && _tipeOfRow(row) !== _indikatorFilterTipe) return false;
     if (_indikatorFilterPJ && (row.penanggung_jawab || '') !== _indikatorFilterPJ) return false;
     return true;
   });
@@ -2096,18 +2162,16 @@ async function downloadIndikatorPDF(btnEl) {
     if (!filtered.length) { toast('Tidak ada data sesuai filter saat ini.', 'error'); return; }
 
     const tahunLabel = _indikatorFilterTahun || new Date().getFullYear();
-    const targetHeaderLabel = _indikatorFilterTahun ? `TARGET ${_indikatorFilterTahun} (TW I/II/III/IV)` : 'TARGET (TW I/II/III/IV)';
+    const targetHeaderLabel = _indikatorFilterTahun ? `TARGET TAHUNAN ${_indikatorFilterTahun}` : 'TARGET TAHUNAN';
 
     const bodyRows = filtered.map((row, i) => {
-      const targets = _targetMap[row.id] || [];
       let targetStr = '-';
-      if (targets.length) {
+      const _yrs = _tahunanYears(row.id);
+      if (_yrs.length) {
         if (_indikatorFilterTahun) {
-          targetStr = _twTargetsLabel(targets, _indikatorFilterTahun);
+          targetStr = _tahunanLabel(row.id, _indikatorFilterTahun);
         } else {
-          targetStr = _twTargetYears(targets)
-            .map(y => `${y}: ${_twTargetsLabel(targets, y)}`)
-            .join('; ');
+          targetStr = _yrs.map(y => `${y}: ${_tahunanLabel(row.id, y)}`).join('; ');
         }
       }
       const pics = Array.isArray(row.pic_users) ? row.pic_users.filter(Boolean) : [];
@@ -2468,10 +2532,10 @@ async function saveIndikator() {
     
     
     
-    try { if (typeof loadKinerjaRekap === 'function') await loadKinerjaRekap(); } catch (_) {}
-    try { if (typeof loadIkkRekap === 'function') await loadIkkRekap(); } catch (_) {}
-    try { if (typeof loadSpmRekap === 'function') await loadSpmRekap(); } catch (_) {}
-    try { if (typeof loadSubkegRekap === 'function') await loadSubkegRekap(); } catch (_) {}
+    try { if (typeof loadKinerjaRekap === 'function') await loadKinerjaRekap({ keepPage: true }); } catch (_) {}
+    try { if (typeof loadIkkRekap === 'function') await loadIkkRekap({ keepPage: true }); } catch (_) {}
+    try { if (typeof loadSpmRekap === 'function') await loadSpmRekap({ keepPage: true }); } catch (_) {}
+    try { if (typeof loadSubkegRekap === 'function') await loadSubkegRekap({ keepPage: true }); } catch (_) {}
     // Ganti tipe_perhitungan/bermakna_negatif dll ngubah capaian_persen di
     // SEMUA tahun buat indikator ini - bersihin cache dashboard biar "Pantau
     // Indikator" & mini chart "Tren Per Bulan" gak nampilin angka basi.
@@ -2839,10 +2903,10 @@ async function kiSubmitImporIndikator() {
     toast(`Impor selesai - ${ringkas}`, 'success');
 
     loadIndikatorAdmin({ keepFilter: true });
-    try { if (typeof loadKinerjaRekap === 'function') await loadKinerjaRekap(); } catch (_) {}
-    try { if (typeof loadIkkRekap === 'function') await loadIkkRekap(); } catch (_) {}
-    try { if (typeof loadSpmRekap === 'function') await loadSpmRekap(); } catch (_) {}
-    try { if (typeof loadSubkegRekap === 'function') await loadSubkegRekap(); } catch (_) {}
+    try { if (typeof loadKinerjaRekap === 'function') await loadKinerjaRekap({ keepPage: true }); } catch (_) {}
+    try { if (typeof loadIkkRekap === 'function') await loadIkkRekap({ keepPage: true }); } catch (_) {}
+    try { if (typeof loadSpmRekap === 'function') await loadSpmRekap({ keepPage: true }); } catch (_) {}
+    try { if (typeof loadSubkegRekap === 'function') await loadSubkegRekap({ keepPage: true }); } catch (_) {}
     try { if (typeof _invalidateAllKinerjaDashboardCache === 'function') _invalidateAllKinerjaDashboardCache(); } catch (_) {}
 
     if (warn.length) {
@@ -3130,7 +3194,7 @@ let _ktFilterJenis= '';
 let _ktPage       = 1;
 const _ktPageSize = 15;
 
-async function loadKelolaTarget() {
+async function loadKelolaTarget({ keepFilter = false } = {}) {
   const container = document.getElementById('ktCardContainer');
   if (!container) return;
   container.innerHTML = `
@@ -3191,6 +3255,8 @@ async function loadKelolaTarget() {
     const thisYear = new Date().getFullYear();
     const dariEl   = document.getElementById('ktTahunDari');
     const sampaiEl = document.getElementById('ktTahunSampai');
+    const _prevDari   = _ktTahunDari;
+    const _prevSampai = _ktTahunSampai;
     if (dariEl && sampaiEl && _ktAllTahun.length) {
       const opts = _ktAllTahun.map(y => `<option value="${y}">${y}</option>`).join('');
       dariEl.innerHTML   = opts;
@@ -3200,17 +3266,23 @@ async function loadKelolaTarget() {
       const defSampai = _ktAllTahun[_ktAllTahun.length - 1];
       dariEl.value   = defDari;
       sampaiEl.value = defSampai;
+      if (keepFilter) {
+        if (_prevDari   && _ktAllTahun.includes(_prevDari))   dariEl.value   = _prevDari;
+        if (_prevSampai && _ktAllTahun.includes(_prevSampai)) sampaiEl.value = _prevSampai;
+      }
     }
 
-    _ktPage        = 1;
-    _ktSearch      = '';
-    _ktFilterJenis = '';
     _ktTahunDari   = dariEl  ? parseInt(dariEl.value)   || null : null;
     _ktTahunSampai = sampaiEl ? parseInt(sampaiEl.value) || null : null;
-    const searchEl = document.getElementById('ktSearch');
-    if (searchEl) searchEl.value = '';
-    const jenisEl = document.getElementById('ktFilterJenis');
-    if (jenisEl) jenisEl.value = '';
+    if (!keepFilter) {
+      _ktPage        = 1;
+      _ktSearch      = '';
+      _ktFilterJenis = '';
+      const searchEl = document.getElementById('ktSearch');
+      if (searchEl) searchEl.value = '';
+      const jenisEl = document.getElementById('ktFilterJenis');
+      if (jenisEl) jenisEl.value = '';
+    }
 
     renderKelolaTarget();
   } catch (err) {
@@ -3277,6 +3349,8 @@ function renderKelolaTarget() {
     return;
   }
 
+  const _ktMaxPage = Math.max(1, Math.ceil(filtered.length / _ktPageSize));
+  if (_ktPage > _ktMaxPage) _ktPage = _ktMaxPage;
   const start = (_ktPage - 1) * _ktPageSize;
   const slice = filtered.slice(start, start + _ktPageSize);
 
@@ -3680,7 +3754,7 @@ async function saveKtHapusTahun() {
     else toast(`Tahun ${tahunStr} dihapus`);
   } catch (err) { toast('Error: ' + err.message, 'error'); }
   closeModal('modalKtHapusTahun');
-  loadKelolaTarget();
+  loadKelolaTarget({ keepFilter: true });
 }
 
 function toggleKtDeleteTargetAll(checked) {
@@ -3705,7 +3779,7 @@ async function saveKtDeleteTarget() {
   await Promise.all(delIds.map(tid => fetch(`/api/kinerja/target/${tid}`, { method: 'DELETE', headers: authHeaders() })));
   toast(`Target ${checked.length} tahun dihapus`);
   closeModal('modalKtDeleteTarget');
-  loadKelolaTarget();
+  loadKelolaTarget({ keepFilter: true });
 }
 
 function openKtAddTarget(indikatorId) {
@@ -3741,7 +3815,7 @@ async function saveKtAddTarget() {
     }
     toast('Target ditambahkan');
     closeModal('modalKtAddTarget');
-    loadKelolaTarget();
+    loadKelolaTarget({ keepFilter: true });
   } catch (err) { toast('Error: ' + err.message, 'error'); }
 }
 
@@ -4160,7 +4234,7 @@ function setIkkBulan(bulan) {
   loadIkkRekap();
 }
 
-async function loadIkkRekap() {
+async function loadIkkRekap({ keepPage = false } = {}) {
   const tbody = document.getElementById('ikkTableBody');
   if (!tbody) return;
 
@@ -4209,7 +4283,7 @@ async function loadIkkRekap() {
       }
     }
     _ikkData = rekap;
-    _ikkPage = 1;
+    if (!keepPage) _ikkPage = 1;
     _renderIkkTable(tbody);
   } catch (err) {
     tbody.innerHTML = `<tr class="empty-row"><td colspan="${_kinColSpan(tbody)}">Error: ${err.message}</td></tr>`;
@@ -4228,6 +4302,21 @@ function filterIkkTable() {
 // ikut tersimpan lewat tombol Simpan baris yang sama. Pakai <input> biasa (bukan .ps-rte)
 // supaya karakter di URL (_ * dst.) tidak diubah oleh markdown-lite.
 // jenis: 'monev' (IKU) | 'ikk' | 'spm' | 'subkeg'
+// Animasi looping petunjuk "di-share" di bawah input link: pulsa cincin yang sama dengan
+// kartu Jam Kerja di Absensi (absJamKerjaPulsa: 2.2s ease-out infinite), warna amber.
+// Disuntik sekali dari sini, tanpa ubah styles.css.
+(function () {
+  if (document.getElementById('dukungHintStyle')) return;
+  const s = document.createElement('style');
+  s.id = 'dukungHintStyle';
+  s.textContent = '@keyframes dukungHintPulsa{' +
+    '0%{box-shadow:0 0 0 0 rgba(217,119,6,.45)}' +
+    '70%{box-shadow:0 0 0 9px rgba(217,119,6,0)}' +
+    '100%{box-shadow:0 0 0 0 rgba(217,119,6,0)}}' +
+    '.dukung-inline-hint{animation:dukungHintPulsa 2.2s ease-out infinite}' +
+    '@media (prefers-reduced-motion:reduce){.dukung-inline-hint{animation:none}}';
+  document.head.appendChild(s);
+})();
 const _DK_PREFIX = { monev: '', ikk: 'ikk_', spm: 'spm_', subkeg: 'subkeg_' };
 const _DK_MARK   = { monev: 'markDirty', ikk: 'markIkkDirty', spm: 'markSpmDirty', subkeg: 'markSubkegDirty' };
 function _dkArr(jenis) {
@@ -4250,7 +4339,7 @@ function _dukungFirstFile(row) {
 function _dukungReadHtml(url) {
   if (!url) return '<span style="color:var(--teks-muted)">-</span>';
   if (!/^https?:\/\//i.test(url)) return `<span>${escHtml(url)}</span>`;
-  return `<a href="${escHtml(url)}" target="_blank" rel="noopener noreferrer" data-tip="${escHtml(url)}">
+  return `<a href="${escHtml(url)}" target="_blank" rel="noopener noreferrer">
     <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.2"><path stroke-linecap="round" stroke-linejoin="round" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"/></svg>
     <span>Lihat Data Dukung</span></a>`;
 }
@@ -4268,6 +4357,7 @@ function _renderDukungInlineCell(row, canEdit, jenis) {
       ${locked ? 'readonly' : 'disabled'} style="display:none"
       oninput="${_DK_MARK[jenis]}(${row.id})" onblur="_dukungSyncErr(${row.id}, '${jenis}', true)">
     <div class="dukung-inline-err" id="${p}dukungerr_${row.id}" style="display:none"></div>
+    <div class="dukung-inline-hint" id="${p}dukunghint_${row.id}" style="display:none;align-items:flex-start;gap:6px;margin-top:6px;padding:6px 10px;border-radius:8px;background:#fffbeb;border:1px solid #fde68a;font-size:.7rem;line-height:1.35;font-weight:400;color:#b45309"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;margin-top:1px"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg><span>Pastikan link sudah di-<i>share</i> agar bisa diakses.</span></div>
   </div>`;
 }
 
@@ -4298,6 +4388,8 @@ function _dukungSetEnabled(indikatorId, jenis, enabled) {
   inp.disabled = !enabled;
   // Belum aktif -> field disembunyikan total; muncul setelah isian wajib terpenuhi
   inp.style.display = enabled ? '' : 'none';
+  const hint = document.getElementById(`${_DK_PREFIX[jenis] ?? ''}dukunghint_${indikatorId}`);
+  if (hint) hint.style.display = (enabled && !_dukungInputState(indikatorId, jenis).valid) ? 'flex' : 'none';
   if (!enabled) {
     const err = document.getElementById(`${_DK_PREFIX[jenis] ?? ''}dukungerr_${indikatorId}`);
     if (err) { err.textContent = ''; err.style.display = 'none'; }
@@ -4317,6 +4409,8 @@ function _dukungSyncErr(indikatorId, jenis, showErrors) {
   err.textContent = showMsg ? (st.msg || 'Link tidak valid.') : '';
   err.style.display = showMsg ? '' : 'none';
   inp.classList.toggle('is-invalid', showMsg);
+  const hint = document.getElementById(`${p}dukunghint_${indikatorId}`);
+  if (hint) hint.style.display = (!showMsg && !st.valid && inp.style.display !== 'none') ? 'flex' : 'none';
 }
 
 // editing=true -> tampilkan input; false -> kunci & tampilkan link tersimpan
@@ -4340,6 +4434,8 @@ function _setDukungCellMode(indikatorId, jenis, editing) {
   inp.style.display = 'none';
   inp.classList.remove('is-invalid');
   if (err) { err.textContent = ''; err.style.display = 'none'; }
+  const hint = document.getElementById(`${p}dukunghint_${indikatorId}`);
+  if (hint) hint.style.display = 'none';
   rd.innerHTML = _dukungReadHtml(f?.url || '');
   rd.style.display = '';
   // Peringatan "link belum diisi" (baris lama tanpa link) dihapus begitu link tersimpan
@@ -4398,6 +4494,7 @@ function _renderIkkTable(tbody) {
   let html = '';
   let lastGroupId = null;
 
+  _ikkPage = Math.min(_ikkPage, Math.max(1, Math.ceil(_filtered.length / _ikkPageSize)));
   const _ikkStart = (_ikkPage - 1) * _ikkPageSize;
   const _ikkRows  = _filtered.slice(_ikkStart, _ikkStart + _ikkPageSize);
   let no = _ikkStart;
@@ -4548,8 +4645,9 @@ function _updateIkkSaveBtnState(indikatorId) {
   const ok = _canSaveRow(fieldArgs);
   const okUpload = _canSaveRow(fieldArgs, false);
   btn.disabled         = !ok;
-  btn.style.background = ok ? '#0d9488' : '';
-  btn.style.color      = ok ? '#fff'    : '';
+  const _saved = !ok && !!row?.realisasi_id && !document.querySelector(`tr[data-id="${indikatorId}"]`)?.classList.contains('row-state-editing');
+  btn.style.background = ok ? '#0d9488' : (_saved ? 'var(--sukses)' : '');
+  btn.style.color      = (ok || _saved) ? '#fff' : '';
 
   _dukungSetEnabled(indikatorId, 'ikk', okUpload);
   _dukungSyncErr(indikatorId, 'ikk', false);
@@ -4676,16 +4774,18 @@ async function saveIkkRealisasiRow(indikatorId) {
       const _savedIkk = _ikkData[idx >= 0 ? idx : -1];
       const _rIkk = parseFloat(_savedIkk?.realisasi ?? '');
       const _tIkk = _targetNumForRow(_savedIkk);
-      if (!isNaN(_rIkk) && !isNaN(_tIkk) && _tIkk !== 0) {
-        const _cIkk = _savedIkk?.bermakna_negatif
+      let _cIkk = NaN;
+if (!isNaN(_rIkk) && !isNaN(_tIkk) && _tIkk !== 0) {
+_cIkk = _savedIkk?.bermakna_negatif
           ? ((_tIkk - (_rIkk - _tIkk)) / _tIkk) * 100
           : (_rIkk / _tIkk) * 100;
-        _togglePermasalahanSolusi('ikk', indikatorId, _cIkk);
+}
+_togglePermasalahanSolusi('ikk', indikatorId, _cIkk);
         [['ikk_fpenghambat', _savedIkk?.f_penghambat], ['ikk_solusi', _savedIkk?.solusi],
          ['ikk_fpendukung', _savedIkk?.f_pendukung], ['ikk_rencana', _savedIkk?.rencana_tl]].forEach(([base, val]) => {
           _updatePSReadAfterSave(base, indikatorId, val);
         });
-      }
+      
     }
   } catch (err) { toast('Error: ' + err.message, 'error'); if (btn) { btn.disabled = false; btn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/><path d="M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7"/><path d="M7 3v4a1 1 0 0 0 1 1h7"/></svg> Simpan`; } }
 }
@@ -6654,7 +6754,7 @@ function _renderSpmPeriodeInfo() {
   if (tahunWrap) tahunWrap.style.display = 'flex';
 }
 
-async function loadSpmRekap() {
+async function loadSpmRekap({ keepPage = false } = {}) {
   const tbody = document.getElementById('spmTableBody');
   if (!tbody) return;
 
@@ -6700,7 +6800,7 @@ async function loadSpmRekap() {
       }
     }
     _spmData = rekap;
-    _spmPage = 1;
+    if (!keepPage) _spmPage = 1;
     _renderSpmTable(tbody);
   } catch (err) {
     tbody.innerHTML = `<tr class="empty-row"><td colspan="${_kinColSpan(tbody)}">Error: ${err.message}</td></tr>`;
@@ -6744,6 +6844,7 @@ function _renderSpmTable(tbody) {
 
   const canEdit = _isKinerjaInputOpen(null, 'spm');
   let html = '';
+  _spmPage = Math.min(_spmPage, Math.max(1, Math.ceil(_filtered.length / _spmPageSize)));
   const _spmStart = (_spmPage - 1) * _spmPageSize;
   const _spmRows  = _filtered.slice(_spmStart, _spmStart + _spmPageSize);
   let i = _spmStart;
@@ -6939,8 +7040,8 @@ function toggleSpmEditRow(indikatorId) {
     }
     if (saveBtn) {
       saveBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/><path d="M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7"/><path d="M7 3v4a1 1 0 0 0 1 1h7"/></svg> Simpan`;
-      saveBtn.style.background = '';
-      saveBtn.style.color = '';
+      saveBtn.style.background = row?.realisasi_id ? 'var(--sukses)' : '';
+      saveBtn.style.color = row?.realisasi_id ? '#fff' : '';
       saveBtn.disabled = true;
     }
   }
@@ -6969,8 +7070,9 @@ function _updateSpmSaveBtnState(indikatorId) {
   const ok = _canSaveRow(fieldArgs);
   const okUpload = _canSaveRow(fieldArgs, false);
   btn.disabled         = !ok;
-  btn.style.background = ok ? '#0d9488' : '';
-  btn.style.color      = ok ? '#fff'    : '';
+  const _saved = !ok && !!row?.realisasi_id && !document.querySelector(`tr[data-id="${indikatorId}"]`)?.classList.contains('row-state-editing');
+  btn.style.background = ok ? '#0d9488' : (_saved ? 'var(--sukses)' : '');
+  btn.style.color      = (ok || _saved) ? '#fff' : '';
   btn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/><path d="M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7"/><path d="M7 3v4a1 1 0 0 0 1 1h7"/></svg> Simpan`;
 
   _dukungSetEnabled(indikatorId, 'spm', okUpload);
@@ -7118,16 +7220,18 @@ async function saveSpmRealisasiRow(indikatorId) {
       const _savedSpm = _spmData[idx >= 0 ? idx : -1];
       const _rSpm = parseFloat(_savedSpm?.realisasi ?? '');
       const _tSpm = _targetNumForRow(_savedSpm);
-      if (!isNaN(_rSpm) && !isNaN(_tSpm) && _tSpm !== 0) {
-        const _cSpm = _savedSpm?.bermakna_negatif
+      let _cSpm = NaN;
+if (!isNaN(_rSpm) && !isNaN(_tSpm) && _tSpm !== 0) {
+_cSpm = _savedSpm?.bermakna_negatif
           ? ((_tSpm - (_rSpm - _tSpm)) / _tSpm) * 100
           : (_rSpm / _tSpm) * 100;
-        _togglePermasalahanSolusi('spm', indikatorId, _cSpm);
+}
+_togglePermasalahanSolusi('spm', indikatorId, _cSpm);
         [['spm_fpenghambat', _savedSpm?.f_penghambat], ['spm_solusi', _savedSpm?.solusi],
          ['spm_fpendukung', _savedSpm?.f_pendukung], ['spm_rencana', _savedSpm?.rencana_tl]].forEach(([base, val]) => {
           _updatePSReadAfterSave(base, indikatorId, val);
         });
-      }
+      
       
       if (!row?.data_dukung_url) {
         const dukungCell = document.querySelector(`tr[data-id="${indikatorId}"] td[data-col="dukung"]`);
@@ -7262,7 +7366,7 @@ function _renderSubkegPeriodeInfo() {
   if (tahunWrap) tahunWrap.style.display = 'flex';
 }
 
-async function loadSubkegRekap() {
+async function loadSubkegRekap({ keepPage = false } = {}) {
   const tbody = document.getElementById('subkegTableBody');
   if (!tbody) return;
 
@@ -7308,7 +7412,7 @@ async function loadSubkegRekap() {
       }
     }
     _subkegData = rekap;
-    _subkegPage = 1;
+    if (!keepPage) _subkegPage = 1;
     _renderSubkegTable(tbody);
   } catch (err) {
     tbody.innerHTML = `<tr class="empty-row"><td colspan="${_kinColSpan(tbody)}">Error: ${err.message}</td></tr>`;
@@ -7352,6 +7456,7 @@ function _renderSubkegTable(tbody) {
 
   const canEdit = _isKinerjaInputOpen(null, 'subkeg');
   let html = '';
+  _subkegPage = Math.min(_subkegPage, Math.max(1, Math.ceil(_filtered.length / _subkegPageSize)));
   const _subkegStart = (_subkegPage - 1) * _subkegPageSize;
   const _subkegRows  = _filtered.slice(_subkegStart, _subkegStart + _subkegPageSize);
   let i = _subkegStart;
@@ -7547,8 +7652,8 @@ function toggleSubkegEditRow(indikatorId) {
     }
     if (saveBtn) {
       saveBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/><path d="M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7"/><path d="M7 3v4a1 1 0 0 0 1 1h7"/></svg> Simpan`;
-      saveBtn.style.background = '';
-      saveBtn.style.color = '';
+      saveBtn.style.background = row?.realisasi_id ? 'var(--sukses)' : '';
+      saveBtn.style.color = row?.realisasi_id ? '#fff' : '';
       saveBtn.disabled = true;
     }
   }
@@ -7577,8 +7682,9 @@ function _updateSubkegSaveBtnState(indikatorId) {
   const ok = _canSaveRow(fieldArgs);
   const okUpload = _canSaveRow(fieldArgs, false);
   btn.disabled         = !ok;
-  btn.style.background = ok ? '#0d9488' : '';
-  btn.style.color      = ok ? '#fff'    : '';
+  const _saved = !ok && !!row?.realisasi_id && !document.querySelector(`tr[data-id="${indikatorId}"]`)?.classList.contains('row-state-editing');
+  btn.style.background = ok ? '#0d9488' : (_saved ? 'var(--sukses)' : '');
+  btn.style.color      = (ok || _saved) ? '#fff' : '';
   btn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/><path d="M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7"/><path d="M7 3v4a1 1 0 0 0 1 1h7"/></svg> Simpan`;
 
   _dukungSetEnabled(indikatorId, 'subkeg', okUpload);
@@ -7726,16 +7832,18 @@ async function saveSubkegRealisasiRow(indikatorId) {
       const _savedSubkeg = _subkegData[idx >= 0 ? idx : -1];
       const _rSubkeg = parseFloat(_savedSubkeg?.realisasi ?? '');
       const _tSubkeg = _targetNumForRow(_savedSubkeg);
-      if (!isNaN(_rSubkeg) && !isNaN(_tSubkeg) && _tSubkeg !== 0) {
-        const _cSubkeg = _savedSubkeg?.bermakna_negatif
+      let _cSubkeg = NaN;
+if (!isNaN(_rSubkeg) && !isNaN(_tSubkeg) && _tSubkeg !== 0) {
+_cSubkeg = _savedSubkeg?.bermakna_negatif
           ? ((_tSubkeg - (_rSubkeg - _tSubkeg)) / _tSubkeg) * 100
           : (_rSubkeg / _tSubkeg) * 100;
-        _togglePermasalahanSolusi('subkeg', indikatorId, _cSubkeg);
+}
+_togglePermasalahanSolusi('subkeg', indikatorId, _cSubkeg);
         [['subkeg_fpenghambat', _savedSubkeg?.f_penghambat], ['subkeg_solusi', _savedSubkeg?.solusi],
          ['subkeg_fpendukung', _savedSubkeg?.f_pendukung], ['subkeg_rencana', _savedSubkeg?.rencana_tl]].forEach(([base, val]) => {
           _updatePSReadAfterSave(base, indikatorId, val);
         });
-      }
+      
       
       if (!row?.data_dukung_url) {
         const dukungCell = document.querySelector(`tr[data-id="${indikatorId}"] td[data-col="dukung"]`);
@@ -7785,13 +7893,13 @@ async function resetRealisasiRow(indikatorId, jenis) {
     toast('Data realisasi berhasil direset');
     
     if (jenis === 'ikk') {
-      await loadIkkRekap();
+      await loadIkkRekap({ keepPage: true });
     } else if (jenis === 'spm') {
-      await loadSpmRekap();
+      await loadSpmRekap({ keepPage: true });
     } else if (jenis === 'subkeg') {
-      await loadSubkegRekap();
+      await loadSubkegRekap({ keepPage: true });
     } else {
-      await loadKinerjaRekap();
+      await loadKinerjaRekap({ keepPage: true });
     }
   } catch (err) {
     toast('Error: ' + err.message, 'error');

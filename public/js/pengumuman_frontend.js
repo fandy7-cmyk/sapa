@@ -7,7 +7,7 @@ let _pengumumanPage = 1;
 const _pengumumanPerPage = 15;
 let _quillPengumuman = null; 
 
-async function loadPengumuman() {
+async function loadPengumuman({ keepPage = false } = {}) {
   const tb0 = document.getElementById('pengumumanTableBody');
   if (tb0) tb0.innerHTML = `<tr class="empty-row"><td colspan="5"><span class="btn-spin" style="width:11px;height:11px;vertical-align:-1px;margin-right:6px"></span>Memuat data...</td></tr>`;
   try {
@@ -15,7 +15,7 @@ async function loadPengumuman() {
     if (!r.ok) throw new Error(await r.text());
     const { pengumuman } = await r.json();
     _pengumumanAll = pengumuman || [];
-    _pengumumanPage = 1;
+    if (!keepPage) _pengumumanPage = 1;
     buildPengumumanTipeFilter();
     buildPengumumanStatusFilter();
     renderPengumumanTable();
@@ -239,7 +239,7 @@ async function savePengumuman() {
     if (!r.ok) { toast(data.error || 'Gagal menyimpan', 'error'); return; }
     toast(id ? 'Pengumuman diperbarui' : 'Pengumuman ditambahkan', 'success');
     closeModal('modalPengumuman');
-    loadPengumuman();
+    loadPengumuman({ keepPage: true });
   } catch (err) {
     toast('Gagal: ' + err.message, 'error');
   } finally {
@@ -257,7 +257,7 @@ async function togglePengumuman(id, currentAktif) {
     });
     if (!r.ok) throw new Error();
     toast(!currentAktif ? 'Pengumuman diaktifkan' : 'Pengumuman dinonaktifkan', 'success');
-    loadPengumuman();
+    loadPengumuman({ keepPage: true });
   } catch {
     toast('Gagal mengubah status', 'error');
   }
@@ -273,7 +273,7 @@ async function deletePengumuman(id) {
     });
     if (!r.ok) throw new Error();
     toast('Pengumuman dihapus', 'success');
-    loadPengumuman();
+    loadPengumuman({ keepPage: true });
   } catch {
     toast('Gagal menghapus', 'error');
   }

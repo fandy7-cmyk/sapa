@@ -49,6 +49,7 @@ function _handleSessionExpired() {
   sessionStorage.removeItem('sapa_refresh_token');
   sessionStorage.removeItem('sapa_user');
   try { sessionStorage.removeItem('sapa_nav'); } catch(e) {}
+  _pgClearAll();
   try { sessionStorage.removeItem('sapa_lembur_state'); } catch(e) {}
 
   // login.html udah gak nempel di app.html lagi - lempar balik kesana,
@@ -553,6 +554,7 @@ async function doLogout() {
   sessionStorage.removeItem('sapa_refresh_token');
   sessionStorage.removeItem('sapa_user');
   try { sessionStorage.removeItem('sapa_nav'); } catch(e) {}
+  _pgClearAll();
   try { sessionStorage.removeItem('sapa_lembur_state'); } catch(e) {}
   location.reload();
 }
@@ -996,6 +998,7 @@ function toggleSubGroup(id) {
 let _currentLoader = null;
 
 function navigateTo(subId, label, loader, groupId, pageId, subGroupId) {
+  _pgRestoreActive = _pgBootRestoring;   // hanya navigasi hasil restore reload yang boleh pulihkan halaman
   _activeSubId = subId;
   if (groupId) { _openGroups = {}; _openGroups[groupId] = true; }
   if (subGroupId) { _openGroups[subGroupId] = true; }
@@ -1288,6 +1291,11 @@ function renderPagination(containerId, total, page, limit, onPageChange) {
   if (!c) return;
   if (total <= 0) { c.innerHTML = ''; return; }
 
+  // Ingat halaman terakhir per tabel supaya reload tidak melempar balik ke halaman 1.
+  // Cek restore DULU sebelum simpan, kalau tidak nilai tersimpan tertimpa render awal (page=1).
+  const _restore = (page === 1 && pages > 1) ? _pgTakeRestore(containerId, pages) : 0;
+  if (_restore <= 1) _pgSave(containerId, page);
+
   const from = (page - 1) * limit + 1;
   const to   = Math.min(page * limit, total);
   const info = `<div class="pagination-info">Menampilkan ${from}-${to} dari ${total} data</div>`;
@@ -1295,6 +1303,8 @@ function renderPagination(containerId, total, page, limit, onPageChange) {
   if (pages <= 1) { c.innerHTML = ''; return; }
   const cb = typeof onPageChange === 'function' ? onPageChange : (p => { window[onPageChange] && window[onPageChange](p); });
   if (typeof onPageChange === 'function') _pgRegister(containerId, cb);
+  // Render pertama setelah reload: kalau sebelumnya ada di halaman > 1, loncat ke sana.
+  if (_restore > 1) { cb(_restore); return; }
   const btn = (disabled, onclick, svg) =>
     `<button class="page-btn" ${disabled ? 'disabled' : ''} onclick="${onclick}">${svg}</button>`;
   const svgFirst = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M11 19l-7-7 7-7M18 19l-7-7 7-7"/></svg>`;
@@ -1316,6 +1326,34 @@ function renderPagination(containerId, total, page, limit, onPageChange) {
   html += btn(page === pages, call(pages),    svgLast);
   html += '</div>';
   c.innerHTML = `<div class="pagination-wrap">${info}${html}</div>`;
+}
+
+// ── Ingat halaman pagination lintas reload (sessionStorage, per tab & per user) ──
+// Container yang berupa modal/picker/widget sengaja tidak diingat.
+const _PG_SKIP = /^(epKompPick|epTampilRek|kbAlert)/;
+let _pgBootRestoring = false;   // true hanya selama restore menu setelah reload
+let _pgRestoreActive = false;   // true sampai user pindah menu secara manual
+const _pgRestored = {};         // container yang sudah dipulihkan (sekali per load)
+function _pgKey(containerId) {
+  const uid = (typeof _user !== 'undefined' && _user && _user.id) ? _user.id : 'x';
+  return `sapa_pg_${uid}_${containerId}`;
+}
+function _pgSave(containerId, page) {
+  if (_PG_SKIP.test(containerId)) return;
+  try { sessionStorage.setItem(_pgKey(containerId), String(page)); } catch (e) {}
+}
+function _pgTakeRestore(containerId, pages) {
+  if (!_pgRestoreActive || _pgRestored[containerId] || _PG_SKIP.test(containerId)) return 0;
+  _pgRestored[containerId] = true;
+  try {
+    const p = parseInt(sessionStorage.getItem(_pgKey(containerId)), 10);
+    return (p > 1 && p <= pages) ? p : 0;
+  } catch (e) { return 0; }
+}
+function _pgClearAll() {
+  try {
+    Object.keys(sessionStorage).filter(k => k.startsWith('sapa_pg_')).forEach(k => sessionStorage.removeItem(k));
+  } catch (e) {}
 }
 
 const _pgCallbacks = {};
@@ -1485,6 +1523,7 @@ async function _bootRefreshTandaTangan() {
         return !hasOtherModule && hasKinerjaMenu;
       })();
 
+      _pgBootRestoring = true;
       try {
         const _saved = sessionStorage.getItem('sapa_nav');
         if (_saved) {
@@ -1535,6 +1574,7 @@ async function _bootRefreshTandaTangan() {
           }
         }
       } catch(e) {}
+      _pgBootRestoring = false;
 
       if (!_restored) {
         if (!_user.is_admin && !hasAccess('dashboard')) {

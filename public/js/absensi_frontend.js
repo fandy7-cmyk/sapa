@@ -1685,14 +1685,14 @@ async function openAbsLiburModal() {
   }, 30);
 }
 
-async function loadAbsLiburList() {
+async function loadAbsLiburList({ keepPage = false } = {}) {
   const box = document.getElementById('absLiburList');
   try {
     const r = await fetch(`/api/absensi/libur?tahun=${_absLiburFilterTahun}`, { headers: authHeaders() });
     const d = await r.json();
     _absLiburAll = d.libur || [];
     _absLiburBulanIni = new Set(_absLiburAll.map(l => _absLiburLocalYMD(l.tanggal)));
-    _absLiburPage = 1;
+    if (!keepPage) _absLiburPage = 1;
     rebuildAbsLiburBulanFilter();
     renderAbsLiburList();
   } catch { box.innerHTML = ''; _absLiburAll = []; rebuildAbsLiburBulanFilter(); renderAbsLiburList(); }
@@ -1712,6 +1712,7 @@ function renderAbsLiburList(page = _absLiburPage) {
     ? _absLiburAll.filter(l => _absLiburLocalYMD(l.tanggal).slice(5, 7) === bulan)
     : _absLiburAll;
 
+  _absLiburPage = Math.min(_absLiburPage, Math.max(1, Math.ceil(filtered.length / _absLiburLimit)));
   const start = (_absLiburPage - 1) * _absLiburLimit;
   const pageItems = filtered.slice(start, start + _absLiburLimit);
 
@@ -1771,7 +1772,7 @@ async function saveAbsLibur() {
     if (!r.ok) { toast(d.error || (id ? 'Gagal menyimpan perubahan' : 'Gagal menambah hari libur'), 'error'); return; }
     toast(id ? 'Hari libur berhasil diperbarui' : 'Hari libur berhasil ditambahkan', 'success');
     cancelEditAbsLibur();
-    await loadAbsLiburList();
+    await loadAbsLiburList({ keepPage: true });
   } catch { toast(id ? 'Gagal menyimpan perubahan' : 'Gagal menambah hari libur', 'error'); }
 }
 
@@ -1783,7 +1784,7 @@ async function deleteAbsLibur(id) {
   if (!ok) return;
   await fetch(`/api/absensi/libur/${id}`, { method: 'DELETE', headers: authHeaders() });
   toast('Hari libur berhasil dihapus', 'success');
-  await loadAbsLiburList();
+  await loadAbsLiburList({ keepPage: true });
 }
 const PENG_STATUS_LABEL = { pending: 'Menunggu Persetujuan', disetujui: 'Disetujui', ditolak: 'Ditolak' };
 const PENG_STATUS_BADGE = { pending: 'badge-yellow', disetujui: 'badge-hijau', ditolak: 'badge-merah' };

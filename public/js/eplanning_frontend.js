@@ -341,7 +341,7 @@ function setEpPemTahunAktif(val) {
   if (page && page.classList.contains('active')) loadEplanningPembahasan();
 }
 
-async function loadEplanning() {
+async function loadEplanning({ keepPage = false } = {}) {
   
   
   
@@ -374,7 +374,7 @@ async function loadEplanning() {
     const d = await r.json();
     if (!r.ok) throw new Error(d.error || 'Gagal memuat data');
     _epUsulanList = d.usulan || [];
-    _epPage = 1;
+    if (!keepPage) _epPage = 1;
     _rebuildEpFilterBidang();
     _rebuildEpFilterStatus();
     renderEplanningTable();
@@ -626,7 +626,7 @@ async function kirimKePembahasan(id) {
     const d = await r.json();
     if (!r.ok) throw new Error(d.error || 'Gagal mengirim ke Pembahasan');
     toast('Usulan dikirim ke Pembahasan', 'success');
-    loadEplanning();
+    loadEplanning({ keepPage: true });
   } catch (err) { toast(err.message, 'error'); }
 }
 
@@ -636,7 +636,7 @@ let _epPemSearchText = '';
 let _epPemPage = 1;
 const _epPemPageSize = 10;
 
-async function loadEplanningPembahasan() {
+async function loadEplanningPembahasan({ keepPage = false } = {}) {
   const tbody = document.getElementById('epPemTableBody');
   if (tbody) tbody.innerHTML = `<tr class="empty-row"><td colspan="7"><span class="btn-spin" style="width:11px;height:11px;vertical-align:-1px;margin-right:6px"></span>Memuat data...</td></tr>`;
   const [periodeList] = await Promise.all([_epFetchPeriodeAktif(), epEnsureTahunList()]);
@@ -652,7 +652,7 @@ async function loadEplanningPembahasan() {
     const d = await r.json();
     if (!r.ok) throw new Error(d.error || 'Gagal memuat data');
     _epPemList = d.usulan || [];
-    _epPemPage = 1;
+    if (!keepPage) _epPemPage = 1;
     _rebuildEpPemFilterBidang();
     renderEplanningPembahasanTable();
     _epUsulankuRenderTimeline();
@@ -764,7 +764,7 @@ async function kirimKePrafinal(id) {
     const d = await r.json();
     if (!r.ok) throw new Error(d.error || 'Gagal mengirim ke Pra Final');
     toast('Usulan dikirim ke Pra Final', 'success');
-    loadEplanningPembahasan();
+    loadEplanningPembahasan({ keepPage: true });
   } catch (err) { toast(err.message, 'error'); }
 }
 
@@ -775,7 +775,7 @@ let _epPfSearchText = '';
 let _epPfPage = 1;
 const _epPfPageSize = 10;
 
-async function loadEplanningPrafinal() {
+async function loadEplanningPrafinal({ keepPage = false } = {}) {
   const tbody = document.getElementById('epPfTableBody');
   if (tbody) tbody.innerHTML = `<tr class="empty-row"><td colspan="7"><span class="btn-spin" style="width:11px;height:11px;vertical-align:-1px;margin-right:6px"></span>Memuat data...</td></tr>`;
   const [periodeList] = await Promise.all([_epFetchPeriodeAktif(), epEnsureTahunList()]);
@@ -791,7 +791,7 @@ async function loadEplanningPrafinal() {
     const d = await r.json();
     if (!r.ok) throw new Error(d.error || 'Gagal memuat data');
     _epPfList = d.usulan || [];
-    _epPfPage = 1;
+    if (!keepPage) _epPfPage = 1;
     _rebuildEpPfFilterBidang();
     renderEplanningPrafinalTable();
     _epUsulankuRenderTimeline();
@@ -918,7 +918,7 @@ async function submitVerifikasiPrafinal(keputusan) {
     if (!r.ok) throw new Error(d.error || 'Gagal memverifikasi usulan');
     toast(keputusan === 'FINAL' ? 'Usulan dinyatakan Final' : 'Usulan dikembalikan ke Pembahasan', 'success');
     closeModal('modalEpVerifikasiPrafinal');
-    loadEplanningPrafinal();
+    loadEplanningPrafinal({ keepPage: true });
   } catch (err) { toast(err.message, 'error'); }
 }
 
@@ -1054,7 +1054,7 @@ async function epSetPrioritas(id, current) {
     const d = await r.json();
     if (!r.ok) throw new Error(d.error || 'Gagal menyimpan skala prioritas');
     toast('Skala prioritas disimpan', 'success');
-    loadEplanning();
+    loadEplanning({ keepPage: true });
   } catch (err) { toast(err.message, 'error'); }
 }
 
@@ -1544,8 +1544,8 @@ async function saveUsulan() {
       closeModal('modalEpUsulan');
     }
     const praPage = document.getElementById('page-eplanning-praunsulan');
-    if (praPage && praPage.classList.contains('active')) loadEplanningPraUsulan();
-    else loadEplanning();
+    if (praPage && praPage.classList.contains('active')) loadEplanningPraUsulan({ keepPage: true });
+    else loadEplanning({ keepPage: true });
   } catch (err) { toast(err.message, 'error'); }
 }
 
@@ -1567,7 +1567,7 @@ async function deleteUsulan(id) {
     const d = await r.json();
     if (!r.ok) throw new Error(d.error || 'Gagal menghapus');
     toast('Usulan dihapus', 'success');
-    loadEplanning();
+    loadEplanning({ keepPage: true });
   } catch (err) { toast(err.message, 'error'); }
 }
 
@@ -1729,8 +1729,8 @@ async function submitApproveKabid() {
     toast('Usulan disetujui & diajukan ke tahap berikutnya', 'success');
     closeModal('modalEpApproveKabid');
     const praPage = document.getElementById('page-eplanning-praunsulan');
-    if (praPage && praPage.classList.contains('active')) loadEplanningPraUsulan();
-    else loadEplanning();
+    if (praPage && praPage.classList.contains('active')) loadEplanningPraUsulan({ keepPage: true });
+    else loadEplanning({ keepPage: true });
   } catch (err) { toast(err.message, 'error'); }
 }
 
@@ -1756,8 +1756,8 @@ async function submitApproveSekretaris() {
     toast('Usulan disetujui & diajukan ke Admin', 'success');
     closeModal('modalEpApproveSekretaris');
     const praPage = document.getElementById('page-eplanning-praunsulan');
-    if (praPage && praPage.classList.contains('active')) loadEplanningPraUsulan();
-    else loadEplanning();
+    if (praPage && praPage.classList.contains('active')) loadEplanningPraUsulan({ keepPage: true });
+    else loadEplanning({ keepPage: true });
   } catch (err) { toast(err.message, 'error'); }
 }
 
@@ -1783,8 +1783,8 @@ async function submitApproveAdmin() {
     toast('Usulan disahkan (SELESAI)', 'success');
     closeModal('modalEpApproveAdmin');
     const praPage = document.getElementById('page-eplanning-praunsulan');
-    if (praPage && praPage.classList.contains('active')) loadEplanningPraUsulan();
-    else loadEplanning();
+    if (praPage && praPage.classList.contains('active')) loadEplanningPraUsulan({ keepPage: true });
+    else loadEplanning({ keepPage: true });
   } catch (err) { toast(err.message, 'error'); }
 }
 
@@ -3073,17 +3073,19 @@ let _epSubkegiatanSearch = '';
 let _epSubkegiatanPage = 1;
 const _epSubkegiatanPageSize = 10;
 
-async function epLoadMasterSubkegiatan() {
+async function epLoadMasterSubkegiatan({ keepFilter = false } = {}) {
   const tbody = document.getElementById('epMasterSubkegiatanBody');
   if (tbody) tbody.innerHTML = `<tr class="empty-row"><td colspan="6"><span class="btn-spin" style="width:11px;height:11px;vertical-align:-1px;margin-right:6px"></span>Memuat data...</td></tr>`;
   try {
     const r = await fetch('/api/eplanning/subkegiatan', { headers: authHeaders() });
     const d = await r.json();
     _epSubkegiatanFull = d.subkegiatan || [];
-    _epSubkegiatanSearch = '';
-    _epSubkegiatanPage = 1;
-    const searchEl = document.getElementById('epSubkegiatanSearch');
-    if (searchEl) searchEl.value = '';
+    if (!keepFilter) {
+      _epSubkegiatanSearch = '';
+      _epSubkegiatanPage = 1;
+      const searchEl = document.getElementById('epSubkegiatanSearch');
+      if (searchEl) searchEl.value = '';
+    }
     epRenderSubkegiatanTable();
   } catch { if (tbody) tbody.innerHTML = `<tr class="empty-row"><td colspan="6">Gagal memuat</td></tr>`; }
 }
@@ -3102,6 +3104,7 @@ function epRenderSubkegiatanTable() {
         s.nama_subkegiatan.toLowerCase().includes(q) ||
         (s.indikator || '').toLowerCase().includes(q))
     : _epSubkegiatanFull;
+  _epSubkegiatanPage = Math.min(_epSubkegiatanPage, Math.max(1, Math.ceil(filtered.length / _epSubkegiatanPageSize)));
   const start = (_epSubkegiatanPage - 1) * _epSubkegiatanPageSize;
   const slice = filtered.slice(start, start + _epSubkegiatanPageSize);
   tbody.innerHTML = slice.length ? slice.map(s => `<tr>
@@ -3164,7 +3167,7 @@ async function epSaveSubkegiatan() {
     if (!r.ok) throw new Error(d.error || 'Gagal menyimpan');
     toast(kodeAsli ? 'Sub kegiatan diperbarui' : 'Sub kegiatan ditambahkan', 'success');
     closeModal('modalSubkegiatan');
-    epLoadMasterSubkegiatan();
+    epLoadMasterSubkegiatan({ keepFilter: true });
   } catch (err) { toast(err.message, 'error'); }
   finally { btn.disabled = false; btn.innerHTML = _btnOrigHtml; }
 }
@@ -3177,7 +3180,7 @@ async function epToggleSubkegiatan(kode, currentAktif) {
     const d = await r.json();
     if (!r.ok) throw new Error(d.error || 'Gagal mengubah status');
     toast(!currentAktif ? 'Sub kegiatan diaktifkan' : 'Sub kegiatan dinonaktifkan', 'success');
-    epLoadMasterSubkegiatan();
+    epLoadMasterSubkegiatan({ keepFilter: true });
   } catch (err) { toast(err.message, 'error'); }
 }
 async function epDeleteSubkegiatan(kode) {
@@ -3190,7 +3193,7 @@ async function epDeleteSubkegiatan(kode) {
   if (!ok) return;
   await fetch(`/api/eplanning/subkegiatan/${encodeURIComponent(kode)}`, { method: 'DELETE', headers: authHeaders() });
   toast('Sub kegiatan dihapus');
-  epLoadMasterSubkegiatan();
+  epLoadMasterSubkegiatan({ keepFilter: true });
 }
 
 const EP_SUBKEG_COLMAP = {
@@ -3305,7 +3308,7 @@ async function epSubmitImporSubkegiatan() {
     }
     toast(`Impor selesai - ${inserted} sub kegiatan tersimpan`, 'success');
     closeModal('modalImporSubkegiatan');
-    epLoadMasterSubkegiatan();
+    epLoadMasterSubkegiatan({ keepFilter: true });
   } catch (err) {
     toast(err.message, 'error');
   } finally {
@@ -3318,17 +3321,19 @@ let _epSumberDanaSearch = '';
 let _epSumberDanaPage = 1;
 const _epSumberDanaPageSize = 10;
 
-async function epLoadMasterSumberDana() {
+async function epLoadMasterSumberDana({ keepFilter = false } = {}) {
   const tb = document.getElementById('epMasterSumberDanaBody');
   if (tb) tb.innerHTML = `<tr class="empty-row"><td colspan="4"><span class="btn-spin" style="width:11px;height:11px;vertical-align:-1px;margin-right:6px"></span>Memuat data...</td></tr>`;
   try {
     const r = await fetch('/api/eplanning/sumberdana', { headers: authHeaders() });
     const d = await r.json();
     _epSumberDanaFull = d.sumberdana || [];
-    _epSumberDanaSearch = '';
-    _epSumberDanaPage = 1;
-    const searchEl = document.getElementById('epSumberDanaSearch');
-    if (searchEl) searchEl.value = '';
+    if (!keepFilter) {
+      _epSumberDanaSearch = '';
+      _epSumberDanaPage = 1;
+      const searchEl = document.getElementById('epSumberDanaSearch');
+      if (searchEl) searchEl.value = '';
+    }
     epRenderSumberDanaTable();
   } catch { if (tb) tb.innerHTML = `<tr class="empty-row"><td colspan="4">Gagal memuat</td></tr>`; }
 }
@@ -3343,6 +3348,7 @@ function epRenderSumberDanaTable() {
   const filtered = _epSumberDanaSearch
     ? _epSumberDanaFull.filter(s => s.nama.toLowerCase().includes(_epSumberDanaSearch) || (s.kode || '').toLowerCase().includes(_epSumberDanaSearch))
     : _epSumberDanaFull;
+  _epSumberDanaPage = Math.min(_epSumberDanaPage, Math.max(1, Math.ceil(filtered.length / _epSumberDanaPageSize)));
   const start = (_epSumberDanaPage - 1) * _epSumberDanaPageSize;
   const slice = filtered.slice(start, start + _epSumberDanaPageSize);
   tb.innerHTML = slice.length ? slice.map(s => `
@@ -3396,7 +3402,7 @@ async function epSaveSumberDana() {
     if (!r.ok) throw new Error(d.error || 'Gagal menyimpan');
     toast(id ? 'Sumber dana diperbarui' : 'Sumber dana ditambahkan', 'success');
     closeModal('modalSumberDana');
-    epLoadMasterSumberDana();
+    epLoadMasterSumberDana({ keepFilter: true });
   } catch (err) { toast(err.message, 'error'); }
   finally { btn.disabled = false; btn.innerHTML = _btnOrigHtml; }
 }
@@ -3409,7 +3415,7 @@ async function epToggleSumberDana(id, currentAktif) {
     const d = await r.json();
     if (!r.ok) throw new Error(d.error || 'Gagal mengubah status');
     toast(!currentAktif ? 'Sumber dana diaktifkan' : 'Sumber dana dinonaktifkan', 'success');
-    epLoadMasterSumberDana();
+    epLoadMasterSumberDana({ keepFilter: true });
   } catch (err) { toast(err.message, 'error'); }
 }
 async function epDeleteSumberDana(id) {
@@ -3422,7 +3428,7 @@ async function epDeleteSumberDana(id) {
   if (!ok) return;
   await fetch(`/api/eplanning/sumberdana/${id}`, { method: 'DELETE', headers: authHeaders() });
   toast('Sumber dana dihapus');
-  epLoadMasterSumberDana();
+  epLoadMasterSumberDana({ keepFilter: true });
 }
 
 const EP_SUMBERDANA_COLMAP = {
@@ -3535,7 +3541,7 @@ async function epSubmitImporSumberDana() {
     }
     toast(`Impor selesai - ${inserted} sumber dana baru ditambahkan`, 'success');
     closeModal('modalImporSumberDana');
-    epLoadMasterSumberDana();
+    epLoadMasterSumberDana({ keepFilter: true });
   } catch (err) {
     toast(err.message, 'error');
   } finally {
@@ -3548,17 +3554,19 @@ let _epSatuanSearchQ = '';
 let _epSatuanPage = 1;
 const _epSatuanPageSize = 10;
 
-async function epLoadMasterSatuan() {
+async function epLoadMasterSatuan({ keepFilter = false } = {}) {
   const tb = document.getElementById('epMasterSatuanBody');
   if (tb) tb.innerHTML = `<tr class="empty-row"><td colspan="3"><span class="btn-spin" style="width:11px;height:11px;vertical-align:-1px;margin-right:6px"></span>Memuat data...</td></tr>`;
   try {
     const r = await fetch('/api/eplanning/satuan', { headers: authHeaders() });
     const d = await r.json();
     _epSatuanFull = d.satuan || [];
-    _epSatuanSearchQ = '';
-    _epSatuanPage = 1;
-    const searchEl = document.getElementById('epSatuanSearch');
-    if (searchEl) searchEl.value = '';
+    if (!keepFilter) {
+      _epSatuanSearchQ = '';
+      _epSatuanPage = 1;
+      const searchEl = document.getElementById('epSatuanSearch');
+      if (searchEl) searchEl.value = '';
+    }
     epRenderSatuanTable();
   } catch { if (tb) tb.innerHTML = `<tr class="empty-row"><td colspan="3">Gagal memuat</td></tr>`; }
 }
@@ -3573,6 +3581,7 @@ function epRenderSatuanTable() {
   const filtered = _epSatuanSearchQ
     ? _epSatuanFull.filter(s => s.nama.toLowerCase().includes(_epSatuanSearchQ))
     : _epSatuanFull;
+  _epSatuanPage = Math.min(_epSatuanPage, Math.max(1, Math.ceil(filtered.length / _epSatuanPageSize)));
   const start = (_epSatuanPage - 1) * _epSatuanPageSize;
   const slice = filtered.slice(start, start + _epSatuanPageSize);
   tb.innerHTML = slice.length ? slice.map(s => `
@@ -3622,7 +3631,7 @@ async function epSaveSatuan() {
     if (!r.ok) throw new Error(d.error || 'Gagal menyimpan');
     toast(id ? 'Satuan diperbarui' : 'Satuan ditambahkan', 'success');
     closeModal('modalSatuan');
-    epLoadMasterSatuan();
+    epLoadMasterSatuan({ keepFilter: true });
   } catch (err) { toast(err.message, 'error'); }
   finally { btn.disabled = false; btn.innerHTML = _btnOrigHtml; }
 }
@@ -3635,7 +3644,7 @@ async function epToggleSatuan(id, currentAktif) {
     const d = await r.json();
     if (!r.ok) throw new Error(d.error || 'Gagal mengubah status');
     toast(!currentAktif ? 'Satuan diaktifkan' : 'Satuan dinonaktifkan', 'success');
-    epLoadMasterSatuan();
+    epLoadMasterSatuan({ keepFilter: true });
   } catch (err) { toast(err.message, 'error'); }
 }
 async function epDeleteSatuan(id) {
@@ -3648,7 +3657,7 @@ async function epDeleteSatuan(id) {
   if (!ok) return;
   await fetch(`/api/eplanning/satuan/${id}`, { method: 'DELETE', headers: authHeaders() });
   toast('Satuan dihapus');
-  epLoadMasterSatuan();
+  epLoadMasterSatuan({ keepFilter: true });
 }
 
 async function epSyncSatuanDariStandarHarga() {
@@ -3657,7 +3666,7 @@ async function epSyncSatuanDariStandarHarga() {
     const d = await r.json();
     if (!r.ok) throw new Error(d.error || 'Gagal sinkronisasi');
     toast(d.added ? `${d.added} satuan baru ditambahkan dari Standar Harga` : 'Semua satuan sudah tersinkron, tidak ada yang baru', 'success');
-    epLoadMasterSatuan();
+    epLoadMasterSatuan({ keepFilter: true });
   } catch (err) { toast(err.message, 'error'); }
 }
 
@@ -4328,7 +4337,7 @@ const EP_SH_KATEGORI_ICON_PATH = {
   HSPK: 'M15 21H9V10H15V21ZM17 21V10H22V20C22 20.5523 21.5523 21 21 21H17ZM7 21H3C2.44772 21 2 20.5523 2 20V10H7V21ZM22 8H2V4C2 3.44772 2.44772 3 3 3H21C21.5523 3 22 3.44772 22 4V8Z',
   ASB: 'M3 12H7V21H3V12ZM17 8H21V21H17V8ZM10 2H14V21H10V2Z',
   SBU: 'M17 15.2454V22.1169C17 22.393 16.7761 22.617 16.5 22.617C16.4094 22.617 16.3205 22.5923 16.2428 22.5457L12 20L7.75725 22.5457C7.52046 22.6877 7.21333 22.6109 7.07125 22.3742C7.02463 22.2964 7 22.2075 7 22.1169V15.2454C5.17107 13.7793 4 11.5264 4 9C4 4.58172 7.58172 1 12 1C16.4183 1 20 4.58172 20 9C20 11.5264 18.8289 13.7793 17 15.2454ZM12 15C15.3137 15 18 12.3137 18 9C18 5.68629 15.3137 3 12 3C8.68629 3 6 5.68629 6 9C6 12.3137 8.68629 15 12 15ZM12 13C9.79086 13 8 11.2091 8 9C8 6.79086 9.79086 5 12 5C14.2091 5 16 6.79086 16 9C16 11.2091 14.2091 13 12 13Z',
-  MANUAL: 'M12 20h9M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z',
+  MANUAL: 'M12.8995 6.85453L17.1421 11.0972L7.24264 20.9967H3V16.754L12.8995 6.85453ZM14.3137 5.44032L16.435 3.319C16.8256 2.92848 17.4587 2.92848 17.8492 3.319L20.6777 6.14743C21.0682 6.53795 21.0682 7.17112 20.6777 7.56164L18.5563 9.68296L14.3137 5.44032Z',
 };
 
 function epShTabSwitch(kategori) {
@@ -4483,6 +4492,11 @@ async function epLoadStandarHarga(page = 1) {
         </tr>`;
       }).join('') : `<tr class="empty-row"><td colspan="9">${search ? 'Tidak ada komponen yang cocok' : 'Belum ada data - impor dari Excel dulu'}</td></tr>`;
     }
+    // Pagination Standar Harga custom (tidak lewat renderPagination) -> ingat/pulihkan halaman manual.
+    const _shPages = Math.ceil((d.total || 0) / _epShPageSize);
+    const _shRestore = (page === 1 && _shPages > 1 && typeof _pgTakeRestore === 'function') ? _pgTakeRestore('epStandarHargaPg', _shPages) : 0;
+    if (_shRestore > 1) { epLoadStandarHarga(_shRestore); return; }
+    if (d.total > 0 && typeof _pgSave === 'function') _pgSave('epStandarHargaPg', page);
     renderShPagination(d.total || 0);
   } catch (err) {
     if (tb) tb.innerHTML = `<tr class="empty-row"><td colspan="9">Gagal memuat</td></tr>`;
@@ -6885,7 +6899,7 @@ function _epPraToggleAdminCols() {
   if (wrapFilterBidang) wrapFilterBidang.style.display = isAdmin ? '' : 'none';
 }
 
-async function loadEplanningPraUsulan() {
+async function loadEplanningPraUsulan({ keepPage = false } = {}) {
   const btnTambah = document.getElementById('btnTambahEpPraUsulan');
   const tbody = document.getElementById('epPraTableBody');
   _epPraToggleAdminCols();
@@ -6910,7 +6924,7 @@ async function loadEplanningPraUsulan() {
     const d = await r.json();
     if (!r.ok) throw new Error(d.error || 'Gagal memuat data');
     _epPraList = d.usulan || [];
-    _epPraPage = 1;
+    if (!keepPage) _epPraPage = 1;
     _rebuildEpPraFilterBidang();
     _rebuildEpPraFilterStatus();
     renderEplanningPraTable();
@@ -7217,7 +7231,7 @@ async function epSubmitUsulanPra(id) {
     const d = await r.json();
     if (!r.ok) throw new Error(d.error || 'Gagal mengajukan usulan');
     toast('Usulan diajukan, menunggu verifikasi dokumen', 'success');
-    loadEplanningPraUsulan();
+    loadEplanningPraUsulan({ keepPage: true });
   } catch (err) { toast(err.message, 'error'); }
 }
 
@@ -7229,7 +7243,7 @@ async function deleteUsulanPra(id) {
     const d = await r.json().catch(() => ({}));
     if (!r.ok) throw new Error(d.error || 'Gagal menghapus usulan');
     toast('Usulan dihapus', 'success');
-    loadEplanningPraUsulan();
+    loadEplanningPraUsulan({ keepPage: true });
   } catch (err) { toast(err.message, 'error'); }
 }
 
@@ -7244,7 +7258,7 @@ async function epKirimBalikPra(id) {
     const d = await r.json();
     if (!r.ok) throw new Error(d.error || 'Gagal menolak usulan');
     toast('Usulan ditolak, dikirim balik ke operator', 'success');
-    loadEplanningPraUsulan();
+    loadEplanningPraUsulan({ keepPage: true });
   } catch (err) { toast(err.message, 'error'); }
 }
 

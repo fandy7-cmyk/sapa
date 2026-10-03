@@ -6,7 +6,7 @@ let _dokumenAll  = [];
 let _dokumenPage = 1;
 const _dokumenPerPage = 15;
 
-async function loadDokumenPublik() {
+async function loadDokumenPublik({ keepPage = false } = {}) {
   const tb0 = document.getElementById('dokumenTableBody');
   if (tb0) tb0.innerHTML = `<tr class="empty-row"><td colspan="5"><span class="btn-spin" style="width:11px;height:11px;vertical-align:-1px;margin-right:6px"></span>Memuat data...</td></tr>`;
   try {
@@ -14,7 +14,7 @@ async function loadDokumenPublik() {
     if (!r.ok) throw new Error(await r.text());
     const { dokumen } = await r.json();
     _dokumenAll  = dokumen || [];
-    _dokumenPage = 1;
+    if (!keepPage) _dokumenPage = 1;
     buildDokumenKategoriFilter();
     buildDokumenStatusFilter();
     renderDokumenTable();
@@ -165,7 +165,7 @@ async function saveDokumen() {
     if (!r.ok) { toast(data.error || 'Gagal menyimpan', 'error'); return; }
     toast(id ? 'Dokumen diperbarui' : 'Dokumen ditambahkan', 'success');
     closeModal('modalDokumen');
-    loadDokumenPublik();
+    loadDokumenPublik({ keepPage: true });
   } catch (err) {
     toast('Gagal: ' + err.message, 'error');
   } finally {
@@ -206,7 +206,7 @@ async function deleteDokumen(id) {
     });
     if (!r.ok) throw new Error();
     toast('Dokumen dihapus', 'success');
-    loadDokumenPublik();
+    loadDokumenPublik({ keepPage: true });
   } catch {
     toast('Gagal menghapus', 'error');
   }
