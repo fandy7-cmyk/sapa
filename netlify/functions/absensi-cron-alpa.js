@@ -1,4 +1,5 @@
 import { getDb, jsonResponse, errorResponse } from './_db.js';
+import { heartbeat } from './_monitoring.js';
 
 const TZ = 'Asia/Makassar';
 
@@ -8,7 +9,7 @@ function kemarinStr() {
   return new Intl.DateTimeFormat('en-CA', { timeZone: TZ, year: 'numeric', month: '2-digit', day: '2-digit' }).format(kemarin);
 }
 
-export const handler = async (event) => {
+async function jalankan(event) {
   const sql = getDb();
   const tanggal = kemarinStr();
   try {
@@ -44,4 +45,12 @@ export const handler = async (event) => {
     console.error('[cron-alpa]', err);
     return errorResponse('Gagal menjalankan cron alpa');
   }
+}
+
+// Bungkus: catat denyut (heartbeat) tiap kali cron jalan, termasuk saat dilewati (akhir pekan/libur),
+// supaya halaman Pemantauan Sistem tahu cron ini masih hidup.
+export const handler = async (event) => {
+  const res = await jalankan(event);
+  await heartbeat(getDb(), 'absensi-cron-alpa', res.statusCode < 400, `HTTP ${res.statusCode}`);
+  return res;
 };

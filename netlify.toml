@@ -345,3 +345,10 @@
 # normal ke /api/absensi/* ikut ke-block ("which is a scheduled function").
 [functions."absensi-cron-alpa"]
   schedule = "15 16 * * *"
+
+
+# ── Scheduled: cek kesehatan sistem + notifikasi Telegram saat status berubah ──
+# Tiap 15 menit. Logika di netlify/functions/monitoring-cron.js (function terpisah,
+# alasannya sama dengan absensi-cron-alpa di atas).
+[functions."monitoring-cron"]
+  schedule = "*/15 * * * *"
