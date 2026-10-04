@@ -1,7 +1,7 @@
 import { getDb, jsonResponse, errorResponse, parseBody } from './_db.js';
 import { requireAuth } from './_auth.js';
 import { logAudit } from './_audit.js';
-import { deleteFromCloudinary } from './_cloudinary.js';
+import { deleteFromCloudinary, cleanupReplacedFile } from './_cloudinary.js';
 
 let _smMigrated = false;
 async function ensureSchema(sql) {
@@ -172,6 +172,9 @@ export const handler = async (event) => {
     const body = parseBody(event);
     const { no_surat, tanggal_surat, tanggal_terima, asal_surat, perihal, batas_waktu, pegawai, file_url, file_name, selesai, keterangan } = body;
     try {
+      const prevFile = file_url !== undefined
+        ? await sql`SELECT file_url FROM surat_masuk WHERE id = ${numId}`
+        : [];
       const rows = await sql`
         UPDATE surat_masuk SET
           no_surat       = ${no_surat !== undefined ? no_surat : sql`no_surat`},
@@ -189,6 +192,7 @@ export const handler = async (event) => {
         WHERE id = ${numId} RETURNING *
       `;
       if (!rows.length) return errorResponse('Surat tidak ditemukan', 404);
+      if (prevFile[0]?.file_url) await cleanupReplacedFile(sql, prevFile[0].file_url, rows[0].file_url);
       await logAudit(sql, event, {
         user_id: auth.id, nama: auth.nama, email: auth.email,
         aksi: 'update', entitas: 'surat_masuk', entitas_id: numId,

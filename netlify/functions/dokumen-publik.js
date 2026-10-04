@@ -1,6 +1,7 @@
 
 import { getDb, jsonResponse, errorResponse, parseBody } from './_db.js';
 import { requireAdmin } from './_auth.js';
+import { cleanupReplacedFile } from './_cloudinary.js';
 
 export const handler = async (event) => {
   if (event.httpMethod === 'OPTIONS') return jsonResponse({});
@@ -74,6 +75,7 @@ export const handler = async (event) => {
         WHERE id = ${id}
         RETURNING *
       `;
+      await cleanupReplacedFile(sql, existing.file_url, rows[0].file_url);
       return jsonResponse({ dokumen: rows[0] });
     } catch (err) {
       console.error('[PUT /api/dokumen-publik/:id]', err);

@@ -2,6 +2,15 @@
 import { getDb, jsonResponse, errorResponse, parseBody } from './_db.js';
 import { requireAuth } from './_auth.js';
 import { logAudit } from './_audit.js';
+import { deleteFromCloudinary } from './_cloudinary.js';
+
+// Kumpulkan bukti_url dari kolom survei_toko (JSON string/objek) untuk cleanup file lama.
+function _buktiSurvei(raw) {
+  try {
+    const o = typeof raw === 'string' ? JSON.parse(raw) : raw;
+    return (Array.isArray(o?.toko) ? o.toko : []).map(t => t && t.bukti_url).filter(u => typeof u === 'string' && u);
+  } catch { return []; }
+}
 import { createHash } from 'node:crypto';
 
 // Migrasi dijalankan sekali per "versi" isi _runMigrations (hash source-nya disimpan di tabel
@@ -2184,6 +2193,15 @@ export const handler = async (event) => {
                 harga_satuan = ${hasil.bulat}, catatan_survei = ${hasil.catatan}, survei_toko = ${JSON.stringify(hasil.survei)},
                 updated_at = NOW()
               WHERE id = ${id} RETURNING *`;
+            // Bukti toko yang diganti -> hapus file lama di Cloudinary (kecuali masih dipakai entri lain)
+            try {
+              const baru = new Set(_buktiSurvei(hasil.survei));
+              for (const u of new Set(_buktiSurvei(c0.survei_toko))) {
+                if (baru.has(u)) continue;
+                const lain = await sql`SELECT 1 FROM eplanning_standar_harga WHERE id <> ${id} AND survei_toko LIKE ${'%' + u + '%'} LIMIT 1`;
+                if (!lain.length) await deleteFromCloudinary(u).catch(() => {});
+              }
+            } catch (e) { console.warn('[eplanning] cleanup bukti survei', e.message); }
             const terdampak = await sql`
               UPDATE eplanning_rincian ri
               SET harga_satuan = ${hasil.bulat}, sub_total = COALESCE(ri.volume, 0) * ${hasil.bulat}, updated_at = NOW()

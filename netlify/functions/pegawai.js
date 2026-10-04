@@ -1,6 +1,7 @@
 
 import { getDb, jsonResponse, errorResponse, parseBody } from './_db.js';
 import { requireAuth, requireAdmin } from './_auth.js';
+import { cleanupReplacedFile } from './_cloudinary.js';
 
 export const handler = async (event) => {
   if (event.httpMethod === 'OPTIONS') return jsonResponse({});
@@ -63,21 +64,38 @@ export const handler = async (event) => {
   if (event.httpMethod === 'PUT' && id) {
     const { nama, nip, jabatan, golongan, urutan, foto_url, aktif, parent_id } = parseBody(event);
     try {
+      // Field yang tidak dikirim dipertahankan nilainya. Digabung di JS (bukan pakai fragmen sql`kolom`
+      // di dalam query) karena driver Neon HTTP tidak mendukung fragmen bersarang: fragmennya dikirim
+      // sebagai JSON {"parameterizedQuery":...} dan bikin error "invalid input syntax for type integer".
+      const curRows = await sql`SELECT * FROM pegawai WHERE id = ${id}`;
+      if (!curRows.length) return errorResponse('Pegawai tidak ditemukan', 404);
+      const cur = curRows[0];
+
+      const vNama     = nama?.trim() ?? cur.nama;
+      const vNip      = nip      !== undefined ? (nip?.trim() || null)      : cur.nip;
+      const vJabatan  = jabatan?.trim() ?? cur.jabatan;
+      const vGolongan = golongan !== undefined ? (golongan?.trim() || null) : cur.golongan;
+      const vUrutan   = urutan   !== undefined ? urutan                     : cur.urutan;
+      const vFoto     = foto_url !== undefined ? (foto_url || null)         : cur.foto_url;
+      const vAktif    = aktif ?? cur.aktif;
+      const vParent   = parent_id !== undefined ? (parent_id ? parseInt(parent_id) : null) : cur.parent_id;
+
       const rows = await sql`
         UPDATE pegawai SET
-          nama      = COALESCE(${nama?.trim() ?? null}, nama),
-          nip       = ${nip !== undefined ? (nip?.trim() || null) : sql`nip`},
-          jabatan   = COALESCE(${jabatan?.trim() ?? null}, jabatan),
-          golongan  = ${golongan !== undefined ? (golongan?.trim() || null) : sql`golongan`},
-          urutan    = ${urutan !== undefined ? urutan : sql`urutan`},
-          foto_url  = ${foto_url !== undefined ? (foto_url || null) : sql`foto_url`},
-          aktif     = COALESCE(${aktif ?? null}, aktif),
-          parent_id = ${parent_id !== undefined ? (parent_id ? parseInt(parent_id) : null) : sql`parent_id`},
+          nama      = ${vNama},
+          nip       = ${vNip},
+          jabatan   = ${vJabatan},
+          golongan  = ${vGolongan},
+          urutan    = ${vUrutan},
+          foto_url  = ${vFoto},
+          aktif     = ${vAktif},
+          parent_id = ${vParent},
           updated_at = NOW()
         WHERE id = ${id}
         RETURNING *
       `;
       if (!rows.length) return errorResponse('Pegawai tidak ditemukan', 404);
+      if (cur.foto_url) await cleanupReplacedFile(sql, cur.foto_url, rows[0].foto_url);
       return jsonResponse({ pegawai: rows[0] });
     } catch (err) {
       console.error('[PUT /api/pegawai/:id]', err);

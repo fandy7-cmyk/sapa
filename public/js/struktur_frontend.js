@@ -121,6 +121,7 @@ function openPegawaiModal(id = null) {
   document.getElementById('pegawaiAktif').value    = '1';
   document.getElementById('pegawaiFotoPreview').style.display = 'none';
   document.getElementById('pegawaiFotoPreview').src  = '';
+  _pegawaiFotoWrap(false);
   document.getElementById('pegawaiFotoProgress').style.display = 'none';
   document.getElementById('modalPegawaiTitle').textContent = id ? 'Edit Pegawai' : 'Tambah Pegawai';
 
@@ -143,6 +144,7 @@ function openPegawaiModal(id = null) {
         const prev = document.getElementById('pegawaiFotoPreview');
         prev.src = _cldThumb(p.foto_url, 240, 240);
         prev.style.display = 'block';
+        _pegawaiFotoWrap(true);
       }
     }
   } else {
@@ -177,13 +179,54 @@ function _buildAtatanDropdown(excludeId = null) {
   if (typeof initCustomSelects === 'function') initCustomSelects();
 }
 
+// Wrapper preview (foto + tombol x) ditampilkan/disembunyikan bareng.
+function _pegawaiFotoWrap(show) {
+  const w = document.getElementById('pegawaiFotoPreviewWrap');
+  if (w) w.style.display = show ? 'block' : 'none';
+}
+
+// Drag & drop ke area upload (pola sama dengan Tema Musiman)
+function handlePegawaiFotoDragOver(e) { e.preventDefault(); document.getElementById('pegawaiFotoUploadArea')?.classList.add('drag-over'); }
+function handlePegawaiFotoDragLeave() { document.getElementById('pegawaiFotoUploadArea')?.classList.remove('drag-over'); }
+function handlePegawaiFotoDrop(e) {
+  e.preventDefault();
+  document.getElementById('pegawaiFotoUploadArea')?.classList.remove('drag-over');
+  const file = e.dataTransfer?.files?.[0];
+  if (file) onPegawaiFotoFileChange({ files: [file], value: '' });
+}
+
+// Kecilkan foto sebelum upload (sisi terpanjang maks. 800px, JPEG 85%). Foto pegawai cuma tampil
+// kecil/bulat, sedangkan upload besar gampang kena timeout function (netlify dev 30 dtk, Netlify 10-26 dtk).
+// Gagal kompres atau hasilnya tidak lebih kecil -> pakai file asli.
+async function _kompresFoto(file, maxSide = 800, quality = 0.85) {
+  try {
+    if (file.size <= 200 * 1024) return file;
+    const bmp = await createImageBitmap(file);
+    const skala = Math.min(1, maxSide / Math.max(bmp.width, bmp.height));
+    const w = Math.max(1, Math.round(bmp.width * skala));
+    const h = Math.max(1, Math.round(bmp.height * skala));
+    const canvas = document.createElement('canvas');
+    canvas.width = w; canvas.height = h;
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = '#fff';            // PNG transparan -> latar putih (JPEG tidak punya alpha)
+    ctx.fillRect(0, 0, w, h);
+    ctx.drawImage(bmp, 0, 0, w, h);
+    if (bmp.close) bmp.close();
+    const blob = await new Promise(res => canvas.toBlob(res, 'image/jpeg', quality));
+    if (!blob || blob.size >= file.size) return file;
+    return new File([blob], (file.name || 'foto').replace(/\.[^.]+$/, '') + '.jpg', { type: 'image/jpeg' });
+  } catch (e) {
+    console.warn('[kompres foto] gagal, pakai file asli:', e.message);
+    return file;
+  }
+}
+
 async function onPegawaiFotoFileChange(input) {
-  const file = input.files?.[0];
+  let file = input.files?.[0];
   if (!file) return;
 
-  const MAX_MB = 2;
-  if (file.size > MAX_MB * 1024 * 1024) {
-    toast(`Foto terlalu besar (maks. ${MAX_MB} MB)`, 'error');
+  if (!/^image\/(jpeg|png|webp)$/.test(file.type)) {
+    toast('Foto harus berformat JPG / PNG / WebP', 'error');
     input.value = '';
     return;
   }
@@ -192,9 +235,17 @@ async function onPegawaiFotoFileChange(input) {
   const bar  = document.getElementById('pegawaiFotoProgressBar');
   const prev = document.getElementById('pegawaiFotoPreview');
   if (prog) { prog.style.display = ''; }
-  if (bar)  bar.style.width = '30%';
+  if (bar)  bar.style.width = '15%';
 
   try {
+    file = await _kompresFoto(file);
+
+    const MAX_MB = 2;
+    if (file.size > MAX_MB * 1024 * 1024) {
+      throw new Error(`Foto terlalu besar (maks. ${MAX_MB} MB)`);
+    }
+    if (bar) bar.style.width = '30%';
+
     const formData = new FormData();
     formData.append('file', file);
     formData.append('kategori', 'struktur');
@@ -213,6 +264,7 @@ async function onPegawaiFotoFileChange(input) {
     document.getElementById('pegawaiFotoUrl').value = d.url;
     prev.src = d.url;
     prev.style.display = 'block';
+    _pegawaiFotoWrap(true);
     toast('Foto berhasil diupload', 'success');
   } catch (err) {
     if (prog) prog.style.display = 'none';
@@ -222,13 +274,61 @@ async function onPegawaiFotoFileChange(input) {
   }
 }
 
-function clearPegawaiFoto() {
-  document.getElementById('pegawaiFotoUrl').value = '';
-  const prev = document.getElementById('pegawaiFotoPreview');
-  prev.src = '';
-  prev.style.display = 'none';
-  const fi = document.getElementById('pegawaiFotoFile');
-  if (fi) fi.value = '';
+// Hapus foto = langsung hapus file-nya di Cloudinary (tidak menunggu Simpan).
+// Pegawai yang sudah tersimpan: foto_url di database ikut dikosongkan supaya tidak menunjuk file yang sudah hilang.
+async function clearPegawaiFoto() {
+  const urlEl = document.getElementById('pegawaiFotoUrl');
+  const url   = (urlEl.value || '').trim();
+  const prev  = document.getElementById('pegawaiFotoPreview');
+  const fi    = document.getElementById('pegawaiFotoFile');
+  const btn   = document.getElementById('btnHapusPegawaiFoto');
+  const resetUi = () => {
+    urlEl.value = '';
+    prev.src = '';
+    prev.style.display = 'none';
+    _pegawaiFotoWrap(false);
+    if (fi) fi.value = '';
+  };
+
+  if (!url) { resetUi(); return; }
+
+  if (btn) btn.disabled = true;
+  try {
+    if (url.includes('cloudinary.com')) {
+      const r = await fetch('/.netlify/functions/sign-url', {
+        method: 'DELETE',
+        headers: { ...authHeaders() },
+        body: JSON.stringify({ url }),
+      });
+      const d = await r.json().catch(() => ({}));
+      // 'not found' = file memang sudah tidak ada di Cloudinary -> tetap lanjut bersihkan foto
+      if (!(r.ok && d.ok) && d.error !== 'not found') {
+        toast('Gagal menghapus foto di Cloudinary' + (d.error ? ': ' + d.error : ''), 'error');
+        return;
+      }
+    }
+
+    resetUi();
+
+    const id = document.getElementById('pegawaiId').value;
+    if (id) {
+      const r2 = await fetch(`/api/pegawai/${id}`, {
+        method: 'PUT',
+        headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+        body: JSON.stringify({ foto_url: null }),
+      });
+      if (!r2.ok) {
+        toast('Foto terhapus di Cloudinary, tapi data pegawai gagal diperbarui. Klik Simpan.', 'error');
+        return;
+      }
+      loadPegawai({ keepPage: true });
+    }
+    toast('Foto dihapus', 'success');
+  } catch (err) {
+    toast('Gagal menghapus foto: ' + err.message, 'error');
+  } finally {
+    if (btn) btn.disabled = false;
+  }
 }
 
 /* ── Save ─────────────────────────────────────────────────────── */

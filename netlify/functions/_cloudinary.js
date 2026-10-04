@@ -72,3 +72,36 @@ export async function deleteFromCloudinary(rawUrl) {
     return { ok: false, error: e.message };
   }
 }
+
+
+// ── Cleanup file lama saat diganti ────────────────────────────────────────────
+// Dipanggil SETELAH UPDATE ke database berhasil. Tidak menghapus kalau URL lama
+// sama dengan yang baru, atau masih dipakai baris/kolom lain (mis. file data dukung
+// absensi yang dipakai bersama beberapa tanggal). Gagal hapus tidak pernah menggagalkan request.
+export async function isFileStillReferenced(sql, url) {
+  if (!url) return false;
+  const checks = [
+    () => sql`SELECT 1 FROM pegawai WHERE foto_url = ${url} LIMIT 1`,
+    () => sql`SELECT 1 FROM users WHERE avatar_url = ${url} OR tanda_tangan = ${url} LIMIT 1`,
+    () => sql`SELECT 1 FROM dokumen_publik WHERE file_url = ${url} LIMIT 1`,
+    () => sql`SELECT 1 FROM surat_masuk WHERE file_url = ${url} LIMIT 1`,
+    () => sql`SELECT 1 FROM surat_keluar WHERE file_url = ${url} LIMIT 1`,
+    () => sql`SELECT 1 FROM absensi WHERE data_dukung_url = ${url} LIMIT 1`,
+    () => sql`SELECT 1 FROM absensi_pengajuan WHERE data_dukung_url = ${url} LIMIT 1`,
+  ];
+  for (const run of checks) {
+    try { if ((await run()).length) return true; } catch { /* tabel/kolom belum ada -> abaikan */ }
+  }
+  return false;
+}
+
+export async function cleanupReplacedFile(sql, oldUrl, newUrl) {
+  try {
+    if (!oldUrl || oldUrl === newUrl) return;
+    if (!String(oldUrl).includes('cloudinary.com')) return;
+    if (await isFileStillReferenced(sql, oldUrl)) return;
+    await deleteFromCloudinary(oldUrl);
+  } catch (e) {
+    console.warn('[cleanupReplacedFile]', e.message);
+  }
+}

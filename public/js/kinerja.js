@@ -4373,9 +4373,11 @@ function _dukungHasLink(indikatorId, jenis, row) {
 }
 
 // ═══ Cek link sudah di-share (Data Dukung) ═══
-// Backend (/api/kinerja/cek-link) membuka link tanpa login. Hasil di-cache per URL; hanya
-// status 'shared' yang dipakai ulang (maks 5 menit). Selama belum 'shared' atau 'unverifiable' -> tombol Simpan disabled.
-const _DUKUNG_SHARE_TTL = 5 * 60 * 1000;
+// Backend (/api/kinerja/cek-link) membuka link tanpa login. Hasil 'shared' hanya dipakai ulang sebentar
+// (45 dtk) dan dicek ulang otomatis tiap 15 dtk selama kolom link terbuka + saat tab kembali aktif,
+// jadi kalau share dicabut statusnya ikut berubah. Selama belum 'shared' atau 'unverifiable' -> tombol Simpan disabled.
+const _DUKUNG_SHARE_TTL = 45 * 1000;
+const _DUKUNG_POLL_MS   = 15 * 1000;
 const _dukungShareCache = new Map();   // url -> { status, ts }
 const _dukungShareTimers = {};         // `${jenis}:${id}` -> timeout debounce
 
@@ -4398,8 +4400,8 @@ function _dukungOnInput(indikatorId, jenis) {
   const key = `${jenis}:${indikatorId}`;
   clearTimeout(_dukungShareTimers[key]);
   const st = _dukungInputState(indikatorId, jenis);
-  if (!st.valid || _dukungShareOk(st.url)) return;
-  _dukungShareTimers[key] = setTimeout(() => _dukungCheckShare(indikatorId, jenis), 700);
+  if (!st.valid) return;
+  _dukungShareTimers[key] = setTimeout(() => _dukungCheckShare(indikatorId, jenis, true), 700);
 }
 
 function _dukungRecheck(indikatorId, jenis) {
@@ -4407,13 +4409,19 @@ function _dukungRecheck(indikatorId, jenis) {
   _dukungCheckShare(indikatorId, jenis, true);
 }
 
-async function _dukungCheckShare(indikatorId, jenis, force = false) {
+// silent=true (polling latar belakang): tidak menampilkan "Memeriksa…" / tidak mematikan Simpan sesaat,
+// dan kalau cek gagal sementara (error/unknown) status sebelumnya dipertahankan.
+async function _dukungCheckShare(indikatorId, jenis, force = false, silent = false) {
   const st = _dukungInputState(indikatorId, jenis);
   if (!st.valid) return;
   const url = st.url;
   if (!force && _dukungShareOk(url)) { _dukungRefreshBtn(indikatorId, jenis); return; }
-  _dukungShareCache.set(url, { status: 'checking', ts: Date.now() });
-  _dukungRefreshBtn(indikatorId, jenis);
+  const prev = _dukungShareCache.get(url);
+  if (silent && prev && prev.status === 'checking') return;
+  if (!(silent && prev)) {
+    _dukungShareCache.set(url, { status: 'checking', ts: Date.now() });
+    _dukungRefreshBtn(indikatorId, jenis);
+  }
   let status = 'unknown';
   const ctrl  = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), 15000);
@@ -4425,9 +4433,41 @@ async function _dukungCheckShare(indikatorId, jenis, force = false) {
     status = r.ok && d.status ? d.status : 'error';
   } catch { status = 'error'; }
   finally { clearTimeout(timer); }
+  if (silent && prev && (status === 'error' || status === 'unknown')) return;   // gagal cek sesaat: jangan timpa status lama
   _dukungShareCache.set(url, { status, ts: Date.now() });
   _dukungRefreshBtn(indikatorId, jenis);   // hitung ulang Simpan + tampilan status
 }
+
+// Cek ulang berkala semua kolom link yang sedang terbuka (mode isi/edit) supaya status selalu live.
+function _dukungActiveFields() {
+  const out = [];
+  Object.keys(_DK_PREFIX).forEach(jenis => {
+    const pre = `${_DK_PREFIX[jenis]}dukung_`;
+    document.querySelectorAll(`input[id^="${pre}"]`).forEach(el => {
+      const id = parseInt(el.id.slice(pre.length), 10);
+      if (!Number.isInteger(id) || String(id) !== el.id.slice(pre.length)) return;
+      if (el.hasAttribute('readonly') || el.disabled || el.offsetParent === null) return;
+      out.push({ id, jenis });
+    });
+  });
+  return out;
+}
+
+function _dukungPollTick() {
+  if (document.hidden) return;
+  const seen = new Set();
+  _dukungActiveFields().forEach(({ id, jenis }) => {
+    const st = _dukungInputState(id, jenis);
+    if (!st.valid || seen.has(st.url)) return;
+    seen.add(st.url);
+    const e = _dukungShareCache.get(st.url);
+    if (e && (e.status === 'unverifiable' || e.status === 'checking')) return;
+    _dukungCheckShare(id, jenis, true, true);
+  });
+}
+setInterval(_dukungPollTick, _DUKUNG_POLL_MS);
+document.addEventListener('visibilitychange', () => { if (!document.hidden) _dukungPollTick(); });
+window.addEventListener('focus', _dukungPollTick);
 
 // Pesan status di bawah input link. showFormatErr=true -> pesan format (div err) yang tampil, hint disembunyikan.
 function _dukungRenderShare(indikatorId, jenis, showFormatErr) {
@@ -4514,7 +4554,7 @@ function _setDukungCellMode(indikatorId, jenis, editing) {
   if (editing) {
     rd.style.display = 'none';
     inp.removeAttribute('readonly');
-    if (inp.value.trim()) _dukungCheckShare(indikatorId, jenis);   // link tersimpan: pastikan masih di-share
+    if (inp.value.trim()) _dukungCheckShare(indikatorId, jenis, true);   // link tersimpan: pastikan masih di-share (selalu cek ulang)
     return;
   }
   const row = _dkArr(jenis).find(r => r.id === indikatorId);

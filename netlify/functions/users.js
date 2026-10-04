@@ -3,6 +3,7 @@ import bcrypt from 'bcryptjs';
 import { getDb, jsonResponse, errorResponse, parseBody, runOnce } from './_db.js';
 import { requireAdmin, requireAuth } from './_auth.js';
 import { logAudit, _hitungKunci, LOGIN_HISTORY_HOURS } from './_audit.js';
+import { cleanupReplacedFile } from './_cloudinary.js';
 
 const DEFAULT_PASSWORD = 'Balut2026';
 
@@ -125,7 +126,9 @@ export const handler = async (event) => {
     try {
       await runOnce('users.avatar_url', () => sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar_url TEXT`);
       const val = (avatar_url && avatar_url.trim()) ? avatar_url.trim() : null;
+      const prev = await sql`SELECT avatar_url FROM users WHERE id = ${userId} LIMIT 1`;
       await sql`UPDATE users SET avatar_url = ${val} WHERE id = ${userId}`;
+      if (prev[0]?.avatar_url) await cleanupReplacedFile(sql, prev[0].avatar_url, val);
       return jsonResponse({ ok: true, avatar_url: val });
     } catch (err) {
       console.error('[PUT /api/users/:id/avatar]', err);
@@ -153,7 +156,9 @@ export const handler = async (event) => {
     try {
       await runOnce('users.tanda_tangan', () => sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS tanda_tangan TEXT`);
       const val = (tanda_tangan && tanda_tangan.trim()) ? tanda_tangan.trim() : null;
+      const prev = await sql`SELECT tanda_tangan FROM users WHERE id = ${userId} LIMIT 1`;
       await sql`UPDATE users SET tanda_tangan = ${val} WHERE id = ${userId}`;
+      if (prev[0]?.tanda_tangan) await cleanupReplacedFile(sql, prev[0].tanda_tangan, val);
       return jsonResponse({ ok: true, tanda_tangan: val });
     } catch (err) {
       console.error('[PUT /api/users/:id/tanda-tangan]', err);
@@ -488,8 +493,14 @@ export const handler = async (event) => {
       if (!check.length) return errorResponse('Pengguna tidak ditemukan', 404);
       if (check[0].is_admin) return errorResponse('Tidak dapat menghapus Super Admin', 403);
 
+      let oldFiles = [];
+      try {
+        const f = await sql`SELECT avatar_url, tanda_tangan FROM users WHERE id = ${userId} LIMIT 1`;
+        oldFiles = [f[0]?.avatar_url, f[0]?.tanda_tangan].filter(Boolean);
+      } catch { /* kolom belum ada -> tidak ada file */ }
       await sql`DELETE FROM user_permissions WHERE user_id = ${userId}`;
       await sql`DELETE FROM users WHERE id = ${userId}`;
+      for (const u of oldFiles) await cleanupReplacedFile(sql, u, null);
       await logAudit(sql, event, {
         user_id: admin.id, nama: admin.nama, email: admin.email,
         aksi: 'delete_user', entitas: 'user', entitas_id: userId

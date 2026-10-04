@@ -98,6 +98,7 @@ export const handler = async (event) => {
       return errorResponse('Tipe file tidak diizinkan. Gunakan PDF, Word, Excel, atau gambar.', 400);
     }
 
+    const _t0 = Date.now();
     const uploadResult = await new Promise((resolve, reject) => {
       const safeName = (fileName || 'dokumen')
         .replace(/\.[^.]+$/, '')
@@ -120,6 +121,7 @@ export const handler = async (event) => {
       stream.end(fileBuffer);
     });
 
+    console.log(`[upload] OK kategori=${fields.kategori || '-'} ${(fileBuffer.length / 1024).toFixed(0)}KB ke Cloudinary dalam ${Date.now() - _t0}ms`);
     return jsonResponse({
       url:  uploadResult.secure_url,
       name: fileName,
@@ -127,8 +129,11 @@ export const handler = async (event) => {
     }, 201);
 
   } catch (err) {
-    console.error('[UPLOAD ERROR]', err);
-    return errorResponse('Gagal mengupload file: ' + (err.message || 'Unknown error'));
+    // Error dari SDK Cloudinary berbentuk { message, http_code, name }; tampilkan semuanya supaya
+    // kelihatan penyebab aslinya (timeout / koneksi putus / kredensial), bukan cuma "500".
+    console.error('[UPLOAD ERROR]', { name: err?.name, http_code: err?.http_code, message: err?.message, code: err?.code });
+    const detail = [err?.message || 'Unknown error', err?.http_code ? `(Cloudinary HTTP ${err.http_code})` : '', err?.code ? `[${err.code}]` : ''].filter(Boolean).join(' ');
+    return errorResponse('Gagal mengupload file: ' + detail);
   }
 };
 
