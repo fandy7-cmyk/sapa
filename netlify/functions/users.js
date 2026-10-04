@@ -201,9 +201,11 @@ export const handler = async (event) => {
       await runOnce('users.avatar_url', () => sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar_url TEXT`);
       await runOnce('users.tanda_tangan', () => sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS tanda_tangan TEXT`);
       await runOnce('users.is_active', () => sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS is_active BOOLEAN NOT NULL DEFAULT TRUE`);
+      await runOnce('users.jabatan', () => sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS jabatan TEXT`);
       const users = await sql`
         SELECT u.id, u.nama, u.nip, u.email, u.is_admin, u.last_login, u.created_at,
                u.bidang_id, b.nama AS bidang_nama, b.singkatan AS bidang_singkatan,
+               u.jabatan,
                u.urutan_laporan, u.is_active,
                u.tanda_tangan,
                COALESCE(u.avatar_url, p.foto_url) AS foto_url,
@@ -279,14 +281,22 @@ export const handler = async (event) => {
     return (!e || e === '-') ? null : e;
   };
 
+  // Jabatan opsional: kosong / "-" dianggap tidak diisi -> NULL (tampilan profil jatuh ke Unit Kerja).
+  const normJabatan = (v) => {
+    const j = (v == null ? '' : String(v)).replace(/\s+/g, ' ').trim().slice(0, 150);
+    return (!j || j === '-') ? null : j;
+  };
+
   if (event.httpMethod === 'POST' && !userId) {
     const { nama, nip, bidang_id } = parseBody(event);
     const emailVal = normEmail(parseBody(event).email);
+    const jabatanVal = normJabatan(parseBody(event).jabatan);
     if (!nama || !nip) {
       return errorResponse('Nama dan NIP wajib diisi', 400);
     }
     try {
       await runOnce('users.email_nullable', () => sql`ALTER TABLE users ALTER COLUMN email DROP NOT NULL`);
+      await runOnce('users.jabatan', () => sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS jabatan TEXT`);
       if (emailVal) {
         const exist = await sql`SELECT id FROM users WHERE email = ${emailVal} LIMIT 1`;
         if (exist.length) return errorResponse('Email sudah terdaftar', 409);
@@ -298,14 +308,14 @@ export const handler = async (event) => {
       const hash = await bcrypt.hash(DEFAULT_PASSWORD, 10);
       const bidangVal = bidang_id ? parseInt(bidang_id) : null;
       const rows = await sql`
-        INSERT INTO users (nama, nip, email, password_hash, is_admin, bidang_id)
-        VALUES (${nama.trim()}, ${nip.trim()}, ${emailVal}, ${hash}, FALSE, ${bidangVal})
-        RETURNING id, nama, nip, email, is_admin, last_login, created_at, bidang_id
+        INSERT INTO users (nama, nip, email, password_hash, is_admin, bidang_id, jabatan)
+        VALUES (${nama.trim()}, ${nip.trim()}, ${emailVal}, ${hash}, FALSE, ${bidangVal}, ${jabatanVal})
+        RETURNING id, nama, nip, email, is_admin, last_login, created_at, bidang_id, jabatan
       `;
       await logAudit(sql, event, {
         user_id: admin.id, nama: admin.nama, email: admin.email,
         aksi: 'create_user', entitas: 'user', entitas_id: rows[0].id,
-        detail: { nama: nama.trim(), nip: nip.trim(), email: emailVal }
+        detail: { nama: nama.trim(), nip: nip.trim(), email: emailVal, jabatan: jabatanVal }
       });
       return jsonResponse({ user: rows[0] }, 201);
     } catch (err) {
@@ -319,8 +329,11 @@ export const handler = async (event) => {
     const bodyPut        = parseBody(event);
     const emailProvided  = bodyPut.email !== undefined;   // undefined = jangan diubah; ''/'-' = kosongkan
     const emailVal       = normEmail(bodyPut.email);
+    const jabatanProvided = bodyPut.jabatan !== undefined;   // undefined = jangan diubah; ''/'-' = kosongkan
+    const jabatanVal      = normJabatan(bodyPut.jabatan);
     try {
       await runOnce('users.email_nullable', () => sql`ALTER TABLE users ALTER COLUMN email DROP NOT NULL`);
+      await runOnce('users.jabatan', () => sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS jabatan TEXT`);
       if (emailVal) {
         const exist = await sql`
           SELECT id FROM users WHERE email = ${emailVal} AND id != ${userId} LIMIT 1
@@ -343,7 +356,8 @@ export const handler = async (event) => {
           nama      = COALESCE(${nama?.trim() || null}, nama),
           nip       = COALESCE(${nip?.trim() || null}, nip),
           email     = ${emailProvided ? emailVal : sql`email`},
-          bidang_id = ${bidangVal !== undefined ? bidangVal : sql`bidang_id`}
+          bidang_id = ${bidangVal !== undefined ? bidangVal : sql`bidang_id`},
+          jabatan   = ${jabatanProvided ? jabatanVal : sql`jabatan`}
         WHERE id = ${userId} AND is_admin = FALSE
         RETURNING id, nama, nip, email, is_admin, last_login, created_at, bidang_id
       `;
@@ -351,7 +365,7 @@ export const handler = async (event) => {
 
       const fullRows = await sql`
         SELECT u.id, u.nama, u.nip, u.email, u.is_admin, u.last_login, u.created_at,
-               u.bidang_id, b.nama AS bidang_nama, b.singkatan AS bidang_singkatan
+               u.bidang_id, b.nama AS bidang_nama, b.singkatan AS bidang_singkatan, u.jabatan
         FROM users u
         LEFT JOIN bidang b ON b.id = u.bidang_id
         WHERE u.id = ${rows[0].id} LIMIT 1
@@ -359,7 +373,7 @@ export const handler = async (event) => {
       await logAudit(sql, event, {
         user_id: admin.id, nama: admin.nama, email: admin.email,
         aksi: 'update_user', entitas: 'user', entitas_id: userId,
-        detail: { nama: fullRows[0].nama, nip: fullRows[0].nip, email: fullRows[0].email }
+        detail: { nama: fullRows[0].nama, nip: fullRows[0].nip, email: fullRows[0].email, jabatan: fullRows[0].jabatan }
       });
       return jsonResponse({ user: fullRows[0] });
     } catch (err) {

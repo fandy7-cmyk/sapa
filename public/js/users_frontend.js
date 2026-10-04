@@ -209,6 +209,7 @@ function _getVisibleUsers() {
         u.nama.toLowerCase().includes(_userSearch) ||
         (u.nip || '').toLowerCase().includes(_userSearch) ||
         (u.email || '').toLowerCase().includes(_userSearch) ||
+        (u.jabatan || '').toLowerCase().includes(_userSearch) ||
         getBidangNama(u.bidang_id).toLowerCase().includes(_userSearch)
       );
     });
@@ -219,18 +220,19 @@ async function downloadUsersExcel() {
   if (!list.length) { toast('Tidak ada data pengguna untuk diunduh', 'error'); return; }
   try {
     await _loadXlsx();
-    const header = ['No', 'Nama', 'NIP', 'Email', 'Unit Kerja', 'Status', 'Login Terakhir'];
+    const header = ['No', 'Nama', 'NIP', 'Email', 'Jabatan', 'Unit Kerja', 'Status', 'Login Terakhir'];
     const rows = list.map((u, i) => [
       i + 1,
       u.nama || '',
       String(u.nip || ''),   // teks supaya NIP 18 digit tidak berubah jadi notasi ilmiah
       u.email || '',
+      u.jabatan || '',
       (_bidang.find(x => x.id === u.bidang_id)?.nama) || '',   // nama mentah (getBidangNama sudah di-escape HTML)
       u.is_active === false ? 'Nonaktif' : 'Aktif',
       u.last_login ? fmtDate(u.last_login) : '',
     ]);
     const ws = XLSX.utils.aoa_to_sheet([header, ...rows]);
-    ws['!cols'] = [{ wch: 5 }, { wch: 36 }, { wch: 22 }, { wch: 28 }, { wch: 44 }, { wch: 10 }, { wch: 20 }];
+    ws['!cols'] = [{ wch: 5 }, { wch: 36 }, { wch: 22 }, { wch: 28 }, { wch: 36 }, { wch: 44 }, { wch: 10 }, { wch: 20 }];
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Pengguna');
     const d = new Date();
@@ -257,6 +259,7 @@ function renderUsersTable() {
         <td style="text-align:left"><strong>${esc(u.nama)}</strong></td>
         <td>${esc(u.nip || '-')}</td>
         <td>${esc(u.email || '-')}</td>
+        <td style="max-width:220px;white-space:normal;word-break:break-word;line-height:1.35">${esc(u.jabatan || '-')}</td>
         <td style="max-width:220px;white-space:normal;word-break:break-word;line-height:1.35">${getBidangNama(u.bidang_id)}</td>
         <td><span class="badge ${u.is_active === false ? 'badge-abu' : 'badge-hijau'}">${u.is_active === false ? 'Nonaktif' : 'Aktif'}</span>${u.login_terkunci_detik > 0 ? ` <span class="badge badge-merah" data-tip="Login terkunci karena terlalu banyak salah password. Sisa ± ${_fmtSisaKunci(u.login_terkunci_detik)}">Terkunci</span>` : ''}</td>
         <td>${u.last_login ? fmtDate(u.last_login) : '-'}</td>
@@ -290,7 +293,7 @@ function renderUsersTable() {
           </button>
         </td>
       </tr>`).join('')
-    : '<tr class="empty-row"><td colspan="8">Tidak ada user</td></tr>';
+    : '<tr class="empty-row"><td colspan="9">Tidak ada user</td></tr>';
 
   renderPagination('userPagination', visibleUsers.length, _userPage, _userPageSize, 'goUserPage');
 }
@@ -422,7 +425,7 @@ async function saveUrutanLaporan() {
 
 async function loadUsers({ keepFilter = false } = {}) {
   const tb0 = document.getElementById('userTableBody');
-  if (tb0) tb0.innerHTML = `<tr class="empty-row"><td colspan="8"><span class="btn-spin" style="width:11px;height:11px;vertical-align:-1px;margin-right:6px"></span>Memuat data...</td></tr>`;
+  if (tb0) tb0.innerHTML = `<tr class="empty-row"><td colspan="9"><span class="btn-spin" style="width:11px;height:11px;vertical-align:-1px;margin-right:6px"></span>Memuat data...</td></tr>`;
   await loadBidangList();
   try {
     const r = await fetch('/api/users', { headers: authHeaders() });
@@ -466,6 +469,7 @@ async function openUserModal() {
   document.getElementById('userNama').value = '';
   document.getElementById('userNip').value = '';
   document.getElementById('userEmail').value = '';
+  document.getElementById('userJabatan').value = '';
   document.getElementById('modalUserTitle').textContent = 'Tambah Pengguna';
   document.getElementById('userBidang').innerHTML = renderBidangOptions(null);
   openModal('modalUser');
@@ -479,6 +483,7 @@ async function editUser(id) {
   document.getElementById('userNama').value = u.nama;
   document.getElementById('userNip').value = u.nip || '';
   document.getElementById('userEmail').value = (u.email && u.email !== '-') ? u.email : '';
+  document.getElementById('userJabatan').value = u.jabatan || '';
   document.getElementById('modalUserTitle').textContent = 'Edit Pengguna';
   document.getElementById('userBidang').innerHTML = renderBidangOptions(u.bidang_id);
   openModal('modalUser');
@@ -492,6 +497,7 @@ async function saveUser() {
     nama:     document.getElementById('userNama').value.trim(),
     nip:      document.getElementById('userNip').value.trim(),
     email:    document.getElementById('userEmail').value.trim(),
+    jabatan:  document.getElementById('userJabatan').value.trim(),   // kosong = hapus jabatan (profil jatuh ke Unit Kerja)
     bidang_id: bidangVal ? parseInt(bidangVal) : null,
   };
   // Email opsional: kosong atau "-" dianggap tidak diisi.

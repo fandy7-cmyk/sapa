@@ -50,6 +50,7 @@ export const handler = async (event) => {
     try {
       await runOnce('users.tanda_tangan', () => sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS tanda_tangan TEXT`);
       await runOnce('users.is_active', () => sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS is_active BOOLEAN NOT NULL DEFAULT TRUE`);
+      await runOnce('users.jabatan', () => sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS jabatan TEXT`);
       const rows = await sql`
         SELECT u.*, b.nama AS bidang_nama, b.singkatan AS bidang_singkatan
         FROM users u
@@ -104,6 +105,7 @@ export const handler = async (event) => {
           id: user.id, nama: user.nama, nip: user.nip, email: user.email, is_admin: user.is_admin,
           bidang_id: user.bidang_id, bidang_nama: user.bidang_nama || null,
           bidang_singkatan: user.bidang_singkatan || null, permissions,
+          jabatan: user.jabatan || null,
           tanda_tangan: user.tanda_tangan || null,
         },
       });
@@ -182,8 +184,9 @@ export const handler = async (event) => {
     if (!auth) return errorResponse('Unauthorized', 401);
     try {
       await runOnce('users.tanda_tangan', () => sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS tanda_tangan TEXT`);
+      await runOnce('users.jabatan', () => sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS jabatan TEXT`);
       const rows = await sql`
-        SELECT u.id, u.nama, u.email, u.is_admin, u.bidang_id, u.tanda_tangan,
+        SELECT u.id, u.nama, u.email, u.is_admin, u.bidang_id, u.tanda_tangan, u.jabatan,
                b.nama AS bidang_nama, b.singkatan AS bidang_singkatan
         FROM users u LEFT JOIN bidang b ON b.id = u.bidang_id
         WHERE u.id = ${auth.id} LIMIT 1

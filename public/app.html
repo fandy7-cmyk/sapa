@@ -66,11 +66,11 @@
   </script>
   <!-- Preload file theme-engine.js juga, paralel dari awal - jangan
        nunggu parser sampe ke <script> di akhir body baru mulai narik. -->
-  <link rel="preload" as="script" href="js/theme-engine.js?v=1.9.3" />
+  <link rel="preload" as="script" href="js/theme-engine.js?v=1.9.4" />
   <script>history.replaceState(null, '', location.origin);</script>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>SAPA Perencanaan</title>
-  <meta name="app-version" content="1.9.3" />
+  <meta name="app-version" content="1.9.4" />
   <link rel="icon" type="image/png" href="/favicon.png" />
   <link rel="manifest" href="/manifest.json" />
   <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
@@ -81,7 +81,7 @@
   <meta name="apple-mobile-web-app-title" content="SAPA" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="css/styles.css?v=1.9.3" />
+  <link rel="stylesheet" href="css/styles.css?v=1.9.4" />
   <style>
     
     .filter-bar {
@@ -293,7 +293,7 @@
       <div class="topbar-constellation" id="topbarConstellation" aria-hidden="true">
         <canvas id="topbarConstellationCanvas"></canvas>
       </div>
-      <script src="js/topbar_constellation.js?v=1.9.3"></script>
+      <script src="js/topbar_constellation.js?v=1.9.4"></script>
 
       <div class="topbar-profile">
         <div class="topbar-user-info">
@@ -1184,7 +1184,7 @@
                 <th style="min-width:150px">Faktor Pendukung</th>
                 <th style="min-width:150px">Rencana Tindak Lanjut</th>
                 <th style="width:90px;text-align:center">Data Dukung</th>
-                <th style="width:70px;text-align:center">Aksi</th>
+                <th class="col-aksi-iku" style="width:70px;text-align:center">Aksi</th>
               </tr>
             </thead>
             <tbody id="kinerjaTableBody">
@@ -1253,7 +1253,7 @@
                 <th style="min-width:150px">Faktor Pendukung</th>
                 <th style="min-width:150px">Rencana Tindak Lanjut</th>
                 <th style="width:90px;text-align:center">Data Dukung</th>
-                <th style="width:70px;text-align:center">Aksi</th>
+                <th class="col-aksi-ikk" style="width:70px;text-align:center">Aksi</th>
               </tr>
             </thead>
             <tbody id="ikkTableBody">
@@ -1322,7 +1322,7 @@
                 <th style="min-width:150px">Faktor Pendukung</th>
                 <th style="min-width:150px">Rencana Tindak Lanjut</th>
                 <th style="width:90px;text-align:center">Data Dukung</th>
-                <th style="width:70px;text-align:center">Aksi</th>
+                <th class="col-aksi-spm" style="width:70px;text-align:center">Aksi</th>
               </tr>
             </thead>
             <tbody id="spmTableBody">
@@ -1390,7 +1390,7 @@
                 <th style="min-width:150px">Faktor Pendukung</th>
                 <th style="min-width:150px">Rencana Tindak Lanjut</th>
                 <th style="width:90px;text-align:center">Data Dukung</th>
-                <th style="width:70px;text-align:center">Aksi</th>
+                <th class="col-aksi-subkeg" style="width:70px;text-align:center">Aksi</th>
               </tr>
             </thead>
             <tbody id="subkegTableBody">
@@ -1683,7 +1683,7 @@
         <div class="toolbar">
           <div class="search-wrap">
             <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-4.35-4.35"/></svg>
-            <input type="text" placeholder="Cari nama, email, unit kerja…" id="userSearch" oninput="debounceInput('userSearch', () => filterUsers(), 180)" />
+            <input type="text" placeholder="Cari nama, jabatan, email, unit kerja…" id="userSearch" oninput="debounceInput('userSearch', () => filterUsers(), 180)" />
           </div>
           <div class="select-wrap" style="min-width:320px">
             <select id="userFilterBidang" onchange="filterUsers()">
@@ -1696,8 +1696,8 @@
         </div>
         <div class="card" style="padding:0;overflow:auto;-webkit-overflow-scrolling:touch">
           <table class="freeze-table" id="userTable">
-            <thead><tr><th style="width:44px;text-align:center">No</th><th style="text-align:left">Nama</th><th>NIP</th><th>Email</th><th style="min-width:160px;max-width:220px">Unit Kerja</th><th>Status</th><th>Login Terakhir</th><th>Aksi</th></tr></thead>
-            <tbody id="userTableBody"><tr class="empty-row"><td colspan="8"><span class="btn-spin" style="width:11px;height:11px;vertical-align:-1px;margin-right:6px"></span>Memuat data...</td></tr></tbody>
+            <thead><tr><th style="width:44px;text-align:center">No</th><th style="text-align:left">Nama</th><th>NIP</th><th>Email</th><th style="min-width:160px;max-width:220px">Jabatan</th><th style="min-width:160px;max-width:220px">Unit Kerja</th><th>Status</th><th>Login Terakhir</th><th>Aksi</th></tr></thead>
+            <tbody id="userTableBody"><tr class="empty-row"><td colspan="9"><span class="btn-spin" style="width:11px;height:11px;vertical-align:-1px;margin-right:6px"></span>Memuat data...</td></tr></tbody>
           </table>
         </div>
         <div id="userPagination"></div>
@@ -4009,6 +4009,7 @@
       <div class="field"><label>Nama *</label><input type="text" id="userNama" /></div>
       <div class="field"><label>NIP *</label><input type="text" id="userNip" inputmode="numeric" /></div>
       <div class="field"><label>Email</label><input type="email" id="userEmail" /></div>
+      <div class="field"><label>Jabatan</label><input type="text" id="userJabatan" maxlength="150" placeholder="cth. Kepala Sub Bagian Perencanaan (kosongkan jika tidak ada)" autocomplete="off" /></div>
 
       <div class="field"><label>Unit Kerja</label><div class="select-wrap"><select id="userBidang"><option value="">- Pilih Unit Kerja -</option></select></div></div>
     </div>
@@ -4099,7 +4100,7 @@
           <div style="display:flex;flex-direction:column;gap:8px">
             <div style="display:flex;gap:8px">
               <input type="file" id="avatarUploadFile" accept="image/jpeg,image/png,image/webp" style="display:none" onchange="onAvatarFileChange(this)" />
-              <button type="button" class="btn btn-ghost btn-sm" onclick="document.getElementById('avatarUploadFile').click()">
+              <button type="button" class="btn btn-upload btn-sm" onclick="document.getElementById('avatarUploadFile').click()">
                 <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
                 Upload Foto
               </button>
@@ -5055,7 +5056,7 @@
 </div>
 
 
-<script src="js/periode_frontend.js?v=1.9.3"></script>
+<script src="js/periode_frontend.js?v=1.9.4"></script>
 <script>
 (function() {
   'use strict';
@@ -5198,25 +5199,25 @@
 })();
 </script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/quill/1.3.7/quill.min.js"></script>
-  <script src="js/monitoring_frontend.js?v=1.9.3"></script>
-  <script src="js/app.js?v=1.9.3"></script>
-<script src="js/dashboard.js?v=1.9.3"></script>
+  <script src="js/monitoring_frontend.js?v=1.9.4"></script>
+  <script src="js/app.js?v=1.9.4"></script>
+<script src="js/dashboard.js?v=1.9.4"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
-<script src="js/superlink.js?v=1.9.3"></script>
-<script src="js/pengumuman_frontend.js?v=1.9.3"></script>
-<script src="js/surat.js?v=1.9.3"></script>
-<script src="js/eplanning_frontend.js?v=1.9.3"></script>
-<script src="js/absensi_frontend.js?v=1.9.3"></script>
-<script src="js/lembur_frontend.js?v=1.9.3"></script>
-<script src="js/users_frontend.js?v=1.9.3"></script>
-<script src="js/kinerja.js?v=1.9.3"></script>
-<script src="js/laporan.js?v=1.9.3"></script>
-<script src="js/struktur_frontend.js?v=1.9.3"></script>
-<script src="js/audit_frontend.js?v=1.9.3"></script>
-<script src="js/dokumen_publik_frontend.js?v=1.9.3"></script>
-<script src="js/profil_frontend.js?v=1.9.3"></script>
-<script src="js/tema_musiman_frontend.js?v=1.9.3"></script>
-<script src="js/theme-engine.js?v=1.9.3"></script>
+<script src="js/superlink.js?v=1.9.4"></script>
+<script src="js/pengumuman_frontend.js?v=1.9.4"></script>
+<script src="js/surat.js?v=1.9.4"></script>
+<script src="js/eplanning_frontend.js?v=1.9.4"></script>
+<script src="js/absensi_frontend.js?v=1.9.4"></script>
+<script src="js/lembur_frontend.js?v=1.9.4"></script>
+<script src="js/users_frontend.js?v=1.9.4"></script>
+<script src="js/kinerja.js?v=1.9.4"></script>
+<script src="js/laporan.js?v=1.9.4"></script>
+<script src="js/struktur_frontend.js?v=1.9.4"></script>
+<script src="js/audit_frontend.js?v=1.9.4"></script>
+<script src="js/dokumen_publik_frontend.js?v=1.9.4"></script>
+<script src="js/profil_frontend.js?v=1.9.4"></script>
+<script src="js/tema_musiman_frontend.js?v=1.9.4"></script>
+<script src="js/theme-engine.js?v=1.9.4"></script>
 
 <script>
 (function () {
@@ -5230,7 +5231,8 @@
     const sel = wrap.querySelector('select');
     if (!sel || wrap.querySelector('.csel-trigger')) return; 
 
-    const searchable = sel.dataset.searchable === '1';
+    // Semua dropdown searchable secara default; matikan per-select dengan data-searchable="0".
+    const searchable = sel.dataset.searchable !== '0';
 
     
     const trigger = document.createElement('button');
@@ -5261,7 +5263,7 @@
       searchWrap.className = 'csel-search-wrap';
       searchWrap.innerHTML = `
         <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-4.35-4.35"/></svg>
-        <input type="text" class="csel-search-input" placeholder="${sel.dataset.searchPlaceholder || 'Cari nama…'}" autocomplete="off" />`;
+        <input type="text" class="csel-search-input" placeholder="${sel.dataset.searchPlaceholder || (sel.dataset.searchable === '1' ? 'Cari nama…' : 'Cari…')}" autocomplete="off" />`;
       panel.appendChild(searchWrap);
       searchInput = searchWrap.querySelector('.csel-search-input');
 
@@ -5270,6 +5272,17 @@
       panel.appendChild(optsContainer);
 
       searchInput.addEventListener('input', () => _filterOptions(optsContainer, searchInput.value));
+      searchInput.addEventListener('keydown', e => {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          const first = Array.from(optsContainer.querySelectorAll('.csel-option'))
+            .find(el => el.style.display !== 'none' && !el.classList.contains('placeholder-opt'));
+          if (first) first.click();
+        } else if (e.key === 'Escape') {
+          e.preventDefault();
+          closePanel();
+        }
+      });
     }
 
     function renderOptions() {
@@ -5317,6 +5330,7 @@
         });
         optsContainer.appendChild(div);
       });
+      if (searchInput && searchInput.value) _filterOptions(optsContainer, searchInput.value);
     }
 
     function updateTrigger() {
@@ -5380,7 +5394,10 @@
       
       const selected = panel.querySelector('.csel-option.selected');
       if (selected) setTimeout(() => selected.scrollIntoView({ block: 'nearest' }), 30);
-      if (searchInput) setTimeout(() => searchInput.focus(), 30);
+      if (searchInput) {
+        const _coarse = window.matchMedia && window.matchMedia('(pointer: coarse)').matches;
+        if (!_coarse || sel.options.length > 8) setTimeout(() => searchInput.focus(), 30);
+      }
     }
 
     function closePanel(p) {
@@ -5429,7 +5446,7 @@
     const q = (query || '').trim().toLowerCase();
     let anyMatch = false;
     let curGroup = null, curGroupHasMatch = false;
-    const flushGroup = () => { if (curGroup) curGroup.style.display = curGroupHasMatch ? '' : 'none'; };
+    const flushGroup = () => { if (curGroup && curGroup.textContent) curGroup.style.display = curGroupHasMatch ? '' : 'none'; };  // label kosong (opsi tanpa optgroup) tetap tersembunyi
     Array.from(optsContainer.children).forEach(el => {
       if (el.classList.contains('csel-group-label')) {
         flushGroup();

@@ -41,9 +41,11 @@ function _predikatOptionsHtml(selectedTier) {
 
 // Render cell input realisasi: dropdown predikat kalau row.tipe_nilai === 'predikat',
 
-function _renderRealisasiInputCell(row, idPrefix, onchangeFn) {
+// canEdit=false (akun hanya-lihat / periode ditutup): kolom realisasi dikunci, karena tombol Simpan juga tidak tampil.
+function _renderRealisasiInputCell(row, idPrefix, onchangeFn, canEdit = true) {
   const id = `${idPrefix}_${row.id}`;
-  const disabled = !!row.realisasi_id;
+  const disabled = !!row.realisasi_id || !canEdit;
+  const tipEdit = (row.realisasi_id && canEdit) ? 'Klik tombol Edit untuk mengisi realisasi' : '';
   if (row.tipe_nilai === 'predikat') {
     
     
@@ -55,7 +57,7 @@ function _renderRealisasiInputCell(row, idPrefix, onchangeFn) {
     const belumPernahDiisi = row.realisasi == null && !row.realisasi_id;
     const selectEl = `<select id="${id}" ${disabled ? 'disabled readonly' : ''}
              ${belumPernahDiisi ? 'data-placeholder="Pilih Peringkat"' : ''}
-             data-tip="${disabled ? 'Klik tombol Edit untuk mengisi realisasi' : ''}"
+             data-tip="${tipEdit}"
              style="${disabled ? 'cursor:not-allowed' : ''}"
              onchange="${onchangeFn}(${row.id})">${_predikatOptionsHtml(row.realisasi != null ? row.realisasi : null)}</select>`;
     
@@ -78,7 +80,7 @@ function _renderRealisasiInputCell(row, idPrefix, onchangeFn) {
   return `<div class="realisasi-spin">
     <input type="number" id="${id}" value="${row.realisasi_display != null ? row.realisasi_display : (row.realisasi != null ? parseFloat(row.realisasi) : '')}"
              placeholder="0" step="0.01" ${disabled ? 'readonly' : ''}
-             data-tip="${disabled ? 'Klik tombol Edit untuk mengisi realisasi' : ''}"
+             data-tip="${tipEdit}"
              style="${disabled ? 'cursor:not-allowed' : ''}"
              oninput="${onchangeFn}(${row.id})">${spinBtns}
   </div>`;
@@ -240,9 +242,19 @@ function _rowHasJenis(row, kode) {
   return Array.isArray(row.jenis_custom) && row.jenis_custom.includes(kode);
 }
 
+// Hak INPUT per jenis - sama dengan canInput() di backend. Akun pantau (kinerja.pantau / kinerja.pantau.semua)
+// tanpa permission kinerja.monev/ikk/spm/subkeg itu hanya-lihat: tidak boleh melihat tombol Simpan/Edit.
+function _punyaHakInputKinerja(jenis) {
+  if (_isKinerjaAdmin()) return true;
+  const key = { monev: 'kinerja.monev', ikk: 'kinerja.ikk', spm: 'kinerja.spm', subkeg: 'kinerja.subkeg' }[jenis];
+  if (key) return hasAccess(key);
+  return ['kinerja.monev', 'kinerja.ikk', 'kinerja.spm', 'kinerja.subkeg'].some(hasAccess);
+}
+
 function _isKinerjaInputOpen(bulan, jenis) {
   
   if (_isKinerjaAdmin()) return true;
+  if (!_punyaHakInputKinerja(jenis)) return false;   // hanya-lihat (pantau): Simpan/Edit disembunyikan
   const targetBulan = bulan != null ? bulan : jenis === 'subkeg' ? _subkeg_bulan : jenis === 'spm' ? _spm_bulan : jenis === 'ikk' ? _ikk_bulan : _kinerja_bulan;
   const targetTahun = jenis === 'subkeg' ? _subkeg_tahun : jenis === 'spm' ? _spm_tahun : jenis === 'ikk' ? _ikk_tahun : _kinerja_tahun;
   
@@ -664,12 +676,35 @@ function setKinerjaBulan(bulan) {
 }
 
 // Jumlah kolom tabel Kinerja (IKU/IKK/SPM): kolom "Unit Kerja" cuma tampil utk admin.
+const _KIN_TBODY_JENIS = { kinerjaTableBody: 'monev', ikkTableBody: 'ikk', spmTableBody: 'spm', subkegTableBody: 'subkeg' };
+const _KIN_AKSI_CLS    = { monev: 'col-aksi-iku', ikk: 'col-aksi-ikk', spm: 'col-aksi-spm', subkeg: 'col-aksi-subkeg' };
+
+// Kolom Aksi disembunyikan untuk akun hanya-lihat (pantau): tidak ada tombol Simpan/Edit/Reset yang bisa dipakai.
+function _kinAksiHidden(jenis) {
+  return !_isKinerjaAdmin() && !_punyaHakInputKinerja(jenis);
+}
+function _applyKinAksiCol(jenis) {
+  const hide = _kinAksiHidden(jenis);
+  document.querySelectorAll('.' + _KIN_AKSI_CLS[jenis]).forEach(el => { el.style.display = hide ? 'none' : ''; });
+}
+
+// Akun pantau (Kabid dsb.) melihat seluruh indikator unitnya, tapi hanya boleh MENGISI indikator yang
+// di-assign langsung ke dirinya. Indikator unit lain: tampil saja (tanpa input & tombol Simpan/Edit).
+function _barisBolehEdit(row) {
+  if (_isKinerjaAdmin() || !_isPantauKinerja()) return true;
+  return !!(_userIndikatorIds && _userIndikatorIds.has(Number(row.id)));
+}
+
 function _kinColSpan(tbody) {
   const total = tbody?.closest('table')?.querySelectorAll('thead th').length || 13;
-  return _isKinerjaAdmin() ? total : total - 1;
+  let n = _isKinerjaAdmin() ? total : total - 1;
+  const jenis = _KIN_TBODY_JENIS[tbody?.id];
+  if (jenis && _kinAksiHidden(jenis)) n -= 1;
+  return n;
 }
 
 async function loadKinerjaRekap({ keepPage = false } = {}) {
+  _applyKinAksiCol('monev');
   const tbody = document.getElementById('kinerjaTableBody');
   if (!tbody) return;
 
@@ -710,7 +745,7 @@ async function loadKinerjaRekap({ keepPage = false } = {}) {
     let rekap = d.rekap || [];
 
     // Filter per assigned indikator user (non-admin hanya lihat indikator yg di-assign)
-    if (!_isKinerjaAdmin()) {
+    if (!_isKinerjaAdmin() && !_isPantauKinerja()) {
       if (_userIndikatorIds && _userIndikatorIds.size > 0) {
         rekap = rekap.filter(row => _userIndikatorIds.has(Number(row.id)));
       } else {
@@ -901,6 +936,7 @@ function renderKinerjaTable(tbody) {
   let no = _ikuStart;
 
   _ikuRows.forEach(row => {
+    const rowCanEdit = canEdit && _barisBolehEdit(row);
     // Baris group header jika group berubah
     if (row.group_id !== lastGroupId) {
       lastGroupId = row.group_id;
@@ -943,26 +979,26 @@ function renderKinerjaTable(tbody) {
       <td class="td-target" style="font-weight:700">${targetFmt}</td>
       ${_isKinerjaAdmin() ? `<td class="td-bidang" style="color:var(--teks-mid)">${escHtml(row.penanggung_jawab || '-')}</td>` : ''}
       <td class="realisasi-input-cell">
-        ${_renderRealisasiInputCell(row, 'real', 'markDirty')}
+        ${_renderRealisasiInputCell(row, 'real', 'markDirty', rowCanEdit)}
       </td>
       <td style="text-align:center">
         <span class="capaian-badge ${badgeClass}" id="badge_${row.id}">${badgeText}</span>
       </td>
       <td class="textarea-cell" style="text-align:left;vertical-align:top">
-        ${_renderPSCell('fpenghambat', row.id, row.f_penghambat, capaian, canEdit, 'faktor penghambat', 'markDirty', !!row.realisasi_id, false, row.tipe_nilai === 'predikat', row.realisasi == null && !row.realisasi_id)}
+        ${_renderPSCell('fpenghambat', row.id, row.f_penghambat, capaian, rowCanEdit, 'faktor penghambat', 'markDirty', !!row.realisasi_id, false, row.tipe_nilai === 'predikat', row.realisasi == null && !row.realisasi_id)}
       </td>
       <td class="textarea-cell" style="text-align:left;vertical-align:top">
-        ${_renderPSCell('solusi', row.id, row.solusi, capaian, canEdit, 'solusi', 'markDirty', !!row.realisasi_id, false, row.tipe_nilai === 'predikat', row.realisasi == null && !row.realisasi_id)}
+        ${_renderPSCell('solusi', row.id, row.solusi, capaian, rowCanEdit, 'solusi', 'markDirty', !!row.realisasi_id, false, row.tipe_nilai === 'predikat', row.realisasi == null && !row.realisasi_id)}
       </td>
       <td class="textarea-cell" style="text-align:left;vertical-align:top">
-        ${_renderPSCell('fpendukung', row.id, row.f_pendukung, capaian, canEdit, 'faktor pendukung', 'markDirty', !!row.realisasi_id, true, row.tipe_nilai === 'predikat', row.realisasi == null && !row.realisasi_id)}
+        ${_renderPSCell('fpendukung', row.id, row.f_pendukung, capaian, rowCanEdit, 'faktor pendukung', 'markDirty', !!row.realisasi_id, true, row.tipe_nilai === 'predikat', row.realisasi == null && !row.realisasi_id)}
       </td>
       <td class="textarea-cell" style="text-align:left;vertical-align:top">
-        ${_renderPSCell('rencana', row.id, row.rencana_tl, capaian, canEdit, 'rencana tindak lanjut', 'markDirty', !!row.realisasi_id, true, row.tipe_nilai === 'predikat', row.realisasi == null && !row.realisasi_id)}
+        ${_renderPSCell('rencana', row.id, row.rencana_tl, capaian, rowCanEdit, 'rencana tindak lanjut', 'markDirty', !!row.realisasi_id, true, row.tipe_nilai === 'predikat', row.realisasi == null && !row.realisasi_id)}
       </td>
-      <td class="textarea-cell" style="text-align:left;vertical-align:top" data-col="dukung">${_renderDukungInlineCell(row, canEdit, 'monev')}</td>
-      <td style="text-align:center;white-space:nowrap">
-        ${canEdit ? `
+      <td class="textarea-cell" style="text-align:left;vertical-align:top" data-col="dukung">${_renderDukungInlineCell(row, rowCanEdit, 'monev')}</td>
+      <td class="col-aksi-iku" style="text-align:center;white-space:nowrap${_kinAksiHidden('monev') ? ';display:none' : ''}">
+        ${rowCanEdit ? `
           <button class="btn-edit-row" id="editbtn_${row.id}" data-tip="Edit baris ini"
             onclick="toggleEditRow(${row.id})"
             style="${row.realisasi_id ? '' : 'display:none'}">
@@ -990,13 +1026,14 @@ function renderKinerjaTable(tbody) {
   tbody.innerHTML = html;
   if (typeof window.initCustomSelects === 'function') window.initCustomSelects();
   
+  _applyKinAksiCol('monev');
   document.querySelectorAll('.col-bidang-iku').forEach(el => { el.style.display = _isKinerjaAdmin() ? '' : 'none'; });
   renderPagination('ikuPagination', _filtered.length, _ikuPage, _ikuPageSize, '_goIkuPage');
   
   
   if (canEdit) {
     _kinerjaData.forEach(row => {
-      if (row.realisasi_id && !row.data_dukung_url) {
+      if (row.realisasi_id && !row.data_dukung_url && _barisBolehEdit(row)) {
         const dukungCell = document.querySelector(`tr[data-id="${row.id}"] td[data-col="dukung"]`);
         if (dukungCell && !dukungCell.querySelector('.dukung-warning')) {
           dukungCell.insertAdjacentHTML('beforeend', `
@@ -4238,6 +4275,7 @@ function setIkkBulan(bulan) {
 }
 
 async function loadIkkRekap({ keepPage = false } = {}) {
+  _applyKinAksiCol('ikk');
   const tbody = document.getElementById('ikkTableBody');
   if (!tbody) return;
 
@@ -4278,7 +4316,7 @@ async function loadIkkRekap({ keepPage = false } = {}) {
     let rekap = d.rekap || [];
 
     // Filter per assigned indikator user (non-admin hanya lihat indikator yg di-assign)
-    if (!_isKinerjaAdmin()) {
+    if (!_isKinerjaAdmin() && !_isPantauKinerja()) {
       if (_userIndikatorIds && _userIndikatorIds.size > 0) {
         rekap = rekap.filter(row => _userIndikatorIds.has(Number(row.id)));
       } else {
@@ -4637,6 +4675,7 @@ function _renderIkkTable(tbody) {
   let no = _ikkStart;
 
   _ikkRows.forEach(row => {
+    const rowCanEdit = canEdit && _barisBolehEdit(row);
     if (row.group_id !== lastGroupId) {
       lastGroupId = row.group_id;
       if (row.group_nama) {
@@ -4677,26 +4716,26 @@ function _renderIkkTable(tbody) {
       <td class="td-target" style="font-weight:700">${targetFmt}</td>
       ${_isKinerjaAdmin() ? `<td class="td-bidang" style="color:var(--teks-mid)">${escHtml(row.penanggung_jawab || '-')}</td>` : ''}
       <td class="realisasi-input-cell">
-        ${_renderRealisasiInputCell(row, 'ikk_real', 'markIkkDirty')}
+        ${_renderRealisasiInputCell(row, 'ikk_real', 'markIkkDirty', rowCanEdit)}
       </td>
       <td style="text-align:center">
         <span class="capaian-badge ${badgeClass}" id="ikk_badge_${row.id}">${badgeText}</span>
       </td>
       <td class="textarea-cell" style="text-align:left;vertical-align:top">
-        ${_renderPSCell('ikk_fpenghambat', row.id, row.f_penghambat, capaian, canEdit, 'faktor penghambat', 'markIkkDirty', !!row.realisasi_id, false, row.tipe_nilai === 'predikat', row.realisasi == null && !row.realisasi_id)}
+        ${_renderPSCell('ikk_fpenghambat', row.id, row.f_penghambat, capaian, rowCanEdit, 'faktor penghambat', 'markIkkDirty', !!row.realisasi_id, false, row.tipe_nilai === 'predikat', row.realisasi == null && !row.realisasi_id)}
       </td>
       <td class="textarea-cell" style="text-align:left;vertical-align:top">
-        ${_renderPSCell('ikk_solusi', row.id, row.solusi, capaian, canEdit, 'solusi', 'markIkkDirty', !!row.realisasi_id, false, row.tipe_nilai === 'predikat', row.realisasi == null && !row.realisasi_id)}
+        ${_renderPSCell('ikk_solusi', row.id, row.solusi, capaian, rowCanEdit, 'solusi', 'markIkkDirty', !!row.realisasi_id, false, row.tipe_nilai === 'predikat', row.realisasi == null && !row.realisasi_id)}
       </td>
       <td class="textarea-cell" style="text-align:left;vertical-align:top">
-        ${_renderPSCell('ikk_fpendukung', row.id, row.f_pendukung, capaian, canEdit, 'faktor pendukung', 'markIkkDirty', !!row.realisasi_id, true, row.tipe_nilai === 'predikat', row.realisasi == null && !row.realisasi_id)}
+        ${_renderPSCell('ikk_fpendukung', row.id, row.f_pendukung, capaian, rowCanEdit, 'faktor pendukung', 'markIkkDirty', !!row.realisasi_id, true, row.tipe_nilai === 'predikat', row.realisasi == null && !row.realisasi_id)}
       </td>
       <td class="textarea-cell" style="text-align:left;vertical-align:top">
-        ${_renderPSCell('ikk_rencana', row.id, row.rencana_tl, capaian, canEdit, 'rencana tindak lanjut', 'markIkkDirty', !!row.realisasi_id, true, row.tipe_nilai === 'predikat', row.realisasi == null && !row.realisasi_id)}
+        ${_renderPSCell('ikk_rencana', row.id, row.rencana_tl, capaian, rowCanEdit, 'rencana tindak lanjut', 'markIkkDirty', !!row.realisasi_id, true, row.tipe_nilai === 'predikat', row.realisasi == null && !row.realisasi_id)}
       </td>
-      <td class="textarea-cell" style="text-align:left;vertical-align:top" data-col="dukung">${_renderDukungInlineCell(row, canEdit, 'ikk')}</td>
-      <td style="text-align:center;white-space:nowrap">
-        ${canEdit ? `
+      <td class="textarea-cell" style="text-align:left;vertical-align:top" data-col="dukung">${_renderDukungInlineCell(row, rowCanEdit, 'ikk')}</td>
+      <td class="col-aksi-ikk" style="text-align:center;white-space:nowrap${_kinAksiHidden('ikk') ? ';display:none' : ''}">
+        ${rowCanEdit ? `
           <button class="btn-edit-row" id="ikk_editbtn_${row.id}" data-tip="Edit baris ini"
             onclick="toggleIkkEditRow(${row.id})"
             style="${row.realisasi_id ? '' : 'display:none'}">
@@ -4724,6 +4763,7 @@ function _renderIkkTable(tbody) {
   tbody.innerHTML = html;
   if (typeof window.initCustomSelects === 'function') window.initCustomSelects();
   
+  _applyKinAksiCol('ikk');
   document.querySelectorAll('.col-bidang-ikk').forEach(el => { el.style.display = _isKinerjaAdmin() ? '' : 'none'; });
   renderPagination('ikkPagination', _filtered.length, _ikkPage, _ikkPageSize, '_goIkkPage');
   
@@ -6892,6 +6932,7 @@ function _renderSpmPeriodeInfo() {
 }
 
 async function loadSpmRekap({ keepPage = false } = {}) {
+  _applyKinAksiCol('spm');
   const tbody = document.getElementById('spmTableBody');
   if (!tbody) return;
 
@@ -6929,7 +6970,7 @@ async function loadSpmRekap({ keepPage = false } = {}) {
     let rekap = d.rekap || [];
 
     // Filter per assigned indikator user (non-admin hanya lihat indikator yg di-assign)
-    if (!_isKinerjaAdmin()) {
+    if (!_isKinerjaAdmin() && !_isPantauKinerja()) {
       if (_userIndikatorIds && _userIndikatorIds.size > 0) {
         rekap = rekap.filter(row => _userIndikatorIds.has(Number(row.id)));
       } else {
@@ -6987,6 +7028,7 @@ function _renderSpmTable(tbody) {
   let i = _spmStart;
 
   _spmRows.forEach(row => {
+    const rowCanEdit = canEdit && _barisBolehEdit(row);
     i++;
     const capaian = (row.realisasi_id && row.capaian_persen != null) ? Number(row.capaian_persen) : null;
     let badgeClass = 'na', badgeText = '-';
@@ -7008,26 +7050,26 @@ function _renderSpmTable(tbody) {
       <td class="td-target" style="font-weight:700">${targetFmt}</td>
       ${_isKinerjaAdmin() ? `<td class="td-bidang" style="color:var(--teks-mid)">${escHtml(row.penanggung_jawab || '-')}</td>` : ''}
       <td class="realisasi-input-cell">
-        ${_renderRealisasiInputCell(row, 'spm_real', 'markSpmDirty')}
+        ${_renderRealisasiInputCell(row, 'spm_real', 'markSpmDirty', rowCanEdit)}
       </td>
       <td style="text-align:center">
         <span class="capaian-badge ${badgeClass}" id="spm_badge_${row.id}">${badgeText}</span>
       </td>
       <td class="textarea-cell" style="text-align:left;vertical-align:top">
-        ${_renderPSCell('spm_fpenghambat', row.id, row.f_penghambat, capaian, canEdit, 'faktor penghambat', 'markSpmDirty', !!row.realisasi_id, false, row.tipe_nilai === 'predikat', row.realisasi == null && !row.realisasi_id)}
+        ${_renderPSCell('spm_fpenghambat', row.id, row.f_penghambat, capaian, rowCanEdit, 'faktor penghambat', 'markSpmDirty', !!row.realisasi_id, false, row.tipe_nilai === 'predikat', row.realisasi == null && !row.realisasi_id)}
       </td>
       <td class="textarea-cell" style="text-align:left;vertical-align:top">
-        ${_renderPSCell('spm_solusi', row.id, row.solusi, capaian, canEdit, 'solusi', 'markSpmDirty', !!row.realisasi_id, false, row.tipe_nilai === 'predikat', row.realisasi == null && !row.realisasi_id)}
+        ${_renderPSCell('spm_solusi', row.id, row.solusi, capaian, rowCanEdit, 'solusi', 'markSpmDirty', !!row.realisasi_id, false, row.tipe_nilai === 'predikat', row.realisasi == null && !row.realisasi_id)}
       </td>
       <td class="textarea-cell" style="text-align:left;vertical-align:top">
-        ${_renderPSCell('spm_fpendukung', row.id, row.f_pendukung, capaian, canEdit, 'faktor pendukung', 'markSpmDirty', !!row.realisasi_id, true, row.tipe_nilai === 'predikat', row.realisasi == null && !row.realisasi_id)}
+        ${_renderPSCell('spm_fpendukung', row.id, row.f_pendukung, capaian, rowCanEdit, 'faktor pendukung', 'markSpmDirty', !!row.realisasi_id, true, row.tipe_nilai === 'predikat', row.realisasi == null && !row.realisasi_id)}
       </td>
       <td class="textarea-cell" style="text-align:left;vertical-align:top">
-        ${_renderPSCell('spm_rencana', row.id, row.rencana_tl, capaian, canEdit, 'rencana tindak lanjut', 'markSpmDirty', !!row.realisasi_id, true, row.tipe_nilai === 'predikat', row.realisasi == null && !row.realisasi_id)}
+        ${_renderPSCell('spm_rencana', row.id, row.rencana_tl, capaian, rowCanEdit, 'rencana tindak lanjut', 'markSpmDirty', !!row.realisasi_id, true, row.tipe_nilai === 'predikat', row.realisasi == null && !row.realisasi_id)}
       </td>
-      <td class="textarea-cell" style="text-align:left;vertical-align:top" data-col="dukung">${_renderDukungInlineCell(row, canEdit, 'spm')}</td>
-      <td style="text-align:center;white-space:nowrap">
-        ${canEdit ? `
+      <td class="textarea-cell" style="text-align:left;vertical-align:top" data-col="dukung">${_renderDukungInlineCell(row, rowCanEdit, 'spm')}</td>
+      <td class="col-aksi-spm" style="text-align:center;white-space:nowrap${_kinAksiHidden('spm') ? ';display:none' : ''}">
+        ${rowCanEdit ? `
           <button class="btn-edit-row" id="spm_editbtn_${row.id}" data-tip="Edit baris ini"
             onclick="toggleSpmEditRow(${row.id})"
             style="${row.realisasi_id ? '' : 'display:none'}">
@@ -7055,6 +7097,7 @@ function _renderSpmTable(tbody) {
   tbody.innerHTML = html;
   if (typeof window.initCustomSelects === 'function') window.initCustomSelects();
   
+  _applyKinAksiCol('spm');
   document.querySelectorAll('.col-bidang-spm').forEach(el => {
     el.style.display = _isKinerjaAdmin() ? '' : 'none';
   });
@@ -7062,7 +7105,7 @@ function _renderSpmTable(tbody) {
   
   if (canEdit) {
     _spmData.forEach(row => {
-      if (row.realisasi_id && !row.data_dukung_url) {
+      if (row.realisasi_id && !row.data_dukung_url && _barisBolehEdit(row)) {
         const dukungCell = document.querySelector(`tr[data-id="${row.id}"] td[data-col="dukung"]`);
         if (dukungCell && !dukungCell.querySelector('.dukung-warning')) {
           dukungCell.insertAdjacentHTML('beforeend', `
@@ -7504,6 +7547,7 @@ function _renderSubkegPeriodeInfo() {
 }
 
 async function loadSubkegRekap({ keepPage = false } = {}) {
+  _applyKinAksiCol('subkeg');
   const tbody = document.getElementById('subkegTableBody');
   if (!tbody) return;
 
@@ -7541,7 +7585,7 @@ async function loadSubkegRekap({ keepPage = false } = {}) {
     let rekap = d.rekap || [];
 
     // Filter per assigned indikator user (non-admin hanya lihat indikator yg di-assign)
-    if (!_isKinerjaAdmin()) {
+    if (!_isKinerjaAdmin() && !_isPantauKinerja()) {
       if (_userIndikatorIds && _userIndikatorIds.size > 0) {
         rekap = rekap.filter(row => _userIndikatorIds.has(Number(row.id)));
       } else {
@@ -7599,6 +7643,7 @@ function _renderSubkegTable(tbody) {
   let i = _subkegStart;
 
   _subkegRows.forEach(row => {
+    const rowCanEdit = canEdit && _barisBolehEdit(row);
     i++;
     const capaian = (row.realisasi_id && row.capaian_persen != null) ? Number(row.capaian_persen) : null;
     let badgeClass = 'na', badgeText = '-';
@@ -7620,26 +7665,26 @@ function _renderSubkegTable(tbody) {
       <td class="td-target" style="font-weight:700">${targetFmt}</td>
       ${_isKinerjaAdmin() ? `<td class="td-bidang" style="color:var(--teks-mid)">${escHtml(row.penanggung_jawab || '-')}</td>` : ''}
       <td class="realisasi-input-cell">
-        ${_renderRealisasiInputCell(row, 'subkeg_real', 'markSubkegDirty')}
+        ${_renderRealisasiInputCell(row, 'subkeg_real', 'markSubkegDirty', rowCanEdit)}
       </td>
       <td style="text-align:center">
         <span class="capaian-badge ${badgeClass}" id="subkeg_badge_${row.id}">${badgeText}</span>
       </td>
       <td class="textarea-cell" style="text-align:left;vertical-align:top">
-        ${_renderPSCell('subkeg_fpenghambat', row.id, row.f_penghambat, capaian, canEdit, 'faktor penghambat', 'markSubkegDirty', !!row.realisasi_id, false, row.tipe_nilai === 'predikat', row.realisasi == null && !row.realisasi_id)}
+        ${_renderPSCell('subkeg_fpenghambat', row.id, row.f_penghambat, capaian, rowCanEdit, 'faktor penghambat', 'markSubkegDirty', !!row.realisasi_id, false, row.tipe_nilai === 'predikat', row.realisasi == null && !row.realisasi_id)}
       </td>
       <td class="textarea-cell" style="text-align:left;vertical-align:top">
-        ${_renderPSCell('subkeg_solusi', row.id, row.solusi, capaian, canEdit, 'solusi', 'markSubkegDirty', !!row.realisasi_id, false, row.tipe_nilai === 'predikat', row.realisasi == null && !row.realisasi_id)}
+        ${_renderPSCell('subkeg_solusi', row.id, row.solusi, capaian, rowCanEdit, 'solusi', 'markSubkegDirty', !!row.realisasi_id, false, row.tipe_nilai === 'predikat', row.realisasi == null && !row.realisasi_id)}
       </td>
       <td class="textarea-cell" style="text-align:left;vertical-align:top">
-        ${_renderPSCell('subkeg_fpendukung', row.id, row.f_pendukung, capaian, canEdit, 'faktor pendukung', 'markSubkegDirty', !!row.realisasi_id, true, row.tipe_nilai === 'predikat', row.realisasi == null && !row.realisasi_id)}
+        ${_renderPSCell('subkeg_fpendukung', row.id, row.f_pendukung, capaian, rowCanEdit, 'faktor pendukung', 'markSubkegDirty', !!row.realisasi_id, true, row.tipe_nilai === 'predikat', row.realisasi == null && !row.realisasi_id)}
       </td>
       <td class="textarea-cell" style="text-align:left;vertical-align:top">
-        ${_renderPSCell('subkeg_rencana', row.id, row.rencana_tl, capaian, canEdit, 'rencana tindak lanjut', 'markSubkegDirty', !!row.realisasi_id, true, row.tipe_nilai === 'predikat', row.realisasi == null && !row.realisasi_id)}
+        ${_renderPSCell('subkeg_rencana', row.id, row.rencana_tl, capaian, rowCanEdit, 'rencana tindak lanjut', 'markSubkegDirty', !!row.realisasi_id, true, row.tipe_nilai === 'predikat', row.realisasi == null && !row.realisasi_id)}
       </td>
-      <td class="textarea-cell" style="text-align:left;vertical-align:top" data-col="dukung">${_renderDukungInlineCell(row, canEdit, 'subkeg')}</td>
-      <td style="text-align:center;white-space:nowrap">
-        ${canEdit ? `
+      <td class="textarea-cell" style="text-align:left;vertical-align:top" data-col="dukung">${_renderDukungInlineCell(row, rowCanEdit, 'subkeg')}</td>
+      <td class="col-aksi-subkeg" style="text-align:center;white-space:nowrap${_kinAksiHidden('subkeg') ? ';display:none' : ''}">
+        ${rowCanEdit ? `
           <button class="btn-edit-row" id="subkeg_editbtn_${row.id}" data-tip="Edit baris ini"
             onclick="toggleSubkegEditRow(${row.id})"
             style="${row.realisasi_id ? '' : 'display:none'}">
@@ -7667,6 +7712,7 @@ function _renderSubkegTable(tbody) {
   tbody.innerHTML = html;
   if (typeof window.initCustomSelects === 'function') window.initCustomSelects();
   
+  _applyKinAksiCol('subkeg');
   document.querySelectorAll('.col-bidang-subkeg').forEach(el => {
     el.style.display = _isKinerjaAdmin() ? '' : 'none';
   });
@@ -7674,7 +7720,7 @@ function _renderSubkegTable(tbody) {
   
   if (canEdit) {
     _subkegData.forEach(row => {
-      if (row.realisasi_id && !row.data_dukung_url) {
+      if (row.realisasi_id && !row.data_dukung_url && _barisBolehEdit(row)) {
         const dukungCell = document.querySelector(`tr[data-id="${row.id}"] td[data-col="dukung"]`);
         if (dukungCell && !dukungCell.querySelector('.dukung-warning')) {
           dukungCell.insertAdjacentHTML('beforeend', `

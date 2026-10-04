@@ -2845,7 +2845,60 @@ function _kwCddToggle(id) {
   const isOpen = el.classList.contains('open');
   
   document.querySelectorAll('.kw-cdd.open').forEach(d => d.classList.remove('open'));
-  if (!isOpen) el.classList.add('open');
+  if (!isOpen) {
+    el.classList.add('open');
+    _kwCddEnsureSearch(el);
+  }
+}
+
+// Kolom cari di dalam panel .kw-cdd (berlaku untuk semua dropdown filter dashboard, termasuk yang
+// markup-nya ditulis manual). Dibuat sekali saat panel pertama dibuka; filter di-reset tiap dibuka.
+function _kwCddEnsureSearch(el) {
+  const panel = el.querySelector('.kw-cdd-panel');
+  if (!panel) return;
+  let input = panel.querySelector('.kw-cdd-search-input');
+  if (!input) {
+    const wrap = document.createElement('div');
+    wrap.className = 'kw-cdd-search-wrap';
+    wrap.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-4.35-4.35"/></svg>' +
+      '<input type="text" class="kw-cdd-search-input" placeholder="Cari…" autocomplete="off">';
+    wrap.addEventListener('click', e => e.stopPropagation());
+    panel.insertBefore(wrap, panel.firstChild);
+    input = wrap.querySelector('input');
+    input.addEventListener('input', () => _kwCddFilter(panel, input.value));
+    input.addEventListener('keydown', e => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        const first = Array.from(panel.querySelectorAll('.kw-cdd-opt')).find(o => o.style.display !== 'none');
+        if (first) first.click();
+      } else if (e.key === 'Escape') {
+        e.preventDefault();
+        el.classList.remove('open');
+      }
+    });
+  }
+  input.value = '';
+  _kwCddFilter(panel, '');
+  const coarse = window.matchMedia && window.matchMedia('(pointer: coarse)').matches;
+  if (!coarse || panel.querySelectorAll('.kw-cdd-opt').length > 8) setTimeout(() => input.focus(), 30);
+}
+
+function _kwCddFilter(panel, query) {
+  const q = (query || '').trim().toLowerCase();
+  let any = false;
+  panel.querySelectorAll('.kw-cdd-opt').forEach(o => {
+    const ok = !q || o.textContent.toLowerCase().includes(q);
+    o.style.display = ok ? '' : 'none';
+    if (ok) any = true;
+  });
+  let empty = panel.querySelector('.kw-cdd-empty');
+  if (any) { if (empty) empty.remove(); }
+  else if (!empty) {
+    empty = document.createElement('div');
+    empty.className = 'kw-cdd-empty';
+    empty.textContent = 'Tidak ditemukan';
+    panel.appendChild(empty);
+  }
 }
 function _kwCddPick(id, fn, val) {
   

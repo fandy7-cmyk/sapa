@@ -76,7 +76,9 @@ function canInput(user, jenis) {
 //                              permission 'kinerja.pantau.unit.<bidang_id>' (satu per unit). Tanpa unit terpilih = tidak ada.
 async function getAssignedIndikatorIds(sql, userId) {
   const rows = await sql`SELECT indikator_id FROM user_indikator WHERE user_id = ${userId}`;
-  if (rows.length) return rows.map(r => r.indikator_id);
+  // Indikator yang di-assign langsung TIDAK lagi menggugurkan hak pantau: akun Kabid yang punya indikator
+  // sendiri + permission pantau harus melihat gabungan keduanya (indikator sendiri + seluruh indikator unitnya).
+  const ids = new Set(rows.map(r => r.indikator_id));
   const perm = await sql`
     SELECT menu_key FROM user_permissions
     WHERE user_id = ${userId}
@@ -94,17 +96,31 @@ async function getAssignedIndikatorIds(sql, userId) {
         WHERE ki.aktif = TRUE
           AND TRIM(ki.penanggung_jawab) IN (SELECT TRIM(b.nama) FROM bidang b WHERE b.id = ANY(${unitIds}::int[]))
       `;
-      return ind.map(r => r.id);
+      ind.forEach(r => ids.add(r.id));
+      return [...ids];
     }
   }
-  if (!keys.includes('kinerja.pantau')) return [];
-  const ind = await sql`
-    SELECT ki.id FROM kinerja_indikator ki
-    JOIN users u ON u.id = ${userId}
-    JOIN bidang b ON b.id = u.bidang_id
-    WHERE ki.aktif = TRUE AND TRIM(ki.penanggung_jawab) = TRIM(b.nama)
+  if (keys.includes('kinerja.pantau')) {
+    const ind = await sql`
+      SELECT ki.id FROM kinerja_indikator ki
+      JOIN users u ON u.id = ${userId}
+      JOIN bidang b ON b.id = u.bidang_id
+      WHERE ki.aktif = TRUE AND TRIM(ki.penanggung_jawab) = TRIM(b.nama)
+    `;
+    ind.forEach(r => ids.add(r.id));
+  }
+  return [...ids];
+}
+
+// Akun pantau? (kinerja.pantau / kinerja.pantau.semua) - dipakai agar IKU juga dibatasi di backend untuk akun pantau,
+// sama seperti IKK / SPM / Sub Kegiatan (sebelumnya IKU dikirim penuh lalu disaring di frontend).
+async function isPantauUser(sql, userId) {
+  const r = await sql`
+    SELECT 1 FROM user_permissions
+    WHERE user_id = ${userId} AND menu_key IN ('kinerja.pantau', 'kinerja.pantau.semua')
+    LIMIT 1
   `;
-  return ind.map(r => r.id);
+  return r.length > 0;
 }
 
 // Migrasi inti (kolom tipe_perhitungan, target per triwulan, index realisasi) sudah terpasang?
@@ -1015,6 +1031,21 @@ export const handler = async (event) => {
         if (errDukung) return errorResponse(errDukung, 400);
       }
 
+      // Akun pantau (Kabid dsb.) boleh MELIHAT seluruh indikator unitnya, tapi hanya boleh MENGISI indikator
+      // yang di-assign langsung ke dirinya (tabel user_indikator).
+      if (!auth.is_admin) {
+        const _permsPantau = user.permissions || [];
+        if (_permsPantau.includes('kinerja.pantau') || _permsPantau.includes('kinerja.pantau.semua')) {
+          const _own = await sql`
+            SELECT 1 FROM user_indikator
+            WHERE user_id = ${auth.id} AND indikator_id = ${parseInt(indikator_id)} LIMIT 1
+          `;
+          if (!_own.length) {
+            return errorResponse('Akses ditolak: indikator ini bukan penugasan Anda (akun pantau hanya dapat melihat)', 403);
+          }
+        }
+      }
+
       if (!auth.is_admin) {
         try {
           const indikRows = await sql`
@@ -1178,7 +1209,7 @@ export const handler = async (event) => {
 
     let bidangNama = null;
     let userIndikatorIds = null;
-    if (!auth.is_admin && jenis !== 'monev') {
+    if (!auth.is_admin && (jenis !== 'monev' || await isPantauUser(sql, auth.id))) {
       try {
         const myIds = await getAssignedIndikatorIds(sql, auth.id);
         if (myIds.length === 0) {
@@ -2768,7 +2799,7 @@ export const handler = async (event) => {
 
     let bidangNama = null;
     let userIndikatorIds = null;
-    if (!auth.is_admin && jenis !== 'monev') {
+    if (!auth.is_admin && (jenis !== 'monev' || await isPantauUser(sql, auth.id))) {
       try {
         const myIds = await getAssignedIndikatorIds(sql, auth.id);
         if (myIds.length === 0) {

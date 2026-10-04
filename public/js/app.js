@@ -270,7 +270,26 @@ let _hasIkkIndikator   = false;
 let _hasSpmIndikator   = false;
 let _hasSubkegIndikator = false;
 
+// Akun pantau (Kabid dsb.): menu jenis tampil kalau UNIT-nya punya indikator jenis itu, bukan hanya kalau
+// indikator tsb di-assign ke dirinya. Backend sudah membatasi /api/kinerja/rekap ke indikator unit untuk akun pantau.
 async function _cekKinerjaIndikator() {
+  await _cekKinerjaIndikatorDasar();
+  if (_isKinerjaAdmin() || !_isPantauKinerja()) return;
+  try {
+    const jenisList = ['monev', 'ikk', 'spm', 'subkeg'];
+    const res = await Promise.all(jenisList.map(j =>
+      fetch(`/api/kinerja/rekap?jenis=${j}`, { headers: authHeaders() })
+        .then(r => r.ok ? r.json() : {}).catch(() => ({}))
+    ));
+    const ada = res.map(d => Array.isArray(d.rekap) && d.rekap.length > 0);
+    _hasMonevIndikator  = _hasMonevIndikator  || ada[0];
+    _hasIkkIndikator    = _hasIkkIndikator    || ada[1];
+    _hasSpmIndikator    = _hasSpmIndikator    || ada[2];
+    _hasSubkegIndikator = _hasSubkegIndikator || ada[3];
+  } catch {}
+}
+
+async function _cekKinerjaIndikatorDasar() {
   if (_isKinerjaAdmin()) { _hasMonevIndikator = true; _hasIkkIndikator = true; _hasSpmIndikator = true; _hasSubkegIndikator = true; return; }
   try {
     const rAssign = await fetch(`/api/users/${_user.id}/indikator`, { headers: authHeaders() }).catch(() => null);
@@ -1440,40 +1459,47 @@ async function _bootRefreshTandaTangan() {
   
   _applyTopbarAvatar(_user.foto_url || null);
   document.getElementById('topbarName').textContent = _user.nama;
-  document.getElementById('topbarRole').textContent = _user.is_admin ? 'Super Admin' : (_user.bidang_nama || '');
   document.getElementById('ddName').textContent = _user.nama;
   
   const _ddRoleEl = document.getElementById('ddRole');
   if (_ddRoleEl) { _ddRoleEl.textContent = 'Super Admin'; _ddRoleEl.style.display = _user.is_admin ? '' : 'none'; }
-  (function() {
+  // Teks di bawah nama (topbar + dropdown profil): Super Admin / Jabatan, kalau Jabatan kosong -> Unit Kerja.
+  function _renderProfilSubtitle() {
+    const sub = _user.is_admin ? 'Super Admin' : (_user.jabatan || _user.bidang_nama || '');
+    const trEl = document.getElementById('topbarRole');
+    if (trEl) trEl.textContent = sub;
     const ddBidang = document.getElementById('ddBidang');
-    if (ddBidang && !_user.is_admin && _user.bidang_nama) {
-      ddBidang.textContent = _user.bidang_nama;
-      ddBidang.style.display = '';
+    if (ddBidang && !_user.is_admin) {
+      ddBidang.textContent = sub;
+      ddBidang.style.display = sub ? '' : 'none';
     }
-  })();
+  }
+  _renderProfilSubtitle();
 
   _openGroups = {};
 
   _activeSubId = '';
 
+  // Sinkronkan unit kerja + jabatan dari server tiap halaman dibuka, supaya perubahan dari menu Pengguna
+  // (mis. admin baru mengisi Jabatan) langsung tampil tanpa harus login ulang.
   const _bootRefreshUser = async () => {
     if (!_user || _user.is_admin) return;
-    if (_user.bidang_nama) return;
     try {
       const r = await fetch('/api/auth/me', { headers: authHeaders() });
       if (r.ok) {
         const d = await r.json();
-        if (d.user?.bidang_nama) {
-          _user.bidang_nama      = d.user.bidang_nama;
-          _user.bidang_id        = d.user.bidang_id;
-          _user.bidang_singkatan = d.user.bidang_singkatan;
-          sessionStorage.setItem('sapa_user', JSON.stringify(_user));
-          
-          const trEl = document.getElementById('topbarRole');
-          if (trEl) trEl.textContent = _user.bidang_nama;
-          const ddBidang = document.getElementById('ddBidang');
-          if (ddBidang) { ddBidang.textContent = _user.bidang_nama; ddBidang.style.display = ''; }
+        if (d.user) {
+          const jabatanBaru = d.user.jabatan || null;
+          const bidangBaru  = d.user.bidang_nama || null;
+          const berubah = (_user.jabatan || null) !== jabatanBaru || (_user.bidang_nama || null) !== bidangBaru;
+          if (berubah) {
+            _user.jabatan          = jabatanBaru;
+            _user.bidang_nama      = bidangBaru;
+            _user.bidang_id        = d.user.bidang_id;
+            _user.bidang_singkatan = d.user.bidang_singkatan;
+            sessionStorage.setItem('sapa_user', JSON.stringify(_user));
+            _renderProfilSubtitle();
+          }
         }
       }
     } catch {}

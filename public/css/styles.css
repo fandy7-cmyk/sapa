@@ -901,6 +901,22 @@ tr:hover td:not(.td-sticky-no):not(.td-sticky-name) { background: var(--abu-1); 
 .btn-outline-hijau:hover { background: var(--hijau); color: #fff; border-color: var(--hijau); transform: translateY(-1px); box-shadow: 0 var(--sp-3) var(--sp-5) rgba(15,118,110,.2); }
 .btn-outline-hijau:active { transform: translateY(0); }
 .btn-outline-hijau svg { pointer-events: none; }
+
+/* Tombol Upload (foto profil, dll): teal lembut yang hidup, jadi solid teal + naik sedikit saat hover.
+   Sengaja beda dari .btn-primary (Simpan) supaya aksi utama di modal tetap jelas. */
+.btn-upload {
+  background: var(--hijau-light); color: var(--hijau); border-color: #5eead4;
+  min-height: 34px; padding: 6px 14px;
+  box-shadow: 0 1px 2px rgba(4,125,120,.12);
+}
+.btn-upload:hover {
+  background: var(--hijau); color: #fff; border-color: var(--hijau);
+  transform: translateY(-1px); box-shadow: 0 6px 14px rgba(4,125,120,.28);
+}
+.btn-upload:active { transform: translateY(0); box-shadow: 0 1px 2px rgba(4,125,120,.18); }
+.btn-upload:focus-visible { outline: 2px solid var(--hijau); outline-offset: 2px; }
+.btn-upload svg { pointer-events: none; transition: transform var(--transition); }
+.btn-upload:hover svg { transform: translateY(-1px); }
 .btn-ghost.btn-sm svg, .btn-danger.btn-sm svg { pointer-events: none; }
 [title] { cursor: pointer; }
 
@@ -2611,7 +2627,7 @@ ol.lap-md-list--alpha > li::before { content:counter(lapmdnum, lower-alpha) ".";
 }
 .dukung-inline-input:disabled::placeholder { color:#991b1b; opacity:.75; }
 .dukung-inline-err { font-size:.68rem; line-height:1.35; color:#b91c1c; }
-.dukung-inline-read { font-size:.75rem; line-height:1.5; word-break:break-all; }
+.dukung-inline-read { font-size:.75rem; line-height:1.5; word-break:break-all; text-align:center; }
 .dukung-inline-read a {
   display:inline-flex; align-items:center; gap:5px;
   font-weight:600; color:#1d4ed8; text-decoration:none;
@@ -2619,6 +2635,8 @@ ol.lap-md-list--alpha > li::before { content:counter(lapmdnum, lower-alpha) ".";
 .dukung-inline-read a:hover { text-decoration:underline; }
 /* Kolom Data Dukung rata tengah vertikal (IKU / IKK / SPM / Sub Kegiatan) - !important karena <td> punya inline vertical-align:top */
 .kinerja-table td[data-col="dukung"] { vertical-align:middle !important; }
+/* Link "Lihat Data Dukung" rata tengah horizontal (mode baca) */
+.kinerja-table td[data-col="dukung"] .dukung-inline-read { text-align:center; }
 
 /* Periode aktif info */
 .periode-info-bar {
@@ -11021,3 +11039,20 @@ body:not(.is-admin) .abs-hariini-flex-wrap .dash-kpi-row .abs-jamkerja-wrap:nth-
 #lapCascadeWrap { position: relative; }
 .lap-cascade-gap { width: 48px; flex-shrink: 0; }
 .lap-cascade-svg { position: absolute; top: 0; left: 0; pointer-events: none; overflow: visible; z-index: 2; }
+
+/* ── Kolom cari di dropdown filter dashboard (.kw-cdd) ── */
+.kw-cdd-panel { max-height: 280px; overflow-y: auto; }
+.kw-cdd-search-wrap {
+  position: sticky; top: 0; z-index: 1;
+  display: flex; align-items: center; gap: 6px;
+  padding: 4px 8px 6px; margin: 0 0 2px;
+  background: #fff; border-bottom: 1px solid #e2e8f0;
+}
+.kw-cdd-search-wrap svg { flex-shrink: 0; color: #94a3b8; }
+.kw-cdd-search-input {
+  flex: 1; min-width: 0; width: 100%;
+  border: none; outline: none; background: transparent;
+  font: inherit; font-size: .8rem; color: #1e293b; padding: 3px 0;
+}
+.kw-cdd-search-input::placeholder { color: #94a3b8; }
+.kw-cdd-empty { padding: 8px 12px; font-size: .78rem; color: #94a3b8; text-align: center; }
