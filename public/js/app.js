@@ -1155,50 +1155,77 @@ function _qtipPosition(target) {
   const arrowLeft = Math.max(10, Math.min(r.left + r.width / 2 - left, tipRect.width - 10));
   tip.style.setProperty('--qtip-arrow-left', arrowLeft + 'px');
 }
+let _qtipTarget = null;
+let _qtipLastTouch = 0;
+function _qtipHide() {
+  if (_qtipEl) _qtipEl.classList.remove('show');
+  _qtipTarget = null;
+}
+function _qtipShow(target) {
+  const tip = _ensureQtipEl();
+  tip.textContent = target.dataset.tip;
+  tip.classList.remove('qtip-danger', 'qtip-success');
+  if (target.dataset.tipVariant) tip.classList.add('qtip-' + target.dataset.tipVariant);
+  tip.classList.add('show');
+  _qtipTarget = target;
+  _qtipPosition(target);
+}
+// Browser mobile nembakin event mouse "palsu" (mouseover/mousedown/click) setelah tap;
+// event itu diabaikan supaya gak bentrok sama logika touchstart di bawah.
+function _qtipIsTouch() { return Date.now() - _qtipLastTouch < 800; }
 function _bindQtips() {
   if (document.body._qtipBound) return;
   document.body._qtipBound = true;
   document.body.addEventListener('mouseover', (e) => {
+    if (_qtipIsTouch()) return;
     const target = e.target.closest('[data-tip]');
     if (!target || !target.dataset.tip) return;
-    const tip = _ensureQtipEl();
-    tip.textContent = target.dataset.tip;
-    tip.classList.remove('qtip-danger', 'qtip-success');
-    if (target.dataset.tipVariant) tip.classList.add('qtip-' + target.dataset.tipVariant);
-    tip.classList.add('show');
-    _qtipPosition(target);
+    _qtipShow(target);
   });
   document.body.addEventListener('mouseout', (e) => {
     const target = e.target.closest('[data-tip]');
     if (!target) return;
     if (target.contains(e.relatedTarget)) return;
-    if (_qtipEl) _qtipEl.classList.remove('show');
+    _qtipHide();
   });
-  document.body.addEventListener('scroll', () => {
-    if (_qtipEl) _qtipEl.classList.remove('show');
+  document.body.addEventListener('scroll', _qtipHide, true);
+
+  // Tombol ditekan -> tooltip langsung hilang (sebelum modal/aksi apa pun muncul).
+  // Tanpa ini, tooltip nyangkut kalau tombol tertutup modal atau di-render ulang,
+  // karena mouseout gak pernah kepicu di elemen yang ketutup/hilang.
+  document.body.addEventListener('mousedown', () => {
+    if (!_qtipIsTouch()) _qtipHide();
   }, true);
+
+  // Pengaman: kalau elemen sumber sudah hilang dari DOM, atau kursor sudah gak di atas
+  // elemen ber-tooltip manapun, tooltip disembunyikan begitu mouse bergerak.
+  document.body.addEventListener('mousemove', (e) => {
+    if (!_qtipTarget || _qtipIsTouch()) return;
+    if (!_qtipTarget.isConnected || !e.target.closest('[data-tip]')) _qtipHide();
+  }, { passive: true });
+
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') _qtipHide(); });
+  window.addEventListener('blur', _qtipHide);
 
   // Mobile: gak ada hover, jadi tap pertama nampilin tooltip, tap lagi di tempat
   // yang sama nyembunyiin, tap di luar (handler click di bawah) juga nyembunyiin.
   document.body.addEventListener('touchstart', (e) => {
+    _qtipLastTouch = Date.now();
     const target = e.target.closest('[data-tip]');
     if (!target || !target.dataset.tip) return;
     const tip = _ensureQtipEl();
     const alreadyShown = tip.classList.contains('show') && tip.textContent === target.dataset.tip;
-    if (alreadyShown) {
-      tip.classList.remove('show');
-      return;
-    }
-    tip.textContent = target.dataset.tip;
-    tip.classList.remove('qtip-danger', 'qtip-success');
-    if (target.dataset.tipVariant) tip.classList.add('qtip-' + target.dataset.tipVariant);
-    tip.classList.add('show');
-    _qtipPosition(target);
+    if (alreadyShown) { _qtipHide(); return; }
+    _qtipShow(target);
   }, { passive: true });
 
   document.body.addEventListener('click', (e) => {
-    if (e.target.closest('[data-tip]')) return;
-    if (_qtipEl) _qtipEl.classList.remove('show');
+    const t = e.target.closest('[data-tip]');
+    if (!t) { _qtipHide(); return; }
+    // Tombol/link: aksinya jalan (buka modal, dll), jadi tooltip sudah gak relevan -> sembunyikan.
+    // Elemen non-interaktif di mobile dibiarkan tampil (tap = toggle tooltip).
+    const interactive = t.closest('button, a, [onclick], [role="button"]');
+    if (!_qtipIsTouch() || interactive) _qtipHide();
   }, true);
 }
 _bindQtips();

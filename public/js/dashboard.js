@@ -2606,6 +2606,26 @@ async function _initKinerjaWatch() {
 const _KW_JENIS_LIST = ['monev', 'ikk', 'spm'];
 const _KW_MAX_CONCURRENT = 4;
 
+// Batasi request /rekap/tahun yang jalan bersamaan. Sebelumnya tiap tahun x 3 jenis ditembak sekaligus
+// (semua tahun di periode + rentang grafik), sehingga banyak query berat menumpuk di Neon.
+let _kwActive = 0;
+const _kwQueue = [];
+function _kwLimit(fn) {
+  return new Promise((resolve, reject) => {
+    const run = () => {
+      _kwActive++;
+      Promise.resolve().then(fn).then(resolve, reject).finally(() => {
+        _kwActive--;
+        const next = _kwQueue.shift();
+        if (next) next();
+      });
+    };
+    if (_kwActive < _KW_MAX_CONCURRENT) run(); else _kwQueue.push(run);
+  });
+}
+// Hasil yang ada jenis-nya gagal diambil: tetap dipakai untuk tampilan, tapi TIDAK disimpan ke cache 24 jam.
+const _kwPartial = new WeakSet();
+
 const KW_REKAP_CACHE_KEY = (tahun) => `kw_rekap_${_user?.id || 'guest'}_${tahun}`;
 const KW_REKAP_CACHE_TTL = 24 * 3600 * 1000; 
 const _kwBgRefreshing = new Set(); 
@@ -2649,12 +2669,18 @@ async function _kwFetchTahunFresh(tahun) {
   const hasilPerBulan = new Map();
   for (let b = 1; b <= 12; b++) hasilPerBulan.set(b, []);
 
+  let _gagal = false;
   const hasilPerJenis = await Promise.all(
-    _KW_JENIS_LIST.map(jenis =>
-      fetch(`/api/kinerja/rekap/tahun?tahun=${tahun}&jenis=${jenis}`, { headers: authHeaders() })
-        .then(r => r.ok ? r.json() : { rekap: [] })
-        .catch(() => ({ rekap: [] }))
-    )
+    _KW_JENIS_LIST.map(jenis => _kwLimit(async () => {
+      const ctrl  = new AbortController();
+      const timer = setTimeout(() => ctrl.abort(), 40000);
+      try {
+        const r = await fetch(`/api/kinerja/rekap/tahun?tahun=${tahun}&jenis=${jenis}`, { headers: authHeaders(), signal: ctrl.signal });
+        if (!r.ok) { _gagal = true; return { rekap: [] }; }
+        return await r.json();
+      } catch { _gagal = true; return { rekap: [] }; }
+      finally { clearTimeout(timer); }
+    }))
   );
   hasilPerJenis.forEach(d => {
     (d.rekap || []).forEach(r => {
@@ -2669,6 +2695,7 @@ async function _kwFetchTahunFresh(tahun) {
     hasilPerBulan.get(b).forEach(r => { if (!merged.has(r.id)) merged.set(r.id, r); });
     result['b' + b] = Array.from(merged.values());
   }
+  if (_gagal) _kwPartial.add(result);
   return result;
 }
 
@@ -2701,6 +2728,7 @@ async function _kwFetchTahunImpl(tahun) {
     if (!_kwBgRefreshing.has(tahun)) {
       _kwBgRefreshing.add(tahun);
       _kwFetchTahunFresh(tahun).then(fresh => {
+        if (_kwPartial.has(fresh)) { _kwBgRefreshing.delete(tahun); return; }   // refresh gagal: pertahankan data cache lama
         _kwAllRekap[tahun] = fresh;
         _kwWriteRekapCache(tahun, fresh);
         _kwBgRefreshing.delete(tahun);
@@ -2713,7 +2741,7 @@ async function _kwFetchTahunImpl(tahun) {
   
   const fresh = await _kwFetchTahunFresh(tahun);
   _kwAllRekap[tahun] = fresh;
-  _kwWriteRekapCache(tahun, fresh);
+  if (!_kwPartial.has(fresh)) _kwWriteRekapCache(tahun, fresh);
 }
 
 function _invalidateKinerjaDashboardCache(tahun) {

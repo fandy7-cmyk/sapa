@@ -1458,6 +1458,7 @@ async function saveRealisasiRow(indikatorId) {
 
   if (btn) {
     btn.disabled = true;
+    btn.style.background = '#0d9488'; btn.style.color = '#fff'; btn.style.webkitTextFillColor = '#fff'; 
     btn.innerHTML = `<span class="btn-spin" style="width:11px;height:11px"></span> Menyimpan...`;
   }
   try {
@@ -3940,13 +3941,13 @@ const DUKUNG_LINK_MAX = 2000;
 function _validateDukungLink(raw, existing = []) {
   const v = String(raw || '').trim();
   if (!v) return { ok: false, msg: 'Link belum diisi.' };
-  if (/\s/.test(v)) return { ok: false, msg: 'Isi dengan link saja, bukan teks biasa (tidak boleh ada spasi).' };
+  if (/\s/.test(v)) return { ok: false, msg: 'Isi dengan link, bukan teks biasa.' };
   if (v.length > DUKUNG_LINK_MAX) return { ok: false, msg: 'Link terlalu panjang.' };
-  if (!/^https?:\/\//i.test(v)) return { ok: false, msg: 'Link harus diawali http:// atau https:// (contoh: https://drive.google.com/...).' };
+  if (!/^https?:\/\//i.test(v)) return { ok: false, msg: 'Link harus diawali https://' };
   let u;
   try { u = new URL(v); } catch { return { ok: false, msg: 'Format link tidak valid.' }; }
   if (!/^([a-z0-9]([a-z0-9-]*[a-z0-9])?\.)+[a-z]{2,}$/i.test(u.hostname)) {
-    return { ok: false, msg: 'Alamat link tidak valid (contoh: https://drive.google.com/...).' };
+    return { ok: false, msg: 'Alamat link tidak valid.' };
   }
   if (existing.some(f => f && f.url === u.href)) return { ok: false, msg: 'Link ini sudah ditambahkan.' };
   return { ok: true, url: u.href, name: u.hostname.replace(/^www\./i, '') };
@@ -4304,21 +4305,6 @@ function filterIkkTable() {
 // ikut tersimpan lewat tombol Simpan baris yang sama. Pakai <input> biasa (bukan .ps-rte)
 // supaya karakter di URL (_ * dst.) tidak diubah oleh markdown-lite.
 // jenis: 'monev' (IKU) | 'ikk' | 'spm' | 'subkeg'
-// Animasi looping petunjuk "di-share" di bawah input link: pulsa cincin yang sama dengan
-// kartu Jam Kerja di Absensi (absJamKerjaPulsa: 2.2s ease-out infinite), warna amber.
-// Disuntik sekali dari sini, tanpa ubah styles.css.
-(function () {
-  if (document.getElementById('dukungHintStyle')) return;
-  const s = document.createElement('style');
-  s.id = 'dukungHintStyle';
-  s.textContent = '@keyframes dukungHintPulsa{' +
-    '0%{box-shadow:0 0 0 0 rgba(217,119,6,.45)}' +
-    '70%{box-shadow:0 0 0 9px rgba(217,119,6,0)}' +
-    '100%{box-shadow:0 0 0 0 rgba(217,119,6,0)}}' +
-    '.dukung-inline-hint{animation:dukungHintPulsa 2.2s ease-out infinite}' +
-    '@media (prefers-reduced-motion:reduce){.dukung-inline-hint{animation:none}}';
-  document.head.appendChild(s);
-})();
 const _DK_PREFIX = { monev: '', ikk: 'ikk_', spm: 'spm_', subkeg: 'subkeg_' };
 const _DK_MARK   = { monev: 'markDirty', ikk: 'markIkkDirty', spm: 'markSpmDirty', subkeg: 'markSubkegDirty' };
 function _dkArr(jenis) {
@@ -4357,9 +4343,9 @@ function _renderDukungInlineCell(row, canEdit, jenis) {
       value="${escHtml(url)}" placeholder="Tempel link (https://...)"
       inputmode="url" autocomplete="off" spellcheck="false"
       ${locked ? 'readonly' : 'disabled'} style="display:none"
-      oninput="${_DK_MARK[jenis]}(${row.id})" onblur="_dukungSyncErr(${row.id}, '${jenis}', true)">
+      oninput="${_DK_MARK[jenis]}(${row.id});_dukungOnInput(${row.id}, '${jenis}')" onblur="_dukungSyncErr(${row.id}, '${jenis}', true)">
     <div class="dukung-inline-err" id="${p}dukungerr_${row.id}" style="display:none"></div>
-    <div class="dukung-inline-hint" id="${p}dukunghint_${row.id}" style="display:none;align-items:flex-start;gap:6px;margin-top:6px;padding:6px 10px;border-radius:8px;background:#fffbeb;border:1px solid #fde68a;font-size:.7rem;line-height:1.35;font-weight:400;color:#b45309"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;margin-top:1px"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg><span>Pastikan link sudah di-<i>share</i> agar bisa diakses.</span></div>
+    <div class="dukung-inline-status" id="${p}dukunghint_${row.id}" style="display:none"></div>
   </div>`;
 }
 
@@ -4379,7 +4365,111 @@ function _dukungInputState(indikatorId, jenis) {
 // kalau tidak ada, pakai data tersimpan.
 function _dukungHasLink(indikatorId, jenis, row) {
   const st = _dukungInputState(indikatorId, jenis);
-  return st.exists ? st.valid : !!row?.data_dukung_url;
+  if (!st.exists) return !!row?.data_dukung_url;
+  const el = document.getElementById(`${_DK_PREFIX[jenis] ?? ''}dukung_${indikatorId}`);
+  if (el && el.hasAttribute('readonly')) return st.valid;   // baris terkunci (bukan mode edit): perilaku lama
+  // Mode isi/edit: link wajib sudah terverifikasi di-share, kalau belum tombol Simpan tetap disabled
+  return st.valid && _dukungShareOk(st.url);
+}
+
+// ═══ Cek link sudah di-share (Data Dukung) ═══
+// Backend (/api/kinerja/cek-link) membuka link tanpa login. Hasil di-cache per URL; hanya
+// status 'shared' yang dipakai ulang (maks 5 menit). Selama belum 'shared' atau 'unverifiable' -> tombol Simpan disabled.
+const _DUKUNG_SHARE_TTL = 5 * 60 * 1000;
+const _dukungShareCache = new Map();   // url -> { status, ts }
+const _dukungShareTimers = {};         // `${jenis}:${id}` -> timeout debounce
+
+function _dukungShareOk(url) {
+  const e = _dukungShareCache.get(url);
+  if (!e) return false;
+  if (e.status === 'unverifiable') return true;   // host yang tidak bisa dicek otomatis (mis. Mega): Simpan tetap boleh
+  return e.status === 'shared' && (Date.now() - e.ts) < _DUKUNG_SHARE_TTL;
+}
+
+function _dukungRefreshBtn(indikatorId, jenis) {
+  if (jenis === 'ikk')         _updateIkkSaveBtnState(indikatorId);
+  else if (jenis === 'spm')    _updateSpmSaveBtnState(indikatorId);
+  else if (jenis === 'subkeg') _updateSubkegSaveBtnState(indikatorId);
+  else                         _updateSaveBtnState(indikatorId);
+}
+
+// Dipanggil tiap isi link berubah: tunggu berhenti mengetik/menempel, lalu cek.
+function _dukungOnInput(indikatorId, jenis) {
+  const key = `${jenis}:${indikatorId}`;
+  clearTimeout(_dukungShareTimers[key]);
+  const st = _dukungInputState(indikatorId, jenis);
+  if (!st.valid || _dukungShareOk(st.url)) return;
+  _dukungShareTimers[key] = setTimeout(() => _dukungCheckShare(indikatorId, jenis), 700);
+}
+
+function _dukungRecheck(indikatorId, jenis) {
+  clearTimeout(_dukungShareTimers[`${jenis}:${indikatorId}`]);
+  _dukungCheckShare(indikatorId, jenis, true);
+}
+
+async function _dukungCheckShare(indikatorId, jenis, force = false) {
+  const st = _dukungInputState(indikatorId, jenis);
+  if (!st.valid) return;
+  const url = st.url;
+  if (!force && _dukungShareOk(url)) { _dukungRefreshBtn(indikatorId, jenis); return; }
+  _dukungShareCache.set(url, { status: 'checking', ts: Date.now() });
+  _dukungRefreshBtn(indikatorId, jenis);
+  let status = 'unknown';
+  const ctrl  = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), 15000);
+  try {
+    const r = await fetch('/api/kinerja/cek-link', {
+      method: 'POST', headers: authHeaders(), body: JSON.stringify({ url }), signal: ctrl.signal,
+    });
+    const d = await r.json().catch(() => ({}));
+    status = r.ok && d.status ? d.status : 'error';
+  } catch { status = 'error'; }
+  finally { clearTimeout(timer); }
+  _dukungShareCache.set(url, { status, ts: Date.now() });
+  _dukungRefreshBtn(indikatorId, jenis);   // hitung ulang Simpan + tampilan status
+}
+
+// Pesan status di bawah input link. showFormatErr=true -> pesan format (div err) yang tampil, hint disembunyikan.
+function _dukungRenderShare(indikatorId, jenis, showFormatErr) {
+  const p    = _DK_PREFIX[jenis] ?? '';
+  const hint = document.getElementById(`${p}dukunghint_${indikatorId}`);
+  const inp  = document.getElementById(`${p}dukung_${indikatorId}`);
+  if (!hint || !inp) return;
+  if (inp.style.display === 'none' || showFormatErr) { hint.style.display = 'none'; return; }
+
+  const st = _dukungInputState(indikatorId, jenis);
+  if (!st.valid) { hint.style.display = 'none'; hint.innerHTML = ''; return; }   // belum ada link valid: tanpa notif
+  const ic = d => `<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0">${d}</svg>`;
+  const warn = ic('<path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><path d="M12 9v4"/><path d="M12 17h.01"/>');
+  const okI  = ic('<path d="M20 6 9 17l-5-5"/>');
+  const xI   = ic('<circle cx="12" cy="12" r="10"/><path d="m15 9-6 6"/><path d="m9 9 6 6"/>');
+  const spin = ic('<path d="M12 3a9 9 0 1 0 9 9" style="transform-origin:12px 12px;animation:spin .7s linear infinite"/>');
+  const btn  = `<button type="button" onclick="_dukungRecheck(${indikatorId}, '${jenis}')" data-tip="Cek ulang" aria-label="Cek ulang" style="flex-shrink:0;width:20px;height:20px;padding:0;display:inline-flex;align-items:center;justify-content:center;border-radius:6px;border:1px solid #99f6e4;background:#fff;color:#047D78;cursor:pointer"><svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" style="pointer-events:none"><path d="M21 12a9 9 0 1 1-3-6.7L21 8"/><path d="M21 3v5h-5"/></svg></button>`;
+  const base = 'display:flex;align-items:center;gap:8px;margin-top:6px;padding:6px 10px;border-radius:8px;font-size:.7rem;line-height:1.35;font-weight:400;';
+  const amber = base + 'background:#fffbeb;border:1px solid #fde68a;color:#b45309';
+  const red   = base + 'background:#fef2f2;border:1px solid #fecaca;color:#b91c1c';
+  const green = base + 'background:#ecfdf5;border:1px solid #a7f3d0;color:#047857';
+  const gray  = base + 'background:#f8fafc;border:1px solid #e2e8f0;color:#475569';
+
+  let css = amber, html;
+  const e = _dukungShareCache.get(st.url);
+  const fresh = e && (e.status !== 'shared' || (Date.now() - e.ts) < _DUKUNG_SHARE_TTL);
+  if (!fresh || e.status === 'checking') {
+    css = gray; html = `${spin}<span style="flex:1;min-width:0">Memeriksa apakah link sudah di-<i>share</i>…</span>`;
+  } else if (e.status === 'shared') {
+    css = green; html = `${okI}<span style="flex:1;min-width:0">Link sudah di-<i>share</i>.</span>`;
+  } else if (e.status === 'private') {
+    css = red; html = `${xI}<span style="flex:1;min-width:0">Link belum di-<i>share</i>. Set akses “Siapa saja yang memiliki link”.</span>${btn}`;
+  } else if (e.status === 'notfound') {
+    css = red; html = `${xI}<span style="flex:1;min-width:0">Link tidak bisa dibuka. Cek alamat & akses share.</span>${btn}`;
+  } else if (e.status === 'unverifiable') {
+    html = `${warn}<span style="flex:1;min-width:0">Link tidak bisa dicek otomatis. Pastikan bisa dibuka tanpa login.</span>`;
+  } else {
+    html = `${warn}<span style="flex:1;min-width:0">Link belum bisa diverifikasi. Coba lagi.</span>${btn}`;
+  }
+  hint.className = 'dukung-inline-status';
+  hint.style.cssText = css;
+  hint.innerHTML = html;
 }
 
 // Input link baru aktif setelah realisasi + field wajib (penghambat/solusi atau
@@ -4390,8 +4480,7 @@ function _dukungSetEnabled(indikatorId, jenis, enabled) {
   inp.disabled = !enabled;
   // Belum aktif -> field disembunyikan total; muncul setelah isian wajib terpenuhi
   inp.style.display = enabled ? '' : 'none';
-  const hint = document.getElementById(`${_DK_PREFIX[jenis] ?? ''}dukunghint_${indikatorId}`);
-  if (hint) hint.style.display = (enabled && !_dukungInputState(indikatorId, jenis).valid) ? 'flex' : 'none';
+  _dukungRenderShare(indikatorId, jenis, false);
   if (!enabled) {
     const err = document.getElementById(`${_DK_PREFIX[jenis] ?? ''}dukungerr_${indikatorId}`);
     if (err) { err.textContent = ''; err.style.display = 'none'; }
@@ -4411,8 +4500,7 @@ function _dukungSyncErr(indikatorId, jenis, showErrors) {
   err.textContent = showMsg ? (st.msg || 'Link tidak valid.') : '';
   err.style.display = showMsg ? '' : 'none';
   inp.classList.toggle('is-invalid', showMsg);
-  const hint = document.getElementById(`${p}dukunghint_${indikatorId}`);
-  if (hint) hint.style.display = (!showMsg && !st.valid && inp.style.display !== 'none') ? 'flex' : 'none';
+  _dukungRenderShare(indikatorId, jenis, showMsg);
 }
 
 // editing=true -> tampilkan input; false -> kunci & tampilkan link tersimpan
@@ -4426,6 +4514,7 @@ function _setDukungCellMode(indikatorId, jenis, editing) {
   if (editing) {
     rd.style.display = 'none';
     inp.removeAttribute('readonly');
+    if (inp.value.trim()) _dukungCheckShare(indikatorId, jenis);   // link tersimpan: pastikan masih di-share
     return;
   }
   const row = _dkArr(jenis).find(r => r.id === indikatorId);
@@ -4453,6 +4542,12 @@ function _dukungPrepareSave(indikatorId, jenis) {
     _dukungSyncErr(indikatorId, jenis, true);
     toast(st.empty ? 'Link Data Dukung wajib diisi.' : (st.msg || 'Link Data Dukung tidak valid.'), 'error');
     document.getElementById(`${_DK_PREFIX[jenis] ?? ''}dukung_${indikatorId}`)?.focus();
+    return null;
+  }
+  const _el = document.getElementById(`${_DK_PREFIX[jenis] ?? ''}dukung_${indikatorId}`);
+  if (st.exists && st.valid && _el && !_el.hasAttribute('readonly') && !_dukungShareOk(st.url)) {
+    _dukungRenderShare(indikatorId, jenis, false);
+    toast('Link Data Dukung belum di-share.', 'error');
     return null;
   }
   const saved   = _dukungFirstFile(row);
@@ -4689,7 +4784,7 @@ async function saveIkkRealisasiRow(indikatorId) {
   const _dk = _dukungPrepareSave(indikatorId, 'ikk');
   if (!_dk) return;
 
-  if (btn) { btn.disabled = true; btn.innerHTML = `<span class="btn-spin" style="width:11px;height:11px"></span> Menyimpan...`; }
+  if (btn) { btn.disabled = true; btn.style.background = '#0d9488'; btn.style.color = '#fff'; btn.style.webkitTextFillColor = '#fff'; btn.innerHTML = `<span class="btn-spin" style="width:11px;height:11px"></span> Menyimpan...`; }
   try {
     const r = await fetch('/api/kinerja/realisasi', {
       method: 'POST', headers: authHeaders(),
@@ -7137,7 +7232,7 @@ async function saveSpmRealisasiRow(indikatorId) {
   const _dk = _dukungPrepareSave(indikatorId, 'spm');
   if (!_dk) return;
 
-  if (btn) { btn.disabled = true; btn.innerHTML = `<span class="btn-spin" style="width:11px;height:11px"></span> Menyimpan...`; }
+  if (btn) { btn.disabled = true; btn.style.background = '#0d9488'; btn.style.color = '#fff'; btn.style.webkitTextFillColor = '#fff'; btn.innerHTML = `<span class="btn-spin" style="width:11px;height:11px"></span> Menyimpan...`; }
   try {
     const r = await fetch('/api/kinerja/realisasi', {
       method: 'POST', headers: authHeaders(),
@@ -7749,7 +7844,7 @@ async function saveSubkegRealisasiRow(indikatorId) {
   const _dk = _dukungPrepareSave(indikatorId, 'subkeg');
   if (!_dk) return;
 
-  if (btn) { btn.disabled = true; btn.innerHTML = `<span class="btn-spin" style="width:11px;height:11px"></span> Menyimpan...`; }
+  if (btn) { btn.disabled = true; btn.style.background = '#0d9488'; btn.style.color = '#fff'; btn.style.webkitTextFillColor = '#fff'; btn.innerHTML = `<span class="btn-spin" style="width:11px;height:11px"></span> Menyimpan...`; }
   try {
     const r = await fetch('/api/kinerja/realisasi', {
       method: 'POST', headers: authHeaders(),
