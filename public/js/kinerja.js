@@ -3803,16 +3803,18 @@ async function saveKtAddTarget() {
     .filter(x => x.val);
   if (!vals.length) { toast('Isi minimal satu target triwulan', 'error'); return; }
   try {
-    for (const { tw, val } of vals) {
+    // Semua TW dikirim sekaligus (sebelumnya 1 request per TW, berurutan)
+    const items = vals.map(({ tw, val }) => {
       const tNum = parseFloat(val.replace(/[^0-9.\-]/g, ''));
-      const r = await fetch('/api/kinerja/target', {
-        method: 'POST',
-        headers: authHeaders(),
-        body: JSON.stringify({ indikator_id: iid, tahun, triwulan: tw, target: isNaN(tNum) ? null : tNum, target_display: val }),
-      });
-      const d = await r.json();
-      if (!r.ok) { toast(d.error || `Gagal tambah target TW ${TW_ROMAWI[tw]}`, 'error'); return; }
-    }
+      return { triwulan: tw, target: isNaN(tNum) ? null : tNum, target_display: val };
+    });
+    const r = await fetch('/api/kinerja/target', {
+      method: 'POST',
+      headers: authHeaders(),
+      body: JSON.stringify({ indikator_id: iid, tahun, items }),
+    });
+    const d = await r.json();
+    if (!r.ok) { toast(d.error || 'Gagal tambah target', 'error'); return; }
     toast('Target ditambahkan');
     closeModal('modalKtAddTarget');
     loadKelolaTarget({ keepFilter: true });

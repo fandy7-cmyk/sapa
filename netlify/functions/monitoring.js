@@ -8,6 +8,26 @@ import {
 const potong = (v, n) => (v == null ? null : String(v).slice(0, n));
 const MILESTONE_NOTIF = new Set([10, 50, 100, 500, 1000]);
 
+// Statistik ringkas untuk tab Error Log & Ringkasan (tidak terpengaruh filter).
+async function statistikError(sql) {
+  try {
+    const [st, sumber, perJam, endpoint, [tot]] = await Promise.all([
+      sql`SELECT status, COUNT(*)::int AS n FROM sys_error_log GROUP BY status`,
+      sql`SELECT source, COUNT(*)::int AS n, COALESCE(SUM(occurrences),0)::int AS occ FROM sys_error_log GROUP BY source ORDER BY occ DESC`,
+      sql`SELECT (floor(extract(epoch FROM last_seen)/3600)*3600)::int AS ts, COUNT(*)::int AS n
+          FROM sys_error_log WHERE last_seen >= NOW() - INTERVAL '24 hours' GROUP BY 1 ORDER BY 1`,
+      sql`SELECT endpoint, COUNT(*)::int AS n, SUM(occurrences)::int AS occ FROM sys_error_log
+          WHERE endpoint IS NOT NULL GROUP BY endpoint ORDER BY occ DESC LIMIT 8`,
+      sql`SELECT COALESCE(SUM(occurrences),0)::int AS occ_total,
+                 COALESCE(SUM(occurrences) FILTER (WHERE last_seen >= NOW() - INTERVAL '24 hours'),0)::int AS occ_24h
+          FROM sys_error_log`,
+    ]);
+    const status = { baru: 0, dilihat: 0, selesai: 0 };
+    st.forEach(r => { status[r.status] = r.n; });
+    return { status, sumber, per_jam: perJam, endpoint, occ_total: tot.occ_total, occ_24h: tot.occ_24h };
+  } catch (e) { console.error('[statistikError]', e); return null; }
+}
+
 export const handler = async (event) => {
   if (event.httpMethod === 'OPTIONS') return jsonResponse({});
 
@@ -118,16 +138,17 @@ export const handler = async (event) => {
 
     // GET /summary  -> dipakai badge sidebar (dipanggil berkala, harus murah)
     if (m === 'GET' && seg[0] === 'summary') {
-      const [[e], st] = await Promise.all([
+      const [[e], st, hbs] = await Promise.all([
         sql`SELECT COUNT(*) FILTER (WHERE status = 'baru')::int AS baru,
                    COUNT(*) FILTER (WHERE last_seen >= NOW() - INTERVAL '24 hours')::int AS h24
             FROM sys_error_log`,
         sql`SELECT value, updated_at FROM sys_state WHERE key = 'health_status'`,
+        sql`SELECT name, last_run, ok, info FROM sys_heartbeat ORDER BY name`,
       ]);
       return jsonResponse({
         error_baru: e.baru, error_24h: e.h24,
         health: st[0]?.value || null, health_updated: st[0]?.updated_at || null,
-        telegram: telegramAktif(),
+        telegram: telegramAktif(), heartbeats: hbs,
       });
     }
 
@@ -137,16 +158,20 @@ export const handler = async (event) => {
       const limit = Math.min(50, Math.max(1, parseInt(qs.limit) || 15));
       const statusF = ['baru', 'dilihat', 'selesai'].includes(qs.status) ? qs.status : null;
       const q = `%${qs.q || ''}%`;
-      const [rows, [{ total }]] = await Promise.all([
+      const srcF = ['client', 'promise', 'api', 'network'].includes(qs.source) ? qs.source : null;
+      const [rows, [{ total }], stats] = await Promise.all([
         sql`SELECT * FROM sys_error_log
             WHERE (${statusF}::text IS NULL OR status = ${statusF}::text)
+              AND (${srcF}::text IS NULL OR source = ${srcF}::text)
               AND (message ILIKE ${q} OR COALESCE(endpoint,'') ILIKE ${q} OR COALESCE(nama,'') ILIKE ${q})
             ORDER BY last_seen DESC LIMIT ${limit} OFFSET ${(page - 1) * limit}`,
         sql`SELECT COUNT(*)::int AS total FROM sys_error_log
             WHERE (${statusF}::text IS NULL OR status = ${statusF}::text)
+              AND (${srcF}::text IS NULL OR source = ${srcF}::text)
               AND (message ILIKE ${q} OR COALESCE(endpoint,'') ILIKE ${q} OR COALESCE(nama,'') ILIKE ${q})`,
+        statistikError(sql),
       ]);
-      return jsonResponse({ errors: rows, total, page, limit });
+      return jsonResponse({ errors: rows, total, page, limit, stats });
     }
 
     // POST /errors/mark-all   body: { dari: 'baru', ke: 'dilihat' }
@@ -170,7 +195,8 @@ export const handler = async (event) => {
     // GET /performance?jam=24
     if (m === 'GET' && seg[0] === 'performance') {
       const jam = Math.min(168, Math.max(1, parseInt(qs.jam) || 24));
-      const [rows, [tot]] = await Promise.all([
+      const bucket = jam <= 1 ? 300 : jam <= 6 ? 1800 : jam <= 24 ? 3600 : jam <= 72 ? 10800 : 21600;
+      const [rows, [tot], series, kelas, [kec]] = await Promise.all([
         sql`SELECT endpoint,
                    COUNT(*)::int AS n,
                    ROUND(AVG(duration_ms))::int AS avg_ms,
@@ -184,14 +210,33 @@ export const handler = async (event) => {
                    COALESCE(ROUND(AVG(duration_ms))::int, 0) AS avg_ms,
                    COALESCE(ROUND(percentile_cont(0.95) WITHIN GROUP (ORDER BY duration_ms))::int, 0) AS p95_ms
             FROM sys_perf_log WHERE created_at >= NOW() - (${jam}::int * INTERVAL '1 hour')`,
+        sql`SELECT (floor(extract(epoch FROM created_at)/${bucket})*${bucket})::int AS ts,
+                   COUNT(*)::int AS n,
+                   ROUND(AVG(duration_ms))::int AS avg_ms,
+                   ROUND(percentile_cont(0.95) WITHIN GROUP (ORDER BY duration_ms))::int AS p95_ms,
+                   COUNT(*) FILTER (WHERE status >= 500 OR status = 0)::int AS n_error
+            FROM sys_perf_log WHERE created_at >= NOW() - (${jam}::int * INTERVAL '1 hour')
+            GROUP BY 1 ORDER BY 1`,
+        sql`SELECT CASE WHEN status = 0 THEN 'gagal' WHEN status < 300 THEN '2xx' WHEN status < 400 THEN '3xx'
+                        WHEN status < 500 THEN '4xx' ELSE '5xx' END AS kelas, COUNT(*)::int AS n
+            FROM sys_perf_log WHERE created_at >= NOW() - (${jam}::int * INTERVAL '1 hour')
+            GROUP BY 1 ORDER BY 1`,
+        sql`SELECT COUNT(*) FILTER (WHERE duration_ms < 300)::int AS cepat,
+                   COUNT(*) FILTER (WHERE duration_ms >= 300 AND duration_ms < 800)::int AS sedang,
+                   COUNT(*) FILTER (WHERE duration_ms >= 800 AND duration_ms < 2000)::int AS lambat,
+                   COUNT(*) FILTER (WHERE duration_ms >= 2000)::int AS kritis,
+                   COALESCE(MAX(duration_ms),0)::int AS max_ms,
+                   COUNT(*) FILTER (WHERE status >= 500 OR status = 0)::int AS n_error
+            FROM sys_perf_log WHERE created_at >= NOW() - (${jam}::int * INTERVAL '1 hour')`,
       ]);
-      return jsonResponse({ jam, total: tot, endpoints: rows });
+      const { max_ms, n_error, ...kecepatan } = kec;
+      return jsonResponse({ jam, bucket_detik: bucket, total: { ...tot, max_ms, n_error }, endpoints: rows, series, status_kelas: kelas, kecepatan });
     }
 
     // GET /usage?hari=7
     if (m === 'GET' && seg[0] === 'usage') {
       const hari = Math.min(30, Math.max(1, parseInt(qs.hari) || 7));
-      const [perSeg, perJam, aktif, [u24]] = await Promise.all([
+      const [perSeg, perJam, aktif, [u24], harian, userTop, [per]] = await Promise.all([
         sql`SELECT split_part(endpoint, '/', 3) AS seg, user_id, COUNT(*)::int AS n
             FROM sys_perf_log
             WHERE created_at >= NOW() - (${hari}::int * INTERVAL '1 day') AND user_id IS NOT NULL
@@ -206,6 +251,16 @@ export const handler = async (event) => {
             WHERE p.created_at >= NOW() - INTERVAL '15 minutes' AND p.user_id IS NOT NULL
             GROUP BY p.user_id ORDER BY terakhir DESC LIMIT 12`,
         sql`SELECT COUNT(DISTINCT user_id)::int AS n FROM sys_perf_log WHERE created_at >= NOW() - INTERVAL '24 hours'`,
+        sql`SELECT to_char(created_at AT TIME ZONE 'Asia/Makassar', 'YYYY-MM-DD') AS hari,
+                   COUNT(*)::int AS n, COUNT(DISTINCT user_id)::int AS u
+            FROM sys_perf_log WHERE created_at >= NOW() - (${hari}::int * INTERVAL '1 day')
+            GROUP BY 1 ORDER BY 1`,
+        sql`SELECT p.user_id, MAX(u.nama) AS nama, COUNT(*)::int AS hits, MAX(p.created_at) AS terakhir
+            FROM sys_perf_log p LEFT JOIN users u ON u.id::text = p.user_id
+            WHERE p.created_at >= NOW() - (${hari}::int * INTERVAL '1 day') AND p.user_id IS NOT NULL
+            GROUP BY p.user_id ORDER BY hits DESC LIMIT 8`,
+        sql`SELECT COUNT(DISTINCT user_id)::int AS n, COUNT(*)::int AS hits FROM sys_perf_log
+            WHERE created_at >= NOW() - (${hari}::int * INTERVAL '1 day') AND user_id IS NOT NULL`,
       ]);
       const modul = new Map();
       for (const r of perSeg) {
@@ -216,12 +271,15 @@ export const handler = async (event) => {
       const daftarModul = [...modul.values()]
         .map(o => ({ modul: o.modul, hits: o.hits, pengguna: o.users.size }))
         .sort((a, b) => b.hits - a.hits);
-      return jsonResponse({ hari, pengguna_24h: u24.n, aktif_sekarang: aktif, modul: daftarModul, per_jam: perJam });
+      return jsonResponse({
+        hari, pengguna_24h: u24.n, aktif_sekarang: aktif, modul: daftarModul, per_jam: perJam,
+        harian, pengguna_top: userTop, pengguna_periode: per.n, total_hits: per.hits,
+      });
     }
 
     // GET /security
     if (m === 'GET' && seg[0] === 'security') {
-      const [ringkas, terbaru] = await Promise.all([
+      const [ringkas, terbaru, harian, ipTop, akunTop] = await Promise.all([
         sql`SELECT aksi,
                    COUNT(*) FILTER (WHERE created_at >= NOW() - INTERVAL '24 hours')::int AS h24,
                    COUNT(*)::int AS h7
@@ -233,8 +291,23 @@ export const handler = async (event) => {
             FROM audit_log
             WHERE aksi IN ('login_failed','login_blocked','refresh_token_reuse_detected')
             ORDER BY created_at DESC LIMIT 100`,
+        sql`SELECT to_char(created_at AT TIME ZONE 'Asia/Makassar', 'YYYY-MM-DD') AS hari, aksi, COUNT(*)::int AS n
+            FROM audit_log
+            WHERE created_at >= NOW() - INTERVAL '7 days'
+              AND aksi IN ('login_failed','login_blocked','refresh_token_reuse_detected')
+            GROUP BY 1, 2`,
+        sql`SELECT ip_address AS ip, COUNT(*)::int AS n, MAX(created_at) AS terakhir
+            FROM audit_log
+            WHERE created_at >= NOW() - INTERVAL '7 days' AND ip_address IS NOT NULL
+              AND aksi IN ('login_failed','login_blocked','refresh_token_reuse_detected')
+            GROUP BY 1 ORDER BY n DESC LIMIT 6`,
+        sql`SELECT COALESCE(email, nama) AS akun, COUNT(*)::int AS n, MAX(created_at) AS terakhir
+            FROM audit_log
+            WHERE created_at >= NOW() - INTERVAL '7 days' AND COALESCE(email, nama) IS NOT NULL
+              AND aksi IN ('login_failed','login_blocked','refresh_token_reuse_detected')
+            GROUP BY 1 ORDER BY n DESC LIMIT 6`,
       ]);
-      return jsonResponse({ ringkasan: ringkas, terbaru });
+      return jsonResponse({ ringkasan: ringkas, terbaru, harian, ip_top: ipTop, akun_top: akunTop });
     }
 
     // POST /test-notif

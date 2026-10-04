@@ -1777,6 +1777,153 @@ function _lapEnsureSubkegOption() {
   sel.appendChild(opt);
 }
 
+// ===== Cache rekap Laporan Kinerja =====
+// Hasil /rekap-batch disimpan per (user, tahun, jenis, bulan) selama beberapa menit, jadi ganti
+// filter Jenis / Scope / rentang periode yang datanya sudah pernah diambil tidak nembak server lagi.
+// Request yang masih jalan juga dipakai bersama (tidak dobel). Cache dikosongkan otomatis setiap ada
+// POST/PUT/DELETE ke /api/kinerja/* atau penugasan indikator user (lihat hook fetch di bawah).
+const _LAP_REKAP_TTL = 3 * 60 * 1000;
+const _lapRekapCache = new Map();   // key -> { t, rows } | { promise }
+let _lapRekapGen = 0;
+
+function _lapRekapKey(tahun, jenis, bulan) {
+  const uid = (typeof _user !== 'undefined' && _user && _user.id) || '';
+  return `${uid}|${tahun}|${jenis}|${bulan}`;
+}
+
+function _lapInvalidateRekapCache() {
+  _lapRekapGen++;
+  _lapRekapCache.clear();
+}
+
+(function _lapHookFetchInvalidate() {
+  if (window._lapFetchHooked) return;
+  window._lapFetchHooked = true;
+  const origFetch = window.fetch.bind(window);
+  window.fetch = function (input, init) {
+    const p = origFetch(input, init);
+    try {
+      const method = String((init && init.method) || (input && input.method) || 'GET').toUpperCase();
+      const url = typeof input === 'string' ? input : ((input && input.url) || '');
+      if (method !== 'GET' && /\/api\/kinerja\/|\/api\/users\/[^/]+\/indikator/.test(url)) {
+        p.then(_lapInvalidateRekapCache, () => {});
+      }
+    } catch (_) {}
+    return p;
+  };
+})();
+
+// Satu request batch (backend /rekap-batch). Kalau gagal (mis. backend lama belum di-deploy),
+// jatuh kembali ke satu request per jenis x bulan. Kombinasi yang gagal TIDAK dimasukkan ke hasil.
+async function _lapFetchRekapBatch(tahun, bulanList, jenisList) {
+  const hasil = {};
+  const set = (j, b, rows) => { (hasil[j] = hasil[j] || {})[b] = rows; };
+  try {
+    const r = await fetch(
+      `/api/kinerja/rekap-batch?tahun=${tahun}&bulan=${bulanList.join(',')}&jenis=${jenisList.join(',')}&scope=bidang`,
+      { headers: authHeaders() });
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    const d = await r.json();
+    if (!d.hasil) throw new Error('format batch tidak dikenal');
+    if (d.galat && d.galat.length) console.warn('[laporan kinerja batch] sebagian gagal:', d.galat);
+    const gagal = new Set((d.galat || []).map(g => `${g.jenis}|${g.bulan}`));
+    jenisList.forEach(j => bulanList.forEach(b => {
+      if (!gagal.has(`${j}|${b}`)) set(j, b, (d.hasil[j] && d.hasil[j][b]) || []);
+    }));
+  } catch (e) {
+    console.warn('[laporan kinerja] batch gagal, pakai request satuan:', e.message);
+    await Promise.all(jenisList.flatMap(j => bulanList.map(async b => {
+      try {
+        const r = await fetch(`/api/kinerja/rekap?bulan=${b}&tahun=${tahun}&jenis=${j}&scope=bidang`, { headers: authHeaders() });
+        if (!r.ok) return;
+        const d = await r.json();
+        set(j, b, d.rekap || []);
+      } catch (_) {}
+    })));
+  }
+  return hasil;
+}
+
+// Return { [jenis]: { [bulan]: rows[] } }. Yang sudah di cache (belum kedaluwarsa) atau sedang
+// diambil dipakai ulang; sisanya diminta dalam satu batch.
+async function _lapGetRekap(tahun, bulanList, jenisList) {
+  const out = {};
+  const put = (j, b, rows) => { (out[j] = out[j] || {})[b] = rows || []; };
+  const waits = [];
+  const missing = [];
+  const now = Date.now();
+
+  jenisList.forEach(j => bulanList.forEach(b => {
+    const e = _lapRekapCache.get(_lapRekapKey(tahun, j, b));
+    if (e && e.rows && now - e.t < _LAP_REKAP_TTL) { put(j, b, e.rows); return; }
+    if (e && e.promise) { waits.push(e.promise.then(rows => put(j, b, rows))); return; }
+    missing.push([j, b]);
+  }));
+
+  if (missing.length) {
+    const gen = _lapRekapGen;
+    const jM = [...new Set(missing.map(m => m[0]))];
+    const bM = [...new Set(missing.map(m => m[1]))];
+    const batch = _lapFetchRekapBatch(tahun, bM, jM);
+    missing.forEach(([j, b]) => {
+      const key = _lapRekapKey(tahun, j, b);
+      const promise = batch.then(h => {
+        const rows = (h[j] && h[j][b]) || null;      // null = gagal, jangan di-cache
+        const cur = _lapRekapCache.get(key);
+        if (cur && cur.promise === promise) {
+          if (rows && gen === _lapRekapGen) _lapRekapCache.set(key, { t: Date.now(), rows });
+          else _lapRekapCache.delete(key);
+        }
+        return rows;
+      });
+      _lapRekapCache.set(key, { promise });
+      waits.push(promise.then(rows => put(j, b, rows)));
+    });
+  }
+
+  await Promise.all(waits);
+  return out;
+}
+
+function _lapBulanList(bulanDari, bulanSampai) {
+  // Isian kinerja hanya ada di akhir triwulan (bulan 3/6/9/12), jadi cukup ambil bulan itu
+  // yang masuk rentang terpilih - bukan 12 bulan (8 di antaranya selalu kosong).
+  let list = [3, 6, 9, 12].filter(b => b >= bulanDari && b <= bulanSampai);
+  if (!list.includes(bulanSampai)) list.push(bulanSampai);
+  return [...new Set(list)].sort((a, b) => a - b);
+}
+
+function _lapJenisParams(jenis) {
+  const jp = [];
+  if (jenis === 'semua' || jenis === 'kinerja') jp.push('monev');
+  if (jenis === 'semua' || jenis === 'ikk')     jp.push('ikk');
+  if (jenis === 'semua' || jenis === 'spm')     jp.push('spm');
+  if (jenis === 'semua' || jenis === 'subkeg')  jp.push('subkeg');
+  return jp;
+}
+
+// Mulai ambil data SEBELUM filter periode (fetch /periode) selesai, selama rentang sudah diketahui
+// (dipilih sebelumnya / tersimpan di localStorage). Kalau tebakan rentang ternyata beda setelah filter
+// siap, hanya request ekstra - hasil akhir tetap dari rentang yang benar.
+function _lapPrefetchKinerja() {
+  try {
+    let from = _lapRangeFrom, to = _lapRangeTo;
+    if (!from || !to) {
+      const raw = localStorage.getItem(_LAP_RANGE_LS_KEY);
+      const sv = raw ? JSON.parse(raw) : null;
+      const re = /^(\d{4})-(0[1-9]|1[0-2])$/;
+      const mf = sv && re.exec(sv.from || ''), mt = sv && re.exec(sv.to || '');
+      if (!mf || !mt || (+mf[1]) * 100 + (+mf[2]) > (+mt[1]) * 100 + (+mt[2])) return;
+      from = { tahun: +mf[1], bulan: +mf[2] };
+      to   = { tahun: +mt[1], bulan: +mt[2] };
+    }
+    const jenis = document.getElementById('laporanKinerjaJenis')?.value || 'semua';
+    const jp = _lapJenisParams(jenis);
+    if (!jp.length) return;
+    _lapGetRekap(from.tahun, _lapBulanList(from.bulan, to.bulan), jp).catch(() => {});
+  } catch (_) {}
+}
+
 async function loadLaporanKinerja() {
   _showLaporanLoading();
   _lapEnsureSubkegOption();
@@ -1793,6 +1940,8 @@ async function loadLaporanKinerja() {
     const b = document.getElementById(id);
     if (b) b.style.display = _lapIsAdm ? 'inline-flex' : 'none';
   });
+  // Data rekap mulai diambil bersamaan dengan filter periode (kalau rentang sudah diketahui)
+  _lapPrefetchKinerja();
   // Dua langkah ini saling lepas, jadi jalan bersamaan
   await Promise.all([
     _initLaporanKinerjaFilter(),
@@ -1805,35 +1954,17 @@ async function loadLaporanKinerja() {
   const bulanPelaporan = bulanSampai;
   const jenis          = document.getElementById('laporanKinerjaJenis')?.value || 'semua';
 
-  // Isian kinerja hanya ada di akhir triwulan (bulan 3/6/9/12), jadi cukup ambil bulan itu
-  // yang masuk rentang terpilih - bukan 12 bulan (8 di antaranya selalu kosong).
-  let bulanList = [3, 6, 9, 12].filter(b => b >= bulanDari && b <= bulanSampai);
-  if (!bulanList.includes(bulanSampai)) bulanList.push(bulanSampai);
-  bulanList = [...new Set(bulanList)].sort((a, b) => a - b);
+  const bulanList = _lapBulanList(bulanDari, bulanSampai);
 
-  const fetchBulan = async (b, jenisParam) => {
-    try {
-      const r = await fetch(`/api/kinerja/rekap?bulan=${b}&tahun=${tahun}&jenis=${jenisParam}&scope=bidang`, { headers: authHeaders() });
-      if (!r.ok) return [];
-      const d = await r.json();
-      return (d.rekap || []).map(row => ({ ...row, _bulan: b }));
-    } catch { return []; }
-  };
-
-  
   const allBulanData = {};
 
-  const jenisParams = [];
-  if (jenis === 'semua' || jenis === 'kinerja') jenisParams.push('monev');
-  if (jenis === 'semua' || jenis === 'ikk')     jenisParams.push('ikk');
-  if (jenis === 'semua' || jenis === 'spm')     jenisParams.push('spm');
-  if (jenis === 'semua' || jenis === 'subkeg')  jenisParams.push('subkeg');
+  const jenisParams = _lapJenisParams(jenis);
 
-  // Semua jenis x bulan ditembak sekaligus (sebelumnya berurutan per jenis). Hasil tetap diolah
-  // sesuai urutan jenis supaya penentuan _jenis untuk indikator ganda tidak berubah.
-  const hasilPerJenis = await Promise.all(
-    jenisParams.map(jp => Promise.all(bulanList.map(b => fetchBulan(b, jp))))
-  );
+  // Semua jenis x bulan diambil lewat satu batch (dengan cache). Hasil tetap diolah sesuai urutan
+  // jenis supaya penentuan _jenis untuk indikator ganda tidak berubah.
+  const hasilRekap = await _lapGetRekap(tahun, bulanList, jenisParams);
+  const hasilPerJenis = jenisParams.map(jp =>
+    bulanList.map(b => ((hasilRekap[jp] && hasilRekap[jp][b]) || []).map(row => ({ ...row, _bulan: b }))));
 
   jenisParams.forEach((jenisParam, jIdx) => {
     const results = hasilPerJenis[jIdx];
@@ -2958,7 +3089,7 @@ async function downloadLaporanByPengukuran(btnEl) {
     // ---- target per triwulan (TW 1-4) dari Master Target ----
     const tgtMap = {}; // indikator_id -> { 1: {d, n}, 2: ..., 3: ..., 4: ... }
     try {
-      const rt = await fetch('/api/kinerja/target?all=1', { headers: authHeaders() });
+      const rt = await fetch(`/api/kinerja/target?all=1&tahun=${encodeURIComponent(tahun)}`, { headers: authHeaders() });
       if (rt.ok) {
         const dt = await rt.json();
         (dt.target || []).forEach(t => {
