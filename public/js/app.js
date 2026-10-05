@@ -75,7 +75,7 @@ function initAuth() {
     sessionStorage.removeItem('sapa_user');
   }
   if (!_token || !_user) { window.location.replace('/login.html'); return false; }
-  document.body.classList.toggle('is-admin', !!_user.is_admin);
+  _syncRoleBodyClasses();
 
   
   if (_isTokenExpired(_token)) {
@@ -256,6 +256,14 @@ function hasAccess(key) {
 // Admin Kinerja: Super Admin ATAU user dengan permission 'kinerja.full' (setara admin di modul kinerja).
 function _isKinerjaAdmin() {
   return !!(_user && (_user.is_admin || (Array.isArray(_user.permissions) && _user.permissions.includes('kinerja.full'))));
+}
+
+// Sinkronkan class role di <body> (dipakai CSS, mis. sembunyikan tombol khusus admin kinerja).
+// Dipanggil saat auth awal DAN setiap kali permissions berubah setelah sync dari server.
+function _syncRoleBodyClasses() {
+  if (!_user) return;
+  document.body.classList.toggle('is-admin', !!_user.is_admin);
+  document.body.classList.toggle('is-kinerja-admin', _isKinerjaAdmin());
 }
 
 // Akun pimpinan hanya-lihat: pantau unit kerja sendiri (kinerja.pantau) atau semua unit (kinerja.pantau.semua).
@@ -1502,6 +1510,7 @@ async function _bootRefreshTandaTangan() {
           if (_permLama !== _permBaru) {
             _user.permissions = d.user.permissions || [];
             sessionStorage.setItem('sapa_user', JSON.stringify(_user));
+            _syncRoleBodyClasses();
           }
           if (berubah) {
             _user.jabatan          = jabatanBaru;

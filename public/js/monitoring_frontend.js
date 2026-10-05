@@ -232,7 +232,7 @@
   ];
   let monTab = 'ringkasan';
   let monErrPage = 1;
-  const MON_ERR_LIMIT = 12;
+  const MON_ERR_LIMIT = 5;
   let monErrTimer = null;
   const TZ = 'Asia/Makassar';
 
@@ -489,7 +489,7 @@
   const monFixSoon = () => { cancelAnimationFrame(monFixRaf); monFixRaf = requestAnimationFrame(monFixText); };
   window.addEventListener('resize', monFixSoon);
 
-  const MON_PER = 10;
+  const MON_PER = 5;
   function monPaged(items, rowFn, bodyId, pagId, kosong) {
     const draw = (p) => {
       const el = document.getElementById(bodyId); if (!el) return;
@@ -498,6 +498,7 @@
     };
     draw(1);
   }
+  const monPagedHb = (items, bodyId, pagId, kosong) => monPaged(items, i => hbars([i]), bodyId, pagId, `<div class="mon-empty">${kosong}</div>`);
   const secAmbil = (sec, a) => (sec && sec.ringkasan && sec.ringkasan.find(r => r.aksi === a)) || { h24: 0, h7: 0 };
 
   /* ── Ringkasan ── */
@@ -508,7 +509,7 @@
         monGet('/api/health?detail=1').catch(() => null),
         monGet(MON + '/performance?jam=24'),
         monGet(MON + '/usage?hari=1'),
-        monGet(MON + '/errors?limit=5&status=baru').catch(() => null),
+        monGet(MON + '/errors?limit=25&status=baru').catch(() => null),
         monGet(MON + '/security').catch(() => null),
       ]);
       if (monTab !== 'ringkasan' || !body$()) return;
@@ -540,14 +541,19 @@
           ${panel('Waktu respons', 'p95 dan rata-rata per jam, dalam milidetik', areaChart({ labels: lbl, series: [{ name: 'p95', color: PAL.warn, values: ser.map(r => r.p95_ms) }, { name: 'Rata-rata', color: PAL.info, values: ser.map(r => r.avg_ms), dash: true }], fmt: fmtMs, afmt: axMs }) + legend([[PAL.warn, 'p95'], [PAL.info, 'Rata-rata']]))}
         </div>
         <div class="mon-cols wide">
-          ${panel('Endpoint paling lambat', '5 teratas berdasarkan p95', hbars((perf.endpoints || []).slice(0, 5).map(e => ({ label: e.endpoint, value: e.p95_ms, max: Math.max(1, ...(perf.endpoints || []).map(x => x.p95_ms)), color: colP95(e.p95_ms), right: badgeP95(e.p95_ms), sub: `${nf(e.n)} permintaan, rata-rata ${fmtMs(e.avg_ms)}${e.n_error ? `, ${e.n_error} gagal` : ''}` })), 'Belum ada data performa. Data terkumpul saat pengguna memakai aplikasi.'))}
+          ${panel('Endpoint paling lambat', 'Berdasarkan p95', '<div id="monRkEpBody"></div><div id="monRkEpPagination"></div>')}
           ${panel('Error menurut sumber', 'Semua error yang tercatat', eStat && eStat.sumber && eStat.sumber.length ? donut(eStat.sumber.map(s => ({ label: SRC[s.source] || s.source, value: s.n, color: SRC_COL[s.source] || PAL.abu })), nf(eStat.sumber.reduce((a, s) => a + s.n, 0)), 'jenis error') : '<div class="mon-empty">Belum ada error tercatat</div>')}
         </div>
         <div class="mon-cols">
-          ${panel('Error baru terbaru', 'Klik untuk membuka Error Log', (errs && errs.errors && errs.errors.length) ? errs.errors.map(e => `<div class="mon-feed" onclick="monPilihTab('error')"><span class="mon-src" style="--c:${SRC_COL[e.source] || PAL.abu}">${monEsc(SRC[e.source] || e.source)}</span><div class="mon-feed-b"><div class="mon-feed-m">${monEsc(e.message)}</div><div class="mon-row-sub">${e.endpoint ? monEsc(e.endpoint) + ' · ' : ''}${e.occurrences}x · ${fmtAgo(e.last_seen)}</div></div></div>`).join('') : '<div class="mon-empty">Tidak ada error baru</div>')}
-          ${hl ? panel('Pemeriksaan kesehatan', 'Dicek barusan', hl.checks.map(rowCek).join('')) : panel('Pemeriksaan kesehatan', '', '<div class="mon-empty">Tidak dapat memeriksa kesehatan saat ini</div>')}
-          ${panel('Sedang aktif', '15 menit terakhir', aktif.length ? aktif.map(a => `<div class="mon-user"><span class="mon-av">${monEsc(inisial(a.nama))}</span><div><div class="mon-user-n">${monEsc(a.nama || ('ID ' + a.user_id))}</div><div class="mon-row-sub">${fmtAgo(a.terakhir)}</div></div></div>`).join('') : '<div class="mon-empty">Tidak ada pengguna aktif</div>')}
+          ${panel('Error baru terbaru', 'Klik untuk membuka Error Log', '<div id="monRkErrBody"></div><div id="monRkErrPagination"></div>')}
+          ${hl ? panel('Pemeriksaan kesehatan', 'Dicek barusan', '<div id="monRkCekBody"></div><div id="monRkCekPagination"></div>') : panel('Pemeriksaan kesehatan', '', '<div class="mon-empty">Tidak dapat memeriksa kesehatan saat ini</div>')}
+          ${panel('Sedang aktif', '15 menit terakhir', '<div id="monRkAktifBody"></div><div id="monRkAktifPagination"></div>')}
         </div>`;
+      monPaged((errs && errs.errors) || [], e => `<div class="mon-feed" onclick="monPilihTab('error')"><span class="mon-src" style="--c:${SRC_COL[e.source] || PAL.abu}">${monEsc(SRC[e.source] || e.source)}</span><div class="mon-feed-b"><div class="mon-feed-m">${monEsc(e.message)}</div><div class="mon-row-sub">${e.endpoint ? monEsc(e.endpoint) + ' · ' : ''}${e.occurrences}x · ${fmtAgo(e.last_seen)}</div></div></div>`, 'monRkErrBody', 'monRkErrPagination', '<div class="mon-empty">Tidak ada error baru</div>');
+      const epAll = perf.endpoints || [], epMax = Math.max(1, ...epAll.map(x => x.p95_ms));
+      monPagedHb(epAll.map(e => ({ label: e.endpoint, value: e.p95_ms, max: epMax, color: colP95(e.p95_ms), right: badgeP95(e.p95_ms), sub: `${nf(e.n)} permintaan, rata-rata ${fmtMs(e.avg_ms)}${e.n_error ? `, ${e.n_error} gagal` : ''}` })), 'monRkEpBody', 'monRkEpPagination', 'Belum ada data performa. Data terkumpul saat pengguna memakai aplikasi.');
+      if (hl) monPaged(hl.checks, rowCek, 'monRkCekBody', 'monRkCekPagination', '<div class="mon-empty">Belum ada data</div>');
+      monPaged(aktif, a => `<div class="mon-user"><span class="mon-av">${monEsc(inisial(a.nama))}</span><div><div class="mon-user-n">${monEsc(a.nama || ('ID ' + a.user_id))}</div><div class="mon-row-sub">${fmtAgo(a.terakhir)}</div></div></div>`, 'monRkAktifBody', 'monRkAktifPagination', '<div class="mon-empty">Tidak ada pengguna aktif</div>');
     } catch (e) { if (body$()) body$().innerHTML = gagal(e); }
   }
 
@@ -557,7 +563,7 @@
     const sj = fillSeries(s.per_jam, 24, 3600);
     const stt = s.status || {};
     const lbl = sj.map(r => jam24(r.ts));
-    const top = (s.endpoint || []).slice(0, 5);
+    const top = s.endpoint || [];
     const maxO = Math.max(1, ...top.map(x => x.occ));
     el.innerHTML = `
       <div class="mon-kpis">
@@ -569,8 +575,9 @@
       <div class="mon-cols">
         ${panel('Error aktif per jam', 'Dihitung dari kemunculan terakhir tiap error', barChart({ labels: lbl, values: sj.map(r => r.n), color: PAL.bad, h: 150 }))}
         ${panel('Menurut sumber', 'Siapa yang melaporkan', (s.sumber || []).length ? donut(s.sumber.map(x => ({ label: SRC[x.source] || x.source, value: x.occ, color: SRC_COL[x.source] || PAL.abu })), nf(s.occ_total), 'kejadian') : '<div class="mon-empty">Belum ada data</div>')}
-        ${panel('Endpoint paling bermasalah', 'Berdasarkan jumlah kejadian', hbars(top.map(x => ({ label: x.endpoint, value: x.occ, max: maxO, color: PAL.bad, right: nf(x.occ) + 'x', sub: `${x.n} jenis error` })), 'Tidak ada error dari endpoint API'))}
+        ${panel('Endpoint paling bermasalah', 'Berdasarkan jumlah kejadian', '<div id="monErrEpBody"></div><div id="monErrEpPagination"></div>')}
       </div>`;
+    monPagedHb(top.map(x => ({ label: x.endpoint, value: x.occ, max: maxO, color: PAL.bad, right: nf(x.occ) + 'x', sub: `${x.n} jenis error` })), 'monErrEpBody', 'monErrEpPagination', 'Tidak ada error dari endpoint API');
   }
 
   async function tabError() {
@@ -757,11 +764,12 @@
           </div>`;
         }).join('')}</div>
         <div class="mon-cols">
-          ${panel('Tugas terjadwal', 'Denyut terakhir tiap cron', hbs.length ? hbs.map(x => `<div class="mon-row"><div><div style="font-weight:600">${monEsc(HB_NAMA[x.name] || x.name)}</div><div class="mon-row-sub">${fmtAgo(x.last_run)} (${fmtWaktu(x.last_run)})${x.info ? ' · ' + monEsc(x.info) : ''}</div></div><span class="badge ${x.ok ? 'badge-hijau' : 'badge-merah'}">${x.ok ? 'Berhasil' : 'Gagal'}</span></div>`).join('') : '<div class="mon-empty">Belum ada cron yang tercatat</div>', `<button class="btn btn-sm btn-outline-hijau" onclick="monPilihTab('kesehatan')">Cek ulang</button>`)}
+          ${panel('Tugas terjadwal', 'Denyut terakhir tiap cron', '<div id="monHbBody"></div><div id="monHbPagination"></div>', `<button class="btn btn-sm btn-outline-hijau" onclick="monPilihTab('kesehatan')">Cek ulang</button>`)}
           ${panel('Kesiapan sistem', `${todo.filter(t => t[0]).length} dari ${todo.length} siap`, todo.map(([v, a, b]) => `<div class="mon-todo t-${ok(v)}"><span class="mon-dot">${v ? '✓' : '!'}</span><div><div style="font-weight:600">${a}</div>${v ? '' : `<div class="mon-row-sub">${b}</div>`}</div></div>`).join(''))}
           ${panel('Notifikasi Telegram', '', tg ? `<span class="badge badge-hijau">Aktif</span><div class="mon-muted" style="margin-top:8px">Admin dikabari saat ada error baru, error yang berulang, dan saat status sistem berubah.</div><div style="margin-top:var(--sp-4)"><button class="btn btn-sm btn-outline-hijau" onclick="monTesNotif()">Kirim pesan tes</button></div>` : `<span class="badge badge-abu">Belum aktif</span><div class="mon-muted" style="margin-top:8px">Isi environment variable <b>TELEGRAM_BOT_TOKEN</b> (dari @BotFather) dan <b>TELEGRAM_CHAT_ID</b> (ID chat/grup tujuan), lalu restart.</div>`)}
         </div>
         ${panel('Uptime monitor eksternal', 'Untuk UptimeRobot atau sejenisnya', `<div class="mon-code"><code id="monHealthUrl">${monEsc(location.origin)}/api/health</code><button class="btn btn-sm btn-outline-hijau" onclick="monSalin()">Salin</button></div><div class="mon-muted" style="margin-top:8px">Publik, hanya mengecek database. Mengembalikan 503 jika database mati.</div>`)}`;
+      monPaged(hbs, x => `<div class="mon-row"><div><div style="font-weight:600">${monEsc(HB_NAMA[x.name] || x.name)}</div><div class="mon-row-sub">${fmtAgo(x.last_run)} (${fmtWaktu(x.last_run)})${x.info ? ' · ' + monEsc(x.info) : ''}</div></div><span class="badge ${x.ok ? 'badge-hijau' : 'badge-merah'}">${x.ok ? 'Berhasil' : 'Gagal'}</span></div>`, 'monHbBody', 'monHbPagination', '<div class="mon-empty">Belum ada cron yang tercatat</div>');
     } catch (e) { if (body$()) body$().innerHTML = gagal(e); }
   }
   window.monSalin = function () {
@@ -816,10 +824,12 @@
         ${hari > 1 ? panel('Jam sibuk (WITA)', 'Akumulasi seluruh hari dalam rentang. Sorotan kuning menandai puncak.', barChart({ labels: jam.map(x => String(x.jam).padStart(2, '0')), values: jam.map(x => x.n), color: PAL.teal, h: 150, hi: puncak, unit: 'permintaan' })) : ''}
         <div class="mon-cols wide">
           ${panel('Modul paling sering dipakai', `${d.modul.length} modul`, '<div id="monModulBody"></div><div id="monModulPagination"></div>')}
-          ${panel('Pengguna paling aktif', `Dalam ${hari === 1 ? '24 jam' : hari + ' hari'}`, (d.pengguna_top || []).length ? hbars(d.pengguna_top.map(u => ({ label: u.nama || ('ID ' + u.user_id), value: u.hits, max: d.pengguna_top[0].hits, color: PAL.info, right: nf(u.hits) + ' permintaan', sub: 'Terakhir ' + fmtAgo(u.terakhir) }))) : '<div class="mon-empty">Belum ada data</div>')}
+          ${panel('Pengguna paling aktif', `Dalam ${hari === 1 ? '24 jam' : hari + ' hari'}`, '<div id="monTopUBody"></div><div id="monTopUPagination"></div>')}
         </div>`;
       if (typeof window.initCustomSelects === 'function') window.initCustomSelects();
       monPaged(d.modul, (m) => { const i = d.modul.indexOf(m); return `<div class="mon-hb"><div class="mon-hb-top"><span class="mon-hb-l">${monEsc(m.modul)}</span><span class="mon-hb-r"><b>${nf(m.hits)}</b> permintaan · ${m.pengguna} pengguna · ${pct(m.hits, total)}%</span></div><div class="mon-hb-track"><i style="width:${Math.max(3, Math.round(m.hits * 100 / maxHits))}%;background:${MODUL_COL[i % MODUL_COL.length]}"></i></div></div>`; }, 'monModulBody', 'monModulPagination', '<div class="mon-empty">Belum ada data penggunaan</div>');
+      const topU = d.pengguna_top || [];
+      monPagedHb(topU.map(u => ({ label: u.nama || ('ID ' + u.user_id), value: u.hits, max: topU[0].hits, color: PAL.info, right: nf(u.hits) + ' permintaan', sub: 'Terakhir ' + fmtAgo(u.terakhir) })), 'monTopUBody', 'monTopUPagination', 'Belum ada data');
     } catch (e) { if (body$()) body$().innerHTML = gagal(e); }
   }
   window.monGantiHari = (v) => tabPenggunaan(parseInt(v));
@@ -859,8 +869,8 @@
           ${panel('Komposisi kejadian', '7 hari terakhir', tot7 ? donut([{ label: 'Login gagal', value: f.h7, color: PAL.warn }, { label: 'Diblokir', value: bl.h7, color: PAL.bad }, { label: 'Token dipakai ulang', value: ru.h7, color: PAL.ungu }], nf(tot7), 'kejadian') : '<div class="mon-empty">Tidak ada kejadian</div>')}
         </div>
         <div class="mon-cols">
-          ${panel('IP paling sering bermasalah', '7 hari terakhir', hbars(ipTop.map(x => ({ label: x.ip, value: x.n, max: ipTop[0].n, color: PAL.warn, right: nf(x.n) + 'x', sub: 'Terakhir ' + fmtAgo(x.terakhir) })), 'Tidak ada IP yang mencurigakan'))}
-          ${panel('Akun paling sering jadi sasaran', '7 hari terakhir', hbars(akunTop.map(x => ({ label: x.akun, value: x.n, max: akunTop[0].n, color: PAL.bad, right: nf(x.n) + 'x', sub: 'Terakhir ' + fmtAgo(x.terakhir) })), 'Tidak ada akun yang menonjol'))}
+          ${panel('IP paling sering bermasalah', '7 hari terakhir', '<div id="monIpBody"></div><div id="monIpPagination"></div>')}
+          ${panel('Akun paling sering jadi sasaran', '7 hari terakhir', '<div id="monAkunBody"></div><div id="monAkunPagination"></div>')}
           ${panel('Sorotan', '', ins.join(''))}
         </div>
         <div class="card" style="padding:0;overflow:auto;-webkit-overflow-scrolling:touch">
@@ -870,6 +880,8 @@
         <div class="mon-muted" style="margin-top:8px">Sumber: Audit Trail. Untuk detail lengkap, buka menu Audit Trail.</div>`;
       const aksiBadge = { login_failed: 'badge-yellow', login_blocked: 'badge-merah', refresh_token_reuse_detected: 'badge-ungu' };
       monPaged(d.terbaru, r => `<tr><td style="white-space:nowrap">${fmtWaktu(r.created_at)}<div class="mon-row-sub">${fmtAgo(r.created_at)}</div></td><td><span class="badge ${aksiBadge[r.aksi] || 'badge-merah'}">${monEsc(label(r.aksi))}</span></td><td>${monEsc(r.nama || r.email || '-')}${r.nama && r.email ? `<div class="mon-row-sub">${monEsc(r.email)}</div>` : ''}</td><td>${monEsc(r.ip_address || '-')}</td><td>${monEsc(r.lokasi || '-')}</td></tr>`, 'monSecBody', 'monSecPagination', '<tr class="empty-row"><td colspan="5">Tidak ada kejadian keamanan</td></tr>');
+      monPagedHb(ipTop.map(x => ({ label: x.ip, value: x.n, max: ipTop[0].n, color: PAL.warn, right: nf(x.n) + 'x', sub: 'Terakhir ' + fmtAgo(x.terakhir) })), 'monIpBody', 'monIpPagination', 'Tidak ada IP yang mencurigakan');
+      monPagedHb(akunTop.map(x => ({ label: x.akun, value: x.n, max: akunTop[0].n, color: PAL.bad, right: nf(x.n) + 'x', sub: 'Terakhir ' + fmtAgo(x.terakhir) })), 'monAkunBody', 'monAkunPagination', 'Tidak ada akun yang menonjol');
     } catch (e) { if (body$()) body$().innerHTML = gagal(e); }
   }
 
