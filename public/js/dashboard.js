@@ -2604,7 +2604,7 @@ async function _initKinerjaWatch() {
 }
 
 const _KW_JENIS_LIST = ['monev', 'ikk', 'spm'];
-const _KW_MAX_CONCURRENT = 4;
+const _KW_MAX_CONCURRENT = 2;   // 4 -> 2: tiap request /rekap/tahun membawa ratusan KB-MB dari Neon; jangan tumpuk di koneksi yang lambat
 
 // Batasi request /rekap/tahun yang jalan bersamaan. Sebelumnya tiap tahun x 3 jenis ditembak sekaligus
 // (semua tahun di periode + rentang grafik), sehingga banyak query berat menumpuk di Neon.
@@ -2628,6 +2628,10 @@ const _kwPartial = new WeakSet();
 
 const KW_REKAP_CACHE_KEY = (tahun) => `kw_rekap_${_user?.id || 'guest'}_${tahun}`;
 const KW_REKAP_CACHE_TTL = 24 * 3600 * 1000; 
+// Cache yang umurnya di bawah ini dipakai apa adanya TANPA refresh latar belakang. Sebelumnya tiap kali dashboard dibuka
+// selalu menembak ulang tahun x 3 jenis request berat walau cache baru berumur beberapa detik.
+// (Simpan/ubah data dari browser ini tetap langsung membersihkan cache lewat _invalidate*.)
+const KW_REKAP_REFRESH_MIN_MS = 5 * 60 * 1000;
 const _kwBgRefreshing = new Set(); 
 
 function _kwReadRekapCache(tahun) {
@@ -2725,7 +2729,7 @@ async function _kwFetchTahunImpl(tahun) {
     
     _kwAllRekap[tahun] = cached.data;
 
-    if (!_kwBgRefreshing.has(tahun)) {
+    if ((Date.now() - cached.ts) >= KW_REKAP_REFRESH_MIN_MS && !_kwBgRefreshing.has(tahun)) {
       _kwBgRefreshing.add(tahun);
       _kwFetchTahunFresh(tahun).then(fresh => {
         if (_kwPartial.has(fresh)) { _kwBgRefreshing.delete(tahun); return; }   // refresh gagal: pertahankan data cache lama

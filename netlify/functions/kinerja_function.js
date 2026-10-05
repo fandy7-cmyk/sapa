@@ -1,4 +1,4 @@
-import { getDb, jsonResponse, errorResponse, parseBody, runOnce } from './_db.js';
+import { getDb, jsonResponse, errorResponse, parseBody, runOnce, setRequestDeadline } from './_db.js';
 import { requireAuth as _baseRequireAuth, requireAdmin, requireKinerjaAdmin } from './_auth.js';
 import { logAudit } from './_audit.js';
 
@@ -153,6 +153,7 @@ async function kinerjaSkemaStatus(sql) {
 export const handler = async (event) => {
   if (event.httpMethod === 'OPTIONS') return jsonResponse({});
 
+  setRequestDeadline();
   const sql = getDb();
   const rawPath = event.path.replace(/.*\/kinerja/, '') || '/';
   const segments = rawPath.split('/').filter(Boolean);
@@ -1202,6 +1203,7 @@ export const handler = async (event) => {
   }
 
   if (sub === 'rekap' && segments[1] === 'tahun') {
+    const _tRekap0 = Date.now();
     const auth = requireAuth(event);
     if (!auth) return errorResponse('Unauthorized', 401);
 
@@ -1261,21 +1263,21 @@ export const handler = async (event) => {
               ki.id,
               gs.bulan,
               ki.group_id,
-              kg.nama       AS group_nama,
-              kg.jenis      AS group_jenis,
+              CASE WHEN gs.bulan = 1 THEN kg.nama END AS group_nama,
+              CASE WHEN gs.bulan = 1 THEN kg.jenis END AS group_jenis,
               kg.urutan     AS group_urutan,
-              ki.sasaran,
-              ki.indikator_kinerja,
-              ki.satuan,
+              CASE WHEN gs.bulan = 1 THEN ki.sasaran END AS sasaran,
+              CASE WHEN gs.bulan = 1 THEN ki.indikator_kinerja END AS indikator_kinerja,
+              CASE WHEN gs.bulan = 1 THEN ki.satuan END AS satuan,
               kt.target        AS target_tahun,
               kt.target_display AS target_display,
-              ki.penanggung_jawab,
+              CASE WHEN gs.bulan = 1 THEN ki.penanggung_jawab END AS penanggung_jawab,
               ki.bermakna_negatif,
               ki.urutan,
               ki.jenis_monev,
               ki.jenis_ikk,
               ki.jenis_spm,
-              ki.formula,
+              CASE WHEN gs.bulan = 1 THEN ki.formula END AS formula,
               ki.tipe_perhitungan,
               ki.tipe_nilai,
               COALESCE(kag.cnt_kum, 0) AS bulan_terisi_count,
@@ -1388,21 +1390,21 @@ export const handler = async (event) => {
               ki.id,
               gs.bulan,
               ki.group_id,
-              kg.nama       AS group_nama,
-              kg.jenis      AS group_jenis,
+              CASE WHEN gs.bulan = 1 THEN kg.nama END AS group_nama,
+              CASE WHEN gs.bulan = 1 THEN kg.jenis END AS group_jenis,
               kg.urutan     AS group_urutan,
-              ki.sasaran,
-              ki.indikator_kinerja,
-              ki.satuan,
+              CASE WHEN gs.bulan = 1 THEN ki.sasaran END AS sasaran,
+              CASE WHEN gs.bulan = 1 THEN ki.indikator_kinerja END AS indikator_kinerja,
+              CASE WHEN gs.bulan = 1 THEN ki.satuan END AS satuan,
               kt.target        AS target_tahun,
               kt.target_display AS target_display,
-              ki.penanggung_jawab,
+              CASE WHEN gs.bulan = 1 THEN ki.penanggung_jawab END AS penanggung_jawab,
               ki.bermakna_negatif,
               ki.urutan,
               ki.jenis_monev,
               ki.jenis_ikk,
               ki.jenis_spm,
-              ki.formula,
+              CASE WHEN gs.bulan = 1 THEN ki.formula END AS formula,
               ki.tipe_perhitungan,
               ki.tipe_nilai,
               COALESCE(kag.cnt_kum, 0) AS bulan_terisi_count,
@@ -1515,21 +1517,21 @@ export const handler = async (event) => {
               ki.id,
               gs.bulan,
               ki.group_id,
-              kg.nama       AS group_nama,
-              kg.jenis      AS group_jenis,
+              CASE WHEN gs.bulan = 1 THEN kg.nama END AS group_nama,
+              CASE WHEN gs.bulan = 1 THEN kg.jenis END AS group_jenis,
               kg.urutan     AS group_urutan,
-              ki.sasaran,
-              ki.indikator_kinerja,
-              ki.satuan,
+              CASE WHEN gs.bulan = 1 THEN ki.sasaran END AS sasaran,
+              CASE WHEN gs.bulan = 1 THEN ki.indikator_kinerja END AS indikator_kinerja,
+              CASE WHEN gs.bulan = 1 THEN ki.satuan END AS satuan,
               kt.target        AS target_tahun,
               kt.target_display AS target_display,
-              ki.penanggung_jawab,
+              CASE WHEN gs.bulan = 1 THEN ki.penanggung_jawab END AS penanggung_jawab,
               ki.bermakna_negatif,
               ki.urutan,
               ki.jenis_monev,
               ki.jenis_ikk,
               ki.jenis_spm,
-              ki.formula,
+              CASE WHEN gs.bulan = 1 THEN ki.formula END AS formula,
               ki.tipe_perhitungan,
               ki.tipe_nilai,
               COALESCE(kag.cnt_kum, 0) AS bulan_terisi_count,
@@ -1644,21 +1646,21 @@ export const handler = async (event) => {
               ki.id,
               gs.bulan,
               ki.group_id,
-              kg.nama       AS group_nama,
-              kg.jenis      AS group_jenis,
+              CASE WHEN gs.bulan = 1 THEN kg.nama END AS group_nama,
+              CASE WHEN gs.bulan = 1 THEN kg.jenis END AS group_jenis,
               kg.urutan     AS group_urutan,
-              ki.sasaran,
-              ki.indikator_kinerja,
-              ki.satuan,
+              CASE WHEN gs.bulan = 1 THEN ki.sasaran END AS sasaran,
+              CASE WHEN gs.bulan = 1 THEN ki.indikator_kinerja END AS indikator_kinerja,
+              CASE WHEN gs.bulan = 1 THEN ki.satuan END AS satuan,
               kt.target        AS target_tahun,
               kt.target_display AS target_display,
-              ki.penanggung_jawab,
+              CASE WHEN gs.bulan = 1 THEN ki.penanggung_jawab END AS penanggung_jawab,
               ki.bermakna_negatif,
               ki.urutan,
               ki.jenis_monev,
               ki.jenis_ikk,
               ki.jenis_spm,
-              ki.formula,
+              CASE WHEN gs.bulan = 1 THEN ki.formula END AS formula,
               ki.tipe_perhitungan,
               ki.tipe_nilai,
               COALESCE(kag.cnt_kum, 0) AS bulan_terisi_count,
@@ -1771,21 +1773,21 @@ export const handler = async (event) => {
               ki.id,
               gs.bulan,
               ki.group_id,
-              kg.nama       AS group_nama,
-              kg.jenis      AS group_jenis,
+              CASE WHEN gs.bulan = 1 THEN kg.nama END AS group_nama,
+              CASE WHEN gs.bulan = 1 THEN kg.jenis END AS group_jenis,
               kg.urutan     AS group_urutan,
-              ki.sasaran,
-              ki.indikator_kinerja,
-              ki.satuan,
+              CASE WHEN gs.bulan = 1 THEN ki.sasaran END AS sasaran,
+              CASE WHEN gs.bulan = 1 THEN ki.indikator_kinerja END AS indikator_kinerja,
+              CASE WHEN gs.bulan = 1 THEN ki.satuan END AS satuan,
               kt.target        AS target_tahun,
               kt.target_display AS target_display,
-              ki.penanggung_jawab,
+              CASE WHEN gs.bulan = 1 THEN ki.penanggung_jawab END AS penanggung_jawab,
               ki.bermakna_negatif,
               ki.urutan,
               ki.jenis_monev,
               ki.jenis_ikk,
               ki.jenis_spm,
-              ki.formula,
+              CASE WHEN gs.bulan = 1 THEN ki.formula END AS formula,
               ki.tipe_perhitungan,
               ki.tipe_nilai,
               COALESCE(kag.cnt_kum, 0) AS bulan_terisi_count,
@@ -1898,21 +1900,21 @@ export const handler = async (event) => {
               ki.id,
               gs.bulan,
               ki.group_id,
-              kg.nama       AS group_nama,
-              kg.jenis      AS group_jenis,
+              CASE WHEN gs.bulan = 1 THEN kg.nama END AS group_nama,
+              CASE WHEN gs.bulan = 1 THEN kg.jenis END AS group_jenis,
               kg.urutan     AS group_urutan,
-              ki.sasaran,
-              ki.indikator_kinerja,
-              ki.satuan,
+              CASE WHEN gs.bulan = 1 THEN ki.sasaran END AS sasaran,
+              CASE WHEN gs.bulan = 1 THEN ki.indikator_kinerja END AS indikator_kinerja,
+              CASE WHEN gs.bulan = 1 THEN ki.satuan END AS satuan,
               kt.target        AS target_tahun,
               kt.target_display AS target_display,
-              ki.penanggung_jawab,
+              CASE WHEN gs.bulan = 1 THEN ki.penanggung_jawab END AS penanggung_jawab,
               ki.bermakna_negatif,
               ki.urutan,
               ki.jenis_monev,
               ki.jenis_ikk,
               ki.jenis_spm,
-              ki.formula,
+              CASE WHEN gs.bulan = 1 THEN ki.formula END AS formula,
               ki.tipe_perhitungan,
               ki.tipe_nilai,
               COALESCE(kag.cnt_kum, 0) AS bulan_terisi_count,
@@ -2027,21 +2029,21 @@ export const handler = async (event) => {
               ki.id,
               gs.bulan,
               ki.group_id,
-              kg.nama       AS group_nama,
-              kg.jenis      AS group_jenis,
+              CASE WHEN gs.bulan = 1 THEN kg.nama END AS group_nama,
+              CASE WHEN gs.bulan = 1 THEN kg.jenis END AS group_jenis,
               kg.urutan     AS group_urutan,
-              ki.sasaran,
-              ki.indikator_kinerja,
-              ki.satuan,
+              CASE WHEN gs.bulan = 1 THEN ki.sasaran END AS sasaran,
+              CASE WHEN gs.bulan = 1 THEN ki.indikator_kinerja END AS indikator_kinerja,
+              CASE WHEN gs.bulan = 1 THEN ki.satuan END AS satuan,
               kt.target        AS target_tahun,
               kt.target_display AS target_display,
-              ki.penanggung_jawab,
+              CASE WHEN gs.bulan = 1 THEN ki.penanggung_jawab END AS penanggung_jawab,
               ki.bermakna_negatif,
               ki.urutan,
               ki.jenis_monev,
               ki.jenis_ikk,
               ki.jenis_spm,
-              ki.formula,
+              CASE WHEN gs.bulan = 1 THEN ki.formula END AS formula,
               ki.tipe_perhitungan,
               ki.tipe_nilai,
               COALESCE(kag.cnt_kum, 0) AS bulan_terisi_count,
@@ -2154,21 +2156,21 @@ export const handler = async (event) => {
               ki.id,
               gs.bulan,
               ki.group_id,
-              kg.nama       AS group_nama,
-              kg.jenis      AS group_jenis,
+              CASE WHEN gs.bulan = 1 THEN kg.nama END AS group_nama,
+              CASE WHEN gs.bulan = 1 THEN kg.jenis END AS group_jenis,
               kg.urutan     AS group_urutan,
-              ki.sasaran,
-              ki.indikator_kinerja,
-              ki.satuan,
+              CASE WHEN gs.bulan = 1 THEN ki.sasaran END AS sasaran,
+              CASE WHEN gs.bulan = 1 THEN ki.indikator_kinerja END AS indikator_kinerja,
+              CASE WHEN gs.bulan = 1 THEN ki.satuan END AS satuan,
               kt.target        AS target_tahun,
               kt.target_display AS target_display,
-              ki.penanggung_jawab,
+              CASE WHEN gs.bulan = 1 THEN ki.penanggung_jawab END AS penanggung_jawab,
               ki.bermakna_negatif,
               ki.urutan,
               ki.jenis_monev,
               ki.jenis_ikk,
               ki.jenis_spm,
-              ki.formula,
+              CASE WHEN gs.bulan = 1 THEN ki.formula END AS formula,
               ki.tipe_perhitungan,
               ki.tipe_nilai,
               COALESCE(kag.cnt_kum, 0) AS bulan_terisi_count,
@@ -2281,21 +2283,21 @@ export const handler = async (event) => {
               ki.id,
               gs.bulan,
               ki.group_id,
-              kg.nama       AS group_nama,
-              kg.jenis      AS group_jenis,
+              CASE WHEN gs.bulan = 1 THEN kg.nama END AS group_nama,
+              CASE WHEN gs.bulan = 1 THEN kg.jenis END AS group_jenis,
               kg.urutan     AS group_urutan,
-              ki.sasaran,
-              ki.indikator_kinerja,
-              ki.satuan,
+              CASE WHEN gs.bulan = 1 THEN ki.sasaran END AS sasaran,
+              CASE WHEN gs.bulan = 1 THEN ki.indikator_kinerja END AS indikator_kinerja,
+              CASE WHEN gs.bulan = 1 THEN ki.satuan END AS satuan,
               kt.target        AS target_tahun,
               kt.target_display AS target_display,
-              ki.penanggung_jawab,
+              CASE WHEN gs.bulan = 1 THEN ki.penanggung_jawab END AS penanggung_jawab,
               ki.bermakna_negatif,
               ki.urutan,
               ki.jenis_monev,
               ki.jenis_ikk,
               ki.jenis_spm,
-              ki.formula,
+              CASE WHEN gs.bulan = 1 THEN ki.formula END AS formula,
               ki.tipe_perhitungan,
               ki.tipe_nilai,
               COALESCE(kag.cnt_kum, 0) AS bulan_terisi_count,
@@ -2409,21 +2411,21 @@ export const handler = async (event) => {
               ki.id,
               gs.bulan,
               ki.group_id,
-              kg.nama       AS group_nama,
-              kg.jenis      AS group_jenis,
+              CASE WHEN gs.bulan = 1 THEN kg.nama END AS group_nama,
+              CASE WHEN gs.bulan = 1 THEN kg.jenis END AS group_jenis,
               kg.urutan     AS group_urutan,
-              ki.sasaran,
-              ki.indikator_kinerja,
-              ki.satuan,
+              CASE WHEN gs.bulan = 1 THEN ki.sasaran END AS sasaran,
+              CASE WHEN gs.bulan = 1 THEN ki.indikator_kinerja END AS indikator_kinerja,
+              CASE WHEN gs.bulan = 1 THEN ki.satuan END AS satuan,
               kt.target        AS target_tahun,
               kt.target_display AS target_display,
-              ki.penanggung_jawab,
+              CASE WHEN gs.bulan = 1 THEN ki.penanggung_jawab END AS penanggung_jawab,
               ki.bermakna_negatif,
               ki.urutan,
               ki.jenis_monev,
               ki.jenis_ikk,
               ki.jenis_spm,
-              ki.formula,
+              CASE WHEN gs.bulan = 1 THEN ki.formula END AS formula,
               ki.tipe_perhitungan,
               ki.tipe_nilai,
               COALESCE(kag.cnt_kum, 0) AS bulan_terisi_count,
@@ -2536,21 +2538,21 @@ export const handler = async (event) => {
               ki.id,
               gs.bulan,
               ki.group_id,
-              kg.nama       AS group_nama,
-              kg.jenis      AS group_jenis,
+              CASE WHEN gs.bulan = 1 THEN kg.nama END AS group_nama,
+              CASE WHEN gs.bulan = 1 THEN kg.jenis END AS group_jenis,
               kg.urutan     AS group_urutan,
-              ki.sasaran,
-              ki.indikator_kinerja,
-              ki.satuan,
+              CASE WHEN gs.bulan = 1 THEN ki.sasaran END AS sasaran,
+              CASE WHEN gs.bulan = 1 THEN ki.indikator_kinerja END AS indikator_kinerja,
+              CASE WHEN gs.bulan = 1 THEN ki.satuan END AS satuan,
               kt.target        AS target_tahun,
               kt.target_display AS target_display,
-              ki.penanggung_jawab,
+              CASE WHEN gs.bulan = 1 THEN ki.penanggung_jawab END AS penanggung_jawab,
               ki.bermakna_negatif,
               ki.urutan,
               ki.jenis_monev,
               ki.jenis_ikk,
               ki.jenis_spm,
-              ki.formula,
+              CASE WHEN gs.bulan = 1 THEN ki.formula END AS formula,
               ki.tipe_perhitungan,
               ki.tipe_nilai,
               COALESCE(kag.cnt_kum, 0) AS bulan_terisi_count,
@@ -2663,21 +2665,21 @@ export const handler = async (event) => {
               ki.id,
               gs.bulan,
               ki.group_id,
-              kg.nama       AS group_nama,
-              kg.jenis      AS group_jenis,
+              CASE WHEN gs.bulan = 1 THEN kg.nama END AS group_nama,
+              CASE WHEN gs.bulan = 1 THEN kg.jenis END AS group_jenis,
               kg.urutan     AS group_urutan,
-              ki.sasaran,
-              ki.indikator_kinerja,
-              ki.satuan,
+              CASE WHEN gs.bulan = 1 THEN ki.sasaran END AS sasaran,
+              CASE WHEN gs.bulan = 1 THEN ki.indikator_kinerja END AS indikator_kinerja,
+              CASE WHEN gs.bulan = 1 THEN ki.satuan END AS satuan,
               kt.target        AS target_tahun,
               kt.target_display AS target_display,
-              ki.penanggung_jawab,
+              CASE WHEN gs.bulan = 1 THEN ki.penanggung_jawab END AS penanggung_jawab,
               ki.bermakna_negatif,
               ki.urutan,
               ki.jenis_monev,
               ki.jenis_ikk,
               ki.jenis_spm,
-              ki.formula,
+              CASE WHEN gs.bulan = 1 THEN ki.formula END AS formula,
               ki.tipe_perhitungan,
               ki.tipe_nilai,
               COALESCE(kag.cnt_kum, 0) AS bulan_terisi_count,
@@ -2784,8 +2786,21 @@ export const handler = async (event) => {
               AND ki.jenis_monev = TRUE
             ORDER BY gs.bulan ASC, kg.urutan ASC NULLS LAST, ki.urutan ASC, ki.id ASC
           `;
-      return jsonResponse({ rekap: rows.map(normTarget), tahun, jenis });    } catch (err) {
-      console.error('[GET kinerja/rekap/tahun]', err);
+      // Kolom teks level-indikator (sasaran, indikator, formula, satuan, PJ, grup) hanya dikirim Neon pada
+      // bulan 1 (CASE WHEN gs.bulan = 1 di query) supaya payload DB->function tidak membawa salinan 12x.
+      // Di sini diisi balik ke bulan 2..12 -> bentuk respons ke frontend TIDAK berubah.
+      const _META = ['sasaran', 'indikator_kinerja', 'satuan', 'penanggung_jawab', 'formula', 'group_nama', 'group_jenis'];
+      const _meta1 = new Map();
+      for (const r of rows) if (r.bulan === 1) _meta1.set(r.id, r);
+      for (const r of rows) {
+        if (r.bulan === 1) continue;
+        const m = _meta1.get(r.id);
+        if (m) for (const k of _META) r[k] = m[k];
+      }
+      console.log(`[rekap/tahun] tahun=${tahun} jenis=${jenis} rows=${rows.length} db+proses=${Date.now() - _tRekap0}ms`);
+      return jsonResponse({ rekap: rows.map(normTarget), tahun, jenis });
+    } catch (err) {
+      console.error(`[GET kinerja/rekap/tahun] tahun=${tahun} jenis=${jenis} setelah ${Date.now() - _tRekap0}ms:`, err);
       return errorResponse('Gagal mengambil rekap tahunan: ' + err.message);
     }
   }
@@ -4474,7 +4489,7 @@ export const handler = async (event) => {
                WHERE uik2.indikator_id = ki.id
               ), '{}'
             ) AS pic_users,
-            ki.bermakna_negatif, ki.jenis_monev, ki.jenis_ikk, ki.jenis_spm, ki.urutan,
+            ki.bermakna_negatif, ki.tipe_perhitungan, ki.jenis_custom, ki.jenis_monev, ki.jenis_ikk, ki.jenis_spm, ki.urutan,
             kg.nama AS group_nama, kg.jenis AS group_jenis, kg.urutan AS group_urutan,
             kr.id AS realisasi_id, kr.bulan, kr.tahun AS realisasi_tahun,
             kr.realisasi, kr.realisasi_display, kr.f_penghambat, kr.solusi, kr.f_pendukung, kr.rencana_tl,
@@ -4578,7 +4593,7 @@ export const handler = async (event) => {
                WHERE uik2.indikator_id = ki.id
               ), '{}'
             ) AS pic_users,
-            ki.bermakna_negatif, ki.jenis_monev, ki.jenis_ikk, ki.jenis_spm, ki.urutan,
+            ki.bermakna_negatif, ki.tipe_perhitungan, ki.jenis_custom, ki.jenis_monev, ki.jenis_ikk, ki.jenis_spm, ki.urutan,
             kg.nama AS group_nama, kg.jenis AS group_jenis, kg.urutan AS group_urutan,
             kr.id AS realisasi_id, kr.bulan, kr.tahun AS realisasi_tahun,
             kr.realisasi, kr.realisasi_display, kr.f_penghambat, kr.solusi, kr.f_pendukung, kr.rencana_tl,
@@ -4591,12 +4606,12 @@ export const handler = async (event) => {
                      CASE WHEN ki.tipe_perhitungan = 'non_kumulatif'
                              THEN (SELECT SUM(krc.realisasi) FROM kinerja_realisasi krc
                                    WHERE krc.indikator_id = ki.id
-                                     AND krc.tahun = ${tahun}
+                                     AND krc.tahun = kr.tahun
                                      AND krc.bulan <= ${bulan} AND krc.bulan IN (3, 6, 9, 12))
                              WHEN ki.tipe_perhitungan = 'rata_rata'
                              THEN (SELECT AVG(krc.realisasi) FROM kinerja_realisasi krc
                                    WHERE krc.indikator_id = ki.id
-                                     AND krc.tahun = ${tahun}
+                                     AND krc.tahun = kr.tahun
                                      AND krc.bulan <= ${bulan} AND krc.bulan IN (3, 6, 9, 12))
                              ELSE kr.realisasi END,
                      kr.realisasi
@@ -4605,23 +4620,23 @@ export const handler = async (event) => {
                 THEN ROUND((kt.target::NUMERIC - (COALESCE(CASE WHEN ki.tipe_perhitungan = 'non_kumulatif'
                              THEN (SELECT SUM(krc.realisasi) FROM kinerja_realisasi krc
                                    WHERE krc.indikator_id = ki.id
-                                     AND krc.tahun = ${tahun}
+                                     AND krc.tahun = kr.tahun
                                      AND krc.bulan <= ${bulan} AND krc.bulan IN (3, 6, 9, 12))::NUMERIC
                              WHEN ki.tipe_perhitungan = 'rata_rata'
                              THEN (SELECT AVG(krc.realisasi) FROM kinerja_realisasi krc
                                    WHERE krc.indikator_id = ki.id
-                                     AND krc.tahun = ${tahun}
+                                     AND krc.tahun = kr.tahun
                                      AND krc.bulan <= ${bulan} AND krc.bulan IN (3, 6, 9, 12))::NUMERIC
                              ELSE kr.realisasi::NUMERIC END, kr.realisasi::NUMERIC) - kt.target::NUMERIC)) / kt.target::NUMERIC * 100, 2)
               ELSE ROUND(COALESCE(CASE WHEN ki.tipe_perhitungan = 'non_kumulatif'
                              THEN (SELECT SUM(krc.realisasi) FROM kinerja_realisasi krc
                                    WHERE krc.indikator_id = ki.id
-                                     AND krc.tahun = ${tahun}
+                                     AND krc.tahun = kr.tahun
                                      AND krc.bulan <= ${bulan} AND krc.bulan IN (3, 6, 9, 12))::NUMERIC
                              WHEN ki.tipe_perhitungan = 'rata_rata'
                              THEN (SELECT AVG(krc.realisasi) FROM kinerja_realisasi krc
                                    WHERE krc.indikator_id = ki.id
-                                     AND krc.tahun = ${tahun}
+                                     AND krc.tahun = kr.tahun
                                      AND krc.bulan <= ${bulan} AND krc.bulan IN (3, 6, 9, 12))::NUMERIC
                              ELSE kr.realisasi::NUMERIC END, kr.realisasi::NUMERIC) / kt.target::NUMERIC * 100, 2)
             END AS capaian_persen
@@ -4683,7 +4698,7 @@ export const handler = async (event) => {
                WHERE uik2.indikator_id = ki.id
               ), '{}'
             ) AS pic_users,
-            ki.bermakna_negatif, ki.jenis_monev, ki.jenis_ikk, ki.jenis_spm, ki.urutan,
+            ki.bermakna_negatif, ki.tipe_perhitungan, ki.jenis_custom, ki.jenis_monev, ki.jenis_ikk, ki.jenis_spm, ki.urutan,
             kg.nama AS group_nama, kg.jenis AS group_jenis, kg.urutan AS group_urutan,
             kr.id AS realisasi_id, kr.bulan, kr.tahun AS realisasi_tahun,
             kr.realisasi, kr.realisasi_display, kr.f_penghambat, kr.solusi, kr.f_pendukung, kr.rencana_tl,
@@ -4692,10 +4707,43 @@ export const handler = async (event) => {
             b.nama AS user_bidang, b.singkatan AS user_bidang_singkatan,
             CASE WHEN kr.realisasi IS NOT NULL THEN 'terisi' ELSE 'belum' END AS status,
             CASE
-              WHEN kr.realisasi IS NULL OR kt.target IS NULL OR kt.target = 0 THEN NULL
+              WHEN COALESCE(
+                     CASE WHEN ki.tipe_perhitungan = 'non_kumulatif'
+                             THEN (SELECT SUM(krc.realisasi) FROM kinerja_realisasi krc
+                                   WHERE krc.indikator_id = ki.id
+                                     AND krc.tahun = kr.tahun
+                                     AND krc.bulan <= kr.bulan AND krc.bulan IN (3, 6, 9, 12))
+                             WHEN ki.tipe_perhitungan = 'rata_rata'
+                             THEN (SELECT AVG(krc.realisasi) FROM kinerja_realisasi krc
+                                   WHERE krc.indikator_id = ki.id
+                                     AND krc.tahun = kr.tahun
+                                     AND krc.bulan <= kr.bulan AND krc.bulan IN (3, 6, 9, 12))
+                             ELSE kr.realisasi END,
+                     kr.realisasi
+                   ) IS NULL OR kt.target IS NULL OR kt.target = 0 THEN NULL
               WHEN ki.bermakna_negatif = TRUE
-                THEN ROUND((kt.target::NUMERIC - (kr.realisasi::NUMERIC - kt.target::NUMERIC)) / kt.target::NUMERIC * 100, 2)
-              ELSE ROUND(kr.realisasi::NUMERIC / kt.target::NUMERIC * 100, 2)
+                THEN ROUND((kt.target::NUMERIC - (COALESCE(CASE WHEN ki.tipe_perhitungan = 'non_kumulatif'
+                             THEN (SELECT SUM(krc.realisasi) FROM kinerja_realisasi krc
+                                   WHERE krc.indikator_id = ki.id
+                                     AND krc.tahun = kr.tahun
+                                     AND krc.bulan <= kr.bulan AND krc.bulan IN (3, 6, 9, 12))::NUMERIC
+                             WHEN ki.tipe_perhitungan = 'rata_rata'
+                             THEN (SELECT AVG(krc.realisasi) FROM kinerja_realisasi krc
+                                   WHERE krc.indikator_id = ki.id
+                                     AND krc.tahun = kr.tahun
+                                     AND krc.bulan <= kr.bulan AND krc.bulan IN (3, 6, 9, 12))::NUMERIC
+                             ELSE kr.realisasi::NUMERIC END, kr.realisasi::NUMERIC) - kt.target::NUMERIC)) / kt.target::NUMERIC * 100, 2)
+              ELSE ROUND(COALESCE(CASE WHEN ki.tipe_perhitungan = 'non_kumulatif'
+                             THEN (SELECT SUM(krc.realisasi) FROM kinerja_realisasi krc
+                                   WHERE krc.indikator_id = ki.id
+                                     AND krc.tahun = kr.tahun
+                                     AND krc.bulan <= kr.bulan AND krc.bulan IN (3, 6, 9, 12))::NUMERIC
+                             WHEN ki.tipe_perhitungan = 'rata_rata'
+                             THEN (SELECT AVG(krc.realisasi) FROM kinerja_realisasi krc
+                                   WHERE krc.indikator_id = ki.id
+                                     AND krc.tahun = kr.tahun
+                                     AND krc.bulan <= kr.bulan AND krc.bulan IN (3, 6, 9, 12))::NUMERIC
+                             ELSE kr.realisasi::NUMERIC END, kr.realisasi::NUMERIC) / kt.target::NUMERIC * 100, 2)
             END AS capaian_persen
           FROM kinerja_indikator ki
           LEFT JOIN kinerja_group kg ON kg.id = ki.group_id
@@ -4754,7 +4802,7 @@ export const handler = async (event) => {
                WHERE uik2.indikator_id = ki.id
               ), '{}'
             ) AS pic_users,
-            ki.bermakna_negatif, ki.jenis_monev, ki.jenis_ikk, ki.jenis_spm, ki.urutan,
+            ki.bermakna_negatif, ki.tipe_perhitungan, ki.jenis_custom, ki.jenis_monev, ki.jenis_ikk, ki.jenis_spm, ki.urutan,
             kg.nama AS group_nama, kg.jenis AS group_jenis, kg.urutan AS group_urutan,
             kr.id AS realisasi_id, kr.bulan, kr.tahun AS realisasi_tahun,
             kr.realisasi, kr.realisasi_display, kr.f_penghambat, kr.solusi, kr.f_pendukung, kr.rencana_tl,
@@ -4763,10 +4811,43 @@ export const handler = async (event) => {
             b.nama AS user_bidang, b.singkatan AS user_bidang_singkatan,
             CASE WHEN kr.realisasi IS NOT NULL THEN 'terisi' ELSE 'belum' END AS status,
             CASE
-              WHEN kr.realisasi IS NULL OR kt.target IS NULL OR kt.target = 0 THEN NULL
+              WHEN COALESCE(
+                     CASE WHEN ki.tipe_perhitungan = 'non_kumulatif'
+                             THEN (SELECT SUM(krc.realisasi) FROM kinerja_realisasi krc
+                                   WHERE krc.indikator_id = ki.id
+                                     AND krc.tahun = kr.tahun
+                                     AND krc.bulan <= kr.bulan AND krc.bulan IN (3, 6, 9, 12))
+                             WHEN ki.tipe_perhitungan = 'rata_rata'
+                             THEN (SELECT AVG(krc.realisasi) FROM kinerja_realisasi krc
+                                   WHERE krc.indikator_id = ki.id
+                                     AND krc.tahun = kr.tahun
+                                     AND krc.bulan <= kr.bulan AND krc.bulan IN (3, 6, 9, 12))
+                             ELSE kr.realisasi END,
+                     kr.realisasi
+                   ) IS NULL OR kt.target IS NULL OR kt.target = 0 THEN NULL
               WHEN ki.bermakna_negatif = TRUE
-                THEN ROUND((kt.target::NUMERIC - (kr.realisasi::NUMERIC - kt.target::NUMERIC)) / kt.target::NUMERIC * 100, 2)
-              ELSE ROUND(kr.realisasi::NUMERIC / kt.target::NUMERIC * 100, 2)
+                THEN ROUND((kt.target::NUMERIC - (COALESCE(CASE WHEN ki.tipe_perhitungan = 'non_kumulatif'
+                             THEN (SELECT SUM(krc.realisasi) FROM kinerja_realisasi krc
+                                   WHERE krc.indikator_id = ki.id
+                                     AND krc.tahun = kr.tahun
+                                     AND krc.bulan <= kr.bulan AND krc.bulan IN (3, 6, 9, 12))::NUMERIC
+                             WHEN ki.tipe_perhitungan = 'rata_rata'
+                             THEN (SELECT AVG(krc.realisasi) FROM kinerja_realisasi krc
+                                   WHERE krc.indikator_id = ki.id
+                                     AND krc.tahun = kr.tahun
+                                     AND krc.bulan <= kr.bulan AND krc.bulan IN (3, 6, 9, 12))::NUMERIC
+                             ELSE kr.realisasi::NUMERIC END, kr.realisasi::NUMERIC) - kt.target::NUMERIC)) / kt.target::NUMERIC * 100, 2)
+              ELSE ROUND(COALESCE(CASE WHEN ki.tipe_perhitungan = 'non_kumulatif'
+                             THEN (SELECT SUM(krc.realisasi) FROM kinerja_realisasi krc
+                                   WHERE krc.indikator_id = ki.id
+                                     AND krc.tahun = kr.tahun
+                                     AND krc.bulan <= kr.bulan AND krc.bulan IN (3, 6, 9, 12))::NUMERIC
+                             WHEN ki.tipe_perhitungan = 'rata_rata'
+                             THEN (SELECT AVG(krc.realisasi) FROM kinerja_realisasi krc
+                                   WHERE krc.indikator_id = ki.id
+                                     AND krc.tahun = kr.tahun
+                                     AND krc.bulan <= kr.bulan AND krc.bulan IN (3, 6, 9, 12))::NUMERIC
+                             ELSE kr.realisasi::NUMERIC END, kr.realisasi::NUMERIC) / kt.target::NUMERIC * 100, 2)
             END AS capaian_persen
           FROM kinerja_indikator ki
           LEFT JOIN kinerja_group kg ON kg.id = ki.group_id

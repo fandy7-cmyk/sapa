@@ -15,12 +15,25 @@ function isPlainSelect(body) {
   } catch { return false; }
 }
 
+// Batas waktu total satu invocation (netlify dev = 30 dtk, hard kill oleh lambda-local). Tanpa ini, 2 percobaan
+// x 12 dtk + query lain sebelum/sesudahnya bisa melewati 30 dtk -> function dimatikan paksa dan yang muncul
+// "TimeoutError: Task timed out" (tanpa pesan jelas). Dengan deadline, tiap query dibatasi sisa waktu dan
+// gagal rapi (500 + pesan "Database tidak merespons") sebelum function dibunuh.
+const FUNCTION_BUDGET_MS = parseInt(process.env.FUNCTION_BUDGET_MS, 10) || 27000;
+let _deadline = 0;
+export function setRequestDeadline(budgetMs = FUNCTION_BUDGET_MS) { _deadline = Date.now() + budgetMs; }
+
 export async function dbFetch(url, init = {}) {
   const maxTry = isPlainSelect(init.body) ? 2 : 1;
   let lastErr;
   for (let i = 1; i <= maxTry; i++) {
+    const sisa = _deadline ? _deadline - Date.now() : Infinity;
+    if (sisa < 1500) {   // waktu hampir habis: jangan mulai/ulangi query
+      throw lastErr || new Error('Database tidak merespons: batas waktu function hampir habis');
+    }
+    const timeoutMs = Math.min(DB_TIMEOUT_MS, sisa - 500);
     const ctrl  = new AbortController();
-    const timer = setTimeout(() => ctrl.abort(), DB_TIMEOUT_MS);
+    const timer = setTimeout(() => ctrl.abort(), timeoutMs);
     const signal = init.signal && AbortSignal.any ? AbortSignal.any([init.signal, ctrl.signal]) : ctrl.signal;
     try {
       const res = await fetch(url, { ...init, signal });
@@ -29,7 +42,7 @@ export async function dbFetch(url, init = {}) {
       return new Response(buf, { status: res.status, statusText: res.statusText, headers: res.headers });
     } catch (e) {
       lastErr = ctrl.signal.aborted
-        ? new Error(`Database tidak merespons dalam ${Math.round(DB_TIMEOUT_MS / 1000)} detik`)
+        ? new Error(`Database tidak merespons dalam ${Math.round(timeoutMs / 1000)} detik`)
         : e;
     } finally {
       clearTimeout(timer);
