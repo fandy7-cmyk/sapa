@@ -62,8 +62,10 @@ function canInput(user, jenis) {
   if (!user) return false;
   if (user.is_admin) return true;
   const perms = user.permissions || [];
-  // Akun pantau (kinerja.pantau / kinerja.pantau.semua) murni hanya-lihat, kecuali juga kinerja.full.
-  if (!perms.includes('kinerja.full') && (perms.includes('kinerja.pantau') || perms.includes('kinerja.pantau.semua'))) return false;
+  // Akun pantau (Kabid dsb.): boleh MENGISI/EDIT indikator yang di-assign langsung ke dirinya (tabel user_indikator),
+  // tanpa butuh permission jenis. Pembatasan ke indikator miliknya dicek di POST /kinerja/realisasi;
+  // indikator unit lain tetap hanya-lihat.
+  if (perms.includes('kinerja.pantau') || perms.includes('kinerja.pantau.semua')) return true;
   if (jenis === 'monev') return perms.includes('kinerja.monev');
   if (jenis === 'ikk')   return perms.includes('kinerja.ikk');
   if (jenis === 'spm')   return perms.includes('kinerja.spm');
@@ -1210,10 +1212,12 @@ export const handler = async (event) => {
     const tahun = parseInt(qs.tahun || new Date().getFullYear());
     const jenis = qs.jenis || 'monev';
     const scope = qs.scope === 'bidang' ? 'bidang' : 'mine';
+    // scope=semua: dipakai dashboard utama (read-only) -> tampilkan seluruh indikator, bukan cuma yang di-assign/unit user.
+    const _lihatSemua = auth.is_admin || qs.scope === 'semua';
 
     let bidangNama = null;
     let userIndikatorIds = null;
-    if (!auth.is_admin && (jenis !== 'monev' || await isPantauUser(sql, auth.id))) {
+    if (!_lihatSemua && (jenis !== 'monev' || await isPantauUser(sql, auth.id))) {
       try {
         const myIds = await getAssignedIndikatorIds(sql, auth.id);
         if (myIds.length === 0) {
@@ -1257,7 +1261,7 @@ export const handler = async (event) => {
 
     try {
       const rows = jenis === 'ikk'
-        ? auth.is_admin
+        ? _lihatSemua
           ? await sql`
             SELECT
               ki.id,
@@ -1640,7 +1644,7 @@ export const handler = async (event) => {
             ORDER BY gs.bulan ASC, kg.urutan ASC NULLS LAST, ki.urutan ASC, ki.id ASC
           `
         : jenis === 'spm'
-        ? auth.is_admin
+        ? _lihatSemua
           ? await sql`
             SELECT
               ki.id,
@@ -2023,7 +2027,7 @@ export const handler = async (event) => {
             ORDER BY gs.bulan ASC, kg.urutan ASC NULLS LAST, ki.urutan ASC, ki.id ASC
           `
         : jenis === 'subkeg'
-        ? auth.is_admin
+        ? _lihatSemua
           ? await sql`
             SELECT
               ki.id,
@@ -2405,7 +2409,7 @@ export const handler = async (event) => {
               AND ki.penanggung_jawab = ${bidangNama}
             ORDER BY gs.bulan ASC, kg.urutan ASC NULLS LAST, ki.urutan ASC, ki.id ASC
           `
-        : auth.is_admin
+        : _lihatSemua
           ? await sql`
             SELECT
               ki.id,
@@ -2813,10 +2817,12 @@ export const handler = async (event) => {
     const tahun = parseInt(qs.tahun || new Date().getFullYear());
     const jenis = qs.jenis || 'monev';
     const scope = qs.scope === 'bidang' ? 'bidang' : 'mine';
+    // scope=semua: dipakai dashboard utama (read-only) -> tampilkan seluruh indikator, bukan cuma yang di-assign/unit user.
+    const _lihatSemua = auth.is_admin || qs.scope === 'semua';
 
     let bidangNama = null;
     let userIndikatorIds = null;
-    if (!auth.is_admin && (jenis !== 'monev' || await isPantauUser(sql, auth.id))) {
+    if (!_lihatSemua && (jenis !== 'monev' || await isPantauUser(sql, auth.id))) {
       try {
         const myIds = await getAssignedIndikatorIds(sql, auth.id);
         if (myIds.length === 0) {
@@ -2860,7 +2866,7 @@ export const handler = async (event) => {
 
     try {
       const rows = jenis === 'ikk'
-        ? auth.is_admin
+        ? _lihatSemua
           ? await sql`
             SELECT
               ki.id,
@@ -3237,7 +3243,7 @@ export const handler = async (event) => {
             ORDER BY kg.urutan ASC NULLS LAST, ki.urutan ASC, ki.id ASC
           `
         : jenis === 'spm'
-        ? auth.is_admin
+        ? _lihatSemua
           ? await sql`
             SELECT
               ki.id,
@@ -3614,7 +3620,7 @@ export const handler = async (event) => {
             ORDER BY kg.urutan ASC NULLS LAST, ki.urutan ASC, ki.id ASC
           `
         : jenis === 'subkeg'
-        ? auth.is_admin
+        ? _lihatSemua
           ? await sql`
             SELECT
               ki.id,
@@ -3990,7 +3996,7 @@ export const handler = async (event) => {
               AND ki.penanggung_jawab = ${bidangNama}
             ORDER BY kg.urutan ASC NULLS LAST, ki.urutan ASC, ki.id ASC
           `
-        : auth.is_admin
+        : _lihatSemua
           ? await sql`
             SELECT
               ki.id,

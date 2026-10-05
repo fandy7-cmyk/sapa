@@ -269,6 +269,8 @@ let _hasMonevIndikator = false;
 let _hasIkkIndikator   = false;
 let _hasSpmIndikator   = false;
 let _hasSubkegIndikator = false;
+// ID indikator yang di-assign langsung ke user ini (dipakai akun pantau: hanya baris ini yang boleh diedit).
+let _myIndikatorIds = new Set();
 
 // Akun pantau (Kabid dsb.): menu jenis tampil kalau UNIT-nya punya indikator jenis itu, bukan hanya kalau
 // indikator tsb di-assign ke dirinya. Backend sudah membatasi /api/kinerja/rekap ke indikator unit untuk akun pantau.
@@ -294,6 +296,7 @@ async function _cekKinerjaIndikatorDasar() {
   try {
     const rAssign = await fetch(`/api/users/${_user.id}/indikator`, { headers: authHeaders() }).catch(() => null);
     const dAssign = (rAssign && rAssign.ok) ? await rAssign.json() : {};
+    _myIndikatorIds = new Set((dAssign.indikator_ids || []).map(Number));
 
     // Jalur cepat: backend sudah ngirim flag jenis -> gak perlu narik seluruh /api/kinerja/indikator (payload besar).
     if (dAssign.jenis) {

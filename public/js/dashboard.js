@@ -1143,7 +1143,7 @@ async function _fetchKinerjaRekapForDash() {
     const tahun = pa?.tahun || new Date().getFullYear();
     const jenisList = ['monev', 'ikk', 'spm'];
     const results = await Promise.all(jenisList.map(j =>
-      fetch(`/api/kinerja/rekap?bulan=${bulan}&tahun=${tahun}&jenis=${j}`, { headers: authHeaders() })
+      fetch(`/api/kinerja/rekap?bulan=${bulan}&tahun=${tahun}&jenis=${j}&scope=semua`, { headers: authHeaders() })
         .then(r => r.ok ? r.json() : { rekap: [] })
         .catch(() => ({ rekap: [] }))
     ));
@@ -1429,7 +1429,7 @@ async function _ikuApplyFilter() {
   const bulan = _ikuRangeTo?.bulan || (getPeriodeAktif()?.bulan || _dTwSekarang());
   const tahun = _ikuRangeTo?.tahun || (getPeriodeAktif()?.tahun || new Date().getFullYear());
   try {
-    const r = await fetch(`/api/kinerja/rekap?bulan=${bulan}&tahun=${tahun}`, { headers: authHeaders() });
+    const r = await fetch(`/api/kinerja/rekap?bulan=${bulan}&tahun=${tahun}&scope=semua`, { headers: authHeaders() });
     const d = r.ok ? await r.json() : { rekap: [] };
     let rows = (d.rekap || []).filter(x => x.jenis_monev);
     _ikuGridData = rows;
@@ -1464,7 +1464,7 @@ async function _initIkuGrid() {
   
   
   const [rekapRes, periodeRes, tahunListRes] = await Promise.allSettled([
-    fetch(`/api/kinerja/rekap?bulan=${bulan}&tahun=${tahun}`, { headers: authHeaders() }).then(r => r.ok ? r.json() : { rekap: [] }),
+    fetch(`/api/kinerja/rekap?bulan=${bulan}&tahun=${tahun}&scope=semua`, { headers: authHeaders() }).then(r => r.ok ? r.json() : { rekap: [] }),
     _dashFetchOnce('/api/periode').then(r => r.ok ? r.json() : { periode: [] }),
     fetch('/api/kinerja/rekap/tahun-list', { headers: authHeaders() }).then(r => r.ok ? r.json() : { tahun: [] }),
   ]);
@@ -2626,7 +2626,7 @@ function _kwLimit(fn) {
 // Hasil yang ada jenis-nya gagal diambil: tetap dipakai untuk tampilan, tapi TIDAK disimpan ke cache 24 jam.
 const _kwPartial = new WeakSet();
 
-const KW_REKAP_CACHE_KEY = (tahun) => `kw_rekap_${_user?.id || 'guest'}_${tahun}`;
+const KW_REKAP_CACHE_KEY = (tahun) => `kw_rekap2_${_user?.id || 'guest'}_${tahun}`;
 const KW_REKAP_CACHE_TTL = 24 * 3600 * 1000; 
 // Cache yang umurnya di bawah ini dipakai apa adanya TANPA refresh latar belakang. Sebelumnya tiap kali dashboard dibuka
 // selalu menembak ulang tahun x 3 jenis request berat walau cache baru berumur beberapa detik.
@@ -2679,7 +2679,7 @@ async function _kwFetchTahunFresh(tahun) {
       const ctrl  = new AbortController();
       const timer = setTimeout(() => ctrl.abort(), 40000);
       try {
-        const r = await fetch(`/api/kinerja/rekap/tahun?tahun=${tahun}&jenis=${jenis}`, { headers: authHeaders(), signal: ctrl.signal });
+        const r = await fetch(`/api/kinerja/rekap/tahun?tahun=${tahun}&jenis=${jenis}&scope=semua`, { headers: authHeaders(), signal: ctrl.signal });
         if (!r.ok) { _gagal = true; return { rekap: [] }; }
         return await r.json();
       } catch { _gagal = true; return { rekap: [] }; }
