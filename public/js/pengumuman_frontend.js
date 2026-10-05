@@ -329,7 +329,7 @@ function renderTickerTable() {
           ${t.warna_bg ? `<span style="width:10px;height:10px;border-radius:50%;background:${esc(t.warna_bg)};flex-shrink:0;margin-top:4px;border:1px solid rgba(0,0,0,.1)" data-tip="Warna bg: ${esc(t.warna_bg)}"></span>` : ''}
           <div style="flex:1;min-width:0">
             <span class="ticker-teks-clamp" id="tkTeks_${t.id}">${esc(t.teks)}</span><br>
-            <button type="button" class="ticker-teks-more" id="tkMore_${t.id}" onclick="toggleTickerTeks(${t.id})" style="display:none">Selengkapnya</button>
+            <button type="button" class="ticker-teks-more" id="tkMore_${t.id}" onclick="toggleTickerTeks(${t.id})" style="display:none"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:4px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>Selengkapnya</button>
           </div>
         </div>
       </td>
@@ -376,7 +376,7 @@ function toggleTickerTeks(id) {
   const moreBtn = document.getElementById(`tkMore_${id}`);
   if (!clampEl || !moreBtn) return;
   const expanded = clampEl.classList.toggle('is-expanded');
-  moreBtn.textContent = expanded ? 'Sembunyikan' : 'Selengkapnya';
+  moreBtn.innerHTML = expanded ? `<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:4px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M5 15l7-7 7 7"/></svg>Sembunyikan` : `<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:4px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>Selengkapnya`;
 }
 
 // Klik di luar area teks yang lagi "Selengkapnya" -> otomatis balik ringkas
@@ -388,7 +388,7 @@ document.addEventListener('click', (e) => {
     if (cell && !cell.contains(e.target)) {
       clampEl.classList.remove('is-expanded');
       const moreBtn = document.getElementById(`tkMore_${clampEl.id.replace('tkTeks_', '')}`);
-      if (moreBtn) moreBtn.textContent = 'Selengkapnya';
+      if (moreBtn) moreBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:4px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>Selengkapnya`;
     }
   });
 });

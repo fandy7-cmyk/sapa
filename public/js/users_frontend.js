@@ -315,7 +315,7 @@ function previewTandaTanganUser(id) {
         </div>
         <div class="modal-body" id="modalTtdPreviewBody"></div>
         <div class="modal-footer">
-          <button class="btn btn-ghost" onclick="closeModal('modalTtdPreview')">Tutup</button>
+          <button class="btn btn-ghost" onclick="closeModal('modalTtdPreview')"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>Tutup</button>
         </div>
       </div>`;
     modal.addEventListener('click', (e) => { if (e.target === modal) closeModal('modalTtdPreview'); });
@@ -696,8 +696,8 @@ function renderPermsGrid() {
     <div class="perm-tree-toolbar">
       <span class="perm-tree-count"><b>${picked}</b> dari ${total} hak akses dipilih</span>
       <span class="perm-tree-actions">
-        <button type="button" class="perm-link-btn" onclick="permsToggleAllGroups(${allOpen ? 'false' : 'true'})">${allOpen ? 'Tutup semua' : 'Buka semua'}</button>
-        <button type="button" class="perm-link-btn" onclick="permsClearAll()" ${picked ? '' : 'disabled'}>Kosongkan</button>
+        <button type="button" class="perm-link-btn" onclick="permsToggleAllGroups(${allOpen ? 'false' : 'true'})">${allOpen ? `<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:4px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M5 15l7-7 7 7"/></svg>Tutup semua` : `<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:4px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>Buka semua`}</button>
+        <button type="button" class="perm-link-btn" onclick="permsClearAll()" ${picked ? '' : 'disabled'}><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:4px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>Kosongkan</button>
       </span>
     </div>`;
 

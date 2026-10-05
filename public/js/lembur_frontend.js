@@ -236,7 +236,7 @@ async function _lemburRenderKegiatanList() {
   if (!body) return;
 
   const addBtn = _lemburFull
-    ? `<button class="btn btn-primary btn-sm" onclick="_lemburOpenTambahKegiatan()">+ Kegiatan Lembur</button>`
+    ? `<button class="btn btn-primary btn-sm" onclick="_lemburOpenTambahKegiatan()"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>Kegiatan Lembur</button>`
     : '';
 
   const total = _lemburKegiatanList.length;
@@ -676,7 +676,7 @@ async function _lemburRenderSesiList() {
   if (!body) return;
 
   const addBtn = _lemburFull
-    ? `<button class="btn btn-primary btn-sm" onclick="_lemburOpenTambahSesi()">+ Tambah Hari Lembur</button>`
+    ? `<button class="btn btn-primary btn-sm" onclick="_lemburOpenTambahSesi()"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>Tambah Hari Lembur</button>`
     : '';
 
   const daftarSesi = _lemburFull ? _lemburSesiList : _lemburSesiList.filter(s => s.is_peserta);
@@ -971,7 +971,7 @@ function _lemburRenderSesiDetail() {
   body.innerHTML = `
     <div class="lembur-toolbar" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
       <button class="btn btn-sm lembur-btn-kembali" onclick="_lemburOpenKegiatan(${_lemburActiveKegiatan.id})"><svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.4"><path stroke-linecap="round" stroke-linejoin="round" d="M19 12H5m0 0l6-6m-6 6l6 6"/></svg>Kembali</button>
-      ${_lemburFull ? `<button class="btn btn-primary btn-sm" onclick="_lemburEditJam()">+ Kelola Peserta</button>` : ''}
+      ${_lemburFull ? `<button class="btn btn-primary btn-sm" onclick="_lemburEditJam()"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>Kelola Peserta</button>` : ''}
     </div>
     <div class="card" style="padding:0;overflow:auto;-webkit-overflow-scrolling:touch">
       <table class="surat-table" style="table-layout:fixed;width:100%;min-width:700px">

@@ -4915,7 +4915,11 @@ export const handler = async (event) => {
         if (r.status === 'terisi') pjMap[pj].terisi++;
         else pjMap[pj].belum++;
       }
-      const summary_pj = Object.values(pjMap).sort((a, b) => b.belum - a.belum);
+      // Urutan: Belum Input terbanyak di atas, kalau sama urut abjad; "- Tanpa PJ -" selalu paling bawah
+      const summary_pj = Object.values(pjMap).sort((a, b) =>
+        ((a.penanggung_jawab === '- Tanpa PJ -') - (b.penanggung_jawab === '- Tanpa PJ -')) ||
+        (b.belum - a.belum) ||
+        a.penanggung_jawab.localeCompare(b.penanggung_jawab, 'id'));
 
       return jsonResponse({
         bulan: bulan ?? null,

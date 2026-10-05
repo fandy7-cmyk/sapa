@@ -2607,8 +2607,8 @@ function _auiEnsureModal() {
       </div>
       <div id="auiList" style="max-height:380px;overflow-y:auto;border-top:1px solid #e2e8f0;border-bottom:1px solid #e2e8f0"></div>
       <div class="modal-footer">
-        <button class="btn btn-ghost" onclick="closeModal('modalAssignUserIndikator')">Batal</button>
-        <button class="btn btn-primary" id="auiSaveBtn" onclick="saveAssignUserIndikator()">Simpan</button>
+        <button class="btn btn-ghost" onclick="closeModal('modalAssignUserIndikator')"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"/></svg>Batal</button>
+        <button class="btn btn-primary" id="auiSaveBtn" onclick="saveAssignUserIndikator()"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>Simpan</button>
       </div>
     </div>`;
   m.addEventListener('click', (e) => { if (e.target === m) closeModal('modalAssignUserIndikator'); });
@@ -6391,7 +6391,7 @@ function _monRenderSummary() {
              :             { c: '#dc2626', c2: '#ef4444', bg: 'rgba(220,38,38,.1)' };
 
   const kpi = (value, label, color, bg, iconSvg) => `
-    <div class="stat-card" style="border-left-color:${color};flex:1 1 150px;min-width:150px">
+    <div class="stat-card" style="border-left-color:${color}">
       <div class="stat-card-body">
         <div class="stat-label">${label}</div>
         <div class="stat-value" style="color:${color}">${value}</div>
@@ -6402,7 +6402,7 @@ function _monRenderSummary() {
     </div>`;
 
   el.innerHTML = `
-    <div style="display:flex;flex-wrap:wrap;gap:var(--sp-4);align-items:stretch;margin-bottom:var(--sp-5)">
+    <div class="mon-kpi-grid">
       ${kpi(summary.terisi, 'Terinput', '#16a34a', 'rgba(22,163,74,.12)',
         '<path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>')}
       ${kpi(summary.belum, 'Belum Input', '#d97706', 'rgba(217,119,6,.12)',
@@ -6410,7 +6410,7 @@ function _monRenderSummary() {
       ${kpi(summary.total, 'Total', 'var(--hijau)', 'rgba(15,118,110,.12)',
         '<path d="M3 3v18h18"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/>')}
 
-      <div class="stat-card" style="flex:2 1 260px;min-width:240px;flex-direction:column;align-items:stretch;border-left-color:${tone.c}">
+      <div class="stat-card mon-kpi-progress" style="flex-direction:column;align-items:stretch;border-left-color:${tone.c}">
         <div style="display:flex;justify-content:space-between;align-items:baseline;gap:var(--sp-3)">
           <span class="stat-label">Progress Pengisian</span>
           <span style="font-size:var(--fs-lg);font-weight:800;color:${tone.c};font-variant-numeric:tabular-nums">${pct}%</span>
@@ -6475,7 +6475,7 @@ function _monRenderPJCards() {
     return `<div class="mon-pj-card" onclick='setMonPJ(${_jsAttr(pj.penanggung_jawab)})' data-tip="Klik untuk filter"
          style="cursor:pointer;position:relative;overflow:hidden;background:${isActive ? 'linear-gradient(135deg,rgba(15,118,110,.07),rgba(255,255,255,.95))' : '#fff'};
                 border:1.5px solid ${isActive ? 'var(--hijau)' : 'var(--abu-2)'};
-                border-radius:var(--r-md);flex:1;min-width:210px;max-width:280px;
+                border-radius:var(--r-md);
                 box-shadow:${isActive ? '0 0 0 3px rgba(13,148,136,.12), var(--shadow-sm)' : 'var(--shadow-sm)'};
                 transition:box-shadow var(--transition), transform var(--transition), border-color var(--transition)"
          onmouseover="this.style.boxShadow='var(--shadow-md)';this.style.transform='translateY(-2px)'"
@@ -6503,7 +6503,7 @@ function _monRenderPJCards() {
         <span>Progress per Unit Kerja</span>
         ${_mon_pj ? `<button onclick="setMonPJ('')" style="font-size:var(--fs-xs);background:var(--hijau-light);border:none;border-radius:999px;padding:2px 10px;cursor:pointer;color:var(--hijau);font-weight:700;display:inline-flex;align-items:center;gap:3px"><svg xmlns="http://www.w3.org/2000/svg" width="9" height="9" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>Reset</button>` : ''}
       </div>
-      <div style="display:flex;flex-wrap:wrap;gap:var(--sp-3)">${cards}</div>
+      <div class="mon-card-grid">${cards}</div>
     </div>`;
 }
 
@@ -6552,7 +6552,7 @@ function _monRenderUserCards() {
     return `<div onclick='setMonUser(${_jsAttr(isActive ? '' : u.nama)})' data-tip="Klik untuk filter tabel"
          style="cursor:pointer;display:flex;align-items:center;gap:10px;background:${isActive ? 'linear-gradient(135deg,rgba(15,118,110,.07),rgba(255,255,255,.95))' : '#fff'};
                 border:1.5px solid ${isActive ? 'var(--hijau)' : 'var(--abu-2)'};border-radius:var(--r-md);
-                padding:10px 14px;flex:1;min-width:210px;max-width:280px;box-shadow:${isActive ? '0 0 0 3px rgba(13,148,136,.12), var(--shadow-sm)' : 'var(--shadow-sm)'};
+                padding:10px 14px;box-shadow:${isActive ? '0 0 0 3px rgba(13,148,136,.12), var(--shadow-sm)' : 'var(--shadow-sm)'};
                 transition:box-shadow var(--transition), transform var(--transition), border-color var(--transition)"
          onmouseover="this.style.boxShadow='var(--shadow-md)';this.style.transform='translateY(-2px)'"
          onmouseout="this.style.boxShadow='${isActive ? '0 0 0 3px rgba(13,148,136,.12), var(--shadow-sm)' : 'var(--shadow-sm)'}';this.style.transform='none'">
@@ -6573,7 +6573,7 @@ function _monRenderUserCards() {
         <span>Progress per User - ${escHtml(_mon_pj)}</span>
         ${_mon_user ? `<button onclick="setMonUser('')" style="font-size:var(--fs-xs);background:var(--hijau-light);border:none;border-radius:999px;padding:2px 10px;cursor:pointer;color:var(--hijau);font-weight:700;display:inline-flex;align-items:center;gap:3px"><svg xmlns="http://www.w3.org/2000/svg" width="9" height="9" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>Reset</button>` : ''}
       </div>
-      <div style="display:flex;flex-wrap:wrap;gap:var(--sp-3)">${cards}</div>
+      <div class="mon-card-grid">${cards}</div>
     </div>`;
 }
 // ── Tabel detail ──────────────────────────────────────────────────────────
@@ -6798,7 +6798,9 @@ function _monSyncBulanBtn() {
 function _monPopulatePJSelect() {
   const sel = document.getElementById('monPJSelect');
   if (!sel) return;
-  const list = (_mon_data?.summary_pj || []).map(p => p.penanggung_jawab).filter(Boolean);
+  // Dropdown urut abjad (beda dengan urutan card yang ikut Belum Input); "- Tanpa PJ -" paling bawah
+  const list = (_mon_data?.summary_pj || []).map(p => p.penanggung_jawab).filter(Boolean)
+    .sort((a, b) => ((a === '- Tanpa PJ -') - (b === '- Tanpa PJ -')) || a.localeCompare(b, 'id'));
   if (_mon_pj && !list.includes(_mon_pj)) _mon_pj = '';
   sel.innerHTML = '<option value="">Semua Unit Kerja</option>' +
     list.map(n => `<option value="${escHtml(n)}"${n === _mon_pj ? ' selected' : ''}>${escHtml(n)}</option>`).join('');

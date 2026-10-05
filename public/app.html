@@ -66,11 +66,11 @@
   </script>
   <!-- Preload file theme-engine.js juga, paralel dari awal - jangan
        nunggu parser sampe ke <script> di akhir body baru mulai narik. -->
-  <link rel="preload" as="script" href="js/theme-engine.js?v=1.2.1" />
+  <link rel="preload" as="script" href="js/theme-engine.js?v=1.2.2" />
   <script>history.replaceState(null, '', location.origin);</script>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>SAPA Perencanaan</title>
-  <meta name="app-version" content="1.2.1" />
+  <meta name="app-version" content="1.2.2" />
   <link rel="icon" type="image/png" href="/favicon.png" />
   <link rel="manifest" href="/manifest.json" />
   <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
@@ -81,7 +81,7 @@
   <meta name="apple-mobile-web-app-title" content="SAPA" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="css/styles.css?v=1.2.1" />
+  <link rel="stylesheet" href="css/styles.css?v=1.2.2" />
   <style>
     
     .filter-bar {
@@ -293,7 +293,7 @@
       <div class="topbar-constellation" id="topbarConstellation" aria-hidden="true">
         <canvas id="topbarConstellationCanvas"></canvas>
       </div>
-      <script src="js/topbar_constellation.js?v=1.2.1"></script>
+      <script src="js/topbar_constellation.js?v=1.2.2"></script>
 
       <div class="topbar-profile">
         <div class="topbar-user-info">
@@ -748,7 +748,7 @@
         <div class="page-subtitle" id="epRincianJudul">-</div>
         <div style="font-size:13px;color:var(--text-secondary,#64748b);margin-bottom:12px">Bidang: <span id="epRincianBidang">-</span></div>
         <div class="toolbar">
-          <button class="btn btn-ghost btn-sm" onclick="epUsulankuOpenTab('usulan')">&larr; Kembali ke daftar usulan</button>
+          <button class="btn btn-ghost btn-sm" onclick="epUsulankuOpenTab('usulan')"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>Kembali ke daftar usulan</button>
           <button class="btn btn-primary btn-sm" onclick="openRincianItemModal()"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>Tambah Rincian</button>
         </div>
         <div class="card" style="padding:0;overflow:auto;-webkit-overflow-scrolling:touch;max-height:60vh">
@@ -2242,7 +2242,7 @@
 
     </div>
     <div class="modal-footer">
-      <button class="btn btn-ghost" onclick="closeModal('modalPeriode')"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>Batal</button>
+      <button class="btn btn-ghost" onclick="closeModal('modalPeriode')"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"/></svg>Batal</button>
       <button class="btn btn-primary" onclick="savePeriode()"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>Simpan</button>
     </div>
   </div>
@@ -2259,9 +2259,7 @@
     <div id="confirmMsg">Apakah Anda yakin?</div>
     <div class="confirm-btns">
       <button id="confirmCancel" onclick="closeConfirm()">
-        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>
-        Batal
-      </button>
+        <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"/></svg>Batal</button>
       <button id="confirmOk">
         <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
         Ya, Lanjutkan
@@ -2292,7 +2290,7 @@
         <div style="display:flex;gap:8px;align-items:center">
           <div id="cdtp_lemburKegiatanTanggal" class="cdtp-mount" style="flex:1;min-width:0" data-cdtp="lemburKegiatanTanggal" data-cdtp-date="1" data-cdtp-libur="1" data-cdtp-max-today="1" data-cdtp-terpakai="1" data-placeholder="Pilih tanggal"></div>
           <input type="hidden" id="lemburKegiatanTanggal" onchange="_lemburOnKegiatanTanggalChange()" />
-          <button type="button" class="btn btn-outline-hijau btn-sm" style="flex-shrink:0" id="btnLemburTanggalTambah" onclick="_lemburAddTanggalChip()">+ Tambah</button>
+          <button type="button" class="btn btn-outline-hijau btn-sm" style="flex-shrink:0" id="btnLemburTanggalTambah" onclick="_lemburAddTanggalChip()"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>Tambah</button>
         </div>
         <div id="lemburKegiatanTanggalChips" style="display:flex;flex-wrap:wrap;margin-top:4px"></div>
         <div class="field-hint" id="lemburKegiatanTanggalHint">Pilih tanggal lalu klik "+ Tambah" untuk mencatat beberapa tanggal sekaligus (mis. 1, 3, 7, 8) dalam satu kegiatan.</div>
@@ -2331,7 +2329,7 @@
       </div>
     </div>
     <div class="modal-footer">
-      <button class="btn btn-ghost" onclick="closeModal('modalLemburKegiatan')">Batal</button>
+      <button class="btn btn-ghost" onclick="closeModal('modalLemburKegiatan')"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"/></svg>Batal</button>
       <button class="btn btn-primary" id="btnSaveLemburKegiatan" onclick="_lemburSubmitTambahKegiatan()"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>Simpan</button>
     </div>
   </div>
@@ -2350,7 +2348,7 @@
       </div>
     </div>
     <div class="modal-footer">
-      <button class="btn btn-ghost" onclick="_lemburTutupNamaKegiatanBaru()">Tutup</button>
+      <button class="btn btn-ghost" onclick="_lemburTutupNamaKegiatanBaru()"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>Tutup</button>
       <button class="btn btn-primary" onclick="lemburSimpanNamaKegiatanBaru()"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>Simpan</button>
     </div>
   </div>
@@ -2387,7 +2385,7 @@
       </div>
     </div>
     <div class="modal-footer">
-      <button class="btn btn-ghost" onclick="closeModal('modalLemburSesi')">Batal</button>
+      <button class="btn btn-ghost" onclick="closeModal('modalLemburSesi')"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"/></svg>Batal</button>
       <button class="btn btn-primary" id="btnSaveLemburSesi" onclick="_lemburSubmitSesi()"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>Simpan</button>
     </div>
   </div>
@@ -2445,7 +2443,7 @@
       </div>
     </div>
     <div class="modal-footer">
-      <button class="btn btn-ghost" onclick="closeModal('modalPengumuman')"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>Batal</button>
+      <button class="btn btn-ghost" onclick="closeModal('modalPengumuman')"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"/></svg>Batal</button>
       <button class="btn btn-primary" id="btnSavePengumuman" onclick="savePengumuman()"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>Simpan</button>
     </div>
   </div>
@@ -2496,7 +2494,7 @@
       </div>
     </div>
     <div class="modal-footer">
-      <button class="btn btn-ghost" onclick="closeModal('modalTicker')"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>Batal</button>
+      <button class="btn btn-ghost" onclick="closeModal('modalTicker')"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"/></svg>Batal</button>
       <button class="btn btn-primary" id="btnSaveTicker" onclick="saveTicker()"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>Simpan</button>
     </div>
   </div>
@@ -2537,7 +2535,7 @@
       </div>
     </div>
     <div class="modal-footer">
-      <button class="btn btn-ghost" onclick="closeModal('modalSubkegiatan')"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>Batal</button>
+      <button class="btn btn-ghost" onclick="closeModal('modalSubkegiatan')"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"/></svg>Batal</button>
       <button class="btn btn-primary" id="btnSaveSubkegiatan" onclick="epSaveSubkegiatan()"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>Simpan</button>
     </div>
   </div>
@@ -2570,7 +2568,7 @@
       </div>
     </div>
     <div class="modal-footer">
-      <button class="btn btn-ghost" onclick="closeModal('modalSumberDana')"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>Batal</button>
+      <button class="btn btn-ghost" onclick="closeModal('modalSumberDana')"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"/></svg>Batal</button>
       <button class="btn btn-primary" id="btnSaveSumberDana" onclick="epSaveSumberDana()"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>Simpan</button>
     </div>
   </div>
@@ -2599,7 +2597,7 @@
       </div>
     </div>
     <div class="modal-footer">
-      <button class="btn btn-ghost" onclick="closeModal('modalReferensi')"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>Batal</button>
+      <button class="btn btn-ghost" onclick="closeModal('modalReferensi')"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"/></svg>Batal</button>
       <button class="btn btn-primary" id="btnSaveReferensi" onclick="epSaveReferensi()"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>Simpan</button>
     </div>
   </div>
@@ -2617,13 +2615,13 @@
           <label>Tambah tag baru</label>
           <input type="text" id="epTagNewInput" placeholder="Nama tag baru…" onkeydown="if(event.key==='Enter'){event.preventDefault();epAddNewTagInline();}" />
         </div>
-        <button type="button" class="btn btn-ghost btn-sm" onclick="epAddNewTagInline()">Tambah</button>
+        <button type="button" class="btn btn-ghost btn-sm" onclick="epAddNewTagInline()"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>Tambah</button>
       </div>
       <div id="epTagPickerBody" style="max-height:260px;overflow:auto;border-top:1px solid var(--abu-2);padding-top:8px;margin-top:4px"></div>
     </div>
     <div class="modal-footer">
-      <button class="btn btn-ghost" onclick="closeModal('modalTagPicker')">Batal</button>
-      <button class="btn btn-primary" onclick="epApplyTagPicker()">Terapkan</button>
+      <button class="btn btn-ghost" onclick="closeModal('modalTagPicker')"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"/></svg>Batal</button>
+      <button class="btn btn-primary" onclick="epApplyTagPicker()"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>Terapkan</button>
     </div>
   </div>
 </div>
@@ -2651,7 +2649,7 @@
       </div>
     </div>
     <div class="modal-footer">
-      <button class="btn btn-ghost" onclick="closeModal('modalSatuan')"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>Batal</button>
+      <button class="btn btn-ghost" onclick="closeModal('modalSatuan')"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"/></svg>Batal</button>
       <button class="btn btn-primary" id="btnSaveSatuan" onclick="epSaveSatuan()"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>Simpan</button>
     </div>
   </div>
@@ -2683,7 +2681,7 @@
       </div>
     </div>
     <div class="modal-footer">
-      <button class="btn btn-ghost" onclick="closeModal('modalRekening')"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>Batal</button>
+      <button class="btn btn-ghost" onclick="closeModal('modalRekening')"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"/></svg>Batal</button>
       <button class="btn btn-primary" id="btnSaveRekening" onclick="epSaveRekening()"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>Simpan</button>
     </div>
   </div>
@@ -2803,7 +2801,7 @@
           <tr><td>Total Harga</td><td id="epShCalcTotal" style="text-align:right;font-weight:600">Rp0</td></tr>
           <tr style="color:var(--hijau)"><td>Pembulatan (dibulatkan ke ribuan)</td><td id="epShCalcBulat" style="text-align:right;font-weight:700">Rp0</td></tr>
         </table>
-        <button type="button" class="btn btn-primary btn-sm" style="margin-bottom:12px" onclick="epPakaiHasilShKalkulator()">Pakai Harga Ini</button>
+        <button type="button" class="btn btn-primary btn-sm" style="margin-bottom:12px" onclick="epPakaiHasilShKalkulator()"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>Pakai Harga Ini</button>
       </div>
       <div class="field" id="epShKodeRekeningField">
         <label>Kode Rekening Terkait</label>
@@ -2823,7 +2821,7 @@
       </div>
     </div>
     <div class="modal-footer">
-      <button class="btn btn-ghost" onclick="closeModal('modalStandarHarga')"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>Batal</button>
+      <button class="btn btn-ghost" onclick="closeModal('modalStandarHarga')"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"/></svg>Batal</button>
       <button class="btn btn-primary" id="btnSaveStandarHarga" onclick="epSaveStandarHarga()"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>Simpan</button>
     </div>
   </div>
@@ -2860,7 +2858,7 @@
       </div>
     </div>
     <div class="modal-footer">
-      <button class="btn btn-ghost" onclick="closeModal('modalPengaturanKalkulator')">Batal</button>
+      <button class="btn btn-ghost" onclick="closeModal('modalPengaturanKalkulator')"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"/></svg>Batal</button>
       <button class="btn btn-primary" id="btnSavePengaturanKalkulator" onclick="epSavePengaturanKalkulator()"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>Simpan</button>
     </div>
   </div>
@@ -2896,7 +2894,7 @@
       </div>
     </div>
     <div class="modal-footer">
-      <button class="btn btn-ghost" id="btnBatalImporSd" onclick="closeModal('modalImporSumberDana')">Batal</button>
+      <button class="btn btn-ghost" id="btnBatalImporSd" onclick="closeModal('modalImporSumberDana')"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"/></svg>Batal</button>
       <button class="btn btn-primary" id="btnMulaiImporSd" onclick="epSubmitImporSumberDana()"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" x2="12" y1="3" y2="15"/></svg>Mulai Impor</button>
     </div>
   </div>
@@ -2932,7 +2930,7 @@
       </div>
     </div>
     <div class="modal-footer">
-      <button class="btn btn-ghost" id="btnBatalImporSubkeg" onclick="closeModal('modalImporSubkegiatan')">Batal</button>
+      <button class="btn btn-ghost" id="btnBatalImporSubkeg" onclick="closeModal('modalImporSubkegiatan')"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"/></svg>Batal</button>
       <button class="btn btn-primary" id="btnMulaiImporSubkeg" onclick="epSubmitImporSubkegiatan()"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" x2="12" y1="3" y2="15"/></svg>Mulai Impor</button>
     </div>
   </div>
@@ -2991,7 +2989,7 @@
       </div>
     </div>
     <div class="modal-footer">
-      <button class="btn btn-ghost" id="btnBatalImporSh" onclick="closeModal('modalImporStandarHarga')">Batal</button>
+      <button class="btn btn-ghost" id="btnBatalImporSh" onclick="closeModal('modalImporStandarHarga')"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"/></svg>Batal</button>
       <button class="btn btn-primary" id="btnMulaiImporSh" onclick="epSubmitImporStandarHarga()"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" x2="12" y1="3" y2="15"/></svg>Mulai Impor</button>
     </div>
   </div>
@@ -3079,7 +3077,7 @@
       </div>
     </div>
     <div class="modal-footer">
-      <button class="btn btn-ghost" onclick="closeModal('modalLink')"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>Batal</button>
+      <button class="btn btn-ghost" onclick="closeModal('modalLink')"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"/></svg>Batal</button>
       <button class="btn btn-primary" id="btnSaveLink" onclick="saveLink()"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>Simpan</button>
     </div>
   </div>
@@ -3139,7 +3137,7 @@
           <div class="field"><label>Judul *</label><input type="text" id="biJudul" placeholder="Nama item" /></div>
           <div class="field"><label>URL *</label><input type="url" id="biUrl" placeholder="https://..." /></div>
           <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:4px">
-            <button class="btn btn-ghost btn-sm" onclick="hideInlineItemForm()"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>Batal</button>
+            <button class="btn btn-ghost btn-sm" onclick="hideInlineItemForm()"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"/></svg>Batal</button>
             <button class="btn btn-primary btn-sm" onclick="saveBundleItem()"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>Simpan Item</button>
           </div>
         </div>
@@ -3293,7 +3291,7 @@
       </div>
     </div>
     <div class="modal-footer">
-      <button class="btn btn-ghost" onclick="closeModal('modalSM')"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>Batal</button>
+      <button class="btn btn-ghost" onclick="closeModal('modalSM')"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"/></svg>Batal</button>
       <button class="btn btn-primary" onclick="saveSM()"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>Simpan</button>
     </div>
   </div>
@@ -3354,7 +3352,7 @@
       </div>
     </div>
     <div class="modal-footer">
-      <button class="btn btn-ghost" onclick="closeModal('modalSK')"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>Batal</button>
+      <button class="btn btn-ghost" onclick="closeModal('modalSK')"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"/></svg>Batal</button>
       <button class="btn btn-primary" onclick="saveSK()"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>Simpan</button>
     </div>
   </div>
@@ -3406,7 +3404,7 @@
       </div>
     </div>
     <div class="modal-footer">
-      <button class="btn btn-ghost" onclick="closeModal('modalEpUsulan')">Batal</button>
+      <button class="btn btn-ghost" onclick="closeModal('modalEpUsulan')"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"/></svg>Batal</button>
       <button class="btn btn-primary" id="btnSimpanUsulan" onclick="saveUsulan()" disabled><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>Simpan</button>
     </div>
   </div>
@@ -3426,9 +3424,9 @@
     </div>
     <div class="modal-body">
       <div style="display:flex;gap:6px;margin-bottom:14px;border-bottom:1px solid var(--border,#e2e8f0);padding-bottom:10px">
-        <button type="button" class="btn btn-sm" id="epDokTabBtnSurat" onclick="epSwitchDokTab('surat')">Surat Usulan <span id="epDokDotSurat" style="font-weight:700;display:inline-flex;vertical-align:middle"></span></button>
-        <button type="button" class="btn btn-sm" id="epDokTabBtnTor" onclick="epSwitchDokTab('tor')">TOR <span id="epDokDotTor" style="font-weight:700;display:inline-flex;vertical-align:middle"></span></button>
-        <button type="button" class="btn btn-sm" id="epDokTabBtnRab" onclick="epSwitchDokTab('rab')">RAB <span id="epDokDotRab" style="font-weight:700;display:inline-flex;vertical-align:middle"></span></button>
+        <button type="button" class="btn btn-sm" id="epDokTabBtnSurat" onclick="epSwitchDokTab('surat')"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>Surat Usulan <span id="epDokDotSurat" style="font-weight:700;display:inline-flex;vertical-align:middle"></span></button>
+        <button type="button" class="btn btn-sm" id="epDokTabBtnTor" onclick="epSwitchDokTab('tor')"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>TOR <span id="epDokDotTor" style="font-weight:700;display:inline-flex;vertical-align:middle"></span></button>
+        <button type="button" class="btn btn-sm" id="epDokTabBtnRab" onclick="epSwitchDokTab('rab')"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg>RAB <span id="epDokDotRab" style="font-weight:700;display:inline-flex;vertical-align:middle"></span></button>
       </div>
       <div id="epDokContent"></div>
     </div>
@@ -3451,8 +3449,8 @@
       </div>
     </div>
     <div class="modal-footer">
-      <button class="btn btn-ghost" onclick="closeModal('modalEpApproveKabid')">Batal</button>
-      <button class="btn btn-primary" onclick="submitApproveKabid()">Setujui & Ajukan ke Admin</button>
+      <button class="btn btn-ghost" onclick="closeModal('modalEpApproveKabid')"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"/></svg>Batal</button>
+      <button class="btn btn-primary" onclick="submitApproveKabid()"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>Setujui & Ajukan ke Admin</button>
     </div>
   </div>
 </div>
@@ -3473,8 +3471,8 @@
       </div>
     </div>
     <div class="modal-footer">
-      <button class="btn btn-ghost" onclick="closeModal('modalEpApproveSekretaris')">Batal</button>
-      <button class="btn btn-primary" onclick="submitApproveSekretaris()">Setujui & Ajukan ke Admin</button>
+      <button class="btn btn-ghost" onclick="closeModal('modalEpApproveSekretaris')"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"/></svg>Batal</button>
+      <button class="btn btn-primary" onclick="submitApproveSekretaris()"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>Setujui & Ajukan ke Admin</button>
     </div>
   </div>
 </div>
@@ -3495,8 +3493,8 @@
       </div>
     </div>
     <div class="modal-footer">
-      <button class="btn btn-ghost" onclick="closeModal('modalEpApproveAdmin')">Batal</button>
-      <button class="btn btn-primary" onclick="submitApproveAdmin()">Sahkan (DISETUJUI)</button>
+      <button class="btn btn-ghost" onclick="closeModal('modalEpApproveAdmin')"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"/></svg>Batal</button>
+      <button class="btn btn-primary" onclick="submitApproveAdmin()"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>Sahkan (DISETUJUI)</button>
     </div>
   </div>
 </div>
@@ -3515,9 +3513,9 @@
       </div>
     </div>
     <div class="modal-footer">
-      <button class="btn btn-ghost" onclick="closeModal('modalEpVerifikasiPrafinal')">Batal</button>
-      <button class="btn btn-danger" onclick="epTogglePrafinalPerubahan()" id="epPfBtnAdaPerubahan">Ya, Ada Perubahan</button>
-      <button class="btn btn-primary" onclick="submitVerifikasiPrafinal('FINAL')" id="epPfBtnFinal">Tidak, Final</button>
+      <button class="btn btn-ghost" onclick="closeModal('modalEpVerifikasiPrafinal')"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"/></svg>Batal</button>
+      <button class="btn btn-danger" onclick="epTogglePrafinalPerubahan()" id="epPfBtnAdaPerubahan"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>Ya, Ada Perubahan</button>
+      <button class="btn btn-primary" onclick="submitVerifikasiPrafinal('FINAL')" id="epPfBtnFinal"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>Tidak, Final</button>
     </div>
   </div>
 </div>
@@ -3630,7 +3628,7 @@
       </div>
     </div>
     <div class="modal-footer">
-      <button class="btn btn-ghost" id="btnBatalRincian" onclick="closeModal('modalEpRincian')">Batal</button>
+      <button class="btn btn-ghost" id="btnBatalRincian" onclick="closeModal('modalEpRincian')"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"/></svg>Batal</button>
       <button class="btn btn-primary" id="btnSimpanRincian" disabled onclick="saveRincianItem()"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>Simpan</button>
     </div>
   </div>
@@ -3649,7 +3647,7 @@
       </div>
     </div>
     <div class="modal-footer">
-      <button class="btn btn-ghost" onclick="closeModal('modalEpKeterangan')">Tutup</button>
+      <button class="btn btn-ghost" onclick="closeModal('modalEpKeterangan')"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>Tutup</button>
       <button class="btn btn-primary" onclick="epSimpanKeteranganBaru()"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>Simpan</button>
     </div>
   </div>
@@ -3668,7 +3666,7 @@
       </div>
     </div>
     <div class="modal-footer">
-      <button class="btn btn-ghost" onclick="closeModal('modalEpUraianPaket')">Tutup</button>
+      <button class="btn btn-ghost" onclick="closeModal('modalEpUraianPaket')"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>Tutup</button>
       <button class="btn btn-primary" onclick="epSimpanUraianPaketBaru()"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>Simpan</button>
     </div>
   </div>
@@ -3766,7 +3764,7 @@
       <div class="field" id="absKeteranganWrap"><label>Keterangan</label><textarea id="absKeterangan" placeholder="Opsional"></textarea></div>
     </div>
     <div class="modal-footer">
-      <button class="btn btn-ghost" onclick="closeModal('modalAbs')"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>Batal</button>
+      <button class="btn btn-ghost" onclick="closeModal('modalAbs')"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"/></svg>Batal</button>
       <button class="btn btn-primary" id="btnSimpanAbs" onclick="saveAbs()"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>Simpan</button>
     </div>
   </div>
@@ -3815,7 +3813,7 @@
       <div class="field"><label>Keterangan</label><textarea id="pengKeterangan" placeholder="Opsional, mis. tujuan tugas luar / alasan cuti"></textarea></div>
     </div>
     <div class="modal-footer">
-      <button class="btn btn-ghost" onclick="closeModal('modalPengajuanAbsen')"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>Batal</button>
+      <button class="btn btn-ghost" onclick="closeModal('modalPengajuanAbsen')"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"/></svg>Batal</button>
       <button class="btn btn-primary" id="btnSimpanPengajuan" onclick="savePengajuan()"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>Ajukan</button>
     </div>
   </div>
@@ -3852,7 +3850,7 @@
       <div class="field"><label>Alasan Penolakan</label><textarea id="tolakCatatan" placeholder="Opsional, akan dilihat pegawai yang mengajukan"></textarea></div>
     </div>
     <div class="modal-footer">
-      <button class="btn btn-ghost" onclick="closeModal('modalTolakPengajuan')"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>Batal</button>
+      <button class="btn btn-ghost" onclick="closeModal('modalTolakPengajuan')"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"/></svg>Batal</button>
       <button class="btn btn-primary" onclick="submitTolakPengajuan()"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>Tolak Pengajuan</button>
     </div>
   </div>
@@ -3893,7 +3891,7 @@
       <div class="field"><label>Toleransi Keterlambatan (menit)</label><input type="number" id="absSetToleransi" min="0" step="1" /></div>
     </div>
     <div class="modal-footer">
-      <button class="btn btn-ghost" onclick="closeModal('modalAbsSettings')"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>Batal</button>
+      <button class="btn btn-ghost" onclick="closeModal('modalAbsSettings')"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"/></svg>Batal</button>
       <button class="btn btn-primary" onclick="saveAbsSettings()"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>Simpan Pengaturan</button>
     </div>
   </div>
@@ -3941,7 +3939,7 @@
       <input type="hidden" id="absRmdEditId" value="" />
       <div style="display:flex;gap:10px;margin:4px 0 20px">
         <button class="btn btn-primary btn-sm" onclick="saveAbsRamadhan()"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg><span id="absRmdSaveLabel">Tambah Periode</span></button>
-        <button class="btn btn-ghost btn-sm" id="btnCancelEditAbsRmd" style="display:none" onclick="cancelEditAbsRamadhan()"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>Batal</button>
+        <button class="btn btn-ghost btn-sm" id="btnCancelEditAbsRmd" style="display:none" onclick="cancelEditAbsRamadhan()"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"/></svg>Batal</button>
       </div>
 
       <div style="border-top:1px solid var(--abu-1);padding-top:16px;margin-bottom:14px">
@@ -3974,7 +3972,7 @@
       <input type="hidden" id="absLiburEditId" value="" />
       <div style="display:flex;gap:10px;margin-bottom:20px">
         <button class="btn btn-primary btn-sm" onclick="saveAbsLibur()"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg><span id="absLiburSaveLabel">Tambah Hari Libur</span></button>
-        <button class="btn btn-ghost btn-sm" id="btnCancelEditAbsLibur" style="display:none" onclick="cancelEditAbsLibur()"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>Batal</button>
+        <button class="btn btn-ghost btn-sm" id="btnCancelEditAbsLibur" style="display:none" onclick="cancelEditAbsLibur()"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"/></svg>Batal</button>
       </div>
 
       <div style="border-top:1px solid var(--abu-1);padding-top:16px;margin-bottom:14px">
@@ -4014,7 +4012,7 @@
       <div class="field"><label>Unit Kerja</label><div class="select-wrap"><select id="userBidang"><option value="">- Pilih Unit Kerja -</option></select></div></div>
     </div>
     <div class="modal-footer">
-      <button class="btn btn-ghost" onclick="closeModal('modalUser')"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>Batal</button>
+      <button class="btn btn-ghost" onclick="closeModal('modalUser')"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"/></svg>Batal</button>
       <button class="btn btn-primary" onclick="saveUser()"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>Simpan</button>
     </div>
   </div>
@@ -4031,7 +4029,7 @@
       <div id="urutanLaporanList" class="urutan-lap-list"></div>
     </div>
     <div class="modal-footer">
-      <button class="btn btn-ghost" onclick="closeModal('modalUrutanLaporan')">Batal</button>
+      <button class="btn btn-ghost" onclick="closeModal('modalUrutanLaporan')"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"/></svg>Batal</button>
       <button class="btn btn-primary" onclick="saveUrutanLaporan()"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>Simpan Urutan</button>
     </div>
   </div>
@@ -4050,7 +4048,7 @@
       <div class="perm-grid" id="permsGrid"></div>
     </div>
     <div class="modal-footer">
-      <button class="btn btn-ghost" onclick="closeModal('modalPerms')"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>Batal</button>
+      <button class="btn btn-ghost" onclick="closeModal('modalPerms')"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"/></svg>Batal</button>
       <button class="btn btn-primary" onclick="savePerms()"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"/></svg>Simpan Hak Akses</button>
     </div>
   </div>
@@ -4079,7 +4077,7 @@
       style="max-height:380px;overflow-y:auto;border-top:1px solid #e2e8f0;border-bottom:1px solid #e2e8f0">
     </div>
     <div class="modal-footer">
-      <button class="btn btn-ghost" onclick="closeModal('modalAssignIndikator')"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>Batal</button>
+      <button class="btn btn-ghost" onclick="closeModal('modalAssignIndikator')"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"/></svg>Batal</button>
       <button class="btn btn-primary" onclick="saveAssignIndikator()"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>Simpan</button>
     </div>
   </div>
@@ -4118,7 +4116,7 @@
       </div>
     </div>
     <div class="modal-footer">
-      <button class="btn btn-ghost" onclick="closeModal('modalAvatarUpload')"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>Batal</button>
+      <button class="btn btn-ghost" onclick="closeModal('modalAvatarUpload')"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"/></svg>Batal</button>
       <button class="btn btn-primary" onclick="saveAvatarUpload()"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>Simpan Foto</button>
     </div>
   </div>
@@ -4158,7 +4156,7 @@
       </div>
     </div>
     <div class="modal-footer">
-      <button class="btn btn-ghost" onclick="closeModal('modalTandaTangan')"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>Batal</button>
+      <button class="btn btn-ghost" onclick="closeModal('modalTandaTangan')"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"/></svg>Batal</button>
       <button class="btn btn-primary" onclick="saveTandaTanganUpload()"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>Simpan</button>
     </div>
   </div>
@@ -4200,7 +4198,7 @@
       </div>
     </div>
     <div class="modal-footer">
-      <button class="btn btn-ghost" onclick="closeModal('modalChangePassword')"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>Batal</button>
+      <button class="btn btn-ghost" onclick="closeModal('modalChangePassword')"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"/></svg>Batal</button>
       <button class="btn btn-primary" onclick="saveChangePassword()"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>Simpan Password</button>
     </div>
   </div>
@@ -4228,7 +4226,7 @@
       </div>
     </div>
     <div class="modal-footer">
-      <button class="btn btn-ghost" onclick="closeModal('modalBidang')"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>Batal</button>
+      <button class="btn btn-ghost" onclick="closeModal('modalBidang')"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"/></svg>Batal</button>
       <button class="btn btn-primary" onclick="saveBidang()"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>Simpan</button>
     </div>
   </div>
@@ -4381,7 +4379,7 @@
       </div>
     </div>
     <div class="modal-footer">
-      <button class="btn btn-ghost" onclick="closeModal('modalTemaMusiman')"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>Batal</button>
+      <button class="btn btn-ghost" onclick="closeModal('modalTemaMusiman')"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"/></svg>Batal</button>
       <button class="btn btn-primary" onclick="saveTemaMusiman()"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>Simpan</button>
     </div>
   </div>
@@ -4480,7 +4478,7 @@
       </div>
     </div>
     <div class="modal-footer">
-      <button class="btn btn-ghost" onclick="closeModal('modalIndikator')"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>Batal</button>
+      <button class="btn btn-ghost" onclick="closeModal('modalIndikator')"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"/></svg>Batal</button>
       <button class="btn btn-primary" onclick="saveIndikator()"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>Simpan</button>
     </div>
   </div>
@@ -4531,7 +4529,7 @@
       <div id="kiImpResult" style="display:none;margin-top:14px;padding:10px 12px;border:1px solid #fde68a;background:#fffbeb;border-radius:8px;font-size:12.5px;line-height:1.5;max-height:180px;overflow:auto"></div>
     </div>
     <div class="modal-footer">
-      <button class="btn btn-ghost" id="btnBatalImporKi" onclick="closeModal('modalImporIndikator')">Tutup</button>
+      <button class="btn btn-ghost" id="btnBatalImporKi" onclick="closeModal('modalImporIndikator')"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>Tutup</button>
       <button class="btn btn-primary" id="btnMulaiImporKi" onclick="kiSubmitImporIndikator()"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" x2="12" y1="3" y2="15"/></svg>Mulai Impor</button>
     </div>
   </div>
@@ -4620,7 +4618,7 @@
 
     </div>
     <div class="modal-footer">
-      <button class="btn btn-ghost" onclick="closeModal('modalJenis')"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>Batal</button>
+      <button class="btn btn-ghost" onclick="closeModal('modalJenis')"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"/></svg>Batal</button>
       <button class="btn btn-primary" onclick="saveJenis()">
         <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
         Simpan Jenis
@@ -4671,7 +4669,7 @@
       </div>
     </div>
     <div class="modal-footer">
-      <button class="btn btn-ghost" onclick="closeModal('modalKtAddTarget')"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>Batal</button>
+      <button class="btn btn-ghost" onclick="closeModal('modalKtAddTarget')"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"/></svg>Batal</button>
       <button class="btn btn-primary" onclick="saveKtAddTarget()">
         <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
         Simpan
@@ -4701,7 +4699,7 @@
       <div id="ktDeleteTargetList" style="display:flex;flex-direction:column;gap:6px;max-height:280px;overflow-y:auto"></div>
     </div>
     <div class="modal-footer">
-      <button class="btn btn-ghost" onclick="closeModal('modalKtDeleteTarget')"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>Batal</button>
+      <button class="btn btn-ghost" onclick="closeModal('modalKtDeleteTarget')"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"/></svg>Batal</button>
       <button class="btn btn-danger" onclick="saveKtDeleteTarget()">
         <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><polyline points="3 6 5 6 21 6"/><path stroke-linecap="round" stroke-linejoin="round" d="M19 6l-1 14H6L5 6"/><path stroke-linecap="round" stroke-linejoin="round" d="M10 11v6m4-6v6"/><path stroke-linecap="round" stroke-linejoin="round" d="M9 6V4h6v2"/></svg>
         Ya, Hapus
@@ -4730,8 +4728,8 @@
       <div id="ktHapusTahunList" style="display:flex;flex-direction:column;gap:6px;max-height:280px;overflow-y:auto"></div>
     </div>
     <div class="modal-footer">
-      <button class="btn btn-ghost" onclick="closeModal('modalKtHapusTahun')">Batal</button>
-      <button class="btn btn-danger" onclick="saveKtHapusTahun()">Ya, Hapus</button>
+      <button class="btn btn-ghost" onclick="closeModal('modalKtHapusTahun')"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"/></svg>Batal</button>
+      <button class="btn btn-danger" onclick="saveKtHapusTahun()"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>Ya, Hapus</button>
     </div>
   </div>
 </div>
@@ -4761,7 +4759,7 @@
       </div>
     </div>
     <div class="modal-footer">
-      <button class="btn btn-ghost" onclick="closeModal('modalGroup')"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>Batal</button>
+      <button class="btn btn-ghost" onclick="closeModal('modalGroup')"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"/></svg>Batal</button>
       <button class="btn btn-primary" onclick="saveGroup()"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>Simpan</button>
     </div>
   </div>
@@ -4798,7 +4796,7 @@
       </div>
     </div>
     <div class="modal-footer">
-      <button class="btn btn-ghost" onclick="closeModal('modalLapTemplate')"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>Batal</button>
+      <button class="btn btn-ghost" onclick="closeModal('modalLapTemplate')"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"/></svg>Batal</button>
       <button class="btn btn-primary" onclick="saveLapTemplate()">
         <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>Simpan
       </button>
@@ -4843,7 +4841,7 @@
       <div id="lapTplIndList" style="display:flex;flex-direction:column;gap:4px;max-height:360px;overflow-y:auto;border:1px solid #e2e8f0;border-radius:8px;padding:8px"></div>
     </div>
     <div class="modal-footer" style="flex-shrink:0">
-      <button class="btn btn-ghost" onclick="closeModal('modalLapTemplateIndikator')"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>Batal</button>
+      <button class="btn btn-ghost" onclick="closeModal('modalLapTemplateIndikator')"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"/></svg>Batal</button>
       <button class="btn btn-primary" onclick="saveLapTemplateIndikator()">
         <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>Simpan Indikator
       </button>
@@ -4885,7 +4883,7 @@
       <div id="dukungFilePreview"></div>
     </div>
     <div class="modal-footer">
-      <button class="btn btn-ghost" onclick="closeModal('modalDukung')"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>Batal</button>
+      <button class="btn btn-ghost" onclick="closeModal('modalDukung')"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"/></svg>Batal</button>
       <button class="btn btn-primary" id="dukungSaveBtn" onclick="saveDukung()"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>Simpan</button>
     </div>
   </div>
@@ -5056,7 +5054,7 @@
 </div>
 
 
-<script src="js/periode_frontend.js?v=1.2.1"></script>
+<script src="js/periode_frontend.js?v=1.2.2"></script>
 <script>
 (function() {
   'use strict';
@@ -5199,25 +5197,25 @@
 })();
 </script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/quill/1.3.7/quill.min.js"></script>
-  <script src="js/monitoring_frontend.js?v=1.2.1"></script>
-  <script src="js/app.js?v=1.2.1"></script>
-<script src="js/dashboard.js?v=1.2.1"></script>
+  <script src="js/monitoring_frontend.js?v=1.2.2"></script>
+  <script src="js/app.js?v=1.2.2"></script>
+<script src="js/dashboard.js?v=1.2.2"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
-<script src="js/superlink.js?v=1.2.1"></script>
-<script src="js/pengumuman_frontend.js?v=1.2.1"></script>
-<script src="js/surat.js?v=1.2.1"></script>
-<script src="js/eplanning_frontend.js?v=1.2.1"></script>
-<script src="js/absensi_frontend.js?v=1.2.1"></script>
-<script src="js/lembur_frontend.js?v=1.2.1"></script>
-<script src="js/users_frontend.js?v=1.2.1"></script>
-<script src="js/kinerja.js?v=1.2.1"></script>
-<script src="js/laporan.js?v=1.2.1"></script>
-<script src="js/struktur_frontend.js?v=1.2.1"></script>
-<script src="js/audit_frontend.js?v=1.2.1"></script>
-<script src="js/dokumen_publik_frontend.js?v=1.2.1"></script>
-<script src="js/profil_frontend.js?v=1.2.1"></script>
-<script src="js/tema_musiman_frontend.js?v=1.2.1"></script>
-<script src="js/theme-engine.js?v=1.2.1"></script>
+<script src="js/superlink.js?v=1.2.2"></script>
+<script src="js/pengumuman_frontend.js?v=1.2.2"></script>
+<script src="js/surat.js?v=1.2.2"></script>
+<script src="js/eplanning_frontend.js?v=1.2.2"></script>
+<script src="js/absensi_frontend.js?v=1.2.2"></script>
+<script src="js/lembur_frontend.js?v=1.2.2"></script>
+<script src="js/users_frontend.js?v=1.2.2"></script>
+<script src="js/kinerja.js?v=1.2.2"></script>
+<script src="js/laporan.js?v=1.2.2"></script>
+<script src="js/struktur_frontend.js?v=1.2.2"></script>
+<script src="js/audit_frontend.js?v=1.2.2"></script>
+<script src="js/dokumen_publik_frontend.js?v=1.2.2"></script>
+<script src="js/profil_frontend.js?v=1.2.2"></script>
+<script src="js/tema_musiman_frontend.js?v=1.2.2"></script>
+<script src="js/theme-engine.js?v=1.2.2"></script>
 
 <script>
 (function () {
@@ -5674,7 +5672,7 @@
       </div>
     </div>
     <div class="modal-footer">
-      <button class="btn btn-ghost" onclick="closeModal('modalPegawai')"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>Batal</button>
+      <button class="btn btn-ghost" onclick="closeModal('modalPegawai')"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"/></svg>Batal</button>
       <button class="btn btn-primary" id="btnSavePegawai" onclick="savePegawai()"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>Simpan</button>
     </div>
   </div>
@@ -5728,7 +5726,7 @@
       </div>
     </div>
     <div class="modal-footer">
-      <button class="btn btn-ghost" onclick="closeModal('modalDokumen')"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>Batal</button>
+      <button class="btn btn-ghost" onclick="closeModal('modalDokumen')"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"/></svg>Batal</button>
       <button class="btn btn-primary" id="btnSaveDokumen" onclick="saveDokumen()"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>Simpan</button>
     </div>
   </div>

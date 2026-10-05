@@ -10716,16 +10716,28 @@ body:not(.is-admin) .abs-hariini-flex-wrap .dash-kpi-row .abs-jamkerja-wrap:nth-
   }
 }
 
-/* ── Monitoring Kinerja: card "Progress per Unit Kerja" - full-width di mobile ──
-   Card dari _monRenderPJCards() (kinerja.js) inline style flex:1;min-width:210px;
-   max-width:280px - di layar sempit malah nyisa gap di kanan krn ke-cap 280px,
-   kelihatan "setengah". Full-width aja di bawah 600px. */
+/* ── Monitoring Pengisian: layout card pakai CSS grid (kolom rata & sejajar) ──
+   .mon-kpi-grid  : 3 card KPI sama lebar + card Progress 2x lebar
+   .mon-card-grid : card Unit Kerja & User, kolom otomatis min 220px */
+.mon-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr)) minmax(0, 2fr);
+  gap: var(--sp-4);
+  align-items: stretch;
+  margin-bottom: var(--sp-5);
+}
+.mon-card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: var(--sp-3);
+}
+@media (max-width: 900px) {
+  .mon-kpi-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .mon-kpi-grid .mon-kpi-progress { grid-column: 1 / -1; }
+}
 @media (max-width: 600px) {
-  .mon-pj-card {
-    max-width: none !important;
-    min-width: 0 !important;
-    flex-basis: 100% !important;
-  }
+  .mon-kpi-grid { grid-template-columns: 1fr; }
+  .mon-card-grid { grid-template-columns: 1fr; }
 }
 
 /* ── Modal Absensi Reminder: selalu di tengah, di semua ukuran layar ──

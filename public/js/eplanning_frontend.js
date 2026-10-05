@@ -110,8 +110,8 @@ function showEpPrompt({ title = 'Input', msg = '', placeholder = '', okText = 'K
           </div>
         </div>
         <div class="modal-footer">
-          <button type="button" class="btn btn-ghost" data-act="cancel">Batal</button>
-          <button type="button" class="btn btn-danger" data-act="ok">${okText}</button>
+          <button type="button" class="btn btn-ghost" data-act="cancel"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"/></svg>Batal</button>
+          <button type="button" class="btn btn-danger" data-act="ok">${EP_ICON_CHECK} ${okText}</button>
         </div>
       </div>`;
     document.body.appendChild(overlay);
@@ -890,7 +890,7 @@ function epOpenVerifikasiPrafinal(id) {
   document.getElementById('epPfCatatanPerubahan').value = '';
   document.getElementById('epPfPerubahanField').style.display = 'none';
   const btn = document.getElementById('epPfBtnAdaPerubahan');
-  btn.textContent = 'Ya, Ada Perubahan';
+  btn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>Ya, Ada Perubahan`;
   btn.setAttribute('onclick', 'epTogglePrafinalPerubahan()');
   openModal('modalEpVerifikasiPrafinal');
 }
@@ -900,7 +900,7 @@ function epTogglePrafinalPerubahan() {
   const showing = field.style.display !== 'none';
   if (!showing) {
     field.style.display = '';
-    btn.textContent = 'Kirim Perubahan';
+    btn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/></svg>Kirim Perubahan`;
     btn.setAttribute('onclick', "submitVerifikasiPrafinal('PERUBAHAN')");
     document.getElementById('epPfCatatanPerubahan').focus();
   }
@@ -1212,7 +1212,7 @@ function epRincianLokasiRowHtml(idx) {
       <div class="select-wrap"><select class="ep-rl-kabkota" onchange="epOnRincianLokasiKabkotaChange(this)">${_epKabkotaOptionsHtml('')}</select></div>
       <div class="select-wrap"><select class="ep-rl-kecamatan" disabled><option value="">Pilih Kecamatan...</option></select></div>
       <div class="select-wrap"><select class="ep-rl-desa" disabled><option value="">Pilih Desa/Kelurahan...</option></select></div>
-      <button type="button" class="btn btn-danger btn-sm" onclick="epRemoveRincianLokasiRow(this)">X</button>
+      <button type="button" class="btn btn-danger btn-sm" title="Hapus baris" aria-label="Hapus baris" onclick="epRemoveRincianLokasiRow(this)"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg></button>
     </div>`;
 }
 
@@ -2127,7 +2127,7 @@ function _epRincianApplyReadonly(readonly) {
   const modal = document.getElementById('modalEpRincian');
   if (modal) modal.classList.toggle('ep-rincian-readonly', readonly);
   const btnBatal = document.getElementById('btnBatalRincian');
-  if (btnBatal) btnBatal.textContent = readonly ? 'Tutup' : 'Batal';
+  if (btnBatal) btnBatal.innerHTML = readonly ? `<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>Tutup` : `<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"/></svg>Batal`;
   // Tombol "+ Buat Standar Harga Manual" ikut disembunyikan pas mode Lihat (dihitung ulang sesuai kategori pas dibuka lagi).
   _epUpdateKompSearchBtn();
   // Field yang normalnya bisa diisi user - paksa disabled kalau readonly. Field yang emang
@@ -5949,7 +5949,7 @@ function _epRenderSuratForm() {
       <label>Isi Surat</label>
       <textarea id="epSrIsi" ${editable ? '' : 'readonly'} oninput="_epUpdateSuratSaveBtn()" rows="8" placeholder="Klik &quot;Pakai redaksi default&quot; di bawah, atau tulis sendiri">${esc(isiSurat)}</textarea>
       <div class="field-hint" style="margin-top:2px">Pisahkan paragraf dengan baris kosong. Baris berformat "1. ...", "2. ..." otomatis dirender sebagai daftar bernomor.</div>
-      ${editable ? `<button type="button" class="btn btn-ghost btn-sm" style="margin-top:4px" onclick="epResetIsiSurat()">Pakai redaksi default</button>` : ''}
+      ${editable ? `<button type="button" class="btn btn-ghost btn-sm" style="margin-top:4px" onclick="epResetIsiSurat()"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>Pakai redaksi default</button>` : ''}
     </div>
     ${_epDokActionsBar('surat', `<button type="button" class="btn btn-primary btn-sm" id="btnSimpanSurat" onclick="epSaveDokumen('surat')">${EP_ICON_CHECK} ${suratOk ? 'Simpan Perubahan' : 'Simpan'}</button>`, 'epPreviewSurat()')}`;
 }
@@ -6249,22 +6249,22 @@ function _epRenderTorForm() {
     <div class="field">
       <label>Dukungan terhadap IKU (Indikator Kinerja Utama)</label>
       <div id="epTrIkuList"></div>
-      ${editable ? `<button type="button" class="btn btn-ghost btn-sm" onclick="epTorAddRow('iku')">+ Baris IKU</button>` : ''}
+      ${editable ? `<button type="button" class="btn btn-ghost btn-sm" onclick="epTorAddRow('iku')"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>Baris IKU</button>` : ''}
     </div>
     <div class="field">
       <label>Dukungan terhadap IKK (Indikator Kinerja Kunci)</label>
       <div id="epTrIkkList"></div>
-      ${editable ? `<button type="button" class="btn btn-ghost btn-sm" onclick="epTorAddRow('ikk')">+ Baris IKK</button>` : ''}
+      ${editable ? `<button type="button" class="btn btn-ghost btn-sm" onclick="epTorAddRow('ikk')"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>Baris IKK</button>` : ''}
     </div>
     <div class="field">
       <label>Penerima Manfaat</label>
       <div id="epTrPenerimaList"></div>
-      ${editable ? `<button type="button" class="btn btn-ghost btn-sm" onclick="epTorAddRow('penerima_manfaat')">+ Baris Penerima Manfaat</button>` : ''}
+      ${editable ? `<button type="button" class="btn btn-ghost btn-sm" onclick="epTorAddRow('penerima_manfaat')"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>Baris Penerima Manfaat</button>` : ''}
     </div>
     <div class="field">
       <label>Strategi Pencapaian Keluaran</label>
       <div id="epTrStrategiList"></div>
-      ${editable ? `<button type="button" class="btn btn-ghost btn-sm" onclick="epTorAddRow('strategi')">+ Baris Strategi</button>` : ''}
+      ${editable ? `<button type="button" class="btn btn-ghost btn-sm" onclick="epTorAddRow('strategi')"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>Baris Strategi</button>` : ''}
     </div>
     <div class="field">
       <label>Kurun Waktu Pencapaian Keluaran</label>
@@ -6655,7 +6655,7 @@ function _epRenderRabTab() {
       <tfoot><tr><td colspan="4" style="text-align:right;font-weight:700">Total</td><td style="padding:0"><span style="display:block;text-align:center;white-space:nowrap;font-weight:700;color:var(--hijau,#047D78);background:var(--hijau-light,#ccfbf1);padding:6px 12px;border-radius:8px">${epFmtRupiah(total)}</span></td></tr></tfoot>
     </table>
     <div id="epRabPagination" style="margin-top:10px"></div>
-    ${_epDokActionsBar('rab', `<button type="button" class="btn btn-primary btn-sm" onclick="_epDokSyncRincianContext();openRincianItemModal()">+ Tambah Rincian</button>`, 'epPreviewRab()')}`;
+    ${_epDokActionsBar('rab', `<button type="button" class="btn btn-primary btn-sm" onclick="_epDokSyncRincianContext();openRincianItemModal()"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>Tambah Rincian</button>`, 'epPreviewRab()')}`;
 }
 
 function _epRabPaginationRender() {
@@ -6976,7 +6976,7 @@ function epShowCatatanTolak(id) {
         <div style="font-size:.85rem;color:var(--teks,#1e293b);white-space:pre-wrap;word-break:break-word">${esc(u.catatan_koreksi)}</div>
       </div>
       <div class="modal-footer">
-        <button type="button" class="btn btn-ghost" data-act="close">Tutup</button>
+        <button type="button" class="btn btn-ghost" data-act="close"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>Tutup</button>
       </div>
     </div>`;
   document.body.appendChild(overlay);
@@ -7119,7 +7119,7 @@ function _cekTtdLoginPopup() {
             ⚠️ Upload di: <b>Profil → Tanda Tangan</b>
           </div>
           <div style="display:flex;gap:8px;margin-top:14px">
-            <button onclick="document.getElementById('ttdLoginPopup').remove()" style="flex:1;height:42px;background:var(--abu-1,#f8fafc);border:none;border-radius:10px;color:var(--teks-muted,#64748b);font-size:13px;font-weight:600;cursor:pointer;font-family:inherit">Nanti</button>
+            <button onclick="document.getElementById('ttdLoginPopup').remove()" style="flex:1;height:42px;background:var(--abu-1,#f8fafc);border:none;border-radius:10px;color:var(--teks-muted,#64748b);font-size:13px;font-weight:600;cursor:pointer;font-family:inherit"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>Nanti</button>
             <button onclick="document.getElementById('ttdLoginPopup').remove();openTandaTanganUpload()" style="flex:2;height:42px;background:linear-gradient(135deg,var(--merah,#dc3545),#ef4444);border:none;border-radius:10px;color:#fff;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:6px">${SVG_PEN_SM} Upload Sekarang</button>
           </div>
         </div>
@@ -7349,14 +7349,14 @@ function _epRenderVerifBody(u) {
         </div>
         ${status === 'DITOLAK' && catatan ? `<div style="font-size:.78rem;color:#991b1b;margin-bottom:8px">Catatan: ${esc(catatan)}</div>` : ''}
         <div style="display:flex;gap:6px;flex-wrap:wrap">
-          <button type="button" class="btn btn-ghost btn-sm" onclick="epPreview${k.key === 'surat' ? 'Surat' : k.key === 'tor' ? 'Tor' : 'Rab'}FromVerif('${u.id}','${k.key}')">Lihat Dokumen</button>
+          <button type="button" class="btn btn-ghost btn-sm" onclick="epPreview${k.key === 'surat' ? 'Surat' : k.key === 'tor' ? 'Tor' : 'Rab'}FromVerif('${u.id}','${k.key}')"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>Lihat Dokumen</button>
           ${status === 'MENUNGGU' ? `
-            <button type="button" class="btn btn-primary btn-sm" onclick="epVerifKomponen('${k.key}','DISETUJUI')" style="background:#16a34a;border-color:#16a34a">Setujui</button>
-            <button type="button" class="btn btn-primary btn-sm" onclick="epVerifTolakPrompt('${k.key}')" style="background:#dc2626;border-color:#dc2626">Tolak</button>` : ''}
+            <button type="button" class="btn btn-primary btn-sm" onclick="epVerifKomponen('${k.key}','DISETUJUI')" style="background:#16a34a;border-color:#16a34a"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>Setujui</button>
+            <button type="button" class="btn btn-primary btn-sm" onclick="epVerifTolakPrompt('${k.key}')" style="background:#dc2626;border-color:#dc2626"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>Tolak</button>` : ''}
         </div>
         <div id="epVerifTolak_${k.key}" style="display:none;margin-top:8px">
           <textarea id="epVerifCatatan_${k.key}" rows="2" placeholder="Alasan penolakan..." style="width:100%"></textarea>
-          <button type="button" class="btn btn-primary btn-sm" style="margin-top:6px;background:#dc2626;border-color:#dc2626" onclick="epVerifKomponen('${k.key}','DITOLAK')">Kirim Penolakan</button>
+          <button type="button" class="btn btn-primary btn-sm" style="margin-top:6px;background:#dc2626;border-color:#dc2626" onclick="epVerifKomponen('${k.key}','DITOLAK')"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/></svg>Kirim Penolakan</button>
         </div>
       </div>`;
     }).join('')}`;
