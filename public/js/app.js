@@ -1495,6 +1495,14 @@ async function _bootRefreshTandaTangan() {
           const jabatanBaru = d.user.jabatan || null;
           const bidangBaru  = d.user.bidang_nama || null;
           const berubah = (_user.jabatan || null) !== jabatanBaru || (_user.bidang_nama || null) !== bidangBaru;
+          // Hak akses (permissions) juga disinkronkan dari server tiap halaman dibuka, supaya perubahan dari menu
+          // Pengguna (mis. kinerja.full dicabut) langsung berlaku di sidebar tanpa harus login ulang.
+          const _permLama = JSON.stringify([...(_user.permissions || [])].sort());
+          const _permBaru = JSON.stringify([...(d.user.permissions || [])].sort());
+          if (_permLama !== _permBaru) {
+            _user.permissions = d.user.permissions || [];
+            sessionStorage.setItem('sapa_user', JSON.stringify(_user));
+          }
           if (berubah) {
             _user.jabatan          = jabatanBaru;
             _user.bidang_nama      = bidangBaru;
@@ -1516,7 +1524,8 @@ async function _bootRefreshTandaTangan() {
   // Semua request boot saling independen -> jalan paralel (dulu berantai: periode -> user/foto/ttd -> cek indikator).
   // Foto tidak ditunggu: avatar dari cache sessionStorage sudah dipasang di awal _bootRefreshFoto().
   _bootRefreshFoto();
-  Promise.allSettled([loadPeriodeAktif(), _bootRefreshUser(), _bootRefreshTandaTangan(), _cekKinerjaIndikator()])
+  // _cekKinerjaIndikator bergantung pada permissions (kinerja.full / pantau), jadi dijalankan SETELAH sinkron user.
+  Promise.allSettled([loadPeriodeAktif(), _bootRefreshUser().then(() => _cekKinerjaIndikator()), _bootRefreshTandaTangan()])
     .then(() => {
       buildSidebar();
       _applySidebarCollapse();
