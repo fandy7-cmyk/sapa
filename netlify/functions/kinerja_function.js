@@ -62,6 +62,8 @@ function canInput(user, jenis) {
   if (!user) return false;
   if (user.is_admin) return true;
   const perms = user.permissions || [];
+  // Akun pantau (kinerja.pantau / kinerja.pantau.semua) murni hanya-lihat, kecuali juga kinerja.full.
+  if (!perms.includes('kinerja.full') && (perms.includes('kinerja.pantau') || perms.includes('kinerja.pantau.semua'))) return false;
   if (jenis === 'monev') return perms.includes('kinerja.monev');
   if (jenis === 'ikk')   return perms.includes('kinerja.ikk');
   if (jenis === 'spm')   return perms.includes('kinerja.spm');

@@ -246,6 +246,7 @@ function _rowHasJenis(row, kode) {
 // tanpa permission kinerja.monev/ikk/spm/subkeg itu hanya-lihat: tidak boleh melihat tombol Simpan/Edit.
 function _punyaHakInputKinerja(jenis) {
   if (_isKinerjaAdmin()) return true;
+  if (_isPantauKinerja()) return false;   // akun pantau = murni hanya-lihat, apa pun izin lainnya
   const key = { monev: 'kinerja.monev', ikk: 'kinerja.ikk', spm: 'kinerja.spm', subkeg: 'kinerja.subkeg' }[jenis];
   if (key) return hasAccess(key);
   return ['kinerja.monev', 'kinerja.ikk', 'kinerja.spm', 'kinerja.subkeg'].some(hasAccess);
@@ -691,8 +692,8 @@ function _applyKinAksiCol(jenis) {
 // Akun pantau (Kabid dsb.) melihat seluruh indikator unitnya, tapi hanya boleh MENGISI indikator yang
 // di-assign langsung ke dirinya. Indikator unit lain: tampil saja (tanpa input & tombol Simpan/Edit).
 function _barisBolehEdit(row) {
-  if (_isKinerjaAdmin() || !_isPantauKinerja()) return true;
-  return !!(_userIndikatorIds && _userIndikatorIds.has(Number(row.id)));
+  if (_isKinerjaAdmin()) return true;
+  return !_isPantauKinerja();   // akun pantau: tidak ada baris yang boleh diedit
 }
 
 function _kinColSpan(tbody) {
