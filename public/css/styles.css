@@ -5431,6 +5431,13 @@ td.col-perihal {
   }
 }
 
+/* LAPORAN KINERJA - Statcard: selalu penuh selebar halaman (tanpa ruang kosong di kanan) */
+#laporanKinerjaStats.stat-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+#laporanKinerjaStats .stat-card { min-width: 0; }
+@media (max-width: 768px) {
+  #laporanKinerjaStats.stat-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
 /* ═══════════════════════════════════════════════════════
    LAPORAN KINERJA - Filter bar responsive (override grid generik)
    ═══════════════════════════════════════════════════════ */

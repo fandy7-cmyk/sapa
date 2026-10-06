@@ -6281,6 +6281,36 @@ let _mon_search = '';
 let _mon_page   = 1;
 const _MON_PER_PAGE = 10;
 let _mon_data   = null;
+let _mon_loaded_at = null;   // waktu data monitoring terakhir dimuat dari server
+
+// Ingat Tahun + Triwulan terakhir yang dipilih di Monitoring Pengisian supaya reload halaman
+// tidak melempar balik ke TW aktif. Disimpan per tab (sessionStorage) dan per user.
+let _mon_ingat_dipulihkan = false;
+function _monIngatKey() {
+  const uid = (typeof _user !== 'undefined' && _user && _user.id) ? _user.id : 'x';
+  return `sapa_kperiode_${uid}_monitoring`;
+}
+function _monIngatSimpan() {
+  try { sessionStorage.setItem(_monIngatKey(), JSON.stringify({ tahun: _mon_tahun, bulan: _mon_bulan })); } catch (e) {}
+}
+function _monIngatPulihkan() {
+  if (_mon_ingat_dipulihkan) return;
+  _mon_ingat_dipulihkan = true;
+  try {
+    const raw = sessionStorage.getItem(_monIngatKey());
+    if (!raw) return;
+    const sv = JSON.parse(raw);
+    const tahun = parseInt(sv && sv.tahun);
+    const tahunAda = new Set(_allPeriodeList.map(p => p.tahun));
+    tahunAda.add(new Date().getFullYear());
+    if (tahun && tahunAda.has(tahun)) _mon_tahun = tahun;
+    if (sv && sv.bulan === '') _mon_bulan = '';          // "Semua Periode"
+    else {
+      const b = parseInt(sv && sv.bulan);
+      if (TW_BULAN.includes(b)) _mon_bulan = b;
+    }
+  } catch (e) {}
+}
 
 const _MON_BULAN_NAMA = (() => { const a = ['']; for (let b = 1; b <= 12; b++) a.push(_twNama(b)); return a; })();
 
@@ -6327,6 +6357,7 @@ async function initMonitoringKinerja() {
   }
 
   
+  _monIngatPulihkan();
   _monPopulateTahun();
   _monPopulateBulan();
   _mon_tahun = document.getElementById('monTahunSelect')?.value
@@ -6358,6 +6389,7 @@ async function loadMonitoringKinerja() {
     const d = await res.json();
     if (!res.ok) { toast(d.error || 'Gagal memuat monitoring', 'error'); return; }
     _mon_data = d;
+    _mon_loaded_at = new Date();
   } catch (err) {
     toast('Error: ' + err.message, 'error');
     body.innerHTML = `<tr><td colspan="7" style="text-align:center;padding:24px;color:#ef4444">Gagal memuat data.</td></tr>`;
@@ -6418,10 +6450,15 @@ function _monRenderSummary() {
         <div style="background:var(--abu-2);border-radius:99px;height:9px;overflow:hidden;margin-top:var(--sp-3);box-shadow:inset 0 1px 2px rgba(0,0,0,.06)">
           <div style="width:${pct}%;height:100%;border-radius:99px;background:linear-gradient(90deg,${tone.c},${tone.c2});transition:width .5s cubic-bezier(.4,0,.2,1)"></div>
         </div>
-        <div style="font-size:var(--fs-xs);color:var(--teks-muted);margin-top:var(--sp-3);display:flex;align-items:center;gap:5px">
+        <div style="font-size:var(--fs-xs);color:var(--teks-muted);margin-top:var(--sp-3);display:flex;align-items:center;flex-wrap:wrap;gap:5px;font-variant-numeric:tabular-nums">
           <span>${bulan ? _MON_BULAN_NAMA[bulan] : 'Semua Periode'} ${tahun || 'Semua Tahun'}</span>
           <span style="color:var(--abu-2)">&bull;</span>
           <span>${jenis === 'monev' ? 'IKU' : jenis === 'ikk' ? 'IKK' : jenis === 'spm' ? 'SPM' : jenis === 'subkeg' ? 'Sub Kegiatan' : 'Semua Jenis'}</span>
+          <span style="color:var(--abu-2)">&bull;</span>
+          <span style="display:inline-flex;align-items:center;gap:4px">
+            <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+            Update terakhir: <span style="color:var(--teks);font-weight:600">${_monLastUpdateLabel()}</span>
+          </span>
         </div>
       </div>
     </div>`;
@@ -6442,6 +6479,14 @@ function _monPopulateUserSelect() {
     list.map(u => `<option value="${escHtml(u)}"${u === _mon_user ? ' selected' : ''}>${escHtml(u)}</option>`).join('');
   sel.disabled = !list.length;
   if (typeof syncCustomSelect === 'function') syncCustomSelect('monUserSelect');
+}
+
+// Waktu data monitoring terakhir dimuat (saat halaman dibuka / di-reload / filter diganti)
+function _monLastUpdateLabel() {
+  if (!_mon_loaded_at) return '-';
+  return _mon_loaded_at
+    .toLocaleString('id-ID', { day:'2-digit', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit', timeZone: 'Asia/Makassar' })
+    .replace(' pukul', '').replace(/(\d{1,2})\.(\d{2})$/, '$1:$2') + ' WITA';
 }
 
 // ── Progress per Penanggung Jawab ─────────────────────────────────────────
@@ -6501,7 +6546,13 @@ function _monRenderPJCards() {
       <div style="font-size:var(--fs-sm);font-weight:700;color:var(--teks);margin-bottom:var(--sp-3);display:flex;align-items:center;gap:var(--sp-2)">
         <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="var(--hijau)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>
         <span>Progress per Unit Kerja</span>
-        ${_mon_pj ? `<button onclick="setMonPJ('')" style="font-size:var(--fs-xs);background:var(--hijau-light);border:none;border-radius:999px;padding:2px 10px;cursor:pointer;color:var(--hijau);font-weight:700;display:inline-flex;align-items:center;gap:3px"><svg xmlns="http://www.w3.org/2000/svg" width="9" height="9" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>Reset</button>` : ''}
+        ${_mon_pj ? `
+        <span style="font-size:var(--fs-xs);font-weight:500;color:var(--teks-muted);display:inline-flex;align-items:center;gap:4px;font-variant-numeric:tabular-nums">
+          <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+          Update terakhir: <span style="color:var(--teks);font-weight:600">${_monLastUpdateLabel()}</span>
+        </span>
+        ` : ''}
+        ${_mon_pj ? `<button onclick="setMonPJ('')" style="font-size:var(--fs-xs);background:var(--hijau-light);border:none;border-radius:999px;padding:2px 10px;cursor:pointer;color:var(--hijau);font-weight:700;display:inline-flex;align-items:center;gap:3px"><svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>Reset</button>` : ''}
       </div>
       <div class="mon-card-grid">${cards}</div>
     </div>`;
@@ -6571,7 +6622,11 @@ function _monRenderUserCards() {
       <div style="font-size:var(--fs-sm);font-weight:700;color:var(--teks);margin-bottom:var(--sp-3);display:flex;align-items:center;gap:var(--sp-2)">
         <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="var(--hijau)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
         <span>Progress per User - ${escHtml(_mon_pj)}</span>
-        ${_mon_user ? `<button onclick="setMonUser('')" style="font-size:var(--fs-xs);background:var(--hijau-light);border:none;border-radius:999px;padding:2px 10px;cursor:pointer;color:var(--hijau);font-weight:700;display:inline-flex;align-items:center;gap:3px"><svg xmlns="http://www.w3.org/2000/svg" width="9" height="9" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>Reset</button>` : ''}
+        <span style="font-size:var(--fs-xs);font-weight:500;color:var(--teks-muted);display:inline-flex;align-items:center;gap:4px;font-variant-numeric:tabular-nums">
+          <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+          Update terakhir: <span style="color:var(--teks);font-weight:600">${_monLastUpdateLabel()}</span>
+        </span>
+        ${_mon_user ? `<button onclick="setMonUser('')" style="font-size:var(--fs-xs);background:var(--hijau-light);border:none;border-radius:999px;padding:2px 10px;cursor:pointer;color:var(--hijau);font-weight:700;display:inline-flex;align-items:center;gap:3px"><svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>Reset</button>` : ''}
       </div>
       <div class="mon-card-grid">${cards}</div>
     </div>`;
@@ -6653,7 +6708,7 @@ function _monRenderTable() {
   rows = rows.slice(start, start + _MON_PER_PAGE);
 
   const fmtDT = iso => iso
-    ? new Date(iso).toLocaleString('id-ID', { day:'2-digit', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit', timeZone: 'Asia/Makassar' }) + ' WITA'
+    ? new Date(iso).toLocaleString('id-ID', { day:'2-digit', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit', timeZone: 'Asia/Makassar' }).replace(' pukul', '').replace(/(\d{1,2})\.(\d{2})$/, '$1:$2') + ' WITA'
     : '-';
 
   let html = '';
@@ -6737,6 +6792,7 @@ function _monRenderTable() {
 // ── Filter handlers ───────────────────────────────────────────────────────
 function setMonBulan(b) {
   _mon_bulan = b === '' ? '' : parseInt(b);
+  _monIngatSimpan();
   _monSyncBulanBtn();
   loadMonitoringKinerja();
 }
@@ -6745,6 +6801,7 @@ function setMonTahun(t) {
   _mon_tahun = t === '' ? '' : parseInt(t);
   // Re-populate bulan sesuai tahun yang dipilih
   _monPopulateBulan();
+  _monIngatSimpan();
   loadMonitoringKinerja();
 }
 

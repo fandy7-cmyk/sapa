@@ -2229,6 +2229,7 @@ async function loadLaporanKinerja() {
     ? 'Belum ada indikator yang di-assign ke akun Anda. Hubungi Admin untuk mengatur assignment indikator.'
     : 'Tidak ada data untuk filter ini';
   if (typeof syncCustomSelect === 'function') syncCustomSelect('laporanKinerjaScope');
+  _lapRenderKinerjaStats(filteredRows);
   _lapRenderKinerjaTbody(filteredRows, bulanTampil, colspanTotal, emptyMsg);
 }
 
@@ -2512,6 +2513,28 @@ async function _fetchKepalaDinas() {
   } catch { return null; }
 }
 
+// Statcard Laporan Kinerja: dihitung dari baris yang sedang tampil (ikut filter Unit Kerja & pencarian)
+function _lapRenderKinerjaStats(rows) {
+  const el = document.getElementById('laporanKinerjaStats');
+  if (!el) return;
+  const total      = rows.length;
+  const sudahDiisi = rows.filter(r => r._realisasiSd !== null && r._realisasiSd !== undefined && r._realisasiSd !== '').length;
+  const belumDiisi = total - sudahDiisi;
+  // Tiga kartu pertama warna tetap (sama dengan kartu KPI di Monitoring Pengisian);
+  // kartu Persentase mengikuti warna progress: >=80% hijau, >=50% oranye, di bawahnya merah
+  const pct  = total ? Math.round(sudahDiisi / total * 100) : 0;
+  const tone = pct >= 80 ? '#16a34a' : pct >= 50 ? '#d97706' : '#dc2626';
+  el.innerHTML =
+    _statCard('Total Indikator', total, 'var(--hijau)',
+      '<path d="M3 3v18h18"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/>') +
+    _statCard('Sudah Diisi', sudahDiisi, '#16a34a',
+      '<path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>') +
+    _statCard('Belum Diisi', belumDiisi, '#d97706',
+      '<circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>') +
+    _statCard('Persentase Pengisian', pct + '%', tone,
+      '<polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/>');
+}
+
 function _filterLaporanKinerjaByBidang() {
   _renderLaporanKinerjaFiltered();
 }
@@ -2526,6 +2549,7 @@ function _renderLaporanKinerjaFiltered() {
   const bulanTampil = _lapBuildDisplayCols(bulanDari, bulanSampai);
   const colspanTotal = 5 + bulanTampil.length + 6;
   _lapKinerjaPage = 1;
+  _lapRenderKinerjaStats(filtered);
   _lapRenderKinerjaTbody(filtered, bulanTampil, colspanTotal, 'Tidak ada data untuk filter ini');
 }
 
