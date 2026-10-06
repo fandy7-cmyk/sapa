@@ -6484,9 +6484,9 @@ function _monPopulateUserSelect() {
 // Waktu data monitoring terakhir dimuat (saat halaman dibuka / di-reload / filter diganti)
 function _monLastUpdateLabel() {
   if (!_mon_loaded_at) return '-';
-  return _mon_loaded_at
-    .toLocaleString('id-ID', { day:'2-digit', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit', timeZone: 'Asia/Makassar' })
-    .replace(' pukul', '').replace(/(\d{1,2})\.(\d{2})$/, '$1:$2') + ' WITA';
+  const tgl = _mon_loaded_at.toLocaleDateString('id-ID', { day:'2-digit', month:'short', year:'numeric', timeZone: 'Asia/Makassar' });
+  const jam = _mon_loaded_at.toLocaleTimeString('id-ID', { hour:'2-digit', minute:'2-digit', hourCycle:'h23', timeZone: 'Asia/Makassar' }).replace('.', ':');
+  return `${tgl} | ${jam} WITA`;
 }
 
 // ── Progress per Penanggung Jawab ─────────────────────────────────────────

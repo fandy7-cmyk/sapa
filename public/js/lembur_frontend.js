@@ -1317,6 +1317,30 @@ async function _lemburHapusSesiIni(id) {
   } catch { toast('Gagal menghapus hari lembur', 'error'); }
 }
 
+// Upload 1 file ke /api/upload dengan callback progress (persen). Sama polanya dengan _absUploadFileWithProgress.
+function _uploadFileWithProgress(file, kategori, onProgress) {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    const fd  = new FormData();
+    fd.append('file', file);
+    fd.append('kategori', kategori);
+    xhr.open('POST', '/api/upload');
+    const auth = authHeaders()['Authorization'];
+    if (auth) xhr.setRequestHeader('Authorization', auth);
+    xhr.upload.onprogress = (e) => {
+      if (e.lengthComputable && onProgress) onProgress(Math.round((e.loaded / e.total) * 100));
+    };
+    xhr.onload = () => {
+      let data = {};
+      try { data = JSON.parse(xhr.responseText); } catch {}
+      if (xhr.status >= 200 && xhr.status < 300) resolve(data);
+      else reject(new Error(data.error || 'Gagal upload'));
+    };
+    xhr.onerror = () => reject(new Error('Gagal upload (koneksi bermasalah)'));
+    xhr.send(fd);
+  });
+}
+
 // Upload dokumentasi langsung dari baris tabel Hari Lembur (tanpa buka detail sesi dulu),
 // dengan progress bar niru gaya upload data-dukung di modul Kinerja (ring persen buat 1 file,
 // spinner + counter "current/total" buat multi file).

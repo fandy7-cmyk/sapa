@@ -5438,6 +5438,14 @@ td.col-perihal {
   #laporanKinerjaStats.stat-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
+/* LAPORAN SURAT - Statcard: 5 kartu selebar halaman */
+#laporanSuratStats.stat-grid { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+#laporanSuratStats .stat-card { min-width: 0; }
+@media (max-width: 768px) {
+  #laporanSuratStats.stat-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  #laporanSuratStats.stat-grid > :last-child:nth-child(odd) { grid-column: 1 / -1; }
+}
+
 /* ═══════════════════════════════════════════════════════
    LAPORAN KINERJA - Filter bar responsive (override grid generik)
    ═══════════════════════════════════════════════════════ */

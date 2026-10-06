@@ -658,6 +658,7 @@ async function loadLaporanAbsensi(page = 1) {
   const tbody = document.getElementById('lapAbsTableBody');
   const rekapBox = document.getElementById('lapAbsRekapBox');
   if (!tbody) return;
+  if (rekapBox) rekapBox.innerHTML = _lapStatSkeleton(7);
   if (typeof initCdtp === 'function') initCdtp();
   if (!document.getElementById('lapAbsDari')?.dataset.rangeBound) {
     ['lapAbsDari', 'lapAbsSampai'].forEach(id => {
@@ -930,6 +931,7 @@ async function loadLaporanLembur() {
 
   const full = typeof _lemburHasFull === 'function' && _lemburHasFull();
 
+  if (rekapBox) rekapBox.innerHTML = _lapStatSkeleton(full ? 4 : 3);
   tbody.innerHTML = `<tr><td colspan="6"><div class="lap-loading-wrap"><div class="lap-spinner"></div><div style="margin-top:.75rem;color:#64748b;font-size:.85rem">Memuat data...</div></div></td></tr>`;
 
   const pegawaiId = full ? (document.getElementById('lapLemburPegawai')?.value || '') : String(_user.id);
@@ -1151,10 +1153,47 @@ function _initLaporanSuratJenisFilter(smRows, skRows) {
   }
 }
 
+// Container statcard Laporan Surat: dibuat otomatis (di bawah subtitle) kalau belum ada di HTML
+function _lapEnsureSuratStatsEl() {
+  let el = document.getElementById('laporanSuratStats');
+  if (el) return el;
+  const page = document.getElementById('page-laporan-surat');
+  if (!page) return null;
+  el = document.createElement('div');
+  el.id = 'laporanSuratStats';
+  el.className = 'stat-grid';
+  const anchor = page.querySelector('.page-subtitle');
+  if (anchor) anchor.insertAdjacentElement('afterend', el);
+  else page.prepend(el);
+  return el;
+}
+
+// Statcard Laporan Surat: dihitung dari baris yang sedang tampil (ikut filter Tahun, Jenis, Status & pencarian)
+function _lapRenderSuratStats(rows) {
+  const el = _lapEnsureSuratStatsEl();
+  if (!el) return;
+  const total    = rows.length;
+  const masuk    = rows.filter(r => r._jenis === 'masuk').length;
+  const keluar   = rows.filter(r => r._jenis === 'keluar').length;
+  const belum    = rows.filter(r => r._jenis === 'masuk' && !r.selesai).length;
+  const terlambat = rows.filter(r => r.terlambat).length;
+  el.innerHTML =
+    _statCard('Total Surat', total, 'var(--hijau)',
+      '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/>') +
+    _statCard('Surat Masuk', masuk, '#2563eb',
+      '<polyline points="22 12 16 12 14 15 10 15 8 12 2 12"/><path d="M5.45 5.11L2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/>') +
+    _statCard('Surat Keluar', keluar, '#7c3aed',
+      '<line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>') +
+    _statCard('Belum Selesai', belum, '#d97706',
+      '<circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>') +
+    _statCard('Terlambat', terlambat, '#dc2626',
+      '<path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><line x1="12" x2="12" y1="9" y2="13"/><line x1="12" x2="12.01" y1="17" y2="17"/>');
+}
+
 function _showLaporanSuratLoading() {
-  const stats = document.getElementById('laporanSuratStats');
+  const stats = _lapEnsureSuratStatsEl();
   const tbody = document.getElementById('laporanSuratTableBody');
-  if (stats) stats.innerHTML = '';
+  if (stats) stats.innerHTML = _lapStatSkeleton(5, 84);
   if (tbody) tbody.innerHTML = `
     <tr>
       <td colspan="8">
@@ -1259,6 +1298,7 @@ async function loadLaporanSurat() {
 
   
   _lapSuratPage = 1;
+  _lapRenderSuratStats(filteredRows);
   _lapRenderSuratTbody(filteredRows);
 
   
@@ -1749,12 +1789,17 @@ document.addEventListener('click', function(e) {
   });
 });
 
+// Skeleton statcard (sama dengan dashboard): kotak .skeleton setinggi kartu selagi data dimuat
+function _lapStatSkeleton(n, h = 98) {
+  return Array(n).fill(0).map(() => `<div class="skeleton" style="height:${h}px;border-radius:14px"></div>`).join('');
+}
+
 function _showLaporanLoading() {
   const stats = document.getElementById('laporanKinerjaStats');
   const tbody = document.getElementById('laporanKinerjaTableBody');
   const thead = document.getElementById('laporanKinerjaThead');
   const pag   = document.getElementById('laporanKinerjaPagination');
-  if (stats) stats.innerHTML = '';
+  if (stats) stats.innerHTML = _lapStatSkeleton(4, 84);
   if (thead) thead.innerHTML = '';
   if (pag)   pag.innerHTML = '';
   if (tbody) tbody.innerHTML = `
