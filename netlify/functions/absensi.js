@@ -790,6 +790,8 @@ export const handler = async (event) => {
       const harian = [...harianMap.values()];
 
       let ranking_terlambat = [];
+      let ranking_alpa = [];
+      let ranking_tidak_lengkap = [];
       let sudah_absen_user_ids = [];
       if (full && !targetUserId) {
         const rankRows = await sql`
@@ -801,9 +803,28 @@ export const handler = async (event) => {
             AND (${bidangId}::int IS NULL OR u.bidang_id = ${bidangId}::int)
             AND a.status = 'hadir' AND a.terlambat = true
           GROUP BY a.user_id, u.nama
-          ORDER BY jumlah DESC LIMIT 5
+          ORDER BY jumlah DESC LIMIT 20
         `;
         ranking_terlambat = rankRows;
+
+        // Peringkat tambahan buat dashboard: paling sering alpa & absensi tidak lengkap bulan ini
+        try {
+          ranking_alpa = await sql`
+            SELECT a.user_id, u.nama AS user_nama, COUNT(*)::int AS jumlah
+            FROM absensi a JOIN users u ON u.id = a.user_id
+            WHERE EXTRACT(YEAR FROM a.tanggal) = ${y} AND EXTRACT(MONTH FROM a.tanggal) = ${m}
+              AND (${bidangId}::int IS NULL OR u.bidang_id = ${bidangId}::int)
+              AND a.status = 'alpa'
+            GROUP BY a.user_id, u.nama ORDER BY jumlah DESC LIMIT 20`;
+          ranking_tidak_lengkap = await sql`
+            SELECT a.user_id, u.nama AS user_nama, COUNT(*)::int AS jumlah
+            FROM absensi a JOIN users u ON u.id = a.user_id
+            WHERE EXTRACT(YEAR FROM a.tanggal) = ${y} AND EXTRACT(MONTH FROM a.tanggal) = ${m}
+              AND (${bidangId}::int IS NULL OR u.bidang_id = ${bidangId}::int)
+              AND a.status = 'hadir' AND (a.jam_masuk IS NULL OR a.jam_keluar IS NULL)
+              AND a.tanggal <> ${todayStr()}::date
+            GROUP BY a.user_id, u.nama ORDER BY jumlah DESC LIMIT 20`;
+        } catch (e) { console.error('[ringkasan-bulan ranking tambahan]', e.message); }
 
         const todayRows = bidangId
           ? await sql`
@@ -816,7 +837,7 @@ export const handler = async (event) => {
         sudah_absen_user_ids = todayRows.map(r => r.user_id);
       }
 
-      return jsonResponse({ harian, ranking_terlambat, sudah_absen_user_ids, bulan: m, tahun: y });
+      return jsonResponse({ harian, ranking_terlambat, ranking_alpa, ranking_tidak_lengkap, sudah_absen_user_ids, bulan: m, tahun: y });
     } catch (err) {
       console.error('[GET /api/absensi/ringkasan-bulan]', err);
       return errorResponse('Gagal mengambil ringkasan bulan');

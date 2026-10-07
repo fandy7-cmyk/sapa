@@ -124,10 +124,10 @@ function _fmtSisaWaktu(diffMs) {
 }
 
 function _jenisMeta(jenis) {
-  if (jenis === 'monev')     return { label: 'IKU', bg: '#dbeafe', fg: '#1d4ed8' };
-  if (jenis === 'ikk')       return { label: 'IKK', bg: '#ede9fe', fg: '#7c3aed' };
-  if (jenis === 'spm')       return { label: 'SPM', bg: '#fef3c7', fg: '#b45309' };
-  if (jenis === 'subkeg')    return { label: 'Sub Kegiatan', bg: '#ede9fe', fg: '#6d28d9' };
+  if (jenis === 'monev')     return { label: 'IKU', bg: jenisWarna('monev').bg, fg: jenisWarna('monev').teks };
+  if (jenis === 'ikk')       return { label: 'IKK', bg: jenisWarna('ikk').bg, fg: jenisWarna('ikk').teks };
+  if (jenis === 'spm')       return { label: 'SPM', bg: jenisWarna('spm').bg, fg: jenisWarna('spm').teks };
+  if (jenis === 'subkeg')    return { label: 'Sub Kegiatan', bg: jenisWarna('subkeg').bg, fg: jenisWarna('subkeg').teks };
   if (jenis === 'eplanning') return { label: 'e-Planning', bg: '#dcfce7', fg: '#15803d' };
   return { label: '-', bg: '#f1f5f9', fg: '#94a3b8' };
 }

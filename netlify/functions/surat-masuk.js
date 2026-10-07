@@ -58,7 +58,35 @@ export const handler = async (event) => {
       const [{ belum_selesai }] = await sql`SELECT COUNT(*)::INT AS belum_selesai FROM surat_masuk WHERE selesai = FALSE AND (${isAdmin} = TRUE OR ${isFull} = TRUE OR pegawai_list @> ${meNama}::jsonb)`;
       const [{ bulan_ini }] = await sql`SELECT COUNT(*)::INT AS bulan_ini FROM surat_masuk WHERE DATE_TRUNC('month', tanggal_terima) = DATE_TRUNC('month', (NOW() AT TIME ZONE 'Asia/Makassar')::date) AND (${isAdmin} = TRUE OR ${isFull} = TRUE OR pegawai_list @> ${meNama}::jsonb)`;
       const [{ terlambat }] = await sql`SELECT COUNT(*)::INT AS terlambat FROM surat_masuk WHERE selesai = FALSE AND batas_waktu < (NOW() AT TIME ZONE 'Asia/Makassar')::date AND (${isAdmin} = TRUE OR ${isFull} = TRUE OR pegawai_list @> ${meNama}::jsonb)`;
-      return jsonResponse({ total, belum_selesai, bulan_ini, terlambat });
+      // Data tambahan buat dashboard Surat (tren, asal teratas, sisa waktu, beban pegawai).
+      let ex = {};
+      try {
+        const [tren, topAsal, sisa, beban] = await Promise.all([
+          sql`SELECT TO_CHAR(DATE_TRUNC('month', tanggal_terima), 'YYYY-MM') AS bulan, COUNT(*)::INT AS jumlah
+              FROM surat_masuk
+              WHERE tanggal_terima >= DATE_TRUNC('month', (NOW() AT TIME ZONE 'Asia/Makassar')::date) - INTERVAL '5 months'
+                AND (${isAdmin} = TRUE OR ${isFull} = TRUE OR pegawai_list @> ${meNama}::jsonb)
+              GROUP BY 1 ORDER BY 1`,
+          sql`SELECT asal_surat AS nama, COUNT(*)::INT AS jumlah FROM surat_masuk
+              WHERE asal_surat IS NOT NULL AND asal_surat <> ''
+                AND (${isAdmin} = TRUE OR ${isFull} = TRUE OR pegawai_list @> ${meNama}::jsonb)
+              GROUP BY 1 ORDER BY jumlah DESC LIMIT 20`,
+          sql`SELECT
+                COUNT(*) FILTER (WHERE batas_waktu IS NULL)::INT AS tanpa_batas,
+                COUNT(*) FILTER (WHERE batas_waktu < d.hari)::INT AS lewat,
+                COUNT(*) FILTER (WHERE batas_waktu >= d.hari AND batas_waktu <= d.hari + 3)::INT AS tiga_hari,
+                COUNT(*) FILTER (WHERE batas_waktu > d.hari + 3 AND batas_waktu <= d.hari + 7)::INT AS seminggu,
+                COUNT(*) FILTER (WHERE batas_waktu > d.hari + 7)::INT AS lebih
+              FROM surat_masuk, (SELECT (NOW() AT TIME ZONE 'Asia/Makassar')::date AS hari) d
+              WHERE selesai = FALSE
+                AND (${isAdmin} = TRUE OR ${isFull} = TRUE OR pegawai_list @> ${meNama}::jsonb)`,
+          (isAdmin || isFull) ? sql`SELECT e AS nama, COUNT(*)::INT AS jumlah
+              FROM surat_masuk, jsonb_array_elements_text(pegawai_list) e
+              WHERE selesai = FALSE GROUP BY e ORDER BY jumlah DESC LIMIT 20` : Promise.resolve([]),
+        ]);
+        ex = { tren_masuk: tren, top_asal: topAsal, sisa_waktu: sisa[0] || null, beban_pegawai: beban };
+      } catch (e) { console.error('[STATS surat-masuk extra]', e.message); }
+      return jsonResponse({ total, belum_selesai, bulan_ini, terlambat, ...ex });
     } catch (err) { console.error('[STATS surat-masuk]', err); return errorResponse('Gagal mengambil statistik: ' + err.message); }
   }
 

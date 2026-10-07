@@ -630,23 +630,8 @@ async function _lapAbsJamKerjaCardHtml(bulan, tahun, pegawaiId, bidangId, full) 
     
     
     const { warna } = _kinerjaSkalaWarna(pctAsli);
-    const kartu = `
-      <div class="dash-kpi-card" style="border-left-color:${warna}">
-        <div class="dash-kpi-body">
-          <div class="dash-kpi-lbl">${esc(label)}</div>
-          <div class="dash-kpi-val" style="color:${warna}">${esc(_absFmtJam(d.aktual_menit))}</div>
-          <div class="dash-kpi-sub" style="font-weight:400">${esc(sub)}</div>
-        </div>
-        <div class="dash-kpi-icon" style="color:${warna}">${iconJam}</div>
-      </div>`;
-    return `<div class="abs-jamkerja-wrap" style="--jk-warna:${warna}">
-      ${kartu}
-      <div class="abs-jamkerja-progress">
-        <div class="abs-jamkerja-progress-track">
-          <div class="abs-jamkerja-progress-fill" style="width:${pct}%;background:${warna}"></div>
-        </div>
-      </div>
-    </div>`;
+    return _lapKpiCard({ icon: iconJam, label, value: _absFmtJam(d.aktual_menit), sub, color: warna, valColor: warna,
+      extra: `<div class="dm-hb-track" style="height:6px;margin-top:8px"><i style="width:${pct}%;background:${warna}"></i></div>` });
   } catch (err) {
     console.error('[_lapAbsJamKerjaCardHtml]', err);
     return '';
@@ -694,12 +679,12 @@ async function loadLaporanAbsensi(page = 1) {
     const iconCuti = `<svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/><path d="M8 2v4"/><path d="M16 2v4"/></svg>`;
     const iconWarn = `<svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><line x1="12" x2="12" y1="9" y2="13"/><line x1="12" x2="12.01" y1="17" y2="17"/></svg>`;
     if (rekapBox) rekapBox.innerHTML =
-      _kpiCard({ icon: iconHadir, label: 'Tepat Waktu', value: rk.hadir || 0, color: 'green' }) +
-      _kpiCard({ icon: iconClock, label: 'Terlambat', value: rk.terlambat || 0, color: 'amber' }) +
-      _kpiCard({ icon: iconTidakLengkap, label: 'Tidak Lengkap', value: rk.tidak_lengkap || 0, color: 'purple' }) +
-      _kpiCard({ icon: iconTugas, label: 'Tugas Luar', value: rk.tugas_luar || 0, color: 'biruMuda' }) +
-      _kpiCard({ icon: iconCuti, label: 'Cuti', value: rk.cuti || 0, color: 'fuchsia' }) +
-      _kpiCard({ icon: iconWarn, label: 'Alpa', value: rk.alpa || 0, color: 'red' }) +
+      _lapKpiCard({ icon: iconHadir, label: 'Tepat Waktu', value: rk.hadir || 0, color: 'green' }) +
+      _lapKpiCard({ icon: iconClock, label: 'Terlambat', value: rk.terlambat || 0, color: 'amber' }) +
+      _lapKpiCard({ icon: iconTidakLengkap, label: 'Tidak Lengkap', value: rk.tidak_lengkap || 0, color: 'purple' }) +
+      _lapKpiCard({ icon: iconTugas, label: 'Tugas Luar', value: rk.tugas_luar || 0, color: 'biruMuda' }) +
+      _lapKpiCard({ icon: iconCuti, label: 'Cuti', value: rk.cuti || 0, color: 'fuchsia' }) +
+      _lapKpiCard({ icon: iconWarn, label: 'Alpa', value: rk.alpa || 0, color: 'red' }) +
       jamKerjaHtml;
   } catch { if (rekapBox) rekapBox.innerHTML = ''; }
 
@@ -997,10 +982,10 @@ async function loadLaporanLembur() {
     const iconFoto = `<svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg>`;
 
     if (rekapBox) rekapBox.innerHTML =
-      _kpiCard({ icon: iconSesi, label: 'Total Sesi', value: totalSesi, color: 'blue' }) +
-      _kpiCard({ icon: iconJam, label: 'Total Jam Lembur', value: `${Math.round(totalJam)} jam`, color: 'amber' }) +
-      (full ? _kpiCard({ icon: iconPegawai, label: 'Pegawai Terlibat', value: totalPegawai, color: 'teal' }) : '') +
-      _kpiCard({ icon: iconFoto, label: 'Dokumentasi', value: totalDok, color: 'purple' });
+      _lapKpiCard({ icon: iconSesi, label: 'Total Sesi', value: totalSesi, color: 'blue' }) +
+      _lapKpiCard({ icon: iconJam, label: 'Total Jam Lembur', value: `${Math.round(totalJam)} jam`, color: 'amber' }) +
+      (full ? _lapKpiCard({ icon: iconPegawai, label: 'Pegawai Terlibat', value: totalPegawai, color: 'teal' }) : '') +
+      _lapKpiCard({ icon: iconFoto, label: 'Dokumentasi', value: totalDok, color: 'purple' });
 
     filterLaporanLembur();
   } catch (err) {
@@ -1193,7 +1178,7 @@ function _lapRenderSuratStats(rows) {
 function _showLaporanSuratLoading() {
   const stats = _lapEnsureSuratStatsEl();
   const tbody = document.getElementById('laporanSuratTableBody');
-  if (stats) stats.innerHTML = _lapStatSkeleton(5, 84);
+  if (stats) stats.innerHTML = _lapStatSkeleton(5);
   if (tbody) tbody.innerHTML = `
     <tr>
       <td colspan="8">
@@ -1502,10 +1487,10 @@ function _lapKinerjaRowHtml(r, no, bulanTampil) {
     : `<span data-tip="Bermakna Positif" data-tip-variant="success" style="display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;background:#d1fae5;border-radius:50%;margin-left:5px;vertical-align:middle;flex-shrink:0"><svg xmlns="http://www.w3.org/2000/svg" width="9" height="9" fill="none" viewBox="0 0 24 24" stroke="#065f46" stroke-width="2.8"><path stroke-linecap="round" stroke-linejoin="round" d="M5 10l7-7m0 0l7 7m-7-7v18"/></svg></span>`;
   const tipeBadge = typeof _tipeBadge === 'function' ? _tipeBadge(r.tipe_perhitungan) : '';
   const jenisBadges = [
-    r.jenis_monev ? `<span style="background:#dbeafe;color:#1d4ed8;border-radius:4px;padding:1px 5px;font-size:.63rem;font-weight:700">IKU</span>` : '',
-    r.jenis_ikk   ? `<span style="background:#ede9fe;color:#7c3aed;border-radius:4px;padding:1px 5px;font-size:.63rem;font-weight:700">IKK</span>`   : '',
-    r.jenis_spm   ? `<span style="background:#fef3c7;color:#b45309;border-radius:4px;padding:1px 5px;font-size:.63rem;font-weight:700">SPM</span>`   : '',
-    r._jenis === 'Sub Kegiatan' ? `<span style="background:#ede9fe;color:#6d28d9;border-radius:4px;padding:1px 5px;font-size:.63rem;font-weight:700">Sub Kegiatan</span>` : '',
+    r.jenis_monev ? jenisBadgeHtml('monev', 'IKU') : '',
+    r.jenis_ikk   ? jenisBadgeHtml('ikk', 'IKK')   : '',
+    r.jenis_spm   ? jenisBadgeHtml('spm', 'SPM')   : '',
+    r._jenis === 'Sub Kegiatan' ? jenisBadgeHtml('subkeg', 'Sub Kegiatan') : '',
   ].filter(Boolean).join('');
   return `<tr>
     <td class="td-sticky-no" style="text-align:center;position:sticky;left:0;z-index:3">${no}</td>
@@ -1799,7 +1784,7 @@ function _showLaporanLoading() {
   const tbody = document.getElementById('laporanKinerjaTableBody');
   const thead = document.getElementById('laporanKinerjaThead');
   const pag   = document.getElementById('laporanKinerjaPagination');
-  if (stats) stats.innerHTML = _lapStatSkeleton(4, 84);
+  if (stats) stats.innerHTML = _lapStatSkeleton(4);
   if (thead) thead.innerHTML = '';
   if (pag)   pag.innerHTML = '';
   if (tbody) tbody.innerHTML = `
@@ -2516,16 +2501,21 @@ function _rebuildSuratStatusOptions(allRows, currentVal) {
 }
 
 
-function _statCard(label, value, color, iconPath) {
-  return `<div class="stat-card" style="border-left-color:${color}">
-    <div class="stat-card-body">
-      <div class="stat-label">${label}</div>
-      <div class="stat-value" style="color:${color}">${value}</div>
-    </div>
-    <div class="stat-icon">
-      <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" fill="none" viewBox="0 0 24 24" stroke="${color}" stroke-width="2" opacity=".65">${iconPath}</svg>
-    </div>
+// Card KPI Laporan: gaya sama dengan card di Dashboard (.dm-kpi). CSS-nya dipinjam dari dashboard.js (_dmStyle).
+// color: nama di _KPI_COLORS atau warna CSS langsung (hex / var(...)).
+function _lapKpiCard({ icon, label, value, sub = null, color = 'teal', valColor = null, extra = '' }) {
+  if (typeof _dmStyle === 'function') _dmStyle();
+  const c = (typeof _KPI_COLORS !== 'undefined' && _KPI_COLORS[color]?.text) || color;
+  const v = valColor ? ` style="color:${valColor}"` : '';
+  return `<div class="dm-kpi" style="--c:${c}">
+    <div class="dm-kpi-top"><span>${esc(label)}</span><span class="dm-kpi-ic" style="color:${c};background:color-mix(in srgb,${c} 12%,transparent)">${icon}</span></div>
+    <div class="dm-kpi-val"${v}>${esc(String(value))}</div>
+    ${sub ? `<div class="dm-kpi-foot"><div class="dm-kpi-sub">${esc(sub)}</div></div>` : ''}${extra}
   </div>`;
+}
+function _statCard(label, value, color, iconPath) {
+  const icon = `<svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${iconPath}</svg>`;
+  return _lapKpiCard({ icon, label, value, color });
 }
 function _ttdHtml(pegawai, tanggalStr, marginTop = 24, fontSize = 10) {
   const nama     = pegawai?.nama     || '';

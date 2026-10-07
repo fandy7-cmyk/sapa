@@ -36,6 +36,8 @@ async function loadDashboard() {
   const showSuratM  = isAdmin || hasAccess('surat.masuk');
   const showSuratK  = isAdmin || hasAccess('surat.keluar');
   const showSurat   = showSuratM || showSuratK;
+  // Dashboard utama sengaja menampilkan ringkasan Kinerja ke semua user (read-only, dikecualikan dari
+  // pembatasan akses modul); dashboard modul Kinerja yang dibatasi sesuai akses.
   const showKinerja = true;
 
   
@@ -210,6 +212,371 @@ function _dashModuleHeader(icon, title, subtitle) {
     <div class="page-subtitle">${esc(subtitle)}</div>`;
 }
 
+// ═══════════════════════════════════════════════════════════════════════════
+// KIT DASHBOARD MODUL - gaya "Pemantauan Sistem" (hero ringkasan, KPI + sparkline,
+// grafik area/bar, donut, daftar bar, insight). Dipakai Dashboard Superlink, Surat,
+// Absensi, Lembur & Kinerja. Prefix _dm / .dm- supaya gak bentrok dengan modul lain.
+// ═══════════════════════════════════════════════════════════════════════════
+const _DM_PAL = { ok: '#16a34a', warn: '#d97706', bad: '#dc2626', info: '#2563eb', teal: '#047D78', ungu: '#7c3aed', abu: '#64748b', pink: '#a21caf', sky: '#0ea5e9' };
+const _DM_BLN = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];
+const _dmNf  = (n) => Number(n || 0).toLocaleString('id-ID');
+const _dmPct = (a, b) => b ? Math.round(a * 100 / b) : 0;
+const _dmYmd = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+
+const _DM_CSS = `
+.dm .t-ok{--tone:#16a34a;--tone-bg:#f0fdf4}.dm .t-warn{--tone:#d97706;--tone-bg:#fffbeb}.dm .t-bad{--tone:#dc2626;--tone-bg:#fef2f2}.dm .t-info{--tone:#2563eb;--tone-bg:#eff6ff}.dm .t-abu{--tone:#64748b;--tone-bg:#f8fafc}
+.dm-hero{position:relative;overflow:hidden;display:flex;align-items:flex-start;gap:var(--sp-4);flex-wrap:wrap;padding:var(--sp-4) var(--sp-5) var(--sp-4) var(--sp-4);margin-bottom:var(--sp-4);background:var(--tone-bg);border:1.5px solid color-mix(in srgb,var(--tone) 28%,#fff);border-radius:var(--r-lg,16px)}
+.dm-hero>*{position:relative;z-index:1}
+.dm-pulse{flex-shrink:0;width:10px;height:10px;border-radius:50%;background:var(--tone);box-shadow:0 0 0 0 color-mix(in srgb,var(--tone) 55%,transparent);animation:dmPulse 2.2s ease-out infinite}
+@keyframes dmPulse{70%{box-shadow:0 0 0 9px transparent}100%{box-shadow:0 0 0 0 transparent}}
+.dm-hero-main{flex:1;min-width:240px}
+.dm-hero-head{display:flex;align-items:center;gap:10px;min-height:36px}
+.dm-hero-ic{display:flex;align-items:center;justify-content:center;width:36px;height:36px;border-radius:9px;flex-shrink:0;background:color-mix(in srgb,var(--tone) 14%,#fff);border:1px solid color-mix(in srgb,var(--tone) 28%,#fff);color:var(--tone)}
+.dm-hero-body{margin-top:6px}
+.dm-hero-title{font-size:.95rem;font-weight:700;color:var(--teks);line-height:1.3}
+.dm-hero-text{font-size:var(--fs-sm);color:var(--teks-muted);line-height:1.55;max-width:72ch}
+.dm-hero-text+.dm-hero-text{margin-top:2px}
+.dm-hero-text b{color:var(--teks)}
+.dm-hero-aside{display:flex;flex-direction:column;align-items:flex-end;gap:4px;text-align:right;flex-shrink:0}
+.dm-dots{position:absolute!important;right:0;bottom:0;width:48%;height:100%;pointer-events:none;z-index:0!important;background-image:radial-gradient(circle,var(--tone) 1.3px,transparent 1.6px);background-size:16px 14px;opacity:.2;-webkit-mask-image:linear-gradient(to right,transparent,#000 85%);mask-image:linear-gradient(to right,transparent,#000 85%)}
+.dm-ecg{position:absolute!important;right:0;bottom:0;width:46%;height:70%;pointer-events:none;z-index:0!important}
+.dm-ecg polyline{fill:none;stroke:var(--tone);stroke-width:2;opacity:.2;vector-effect:non-scaling-stroke;stroke-linejoin:round}
+.dm-pills{display:flex;flex-wrap:wrap;gap:6px;margin-top:var(--sp-3)}
+.dm-pill{display:inline-flex;align-items:center;gap:6px;padding:3px 10px;border-radius:999px;background:#fff;border:1px solid var(--abu-2);font-size:var(--fs-sm);font-weight:600;color:var(--teks)}
+.dm-pill i{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.dm-pill b{font-weight:700;color:var(--teks);font-variant-numeric:tabular-nums}
+.dm-kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:var(--sp-4);margin-bottom:var(--sp-4)}
+.dm-kpi{display:flex;flex-direction:column;gap:3px;padding:var(--sp-4) var(--sp-5);background:#fff;border:1.5px solid var(--abu-2);border-radius:var(--r-md);min-width:0;transition:border-color .18s,box-shadow .18s}
+.dm-kpi[onclick]{cursor:pointer}.dm-kpi[onclick]:hover{border-color:var(--c);box-shadow:var(--shadow-md)}
+.dm-kpi-top{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:var(--fs-sm);font-weight:600;color:var(--teks-muted)}
+.dm-kpi-ic{display:flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:8px;flex-shrink:0}
+.dm-kpi-val{font-size:var(--fs-2xl);font-weight:800;line-height:1.15;color:var(--teks);white-space:nowrap}
+.dm-kpi-foot{display:flex;align-items:flex-end;justify-content:space-between;gap:8px;min-height:28px}
+.dm-kpi-sub{font-size:.7rem;color:var(--teks-muted);line-height:1.4}
+.dm-kpi-sp{flex-shrink:0}
+.dm-cols{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,340px),1fr));gap:var(--sp-4);margin-bottom:var(--sp-4)}
+.dm-cols.wide{grid-template-columns:minmax(0,1.618fr) minmax(0,1fr)}
+@media(max-width:900px){.dm-cols.wide,.dm-cols.wide-r{grid-template-columns:minmax(0,1fr)}.dm-hero-aside{align-items:flex-start;text-align:left}}
+@media(max-width:600px){.dm-hero-body,.dm-pills{padding-left:0}}
+.dm-card{min-width:0;background:#fff;border:1.5px solid var(--abu-2);border-radius:var(--r-md);padding:var(--sp-4) var(--sp-5)}
+.dm-card-h{display:flex;align-items:flex-start;justify-content:space-between;gap:8px;margin-bottom:var(--sp-3)}
+.dm-card-t{font-size:var(--fs-base);font-weight:600}
+.dm-card-hl{display:flex;align-items:flex-start;gap:10px;min-width:0}
+.dm-card-ic{display:flex;align-items:center;justify-content:center;width:30px;height:30px;border-radius:8px;flex-shrink:0;background:var(--hijau-light,#e6f4f3)}
+.dm-cols.wide-r{grid-template-columns:minmax(0,1fr) minmax(0,1.618fr)}
+.dm-cols.eq>.dm-card>.dm-donut{margin-block:auto}
+.dm-sub{font-size:.7rem;color:var(--teks-muted);margin-top:2px}
+.dm-chart{width:100%;height:auto;display:block;overflow:visible}
+.dm-ax{font-size:10px;fill:var(--teks-muted)}
+.dm-gl{stroke:rgba(15,23,42,.08);stroke-dasharray:3 3}
+.dm-hit{fill:transparent}.dm-hit:hover{fill:rgba(15,23,42,.06)}
+.dm-legend{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:var(--fs-sm);color:var(--teks-muted);margin-top:var(--sp-3)}
+.dm-legend i{display:inline-block;width:9px;height:9px;border-radius:3px;margin-right:5px;vertical-align:-1px}
+.dm-donut{display:flex;align-items:center;gap:var(--sp-5);flex-wrap:wrap}
+.dm-donut svg{width:132px;height:132px;flex-shrink:0}
+.dm-donut-s{gap:var(--sp-3);flex-wrap:nowrap}.dm-donut-s svg{width:96px;height:96px}.dm-donut-s .dm-dl{min-width:0;gap:4px}.dm-donut-s .dm-dl div{font-size:.76rem;gap:6px}.dm-donut-s .dm-dl em{min-width:30px}
+.dm-dl{flex:1;min-width:150px;display:flex;flex-direction:column;gap:7px}
+.dm-dl div{display:flex;align-items:center;gap:8px;font-size:.82rem}
+.dm-dl i{width:10px;height:10px;border-radius:3px;flex-shrink:0}
+.dm-dl span{flex:1;color:var(--teks)}.dm-dl b{font-weight:700}.dm-dl em{font-style:normal;color:var(--teks-muted);font-size:.75rem;min-width:38px;text-align:right}
+.dm-hb{padding:8px 0;border-bottom:1px solid rgba(0,0,0,.05)}.dm-hb:last-child{border-bottom:none}
+.dm-hb-top{display:flex;justify-content:space-between;align-items:center;gap:10px;font-size:.82rem}
+.dm-hb-l{font-weight:600;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow-wrap:anywhere;line-height:1.3;min-width:0}
+.dm-hb-l.full{display:block;overflow:visible;-webkit-line-clamp:unset}
+.dm-hb-r{flex-shrink:0;font-size:.8rem;color:var(--teks-muted)}
+.dm-hb-track{height:7px;border-radius:99px;background:rgba(0,0,0,.06);margin-top:5px;overflow:hidden}
+.dm-hb-track i{display:block;height:100%;border-radius:99px}
+.dm-ins{display:flex;gap:10px;align-items:flex-start;padding:9px 12px;border-radius:var(--r-sm);background:var(--tone-bg);font-size:.82rem;color:var(--teks);margin-bottom:6px}
+.dm-ins:last-child{margin-bottom:0}
+.dm-ins i{flex-shrink:0;width:8px;height:8px;border-radius:50%;background:var(--tone);margin-top:6px}
+.dm-feed{display:flex;gap:10px;align-items:flex-start;padding:9px 0;border-bottom:1px solid rgba(0,0,0,.06)}
+.dm-feed:last-child{border-bottom:none}
+.dm-feed-b{min-width:0;flex:1}
+.dm-feed-m{font-size:.82rem;font-weight:600;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+.dm-av{display:flex;align-items:center;justify-content:center;width:30px;height:30px;border-radius:50%;background:var(--hijau-light);color:var(--hijau);font-size:var(--fs-sm);font-weight:800;flex-shrink:0}
+.dm-big{display:flex;align-items:baseline;gap:6px;flex-wrap:wrap;margin-bottom:10px}
+.dm-big b{font-size:var(--fs-xl);font-weight:800}
+.dm-big span{font-size:var(--fs-sm);color:var(--teks-muted)}
+.dm-empty{padding:22px;text-align:center;color:var(--teks-muted);font-size:.84rem}
+.dm-hero-v2{align-items:flex-start;padding-bottom:calc(var(--sp-4) + 20px)}
+.dm-seg-wrap{margin-top:var(--sp-3);max-width:560px}
+.dm-seg{display:flex;gap:2px;height:8px;border-radius:99px;overflow:hidden;background:rgba(0,0,0,.06)}
+.dm-seg i{display:block;min-width:4px;height:100%}
+.dm-seg-lg{display:flex;flex-wrap:wrap;gap:4px 14px;margin-top:8px;font-size:var(--fs-sm);font-weight:600;color:var(--teks-muted)}
+.dm-seg-lg span{display:inline-flex;align-items:center;gap:6px}
+.dm-seg-lg i{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.dm-seg-lg b{color:var(--teks);font-weight:700;font-variant-numeric:tabular-nums}
+.dm-hero-viz{display:flex;align-items:center;gap:var(--sp-4);flex-shrink:0;margin-left:auto}
+.dm-trend{display:flex;flex-direction:column;align-items:flex-end;gap:2px;text-align:right}
+.dm-trend-l{font-size:.7rem;font-weight:600;color:var(--teks-muted)}
+.dm-trend-v{font-size:var(--fs-2xl);font-weight:800;line-height:1.1;color:var(--teks);font-variant-numeric:tabular-nums;white-space:nowrap}
+.dm-trend-d{font-size:.72rem;font-weight:700;white-space:nowrap}
+.dm-trend svg{display:block;margin-top:3px}
+.dm-ring{position:relative;width:84px;height:84px;flex-shrink:0}
+.dm-ring svg{width:100%;height:100%;transform:rotate(-90deg)}
+.dm-ring circle{fill:none;stroke-width:3.6}
+.dm-ring-bg{stroke:color-mix(in srgb,var(--tone) 16%,transparent)}
+.dm-ring-fg{stroke-linecap:round;animation:dmRing .9s cubic-bezier(.22,.8,.3,1) both}
+@keyframes dmRing{from{stroke-dasharray:0 100}}
+.dm-ring-t{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;line-height:1.1;pointer-events:none}
+.dm-ring-t b{font-size:1.15rem;font-weight:800;color:var(--teks)}
+.dm-ring-t span{font-size:.6rem;font-weight:600;color:var(--teks-muted)}
+.dm-hero-v2 .dm-live{position:absolute;right:var(--sp-5);bottom:10px;display:inline-flex;align-items:center;gap:6px;padding:0;border:0;background:none;font:inherit;font-size:.7rem;color:var(--teks-muted);cursor:pointer}
+.dm-hero-v2 .dm-live:hover{color:var(--teks)}
+.dm-live-dot{--tone:#16a34a;width:7px;height:7px;border-radius:50%;background:#16a34a;animation:dmPulse 2.2s ease-out infinite}
+@media(max-width:600px){.dm-hero-v2{padding-bottom:var(--sp-4)}.dm-hero-v2 .dm-hero-viz{order:3;width:100%;margin-left:0}.dm-trend{display:none}.dm-hero-v2 .dm-live{order:4;position:static;margin-left:auto}}
+@media(prefers-reduced-motion:reduce){.dm-pulse,.dm-live-dot,.dm-ring-fg{animation:none}}
+`;
+function _dmStyle() {
+  if (document.getElementById('dm-style')) return;
+  const st = document.createElement('style'); st.id = 'dm-style'; st.textContent = _DM_CSS;
+  document.head.appendChild(st);
+}
+
+const _DM_IC = {
+  link: '<path d="M9 17H7A5 5 0 0 1 7 7h2"/><path d="M15 7h2a5 5 0 1 1 0 10h-2"/><line x1="8" x2="16" y1="12" y2="12"/>',
+  click: '<path d="m9 9 5 12 1.8-5.2L21 14Z"/><path d="M7.2 2.2 8 5.1"/><path d="m5.1 8-2.9-.8"/><path d="M14 4.1 12 6"/><path d="m6 12-1.9 2"/>',
+  box: '<path d="m7.5 4.27 9 5.15"/><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/>',
+  mail: '<path d="M21.2 8.4c.5.38.8.97.8 1.6v10a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V10a2 2 0 0 1 .8-1.6l8-6a2 2 0 0 1 2.4 0l8 6Z"/><path d="m22 10-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 10"/>',
+  send: '<path d="M22 2L11 13"/><path d="M22 2l-7 20-4-9-9-4 20-7z"/>',
+  warn: '<path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><line x1="12" x2="12" y1="9" y2="13"/><line x1="12" x2="12.01" y1="17" y2="17"/>',
+  clock: '<circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>',
+  cal: '<rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/><path d="M8 2v4"/><path d="M16 2v4"/>',
+  check: '<path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>',
+  user: '<path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>',
+  photo: '<rect width="18" height="18" x="3" y="3" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/>',
+  target: '<circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/>',
+  trend: '<polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/>',
+  doc: '<path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/>',
+  alert: '<circle cx="12" cy="12" r="10"/><line x1="12" x2="12" y1="8" y2="12"/><line x1="12" x2="12.01" y1="16" y2="16"/>',
+  info: '<circle cx="12" cy="12" r="10"/><line x1="12" x2="12" y1="16" y2="12"/><line x1="12" x2="12.01" y1="8" y2="8"/>',
+  grid: '<rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/>',
+};
+const _dmIc = (k, c, s) => `<svg xmlns="http://www.w3.org/2000/svg" width="${s || 15}" height="${s || 15}" fill="none" viewBox="0 0 24 24" stroke="${c}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${_DM_IC[k] || _DM_IC.grid}</svg>`;
+
+const _DM_ECG = '<div class="dm-dots" aria-hidden="true"></div>';
+function _dmHeroLegacy({ tone, title, text, pills, reload }) {
+  const jam = new Date().toLocaleTimeString('id-ID', { timeZone: 'Asia/Makassar', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).replace(/\./g, ':');
+  // text boleh string atau array kalimat pendek (satu baris per kalimat, yang kosong dilewati)
+  const lines = (Array.isArray(text) ? text : [text]).filter(Boolean);
+  const icKey = { ok: 'check', warn: 'warn', bad: 'alert' }[tone] || 'info';
+  return `<div class="dm-hero t-${tone}">
+    <span class="dm-hero-ic">${_dmIc(icKey, 'currentColor', 20)}</span>
+    <div class="dm-hero-main">
+      <div class="dm-hero-head"><div class="dm-hero-title">${title}</div></div>
+      ${lines.length ? `<div class="dm-hero-body">${lines.map(l => `<div class="dm-hero-text">${l}</div>`).join('')}</div>` : ''}
+      ${pills && pills.length ? `<div class="dm-pills">${pills.join('')}</div>` : ''}</div>
+    <div class="dm-hero-aside">${reload ? `<button class="btn btn-sm btn-outline-hijau" onclick="${reload}"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>Muat ulang</button>` : ''}<div class="dm-sub">Diperbarui ${jam} WITA</div></div>
+  </div>`;
+}
+// Hero v2: ring (A), bar segmen (B), angka + tren (C), garis detak + "Langsung" (D).
+// ring  = { pct, label, color?, tip? }
+// seg   = [{ label, val, color, bar? }]  (bar:false = cuma tampil di legenda, gak masuk bar)
+// trend = { label, val, d, unit, vs, vals, invert?, neutral?, note? }
+function _dmRing(r) {
+  const p = Math.max(0, Math.min(100, Math.round(Number(r.pct) || 0)));
+  const col = r.color || 'var(--tone)';
+  return `<div class="dm-ring" data-tip="${esc(r.tip || `${p}% ${r.label}`)}"><svg viewBox="0 0 36 36" aria-hidden="true"><circle class="dm-ring-bg" cx="18" cy="18" r="15.9155"/><circle class="dm-ring-fg" cx="18" cy="18" r="15.9155" pathLength="100" stroke="${col}" stroke-dasharray="${p} 100"/></svg><div class="dm-ring-t"><b>${p}%</b><span>${esc(r.label)}</span></div></div>`;
+}
+function _dmSegBar(seg) {
+  const bars = seg.filter(s => s.bar !== false && s.val > 0);
+  const tot = bars.reduce((a, s) => a + s.val, 0);
+  return `<div class="dm-seg" role="img" aria-label="${esc(seg.map(s => `${s.label} ${s.val}`).join(', '))}">${bars.map(s => `<i style="flex:${s.val} 1 0;background:${s.color}" data-tip="${esc(`${s.label}: ${_dmNf(s.val)} (${Math.round(s.val * 100 / tot)}%)`)}"></i>`).join('')}</div>`;
+}
+const _dmSegLg = (seg) => `<div class="dm-seg-lg">${seg.map(s => `<span><i style="background:${s.color}"></i>${s.label} <b>${_dmNf(s.val)}</b></span>`).join('')}</div>`;
+// garis tren kecil, skala min-max supaya naik-turunnya kelihatan
+function _dmTrendLine(vals, color, w, h) {
+  vals = (vals || []).filter(v => v != null && isFinite(v)).map(Number);
+  if (vals.length < 2) return '';
+  const mn = Math.min(...vals), mx = Math.max(...vals), rg = mx - mn || 1, st = w / (vals.length - 1);
+  const pts = vals.map((v, i) => [i * st, mx === mn ? h / 2 : h - 3 - ((v - mn) / rg) * (h - 6)]);
+  const line = 'M' + pts.map(q => q[0].toFixed(1) + ',' + q[1].toFixed(1)).join('L');
+  const last = pts[pts.length - 1];
+  return `<svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" aria-hidden="true"><path d="${line}" fill="none" stroke="${color}" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round"/><circle cx="${last[0].toFixed(1)}" cy="${last[1].toFixed(1)}" r="2.4" fill="${color}"/></svg>`;
+}
+function _dmTrend(t) {
+  const has = t.d != null && isFinite(t.d);
+  const d = has ? Math.round(t.d * 10) / 10 : null;
+  let col = _DM_PAL.abu;
+  if (has && d !== 0) col = t.neutral ? _DM_PAL.info : ((t.invert ? d < 0 : d > 0) ? _DM_PAL.ok : _DM_PAL.bad);
+  const sign = !has ? '' : d > 0 ? '+' : d < 0 ? '\u2212' : '';
+  const num = has ? _dmNf(Math.abs(d)) : '';
+  const unit = !t.unit ? '' : t.unit === '%' ? '%' : ' ' + t.unit;
+  const dTxt = has ? `${sign}${num}${unit} ${t.vs || ''}`.trim() : (t.note || '');
+  return `<div class="dm-trend"><div class="dm-trend-l">${t.label}</div><div class="dm-trend-v">${t.val}</div>${dTxt ? `<div class="dm-trend-d" style="color:${col}">${dTxt}</div>` : ''}${_dmTrendLine(t.vals, col === _DM_PAL.abu ? _DM_PAL.teal : col, 88, 24)}</div>`;
+}
+function _dmHero(o) {
+  if (!o.ring) return _dmHeroLegacy(o);
+  const { tone, title, text, reload, ring, seg, trend } = o;
+  const jam = new Date().toLocaleTimeString('id-ID', { timeZone: 'Asia/Makassar', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).replace(/\./g, ':');
+  const lines = (Array.isArray(text) ? text : [text]).filter(Boolean);
+  const icKey = { ok: 'check', warn: 'warn', bad: 'alert' }[tone] || 'info';
+  return `<div class="dm-hero dm-hero-v2 t-${tone}">
+    ${_DM_ECG}
+    <span class="dm-hero-ic">${_dmIc(icKey, 'currentColor', 20)}</span>
+    <div class="dm-hero-main">
+      <div class="dm-hero-head"><div class="dm-hero-title">${title}</div></div>
+      ${lines.length ? `<div class="dm-hero-body">${lines.map(l => `<div class="dm-hero-text">${l}</div>`).join('')}</div>` : ''}
+      ${seg && seg.length ? `<div class="dm-seg-wrap">${_dmSegBar(seg)}${_dmSegLg(seg)}</div>` : ''}
+    </div>
+    <div class="dm-hero-viz">${trend ? _dmTrend(trend) : ''}${_dmRing(ring)}</div>
+    <button type="button" class="dm-live"${reload ? ` onclick="${reload}" data-tip="Muat ulang"` : ' disabled'}><i class="dm-live-dot"></i>Update : ${jam} WITA</button>
+  </div>`;
+}
+const _dmPill = (label, val, color) => `<span class="dm-pill"><i style="background:${color}"></i>${label}${val != null ? ` <b>${val}</b>` : ''}</span>`;
+const _dmIns = (tone, html) => `<div class="dm-ins t-${tone}"><i></i><span>${html}</span></div>`;
+// Kartu yang isinya HANYA placeholder kosong (belum ada data, atau "Semua ... sudah" / "Tidak ada ...") tidak ditampilkan.
+// Pengecualian: pesan error/info yang dipanggil dengan _dmEmpty(teks, true) tetap tampil.
+const _dmIsNoData = (h) => typeof h === 'string' && h.trim().startsWith('<div class="dm-empty dm-nodata">') && (h.match(/<div/g) || []).length === 1;
+// Icon card: dipilih otomatis dari judul (pakai set _DM_IC yang sama dgn KPI). Bisa dioverride lewat parameter ke-5.
+const _DM_CARD_IC = [
+  [/skala|capaian|rata-rata|progres|kelengkapan/i, 'target'], [/klik|kunjungan|perangkat|cara masuk|terpopuler/i, 'click'],
+  [/link|bundle/i, 'link'], [/surat|pengirim|tujuan/i, 'mail'], [/jam|sisa waktu|sesi|lembur|terlambat|menunggu/i, 'clock'],
+  [/hari|harian|bulan|alpa/i, 'cal'], [/pegawai|kehadiran|absensi|beban|kelompok/i, 'user'], [/dokumentasi/i, 'photo'],
+  [/perhatian|belum|tidak lengkap/i, 'warn'], [/status|sebaran|komposisi/i, 'check'], [/ringkasan|catatan/i, 'doc'],
+];
+const _dmCardIc = (title) => { const t = String(title).replace(/<[^>]*>/g, ''); const m = _DM_CARD_IC.find(([re]) => re.test(t)); return m ? m[1] : 'grid'; };
+const _dmCardIcon = (title, ic) => `<span class="dm-card-ic">${_dmIc(ic || _dmCardIc(title), _DM_PAL.teal, 16)}</span>`;
+const _dmCard = (title, sub, inner, head, ic) => _dmIsNoData(inner) ? '' : `<div class="dm-card"><div class="dm-card-h"><div class="dm-card-hl">${_dmCardIcon(title, ic)}<div><div class="dm-card-t">${title}</div>${sub ? `<div class="dm-sub">${sub}</div>` : ''}</div></div>${head || ''}</div>${inner}</div>`;
+const _dmCols = (arr, wide) => {
+  const a = arr.filter(Boolean);   // buang kartu yang tidak dirender (belum ada data)
+  return a.length ? `<div class="dm-cols${wide && a.length > 1 ? (wide === 'r' ? ' wide-r' : ' wide') : ''}">${a.join('')}</div>` : '';
+};
+const _dmEmpty = (t, keep) => `<div class="dm-empty${keep ? '' : ' dm-nodata'}">${t}</div>`;
+const _dmLegend = (arr) => `<div class="dm-legend">${arr.map(([c, l]) => `<span><i style="background:${c}"></i>${l}</span>`).join('')}</div>`;
+
+function _dmSpark(vals, color, w, h) {
+  w = w || 84; h = h || 28;
+  vals = (vals || []).map(v => Number(v) || 0);
+  if (vals.length < 2) return '';
+  const max = Math.max(...vals, 1), st = w / (vals.length - 1);
+  const pts = vals.map((v, i) => [i * st, h - 3 - (v / max) * (h - 7)]);
+  const line = 'M' + pts.map(p => p[0].toFixed(1) + ',' + p[1].toFixed(1)).join('L');
+  return `<svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" aria-hidden="true"><path d="${line}L${w},${h}L0,${h}Z" fill="${color}" opacity=".13"/><path d="${line}" fill="none" stroke="${color}" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round"/></svg>`;
+}
+function _dmKpi({ label, val, sub, color, icon, spark, onclick }) {
+  color = color || _DM_PAL.teal;
+  return `<div class="dm-kpi" style="--c:${color}"${onclick ? ` onclick="${onclick}" role="button" tabindex="0"` : ''}>
+    <div class="dm-kpi-top"><span>${label}</span><span class="dm-kpi-ic" style="background:${color}1f">${_dmIc(icon, color, 15)}</span></div>
+    <div class="dm-kpi-val">${val}</div>
+    <div class="dm-kpi-foot"><div class="dm-kpi-sub">${sub || ''}</div>${spark ? `<div class="dm-kpi-sp">${spark}</div>` : ''}</div>
+  </div>`;
+}
+function _dmNiceMax(v) { const p = Math.pow(10, Math.floor(Math.log10(Math.max(v, 1)))); const f = v / p; return (f <= 1 ? 1 : f <= 2 ? 2 : f <= 5 ? 5 : 10) * p; }
+
+function _dmArea({ labels, series, h, fmt }) {
+  const W = 640, H = h || 190, pl = 44, pr = 10, pt = 10, pb = 24, iw = W - pl - pr, ih = H - pt - pb, n = labels.length;
+  fmt = fmt || _dmNf;
+  const all = series.flatMap(s => s.values.filter(v => v != null));
+  const max = _dmNiceMax(Math.max(1, ...all));
+  const x = (i) => pl + (n < 2 ? 0 : i * iw / (n - 1)), y = (v) => pt + ih - (v / max) * ih;
+  let g = '';
+  for (let k = 0; k <= 4; k++) { const v = max * k / 4, yy = y(v); g += `<line class="dm-gl" x1="${pl}" x2="${W - pr}" y1="${yy}" y2="${yy}"/><text class="dm-ax" x="${pl - 6}" y="${yy + 3}" text-anchor="end">${fmt(Math.round(v * 10) / 10)}</text>`; }
+  const stepX = Math.max(1, Math.ceil(n / 7));
+  let xl = ''; for (let i = 0; i < n; i += stepX) xl += `<text class="dm-ax" x="${x(i)}" y="${H - 6}" text-anchor="middle">${esc(labels[i].short || labels[i])}</text>`;
+  let paths = '';
+  series.forEach((s, si) => {
+    const pts = s.values.map((v, i) => v == null ? null : [x(i), y(v)]).filter(Boolean);
+    if (!pts.length) return;
+    const d = 'M' + pts.map(p => p[0].toFixed(1) + ',' + p[1].toFixed(1)).join('L');
+    if (si === 0 && pts.length > 1) paths += `<path d="${d}L${pts[pts.length - 1][0].toFixed(1)},${pt + ih}L${pts[0][0].toFixed(1)},${pt + ih}Z" fill="${s.color}" opacity=".12"/>`;
+    paths += pts.length > 1 ? `<path d="${d}" fill="none" stroke="${s.color}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"${s.dash ? ' stroke-dasharray="5 4"' : ''}/>` : `<circle cx="${pts[0][0]}" cy="${pts[0][1]}" r="2.5" fill="${s.color}"/>`;
+  });
+  const bw = iw / Math.max(n - 1, 1);
+  let hit = '';
+  for (let i = 0; i < n; i++) hit += `<rect class="dm-hit" x="${(x(i) - bw / 2).toFixed(1)}" y="${pt}" width="${bw.toFixed(1)}" height="${ih}" data-tip="${esc((labels[i].full || labels[i]) + '\n' + series.map(s => s.name + ': ' + (s.values[i] == null ? '-' : fmt(s.values[i]))).join('\n'))}"></rect>`;
+  return `<svg class="dm-chart" viewBox="0 0 ${W} ${H}" role="img">${g}${paths}${xl}${hit}</svg>`;
+}
+function _dmBar({ labels, values, color, h, hi, unit }) {
+  const W = 640, H = h || 140, pl = 34, pr = 6, pt = 8, pb = 22, iw = W - pl - pr, ih = H - pt - pb, n = values.length;
+  const max = _dmNiceMax(Math.max(1, ...values)), bw = iw / n;
+  let g = '';
+  for (let k = 0; k <= 2; k++) { const v = max * k / 2, yy = pt + ih - (v / max) * ih; g += `<line class="dm-gl" x1="${pl}" x2="${W - pr}" y1="${yy}" y2="${yy}"/><text class="dm-ax" x="${pl - 5}" y="${yy + 3}" text-anchor="end">${_dmNf(Math.round(v))}</text>`; }
+  const stepX = Math.max(1, Math.ceil(n / 8));
+  let bars = '';
+  values.forEach((v, i) => {
+    const hh = Math.max(v > 0 ? 2 : 0, (v / max) * ih), xx = pl + i * bw + bw * .14;
+    bars += `<rect x="${xx.toFixed(1)}" y="${(pt + ih - hh).toFixed(1)}" width="${(bw * .72).toFixed(1)}" height="${hh.toFixed(1)}" rx="2.5" fill="${i === hi ? _DM_PAL.warn : color}"${i === hi ? '' : ' opacity=".85"'} data-tip="${esc(labels[i] + ': ' + _dmNf(v) + (unit ? ' ' + unit : ''))}"></rect>`;
+    if (i % stepX === 0) bars += `<text class="dm-ax" x="${(pl + i * bw + bw / 2).toFixed(1)}" y="${H - 6}" text-anchor="middle">${esc(labels[i])}</text>`;
+  });
+  return `<svg class="dm-chart" viewBox="0 0 ${W} ${H}" role="img">${g}${bars}</svg>`;
+}
+function _dmDonut(items, centerVal, centerLbl, compact) {
+  const tot = items.reduce((a, b) => a + b.value, 0), R = 46, C = 2 * Math.PI * R;
+  if (!tot) return _dmEmpty('Belum ada data');
+  let off = 0;
+  const arcs = items.filter(i => i.value > 0).map(i => {
+    const len = i.value / tot * C;
+    const s = `<circle cx="60" cy="60" r="${R}" fill="none" stroke="${i.color}" stroke-width="16" stroke-dasharray="${len.toFixed(2)} ${(C - len).toFixed(2)}" stroke-dashoffset="${(-off).toFixed(2)}" transform="rotate(-90 60 60)" data-tip="${esc(i.label + ': ' + _dmNf(i.value))}"></circle>`;
+    off += len; return s;
+  }).join('');
+  return `<div class="dm-donut${compact ? ' dm-donut-s' : ''}"><svg viewBox="0 0 120 120" role="img"><circle cx="60" cy="60" r="${R}" fill="none" stroke="#eef2f6" stroke-width="16"/>${arcs}
+    <text x="60" y="58" text-anchor="middle" style="font-size:19px;font-weight:800;fill:var(--teks)">${centerVal}</text><text x="60" y="73" text-anchor="middle" class="dm-ax">${centerLbl || ''}</text></svg>
+    <div class="dm-dl">${items.map(i => `<div><i style="background:${i.color}"></i><span>${esc(i.label)}</span><b>${_dmNf(i.value)}</b><em>${_dmPct(i.value, tot)}%</em></div>`).join('')}</div></div>`;
+}
+// Pagination daftar di card: 5 item per halaman. Daftar <= 5 item ditampilkan langsung.
+const _DM_PER = 5;
+let _dmSeq = 0;
+let _dmQueue = [];
+function _dmPageBox(htmls) {
+  if (htmls.length <= _DM_PER) return htmls.join('');
+  const id = 'dmpg' + (++_dmSeq);
+  _dmQueue.push({ id, htmls });
+  return `<div id="${id}-b">${htmls.slice(0, _DM_PER).join('')}</div><div id="${id}-p"></div>`;
+}
+function _dmInitPaging(root) {
+  const q = _dmQueue; _dmQueue = [];
+  q.forEach(({ id, htmls }) => {
+    if (!root.querySelector('#' + id + '-b')) return;
+    const draw = (p) => {
+      const el = document.getElementById(id + '-b'); if (!el) return;
+      el.innerHTML = htmls.slice((p - 1) * _DM_PER, p * _DM_PER).join('');
+      if (typeof renderPagination === 'function') renderPagination(id + '-p', htmls.length, p, _DM_PER, draw);
+    };
+    draw(1);
+  });
+}
+function _dmHb(items, kosong) {
+  if (!items.length) return _dmEmpty(kosong || 'Belum ada data');
+  return _dmPageBox(items.map(i => `<div class="dm-hb"><div class="dm-hb-top"><span class="dm-hb-l${i.full ? ' full' : ''}" data-tip="${esc(i.label)}">${esc(i.label)}</span><span class="dm-hb-r">${i.right || ''}</span></div><div class="dm-hb-track"><i style="width:${Math.max(2, Math.round(i.value * 100 / (i.max || 1)))}%;background:${i.color || _DM_PAL.teal}"></i></div>${i.sub ? `<div class="dm-sub">${i.sub}</div>` : ''}</div>`));
+}
+// daftar bar dengan skala otomatis (max = nilai terbesar)
+function _dmHbAuto(rows, kosong) {
+  const max = Math.max(1, ...rows.map(r => r.value));
+  return _dmHb(rows.map(r => ({ ...r, max: r.max || max, right: r.right != null ? r.right : `<b style="color:${r.color || _DM_PAL.teal}">${_dmNf(r.value)}${r.suffix || ''}</b>` })), kosong);
+}
+function _dmFeed(rows, kosong) {
+  return rows.length ? _dmPageBox(rows.map(r => `<div class="dm-feed">${r.lead || ''}<div class="dm-feed-b"><div class="dm-feed-m">${esc(r.title)}</div><div class="dm-sub">${r.sub || ''}</div></div>${r.badge || ''}</div>`)) : _dmEmpty(kosong || 'Belum ada data');
+}
+const _dmInisial = (n) => String(n || '?').trim().split(/\s+/).slice(0, 2).map(w => w[0]).join('').toUpperCase() || '?';
+function _dmFixText(root) {
+  if (!root) return;
+  root.querySelectorAll('svg.dm-chart').forEach(svg => {
+    const vb = svg.viewBox && svg.viewBox.baseVal, w = svg.getBoundingClientRect().width;
+    if (!vb || !vb.width || !w) return;
+    const scale = w / vb.width, px = scale < .8 ? 9 : 11;
+    const fs = (px / scale).toFixed(2) + 'px';
+    svg.querySelectorAll('.dm-ax').forEach(t => { t.style.fontSize = fs; });
+  });
+}
+// Pasang HTML ke wrapper + rapikan ukuran teks grafik
+function _dmMount(wrap, html) {
+  wrap.classList.add('dm');
+  wrap.innerHTML = html;
+  _dmInitPaging(wrap);
+  requestAnimationFrame(() => _dmFixText(wrap));
+}
+window.addEventListener('resize', () => document.querySelectorAll('.dm').forEach(_dmFixText));
+// Daftar N bulan terakhir (termasuk bulan ini) -> [{key:'YYYY-MM', label}]
+function _dmBulanTerakhir(n) {
+  const now = new Date(), out = [];
+  for (let i = n - 1; i >= 0; i--) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    out.push({ key: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`, short: _DM_BLN[d.getMonth()], full: `${_DM_BLN[d.getMonth()]} ${d.getFullYear()}` });
+  }
+  return out;
+}
+
 async function _fetchSuperlinkDashData() {
   try {
     const [rl, rb, rs] = await Promise.all([
@@ -227,89 +594,126 @@ async function _fetchSuperlinkDashData() {
 async function loadDashboardSuperlink() {
   const wrap = document.getElementById('dashSuperlinkStats');
   if (!wrap) return;
+  _dmStyle();
   wrap.innerHTML = `
+    <div class="skeleton" style="height:96px;border-radius:16px;margin-bottom:13px"></div>
     <div class="dash-kpi-row">${Array(5).fill(0).map(() => `<div class="skeleton" style="height:98px;border-radius:14px"></div>`).join('')}</div>
-    <div class="skeleton" style="height:160px;border-radius:16px"></div>`;
+    <div class="skeleton" style="height:200px;border-radius:16px"></div>`;
 
   const { links, bundles, stats } = await _fetchSuperlinkDashData();
 
   const icon = `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor" style="flex-shrink:0;opacity:.85"><path d="M3 12C3 12.5523 3.44772 13 4 13H10C10.5523 13 11 12.5523 11 12V4C11 3.44772 10.5523 3 10 3H4C3.44772 3 3 3.44772 3 4V12ZM3 20C3 20.5523 3.44772 21 4 21H10C10.5523 21 11 20.5523 11 20V16C11 15.4477 10.5523 15 10 15H4C3.44772 15 3 15.4477 3 16V20ZM13 20C13 20.5523 13.4477 21 14 21H20C20.5523 21 21 20.5523 21 20V12C21 11.4477 20.5523 11 20 11H14C13.4477 11 13 11.4477 13 12V20ZM14 3C13.4477 3 13 3.44772 13 4V8C13 8.55228 13.4477 9 14 9H20C20.5523 9 21 8.55228 21 8V4C21 3.44772 20.5523 3 20 3H14Z"/></svg>`;
   let html = _dashModuleHeader(icon, 'Dashboard', 'Ringkasan aktivitas Superlink');
 
-  const totalKlik    = stats?.total_klik    ?? links.reduce((sum, l) => sum + (l.total_klik || 0), 0);
+  const totalKlik    = stats?.total_klik ?? links.reduce((a, l) => a + (l.total_klik || 0), 0);
   const klikHariIni  = stats?.klik_hari_ini ?? 0;
   const shortlinkCnt = links.filter(l => l.slug_pendek).length;
   const linkAktif    = links.filter(l => l.aktif).length;
   const linkNonaktif = links.length - linkAktif;
   const bundleAktif  = bundles.filter(b => b.aktif).length;
   const rataKlik     = links.length ? Math.round(totalKlik / links.length) : 0;
-  const shortlinkPct = links.length ? Math.round((shortlinkCnt / links.length) * 100) : 0;
+  const tanpaKlik    = links.filter(l => l.aktif && !(l.total_klik > 0));
 
-  
-  const trend = stats?.klik_7hari || [];
-  let deltaSub = null, deltaUp = null;
-  if (trend.length >= 2) {
-    const kemarin = trend[trend.length - 2]?.jumlah ?? 0;
-    if (kemarin > 0) {
-      const pct = Math.round(((klikHariIni - kemarin) / kemarin) * 100);
-      deltaUp = pct >= 0;
-      deltaSub = `${deltaUp ? '▲' : '▼'} ${Math.abs(pct)}% vs kemarin`;
-    } else if (klikHariIni > 0) {
-      deltaSub = '▲ baru hari ini'; deltaUp = true;
-    }
+  const t30 = stats?.klik_30hari || [];
+  const t7  = stats?.klik_7hari  || [];
+  const sum7 = t7.reduce((a, d) => a + (d.jumlah || 0), 0);
+  const sum30 = t30.reduce((a, d) => a + (d.jumlah || 0), 0);
+  const prev7 = stats?.klik_minggu_lalu;
+  const deltaMinggu = prev7 > 0 ? Math.round((sum7 - prev7) * 100 / prev7) : null;
+  const kemarin = t7.length >= 2 ? (t7[t7.length - 2]?.jumlah ?? 0) : 0;
+  let deltaSub = null;
+  if (t7.length >= 2) {
+    if (kemarin > 0) { const p = Math.round((klikHariIni - kemarin) * 100 / kemarin); deltaSub = `${p >= 0 ? '▲' : '▼'} ${Math.abs(p)}% vs kemarin`; }
+    else if (klikHariIni > 0) deltaSub = '▲ baru hari ini';
   }
+  const sp14 = t30.slice(-14).map(d => d.jumlah);
+  const hariRamai = t30.length ? t30.reduce((b, d) => d.jumlah > b.jumlah ? d : b, t30[0]) : null;
 
-  const iconTotalLink = `<svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 17H7A5 5 0 0 1 7 7h2"/><path d="M15 7h2a5 5 0 1 1 0 10h-2"/><line x1="8" x2="16" y1="12" y2="12"/></svg>`;
-  const iconShort  = `<svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13.828 10.172a4 4 0 0 0-5.656 0l-4 4a4 4 0 1 0 5.656 5.656l1.102-1.101m-.758-4.899a4 4 0 0 0 5.656 0l4-4a4 4 0 0 0-5.656-5.656l-1.1 1.1"/></svg>`;
-  const iconBundle = `<svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m7.5 4.27 9 5.15"/><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/></svg>`;
-  const iconClick  = `<svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 9 5 12 1.8-5.2L21 14Z"/><path d="M7.2 2.2 8 5.1"/><path d="m5.1 8-2.9-.8"/><path d="M14 4.1 12 6"/><path d="m6 12-1.9 2"/></svg>`;
-  const iconToday  = `<svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/><path d="M8 2v4"/><path d="M16 2v4"/></svg>`;
+  const perangkat = (stats?.perangkat || []).filter(p => p.jumlah > 0);
+  const viaQr = stats?.via_qr || [];
+  const qrN = viaQr.filter(x => x.via_qr === true).reduce((a, x) => a + x.jumlah, 0);
+  const tautN = viaQr.filter(x => x.via_qr !== true).reduce((a, x) => a + x.jumlah, 0);
 
-  html += `<div class="dash-kpi-row">
-    ${_kpiCard({ icon: iconTotalLink, label: 'Total Link', value: links.length, sub: `${linkAktif} aktif · ${linkNonaktif} nonaktif`, color: 'teal' })}
-    ${_kpiCard({ icon: iconShort, label: 'Shortlink', value: shortlinkCnt, sub: `${shortlinkPct}% dari total link`, color: 'blue' })}
-    ${_kpiCard({ icon: iconBundle, label: 'Bundle', value: bundles.length, sub: `${bundleAktif} aktif`, color: 'purple' })}
-    ${_kpiCard({ icon: iconClick, label: 'Total Klik', value: totalKlik, sub: `± ${rataKlik} klik/link`, color: 'amber' })}
-    ${_kpiCard({ icon: iconToday, label: 'Klik Hari Ini', value: klikHariIni, sub: deltaSub, subUp: deltaUp, color: 'teal' })}
+  const tone = !links.length ? 'abu' : klikHariIni > 0 ? 'ok' : 'info';
+  html += _dmHero({
+    tone,
+    title: !links.length ? 'Belum ada link' : klikHariIni > 0 ? `${_dmNf(klikHariIni)} klik masuk hari ini` : 'Belum ada klik hari ini',
+    text: [
+      `<b>${_dmNf(sum7)}</b> klik dalam 7 hari terakhir${deltaMinggu !== null ? `, ${deltaMinggu >= 0 ? 'naik' : 'turun'} <b>${Math.abs(deltaMinggu)}%</b> dari minggu sebelumnya` : ''}.`,
+      `<b>${_dmNf(sum30)}</b> klik dalam 30 hari terakhir.`,
+      tanpaKlik.length ? `<b>${tanpaKlik.length}</b> dari <b>${links.length}</b> link aktif belum pernah diklik.` : '',
+    ],
+    ring: { pct: _dmPct(linkAktif, links.length), label: 'aktif', tip: `${linkAktif} dari ${links.length} link aktif` },
+    seg: [
+      { label: 'Aktif, sudah diklik', val: linkAktif - tanpaKlik.length, color: _DM_PAL.ok },
+      { label: 'Aktif, belum diklik', val: tanpaKlik.length, color: _DM_PAL.warn },
+      { label: 'Nonaktif', val: linkNonaktif, color: '#94a3b8' },
+      { label: 'Shortlink', val: shortlinkCnt, color: _DM_PAL.info, bar: false },
+      { label: 'Bundle aktif', val: bundleAktif, color: _DM_PAL.ungu, bar: false },
+      { label: 'Lewat QR', val: qrN, color: _DM_PAL.teal, bar: false },
+    ],
+    trend: {
+      label: 'Klik 7 hari',
+      val: _dmNf(sum7),
+      d: deltaMinggu, unit: '%', vs: 'dari minggu lalu',
+      vals: t30.slice(-14).map(x => x.jumlah),
+      note: '',
+    },
+    reload: 'loadDashboardSuperlink()',
+  });
+
+  html += `<div class="dm-kpis">
+    ${_dmKpi({ label: 'Total Link', val: _dmNf(links.length), sub: `${linkAktif} aktif · ${linkNonaktif} nonaktif`, color: _DM_PAL.teal, icon: 'link' })}
+    ${_dmKpi({ label: 'Shortlink', val: _dmNf(shortlinkCnt), sub: `${_dmPct(shortlinkCnt, links.length)}% dari total link`, color: _DM_PAL.info, icon: 'link' })}
+    ${_dmKpi({ label: 'Bundle', val: _dmNf(bundles.length), sub: `${bundleAktif} aktif`, color: _DM_PAL.ungu, icon: 'box' })}
+    ${_dmKpi({ label: 'Total Klik', val: _dmNf(totalKlik), sub: `± ${rataKlik} klik per link`, color: _DM_PAL.warn, icon: 'click', spark: _dmSpark(sp14, _DM_PAL.warn) })}
+    ${_dmKpi({ label: 'Klik Hari Ini', val: _dmNf(klikHariIni), sub: deltaSub || `${_dmNf(sum7)} klik 7 hari`, color: _DM_PAL.teal, icon: 'trend', spark: _dmSpark(t7.map(d => d.jumlah), _DM_PAL.teal) })}
   </div>`;
 
-  const panels = [];
-  if (trend.length) panels.push(_klikTrendPanel(trend));
+  const lbl30 = t30.map(d => { const dt = new Date(d.tanggal + 'T12:00:00'); return { short: `${dt.getDate()} ${_DM_BLN[dt.getMonth()]}`, full: `${dt.getDate()} ${_DM_BLN[dt.getMonth()]} ${dt.getFullYear()}` }; });
+  const perJam = Array(24).fill(0);
+  (stats?.klik_per_jam || []).forEach(r => { if (r.jam >= 0 && r.jam < 24) perJam[r.jam] = r.jumlah; });
+  const jamRamai = perJam.indexOf(Math.max(...perJam));
+  const pad = n => String(n).padStart(2, '0');
 
-  panels.push(_miniDonutPanel({
-    icon: iconShort, title: 'Status Link',
-    segments: [
-      { label: 'Aktif',    value: linkAktif,    color: '#0d9488' },
+  html += _dmCols([
+    _dmCard('Klik per hari', '30 hari terakhir', t30.length ? _dmArea({ labels: lbl30, series: [{ name: 'Klik', color: _DM_PAL.teal, values: t30.map(d => d.jumlah) }] }) : _dmEmpty('Belum ada data klik')),
+    _dmCard('Jam paling ramai', 'Sebaran klik per jam (WITA), 30 hari terakhir', Math.max(...perJam) > 0 ? _dmBar({ labels: perJam.map((_, i) => pad(i)), values: perJam, color: _DM_PAL.info, hi: jamRamai, h: 150 }) : _dmEmpty('Belum ada data klik')),
+  ]);
+
+  html += _dmCols([
+    _dmCard('Status link', 'Aktif dan nonaktif', _dmDonut([
+      { label: 'Aktif', value: linkAktif, color: _DM_PAL.teal },
       { label: 'Nonaktif', value: linkNonaktif, color: '#cbd5e1' },
-    ],
-    centerVal: links.length, centerLbl: 'Total Link',
-  }));
+    ], _dmNf(links.length), 'total link')),
+    _dmCard('Perangkat pengunjung', 'Dari seluruh klik', _dmDonut(perangkat.map((p, i) => ({ label: p.jenis, value: p.jumlah, color: [_DM_PAL.info, _DM_PAL.teal, _DM_PAL.warn, '#cbd5e1'][i % 4] })), _dmNf(perangkat.reduce((a, p) => a + p.jumlah, 0)), 'klik')),
+    _dmCard('Cara masuk', 'Klik lewat QR code dibanding tautan langsung', _dmDonut([
+      { label: 'Tautan langsung', value: tautN, color: _DM_PAL.teal },
+      { label: 'Scan QR code', value: qrN, color: _DM_PAL.ungu },
+    ], _dmNf(qrN + tautN), 'klik')),
+  ]);
 
-  const topLinks = stats?.top_links?.length
-    ? stats.top_links
-    : [...links].sort((a, b) => (b.total_klik || 0) - (a.total_klik || 0)).slice(0, 5);
-  if (topLinks.length) {
-    panels.push(_barListPanel({
-      icon: iconClick, title: 'Top 5 Link Terpopuler',
-      rows: topLinks.slice(0, 5).map(l => ({ label: l.judul, value: l.total_klik || 0, suffix: ' klik', color: '#0d9488' })),
-    }));
-  }
+  const topLinks = (stats?.top_links?.length ? stats.top_links : [...links].sort((a, b) => (b.total_klik || 0) - (a.total_klik || 0))).slice(0, 25);
+  const refs = stats?.top_referer || [];
+  html += _dmCols([
+    _dmCard('Link terpopuler', 'Link dengan klik terbanyak', _dmHbAuto(topLinks.filter(l => (l.total_klik || 0) > 0).map(l => ({ label: l.judul, value: l.total_klik || 0, suffix: ' klik', color: _DM_PAL.teal })), 'Belum ada link yang diklik')),
+    _dmCard('Asal kunjungan', 'Situs yang mengarahkan pengunjung', _dmHbAuto(refs.map(r => ({ label: r.sumber, value: r.jumlah, suffix: ' klik', color: _DM_PAL.info })), 'Belum ada data asal kunjungan')),
+  ], true);
 
-  if (bundles.length) {
-    panels.push(_barListPanel({
-      icon: iconBundle, title: 'Ringkasan Bundle',
-      rows: bundles.slice(0, 5).map(b => ({
-        label: b.judul,
-        sublabel: `/${b.slug}${b.aktif ? '' : ' · Nonaktif'}`,
-        value: b.jumlah_item ?? 0, suffix: ' item',
-        color: b.aktif ? '#8b5cf6' : '#cbd5e1',
-      })),
-    }));
-  }
+  html += _dmCols([
+    _dmCard('Ringkasan bundle', 'Jumlah item tiap bundle', _dmHbAuto(bundles.map(b => ({ label: b.judul, value: b.jumlah_item ?? 0, suffix: ' item', color: b.aktif ? _DM_PAL.ungu : '#cbd5e1', sub: `/${esc(b.slug)}${b.aktif ? '' : ' · Nonaktif'}` })), 'Belum ada bundle')),
+    _dmCard('Link aktif belum pernah diklik', `${tanpaKlik.length} link`, _dmFeed(tanpaKlik.map(l => ({ title: l.judul, sub: l.slug_pendek ? '/' + esc(l.slug_pendek) : 'Tautan biasa' })), 'Semua link aktif sudah pernah diklik')),
+  ]);
 
-  if (panels.length) html += `<div class="dash-panels">${panels.join('')}</div>`;
+  const ins = [];
+  if (hariRamai && hariRamai.jumlah > 0) { const dt = new Date(hariRamai.tanggal + 'T12:00:00'); ins.push(_dmIns('info', `Hari paling ramai dalam 30 hari terakhir: <b>${dt.getDate()} ${_DM_BLN[dt.getMonth()]}</b> dengan <b>${_dmNf(hariRamai.jumlah)}</b> klik.`)); }
+  if (Math.max(...perJam) > 0) ins.push(_dmIns('info', `Pengunjung paling banyak mengklik sekitar pukul <b>${pad(jamRamai)}.00</b> WITA.`));
+  if (tanpaKlik.length) ins.push(_dmIns('warn', `<b>${tanpaKlik.length}</b> link aktif belum pernah diklik. Pertimbangkan membagikannya lagi atau menonaktifkannya.`));
+  if (linkNonaktif) ins.push(_dmIns('abu', `<b>${linkNonaktif}</b> link sedang nonaktif.`));
+  if (deltaMinggu !== null && deltaMinggu <= -30) ins.push(_dmIns('warn', `Klik minggu ini turun <b>${Math.abs(deltaMinggu)}%</b> dibanding minggu lalu.`));
+  if (ins.length) html += `<div class="dm-card" style="margin-bottom:var(--sp-4)"><div class="dm-card-h"><div class="dm-card-hl">${_dmCardIcon('Catatan')}<div class="dm-card-t">Catatan</div></div></div>${ins.join('')}</div>`;
 
-  wrap.innerHTML = html;
+  _dmMount(wrap, html);
 }
 
 // Grafik tren klik 7 hari terakhir - dari stats.klik_7hari [{tanggal, jumlah}]
@@ -380,9 +784,11 @@ let _lemburDashCache = null; // { kegiatanList, sesiRelevant } - dipakai ulang p
 async function loadDashboardLembur() {
   const wrap = document.getElementById('dashLemburStats');
   if (!wrap) return;
+  _dmStyle();
   wrap.innerHTML = `
-    <div class="dash-kpi-row">${Array(4).fill(0).map(() => `<div class="skeleton" style="height:98px;border-radius:14px"></div>`).join('')}</div>
-    <div class="skeleton" style="height:160px;border-radius:16px"></div>`;
+    <div class="skeleton" style="height:96px;border-radius:16px;margin-bottom:13px"></div>
+    <div class="dash-kpi-row">${Array(5).fill(0).map(() => `<div class="skeleton" style="height:98px;border-radius:14px"></div>`).join('')}</div>
+    <div class="skeleton" style="height:200px;border-radius:16px"></div>`;
 
   _lemburKalOffset = 0;
   const full = typeof _lemburHasFull === 'function' && _lemburHasFull();
@@ -395,62 +801,113 @@ async function loadDashboardLembur() {
 
   const now = new Date();
   const ymNow = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-  const sesiBulanIni = sesiRelevant.filter(s => (s.tanggal || '').slice(0, 7) === ymNow);
-  const totalJam = sesiRelevant.reduce((a, s) => a + _lemburJamSesi(s), 0);
-  const totalJamBulanIni = sesiBulanIni.reduce((a, s) => a + _lemburJamSesi(s), 0);
+  const todayKey = _dmYmd(now);
+  const tglKey = (s) => String(s.tanggal || '').slice(0, 10);
+  const jamS = (s) => _lemburJamSesi(s);
+  const sesiBulanIni = sesiRelevant.filter(s => tglKey(s).slice(0, 7) === ymNow);
+  const totalJam = sesiRelevant.reduce((a, s) => a + jamS(s), 0);
+  const jamBulanIni = sesiBulanIni.reduce((a, s) => a + jamS(s), 0);
   const totalDok = sesiRelevant.reduce((a, s) => a + (s.jumlah_dokumentasi || 0), 0);
   const kegiatanDiikuti = full ? kegiatanList.length : new Set(sesiRelevant.map(s => s.kegiatan_id)).size;
+  const pesertaJam = sesiRelevant.reduce((a, s) => a + jamS(s) * (s.jumlah_peserta || 0), 0);
+  const rataPeserta = sesiRelevant.length ? (sesiRelevant.reduce((a, s) => a + (s.jumlah_peserta || 0), 0) / sesiRelevant.length) : 0;
+  const sesiLewat = sesiRelevant.filter(s => tglKey(s) && tglKey(s) <= todayKey);
+  const tanpaDok = sesiLewat.filter(s => !(s.jumlah_dokumentasi > 0));
+  const sesiAkan = sesiRelevant.filter(s => tglKey(s) > todayKey).sort((a, b) => tglKey(a).localeCompare(tglKey(b)));
 
-  const iconKegiatan = `<svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M3 9h18"/><path d="M9 21V9"/></svg>`;
-  const iconSesi = `<svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>`;
-  const iconJam = `<svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 6v6l4 2"/><circle cx="12" cy="12" r="10"/></svg>`;
-  const iconFoto = `<svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg>`;
+  // Tren 6 bulan
+  const bln = _dmBulanTerakhir(6);
+  const cSesi = new Map(bln.map(b => [b.key, 0])), cJam = new Map(bln.map(b => [b.key, 0]));
+  sesiRelevant.forEach(s => { const k = tglKey(s).slice(0, 7); if (cSesi.has(k)) { cSesi.set(k, cSesi.get(k) + 1); cJam.set(k, cJam.get(k) + jamS(s)); } });
+  const serSesi = bln.map(b => cSesi.get(b.key)), serJam = bln.map(b => Math.round(cJam.get(b.key) * 10) / 10);
 
-  html += `<div class="dash-kpi-row">
-    ${_kpiCard({ icon: iconKegiatan, label: full ? 'Total Kegiatan' : 'Kegiatan Diikuti', value: kegiatanDiikuti, sub: `${kegiatanList.length} total terdaftar`, color: 'teal' })}
-    ${_kpiCard({ icon: iconSesi, label: full ? 'Total Sesi Lembur' : 'Sesi Saya', value: sesiRelevant.length, sub: `${sesiBulanIni.length} sesi bulan ini`, color: 'blue' })}
-    ${_kpiCard({ icon: iconJam, label: full ? 'Total Jam Lembur' : 'Jam Lembur Saya', value: `${Math.round(totalJam)} jam`, sub: `${Math.round(totalJamBulanIni)} jam bulan ini`, color: 'amber' })}
-    ${_kpiCard({ icon: iconFoto, label: 'Dokumentasi', value: totalDok, sub: 'foto terlampir', color: 'purple' })}
+  const tone = !sesiRelevant.length ? 'abu' : tanpaDok.length ? 'warn' : 'ok';
+  html += _dmHero({
+    tone,
+    title: !sesiRelevant.length ? 'Belum ada sesi lembur' : `${sesiBulanIni.length} sesi lembur bulan ini (${Math.round(jamBulanIni)} jam)`,
+    text: [
+      `${full ? 'Seluruh pegawai' : 'Anda'} tercatat <b>${sesiRelevant.length}</b> sesi dalam <b>${kegiatanDiikuti}</b> kegiatan, total <b>${Math.round(totalJam)}</b> jam${full ? ` (rata-rata <b>${rataPeserta.toFixed(1)}</b> peserta per sesi)` : ''}.`,
+      tanpaDok.length ? `<b>${tanpaDok.length}</b> sesi yang sudah lewat belum punya dokumentasi.` : '',
+      sesiAkan.length ? `Sesi terdekat: <b>${fmtDate(tglKey(sesiAkan[0])).split(',')[0]}</b>.` : '',
+    ],
+    ring: { pct: _dmPct(sesiLewat.length - tanpaDok.length, sesiLewat.length), label: 'dokumentasi', tip: `${sesiLewat.length - tanpaDok.length} dari ${sesiLewat.length} sesi yang sudah lewat punya dokumentasi` },
+    seg: [
+      { label: 'Ada dokumentasi', val: sesiLewat.length - tanpaDok.length, color: _DM_PAL.ok },
+      { label: 'Belum dokumentasi', val: tanpaDok.length, color: _DM_PAL.bad },
+      { label: 'Terjadwal', val: sesiAkan.length, color: _DM_PAL.info },
+      { label: 'Sesi bulan ini', val: sesiBulanIni.length, color: _DM_PAL.warn, bar: false },
+    ],
+    trend: {
+      label: 'Jam lembur bulan ini',
+      val: `${_dmNf(Math.round(jamBulanIni))} jam`,
+      d: serJam.length >= 2 ? Math.round(jamBulanIni) - Math.round(serJam[serJam.length - 2]) : null,
+      unit: 'jam', vs: 'dari bulan lalu', neutral: true,
+      vals: serJam,
+    },
+    reload: 'loadDashboardLembur()',
+  });
+
+  html += `<div class="dm-kpis">
+    ${_dmKpi({ label: full ? 'Total Kegiatan' : 'Kegiatan Diikuti', val: _dmNf(kegiatanDiikuti), sub: `${kegiatanList.length} total terdaftar`, color: _DM_PAL.teal, icon: 'grid' })}
+    ${_dmKpi({ label: full ? 'Total Sesi Lembur' : 'Sesi Saya', val: _dmNf(sesiRelevant.length), sub: `${sesiBulanIni.length} sesi bulan ini`, color: _DM_PAL.info, icon: 'clock', spark: _dmSpark(serSesi, _DM_PAL.info) })}
+    ${_dmKpi({ label: full ? 'Total Jam Lembur' : 'Jam Lembur Saya', val: `${_dmNf(Math.round(totalJam))} jam`, sub: `${Math.round(jamBulanIni)} jam bulan ini`, color: _DM_PAL.warn, icon: 'trend', spark: _dmSpark(serJam, _DM_PAL.warn) })}
+    ${full ? _dmKpi({ label: 'Jam Orang', val: `${_dmNf(Math.round(pesertaJam))} jam`, sub: 'Jam sesi x jumlah peserta', color: _DM_PAL.ungu, icon: 'user' }) : ''}
+    ${_dmKpi({ label: 'Dokumentasi', val: _dmNf(totalDok), sub: `${tanpaDok.length} sesi belum ada`, color: tanpaDok.length ? _DM_PAL.bad : _DM_PAL.pink, icon: 'photo' })}
   </div>`;
 
-  // Kalender lembur (2 bulan lalu, bulan lalu, bulan ini) - buat lihat cepat tanggal mana sudah/belum ada lembur
+  html += _dmCols([
+    _dmCard('Sesi dan jam lembur', '6 bulan terakhir', _dmArea({ labels: bln, series: [{ name: 'Sesi', color: _DM_PAL.info, values: serSesi }, { name: 'Jam', color: _DM_PAL.warn, values: serJam, dash: true }] }) + _dmLegend([[_DM_PAL.info, 'Sesi'], [_DM_PAL.warn, 'Jam']])),
+    _dmCard('Kelengkapan dokumentasi', 'Sesi yang sudah berlangsung', _dmDonut([
+      { label: 'Ada dokumentasi', value: sesiLewat.length - tanpaDok.length, color: _DM_PAL.ok },
+      { label: 'Belum ada', value: tanpaDok.length, color: _DM_PAL.bad },
+    ], _dmNf(sesiLewat.length), 'sesi')),
+  ], true);
+
+  // Sebaran hari dalam seminggu
+  const HARI = ['Min', 'Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab'];
+  const perHari = Array(7).fill(0);
+  sesiRelevant.forEach(s => { const k = tglKey(s); if (k) perHari[new Date(k + 'T12:00:00').getDay()]++; });
+  const akhirPekan = perHari[0] + perHari[6];
+
+  // Kegiatan teratas
+  const perKeg = new Map();
+  sesiRelevant.forEach(s => { const e = perKeg.get(s.kegiatan_id) || { nama: s.kegiatan_nama, sesi: 0, jam: 0 }; e.sesi++; e.jam += jamS(s); perKeg.set(s.kegiatan_id, e); });
+  const topKeg = [...perKeg.values()].sort((a, b) => b.jam - a.jam);
+
+  html += _dmCols([
+    _dmCard('Sebaran hari lembur', 'Sesi menurut hari dalam seminggu', sesiRelevant.length ? _dmBar({ labels: HARI, values: perHari, color: _DM_PAL.info, hi: perHari.indexOf(Math.max(...perHari)), h: 140 }) : _dmEmpty('Belum ada data')),
+    _dmCard('Kegiatan dengan jam terbanyak', 'Urut jam terbanyak', _dmHbAuto(topKeg.map(k => ({ label: k.nama, value: Math.round(k.jam), suffix: ' jam', color: _DM_PAL.teal, sub: `${k.sesi} sesi` })), 'Belum ada data')),
+  ]);
+
+  // Pegawai teratas (hanya akses penuh)
+  const cards3 = [];
+  if (full) {
+    const perPeg = new Map();
+    sesiRelevant.forEach(s => (Array.isArray(s.peserta_nama) ? s.peserta_nama.map(n => String(n || '').trim()) : String(s.daftar_peserta || '').split(',').map(n => n.trim())).filter(Boolean).forEach(n => { const e = perPeg.get(n) || { sesi: 0, jam: 0 }; e.sesi++; e.jam += jamS(s); perPeg.set(n, e); }));
+    const topPeg = [...perPeg.entries()].sort((a, b) => b[1].jam - a[1].jam);
+    cards3.push(_dmCard('Pegawai dengan jam lembur terbanyak', 'Perkiraan dari jam sesi', _dmHbAuto(topPeg.map(([n, v]) => ({ label: n, full: true, value: Math.round(v.jam), suffix: ' jam', color: _DM_PAL.warn, sub: `${v.sesi} sesi` })), 'Belum ada data')));
+  }
+  cards3.push(_dmCard('Sesi terbaru', 'Urut dari yang paling baru', _dmFeed([...sesiRelevant].sort((a, b) => tglKey(b).localeCompare(tglKey(a))).map(s => ({
+    title: s.kegiatan_nama || '-', sub: `${fmtDate(tglKey(s)).split(',')[0]} · ${(s.jam_mulai || '').slice(0, 5)}-${(s.jam_selesai || '').slice(0, 5)} · ${s.jumlah_peserta || 0} peserta`,
+    badge: (s.jumlah_dokumentasi > 0) ? `<span class="badge badge-hijau">${s.jumlah_dokumentasi} foto</span>` : (tglKey(s) <= todayKey ? '<span class="badge badge-merah">Belum ada foto</span>' : '<span class="badge badge-abu">Mendatang</span>'),
+  })), 'Belum ada sesi lembur')));
+  cards3.push(_dmCard('Sesi belum berdokumentasi', `${tanpaDok.length} sesi`, _dmFeed([...tanpaDok].sort((a, b) => tglKey(b).localeCompare(tglKey(a))).map(s => ({ title: s.kegiatan_nama || '-', sub: fmtDate(tglKey(s)).split(',')[0] })), 'Semua sesi sudah punya dokumentasi')));
+  html += _dmCols(cards3);
+
+  // Kalender lembur (3 bulan)
   if (typeof _lemburKalenderPanel === 'function') {
     if (typeof _lemburSiapkanWarna === 'function') _lemburSiapkanWarna(kegiatanList);
     html += await _lemburKalenderSectionHtml();
   }
 
-  const panels = [];
-  panels.push(_lemburTrendPanel(sesiRelevant, full));
+  const ins = [];
+  if (tanpaDok.length) ins.push(_dmIns('warn', `<b>${tanpaDok.length}</b> sesi lembur yang sudah berlangsung belum punya dokumentasi foto.`));
+  if (akhirPekan > 0) ins.push(_dmIns('info', `<b>${akhirPekan}</b> sesi (${_dmPct(akhirPekan, sesiRelevant.length)}%) berlangsung di akhir pekan.`));
+  if (sesiAkan.length) ins.push(_dmIns('info', `Ada <b>${sesiAkan.length}</b> sesi terjadwal ke depan.`));
+  if (!ins.length) ins.push(_dmIns('ok', 'Tidak ada catatan khusus untuk lembur saat ini.'));
+  html += `<div class="dm-card" style="margin-bottom:var(--sp-4)"><div class="dm-card-h"><div class="dm-card-hl">${_dmCardIcon('Catatan')}<div class="dm-card-t">Catatan</div></div></div>${ins.join('')}</div>`;
 
-  const sesiDenganDok = sesiRelevant.filter(s => (s.jumlah_dokumentasi || 0) > 0).length;
-  panels.push(_miniDonutPanel({
-    icon: iconFoto, title: 'Kelengkapan Dokumentasi',
-    segments: [
-      { label: 'Ada Dokumentasi', value: sesiDenganDok, color: '#0d9488' },
-      { label: 'Belum Ada', value: Math.max(0, sesiRelevant.length - sesiDenganDok), color: '#cbd5e1' },
-    ],
-    centerVal: sesiRelevant.length, centerLbl: 'Total Sesi',
-  }));
-
-  if (panels.length) html += `<div class="dash-panels">${panels.join('')}</div>`;
-
-  const recentKegiatan = [...kegiatanList]
-    .filter(k => full || sesiRelevant.some(s => s.kegiatan_id === k.id))
-    .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
-    .slice(0, 5);
-  if (recentKegiatan.length) {
-    html += `<div class="dash-panels">${_barListPanel({
-      icon: iconKegiatan, title: 'Kegiatan Terbaru',
-      rows: recentKegiatan.map(k => ({
-        label: k.nama_kegiatan,
-        sublabel: `${k.jumlah_sesi || 0} hari lembur`,
-        value: k.jumlah_sesi || 0, suffix: ' hari',
-        color: '#0d9488',
-      })),
-    })}</div>`;
-  }
-
-  wrap.innerHTML = html;
+  _dmMount(wrap, html);
 }
 
 // Bagian "Kalender Lembur" (3 bulan) - dipisah dari loadDashboardLembur biar tombol navigasi
@@ -470,6 +927,7 @@ async function _lemburKalenderSectionHtml() {
   // bisa lintas 2 tahun kalau rentang 3 bulan ini nyebrang Desember-Januari.
   let liburSet = new Set();
   let liburMap = new Map();
+  let ketBulan = new Map(), ketPrev = new Map();
   try {
     const tahunLiburSet = new Set(bulanList.map(b => b.tahun));
     const rLiburList = await Promise.all(
@@ -552,71 +1010,122 @@ function _lemburTrendPanel(sesiList, full) {
 async function loadDashboardSurat() {
   const wrap = document.getElementById('dashSuratStats');
   if (!wrap) return;
+  _dmStyle();
   wrap.innerHTML = `
+    <div class="skeleton" style="height:96px;border-radius:16px;margin-bottom:13px"></div>
     <div class="dash-kpi-row">${Array(5).fill(0).map(() => `<div class="skeleton" style="height:98px;border-radius:14px"></div>`).join('')}</div>
-    <div class="skeleton" style="height:160px;border-radius:16px"></div>`;
+    <div class="skeleton" style="height:200px;border-radius:16px"></div>`;
 
   const ss = await _fetchSuratDashData();
 
   const icon = `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor" style="flex-shrink:0;opacity:.85"><path d="M3 12C3 12.5523 3.44772 13 4 13H10C10.5523 13 11 12.5523 11 12V4C11 3.44772 10.5523 3 10 3H4C3.44772 3 3 3.44772 3 4V12ZM3 20C3 20.5523 3.44772 21 4 21H10C10.5523 21 11 20.5523 11 20V16C11 15.4477 10.5523 15 10 15H4C3.44772 15 3 15.4477 3 16V20ZM13 20C13 20.5523 13.4477 21 14 21H20C20.5523 21 21 20.5523 21 20V12C21 11.4477 20.5523 11 20 11H14C13.4477 11 13 11.4477 13 12V20ZM14 3C13.4477 3 13 3.44772 13 4V8C13 8.55228 13.4477 9 14 9H20C20.5523 9 21 8.55228 21 8V4C21 3.44772 20.5523 3 20 3H14Z"/></svg>`;
   let html = _dashModuleHeader(icon, 'Dashboard', 'Ringkasan surat masuk & keluar');
 
-  const totalMasuk   = Number(ss?.total_masuk)  || 0;
-  const belumProses  = Number(ss?.belum_proses) || 0;
-  const terlambat    = Number(ss?.terlambat)    || 0;
-  const totalKeluar  = Number(ss?.total_keluar) || 0;
-  const masukBulan   = ss?.masuk_bulan_ini  ?? 0;
-  const keluarBulan  = ss?.keluar_bulan_ini ?? 0;
+  if (!ss) {
+    html += _dmCard('Surat', '', _dmEmpty('Gagal memuat data surat. Coba muat ulang halaman.', true));
+    _dmMount(wrap, html);
+    return;
+  }
+
+  const totalMasuk   = Number(ss.total_masuk)  || 0;
+  const belumProses  = Number(ss.belum_proses) || 0;
+  const terlambat    = Number(ss.terlambat)    || 0;
+  const totalKeluar  = Number(ss.total_keluar) || 0;
+  const masukBulan   = Number(ss.masuk_bulan_ini)  || 0;
+  const keluarBulan  = Number(ss.keluar_bulan_ini) || 0;
   const selesai      = Math.max(0, totalMasuk - belumProses);
   const prosesOnTime = Math.max(0, belumProses - terlambat);
-  const pctSelesai   = totalMasuk > 0 ? Math.round((selesai / totalMasuk) * 100) : 0;
+  const pctSelesai   = _dmPct(selesai, totalMasuk);
+  const sw = ss.sisa_waktu || null;
+  const tigaHari = sw ? sw.tiga_hari : (ss.due_soon_list || []).length;
 
-  const iconMasuk  = `<svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.2 8.4c.5.38.8.97.8 1.6v10a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V10a2 2 0 0 1 .8-1.6l8-6a2 2 0 0 1 2.4 0l8 6Z"/><path d="m22 10-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 10"/></svg>`;
-  const iconKeluar = `<svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3.714 3.048a.498.498 0 0 0-.683.627l2.843 7.627a2 2 0 0 1 0 1.396l-2.842 7.627a.498.498 0 0 0 .682.627l18-8.5a.5.5 0 0 0 0-.904z"/><path d="M6 12h16"/></svg>`;
-  const iconWarn   = `<svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><line x1="12" x2="12" y1="9" y2="13"/><line x1="12" x2="12.01" y1="17" y2="17"/></svg>`;
-  const iconClock  = `<svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>`;
-  const iconCal    = `<svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/><path d="M8 2v4"/><path d="M16 2v4"/></svg>`;
+  // Tren 6 bulan
+  const bln = _dmBulanTerakhir(6);
+  const mapM = new Map((ss.tren_masuk  || []).map(r => [r.bulan, r.jumlah]));
+  const mapK = new Map((ss.tren_keluar || []).map(r => [r.bulan, r.jumlah]));
+  const serM = bln.map(b => mapM.get(b.key) || 0);
+  const serK = bln.map(b => mapK.get(b.key) || 0);
 
-  html += `<div class="dash-kpi-row">
-    ${_kpiCard({ icon: iconMasuk, label: 'Surat Masuk', value: ss?.total_masuk ?? '-', sub: `${pctSelesai}% selesai`, color: 'tealMuda' })}
-    ${_kpiCard({ icon: iconClock, label: 'Proses', value: ss?.belum_proses ?? '-', color: 'amber' })}
-    ${_kpiCard({ icon: iconWarn, label: 'Terlambat', value: terlambat, color: 'red' })}
-    ${_kpiCard({ icon: iconKeluar, label: 'Surat Keluar', value: ss?.total_keluar ?? '-', color: 'biruMuda' })}
-    ${_kpiCard({ icon: iconCal, label: 'Bulan Ini', value: masukBulan + keluarBulan, sub: `${masukBulan} masuk · ${keluarBulan} keluar`, color: 'teal' })}
+  const tone = terlambat > 0 ? 'bad' : (belumProses > 0 ? 'warn' : 'ok');
+  html += _dmHero({
+    tone,
+    title: terlambat > 0 ? `${terlambat} surat masuk melewati batas waktu` : belumProses > 0 ? `${belumProses} surat masuk masih diproses` : 'Semua surat masuk sudah selesai',
+    text: [
+      `Bulan ini tercatat <b>${masukBulan}</b> surat masuk dan <b>${keluarBulan}</b> surat keluar.`,
+      `<b>${pctSelesai}%</b> surat masuk sudah selesai.`,
+      tigaHari > 0 ? `<b>${tigaHari}</b> surat akan jatuh tempo dalam 3 hari.` : '',
+    ],
+    ring: { pct: pctSelesai, label: 'selesai', tip: `${selesai} dari ${totalMasuk} surat masuk selesai` },
+    seg: [
+      { label: 'Selesai', val: selesai, color: _DM_PAL.ok },
+      { label: 'Proses', val: prosesOnTime, color: _DM_PAL.warn },
+      { label: 'Terlambat', val: terlambat, color: _DM_PAL.bad },
+      { label: 'Surat keluar', val: totalKeluar, color: _DM_PAL.info, bar: false },
+    ],
+    trend: {
+      label: 'Surat masuk bulan ini',
+      val: _dmNf(masukBulan),
+      d: serM.length >= 2 ? masukBulan - serM[serM.length - 2] : null,
+      unit: '', vs: 'dari bulan lalu', neutral: true,
+      vals: serM,
+    },
+    reload: 'loadDashboardSurat()',
+  });
+
+  html += `<div class="dm-kpis">
+    ${_dmKpi({ label: 'Surat Masuk', val: _dmNf(totalMasuk), sub: `${pctSelesai}% selesai`, color: _DM_PAL.teal, icon: 'mail', spark: _dmSpark(serM, _DM_PAL.teal) })}
+    ${_dmKpi({ label: 'Masih Diproses', val: _dmNf(belumProses), sub: `${prosesOnTime} masih dalam batas waktu`, color: _DM_PAL.warn, icon: 'clock' })}
+    ${_dmKpi({ label: 'Terlambat', val: _dmNf(terlambat), sub: terlambat ? 'Perlu segera ditindaklanjuti' : 'Tidak ada yang terlambat', color: terlambat ? _DM_PAL.bad : _DM_PAL.ok, icon: 'warn' })}
+    ${_dmKpi({ label: 'Surat Keluar', val: _dmNf(totalKeluar), sub: `${_dmNf(ss.keluar_tahun_ini)} tahun ini`, color: _DM_PAL.info, icon: 'send', spark: _dmSpark(serK, _DM_PAL.info) })}
+    ${_dmKpi({ label: 'Bulan Ini', val: _dmNf(masukBulan + keluarBulan), sub: `${masukBulan} masuk · ${keluarBulan} keluar`, color: _DM_PAL.ungu, icon: 'cal' })}
   </div>`;
 
-  const panels = [];
-  if (ss?.overdue_list?.length) panels.push(_overdueSuratPanel(ss.overdue_list));
+  html += _dmCols([
+    _dmCard('Surat masuk dan keluar', '6 bulan terakhir', _dmArea({ labels: bln, series: [{ name: 'Surat masuk', color: _DM_PAL.teal, values: serM }, { name: 'Surat keluar', color: _DM_PAL.info, values: serK, dash: true }] }) + _dmLegend([[_DM_PAL.teal, 'Surat masuk'], [_DM_PAL.info, 'Surat keluar']])),
+    _dmCard('Status surat masuk', 'Seluruh surat yang tercatat', _dmDonut([
+      { label: 'Selesai', value: selesai, color: _DM_PAL.ok },
+      { label: 'Proses', value: prosesOnTime, color: _DM_PAL.warn },
+      { label: 'Terlambat', value: terlambat, color: _DM_PAL.bad },
+    ], `${pctSelesai}%`, 'selesai')),
+  ], true);
 
-  if (totalMasuk > 0) {
-    panels.push(_miniDonutPanel({
-      icon: iconMasuk, title: 'Status Surat Masuk',
-      segments: [
-        { label: 'Selesai',   value: selesai,      color: '#10b981' },
-        { label: 'Proses',    value: prosesOnTime, color: _KPI_COLORS.amber.text },
-        { label: 'Terlambat', value: terlambat,    color: _KPI_COLORS.red.text },
-      ],
-      centerVal: `${pctSelesai}%`, centerLbl: 'Selesai',
-    }));
-  }
+  const sisaRows = sw ? [
+    { label: 'Sudah lewat batas', value: sw.lewat, color: _DM_PAL.bad },
+    { label: 'Jatuh tempo ≤ 3 hari', value: sw.tiga_hari, color: _DM_PAL.warn },
+    { label: 'Jatuh tempo 4–7 hari', value: sw.seminggu, color: '#eab308' },
+    { label: 'Lebih dari 7 hari', value: sw.lebih, color: _DM_PAL.ok },
+    { label: 'Tanpa batas waktu', value: sw.tanpa_batas, color: '#94a3b8' },
+  ] : [];
+  html += _dmCols([
+    _dmCard('Sisa waktu surat yang belum selesai', 'Dihitung dari batas waktu tindak lanjut', sisaRows.length ? _dmHbAuto(sisaRows) : _dmEmpty('Belum ada data')),
+    _dmCard('Pengirim surat terbanyak', 'Asal surat masuk', _dmHbAuto((ss.top_asal || []).map(r => ({ label: r.nama, full: true, value: r.jumlah, suffix: ' surat', color: _DM_PAL.teal })), 'Belum ada data')),
+  ]);
 
-  if (masukBulan || keluarBulan) {
-    panels.push(_barListPanel({
-      icon: iconCal, title: 'Perbandingan Bulan Ini',
-      rows: [
-        { label: 'Surat Masuk',  value: masukBulan,  color: _KPI_COLORS.tealMuda.text },
-        { label: 'Surat Keluar', value: keluarBulan, color: _KPI_COLORS.biruMuda.text },
-      ],
-    }));
-  }
+  const cardsBawah = [
+    _dmCard('Tujuan surat keluar terbanyak', 'Dari seluruh surat keluar', _dmHbAuto((ss.top_tujuan || []).map(r => ({ label: r.nama, full: true, value: r.jumlah, suffix: ' surat', color: _DM_PAL.info })), 'Belum ada data')),
+  ];
+  if ((ss.beban_pegawai || []).length) cardsBawah.push(_dmCard('Beban pegawai', 'Surat masuk yang belum selesai per pegawai', _dmHbAuto(ss.beban_pegawai.map(r => ({ label: r.nama, full: true, value: r.jumlah, suffix: ' surat', color: _DM_PAL.warn })))));
+  const today = new Date().toISOString().slice(0, 10);
+  const badgeOver = '<span class="badge badge-merah">Terlambat</span>';
+  cardsBawah.push(_dmCard('Perlu perhatian', 'Surat masuk yang melewati batas waktu', _dmFeed((ss.overdue_list || []).map(s => ({
+    title: s.perihal || '-', sub: `${esc(s.no_agenda || '')}${s.no_agenda ? ' · ' : ''}Batas: ${fmtDate(s.batas_waktu).split(',')[0]}`, badge: badgeOver,
+  })), 'Tidak ada surat yang terlambat'), terlambat ? `<span class="badge badge-merah">${terlambat}</span>` : ''));
+  html += _dmCols(cardsBawah);
 
-  const panelsRecent = [];
-  if (ss?.recent_masuk?.length)  panelsRecent.push(_recentSuratPanel(ss.recent_masuk, 'masuk'));
-  if (ss?.recent_keluar?.length) panelsRecent.push(_recentSuratPanel(ss.recent_keluar, 'keluar'));
-  if (panels.length) html += `<div class="dash-panels">${panels.join('')}</div>`;
-  if (panelsRecent.length) html += `<div class="dash-panels dash-panels--2col">${panelsRecent.join('')}</div>`;
+  const badgeStatus = (st) => st === 'Selesai' ? '<span class="badge badge-hijau">Selesai</span>' : st === 'Terlambat' ? badgeOver : '<span class="badge badge-yellow">Proses</span>';
+  html += _dmCols([
+    _dmCard('Surat masuk terbaru', 'Surat terakhir', _dmFeed((ss.recent_masuk || []).map(s => ({ title: s.perihal || '-', sub: `${esc(s.nomor || '-')} · ${s.tanggal ? fmtDate(s.tanggal).split(',')[0] : '-'}`, badge: badgeStatus(s.status) })), 'Belum ada surat masuk')),
+    _dmCard('Surat keluar terbaru', 'Surat terakhir', _dmFeed((ss.recent_keluar || []).map(s => ({ title: s.perihal || '-', sub: `${esc(s.nomor || '-')} · ${s.tanggal ? fmtDate(s.tanggal).split(',')[0] : '-'}` })), 'Belum ada surat keluar')),
+  ]);
 
-  wrap.innerHTML = html;
+  const ins = [];
+  if (terlambat > 0) ins.push(_dmIns('bad', `<b>${terlambat}</b> surat masuk sudah melewati batas waktu dan belum selesai.`));
+  if (tigaHari > 0) ins.push(_dmIns('warn', `<b>${tigaHari}</b> surat masuk akan jatuh tempo dalam 3 hari ke depan.`));
+  if (masukBulan > 0 && selesai < totalMasuk) ins.push(_dmIns('info', `Tingkat penyelesaian surat masuk saat ini <b>${pctSelesai}%</b> (${selesai} dari ${totalMasuk}).`));
+  if (!ins.length) ins.push(_dmIns('ok', 'Tidak ada surat yang perlu perhatian khusus saat ini.'));
+  html += `<div class="dm-card" style="margin-bottom:var(--sp-4)"><div class="dm-card-h"><div class="dm-card-hl">${_dmCardIcon('Catatan')}<div class="dm-card-t">Catatan</div></div></div>${ins.join('')}</div>`;
+
+  _dmMount(wrap, html);
 }
 // Panel "Perlu Perhatian" - surat masuk yang belum diproses & lewat batas waktu
 function _overdueSuratPanel(list) {
@@ -647,8 +1156,53 @@ async function _fetchRingkasanBulan(bulan, tahun, userId) {
     const r = await fetch(`/api/absensi/ringkasan-bulan?${params}`, { headers: authHeaders() });
     if (!r.ok) { console.error('[_fetchRingkasanBulan] HTTP', r.status); return kosong; }
     const d = await r.json();
-    return { harian: d.harian || [], ranking_terlambat: d.ranking_terlambat || [], sudah_absen_user_ids: d.sudah_absen_user_ids || [] };
+    return { harian: d.harian || [], ranking_terlambat: d.ranking_terlambat || [], ranking_alpa: d.ranking_alpa || [], ranking_tidak_lengkap: d.ranking_tidak_lengkap || [], sudah_absen_user_ids: d.sudah_absen_user_ids || [] };
   } catch (err) { console.error('[_fetchRingkasanBulan]', err); return kosong; }
+}
+
+// Ambil keterangan cuti & tugas luar sebulan buat tooltip Kalender Kehadiran.
+// Endpoint ringkasan-bulan cuma ngasih angka agregat, jadi baris detailnya diambil terpisah
+// (difilter status, jadi jumlahnya kecil). Hasil: Map 'YYYY-MM-DD' -> [{ status, nama, keterangan }].
+async function _fetchKeteranganKalenderBulan(bulan, tahun, userId) {
+  const hasil = new Map();
+  try {
+    await Promise.all(['cuti', 'tugas_luar'].map(async status => {
+      for (let page = 1; page <= 10; page++) {
+        const params = new URLSearchParams({ bulan, tahun, status, page });
+        if (userId) params.set('user_id', userId);
+        const r = await fetch(`/api/absensi?${params}`, { headers: authHeaders() });
+        if (!r.ok) break;
+        const d = await r.json();
+        const rows = d.absensi || [];
+        rows.forEach(a => {
+          const key = _absLiburLocalYMD(a.tanggal);
+          if (!hasil.has(key)) hasil.set(key, []);
+          hasil.get(key).push({ status, nama: a.user_nama || '', keterangan: (a.keterangan || '').trim() });
+        });
+        if (!rows.length || page * rows.length >= (d.total || 0)) break;
+      }
+    }));
+  } catch (err) { console.error('[_fetchKeteranganKalenderBulan]', err); }
+  return hasil;
+}
+
+// Susun teks tooltip keterangan cuti/tugas luar satu hari. full=true nampilin nama pegawai.
+function _absKetTipHari(list, full) {
+  if (!list || !list.length) return '';
+  const potong = t => t.length > 60 ? t.slice(0, 57) + '...' : t;
+  const fmt = a => {
+    const ket = a.keterangan ? potong(a.keterangan) : 'tanpa keterangan';
+    return full && a.nama ? `${a.nama} (${ket})` : ket;
+  };
+  const grup = [['tugas_luar', 'Tugas luar'], ['cuti', 'Cuti']].map(([st, lbl]) => {
+    const items = list.filter(a => a.status === st);
+    if (!items.length) return '';
+    const tampil = items.slice(0, 3).map(fmt).join('; ');
+    const sisa = items.length > 3 ? ` +${items.length - 3} lainnya` : '';
+    // Non-admin: label status sudah ada di depan tooltip ("Tgl 12: Tugas Luar"), jadi cukup keterangannya.
+    return full ? `${lbl}: ${tampil}${sisa}` : `${tampil}${sisa}`;
+  }).filter(Boolean);
+  return grup.join(' • ');
 }
 
 async function _fetchPengajuanPendingDash(full, userId) {
@@ -727,35 +1281,32 @@ async function loadDashboardAbsensi() {
   const icon = `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor" style="flex-shrink:0;opacity:.85"><path d="M3 12C3 12.5523 3.44772 13 4 13H10C10.5523 13 11 12.5523 11 12V4C11 3.44772 10.5523 3 10 3H4C3.44772 3 3 3.44772 3 4V12ZM3 20C3 20.5523 3.44772 21 4 21H10C10.5523 21 11 20.5523 11 20V16C11 15.4477 10.5523 15 10 15H4C3.44772 15 3 15.4477 3 16V20ZM13 20C13 20.5523 13.4477 21 14 21H20C20.5523 21 21 20.5523 21 20V12C21 11.4477 20.5523 11 20 11H14C13.4477 11 13 11.4477 13 12V20ZM14 3C13.4477 3 13 3.44772 13 4V8C13 8.55228 13.4477 9 14 9H20C20.5523 9 21 8.55228 21 8V4C21 3.44772 20.5523 3 20 3H14Z"/></svg>`;
   let html = _dashModuleHeader(icon, 'Dashboard', full ? 'Ringkasan kehadiran seluruh pegawai bulan ini' : 'Ringkasan kehadiran Anda bulan ini');
 
-  const iconHadir = `<svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 12l2 2 4-4"/><circle cx="12" cy="12" r="10"/></svg>`;
-  const iconClock = `<svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>`;
-  const iconWarn = `<svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><line x1="12" x2="12" y1="9" y2="13"/><line x1="12" x2="12.01" y1="17" y2="17"/></svg>`;
-  const iconCal = `<svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/><path d="M8 2v4"/><path d="M16 2v4"/></svg>`;
-  const iconRank = `<svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 20V10M12 20V4M6 20v-6"/></svg>`;
-  const iconTidakLengkap = `<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect width="8" height="4" x="8" y="2" rx="1" ry="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="m15 11-6 6"/><path d="m9 11 6 6"/></svg>`;
-  const iconHadirRow = `<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 12l2 2 4-4"/><circle cx="12" cy="12" r="10"/></svg>`;
-  const iconClockRow = `<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>`;
+  _dmStyle();
+  let rkPrev = null;
+  try {
+    const pm = bulan === 1 ? 12 : bulan - 1, pt = bulan === 1 ? tahun - 1 : tahun;
+    const rp = await fetch(`/api/absensi/rekap?user_id=${userId}&bulan=${pm}&tahun=${pt}`, { headers: authHeaders() });
+    if (rp.ok) rkPrev = (await rp.json()).rekap || null;
+  } catch { /* bulan lalu opsional */ }
 
-  const panels = [];
-  let belumPanelHtml = null; 
+  const rk = d.rekap || { hadir: 0, tugas_luar: 0, cuti: 0, alpa: 0, terlambat: 0, tidak_lengkap: 0, total_menit_terlambat: 0 };
+  const tot = (r) => (r.hadir || 0) + (r.terlambat || 0) + (r.tidak_lengkap || 0) + (r.tugas_luar || 0) + (r.cuti || 0) + (r.alpa || 0);
+  const totalCatat = tot(rk);
+  const hadirEfektif = totalCatat - (rk.alpa || 0);
+  const rate = _dmPct(hadirEfektif, totalCatat);
+  const ratePrev = rkPrev && tot(rkPrev) ? _dmPct(tot(rkPrev) - (rkPrev.alpa || 0), tot(rkPrev)) : null;
+  const avgMenit = rk.terlambat > 0 ? Math.round((rk.total_menit_terlambat || 0) / rk.terlambat) : 0;
+  const namaBulan = ABS_BULAN_NAMA[bulan];
+  const dRate = ratePrev !== null ? rate - ratePrev : null;
+  const rateSub = dRate !== null ? `${dRate >= 0 ? '▲' : '▼'} ${Math.abs(dRate)} poin vs bulan lalu` : `${hadirEfektif} dari ${totalCatat} catatan`;
 
-  
-  if (pengajuanPending.length) {
-    panels.push(_absensiPengajuanPanel(pengajuanPending, full));
-  }
-
-  
-  
-  
-  
+  // Status hari ini
   const wNowDash = typeof _witaNow === 'function' ? _witaNow() : null;
   const isJumatDash = wNowDash ? wNowDash.day === 5 : (new Date().getDay() === 5);
   const masukAwalHariIni = absSettings
     ? (isJumatDash ? absSettings.jam_masuk_awal_jumat : absSettings.jam_masuk_awal_senin_kamis)?.slice(0, 5) || null
     : null;
   const jendelaBelumBuka = !!(masukAwalHariIni && wNowDash && wNowDash.hhmm < masukAwalHariIni);
-  
-  
   const _todayHariIni = new Date();
   const dowHariIni = _todayHariIni.getDay();
   const isWeekendHariIni = dowHariIni === 0 || dowHariIni === 6;
@@ -763,41 +1314,146 @@ async function loadDashboardAbsensi() {
   const isLiburHariIni = liburSet.has(_ymdHariIni);
   const bukanHariKerja = isWeekendHariIni || isLiburHariIni;
   const labelHariLibur = isLiburHariIni ? (liburMap.get(_ymdHariIni) || 'Hari Libur') : (isWeekendHariIni ? 'Akhir Pekan' : null);
-  if (full && d.hari_ini) {
+
+  const harian = ringkasan.harian || [];
+  const hariIniRow = harian.find(h => h.tanggal === _ymdHariIni) || null;
+  let belumList = [];
+  if (full && d.hari_ini && !bukanHariKerja && !jendelaBelumBuka) {
     const sudahIds = new Set(ringkasan.sudah_absen_user_ids);
-    const belumList = pegawaiList.filter(u => !sudahIds.has(u.id));
-    belumPanelHtml = _absensiBelumPanel(belumList, d.hari_ini.total_pegawai, d.hari_ini.sudah_absen, jendelaBelumBuka, masukAwalHariIni, bukanHariKerja, labelHariLibur);
-  } else if (d.hari_ini) {
-    const { total_pegawai, sudah_absen } = d.hari_ini;
-    if (bukanHariKerja) {
-      panels.push(_liburNoticePanel('Status Hari Ini', labelHariLibur));
-    } else {
-      panels.push(_barListPanel({
-        icon: iconHadir, title: 'Status Hari Ini',
-        rows: [
-          { label: 'Sudah Absensi', value: sudah_absen, suffix: ` / ${total_pegawai}`, color: _KPI_COLORS.green.text },
-          { label: 'Belum Absensi', value: Math.max(0, total_pegawai - sudah_absen), suffix: ` / ${total_pegawai}`, color: _KPI_COLORS.red.text },
-        ],
-      }));
-    }
+    belumList = pegawaiList.filter(u => !sudahIds.has(u.id));
   }
 
-  if (panels.length) html += `<div class="dash-panels">${panels.join('')}</div>`;
+  // Tone & teks hero
+  const tone = totalCatat === 0 ? 'abu' : rate >= 90 ? 'ok' : rate >= 75 ? 'warn' : 'bad';
+  let teksHariIni = '';
+  if (bukanHariKerja) teksHariIni = `Hari ini <b>${esc(labelHariLibur)}</b>, tidak ada jadwal absensi.`;
+  else if (full && d.hari_ini) teksHariIni = jendelaBelumBuka ? `Absensi masuk baru dibuka pukul <b>${esc(masukAwalHariIni)}</b> WITA.` : `Hari ini <b>${d.hari_ini.sudah_absen}</b> dari <b>${d.hari_ini.total_pegawai}</b> pegawai sudah absensi.`;
+  else if (!full) teksHariIni = hariIniRow ? 'Absensi Anda hari ini sudah tercatat.' : (jendelaBelumBuka ? `Absensi masuk baru dibuka pukul <b>${esc(masukAwalHariIni)}</b> WITA.` : 'Anda belum absensi hari ini.');
+  // Ketepatan waktu = tepat waktu / (tepat waktu + terlambat), dibanding bulan lalu; garis tren = per hari bulan ini
+  const _tepat = (r) => (r && (r.hadir || 0) + (r.terlambat || 0) > 0) ? Math.round((r.hadir || 0) * 100 / ((r.hadir || 0) + (r.terlambat || 0))) : null;
+  const tepatNow = _tepat(rk), tepatPrev = _tepat(rkPrev);
+  const tepatHarian = harian.filter(h => (h.hadir + h.terlambat) > 0).map(h => Math.round(h.hadir * 100 / (h.hadir + h.terlambat)));
+  html += _dmHero({
+    tone,
+    title: totalCatat === 0 ? `Belum ada data absensi ${namaBulan}` : (full ? `Tingkat kehadiran ${rate}% di bulan ${namaBulan}` : `Kehadiran Anda ${rate}% di bulan ${namaBulan}`),
+    text: [
+      teksHariIni,
+      avgMenit ? `Rata-rata keterlambatan <b>${avgMenit}</b> menit.` : '',
+      pengajuanPending.length ? `<b>${pengajuanPending.length}</b> pengajuan menunggu persetujuan.` : '',
+    ],
+    ring: { pct: rate, label: 'hadir', tip: `${hadirEfektif} dari ${totalCatat} catatan hadir bulan ${namaBulan}` },
+    seg: [
+      { label: 'Tepat waktu', val: rk.hadir || 0, color: _DM_PAL.ok },
+      { label: 'Terlambat', val: rk.terlambat || 0, color: _DM_PAL.warn },
+      { label: 'Tidak lengkap', val: rk.tidak_lengkap || 0, color: _DM_PAL.ungu },
+      { label: 'Tugas luar', val: rk.tugas_luar || 0, color: _DM_PAL.sky },
+      { label: 'Cuti', val: rk.cuti || 0, color: _DM_PAL.pink },
+      { label: 'Alpa', val: rk.alpa || 0, color: _DM_PAL.bad },
+    ],
+    trend: {
+      label: 'Ketepatan waktu',
+      val: tepatNow == null ? '-' : `${tepatNow}%`,
+      d: tepatNow != null && tepatPrev != null ? tepatNow - tepatPrev : null,
+      unit: 'poin', vs: 'dari bulan lalu',
+      vals: tepatHarian,
+      note: tepatNow == null ? 'Belum ada data' : '',
+    },
+    reload: 'loadDashboardAbsensi()',
+  });
 
-  
-  
-  const jamKerjaPanelHtml = jamKerja ? _absensiJamKerjaPanel(jamKerja, full) : null;
-  const kolomKiriHtml = full ? belumPanelHtml : null;
-  const kolomKananHtml = jamKerjaPanelHtml;
-  const trendPanelHtml = _absensiTrendPanel(ringkasan.harian, bulan, tahun, full,  !kolomKiriHtml && !kolomKananHtml);
-  html += (kolomKiriHtml || kolomKananHtml)
-    ? `<div class="dash-panels dash-panels--belum-tren-row">${kolomKiriHtml || ''}${trendPanelHtml}${kolomKananHtml || ''}</div>`
-    : `<div class="dash-panels">${trendPanelHtml}</div>`;
+  // Data harian
+  const daysInMonth = new Date(tahun, bulan, 0).getDate();
+  const lastDay = (_todayHariIni.getFullYear() === tahun && _todayHariIni.getMonth() + 1 === bulan) ? _todayHariIni.getDate() : daysInMonth;
+  const byDay = new Map(harian.map(h => [h.tanggal, h]));
+  const hari = [];
+  for (let i = 1; i <= lastDay; i++) {
+    const key = `${tahun}-${String(bulan).padStart(2, '0')}-${String(i).padStart(2, '0')}`;
+    const c = byDay.get(key) || { hadir: 0, terlambat: 0, tidak_lengkap: 0, tugas_luar: 0, cuti: 0, alpa: 0 };
+    hari.push({ tgl: i, hadir: c.hadir + c.terlambat + (c.tidak_lengkap || 0) + c.tugas_luar + c.cuti, terlambat: c.terlambat, alpa: c.alpa });
+  }
+  const lblHari = hari.map(h => ({ short: String(h.tgl), full: `${h.tgl} ${namaBulan} ${tahun}` }));
 
-  
+  html += `<div class="dm-kpis">
+    ${_dmKpi({ label: 'Tingkat Kehadiran', val: `${rate}%`, sub: rateSub, color: rate >= 90 ? _DM_PAL.ok : rate >= 75 ? _DM_PAL.warn : _DM_PAL.bad, icon: 'check', spark: _dmSpark(hari.map(h => h.hadir), _DM_PAL.ok) })}
+    ${_dmKpi({ label: 'Tepat Waktu', val: _dmNf(rk.hadir), sub: rkPrev ? `${_dmNf(rkPrev.hadir)} bulan lalu` : null, color: _DM_PAL.ok, icon: 'user' })}
+    ${_dmKpi({ label: 'Terlambat', val: _dmNf(rk.terlambat), sub: avgMenit ? `rata-rata ${avgMenit} menit` : (rkPrev ? `${_dmNf(rkPrev.terlambat)} bulan lalu` : null), color: _DM_PAL.warn, icon: 'clock', spark: _dmSpark(hari.map(h => h.terlambat), _DM_PAL.warn) })}
+    ${_dmKpi({ label: 'Tidak Lengkap', val: _dmNf(rk.tidak_lengkap || 0), sub: 'Tanpa jam masuk atau pulang', color: _DM_PAL.ungu, icon: 'doc' })}
+    ${_dmKpi({ label: 'Tugas Luar / Cuti', val: `${_dmNf(rk.tugas_luar)} / ${_dmNf(rk.cuti)}`, sub: 'Bulan ini', color: _DM_PAL.sky, icon: 'cal' })}
+    ${_dmKpi({ label: 'Alpa', val: _dmNf(rk.alpa || 0), sub: (rk.alpa || 0) ? 'Perlu ditindaklanjuti' : 'Tidak ada alpa', color: (rk.alpa || 0) ? _DM_PAL.bad : _DM_PAL.ok, icon: 'warn', spark: _dmSpark(hari.map(h => h.alpa), _DM_PAL.bad) })}
+  </div>`;
+
+  html += _dmCols([
+    _dmCard(`Kehadiran harian - ${namaBulan} ${tahun}`, full ? 'Jumlah pegawai hadir dan terlambat per hari' : 'Status kehadiran Anda per hari', hari.length ? _dmArea({ labels: lblHari, series: [{ name: 'Hadir', color: _DM_PAL.ok, values: hari.map(h => h.hadir) }, { name: 'Terlambat', color: _DM_PAL.warn, values: hari.map(h => h.terlambat), dash: true }, { name: 'Alpa', color: _DM_PAL.bad, values: hari.map(h => h.alpa), dash: true }] }) + _dmLegend([[_DM_PAL.ok, 'Hadir'], [_DM_PAL.warn, 'Terlambat'], [_DM_PAL.bad, 'Alpa']]) : _dmEmpty('Belum ada data')),
+    _dmCard('Komposisi kehadiran', `Seluruh catatan ${namaBulan}`, _dmDonut([
+      { label: 'Tepat waktu', value: rk.hadir, color: _DM_PAL.ok }, { label: 'Terlambat', value: rk.terlambat, color: _DM_PAL.warn },
+      { label: 'Tidak lengkap', value: rk.tidak_lengkap || 0, color: _DM_PAL.ungu }, { label: 'Tugas luar', value: rk.tugas_luar, color: _DM_PAL.sky },
+      { label: 'Cuti', value: rk.cuti, color: _DM_PAL.pink }, { label: 'Alpa', value: rk.alpa || 0, color: _DM_PAL.bad },
+    ], `${rate}%`, 'hadir')),
+  ], true);
+
+  // Baris status hari ini, jam kerja, belum absensi
+  const kartuHariIni = [];
+  if (bukanHariKerja) {
+    kartuHariIni.push(_dmCard('Status hari ini', '', `<div class="dm-big"><b>${esc(labelHariLibur)}</b></div><div class="dm-sub">Tidak ada jadwal absensi</div>`));
+  } else if (full && d.hari_ini) {
+    const sdh = d.hari_ini.sudah_absen, tp = d.hari_ini.total_pegawai;
+    kartuHariIni.push(_dmCard('Absensi hari ini', jendelaBelumBuka ? `Dibuka pukul ${esc(masukAwalHariIni)} WITA` : 'Pegawai yang sudah dan belum absensi', _dmDonut([
+      { label: 'Sudah absensi', value: sdh, color: _DM_PAL.ok }, { label: 'Belum absensi', value: Math.max(0, tp - sdh), color: '#cbd5e1' },
+    ], `${sdh}/${tp}`, 'pegawai')));
+    kartuHariIni.push(_dmCard('Belum absensi hari ini', jendelaBelumBuka ? 'Jendela absensi belum dibuka' : `${belumList.length} pegawai`,
+      jendelaBelumBuka ? _dmEmpty(`Absensi masuk baru bisa dicatat mulai pukul ${esc(masukAwalHariIni || '--:--')} WITA`, true)
+        : _dmFeed(belumList.map(u => ({ title: u.nama || '-', lead: `<span class="dm-av" style="background:#fee2e2;color:#b91c1c">${esc(_dmInisial(u.nama))}</span>` })), 'Semua pegawai sudah absensi')));
+  } else if (!full) {
+    const st = hariIniRow ? (hariIniRow.alpa ? 'Alpa' : hariIniRow.tidak_lengkap ? 'Tidak lengkap' : hariIniRow.terlambat ? 'Terlambat' : hariIniRow.hadir ? 'Tepat waktu' : hariIniRow.tugas_luar ? 'Tugas luar' : hariIniRow.cuti ? 'Cuti' : 'Tercatat') : (jendelaBelumBuka ? 'Belum dibuka' : 'Belum absensi');
+    kartuHariIni.push(_dmCard('Status hari ini', '', `<div class="dm-big"><b>${st}</b></div><div class="dm-sub">${hariIniRow ? 'Absensi hari ini sudah tercatat' : 'Belum ada catatan absensi hari ini'}</div>`));
+  }
+  if (jamKerja) {
+    const fmtJ = (m) => `${Math.floor(Math.abs(m || 0) / 60).toLocaleString('id-ID')}j ${Math.abs(m || 0) % 60}m`;
+    const pa = Math.max(0, jamKerja.persentase || 0), warna = _kwCapaianColor(pa);
+    kartuHariIni.push(_dmCard(jamKerja.agregat ? `Total jam kerja ${namaBulan}` : `Jam kerja ${namaBulan}`, `${jamKerja.hari_kerja_total} hari kerja bulan ini`,
+      `<div class="dm-big"><b style="color:${warna}">${fmtJ(jamKerja.aktual_menit)}</b><span>dari target ${fmtJ(jamKerja.target_menit)}</span></div>
+       <div class="dm-hb-track" style="height:9px"><i style="width:${Math.min(100, pa)}%;background:${warna}"></i></div>
+       <div class="dm-sub" style="margin-top:8px">${pa}% tercapai${jamKerja.agregat ? ` · total dari ${jamKerja.jumlah_pegawai} pegawai` : ' · Cuti/Tugas Luar disetujui dihitung penuh'}</div>`));
+  }
+  html += _dmCols(kartuHariIni);
+
+  // Peringkat (admin/full)
+  if (full) {
+    const rankRows = (arr, warna, satuan) => (arr || []).map(r => ({ label: r.user_nama, full: true, value: r.jumlah, suffix: satuan, color: warna }));
+    html += _dmCols([
+      _dmCard('Paling sering terlambat', `Peringkat pegawai, ${namaBulan}`, _dmHbAuto(rankRows(ringkasan.ranking_terlambat, _DM_PAL.warn, ' kali'), 'Tidak ada keterlambatan')),
+      _dmCard('Paling sering alpa', `Peringkat pegawai, ${namaBulan}`, _dmHbAuto(rankRows(ringkasan.ranking_alpa, _DM_PAL.bad, ' hari'), 'Tidak ada alpa')),
+      _dmCard('Absensi tidak lengkap', `Peringkat pegawai, ${namaBulan}`, _dmHbAuto(rankRows(ringkasan.ranking_tidak_lengkap, _DM_PAL.ungu, ' kali'), 'Semua absensi lengkap')),
+    ]);
+  }
+
+  // Pengajuan menunggu persetujuan
+  if (pengajuanPending.length) {
+    const jenisLabel = { tugas_luar: 'Tugas Luar', cuti: 'Cuti' };
+    const baris = pengajuanPending.map(p => ({
+      title: full ? `${p.nama_pegawai || '-'} - ${jenisLabel[p.status] || p.status}` : (jenisLabel[p.status] || p.status),
+      sub: `${_dashFmtTgl(p.tanggal)} s/d ${_dashFmtTgl(p.tanggal_selesai)}`,
+      lead: `<span class="dm-av" style="background:#fef3c7;color:#92400e">${esc(_dmInisial(full ? p.nama_pegawai : (jenisLabel[p.status] || p.status)))}</span>`,
+    }));
+    html += _dmCols([_dmCard(full ? 'Menunggu persetujuan' : 'Pengajuan saya menunggu persetujuan', `${pengajuanPending.length} pengajuan`,
+      _dmFeed(baris)
+      + (full ? `<button class="btn btn-secondary btn-sm" style="margin-top:10px;width:100%" onclick="_dashBukaPersetujuanAbsensi()">Buka persetujuan</button>` : ''))]);
+  }
+
+  const ins = [];
+  if (totalCatat > 0 && rate < 75) ins.push(_dmIns('bad', `Tingkat kehadiran <b>${rate}%</b> di bawah 75%.`));
+  if (dRate !== null && dRate <= -5) ins.push(_dmIns('warn', `Tingkat kehadiran turun <b>${Math.abs(dRate)} poin</b> dibanding bulan lalu.`));
+  if (dRate !== null && dRate >= 5) ins.push(_dmIns('ok', `Tingkat kehadiran naik <b>${dRate} poin</b> dibanding bulan lalu.`));
+  if (rk.terlambat > 0) ins.push(_dmIns('warn', `<b>${rk.terlambat}</b> keterlambatan bulan ini, total <b>${_dmNf(rk.total_menit_terlambat || 0)}</b> menit.`));
+  if (full && (ringkasan.ranking_alpa || []).length) ins.push(_dmIns('bad', `Alpa terbanyak: <b>${esc(ringkasan.ranking_alpa[0].user_nama)}</b> (${ringkasan.ranking_alpa[0].jumlah} hari).`));
+  if (full && belumList.length) ins.push(_dmIns('info', `<b>${belumList.length}</b> pegawai belum absensi hari ini.`));
+  if (!ins.length) ins.push(_dmIns('ok', 'Tidak ada catatan khusus untuk kehadiran bulan ini.'));
+  html += `<div class="dm-card" style="margin-bottom:var(--sp-4)"><div class="dm-card-h"><div class="dm-card-hl">${_dmCardIcon('Catatan')}<div class="dm-card-t">Catatan</div></div></div>${ins.join('')}</div>`;
+
+  // Kalender kehadiran (2 bulan) tetap seperti sebelumnya
   html += await _absensiKalenderSectionHtml();
 
-  wrap.innerHTML = html;
+  _dmMount(wrap, html);
 }
 
 // Bagian "Perbandingan Kehadiran Bulanan" + "Kalender Kehadiran" (2 bulan) - dipisah dari
@@ -818,17 +1474,20 @@ async function _absensiKalenderSectionHtml() {
   let liburMap = new Map();
   try {
     const tahunLiburSet = new Set([tahun, prevTahun]); // bisa beda kalau lintas Desember-Januari
-    const [r1, r2, ring, ringPrev, ...rLiburList] = await Promise.all([
+    const [r1, r2, ring, ringPrev, kB, kP, ...rLiburList] = await Promise.all([
       fetch(`/api/absensi/rekap?user_id=${userId}&bulan=${bulan}&tahun=${tahun}`, { headers: authHeaders() }),
       fetch(`/api/absensi/rekap?user_id=${userId}&bulan=${prevBulan}&tahun=${prevTahun}`, { headers: authHeaders() }),
       _fetchRingkasanBulan(bulan, tahun, userId),
       _fetchRingkasanBulan(prevBulan, prevTahun, userId),
+      _fetchKeteranganKalenderBulan(bulan, tahun, userId),
+      _fetchKeteranganKalenderBulan(prevBulan, prevTahun, userId),
       ...[...tahunLiburSet].map(ty => fetch(`/api/absensi/libur?tahun=${ty}`, { headers: authHeaders() })),
     ]);
     if (r1.ok) d = await r1.json();
     if (r2.ok) dPrev = await r2.json();
     ringkasan = ring;
     ringkasanPrev = ringPrev;
+    ketBulan = kB; ketPrev = kP;
     for (const rLibur of rLiburList) {
       if (!rLibur || !rLibur.ok) continue;
       const dLibur = await rLibur.json();
@@ -865,7 +1524,7 @@ async function _absensiKalenderSectionHtml() {
     ],
   });
 
-  const heatmapPanels = `${perbandinganPanel}${_absensiHeatmapPanel(ringkasanPrev.harian, prevBulan, prevTahun, full, false, liburSet, liburMap)}${_absensiHeatmapPanel(ringkasan.harian, bulan, tahun, full, false, liburSet, liburMap)}`;
+  const heatmapPanels = `${perbandinganPanel}${_absensiHeatmapPanel(ringkasanPrev.harian, prevBulan, prevTahun, full, false, liburSet, liburMap, ketPrev)}${_absensiHeatmapPanel(ringkasan.harian, bulan, tahun, full, false, liburSet, liburMap, ketBulan)}`;
 
   return `<div id="absKalenderSection">
     ${_dashKalenderNavHtml(_absKalOffset, '_absKalNav')}
@@ -905,7 +1564,7 @@ function _absensiBelumPanel(list, totalPegawai, sudahAbsen, jendelaBelumBuka = f
   }
   if (!list.length) {
     return `<div class="dash-panel">
-      <div class="dash-panel-header"><span style="flex:1">Belum Absensi Hari Ini</span><span class="badge badge-hijau">Semua sudah absensi</span></div>
+      <div class="dash-panel-header">${iconWarn}<span style="flex:1">Belum Absensi Hari Ini</span><span class="badge badge-hijau">Semua sudah absensi</span></div>
       <div class="dash-panel-empty">Semua pegawai (${sudahAbsen}/${totalPegawai}) sudah absensi hari ini 🎉</div>
     </div>`;
   }
@@ -1060,7 +1719,7 @@ function _absensiTrendPanel(harian, bulan, tahun, full, spanFull = true) {
 
 // Kalender heatmap kehadiran - admin/full: warna berdasar rate kehadiran tim per hari;
 // non-admin: warna berdasar status pribadi hari itu.
-function _absensiHeatmapPanel(harian, bulan, tahun, full, spanFull = true, liburSet = new Set(), liburMap = new Map()) {
+function _absensiHeatmapPanel(harian, bulan, tahun, full, spanFull = true, liburSet = new Set(), liburMap = new Map(), ketMap = new Map()) {
   const daysInMonth = new Date(tahun, bulan, 0).getDate();
   const today = new Date();
   const todayKey = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
@@ -1113,11 +1772,14 @@ function _absensiHeatmapPanel(harian, bulan, tahun, full, spanFull = true, libur
       const rate = c.total > 0 ? hadirEfektif / c.total : 0;
       const bg = rate >= 0.9 ? '#10b981' : rate >= 0.7 ? '#34d399' : rate >= 0.5 ? '#f59e0b' : '#dc2626';
       tip = `Tgl ${day}: ${hadirEfektif}/${c.total} hadir${c.alpa ? `, ${c.alpa} alpa` : ''}`;
-      cells.push(`<div class="dash-heatmap-cell" style="background:${bg}" data-tip="${tip}">${label}</div>`);
+      const ketTipFull = _absKetTipHari(ketMap.get(key), true);
+      if (ketTipFull) tip += ` • ${ketTipFull}`;
+      cells.push(`<div class="dash-heatmap-cell" style="background:${bg}" data-tip="${esc(tip)}">${label}</div>`);
     } else {
       const bg = c.alpa ? _KPI_COLORS.red.text : c.tidak_lengkap ? _KPI_COLORS.purple.text : c.terlambat ? _KPI_COLORS.amber.text : c.hadir ? _KPI_COLORS.green.text : c.tugas_luar ? _KPI_COLORS.biruMuda.text : c.cuti ? _KPI_COLORS.fuchsia.text : '#f1f5f9';
       const statusLbl = c.alpa ? 'Alpa' : c.tidak_lengkap ? 'Tidak Lengkap' : c.terlambat ? 'Terlambat' : c.hadir ? 'Tepat Waktu' : c.tugas_luar ? 'Tugas Luar' : c.cuti ? 'Cuti' : '-';
-      cells.push(`<div class="dash-heatmap-cell" style="background:${bg}" data-tip="Tgl ${day}: ${statusLbl}">${label}</div>`);
+      const ketTip = (!c.alpa && !c.tidak_lengkap && !c.terlambat && !c.hadir && (c.tugas_luar || c.cuti)) ? _absKetTipHari(ketMap.get(key), false) : '';
+      cells.push(`<div class="dash-heatmap-cell" style="background:${bg}" data-tip="${esc(`Tgl ${day}: ${statusLbl}${ketTip ? ' • ' + ketTip : ''}`)}">${label}</div>`);
     }
   }
 
@@ -1136,130 +1798,208 @@ function _absensiHeatmapPanel(harian, bulan, tahun, full, spanFull = true, libur
   </div>`;
 }
 
-async function _fetchKinerjaRekapForDash() {
+// Sub Kegiatan tidak punya kolom jenis_* sendiri: ditandai lewat jenis_custom yang memuat 'subkeg'
+// (jenis_custom bisa datang sebagai array atau string JSON).
+function _kinIsSubkeg(x) {
+  let jc = x && x.jenis_custom;
+  if (typeof jc === 'string') { try { jc = JSON.parse(jc); } catch { jc = []; } }
+  return Array.isArray(jc) && jc.includes('subkeg');
+}
+
+// Dashboard modul Kinerja: TANPA scope=semua, jadi backend membatasi non-admin ke indikator yang
+// di-assign / unit pantau miliknya (admin & kinerja.full tetap lihat semua). Dashboard utama yang pakai scope=semua.
+// Jenis indikator yang boleh tampil di dashboard Kinerja = jenis yang menunya tampil di sidebar
+// (admin kinerja: semua; lainnya: punya indikator jenis itu DAN (permission kinerja.<jenis> ATAU akun pantau)).
+function _kinJenisDashAkses() {
+  if (_isKinerjaAdmin()) return ['monev', 'ikk', 'spm', 'subkeg'];
+  const pantau = _isPantauKinerja();
+  const out = [];
+  if (_hasMonevIndikator   && (hasAccess('kinerja.monev')  || pantau)) out.push('monev');
+  if (_hasIkkIndikator     && (hasAccess('kinerja.ikk')    || pantau)) out.push('ikk');
+  if (_hasSpmIndikator     && (hasAccess('kinerja.spm')    || pantau)) out.push('spm');
+  if (_hasSubkegIndikator  && (hasAccess('kinerja.subkeg') || pantau)) out.push('subkeg');
+  return out;
+}
+
+async function _fetchKinerjaRekapForDash(bulanOpt, tahunOpt) {
   try {
     const pa    = getPeriodeAktif();
-    const bulan = pa?.bulan || _dTwSekarang();
-    const tahun = pa?.tahun || new Date().getFullYear();
-    const jenisList = ['monev', 'ikk', 'spm'];
+    const bulan = bulanOpt || pa?.bulan || _dTwSekarang();
+    const tahun = tahunOpt || pa?.tahun || new Date().getFullYear();
+    const jenisList = _kinJenisDashAkses();
+    if (!jenisList.length) return [];
     const results = await Promise.all(jenisList.map(j =>
-      fetch(`/api/kinerja/rekap?bulan=${bulan}&tahun=${tahun}&jenis=${j}&scope=semua`, { headers: authHeaders() })
+      fetch(`/api/kinerja/rekap?bulan=${bulan}&tahun=${tahun}&jenis=${j}`, { headers: authHeaders() })
         .then(r => r.ok ? r.json() : { rekap: [] })
         .catch(() => ({ rekap: [] }))
     ));
+    // Endpoint rekap gak ngirim kolom jenis_custom, jadi _kinIsSubkeg() gak bisa mendeteksi
+    // Sub Kegiatan dari datanya. Karena tiap jenis difetch terpisah, kita tandai sendiri di sini:
+    // baris yg datang dari respons jenis=subkeg diberi jenis_custom ['subkeg'].
     const merged = new Map();
-    results.forEach(d => (d.rekap || []).forEach(row => {
-      if (row && row.id != null) merged.set(row.id, row);
+    const subkegIds = new Set();
+    results.forEach((d, i) => (d.rekap || []).forEach(row => {
+      if (!row || row.id == null) return;
+      if (jenisList[i] === 'subkeg') subkegIds.add(row.id);
+      merged.set(row.id, row);
     }));
-    return [...merged.values()];
+    return [...merged.values()].map(row => subkegIds.has(row.id) ? { ...row, jenis_custom: ['subkeg'] } : row);
   } catch { return []; }
 }
 
 async function loadDashboardKinerja() {
   const wrap = document.getElementById('dashKinerjaStats');
   if (!wrap) return;
+  _dmStyle();
   wrap.innerHTML = `
+    <div class="skeleton" style="height:96px;border-radius:16px;margin-bottom:13px"></div>
     <div class="dash-kpi-row">${Array(5).fill(0).map(() => `<div class="skeleton" style="height:98px;border-radius:14px"></div>`).join('')}</div>
-    <div class="skeleton" style="height:160px;border-radius:16px"></div>`;
+    <div class="skeleton" style="height:200px;border-radius:16px"></div>`;
 
-  const [ks, rekapRaw] = await Promise.all([_fetchKinerjaStats(), _fetchKinerjaRekapForDash()]);
+  // Periode sebelumnya (2 triwulan ke belakang) buat angka tren di hero. Opsional: kalau gagal/kosong, tren disembunyikan.
+  const _paDash = getPeriodeAktif();
+  const _bDash = _paDash?.bulan || _dTwSekarang(), _tDash = _paDash?.tahun || new Date().getFullYear();
+  const _prevPer = [2, 1].map(k => { let bb = _bDash - 3 * k, tt = _tDash; while (bb <= 0) { bb += 12; tt--; } return { bulan: bb, tahun: tt }; });
+  const [ks, rekapRaw, , ...prevRaw] = await Promise.all([_fetchKinerjaStats(), _fetchKinerjaRekapForDash(), _kinLoadJenisWarna(), ..._prevPer.map(pp => _fetchKinerjaRekapForDash(pp.bulan, pp.tahun))]);
 
-  
-  
-  
-  
   if (!_isKinerjaAdmin() && typeof _ensureUserIndikatorIds === 'function') await _ensureUserIndikatorIds();
-  const rekap = !_isKinerjaAdmin()
-    ? rekapRaw.filter(x => _userIndikatorIds && _userIndikatorIds.has(Number(x.id)))
-    : rekapRaw;
+  // Akun pantau: backend sudah membatasi ke indikator assign + unit pantaunya, jadi jangan difilter lagi ke
+  // indikator assign saja (bikin dashboard kosong). User biasa: hanya indikator yang di-assign ke dirinya
+  // (IKU dikirim penuh oleh backend untuk non-pantau, sama seperti halaman IKU).
+  const _filtRekap = (arr) => (_isKinerjaAdmin() || _isPantauKinerja())
+    ? arr
+    : arr.filter(x => _userIndikatorIds && _userIndikatorIds.has(Number(x.id)));
+  const rekap = _filtRekap(rekapRaw);
+  const _avgCap = (arr) => {
+    const w = arr.filter(x => x.capaian_persen != null && !isNaN(Number(x.capaian_persen)));
+    return w.length ? w.reduce((a, x) => a + Math.min(Number(x.capaian_persen), 100), 0) / w.length : null;
+  };
+  const prevAvgs = prevRaw.map(a => _avgCap(_filtRekap(a)));
 
   const icon = `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor" style="flex-shrink:0;opacity:.85"><path d="M3 12C3 12.5523 3.44772 13 4 13H10C10.5523 13 11 12.5523 11 12V4C11 3.44772 10.5523 3 10 3H4C3.44772 3 3 3.44772 3 4V12ZM3 20C3 20.5523 3.44772 21 4 21H10C10.5523 21 11 20.5523 11 20V16C11 15.4477 10.5523 15 10 15H4C3.44772 15 3 15.4477 3 16V20ZM13 20C13 20.5523 13.4477 21 14 21H20C20.5523 21 21 20.5523 21 20V12C21 11.4477 20.5523 11 20 11H14C13.4477 11 13 11.4477 13 12V20ZM14 3C13.4477 3 13 3.44772 13 4V8C13 8.55228 13.4477 9 14 9H20C20.5523 9 21 8.55228 21 8V4C21 3.44772 20.5523 3 20 3H14Z"/></svg>`;
   let html = _dashModuleHeader(icon, 'Dashboard', 'Ringkasan capaian indikator kinerja periode berjalan');
 
-  const total = ks?.total_indikator ?? rekap.length;
-  const sudah = ks?.sudah_diisi ?? rekap.filter(x => x.realisasi != null).length;
-  const belum = ks?.belum_diisi ?? Math.max(0, total - sudah);
-  const pct   = total > 0 ? Math.round((sudah / total) * 100) : 0;
+  const pa = getPeriodeAktif();
+  const bulanP = pa?.bulan || _dTwSekarang(), tahunP = pa?.tahun || new Date().getFullYear();
+  const labelTw = `Triwulan ${_DTW_ROM[Math.ceil(bulanP / 3)]} ${tahunP}`;
 
-  const withCapaian  = rekap.filter(x => x.capaian_persen != null);
-  const tercapai     = withCapaian.filter(x => Number(x.capaian_persen) >= 100).length;
-  const mendekati    = withCapaian.filter(x => Number(x.capaian_persen) >= 75 && Number(x.capaian_persen) < 100).length;
-  const perluTindakan= withCapaian.filter(x => Number(x.capaian_persen) < 75).length;
-  const onTrack      = tercapai + mendekati;
+  // Admin kinerja: angka dari /kinerja/stats (semua indikator). Non-admin: dihitung dari rekap yang sudah
+  // dibatasi ke jenis yang boleh diakses, supaya KPI & daftar belum diisi tidak memuat indikator jenis lain
+  // (stats backend menghitung semua indikator assign tanpa melihat permission per jenis).
+  const _adm = _isKinerjaAdmin();
+  const _idsRekap = new Set(rekap.map(x => Number(x.id)));
+  const _sudahRekap = rekap.filter(x => x.realisasi != null).length;
+  const total = _adm ? (ks?.total_indikator ?? rekap.length) : rekap.length;
+  const sudah = _adm ? (ks?.sudah_diisi ?? _sudahRekap) : _sudahRekap;
+  const belum = _adm ? (ks?.belum_diisi ?? Math.max(0, total - sudah)) : Math.max(0, total - sudah);
+  const pct   = _dmPct(sudah, total);
 
-  const jenisMap = { IKU: 0, IKK: 0, SPM: 0 };
+  const withCap = rekap.filter(x => x.capaian_persen != null && !isNaN(Number(x.capaian_persen)));
+  const cap = (x) => Number(x.capaian_persen);
+  const tercapai = withCap.filter(x => cap(x) >= 100).length;
+  const mendekati = withCap.filter(x => cap(x) >= 75 && cap(x) < 100).length;
+  const perluTindakan = withCap.filter(x => cap(x) < 75).length;
+  const onTrack = tercapai + mendekati;
+  const rata = withCap.length ? withCap.reduce((a, x) => a + Math.min(cap(x), 100), 0) / withCap.length : null;
+
+  const tiers = [
+    { label: 'Sangat Tinggi (≥91)', color: '#16a34a', n: withCap.filter(x => cap(x) >= 91).length },
+    { label: 'Tinggi (76–90)', color: '#4ade80', n: withCap.filter(x => cap(x) >= 76 && cap(x) < 91).length },
+    { label: 'Sedang (66–75)', color: '#eab308', n: withCap.filter(x => cap(x) >= 66 && cap(x) < 76).length },
+    { label: 'Rendah (51–65)', color: '#f97316', n: withCap.filter(x => cap(x) >= 51 && cap(x) < 66).length },
+    { label: 'Sangat Rendah (≤50)', color: '#ef4444', n: withCap.filter(x => cap(x) < 51).length },
+  ];
+
+  const jenisMap = { IKU: 0, IKK: 0, SPM: 0, 'Sub Kegiatan': 0 };
+  rekap.forEach(x => { if (x.jenis_monev === true) jenisMap.IKU++; if (x.jenis_ikk === true) jenisMap.IKK++; if (x.jenis_spm === true) jenisMap.SPM++; if (_kinIsSubkeg(x)) jenisMap['Sub Kegiatan']++; });
+  const jenisColors = Object.fromEntries(Object.keys(_KIN_JENIS_KODE).map(j => [j, _kinJenisWarna(j).teks]));
+
+  // Per jenis: satu indikator dihitung di tiap jenis yang dimilikinya (IKU/IKK/SPM/Sub Kegiatan).
+  const grp = new Map();
   rekap.forEach(x => {
-    if (x.jenis_monev === true) jenisMap.IKU++;
-    if (x.jenis_ikk   === true) jenisMap.IKK++;
-    if (x.jenis_spm   === true) jenisMap.SPM++;
+    const jenisX = [x.jenis_monev === true && 'IKU', x.jenis_ikk === true && 'IKK', x.jenis_spm === true && 'SPM', _kinIsSubkeg(x) && 'Sub Kegiatan'].filter(Boolean);
+    (jenisX.length ? jenisX : ['Tanpa jenis']).forEach(k => {
+      const e = grp.get(k) || { nama: k, total: 0, terisi: 0, sumCap: 0, nCap: 0 };
+      e.total++;
+      if (x.realisasi != null) e.terisi++;
+      if (x.capaian_persen != null && !isNaN(cap(x))) { e.sumCap += Math.min(cap(x), 100); e.nCap++; }
+      grp.set(k, e);
+    });
   });
-  Object.keys(jenisMap).forEach(k => { if (!jenisMap[k]) delete jenisMap[k]; });
-  const jenisColors = { IKU: '#3b82f6', IKK: '#10b981', SPM: '#f59e0b' }; 
+  const grpList = [...grp.values()];
 
-  const iconTarget = `<svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>`;
-  const iconCheck  = `<svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>`;
-  const iconWarn   = `<svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><line x1="12" x2="12" y1="9" y2="13"/><line x1="12" x2="12.01" y1="17" y2="17"/></svg>`;
-  const iconTrend  = `<svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg>`;
-  const iconFlag   = `<svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" x2="4" y1="22" y2="15"/></svg>`;
+  const tone = total === 0 ? 'abu' : belum > 0 ? (pct < 50 ? 'bad' : 'warn') : (perluTindakan > 0 ? 'warn' : 'ok');
+  html += _dmHero({
+    tone,
+    title: total === 0 ? 'Belum ada indikator yang ditugaskan' : belum > 0 ? `${belum} indikator belum diisi (${labelTw})` : `Semua indikator ${labelTw} sudah diisi`,
+    text: [
+      `<b>${sudah}</b> dari <b>${total}</b> indikator sudah terisi (<b>${pct}%</b>).`,
+      withCap.length ? `Rata-rata capaian <b>${Math.round(rata)}%</b>, <b>${onTrack}</b> indikator on track.` : '',
+    ],
+    ring: { pct: pct, label: 'terisi' },
+    seg: [
+      { label: 'Tercapai', val: tercapai, color: _DM_PAL.ok },
+      { label: 'Mendekati', val: mendekati, color: _DM_PAL.warn },
+      { label: 'Perlu tindakan', val: perluTindakan, color: _DM_PAL.bad },
+      { label: 'Belum diisi', val: belum, color: '#94a3b8' },
+    ],
+    trend: (() => {
+      const pr = prevAvgs[prevAvgs.length - 1];
+      const twPrev = `TW ${_DTW_ROM[Math.ceil(_prevPer[_prevPer.length - 1].bulan / 3)]}`;
+      return {
+        label: 'Rata-rata capaian',
+        val: rata == null ? '-' : `${Math.round(rata)}%`,
+        d: rata != null && pr != null ? Math.round(rata) - Math.round(pr) : null,
+        unit: 'poin', vs: `dari ${twPrev}`,
+        vals: [...prevAvgs, rata],
+        note: rata == null ? 'Belum ada capaian' : '',
+      };
+    })(),
+    reload: 'loadDashboardKinerja()',
+  });
 
-  html += `<div class="dash-kpi-row">
-    ${_kpiCard({ icon: iconTarget, label: 'Total Indikator', value: total, color: 'teal' })}
-    ${_kpiCard({ icon: iconCheck, label: 'Sudah Diisi', value: sudah, sub: `${pct}% dari total`, color: 'blue' })}
-    ${_kpiCard({ icon: iconWarn, label: 'Belum Diisi', value: belum, color: belum > 0 ? 'red' : 'blue' })}
-    ${_kpiCard({ icon: iconTrend, label: 'On Track (≥75%)', value: onTrack, sub: withCapaian.length ? `dari ${withCapaian.length} terisi` : null, color: 'green' })}
-    ${_kpiCard({ icon: iconFlag, label: 'Perlu Tindakan', value: perluTindakan, color: perluTindakan > 0 ? 'amber' : 'blue' })}
+  html += `<div class="dm-kpis">
+    ${_dmKpi({ label: 'Total Indikator', val: _dmNf(total), sub: labelTw, color: _DM_PAL.teal, icon: 'target' })}
+    ${_dmKpi({ label: 'Sudah Diisi', val: _dmNf(sudah), sub: `${pct}% dari total`, color: _DM_PAL.info, icon: 'check' })}
+    ${_dmKpi({ label: 'Belum Diisi', val: _dmNf(belum), sub: belum ? 'Perlu segera dilengkapi' : 'Sudah lengkap', color: belum ? _DM_PAL.bad : _DM_PAL.ok, icon: 'warn' })}
+    ${_dmKpi({ label: 'Rata-rata Capaian', val: rata == null ? '-' : `${Math.round(rata)}%`, sub: rata == null ? 'Belum ada capaian' : _kwCapaianLabel(rata), color: rata == null ? '#94a3b8' : _kwCapaianColor(rata), icon: 'trend' })}
+    ${_dmKpi({ label: 'On Track (≥75%)', val: _dmNf(onTrack), sub: withCap.length ? `dari ${withCap.length} terisi` : null, color: _DM_PAL.ok, icon: 'check' })}
+    ${_dmKpi({ label: 'Perlu Tindakan', val: _dmNf(perluTindakan), sub: 'Capaian di bawah 75%', color: perluTindakan ? _DM_PAL.warn : _DM_PAL.ok, icon: 'warn' })}
   </div>`;
 
-  const panelsTop = [];
-  const panels = [];
+  html += _dmCols([
+    _dmCard('Progres pengisian', labelTw, `<div style="margin-block:auto"><div class="dm-big"><b style="color:${pct >= 100 ? _DM_PAL.ok : _DM_PAL.warn}">${pct}%</b><span>${sudah} dari ${total} indikator</span></div>
+      <div class="dm-hb-track" style="height:10px"><i style="width:${pct}%;background:${pct >= 100 ? _DM_PAL.ok : _DM_PAL.warn}"></i></div></div>`),
+    _dmCard('Skala nilai capaian', 'Lampiran Permendagri No. 86 Tahun 2017', withCap.length ? _dmDonut(tiers.map(t => ({ label: t.label, value: t.n, color: t.color })), withCap.length, 'terisi', true) : _dmEmpty('Belum ada capaian terisi')),
+  ]).replace('class="dm-cols','class="dm-cols eq',1);
 
-  // Progres pengisian bulan ini - baris sendiri bareng Sebaran Jenis Indikator
-  panelsTop.push(`<div class="dash-panel">
-    <div class="dash-panel-header">${iconCheck} Progres Pengisian Triwulan Ini</div>
-    <div style="padding:14px 18px">
-      <div style="display:flex;align-items:center;justify-content:space-between;font-size:.78rem;color:var(--teks-muted);font-weight:700;margin-bottom:2px">
-        <span>Terisi</span><span style="color:#0f172a">${pct}%</span>
-      </div>
-      <div class="dash-progress-track" style="--card-accent:#f59e0b"><div class="dash-progress-fill" style="width:${pct}%"></div></div>
-    </div>
-  </div>`);
+  html += _dmCols([
+    _dmCard('Sebaran jenis indikator', 'Satu indikator bisa masuk lebih dari satu jenis', _dmHbAuto(Object.entries(jenisMap).filter(([, c]) => c > 0).map(([j, c]) => ({ label: j, value: c, color: jenisColors[j] })), 'Belum ada data')),
+    _dmCard('Capaian menurut jenis', 'Rata-rata capaian dan pengisian', _dmHb(grpList.sort((a, b) => b.total - a.total).map(g => {
+      const r = g.nCap ? Math.round(g.sumCap / g.nCap) : null;
+      const warnaBar = _KIN_JENIS_KODE[g.nama] ? _kinJenisWarna(g.nama).teks : (r == null ? '#cbd5e1' : _kwCapaianColor(r));
+      return { label: g.nama, value: r || 0, max: 100, color: warnaBar, right: r == null ? 'Belum ada' : `<b style="color:${_kwCapaianColor(r)}">${r}%</b>`, sub: `${g.terisi}/${g.total} indikator terisi` };
+    }), 'Belum ada data')),
+  ]);
 
-  if (Object.keys(jenisMap).length) {
-    panelsTop.push(_barListPanel({
-      icon: iconTarget, title: 'Sebaran Jenis Indikator',
-      rows: Object.entries(jenisMap).map(([j, c]) => ({ label: j, value: c, color: jenisColors[j] || '#94a3b8' })),
-    }));
-  }
+  const sorted = [...withCap].sort((a, b) => cap(b) - cap(a));
+  const rowCap = (x) => ({ label: x.indikator_kinerja, value: Math.round(Math.min(cap(x), 100)), max: 100, color: _kwCapaianColor(cap(x)), right: `<b style="color:${_kwCapaianColor(cap(x))}">${Math.round(cap(x))}%</b>` });
+  const belumList = _adm ? (ks?.belum_isi_list ?? []) : (ks?.belum_isi_list ?? []).filter(i => _idsRekap.has(Number(i.id)));
+  html += _dmCols([
+    _dmCard('Capaian tertinggi', 'Urut dari capaian tertinggi', _dmHb(sorted.map(rowCap), 'Belum ada capaian terisi')),
+    _dmCard('Capaian terendah', 'Urut dari capaian terendah', _dmHb([...sorted].reverse().map(rowCap), 'Belum ada capaian terisi')),
+  ]);
+  if (belumList.length) html += `<div class="dash-panels">${_kinerjaAlertPanel(belumList, belum)}</div>`;
 
-  if (withCapaian.length) {
-    panels.push(_barListPanel({
-      icon: iconTrend, title: 'Distribusi Capaian Indikator',
-      rows: [
-        { label: 'Tercapai (≥100%)',     value: tercapai,      color: '#10b981' },
-        { label: 'Mendekati (75–99%)',   value: mendekati,     color: '#f59e0b' },
-        { label: 'Perlu Tindakan (<75%)',value: perluTindakan, color: _KPI_COLORS.amber.text },
-      ],
-    }));
-  }
+  const ins = [];
+  if (belum > 0) ins.push(_dmIns(pct < 50 ? 'bad' : 'warn', `<b>${belum}</b> indikator belum diisi untuk ${labelTw}.`));
+  if (perluTindakan > 0) ins.push(_dmIns('warn', `<b>${perluTindakan}</b> indikator capaiannya di bawah 75%.`));
+  if (sorted.length && cap(sorted[sorted.length - 1]) < 51) ins.push(_dmIns('bad', `Capaian terendah: <b>${esc(sorted[sorted.length - 1].indikator_kinerja)}</b> (${Math.round(cap(sorted[sorted.length - 1]))}%).`));
+  if (tercapai > 0) ins.push(_dmIns('ok', `<b>${tercapai}</b> indikator sudah mencapai atau melampaui target.`));
+  if (!ins.length) ins.push(_dmIns('info', 'Belum ada catatan khusus untuk periode ini.'));
+  html += `<div class="dm-card" style="margin-bottom:var(--sp-4)"><div class="dm-card-h"><div class="dm-card-hl">${_dmCardIcon('Catatan')}<div class="dm-card-t">Catatan</div></div></div>${ins.join('')}</div>`;
 
-  if (withCapaian.length) {
-    const top5 = [...withCapaian].sort((a, b) => Number(b.capaian_persen) - Number(a.capaian_persen)).slice(0, 5);
-    panels.push(_barListPanel({
-      icon: iconCheck, title: 'Capaian Tertinggi',
-      rows: top5.map(x => {
-        const cap = Number(x.capaian_persen);
-        return { label: x.indikator_kinerja, value: Math.round(cap), suffix: '%', color: _kwCapaianColor(cap) };
-      }),
-    }));
-  }
-
-  const belumList = ks?.belum_isi_list ?? [];
-  if (belumList.length) panels.push(_kinerjaAlertPanel(belumList, belum));
-
-  if (panelsTop.length) html += `<div class="dash-panels">${panelsTop.join('')}</div>`;
-  if (panels.length)    html += `<div class="dash-panels">${panels.join('')}</div>`;
-
-  wrap.innerHTML = html;
+  _dmMount(wrap, html);
   if (belumList.length) _kbRenderPagination();
 }
 async function _fetchStats() {
@@ -1288,8 +2028,8 @@ async function _fetchSuratDashData() {
     const [rm, rk, rrm, rrk, rov] = await Promise.all([
       fetch('/api/surat-masuk/stats',                       { headers: authHeaders() }),
       fetch('/api/surat-keluar/stats',                      { headers: authHeaders() }),
-      fetch('/api/surat-masuk?page=1&limit=5&q=&sort=terbaru',  { headers: authHeaders() }),
-      fetch('/api/surat-keluar?page=1&limit=5&q=&sort=terbaru', { headers: authHeaders() }),
+      fetch('/api/surat-masuk?page=1&limit=25&q=&sort=terbaru',  { headers: authHeaders() }),
+      fetch('/api/surat-keluar?page=1&limit=25&q=&sort=terbaru', { headers: authHeaders() }),
       fetch('/api/surat-masuk?page=1&limit=50&selesai=false&q=', { headers: authHeaders() }),
     ]);
     const masuk  = rm.ok  ? await rm.json()  : {};
@@ -1310,6 +2050,13 @@ async function _fetchSuratDashData() {
       masuk_bulan_ini:   masuk.bulan_ini      ?? 0,
       total_keluar:      keluar.total         ?? '-',
       keluar_bulan_ini:  keluar.bulan_ini     ?? 0,
+      keluar_tahun_ini:  keluar.tahun_ini     ?? 0,
+      tren_masuk:    masuk.tren_masuk    || [],
+      tren_keluar:   keluar.tren_keluar  || [],
+      top_asal:      masuk.top_asal      || [],
+      top_tujuan:    keluar.top_tujuan   || [],
+      sisa_waktu:    masuk.sisa_waktu    || null,
+      beban_pegawai: masuk.beban_pegawai || [],
       overdue_list,
       recent_masuk: rmList.map(s => ({
         perihal: s.perihal,
@@ -1969,16 +2716,43 @@ let _kbList = [];
 let _kbPage = 1;
 const _KB_PAGE_SIZE = 5;
 
-const _KB_JENIS_COLORS = { IKU: '#3b82f6', IKK: '#10b981', SPM: '#f59e0b' };
+// Warna jenis indikator mengikuti menu Kinerja: sumbernya tabel kinerja_jenis (warna_bg / warna_teks) lewat
+// /api/kinerja/jenis-kinerja, sama dengan _renderJenisBadges di kinerja.js. Fallback = nilai bawaan tabel itu.
+const _KIN_JENIS_KODE = { IKU: 'iku', IKK: 'ikk', SPM: 'spm', 'Sub Kegiatan': 'subkeg' };
+const _KIN_JENIS_DEFAULT = {
+  iku:    { bg: '#dbeafe', teks: '#1e40af' },
+  ikk:    { bg: '#d1fae5', teks: '#065f46' },
+  spm:    { bg: '#fef3c7', teks: '#b45309' },
+  subkeg: { bg: '#ede9fe', teks: '#6d28d9' },
+};
+let _kinJenisWarnaCache = null; // { kode: { bg, teks } }
+async function _kinLoadJenisWarna() {
+  if (_kinJenisWarnaCache) return _kinJenisWarnaCache;
+  const peta = { ..._KIN_JENIS_DEFAULT };
+  try {
+    const r = await fetch('/api/kinerja/jenis-kinerja', { headers: authHeaders() });
+    if (r.ok) {
+      const d = await r.json();
+      (d.jenis || []).forEach(j => { if (j && j.kode && j.warna_bg && j.warna_teks) peta[j.kode] = { bg: j.warna_bg, teks: j.warna_teks }; });
+      _kinJenisWarnaCache = peta;
+    }
+  } catch (err) { console.error('[_kinLoadJenisWarna]', err); }
+  return peta;
+}
+function _kinJenisWarna(label) {
+  const peta = _kinJenisWarnaCache || _KIN_JENIS_DEFAULT;
+  return peta[_KIN_JENIS_KODE[label]] || _KIN_JENIS_DEFAULT[_KIN_JENIS_KODE[label]] || { bg: '#e2e8f0', teks: '#334155' };
+}
 function _kbJenisBadge(label) {
-  const c = _KB_JENIS_COLORS[label] || '#94a3b8';
-  return `<span class="badge" style="font-size:.63rem;background:${c}1f;color:${c}">${label}</span>`;
+  const c = _kinJenisWarna(label);
+  return `<span style="display:inline-flex;align-items:center;font-size:.7rem;font-weight:700;color:${c.teks};background:${c.bg};padding:2px 7px;border-radius:5px;margin-right:3px">${label}</span>`;
 }
 function _kbJenisBadges(i) {
   const badges = [];
   if (i.jenis_monev) badges.push(_kbJenisBadge('IKU'));
   if (i.jenis_ikk)   badges.push(_kbJenisBadge('IKK'));
   if (i.jenis_spm)   badges.push(_kbJenisBadge('SPM'));
+  if (_kinIsSubkeg(i)) badges.push(_kbJenisBadge('Sub Kegiatan'));
   return badges.join(' ');
 }
 
@@ -2603,7 +3377,7 @@ async function _initKinerjaWatch() {
   _renderKinerjaWatch();
 }
 
-const _KW_JENIS_LIST = ['monev', 'ikk', 'spm'];
+const _KW_JENIS_LIST = ['monev', 'ikk', 'spm', 'subkeg'];
 const _KW_MAX_CONCURRENT = 2;   // 4 -> 2: tiap request /rekap/tahun membawa ratusan KB-MB dari Neon; jangan tumpuk di koneksi yang lambat
 
 // Batasi request /rekap/tahun yang jalan bersamaan. Sebelumnya tiap tahun x 3 jenis ditembak sekaligus
@@ -2626,7 +3400,7 @@ function _kwLimit(fn) {
 // Hasil yang ada jenis-nya gagal diambil: tetap dipakai untuk tampilan, tapi TIDAK disimpan ke cache 24 jam.
 const _kwPartial = new WeakSet();
 
-const KW_REKAP_CACHE_KEY = (tahun) => `kw_rekap2_${_user?.id || 'guest'}_${tahun}`;
+const KW_REKAP_CACHE_KEY = (tahun) => `kw_rekap3_${_user?.id || 'guest'}_${tahun}`;
 const KW_REKAP_CACHE_TTL = 24 * 3600 * 1000; 
 // Cache yang umurnya di bawah ini dipakai apa adanya TANPA refresh latar belakang. Sebelumnya tiap kali dashboard dibuka
 // selalu menembak ulang tahun x 3 jenis request berat walau cache baru berumur beberapa detik.
@@ -2709,7 +3483,7 @@ function _kwRerenderAfterBgRefresh() {
 }
 
 // In-flight dedupe per tahun: tanpa ini, tiap widget yang manggil _kwFetchTahun(2026) barengan
-// nembak 3 request (monev/ikk/spm) sendiri-sendiri.
+// nembak 4 request (monev/ikk/spm/subkeg) sendiri-sendiri.
 const _kwTahunInflight = new Map();
 async function _kwFetchTahun(tahun) {
   if (_kwAllRekap[tahun]) return;

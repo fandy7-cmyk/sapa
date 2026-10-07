@@ -1082,10 +1082,10 @@ function _renderAssignIndikatorList(resetScroll = false) {
     items.forEach(r => {
       const sel = _assignSelectedIds.has(r.id);
       const jenisTag = [
-        r.jenis_monev ? '<span style="font-size:.62rem;font-weight:700;color:#1e40af;background:#dbeafe;padding:1px 5px;border-radius:4px">IKU</span>' : '',
-        r.jenis_ikk   ? '<span style="font-size:.62rem;font-weight:700;color:#065f46;background:#d1fae5;padding:1px 5px;border-radius:4px">IKK</span>'   : '',
-        r.jenis_spm   ? '<span style="font-size:.62rem;font-weight:700;color:#92400e;background:#fef3c7;padding:1px 5px;border-radius:4px">SPM</span>'   : '',
-        (Array.isArray(r.jenis_custom) && r.jenis_custom.includes('subkeg')) ? '<span style="font-size:.62rem;font-weight:700;color:#6d28d9;background:#ede9fe;padding:1px 5px;border-radius:4px">Sub Kegiatan</span>' : '',
+        r.jenis_monev ? jenisBadgeHtml('monev', 'IKU', 'font-size:.62rem;font-weight:700;padding:1px 5px;border-radius:4px') : '',
+        r.jenis_ikk   ? jenisBadgeHtml('ikk', 'IKK', 'font-size:.62rem;font-weight:700;padding:1px 5px;border-radius:4px')   : '',
+        r.jenis_spm   ? jenisBadgeHtml('spm', 'SPM', 'font-size:.62rem;font-weight:700;padding:1px 5px;border-radius:4px')   : '',
+        (Array.isArray(r.jenis_custom) && r.jenis_custom.includes('subkeg')) ? jenisBadgeHtml('subkeg', 'Sub Kegiatan', 'font-size:.62rem;font-weight:700;padding:1px 5px;border-radius:4px') : '',
       ].filter(Boolean).join(' ');
       html += `
         <label style="display:flex;align-items:flex-start;gap:10px;padding:8px 14px;cursor:pointer;border-bottom:1px solid #f1f5f9;${sel ? 'background:#f0fdfa' : ''}" 

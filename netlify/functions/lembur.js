@@ -251,7 +251,10 @@ export const handler = async (event) => {
             EXISTS(SELECT 1 FROM lembur_entries e WHERE e.sesi_id = s.id AND e.user_id = ${auth.id}) AS is_peserta,
             (SELECT STRING_AGG(u.nama, ', ' ORDER BY e.id ASC)
                FROM lembur_entries e JOIN users u ON u.id = e.user_id
-               WHERE e.sesi_id = s.id) AS daftar_peserta
+               WHERE e.sesi_id = s.id) AS daftar_peserta,
+            (SELECT COALESCE(JSON_AGG(u.nama ORDER BY e.id ASC), '[]'::json)
+               FROM lembur_entries e JOIN users u ON u.id = e.user_id
+               WHERE e.sesi_id = s.id) AS peserta_nama
           FROM lembur_sesi s
           WHERE s.kegiatan_id = ${kegiatanId}
           ORDER BY s.tanggal ASC, s.id ASC

@@ -368,10 +368,10 @@ const _kinerjaCountdownTimers = {};
 
 function _kperiodeJenisMeta(jenis) {
   const checklistIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 11l3 3L22 4"/><path stroke-linecap="round" stroke-linejoin="round" d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>`;
-  if (jenis === 'monev') return { label: 'IKU', bg: '#dbeafe', fg: '#1d4ed8', icon: checklistIcon };
-  if (jenis === 'ikk') return { label: 'IKK', bg: '#ede9fe', fg: '#7c3aed', icon: checklistIcon };
-  if (jenis === 'spm') return { label: 'SPM', bg: '#fef3c7', fg: '#b45309', icon: checklistIcon };
-  if (jenis === 'subkeg') return { label: 'Sub Kegiatan', bg: '#ede9fe', fg: '#6d28d9', icon: checklistIcon };
+  if (jenis === 'monev') return { label: 'IKU', bg: jenisWarna('monev').bg, fg: jenisWarna('monev').teks, icon: checklistIcon };
+  if (jenis === 'ikk') return { label: 'IKK', bg: jenisWarna('ikk').bg, fg: jenisWarna('ikk').teks, icon: checklistIcon };
+  if (jenis === 'spm') return { label: 'SPM', bg: jenisWarna('spm').bg, fg: jenisWarna('spm').teks, icon: checklistIcon };
+  if (jenis === 'subkeg') return { label: 'Sub Kegiatan', bg: jenisWarna('subkeg').bg, fg: jenisWarna('subkeg').teks, icon: checklistIcon };
   return { label: 'INPUT', bg: '#f1f5f9', fg: '#64748b', icon: checklistIcon };
 }
 
@@ -807,13 +807,16 @@ function _lockDukungButtons(indikatorId) {
   }
 }
 
+// Tombol Reset realisasi (IKU/IKK/SPM/Sub Kegiatan) khusus Super Admin - Admin Kinerja (kinerja.full) tidak termasuk.
+function _isSuperAdminKinerja() { return !!(_user && _user.is_admin); }
+
 function _ensureResetBtn(indikatorId, prefix, jenis) {
-  if (!_isKinerjaAdmin()) return;
+  if (!_isSuperAdminKinerja()) return;
   if (document.getElementById(`${prefix}resetbtn_${indikatorId}`)) return;
   const saveBtn = document.getElementById(`${prefix}savebtn_${indikatorId}`);
   if (!saveBtn) return;
   saveBtn.insertAdjacentHTML('afterend', `
-    <button class="btn-reset-row" id="${prefix}resetbtn_${indikatorId}" data-tip="Reset data realisasi baris ini (admin)"
+    <button class="btn-reset-row" id="${prefix}resetbtn_${indikatorId}" data-tip="Reset data realisasi baris ini (super admin)"
       onclick="resetRealisasiRow(${indikatorId}, '${jenis}')">
       <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
       Reset
@@ -1015,8 +1018,8 @@ function renderKinerjaTable(tbody) {
   : '<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/><path d="M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7"/><path d="M7 3v4a1 1 0 0 0 1 1h7"/></svg> Simpan'}
           </button>
         ` : ''}
-        ${_isKinerjaAdmin() && row.realisasi_id ? `
-          <button class="btn-reset-row" id="resetbtn_${row.id}" data-tip="Reset data realisasi baris ini (admin)"
+        ${_isSuperAdminKinerja() && row.realisasi_id ? `
+          <button class="btn-reset-row" id="resetbtn_${row.id}" data-tip="Reset data realisasi baris ini (super admin)"
             onclick="resetRealisasiRow(${row.id}, 'monev')">
             <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
             Reset
@@ -1753,6 +1756,7 @@ async function loadIndikatorAdmin({ keepFilter = false } = {}) {
     _groupList         = dg.group    || [];
     _bidangListKinerja = db.bidang   || [];
     _jenisList         = (dj.jenis   || []).filter(j => j.aktif);
+    if (typeof setWarnaJenisKinerja === 'function') setWarnaJenisKinerja(dj.jenis);
     
     _targetMap = {};
     for (const t of (dt.target || [])) {
@@ -3395,10 +3399,10 @@ function renderKelolaTarget() {
   const slice = filtered.slice(start, start + _ktPageSize);
 
   const jenisBadge = ind => [
-    ind.jenis_monev ? `<span style="font-size:.67rem;font-weight:700;color:#1e40af;background:#dbeafe;padding:1px 5px;border-radius:4px">IKU</span>` : '',
-    ind.jenis_ikk   ? `<span style="font-size:.67rem;font-weight:700;color:#065f46;background:#d1fae5;padding:1px 5px;border-radius:4px">IKK</span>` : '',
-    ind.jenis_spm   ? `<span style="font-size:.67rem;font-weight:700;color:#b45309;background:#fef3c7;padding:1px 5px;border-radius:4px">SPM</span>` : '',
-    (Array.isArray(ind.jenis_custom) && ind.jenis_custom.includes('subkeg')) ? `<span style="font-size:.67rem;font-weight:700;color:#6d28d9;background:#ede9fe;padding:1px 5px;border-radius:4px">Sub Kegiatan</span>` : '',
+    ind.jenis_monev ? jenisBadgeHtml('monev', 'IKU', 'font-size:.67rem;font-weight:700;padding:1px 5px;border-radius:4px') : '',
+    ind.jenis_ikk   ? jenisBadgeHtml('ikk', 'IKK', 'font-size:.67rem;font-weight:700;padding:1px 5px;border-radius:4px') : '',
+    ind.jenis_spm   ? jenisBadgeHtml('spm', 'SPM', 'font-size:.67rem;font-weight:700;padding:1px 5px;border-radius:4px') : '',
+    (Array.isArray(ind.jenis_custom) && ind.jenis_custom.includes('subkeg')) ? jenisBadgeHtml('subkeg', 'Sub Kegiatan', 'font-size:.67rem;font-weight:700;padding:1px 5px;border-radius:4px') : '',
   ].filter(Boolean).join(' ') || '<span style="color:var(--teks-muted);font-size:.75rem">-</span>';
 
   // Header kolom tahun - ikut style .kinerja-table th (var(--hijau), #fff)
@@ -4752,8 +4756,8 @@ function _renderIkkTable(tbody) {
   : '<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/><path d="M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7"/><path d="M7 3v4a1 1 0 0 0 1 1h7"/></svg> Simpan'}
           </button>
         ` : ''}
-        ${_isKinerjaAdmin() && row.realisasi_id ? `
-          <button class="btn-reset-row" id="ikk_resetbtn_${row.id}" data-tip="Reset data realisasi baris ini (admin)"
+        ${_isSuperAdminKinerja() && row.realisasi_id ? `
+          <button class="btn-reset-row" id="ikk_resetbtn_${row.id}" data-tip="Reset data realisasi baris ini (super admin)"
             onclick="resetRealisasiRow(${row.id}, 'ikk')">
             <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
             Reset
@@ -6740,10 +6744,10 @@ function _monRenderTable() {
       : `<span style="font-size:.72rem;color:#94a3b8;font-style:italic">Belum ditugaskan</span>`;
 
     const jenisBadges = [
-      r.jenis_monev ? `<span style="background:#dbeafe;color:#1d4ed8;border-radius:4px;padding:1px 5px;font-size:.63rem;font-weight:700">IKU</span>` : '',
-      r.jenis_ikk   ? `<span style="background:#ede9fe;color:#7c3aed;border-radius:4px;padding:1px 5px;font-size:.63rem;font-weight:700">IKK</span>`   : '',
-      r.jenis_spm   ? `<span style="background:#fef3c7;color:#b45309;border-radius:4px;padding:1px 5px;font-size:.63rem;font-weight:700">SPM</span>`   : '',
-      (Array.isArray(r.jenis_custom) && r.jenis_custom.includes('subkeg')) ? `<span style="background:#ede9fe;color:#6d28d9;border-radius:4px;padding:1px 5px;font-size:.63rem;font-weight:700">Sub Kegiatan</span>` : '',
+      r.jenis_monev ? jenisBadgeHtml('monev', 'IKU') : '',
+      r.jenis_ikk   ? jenisBadgeHtml('ikk', 'IKK')   : '',
+      r.jenis_spm   ? jenisBadgeHtml('spm', 'SPM')   : '',
+      (Array.isArray(r.jenis_custom) && r.jenis_custom.includes('subkeg')) ? jenisBadgeHtml('subkeg', 'Sub Kegiatan') : '',
     ].filter(Boolean).join(' ');
 
     const capaian = r.capaian_persen != null
@@ -7145,8 +7149,8 @@ function _renderSpmTable(tbody) {
   : '<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/><path d="M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7"/><path d="M7 3v4a1 1 0 0 0 1 1h7"/></svg> Simpan'}
           </button>
         ` : ''}
-        ${_isKinerjaAdmin() && row.realisasi_id ? `
-          <button class="btn-reset-row" id="spm_resetbtn_${row.id}" data-tip="Reset data realisasi baris ini (admin)"
+        ${_isSuperAdminKinerja() && row.realisasi_id ? `
+          <button class="btn-reset-row" id="spm_resetbtn_${row.id}" data-tip="Reset data realisasi baris ini (super admin)"
             onclick="resetRealisasiRow(${row.id}, 'spm')">
             <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
             Reset
@@ -7760,8 +7764,8 @@ function _renderSubkegTable(tbody) {
   : '<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/><path d="M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7"/><path d="M7 3v4a1 1 0 0 0 1 1h7"/></svg> Simpan'}
           </button>
         ` : ''}
-        ${_isKinerjaAdmin() && row.realisasi_id ? `
-          <button class="btn-reset-row" id="subkeg_resetbtn_${row.id}" data-tip="Reset data realisasi baris ini (admin)"
+        ${_isSuperAdminKinerja() && row.realisasi_id ? `
+          <button class="btn-reset-row" id="subkeg_resetbtn_${row.id}" data-tip="Reset data realisasi baris ini (super admin)"
             onclick="resetRealisasiRow(${row.id}, 'subkeg')">
             <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
             Reset
@@ -8109,7 +8113,7 @@ _togglePermasalahanSolusi('subkeg', indikatorId, _cSubkeg);
 const _RESET_BTN_IDLE_HTML = `<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>\n      Reset`;
 
 async function resetRealisasiRow(indikatorId, jenis) {
-  if (!_isKinerjaAdmin()) return;
+  if (!_isSuperAdminKinerja()) return;
   const ok = await showConfirm({ title: 'Reset Realisasi', msg: 'Data realisasi baris ini akan dihapus dan baris kembali kosong.', okText: 'Ya, Reset', icon: 'trash' }); if (!ok) return;
 
   const dataArr = jenis === 'ikk' ? _ikkData : jenis === 'spm' ? _spmData : jenis === 'subkeg' ? _subkegData : _kinerjaData;

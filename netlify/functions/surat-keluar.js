@@ -55,7 +55,22 @@ export const handler = async (event) => {
       const [{ total }] = await sql`SELECT COUNT(*)::INT AS total FROM surat_keluar WHERE (${isAdmin} = TRUE OR ${isFull} = TRUE OR pegawai_list @> ${meNama}::jsonb)`;
       const [{ bulan_ini }] = await sql`SELECT COUNT(*)::INT AS bulan_ini FROM surat_keluar WHERE DATE_TRUNC('month', tanggal_surat) = DATE_TRUNC('month', CURRENT_DATE) AND (${isAdmin} = TRUE OR ${isFull} = TRUE OR pegawai_list @> ${meNama}::jsonb)`;
       const [{ tahun_ini }] = await sql`SELECT COUNT(*)::INT AS tahun_ini FROM surat_keluar WHERE DATE_TRUNC('year', tanggal_surat) = DATE_TRUNC('year', CURRENT_DATE) AND (${isAdmin} = TRUE OR ${isFull} = TRUE OR pegawai_list @> ${meNama}::jsonb)`;
-      return jsonResponse({ total, bulan_ini, tahun_ini });
+      let ex = {};
+      try {
+        const [tren, topTujuan] = await Promise.all([
+          sql`SELECT TO_CHAR(DATE_TRUNC('month', tanggal_surat), 'YYYY-MM') AS bulan, COUNT(*)::INT AS jumlah
+              FROM surat_keluar
+              WHERE tanggal_surat >= DATE_TRUNC('month', CURRENT_DATE) - INTERVAL '5 months'
+                AND (${isAdmin} = TRUE OR ${isFull} = TRUE OR pegawai_list @> ${meNama}::jsonb)
+              GROUP BY 1 ORDER BY 1`,
+          sql`SELECT tujuan_surat AS nama, COUNT(*)::INT AS jumlah FROM surat_keluar
+              WHERE tujuan_surat IS NOT NULL AND tujuan_surat <> ''
+                AND (${isAdmin} = TRUE OR ${isFull} = TRUE OR pegawai_list @> ${meNama}::jsonb)
+              GROUP BY 1 ORDER BY jumlah DESC LIMIT 20`,
+        ]);
+        ex = { tren_keluar: tren, top_tujuan: topTujuan };
+      } catch (e) { console.error('[STATS surat-keluar extra]', e.message); }
+      return jsonResponse({ total, bulan_ini, tahun_ini, ...ex });
     } catch (err) { return errorResponse('Gagal mengambil statistik'); }
   }
 

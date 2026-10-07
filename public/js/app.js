@@ -271,6 +271,41 @@ function _isPantauKinerja() {
   return hasAccess('kinerja.pantau') || hasAccess('kinerja.pantau.semua');
 }
 
+// ── Warna jenis indikator (IKU/IKK/SPM/Sub Kegiatan) ─────────────────────────────────────────────
+// Satu sumber untuk semua badge jenis di aplikasi: tabel kinerja_jenis (warna_bg / warna_teks) yang diatur di
+// menu Kinerja. Nilai awal = default bawaan tabel itu, lalu ditimpa begitu data dari API termuat
+// (_muatWarnaJenisKinerja saat boot, atau setWarnaJenisKinerja dari halaman Kinerja).
+const _JENIS_WARNA_DEFAULT = {
+  monev:  { bg: '#dbeafe', teks: '#1e40af' },
+  ikk:    { bg: '#d1fae5', teks: '#065f46' },
+  spm:    { bg: '#fef3c7', teks: '#b45309' },
+  subkeg: { bg: '#ede9fe', teks: '#6d28d9' },
+};
+const _JENIS_KODE_KE_KEY = { iku: 'monev', ikk: 'ikk', spm: 'spm', subkeg: 'subkeg' };
+let _jenisWarnaApi = {};
+function jenisWarna(jenis) {
+  return _jenisWarnaApi[jenis] || _JENIS_WARNA_DEFAULT[jenis] || { bg: '#e2e8f0', teks: '#334155' };
+}
+function setWarnaJenisKinerja(list) {
+  const peta = {};
+  (list || []).forEach(j => {
+    const key = _JENIS_KODE_KE_KEY[j && j.kode];
+    if (key && j.warna_bg && j.warna_teks) peta[key] = { bg: j.warna_bg, teks: j.warna_teks };
+  });
+  _jenisWarnaApi = peta;
+}
+async function _muatWarnaJenisKinerja() {
+  try {
+    const r = await fetch('/api/kinerja/jenis-kinerja', { headers: authHeaders() });
+    if (r.ok) setWarnaJenisKinerja((await r.json()).jenis);
+  } catch {}
+}
+// jenis: 'monev' | 'ikk' | 'spm' | 'subkeg'; css = gaya ukuran khusus tiap tempat.
+function jenisBadgeHtml(jenis, label, css = 'border-radius:4px;padding:1px 5px;font-size:.63rem;font-weight:700') {
+  const c = jenisWarna(jenis);
+  return `<span style="background:${c.bg};color:${c.teks};${css}">${label}</span>`;
+}
+
 const hasPermission = hasAccess;  
 
 let _hasMonevIndikator = false;
@@ -1534,7 +1569,7 @@ async function _bootRefreshTandaTangan() {
   // Foto tidak ditunggu: avatar dari cache sessionStorage sudah dipasang di awal _bootRefreshFoto().
   _bootRefreshFoto();
   // _cekKinerjaIndikator bergantung pada permissions (kinerja.full / pantau), jadi dijalankan SETELAH sinkron user.
-  Promise.allSettled([loadPeriodeAktif(), _bootRefreshUser().then(() => _cekKinerjaIndikator()), _bootRefreshTandaTangan()])
+  Promise.allSettled([loadPeriodeAktif(), _bootRefreshUser().then(() => _cekKinerjaIndikator()), _bootRefreshTandaTangan(), _muatWarnaJenisKinerja()])
     .then(() => {
       buildSidebar();
       _applySidebarCollapse();
@@ -3247,10 +3282,10 @@ function _filterLapTplIndList() {
 
   const jenisBadge = (r) => {
     const arr = [];
-    if (r.jenis_monev) arr.push(`<span style="background:#d1fae5;color:#065f46;border-radius:3px;padding:1px 5px;font-size:.66rem;font-weight:700">IKU</span>`);
-    if (r.jenis_ikk)   arr.push(`<span style="background:#dbeafe;color:#1d4ed8;border-radius:3px;padding:1px 5px;font-size:.66rem;font-weight:700">IKK</span>`);
-    if (r.jenis_spm)   arr.push(`<span style="background:#fef3c7;color:#92400e;border-radius:3px;padding:1px 5px;font-size:.66rem;font-weight:700">SPM</span>`);
-    if (Array.isArray(r.jenis_custom) && r.jenis_custom.includes('subkeg')) arr.push(`<span style="background:#ede9fe;color:#6d28d9;border-radius:3px;padding:1px 5px;font-size:.66rem;font-weight:700">Sub Kegiatan</span>`);
+    if (r.jenis_monev) arr.push(jenisBadgeHtml('monev', 'IKU', 'border-radius:3px;padding:1px 5px;font-size:.66rem;font-weight:700'));
+    if (r.jenis_ikk)   arr.push(jenisBadgeHtml('ikk', 'IKK', 'border-radius:3px;padding:1px 5px;font-size:.66rem;font-weight:700'));
+    if (r.jenis_spm)   arr.push(jenisBadgeHtml('spm', 'SPM', 'border-radius:3px;padding:1px 5px;font-size:.66rem;font-weight:700'));
+    if (Array.isArray(r.jenis_custom) && r.jenis_custom.includes('subkeg')) arr.push(jenisBadgeHtml('subkeg', 'Sub Kegiatan', 'border-radius:3px;padding:1px 5px;font-size:.66rem;font-weight:700'));
     return arr.join(' ');
   };
 

@@ -1181,7 +1181,8 @@ export const handler = async (event) => {
     }
 
     if (event.httpMethod === 'DELETE' && id) {
-      if (!auth.is_admin) return errorResponse('Akses ditolak', 403);
+      // Reset realisasi khusus Super Admin; Admin Kinerja (kinerja.full) yang di-elevasi ke is_admin tidak boleh.
+      if (!auth.is_admin || auth.kinerja_admin) return errorResponse('Reset realisasi hanya untuk Super Admin', 403);
       const before = await sql`SELECT data_dukung_url FROM kinerja_realisasi WHERE id = ${id} LIMIT 1`;
       await sql`DELETE FROM kinerja_realisasi WHERE id = ${id}`;
       if (before.length) await cleanupOldDukungFiles(parseDukungUrls(before[0].data_dukung_url), []);
@@ -4405,7 +4406,7 @@ export const handler = async (event) => {
         `;
         belumRows = await sql`
           SELECT ki.id, ki.indikator_kinerja AS nama, kg.nama AS bidang,
-                 ki.jenis_monev, ki.jenis_ikk, ki.jenis_spm, ki.bermakna_negatif
+                 ki.jenis_monev, ki.jenis_ikk, ki.jenis_spm, ki.jenis_custom, ki.bermakna_negatif
           FROM kinerja_indikator ki
           LEFT JOIN kinerja_group kg ON kg.id = ki.group_id
           LEFT JOIN kinerja_realisasi kr
@@ -4439,7 +4440,7 @@ export const handler = async (event) => {
         `;
         belumRows = await sql`
           SELECT ki.id, ki.indikator_kinerja AS nama, kg.nama AS bidang,
-                 ki.jenis_monev, ki.jenis_ikk, ki.jenis_spm, ki.bermakna_negatif
+                 ki.jenis_monev, ki.jenis_ikk, ki.jenis_spm, ki.jenis_custom, ki.bermakna_negatif
           FROM kinerja_indikator ki
           LEFT JOIN kinerja_group kg ON kg.id = ki.group_id
           LEFT JOIN kinerja_realisasi kr

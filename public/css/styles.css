@@ -615,6 +615,7 @@ body::before {
   font-size: .60rem; font-weight: 600; line-height: 1.35;
   padding: 3px 8px; border-radius: var(--r-sm);
   text-align: center;
+  white-space: pre-line; /* dukung baris baru (\n) di data-tip, mis. tooltip grafik dashboard */
   box-shadow: 0 2px 8px rgba(4,125,120,.15);
   opacity: 0; pointer-events: none;
   transition: opacity .15s ease;
@@ -7815,6 +7816,13 @@ tr:hover td:not(.td-sticky-no):not(.td-sticky-name) { background: var(--abu-1); 
   border-bottom: 1px solid var(--abu-2);
   background: var(--abu-1);
 }
+/* Icon judul panel: chip berwarna, sama dengan icon judul card dashboard (.dm-card-ic) */
+.dash-panel-header > svg:first-child {
+  box-sizing: content-box; width: 16px; height: 16px; padding: 7px; border-radius: 8px; flex-shrink: 0;
+  color: #047D78; background: var(--hijau-light, #e6f4f3);
+}
+.dash-panel--urgent .dash-panel-header > svg:first-child,
+.dash-panel--libur .dash-panel-header > svg:first-child { color: #dc2626; background: #fee2e2; }
 
 
 /* ═══════════════════════════════════════════════════════════════════════════
@@ -10064,11 +10072,11 @@ body.is-admin #absRekapBox { grid-template-columns: repeat(6, 0.85fr) 1.5fr; }
 #lapAbsRekapBox { grid-template-columns: repeat(6, 0.85fr) 1.5fr; }
 @media (max-width: 1100px) {
   #lapAbsRekapBox { grid-template-columns: repeat(3, 1fr); }
-  #lapAbsRekapBox .abs-jamkerja-wrap:nth-child(7):last-child { grid-column: 1 / -1; }
+  #lapAbsRekapBox > :nth-child(7):last-child { grid-column: 1 / -1; }
 }
 @media (max-width: 640px) {
   #lapAbsRekapBox { grid-template-columns: repeat(2, 1fr); }
-  #lapAbsRekapBox .abs-jamkerja-wrap:nth-child(7):last-child { grid-column: 1 / -1; }
+  #lapAbsRekapBox > :nth-child(7):last-child { grid-column: 1 / -1; }
 }
 
 /* ── Toolbar filter Laporan Absensi di HP: select & date-picker dipasangin
