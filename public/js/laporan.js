@@ -23,6 +23,7 @@
     .lap-mp-cell.disabled { color:#cbd5e1; cursor:default; }
     /* Filter rentang Laporan Kinerja: gaya sama dengan input tanggal Laporan Absensi (cdtp-trigger) */
     .lap-range-wrap { display:inline-flex; align-items:center; gap:8px; flex:0 0 auto; width:auto; max-width:100%; min-width:0; }
+    .lap-range-label { flex-shrink:0; font-size:.85rem; font-weight:400; color:var(--teks-muted,#64748b); white-space:nowrap; }
     .lap-range-arrow { flex-shrink:0; display:flex; align-items:center; color:var(--teks-muted,#94a3b8); }
     .lap-range-wrap .lap-mp { display:flex; flex:0 1 128px; min-width:0; width:128px; height:var(--input-h,42px); padding:0 var(--sp-4,13px); box-sizing:border-box; gap:8px; background:var(--abu-1,#f8fafc); border:1.5px solid var(--abu-2,#e2e8f0); border-radius:var(--r-sm,8px); font-family:inherit; font-size:var(--fs-sm,.764rem); font-weight:400; color:var(--teks,#0f172a); line-height:1.4; text-align:left; }
     .lap-range-wrap .lap-mp:hover { border-color:var(--hijau-mid,#0d9488); }
@@ -1722,6 +1723,7 @@ function _lapRenderRangeFilter(tahunList) {
 
   container.innerHTML = `
     <div class="lap-range-wrap">
+      <span class="lap-range-label">Periode</span>
       ${_lapMonthPicker('lapMpFrom', tahunList, _lapRangeFrom.key, '_lapSetRangeFrom', 'Dari')}
       <span class="lap-range-arrow" aria-hidden="true"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
       ${_lapMonthPicker('lapMpTo', tahunList, _lapRangeTo.key, '_lapSetRangeTo', 'Sampai')}
@@ -2591,6 +2593,14 @@ function _applyLaporanKinerjaFilters(rows) {
   return out;
 }
 
+// Data laporan untuk tombol download: baris sudah mengikuti filter di layar (Unit Kerja + pencarian).
+// Rentang periode, Jenis, dan Scope sudah tercermin di data.rows saat loadLaporanKinerja().
+function _lapDataTerfilter() {
+  const d = window._laporanKinerjaData;
+  if (!d || !d.rows) return d;
+  return { ...d, rows: _applyLaporanKinerjaFilters(d.rows) };
+}
+
 
 function _lapMaknaBadgeHtml(bermaknaNegatif) {
   return bermaknaNegatif
@@ -2646,8 +2656,9 @@ function _lapKinerjaFlatRowsHtml(rows, displayCols) {
 }
 
 async function downloadLaporanByUrusan(btnEl) {
-  const data = window._laporanKinerjaData;
+  const data = _lapDataTerfilter();
   if (!data || !data.rows) { toast('Muat data laporan terlebih dahulu', 'error'); return; }
+  if (!data.rows.length) { toast('Tidak ada data untuk filter ini', 'error'); return; }
 
   if (btnEl) { btnEl.disabled = true; btnEl.innerHTML = `<span class="btn-spin" style="width:12px;height:12px"></span> Memuat data...`; }
   try {
@@ -2775,8 +2786,9 @@ async function downloadLaporanByUrusan(btnEl) {
 }
 
 async function downloadLaporanByTSP(btnEl) {
-  const data = window._laporanKinerjaData;
+  const data = _lapDataTerfilter();
   if (!data || !data.rows) { toast('Muat data laporan terlebih dahulu', 'error'); return; }
+  if (!data.rows.length) { toast('Tidak ada data untuk filter ini', 'error'); return; }
 
   if (btnEl) { btnEl.disabled = true; btnEl.innerHTML = `<span class="btn-spin" style="width:12px;height:12px"></span> Memuat data...`; }
   try {
@@ -3031,8 +3043,9 @@ async function downloadLaporanByTSP(btnEl) {
 // (Sasaran Strategis → Program → Kegiatan → Sub Kegiatan, masing-masing
 // bisa punya indikator sendiri).
 async function downloadLaporanByPengukuran(btnEl) {
-  const data = window._laporanKinerjaData;
+  const data = _lapDataTerfilter();
   if (!data || !data.rows) { toast('Muat data laporan terlebih dahulu', 'error'); return; }
+  if (!data.rows.length) { toast('Tidak ada data untuk filter ini', 'error'); return; }
 
   const _btnIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline stroke-linecap="round" stroke-linejoin="round" points="7 10 12 15 17 10"/><line stroke-linecap="round" stroke-linejoin="round" x1="12" y1="15" x2="12" y2="3"/></svg>`;
   if (btnEl) { btnEl.disabled = true; btnEl.innerHTML = `<span class="btn-spin" style="width:12px;height:12px"></span> Memuat data...`; }
