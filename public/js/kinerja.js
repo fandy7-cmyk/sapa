@@ -896,6 +896,39 @@ function _goIkkPage(p) { _ikkPage = p; _renderIkkTable(document.getElementById('
 function _goSpmPage(p) { _spmPage = p; _renderSpmTable(document.getElementById('spmTableBody')); }
 function _goSubkegPage(p) { _subkegPage = p; _renderSubkegTable(document.getElementById('subkegTableBody')); }
 
+// ═══ Filter Unit Kerja (admin / kinerja.full) untuk tabel IKU, IKK, SPM, Sub Kegiatan ═══
+const _kinUnit = { monev: '', ikk: '', spm: '', subkeg: '' };
+const _KIN_UNIT_SEL = { monev: 'kinerjaUnitFilter', ikk: 'ikkUnitFilter', spm: 'spmUnitFilter', subkeg: 'subkegUnitFilter' };
+function _kinUnitSyncSelect(jenis, rows) {
+  const sel = document.getElementById(_KIN_UNIT_SEL[jenis]);
+  if (!sel) return;
+  const admin = _isKinerjaAdmin();
+  const wrap = sel.closest('.select-wrap');
+  if (wrap) wrap.style.display = admin ? '' : 'none';
+  if (!admin) { _kinUnit[jenis] = ''; return; }
+  const list = [...new Set((rows || []).map(r => r.penanggung_jawab).filter(Boolean))]
+    .sort((a, b) => a.localeCompare(b, 'id'));
+  if (_kinUnit[jenis] && !list.includes(_kinUnit[jenis])) _kinUnit[jenis] = '';
+  const sig = list.join('\u0001');
+  if (sel.dataset.sig !== sig) {
+    sel.innerHTML = '<option value="">Semua Unit Kerja</option>' +
+      list.map(n => `<option value="${escHtml(n)}">${escHtml(n)}</option>`).join('');
+    sel.dataset.sig = sig;
+  }
+  sel.value = _kinUnit[jenis];
+  if (typeof syncCustomSelect === 'function') syncCustomSelect(sel.id);
+}
+function _kinUnitMatch(jenis, row) {
+  return !_kinUnit[jenis] || row.penanggung_jawab === _kinUnit[jenis];
+}
+function setKinUnitFilter(jenis, v) {
+  _kinUnit[jenis] = v || '';
+  if (jenis === 'ikk')         { _ikkPage = 1;    _renderIkkTable(document.getElementById('ikkTableBody')); }
+  else if (jenis === 'spm')    { _spmPage = 1;    _renderSpmTable(document.getElementById('spmTableBody')); }
+  else if (jenis === 'subkeg') { _subkegPage = 1; _renderSubkegTable(document.getElementById('subkegTableBody')); }
+  else                         { _ikuPage = 1;    renderKinerjaTable(document.getElementById('kinerjaTableBody')); }
+}
+
 function filterKinerjaTable() {
   _kinerjaSearch = (document.getElementById('kinerjaSearch')?.value || '').trim().toLowerCase();
   _ikuPage = 1;
@@ -903,6 +936,7 @@ function filterKinerjaTable() {
 }
 
 function renderKinerjaTable(tbody) {
+  _kinUnitSyncSelect('monev', _kinerjaData);
   if (!_kinerjaData.length) {
     let emptyMsg = 'Belum ada indikator aktif. Admin perlu menambahkan indikator terlebih dahulu.';
     if (!_isKinerjaAdmin()) {
@@ -917,16 +951,17 @@ function renderKinerjaTable(tbody) {
   }
 
   
-  const _filtered = _kinerjaSearch
+  let _filtered = _kinerjaSearch
     ? _kinerjaData.filter(row =>
         (row.indikator_kinerja || '').toLowerCase().includes(_kinerjaSearch) ||
         (row.satuan || '').toLowerCase().includes(_kinerjaSearch) ||
         (row.penanggung_jawab || '').toLowerCase().includes(_kinerjaSearch)
       )
     : _kinerjaData;
+  _filtered = _filtered.filter(row => _kinUnitMatch('monev', row));
 
   if (!_filtered.length) {
-    tbody.innerHTML = `<tr class="empty-row"><td colspan="${_kinColSpan(tbody)}">Tidak ada indikator yang cocok dengan pencarian "${escHtml(_kinerjaSearch)}".</td></tr>`;
+    tbody.innerHTML = `<tr class="empty-row"><td colspan="${_kinColSpan(tbody)}">Tidak ada indikator yang cocok dengan filter/pencarian${_kinerjaSearch ? ` "${escHtml(_kinerjaSearch)}"` : ''}.</td></tr>`;
     renderPagination('ikuPagination', 0, 1, _ikuPageSize, '_goIkuPage');
     return;
   }
@@ -4644,6 +4679,7 @@ function _dukungPrepareSave(indikatorId, jenis) {
 }
 
 function _renderIkkTable(tbody) {
+  _kinUnitSyncSelect('ikk', _ikkData);
   if (!_ikkData.length) {
     let emptyMsg = 'Belum ada indikator IKK aktif. Admin perlu menambahkan indikator dengan jenis IKK.';
     if (!_isKinerjaAdmin()) {
@@ -4657,16 +4693,17 @@ function _renderIkkTable(tbody) {
     return;
   }
 
-  const _filtered = _ikkSearch
+  let _filtered = _ikkSearch
     ? _ikkData.filter(row =>
         (row.indikator_kinerja || '').toLowerCase().includes(_ikkSearch) ||
         (row.satuan || '').toLowerCase().includes(_ikkSearch) ||
         (row.penanggung_jawab || '').toLowerCase().includes(_ikkSearch)
       )
     : _ikkData;
+  _filtered = _filtered.filter(row => _kinUnitMatch('ikk', row));
 
   if (!_filtered.length) {
-    tbody.innerHTML = `<tr class="empty-row"><td colspan="${_kinColSpan(tbody)}">Tidak ada indikator yang cocok dengan pencarian "${escHtml(_ikkSearch)}".</td></tr>`;
+    tbody.innerHTML = `<tr class="empty-row"><td colspan="${_kinColSpan(tbody)}">Tidak ada indikator yang cocok dengan filter/pencarian${_ikkSearch ? ` "${escHtml(_ikkSearch)}"` : ''}.</td></tr>`;
     renderPagination('ikkPagination', 0, 1, _ikkPageSize, '_goIkkPage');
     return;
   }
@@ -7058,6 +7095,7 @@ function filterSpmTable() {
 }
 
 function _renderSpmTable(tbody) {
+  _kinUnitSyncSelect('spm', _spmData);
   if (!_spmData.length) {
     let emptyMsg = 'Belum ada indikator SPM aktif. Admin perlu menambahkan indikator dengan jenis SPM.';
     if (!_isKinerjaAdmin()) {
@@ -7071,16 +7109,17 @@ function _renderSpmTable(tbody) {
     return;
   }
 
-  const _filtered = _spmSearch
+  let _filtered = _spmSearch
     ? _spmData.filter(row =>
         (row.nama_indikator || row.indikator_kinerja || '').toLowerCase().includes(_spmSearch) ||
         (row.satuan || '').toLowerCase().includes(_spmSearch) ||
         (row.penanggung_jawab || '').toLowerCase().includes(_spmSearch)
       )
     : _spmData;
+  _filtered = _filtered.filter(row => _kinUnitMatch('spm', row));
 
   if (!_filtered.length) {
-    tbody.innerHTML = `<tr class="empty-row"><td colspan="${_kinColSpan(tbody)}">Tidak ada indikator yang cocok dengan pencarian "${escHtml(_spmSearch)}".</td></tr>`;
+    tbody.innerHTML = `<tr class="empty-row"><td colspan="${_kinColSpan(tbody)}">Tidak ada indikator yang cocok dengan filter/pencarian${_spmSearch ? ` "${escHtml(_spmSearch)}"` : ''}.</td></tr>`;
     renderPagination('spmPagination', 0, 1, _spmPageSize, '_goSpmPage');
     return;
   }
@@ -7673,6 +7712,7 @@ function filterSubkegTable() {
 }
 
 function _renderSubkegTable(tbody) {
+  _kinUnitSyncSelect('subkeg', _subkegData);
   if (!_subkegData.length) {
     let emptyMsg = 'Belum ada indikator Sub Kegiatan aktif. Admin perlu menambahkan indikator dengan jenis Sub Kegiatan.';
     if (!_isKinerjaAdmin()) {
@@ -7686,16 +7726,17 @@ function _renderSubkegTable(tbody) {
     return;
   }
 
-  const _filtered = _subkegSearch
+  let _filtered = _subkegSearch
     ? _subkegData.filter(row =>
         (row.nama_indikator || row.indikator_kinerja || '').toLowerCase().includes(_subkegSearch) ||
         (row.satuan || '').toLowerCase().includes(_subkegSearch) ||
         (row.penanggung_jawab || '').toLowerCase().includes(_subkegSearch)
       )
     : _subkegData;
+  _filtered = _filtered.filter(row => _kinUnitMatch('subkeg', row));
 
   if (!_filtered.length) {
-    tbody.innerHTML = `<tr class="empty-row"><td colspan="${_kinColSpan(tbody)}">Tidak ada indikator yang cocok dengan pencarian "${escHtml(_subkegSearch)}".</td></tr>`;
+    tbody.innerHTML = `<tr class="empty-row"><td colspan="${_kinColSpan(tbody)}">Tidak ada indikator yang cocok dengan filter/pencarian${_subkegSearch ? ` "${escHtml(_subkegSearch)}"` : ''}.</td></tr>`;
     renderPagination('subkegPagination', 0, 1, _subkegPageSize, '_goSubkegPage');
     return;
   }

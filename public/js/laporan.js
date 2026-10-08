@@ -21,24 +21,25 @@
     .lap-mp-cell:hover:not(.disabled) { background:#f0fdfa; color:#0d9488; }
     .lap-mp-cell.active { background:#0d9488; color:#fff !important; }
     .lap-mp-cell.disabled { color:#cbd5e1; cursor:default; }
-    .lap-range-filter { display:inline-flex; align-items:center; gap:8px; flex-wrap:wrap; width:fit-content; max-width:100%; padding:5px 10px 5px 8px; background:#f8fafc; border:1.5px solid #e2e8f0; border-radius:10px; box-sizing:border-box; }
-    .lap-range-icon { display:flex; align-items:center; justify-content:center; flex-shrink:0; width:26px; height:26px; border-radius:7px; background:#f0fdfa; color:#0d9488; }
-    .lap-range-icon svg { width:15px; height:15px; }
-    .lap-range-group { display:flex; align-items:center; gap:7px; flex:0 1 auto; min-width:0; }
-    .lap-range-label { font-size:0.72rem; font-weight:700; color:#64748b; white-space:nowrap; flex-shrink:0; }
-    .lap-range-group .lap-mp { flex:1 1 auto; min-width:0; border-color:transparent; background:#fff; }
+    /* Filter rentang Laporan Kinerja: gaya sama dengan input tanggal Laporan Absensi (cdtp-trigger) */
+    .lap-range-wrap { display:inline-flex; align-items:center; gap:8px; flex:0 0 auto; width:auto; max-width:100%; min-width:0; }
+    .lap-range-arrow { flex-shrink:0; display:flex; align-items:center; color:var(--teks-muted,#94a3b8); }
+    .lap-range-wrap .lap-mp { display:flex; flex:0 1 128px; min-width:0; width:128px; height:var(--input-h,42px); padding:0 var(--sp-4,13px); box-sizing:border-box; gap:8px; background:var(--abu-1,#f8fafc); border:1.5px solid var(--abu-2,#e2e8f0); border-radius:var(--r-sm,8px); font-family:inherit; font-size:var(--fs-sm,.764rem); font-weight:400; color:var(--teks,#0f172a); line-height:1.4; text-align:left; }
+    .lap-range-wrap .lap-mp:hover { border-color:var(--hijau-mid,#0d9488); }
+    .lap-range-wrap .lap-mp.open { background:#fff; border-color:var(--hijau,#047D78); box-shadow:0 0 0 3px rgba(4,125,120,.12); }
+    .lap-range-wrap .lap-mp::before { content:''; flex-shrink:0; width:15px; height:15px; background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='15' height='15' fill='none' viewBox='0 0 24 24' stroke='%2394a3b8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M8 2v3M16 2v3M3.5 9h17M5 4.5h14A1.5 1.5 0 0 1 20.5 6v13a1.5 1.5 0 0 1-1.5 1.5H5A1.5 1.5 0 0 1 3.5 19V6A1.5 1.5 0 0 1 5 4.5z'/%3E%3C/svg%3E") no-repeat center / contain; }
+    .lap-range-wrap .lap-mp-caret { display:none; }
+    .lap-range-wrap .lap-mp-label { flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .lap-range-wrap .lap-mp-label.placeholder { color:var(--teks-muted,#94a3b8); }
+    #lapMpTo .lap-mp-panel { left:auto; right:0; }
     @media (max-width: 900px) {
-      .lap-range-filter { width:100%; max-width:100%; }
-      .lap-range-group { flex:1 1 calc(50% - 30px); }
+      .lap-range-wrap { display:flex; width:100%; }
+      .lap-range-wrap .lap-mp { flex:1 1 0; width:auto; }
     }
     @media (max-width: 480px) {
-      .lap-range-filter { gap:6px; flex-wrap:nowrap; padding:5px 8px; }
-      .lap-range-icon { display:none; }
-      .lap-range-group { flex:1 1 50%; min-width:0; }
-      .lap-range-label { font-size:0.66rem; }
-      .lap-mp { min-width:0; width:100%; padding:6px 8px; box-sizing:border-box; gap:4px; }
-      .lap-mp-label { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-      .lap-mp-panel { left:0; right:auto; min-width:0; width:200px; }
+      .lap-range-wrap { gap:6px; }
+      .lap-range-wrap .lap-mp { padding:0 10px; gap:6px; font-size:0.78rem; }
+      .lap-mp-panel { min-width:0; width:200px; }
     }
   `;
   document.head.appendChild(s);
@@ -1546,14 +1547,14 @@ function _lapKinerjaGoPage(p) {
 
 window._lapMpData = window._lapMpData || {};
 
-function _lapMonthPicker(id, tahunList, activeVal, onPickFn) {
+function _lapMonthPicker(id, tahunList, activeVal, onPickFn, placeholder) {
   const _BL = ['','Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];
   const activeY = activeVal ? parseInt(activeVal.split('-')[0]) : (tahunList[tahunList.length-1] || new Date().getFullYear());
   const activeM = activeVal ? parseInt(activeVal.split('-')[1]) : 0;
   window._lapMpData[id] = { onPickFn, tahunList, activeVal: activeVal || '', viewYear: activeY };
-  const lbl = activeVal ? _lapTwLabel(activeM, activeY) : '- Pilih -';
+  const lbl = activeVal ? _lapTwLabel(activeM, activeY) : (placeholder || '- Pilih -');
   return `<div class="lap-mp" id="${id}" onclick="event.stopPropagation();_lapMpToggle('${id}')">
-      <span class="lap-mp-label">${lbl}</span>
+      <span class="lap-mp-label${activeVal ? '' : ' placeholder'}">${lbl}</span>
       <svg class="lap-mp-caret" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
     </div>`;
 }
@@ -1632,7 +1633,7 @@ function _lapMpPick(id, key) {
   data.viewYear  = parseInt(key.split('-')[0]);
   const [y, m] = key.split('-').map(Number);
   const labelEl = el.querySelector('.lap-mp-label');
-  if (labelEl) labelEl.textContent = _lapTwLabel(m, y);
+  if (labelEl) { labelEl.textContent = _lapTwLabel(m, y); labelEl.classList.remove('placeholder'); }
   const fnRef = window[data.onPickFn];
   if (typeof fnRef === 'function') fnRef(key);
 }
@@ -1671,7 +1672,7 @@ function _lapSetRangeFrom(key) {
     const toEl = document.getElementById('lapMpTo');
     if (toEl) {
       const lbl = toEl.querySelector('.lap-mp-label');
-      if (lbl) lbl.textContent = _lapTwLabel(mEnd, y);
+      if (lbl) { lbl.textContent = _lapTwLabel(mEnd, y); lbl.classList.remove('placeholder'); }
       if (window._lapMpData['lapMpTo']) { window._lapMpData['lapMpTo'].activeVal = keyEnd; window._lapMpData['lapMpTo'].viewYear = y; }
     }
   }
@@ -1691,7 +1692,7 @@ function _lapSetRangeTo(key) {
     const frEl = document.getElementById('lapMpFrom');
     if (frEl) {
       const lbl = frEl.querySelector('.lap-mp-label');
-      if (lbl) lbl.textContent = _lapTwLabel(mStart, y);
+      if (lbl) { lbl.textContent = _lapTwLabel(mStart, y); lbl.classList.remove('placeholder'); }
       if (window._lapMpData['lapMpFrom']) { window._lapMpData['lapMpFrom'].activeVal = keyStart; window._lapMpData['lapMpFrom'].viewYear = y; }
     }
   }
@@ -1720,18 +1721,10 @@ function _lapRenderRangeFilter(tahunList) {
   }
 
   container.innerHTML = `
-    <div class="lap-range-filter">
-      <span class="lap-range-icon">
-        <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M8 2v3M16 2v3M3.5 9h17M5 4.5h14A1.5 1.5 0 0 1 20.5 6v13a1.5 1.5 0 0 1-1.5 1.5H5A1.5 1.5 0 0 1 3.5 19V6A1.5 1.5 0 0 1 5 4.5Z"/></svg>
-      </span>
-      <div class="lap-range-group">
-        <span class="lap-range-label">Dari</span>
-        ${_lapMonthPicker('lapMpFrom', tahunList, _lapRangeFrom.key, '_lapSetRangeFrom')}
-      </div>
-      <div class="lap-range-group">
-        <span class="lap-range-label">Sampai</span>
-        ${_lapMonthPicker('lapMpTo', tahunList, _lapRangeTo.key, '_lapSetRangeTo')}
-      </div>
+    <div class="lap-range-wrap">
+      ${_lapMonthPicker('lapMpFrom', tahunList, _lapRangeFrom.key, '_lapSetRangeFrom', 'Dari')}
+      <span class="lap-range-arrow" aria-hidden="true"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
+      ${_lapMonthPicker('lapMpTo', tahunList, _lapRangeTo.key, '_lapSetRangeTo', 'Sampai')}
     </div>`;
 }
 
@@ -2014,6 +2007,7 @@ async function loadLaporanKinerja() {
             fpendukungPerBulan:    {},
             rencanaTlPerBulan:     {},
             targetPerBulan:        {},
+            dataDukungPerBulan:    {},
           };
         }
         allBulanData[key].targetPerBulan[b]      = { t: row.target_tahun, d: row.target_display };
@@ -2022,6 +2016,7 @@ async function loadLaporanKinerja() {
         allBulanData[key].solusiPerBulan[b]        = row.solusi;
         allBulanData[key].fpendukungPerBulan[b]   = row.f_pendukung;
         allBulanData[key].rencanaTlPerBulan[b]    = row.rencana_tl;
+        allBulanData[key].dataDukungPerBulan[b]   = row.data_dukung_url;
       });
     });
   });
@@ -3185,9 +3180,40 @@ async function downloadLaporanByPengukuran(btnEl) {
     const blankTd = n => `<td style="${CELL}"></td>`.repeat(n);
     const valTd = v => `<td style="${CELL}text-align:center">${(v === null || v === undefined || v === '') ? '-' : _lapEscHtml(String(v))}</td>`;
     const twTds = fn => [1, 2, 3, 4].map(k => valTd(fn(k))).join('');
-    // Kolom Analisa/Evaluasi (Dialog Kinerja) sengaja dikosongkan ('-'), tidak diambil dari
-    // faktor penghambat / solusi / faktor pendukung / rencana tindak lanjut.
-    const analisaHtml = () => `<td style="${CELL}text-align:center">-</td>`;
+    // Kolom Analisa/Evaluasi (Dialog Kinerja): fleksibel menyesuaikan isian indikator.
+    // Hanya bagian yang terisi yang tampil (Faktor Penghambat + Solusi, dan/atau Faktor Pendukung + Rencana
+    // Tindak Lanjut); kalau semuanya kosong -> '-'. Diambil dari realisasi terakhir yang terisi di rentang laporan.
+    const analisaHtml = (r) => {
+      const bagian = [
+        ['Faktor Penghambat',    r?._fpenghambat],
+        ['Solusi',               r?._solusi],
+        ['Faktor Pendukung',     r?._fpendukung],
+        ['Rencana Tindak Lanjut', r?._rencana_tl],
+      ].filter(([, v]) => v != null && String(v).trim() !== '');
+      if (!bagian.length) return `<td style="${CELL}text-align:center">-</td>`;
+      const isi = bagian.map(([label, v], i) =>
+        `<div style="${i ? 'margin-top:3px;' : ''}font-weight:700">${label}:</div><div style="font-weight:400">${_lapMdToHtml(v)}</div>`
+      ).join('');
+      return `<td style="${CELL}text-align:left;line-height:1.3">${isi}</td>`;
+    };
+    // Kolom Data Dukung: link http(s) Data Dukung dari realisasi terakhir yang terisi dalam rentang laporan
+    const _dukungLinks = (r) => {
+      let raw = null;
+      for (let b = bulanSampai; b >= bulanDari; b--) {
+        const v = r.dataDukungPerBulan?.[b];
+        if (v) { raw = v; break; }
+      }
+      if (!raw) return [];
+      let arr;
+      try { const p = JSON.parse(raw); arr = Array.isArray(p) ? p.map(f => f && f.url) : [raw]; }
+      catch { arr = [raw]; }
+      return arr.filter(u => typeof u === 'string' && /^https?:\/\//i.test(u.trim())).map(u => u.trim());
+    };
+    const dataLinkHtml = (r) => {
+      const links = _dukungLinks(r);
+      if (!links.length) return `<td style="${CELL}text-align:center">-</td>`;
+      return `<td style="${CELL}text-align:left">${links.map(u => `<a href="${_lapEscHtml(u)}" target="_blank" rel="noopener" style="color:#1d4ed8;text-decoration:underline;font-weight:400">${_lapEscHtml(u)}</a>`).join('<br>')}</td>`;
+    };
     const sasaranTd = (tpl, span) => {
       const bg = LEVEL_BG[tpl.jenis] ? `background:${LEVEL_BG[tpl.jenis]};` : '';
       // Sub kegiatan (tanpa warna level) tidak di-bold, sama seperti baris indikatornya
@@ -3201,16 +3227,16 @@ async function downloadLaporanByPengukuran(btnEl) {
       const indikator = `<td style="${CELL}text-align:left">${_lapEscHtml(r.nama_indikator)}</td>`;
       const pj = `<td style="${CELL}text-align:center">${_lapEscHtml(r.penanggung_jawab || '-')}</td>`;
       if (strategis) {
-        return `<tr${rowStyle(tpl)}>${sasaran}${indikator}${twTds(k => targetTw(r, k))}${blankTd(6)}${pj}${twTds(k => capaianTw(r, k))}${blankTd(4)}${analisaHtml(r)}</tr>`;
+        return `<tr${rowStyle(tpl)}>${sasaran}${indikator}${twTds(k => targetTw(r, k))}${blankTd(6)}${pj}${twTds(k => capaianTw(r, k))}${blankTd(4)}${analisaHtml(r)}${dataLinkHtml(r)}</tr>`;
       }
-      return `<tr${rowStyle(tpl)}>${blankTd(6)}${sasaran}${indikator}${twTds(k => targetTw(r, k))}${pj}${blankTd(4)}${twTds(k => capaianTw(r, k))}${analisaHtml(r)}</tr>`;
+      return `<tr${rowStyle(tpl)}>${blankTd(6)}${sasaran}${indikator}${twTds(k => targetTw(r, k))}${pj}${blankTd(4)}${twTds(k => capaianTw(r, k))}${analisaHtml(r)}${dataLinkHtml(r)}</tr>`;
     };
     // node tanpa indikator sendiri (hanya induk dari node lain): tampilkan baris sasarannya saja
     const nodeKosongHtml = tpl => {
       const strategis = tpl.jenis === 'pk_sasaran';
       return strategis
-        ? `<tr${rowStyle(tpl)}>${sasaranTd(tpl, 1)}${blankTd(21)}</tr>`
-        : `<tr${rowStyle(tpl)}>${blankTd(6)}${sasaranTd(tpl, 1)}${blankTd(15)}</tr>`;
+        ? `<tr${rowStyle(tpl)}>${sasaranTd(tpl, 1)}${blankTd(22)}</tr>`
+        : `<tr${rowStyle(tpl)}>${blankTd(6)}${sasaranTd(tpl, 1)}${blankTd(16)}</tr>`;
     };
 
     // Tiap grup (node + indikatornya) dibungkus <tbody> sendiri & dilarang terpotong
@@ -3252,12 +3278,12 @@ async function downloadLaporanByPengukuran(btnEl) {
       </div>
       <table style="border-collapse:collapse;border-spacing:0;width:100%;table-layout:fixed">
         <colgroup>
-          <col style="width:8%"><col style="width:7.5%"><col style="width:3.4%"><col style="width:3.4%"><col style="width:3.4%"><col style="width:3.4%">
-          <col style="width:8%"><col style="width:7.5%"><col style="width:3.4%"><col style="width:3.4%"><col style="width:3.4%"><col style="width:3.4%">
-          <col style="width:8%">
-          <col style="width:3%"><col style="width:3%"><col style="width:3%"><col style="width:3%">
-          <col style="width:3%"><col style="width:3%"><col style="width:3%"><col style="width:3%">
-          <col style="width:9.2%">
+          <col style="width:6%"><col style="width:7%"><col style="width:3.2%"><col style="width:3.2%"><col style="width:3.2%"><col style="width:3.2%">
+          <col style="width:6%"><col style="width:7%"><col style="width:3.2%"><col style="width:3.2%"><col style="width:3.2%"><col style="width:3.2%">
+          <col style="width:6%">
+          <col style="width:2.7%"><col style="width:2.7%"><col style="width:2.7%"><col style="width:2.7%">
+          <col style="width:2.7%"><col style="width:2.7%"><col style="width:2.7%"><col style="width:2.7%">
+          <col style="width:14%"><col style="width:7%">
         </colgroup>
         <thead>
           <tr style="background:#155f82;color:#fff">
@@ -3271,6 +3297,7 @@ async function downloadLaporanByPengukuran(btnEl) {
             <th colspan="4" style="${HDR}">Capaian Kinerja</th>
             <th colspan="4" style="${HDR}">Capaian Program/ Kegiatan/ Sub Kegiatan</th>
             <th rowspan="2" style="${HDR}">Analisa/Evaluasi (Dialog Kinerja)</th>
+            <th rowspan="2" style="${HDR}">Data Dukung</th>
           </tr>
           <tr style="background:#155f82;color:#fff">${TW_HDR.repeat(4)}</tr>
         </thead>

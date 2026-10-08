@@ -5450,7 +5450,7 @@ td.col-perihal {
 /* ═══════════════════════════════════════════════════════
    LAPORAN KINERJA - Filter bar responsive (override grid generik)
    ═══════════════════════════════════════════════════════ */
-.lap-kinerja-toolbar .lap-kinerja-range { display:flex; align-items:center; flex:1; min-width:0; }
+.lap-kinerja-toolbar .lap-kinerja-range { display:flex; align-items:center; flex:0 0 auto; min-width:0; }
 .lap-kinerja-toolbar .lap-kinerja-jenis.select-wrap { min-width:160px; }
 .lap-kinerja-toolbar .lap-kinerja-bidang.select-wrap { min-width:240px; }
 @media (max-width: 900px) {
@@ -9433,7 +9433,7 @@ tr:hover td:not(.td-sticky-no):not(.td-sticky-name) { background: var(--abu-1); 
   align-items: center;
 }
 #page-laporan-kinerja .toolbar #lapKinerjaRangeFilter {
-  flex: 1 1 200px;
+  flex: 0 0 auto;
   min-width: 0;
 }
 @media (max-width: 640px) {

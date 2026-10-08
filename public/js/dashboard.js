@@ -5,6 +5,42 @@
 const _DTW_BULAN = [3, 6, 9, 12];
 const _DTW_ROM   = ['', 'I', 'II', 'III', 'IV'];
 function _dTwSekarang() { return Math.ceil((new Date().getMonth() + 1) / 3) * 3; }
+
+// Periode default dashboard kinerja = TW terakhir yang sudah dibuka/ada (bukan TW berdasarkan tanggal hari ini).
+// Dipakai hanya kalau tidak ada periode aktif dari getPeriodeAktif().
+let _dTwTerakhir = null, _dTwTerakhirP = null;
+function _dEnsureTwTerakhir(force) {
+  if (force) _dTwTerakhirP = null;
+  if (!_dTwTerakhirP) _dTwTerakhirP = (async () => {
+    try {
+      let semua = [], aktif = [];
+      await Promise.all([
+        _dashFetchOnce('/api/periode').then(r => r.ok ? r.json() : null).then(d => { semua = d?.periode || []; }).catch(() => {}),
+        fetch('/api/periode/aktif').then(r => r.ok ? r.json() : null).then(d => { aktif = d?.periode || []; }).catch(() => {}),
+      ]);
+      const aktifIds = new Set(aktif.map(p => p.id));
+      const now = Date.now();
+      const tampil = semua.length
+        ? semua.filter(p => aktifIds.has(p.id) || (p.open_at && new Date(p.open_at).getTime() <= now))
+        : aktif;
+      let best = null;
+      tampil.forEach(p => {
+        const t = parseInt(p.tahun), b0 = parseInt(p.bulan);
+        if (!t || !b0) return;
+        const b = Math.ceil(b0 / 3) * 3;
+        if (!best || t * 100 + b > best.tahun * 100 + best.bulan) best = { bulan: b, tahun: t };
+      });
+      _dTwTerakhir = best;
+    } catch { _dTwTerakhir = null; }
+  })();
+  return _dTwTerakhirP;
+}
+function _dPa() {
+  const pa = getPeriodeAktif();
+  if (pa?.bulan && pa?.tahun) return pa;
+  if (_dTwTerakhir) return { bulan: _dTwTerakhir.bulan, tahun: _dTwTerakhir.tahun, label: `Triwulan ${_DTW_ROM[Math.ceil(_dTwTerakhir.bulan / 3)]} ${_dTwTerakhir.tahun}`, _terakhir: true };
+  return pa;
+}
 function _dSnapTw(r) {
   if (!r || !r.bulan) return r;
   const b = Math.ceil(r.bulan / 3) * 3;
@@ -1823,7 +1859,8 @@ function _kinJenisDashAkses() {
 
 async function _fetchKinerjaRekapForDash(bulanOpt, tahunOpt) {
   try {
-    const pa    = getPeriodeAktif();
+    await _dEnsureTwTerakhir();
+    const pa    = _dPa();
     const bulan = bulanOpt || pa?.bulan || _dTwSekarang();
     const tahun = tahunOpt || pa?.tahun || new Date().getFullYear();
     const jenisList = _kinJenisDashAkses();
@@ -1856,8 +1893,9 @@ async function loadDashboardKinerja() {
     <div class="dash-kpi-row">${Array(5).fill(0).map(() => `<div class="skeleton" style="height:98px;border-radius:14px"></div>`).join('')}</div>
     <div class="skeleton" style="height:200px;border-radius:16px"></div>`;
 
+  await _dEnsureTwTerakhir(true);
   // Periode sebelumnya (2 triwulan ke belakang) buat angka tren di hero. Opsional: kalau gagal/kosong, tren disembunyikan.
-  const _paDash = getPeriodeAktif();
+  const _paDash = _dPa();
   const _bDash = _paDash?.bulan || _dTwSekarang(), _tDash = _paDash?.tahun || new Date().getFullYear();
   const _prevPer = [2, 1].map(k => { let bb = _bDash - 3 * k, tt = _tDash; while (bb <= 0) { bb += 12; tt--; } return { bulan: bb, tahun: tt }; });
   const [ks, rekapRaw, , ...prevRaw] = await Promise.all([_fetchKinerjaStats(), _fetchKinerjaRekapForDash(), _kinLoadJenisWarna(), ..._prevPer.map(pp => _fetchKinerjaRekapForDash(pp.bulan, pp.tahun))]);
@@ -1879,7 +1917,7 @@ async function loadDashboardKinerja() {
   const icon = `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor" style="flex-shrink:0;opacity:.85"><path d="M3 12C3 12.5523 3.44772 13 4 13H10C10.5523 13 11 12.5523 11 12V4C11 3.44772 10.5523 3 10 3H4C3.44772 3 3 3.44772 3 4V12ZM3 20C3 20.5523 3.44772 21 4 21H10C10.5523 21 11 20.5523 11 20V16C11 15.4477 10.5523 15 10 15H4C3.44772 15 3 15.4477 3 16V20ZM13 20C13 20.5523 13.4477 21 14 21H20C20.5523 21 21 20.5523 21 20V12C21 11.4477 20.5523 11 20 11H14C13.4477 11 13 11.4477 13 12V20ZM14 3C13.4477 3 13 3.44772 13 4V8C13 8.55228 13.4477 9 14 9H20C20.5523 9 21 8.55228 21 8V4C21 3.44772 20.5523 3 20 3H14Z"/></svg>`;
   let html = _dashModuleHeader(icon, 'Dashboard', 'Ringkasan capaian indikator kinerja periode berjalan');
 
-  const pa = getPeriodeAktif();
+  const pa = _dPa();
   const bulanP = pa?.bulan || _dTwSekarang(), tahunP = pa?.tahun || new Date().getFullYear();
   const labelTw = `Triwulan ${_DTW_ROM[Math.ceil(bulanP / 3)]} ${tahunP}`;
 
@@ -2076,7 +2114,8 @@ async function _fetchSuratDashData() {
 }
 async function _fetchKinerjaStats() {
   try {
-    const pa    = getPeriodeAktif();
+    await _dEnsureTwTerakhir();
+    const pa    = _dPa();
     const bulan = pa?.bulan || _dTwSekarang();
     const tahun = pa?.tahun || new Date().getFullYear();
     const r = await fetch(`/api/kinerja/stats?bulan=${bulan}&tahun=${tahun}`, { headers: authHeaders() });
@@ -2172,9 +2211,10 @@ window._ikuSetTahunSampai = _ikuSetTahunSampai;
 async function _ikuApplyFilter() {
   const el = document.getElementById('ikuGridWidget');
   if (!el) return;
+  await _dEnsureTwTerakhir();
   
-  const bulan = _ikuRangeTo?.bulan || (getPeriodeAktif()?.bulan || _dTwSekarang());
-  const tahun = _ikuRangeTo?.tahun || (getPeriodeAktif()?.tahun || new Date().getFullYear());
+  const bulan = _ikuRangeTo?.bulan || (_dPa()?.bulan || _dTwSekarang());
+  const tahun = _ikuRangeTo?.tahun || (_dPa()?.tahun || new Date().getFullYear());
   try {
     const r = await fetch(`/api/kinerja/rekap?bulan=${bulan}&tahun=${tahun}&scope=semua`, { headers: authHeaders() });
     const d = r.ok ? await r.json() : { rekap: [] };
@@ -2197,8 +2237,9 @@ async function _ikuApplyFilter() {
 async function _initIkuGrid() {
   const el = document.getElementById('ikuGridWidget');
   if (!el) return;
+  await _dEnsureTwTerakhir();
 
-  const pa    = getPeriodeAktif();
+  const pa    = _dPa();
   const bulan = pa?.bulan || _dTwSekarang();
   const tahun = pa?.tahun || new Date().getFullYear();
 
@@ -2392,16 +2433,24 @@ function _renderIkuGrid(bulan, tahun, pa) {
         <div style="width:1px;height:16px;background:#e2e8f0;flex-shrink:0"></div>
 
         ${_ikuFilterMode === 'tahun' ? `
-          <span style="font-size:0.72rem;font-weight:600;color:#94a3b8;white-space:nowrap">Dari</span>
-          ${_kwCdd('ikuTahunDariDd', _dariItems, _ikuThnDari, '_ikuSetTahunDari', { minW: '90px' })}
+          <div style="display:flex;align-items:center;gap:8px;flex-shrink:0">
+            <span style="font-size:0.72rem;font-weight:600;color:#94a3b8;white-space:nowrap">Dari</span>
+            ${_kwCdd('ikuTahunDariDd', _dariItems, _ikuThnDari, '_ikuSetTahunDari', { minW: '90px' })}
+          </div>
           <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="#cbd5e1" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M13 7l5 5m0 0l-5 5m5-5H6"/></svg>
-          <span style="font-size:0.72rem;font-weight:600;color:#94a3b8;white-space:nowrap">Sampai</span>
-          ${_kwCdd('ikuTahunSampaiDd', _sampaiItems, _ikuThnSampai, '_ikuSetTahunSampai', { minW: '90px' })}
+          <div style="display:flex;align-items:center;gap:8px;flex-shrink:0">
+            <span style="font-size:0.72rem;font-weight:600;color:#94a3b8;white-space:nowrap">Sampai</span>
+            ${_kwCdd('ikuTahunSampaiDd', _sampaiItems, _ikuThnSampai, '_ikuSetTahunSampai', { minW: '90px' })}
+          </div>
         ` : `
-          <span style="font-size:0.72rem;font-weight:600;color:#94a3b8;white-space:nowrap">Dari</span>
-          ${_kwMonthPicker('ikuMpFrom', _ikuTahunUnik, _ikuFromKey, '_ikuSetRangeFrom', _ikuAvailKeys)}
-          <span style="font-size:0.72rem;font-weight:600;color:#94a3b8;white-space:nowrap">Sampai</span>
-          ${_kwMonthPicker('ikuMpTo', _ikuTahunUnik, _ikuToKey, '_ikuSetRangeTo', _ikuToKeys)}
+          <div style="display:flex;align-items:center;gap:8px;flex-shrink:0">
+            <span style="font-size:0.72rem;font-weight:600;color:#94a3b8;white-space:nowrap">Dari</span>
+            ${_kwMonthPicker('ikuMpFrom', _ikuTahunUnik, _ikuFromKey, '_ikuSetRangeFrom', _ikuAvailKeys)}
+          </div>
+          <div style="display:flex;align-items:center;gap:8px;flex-shrink:0">
+            <span style="font-size:0.72rem;font-weight:600;color:#94a3b8;white-space:nowrap">Sampai</span>
+            ${_kwMonthPicker('ikuMpTo', _ikuTahunUnik, _ikuToKey, '_ikuSetRangeTo', _ikuToKeys)}
+          </div>
         `}
         </div>
     </div>`;
@@ -2429,7 +2478,7 @@ function _ikuRenderChartSection() {
   if (!_ikuGridData.length) { sec.innerHTML = ''; return; }
 
   // Prioritaskan tahun dari filter IKU, fallback ke _ikuLastTahun
-  const tahun      = _ikuRangeTo?.tahun || _ikuLastTahun || getPeriodeAktif()?.tahun || new Date().getFullYear();
+  const tahun      = _ikuRangeTo?.tahun || _ikuLastTahun || _dPa()?.tahun || new Date().getFullYear();
   const rekapTahun = (typeof _kwAllRekap !== 'undefined' && _kwAllRekap[tahun]) ? _kwAllRekap[tahun] : null;
 
   
@@ -2918,7 +2967,8 @@ let _kwAllRekap      = {};
 let _kwWatchedId     = null;
 let _kwViewMode      = 'bulan';   
 let _kwChartType    = 'line';  
-let _kwBulanPilih    = _dTwSekarang();   
+let _kwBulanPilih    = _dTwSekarang();
+let _kwBulanTersimpan = false;   
 let _kwTWPilih       = 1;   
 let _kwSemPilih      = 1;   
 let _kwTahunPilih    = new Date().getFullYear();
@@ -3273,16 +3323,18 @@ function _kwAggregate(indId, bulanList, tahun) {
 async function _initKinerjaWatch() {
   const el = document.getElementById('kinerjaWatchWidget');
   if (!el) return;
+  await _dEnsureTwTerakhir();
 
-  const pa    = getPeriodeAktif();
+  const pa    = _dPa();
   const tahun = pa?.tahun || new Date().getFullYear();
   _kwTahunPilih = tahun;
 
   
+  _kwBulanTersimpan = false;
   try {
     const saved = JSON.parse(localStorage.getItem(KW_FILTER_KEY()) || '{}');
     if (saved.mode)      _kwViewMode      = saved.mode;
-    if (saved.bulan)     _kwBulanPilih    = saved.bulan;
+    if (saved.bulan)   { _kwBulanPilih = saved.bulan; _kwBulanTersimpan = true; }
     if (saved.tw)        _kwTWPilih       = saved.tw;
     if (saved.sem)       _kwSemPilih      = saved.sem;
     if (saved.rangeFrom) _kwRangeFrom     = saved.rangeFrom;
@@ -3296,7 +3348,9 @@ async function _initKinerjaWatch() {
   } catch {}
 
   
-  if (pa?.bulan) _kwBulanPilih = pa.bulan;
+  const _paReal = getPeriodeAktif();
+  if (_paReal?.bulan) _kwBulanPilih = _paReal.bulan;
+  else if (!_kwBulanTersimpan && _dTwTerakhir) _kwBulanPilih = _dTwTerakhir.bulan;
   _kwBulanPilih = Math.ceil(_kwBulanPilih / 3) * 3;
   _kwRangeFrom  = _dSnapTw(_kwRangeFrom);
   _kwRangeTo    = _dSnapTw(_kwRangeTo);
