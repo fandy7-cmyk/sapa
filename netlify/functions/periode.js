@@ -2,8 +2,8 @@
 import { getDb, jsonResponse, errorResponse, parseBody } from './_db.js';
 import { requireAuth, requireKinerjaAdmin } from './_auth.js';
 
-const JENIS_VALID = ['monev', 'ikk', 'spm', 'subkeg', 'eplanning'];
-const JENIS_TAHUNAN = ['eplanning'];
+const JENIS_VALID = ['monev', 'ikk', 'spm', 'subkeg', 'eplanning', 'walidata'];
+const JENIS_TAHUNAN = ['eplanning', 'walidata'];
 // Periode kinerja per triwulan: kolom `bulan` = bulan akhir TW (3/6/9/12)
 const TW_VALID = [3, 6, 9, 12];
 const TW_NAMA  = { 3: 'Triwulan I', 6: 'Triwulan II', 9: 'Triwulan III', 12: 'Triwulan IV' };
@@ -19,7 +19,7 @@ async function ensureSchema(sql) {
   try {
     await sql`ALTER TABLE periode DROP CONSTRAINT IF EXISTS periode_jenis_check`;
     await sql`ALTER TABLE periode ADD CONSTRAINT periode_jenis_check
-               CHECK (jenis = ANY (ARRAY['monev','ikk','spm','subkeg','eplanning']))`;
+               CHECK (jenis = ANY (ARRAY['monev','ikk','spm','subkeg','eplanning','walidata']))`;
   } catch (err) {
     console.warn('[periode] ensureSchema (jenis check):', err.message);
   }
@@ -77,12 +77,12 @@ export const handler = async (event) => {
       const cur = await sql`SELECT jenis FROM periode WHERE id = ${numId} LIMIT 1`;
       targetJenis = cur[0]?.jenis ?? null;
       if (cur.length && !JENIS_KINERJA.includes(targetJenis))
-        return errorResponse('Akses ditolak: hanya admin yang bisa mengelola periode e-Planning', 403);
+        return errorResponse('Akses ditolak: hanya admin yang bisa mengelola periode e-Planning dan Walidata', 403);
     }
     if (event.httpMethod === 'POST' || event.httpMethod === 'PUT') {
       const j = parseBody(event).jenis;
       if (j !== undefined && !JENIS_KINERJA.includes(j))
-        return errorResponse('Akses ditolak: hanya admin yang bisa mengelola periode e-Planning', 403);
+        return errorResponse('Akses ditolak: hanya admin yang bisa mengelola periode e-Planning dan Walidata', 403);
     }
   }
 
@@ -103,7 +103,7 @@ export const handler = async (event) => {
     const BULAN_LABEL = ['','Januari','Februari','Maret','April','Mei','Juni',
                           'Juli','Agustus','September','Oktober','November','Desember'];
     const jenisLabel = jenis === 'monev' ? 'IKU' : jenis === 'ikk' ? 'IKK'
-                      : jenis === 'spm'  ? 'SPM' : jenis === 'subkeg' ? 'Sub Kegiatan' : 'e-Planning';
+                      : jenis === 'spm'  ? 'SPM' : jenis === 'subkeg' ? 'Sub Kegiatan' : jenis === 'walidata' ? 'Walidata' : 'e-Planning';
     const autoLabel  = label?.trim() || (isTahunan
       ? `Tahun Anggaran ${tahun} - ${jenisLabel}`
       : `${TW_NAMA[parseInt(bulan)]} ${tahun} - ${jenisLabel}`);

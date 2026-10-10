@@ -65,7 +65,7 @@ export const handler = async (event) => {
       const rows = await sql`
         UPDATE bidang SET
           nama       = COALESCE(${nama?.trim() ?? null}, nama),
-          singkatan  = ${singkatan !== undefined ? (singkatan?.trim() || null) : sql`singkatan`},
+          singkatan  = CASE WHEN ${singkatan !== undefined}::boolean THEN ${singkatan !== undefined ? (singkatan?.trim() || null) : null}::text ELSE singkatan END,
           urutan     = COALESCE(${urutan ?? null}, urutan),
           aktif      = COALESCE(${aktif !== undefined ? aktif : null}, aktif),
           tipe       = COALESCE(${tipe || null}, tipe),

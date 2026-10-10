@@ -22,7 +22,9 @@ async function loadPeriodeAktif() {
     const d = await r.json();
     
     const list = d.periode || [];
-    _periodeAktif = list.length ? list[0] : null;
+    // periode Walidata berdiri sendiri: tidak boleh jadi "periode aktif" modul Kinerja
+    const listKinerja = list.filter(p => p.jenis !== 'walidata');
+    _periodeAktif = listKinerja.length ? listKinerja[0] : null;
     
     if (typeof _periodeListTerbuka !== 'undefined') _periodeListTerbuka = list;
     return _periodeAktif;
@@ -129,6 +131,7 @@ function _jenisMeta(jenis) {
   if (jenis === 'spm')       return { label: 'SPM', bg: jenisWarna('spm').bg, fg: jenisWarna('spm').teks };
   if (jenis === 'subkeg')    return { label: 'Sub Kegiatan', bg: jenisWarna('subkeg').bg, fg: jenisWarna('subkeg').teks };
   if (jenis === 'eplanning') return { label: 'e-Planning', bg: '#dcfce7', fg: '#15803d' };
+  if (jenis === 'walidata')  return { label: 'Walidata', bg: '#ccfbf1', fg: '#0f766e' };
   return { label: '-', bg: '#f1f5f9', fg: '#94a3b8' };
 }
 
@@ -251,15 +254,16 @@ function renderPeriodeCards() {
   
   const groups = {};
   filtered.forEach(p => {
-    const bulanKey = p.bulan == null ? 'Y' : p.bulan;
+    // Walidata punya card sendiri (beda menu dengan e-Planning), jadi tidak digabung ke card tahunan lain
+    const bulanKey = p.jenis === 'walidata' ? 'W' : (p.bulan == null ? 'Y' : p.bulan);
     const key = `${p.tahun}-${bulanKey}`;
-    if (!groups[key]) groups[key] = { tahun: p.tahun, bulan: p.bulan, items: [] };
+    if (!groups[key]) groups[key] = { tahun: p.tahun, bulan: p.bulan, tipe: p.jenis === 'walidata' ? 'walidata' : null, items: [] };
     groups[key].items.push(p);
   });
   const groupList = Object.values(groups).sort((a, b) => {
     if (a.tahun !== b.tahun) return a.tahun - b.tahun;
     
-    if (a.bulan == null && b.bulan == null) return 0;
+    if (a.bulan == null && b.bulan == null) return (a.tipe === 'walidata' ? 1 : 0) - (b.tipe === 'walidata' ? 1 : 0);
     if (a.bulan == null) return -1;
     if (b.bulan == null) return 1;
     return a.bulan - b.bulan;
@@ -321,7 +325,7 @@ function renderPeriodeCards() {
         <div class="periode-group-header">
           <div class="periode-group-title">
             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M8 2v4"/><path d="M16 2v4"/><path d="M3 10h18"/></svg>
-            ${isTahunanGroup ? `Periode Tahun ${g.tahun}` : `Periode ${BULAN_FULL_P[g.bulan]} ${g.tahun}`}
+            ${g.tipe === 'walidata' ? `Periode Walidata Tahun ${g.tahun}` : isTahunanGroup ? `Periode Tahun ${g.tahun}` : `Periode ${BULAN_FULL_P[g.bulan]} ${g.tahun}`}
           </div>
           ${!isTahunanGroup && isBulanIni(g.tahun, g.bulan) ? '<span class="periode-group-pill">Aktif Hari Ini</span>' : ''}
         </div>
@@ -882,7 +886,7 @@ document.addEventListener('click', () => {
   document.querySelectorAll('.cdtp-trigger').forEach(t => t.classList.remove('open'));
 });
 
-const PERIODE_JENIS_TAHUNAN = ['eplanning'];
+const PERIODE_JENIS_TAHUNAN = ['eplanning', 'walidata'];
 function onPeriodeJenisChange() {
   const jenis = document.getElementById('periodeJenis').value;
   const isTahunan = PERIODE_JENIS_TAHUNAN.includes(jenis);
@@ -890,7 +894,7 @@ function onPeriodeJenisChange() {
   const hint = document.getElementById('periodeJenisHint');
   if (bulanField) bulanField.style.display = isTahunan ? 'none' : '';
   if (hint) hint.textContent = isTahunan
-    ? 'Periode e-Planning berlaku 1 tahun penuh, tanpa pembagian triwulan.'
+    ? (jenis === 'walidata' ? 'Periode Walidata berlaku per tahun pelaporan, tanpa pembagian triwulan.' : 'Periode e-Planning berlaku 1 tahun penuh, tanpa pembagian triwulan.')
     : 'Satu periode berlaku untuk IKU, IKK, SPM, dan Sub Kegiatan sekaligus.';
 }
 
@@ -1028,7 +1032,7 @@ async function deletePeriode(id) {
   const ids = _periodeGroupIds[id] || [id];
   const jenisLabel = ids.length > 1
     ? ids.map(i => _jenisMeta(_periodeList.find(x => x.id === i)?.jenis).label).join(', ')
-    : p?.jenis === 'monev' ? 'IKU' : p?.jenis === 'ikk' ? 'IKK' : p?.jenis === 'spm' ? 'SPM' : p?.jenis === 'subkeg' ? 'Sub Kegiatan' : p?.jenis === 'eplanning' ? 'e-Planning' : '';
+    : p?.jenis === 'monev' ? 'IKU' : p?.jenis === 'ikk' ? 'IKK' : p?.jenis === 'spm' ? 'SPM' : p?.jenis === 'subkeg' ? 'Sub Kegiatan' : p?.jenis === 'eplanning' ? 'e-Planning' : p?.jenis === 'walidata' ? 'Walidata' : '';
   const labelWaktu = p?.bulan == null ? `Tahun ${p?.tahun || ''}` : `${BULAN_FULL_P[p?.bulan] || ''} ${p?.tahun || ''}`;
   const ok = await showConfirm({
     title:  'Hapus Periode',

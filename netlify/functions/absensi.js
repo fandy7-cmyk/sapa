@@ -1,7 +1,8 @@
 import { getDb, jsonResponse, errorResponse, parseBody } from './_db.js';
 import { requireAuth } from './_auth.js';
 import { logAudit } from './_audit.js';
-import { deleteFromCloudinary } from './_cloudinary.js';
+import { cleanupReplacedFile } from './_cloudinary.js';
+import { ensurePerjadinSchema, getPelaksana, buildPerjadin, insertPerjadin, updatePerjadin, SKPD_DEFAULT, syncPerjadinDariAbsensi, bersihkanKerangkaPerjadin } from './_perjadin.js';
 
 const STATUS_VALID = ['hadir', 'tugas_luar', 'cuti', 'alpa'];
 
@@ -12,6 +13,55 @@ async function hasFullAccess(sql, auth) {
     WHERE user_id = ${auth.id} AND menu_key = 'absensi.full' LIMIT 1
   `;
   return rows.length > 0;
+}
+
+
+// ── Perjalanan Dinas dari modal Tambah/Edit Absensi (admin) ──
+// Cari baris Perjadin yang menaungi absensi Tugas Luar: lewat pengajuan_id, atau rentang tanggal pegawai yang sama.
+async function cariPerjadinAbsensi(sql, { user_id, tanggal, pengajuan_id = null }) {
+  await ensurePerjadinSchema(sql);
+  const rows = await sql`
+    SELECT pj.*, pj.tgl_mulai::text AS tgl_mulai, pj.tgl_selesai::text AS tgl_selesai,
+           pj.tgl_sp2d::text AS tgl_sp2d, pj.tgl_surat_tugas::text AS tgl_surat_tugas,
+           pj.jumlah_transport::float8 AS jumlah_transport, pj.jumlah_taksi::float8 AS jumlah_taksi,
+           pj.jumlah_biaya::float8 AS jumlah_biaya
+    FROM perjadin pj
+    WHERE pj.status_verifikasi <> 'ditolak'
+      AND ((${pengajuan_id}::int IS NOT NULL AND pj.pengajuan_id = ${pengajuan_id}::int)
+        OR (pj.user_id = ${user_id}::int AND pj.tgl_mulai <= ${tanggal}::date AND pj.tgl_selesai >= ${tanggal}::date))
+    ORDER BY pj.id DESC LIMIT 1
+  `;
+  return rows[0] || null;
+}
+
+// Validasi + susun baris perjadin dari form di modal absensi. Pelaksana & tanggal SELALU dari absensi (server).
+// Return { error } atau { row, id } (id = baris perjadin yang diupdate, null kalau baru).
+async function siapkanPerjadinAbsensi(sql, perjadin, { user_id, tgl_mulai, tgl_selesai, pengajuan_id = null }) {
+  const cur = await cariPerjadinAbsensi(sql, { user_id, tanggal: tgl_mulai, pengajuan_id });
+  const pel = await getPelaksana(sql, user_id);
+  let base = cur;
+  if (!base) {
+    base = {
+      nama_skpd: SKPD_DEFAULT, user_id,
+      pelaksana_nama: pel?.nama, pelaksana_nip: pel?.nip, pelaksana_gol: pel?.golongan,
+      pelaksana_jabatan: pel?.jabatan, sub_unit: pel?.sub_unit, tgl_mulai, tgl_selesai,
+    };
+  }
+  const clean = { ...perjadin };
+  ['user_id', 'pelaksana_nama', 'pelaksana_nip', 'pelaksana_gol', 'pelaksana_jabatan', 'tgl_mulai', 'tgl_selesai'].forEach(k => delete clean[k]);
+  const built = buildPerjadin(clean, { admin: true, base });
+  if (built.error) return { error: built.error };
+  // Nama SKPD tetap (read-only), Sub Unit SKPD selalu dari unit kerja pegawai - bukan dari input client.
+  built.row.nama_skpd = SKPD_DEFAULT;
+  if (pel?.sub_unit) built.row.sub_unit = pel.sub_unit;
+  if (!built.row.no_surat_tugas) return { error: 'No. Surat Tugas wajib diisi' };
+  if (!built.row.tgl_surat_tugas) return { error: 'Tanggal Surat Tugas wajib diisi' };
+  return { row: built.row, id: cur ? cur.id : null };
+}
+
+async function terapkanPerjadinAbsensi(sql, prep, { pengajuan_id = null, input_by = null }) {
+  if (prep.id) return updatePerjadin(sql, prep.id, prep.row);
+  return insertPerjadin(sql, prep.row, { sumber: 'absensi', pengajuan_id, input_by });
 }
 
 function hitungTerlambat(tanggalStr, jamMasukStr, settings) {
@@ -429,20 +479,69 @@ export const handler = async (event) => {
   }
 
   if (isPengajuan) {
+    // Detail satu pengajuan (+ data Perjalanan Dinas-nya) untuk mengisi form Edit / Ajukan Ulang.
+    if (event.httpMethod === 'GET' && pengajuanId && !pengajuanAction) {
+      try {
+        const rows = await sql`
+          SELECT p.*, p.tanggal::text AS tanggal, p.tanggal_selesai::text AS tanggal_selesai, u.nama AS nama_pegawai
+          FROM absensi_pengajuan p JOIN users u ON u.id = p.user_id
+          WHERE p.id = ${pengajuanId} LIMIT 1
+        `;
+        if (!rows.length) return errorResponse('Pengajuan tidak ditemukan', 404);
+        if (rows[0].user_id !== auth.id && !full) return errorResponse('Unauthorized', 401);
+        let perjadin = null;
+        try {
+          await ensurePerjadinSchema(sql);
+          const pj = await sql`
+            SELECT pj.*, pj.tgl_mulai::text AS tgl_mulai, pj.tgl_selesai::text AS tgl_selesai,
+                   pj.tgl_sp2d::text AS tgl_sp2d, pj.tgl_surat_tugas::text AS tgl_surat_tugas,
+                   pj.jumlah_transport::float8 AS jumlah_transport, pj.jumlah_taksi::float8 AS jumlah_taksi,
+                   pj.jumlah_biaya::float8 AS jumlah_biaya
+            FROM perjadin pj WHERE pj.pengajuan_id = ${pengajuanId} ORDER BY pj.id LIMIT 1
+          `;
+          perjadin = pj[0] || null;
+        } catch (e) { console.error('[GET /api/absensi/pengajuan/:id] perjadin gagal dimuat', e); }
+        return jsonResponse({ pengajuan: rows[0], perjadin });
+      } catch (err) {
+        console.error('[GET /api/absensi/pengajuan/:id]', err);
+        return errorResponse('Gagal mengambil data pengajuan');
+      }
+    }
+
     if (event.httpMethod === 'GET') {
       const { status_persetujuan, user_id } = event.queryStringParameters || {};
       const targetUserId = full ? (user_id ? parseInt(user_id) : null) : auth.id;
       if (!full && user_id && parseInt(user_id) !== auth.id) return errorResponse('Unauthorized', 401);
       try {
-        const rows = await sql`
-          SELECT p.*, p.tanggal::text AS tanggal, p.tanggal_selesai::text AS tanggal_selesai, u.nama AS nama_pegawai
-          FROM absensi_pengajuan p
-          JOIN users u ON u.id = p.user_id
-          WHERE (${targetUserId}::int IS NULL OR p.user_id = ${targetUserId}::int)
-            AND (${status_persetujuan || null}::text IS NULL OR p.status_persetujuan = ${status_persetujuan || null}::text)
-          ORDER BY p.created_at DESC
-          LIMIT 200
-        `;
+        // Ringkasan Perjalanan Dinas (kalau pengajuan ini membawa form Perjadin) ikut dikirim supaya
+        // admin bisa melihatnya di daftar persetujuan. Kalau tabel perjadin gagal disiapkan, daftar
+        // pengajuan tetap dimuat tanpa ringkasan itu.
+        let rows;
+        try {
+          await ensurePerjadinSchema(sql);
+          rows = await sql`
+            SELECT p.*, p.tanggal::text AS tanggal, p.tanggal_selesai::text AS tanggal_selesai, u.nama AS nama_pegawai,
+                   pj.id AS perjadin_id, pj.kota_tujuan AS perjadin_tujuan, pj.jumlah_biaya::float8 AS perjadin_biaya
+            FROM absensi_pengajuan p
+            JOIN users u ON u.id = p.user_id
+            LEFT JOIN perjadin pj ON pj.id = (SELECT MIN(x.id) FROM perjadin x WHERE x.pengajuan_id = p.id)
+            WHERE (${targetUserId}::int IS NULL OR p.user_id = ${targetUserId}::int)
+              AND (${status_persetujuan || null}::text IS NULL OR p.status_persetujuan = ${status_persetujuan || null}::text)
+            ORDER BY p.created_at DESC
+            LIMIT 200
+          `;
+        } catch (e) {
+          console.error('[GET /api/absensi/pengajuan] join perjadin gagal, fallback', e);
+          rows = await sql`
+            SELECT p.*, p.tanggal::text AS tanggal, p.tanggal_selesai::text AS tanggal_selesai, u.nama AS nama_pegawai
+            FROM absensi_pengajuan p
+            JOIN users u ON u.id = p.user_id
+            WHERE (${targetUserId}::int IS NULL OR p.user_id = ${targetUserId}::int)
+              AND (${status_persetujuan || null}::text IS NULL OR p.status_persetujuan = ${status_persetujuan || null}::text)
+            ORDER BY p.created_at DESC
+            LIMIT 200
+          `;
+        }
         return jsonResponse({ pengajuan: rows });
       } catch (err) {
         console.error('[GET /api/absensi/pengajuan]', err);
@@ -451,13 +550,33 @@ export const handler = async (event) => {
     }
 
     if (event.httpMethod === 'POST' && !pengajuanId) {
-      const { tanggal, tanggal_selesai, status, keterangan, data_dukung_url, data_dukung_nama } = parseBody(event);
+      const { tanggal, tanggal_selesai, status, keterangan, data_dukung_url, data_dukung_nama, perjadin } = parseBody(event);
       if (!tanggal || !tanggal_selesai || !status) return errorResponse('Tanggal dan jenis pengajuan wajib diisi', 400);
       if (status !== 'tugas_luar' && status !== 'cuti') return errorResponse('Jenis pengajuan tidak valid', 400);
       if (tanggal_selesai < tanggal) return errorResponse('Tanggal selesai tidak boleh sebelum tanggal mulai', 400);
       if (!data_dukung_url) return errorResponse('Data dukung wajib diisi', 400);
 
       try {
+        // Form Perjalanan Dinas (opsional, hanya untuk Tugas Luar). Divalidasi dulu sebelum pengajuan disimpan.
+        // Nama/NIP/golongan/jabatan pelaksana & tanggal pelaksanaan SELALU diambil server (akun user + pengajuan),
+        // bukan dari input client.
+        let perjadinRow = null;
+        if (status === 'tugas_luar' && perjadin && typeof perjadin === 'object') {
+          await ensurePerjadinSchema(sql);
+          const pel = await getPelaksana(sql, auth.id);
+          const built = buildPerjadin(perjadin, {
+            admin: false,
+            base: {
+              nama_skpd: SKPD_DEFAULT, user_id: auth.id,
+              pelaksana_nama: pel?.nama || auth.nama, pelaksana_nip: pel?.nip, pelaksana_gol: pel?.golongan,
+              pelaksana_jabatan: pel?.jabatan, sub_unit: pel?.sub_unit,
+              tgl_mulai: tanggal, tgl_selesai: tanggal_selesai,
+            },
+          });
+          if (built.error) return errorResponse(built.error, 400);
+          perjadinRow = built.row;
+        }
+
         const tanggalList = _rentangTanggalYMD(tanggal, tanggal_selesai);
         const bentrokAbsensi = await sql`SELECT tanggal FROM absensi WHERE user_id = ${auth.id} AND tanggal = ANY(${tanggalList}::date[])`;
         if (bentrokAbsensi.length) {
@@ -477,15 +596,123 @@ export const handler = async (event) => {
           VALUES (${auth.id}, ${tanggal}, ${tanggal_selesai}, ${status}, ${keterangan || null}, ${data_dukung_url}, ${data_dukung_nama || null})
           RETURNING *, tanggal::text AS tanggal, tanggal_selesai::text AS tanggal_selesai
         `;
+        if (perjadinRow) {
+          try {
+            await insertPerjadin(sql, perjadinRow, { sumber: 'absensi', pengajuan_id: rows[0].id, input_by: auth.id });
+          } catch (e) {
+            // Batalkan pengajuan supaya tidak ada pengajuan "tanpa" data perjadin yang sudah diisi user.
+            await sql`DELETE FROM absensi_pengajuan WHERE id = ${rows[0].id}`.catch(() => {});
+            throw e;
+          }
+        }
         await logAudit(sql, event, {
           user_id: auth.id, nama: auth.nama, email: auth.email,
           aksi: 'create_pengajuan_absensi', entitas: 'absensi_pengajuan', entitas_id: rows[0].id,
-          detail: { tanggal, tanggal_selesai, status },
+          detail: { tanggal, tanggal_selesai, status, perjalanan_dinas: !!perjadinRow },
         });
         return jsonResponse({ pengajuan: rows[0] }, 201);
       } catch (err) {
         console.error('[POST /api/absensi/pengajuan]', err);
         return errorResponse('Gagal mengajukan');
+      }
+    }
+
+    // Edit pengajuan yang masih pending, atau Ajukan Ulang pengajuan yang ditolak (status kembali pending).
+    // Hanya pemilik pengajuan; yang sudah disetujui tidak bisa diubah dari sini.
+    if (event.httpMethod === 'PUT' && pengajuanId && !pengajuanAction) {
+      const { tanggal, tanggal_selesai, status, keterangan, data_dukung_url, data_dukung_nama, perjadin } = parseBody(event);
+      if (!tanggal || !tanggal_selesai || !status) return errorResponse('Tanggal dan jenis pengajuan wajib diisi', 400);
+      if (status !== 'tugas_luar' && status !== 'cuti') return errorResponse('Jenis pengajuan tidak valid', 400);
+      if (tanggal_selesai < tanggal) return errorResponse('Tanggal selesai tidak boleh sebelum tanggal mulai', 400);
+      if (!data_dukung_url) return errorResponse('Data dukung wajib diisi', 400);
+
+      try {
+        const existing = await sql`SELECT * FROM absensi_pengajuan WHERE id = ${pengajuanId} LIMIT 1`;
+        if (!existing.length) return errorResponse('Pengajuan tidak ditemukan', 404);
+        const lama = existing[0];
+        if (lama.user_id !== auth.id) return errorResponse('Unauthorized', 401);
+        if (!['pending', 'ditolak'].includes(lama.status_persetujuan)) {
+          return errorResponse('Pengajuan yang sudah disetujui tidak bisa diubah', 409);
+        }
+        const ajukanUlang = lama.status_persetujuan === 'ditolak';
+
+        // Validasi form Perjalanan Dinas dulu (sama seperti saat membuat pengajuan baru).
+        let perjadinRow = null;
+        if (status === 'tugas_luar' && perjadin && typeof perjadin === 'object') {
+          await ensurePerjadinSchema(sql);
+          const pel = await getPelaksana(sql, auth.id);
+          // Bawa field yang hanya diisi admin (SP2D, uang harian, dll.) supaya tidak ter-reset saat user edit.
+          const [pjLama] = await sql`SELECT no_sp2d, tgl_sp2d::text AS tgl_sp2d, detail FROM perjadin WHERE pengajuan_id = ${pengajuanId} ORDER BY id LIMIT 1`;
+          const built = buildPerjadin(perjadin, {
+            admin: false,
+            base: {
+              nama_skpd: SKPD_DEFAULT, user_id: auth.id,
+              pelaksana_nama: pel?.nama || auth.nama, pelaksana_nip: pel?.nip, pelaksana_gol: pel?.golongan,
+              pelaksana_jabatan: pel?.jabatan, sub_unit: pel?.sub_unit,
+              tgl_mulai: tanggal, tgl_selesai: tanggal_selesai,
+              no_sp2d: pjLama?.no_sp2d, tgl_sp2d: pjLama?.tgl_sp2d, detail: pjLama?.detail,
+            },
+          });
+          if (built.error) return errorResponse(built.error, 400);
+          perjadinRow = built.row;
+        }
+
+        const tanggalList = _rentangTanggalYMD(tanggal, tanggal_selesai);
+        const bentrokAbsensi = await sql`SELECT tanggal FROM absensi WHERE user_id = ${auth.id} AND tanggal = ANY(${tanggalList}::date[])`;
+        if (bentrokAbsensi.length) {
+          return errorResponse('Sudah ada catatan absensi pada rentang tanggal ini, hubungi admin', 409);
+        }
+        const bentrokPengajuan = await sql`
+          SELECT id FROM absensi_pengajuan
+          WHERE user_id = ${auth.id} AND status_persetujuan = 'pending' AND id <> ${pengajuanId}
+            AND tanggal <= ${tanggal_selesai} AND tanggal_selesai >= ${tanggal}
+        `;
+        if (bentrokPengajuan.length) {
+          return errorResponse('Ada pengajuan lain yang masih menunggu persetujuan pada rentang tanggal ini', 409);
+        }
+
+        const rows = ajukanUlang
+          ? await sql`
+              UPDATE absensi_pengajuan SET
+                tanggal = ${tanggal}, tanggal_selesai = ${tanggal_selesai}, status = ${status}, keterangan = ${keterangan || null},
+                data_dukung_url = ${data_dukung_url}, data_dukung_nama = ${data_dukung_nama || null},
+                status_persetujuan = 'pending', catatan_admin = NULL, diproses_oleh = NULL, diproses_at = NULL, created_at = NOW()
+              WHERE id = ${pengajuanId}
+              RETURNING *, tanggal::text AS tanggal, tanggal_selesai::text AS tanggal_selesai
+            `
+          : await sql`
+              UPDATE absensi_pengajuan SET
+                tanggal = ${tanggal}, tanggal_selesai = ${tanggal_selesai}, status = ${status}, keterangan = ${keterangan || null},
+                data_dukung_url = ${data_dukung_url}, data_dukung_nama = ${data_dukung_nama || null}
+              WHERE id = ${pengajuanId}
+              RETURNING *, tanggal::text AS tanggal, tanggal_selesai::text AS tanggal_selesai
+            `;
+
+        // Sinkronkan data Perjalanan Dinas yang menempel di pengajuan ini.
+        await ensurePerjadinSchema(sql);
+        if (perjadinRow) {
+          const pjAda = await sql`SELECT id FROM perjadin WHERE pengajuan_id = ${pengajuanId} ORDER BY id LIMIT 1`;
+          if (pjAda.length) await updatePerjadin(sql, pjAda[0].id, perjadinRow);
+          else await insertPerjadin(sql, perjadinRow, { sumber: 'absensi', pengajuan_id: pengajuanId, input_by: auth.id });
+          if (ajukanUlang) {
+            await sql`UPDATE perjadin SET status_verifikasi = 'menunggu', catatan_admin = NULL, updated_at = NOW() WHERE pengajuan_id = ${pengajuanId}`;
+          }
+        } else if (status === 'cuti') {
+          await sql`DELETE FROM perjadin WHERE pengajuan_id = ${pengajuanId}`;
+        }
+
+        // Data dukung diganti -> file lama dibuang dari Cloudinary (kecuali masih dipakai record lain).
+        await cleanupReplacedFile(sql, lama.data_dukung_url, data_dukung_url);
+        await logAudit(sql, event, {
+          user_id: auth.id, nama: auth.nama, email: auth.email,
+          aksi: ajukanUlang ? 'ajukan_ulang_pengajuan_absensi' : 'edit_pengajuan_absensi',
+          entitas: 'absensi_pengajuan', entitas_id: pengajuanId,
+          detail: { tanggal, tanggal_selesai, status, perjalanan_dinas: !!perjadinRow },
+        });
+        return jsonResponse({ pengajuan: rows[0], ajukan_ulang: ajukanUlang });
+      } catch (err) {
+        console.error('[PUT /api/absensi/pengajuan/:id]', err);
+        return errorResponse('Gagal menyimpan perubahan pengajuan');
       }
     }
 
@@ -525,6 +752,22 @@ export const handler = async (event) => {
           aksi: 'approve_pengajuan_absensi', entitas: 'absensi_pengajuan', entitas_id: pengajuanId,
           detail: { user_id: peng.user_id, tanggal: tanggalStr, tanggal_selesai: selesaiStr, status: peng.status },
         });
+        if (peng.status === 'tugas_luar') {
+          await syncPerjadinDariAbsensi(sql, {
+            user_id: peng.user_id, tgl_mulai: tanggalStr, tgl_selesai: selesaiStr,
+            keterangan: peng.keterangan, pengajuan_id: peng.id, input_by: auth.id,
+          }).catch(e => console.error('[sync perjadin approve]', e));
+          // Data Perjalanan Dinas yang dibawa pengajuan ini ikut Disetujui (kebalikan dari sinkron saat ditolak).
+          // Baris kerangka (belum ada jenis/biaya) dibiarkan 'menunggu' karena masih perlu dilengkapi admin.
+          try {
+            await ensurePerjadinSchema(sql);
+            await sql`
+              UPDATE perjadin SET status_verifikasi = 'terverifikasi', catatan_admin = NULL,
+                verified_by = ${auth.id}, verified_at = NOW(), updated_at = NOW()
+              WHERE pengajuan_id = ${pengajuanId} AND status_verifikasi = 'menunggu' AND jenis_perjadin IS NOT NULL
+            `;
+          } catch (e) { console.error('[approve pengajuan] sinkron perjadin gagal', e); }
+        }
         return jsonResponse({ pengajuan: updated[0], absensi: inserted });
       } catch (err) {
         console.error('[PUT /api/absensi/pengajuan/:id/approve]', err);
@@ -544,6 +787,14 @@ export const handler = async (event) => {
           WHERE id = ${pengajuanId}
           RETURNING *
         `;
+        // Data Perjalanan Dinas yang dibawa pengajuan ini ikut ditandai ditolak (tidak masuk rekap default).
+        try {
+          await ensurePerjadinSchema(sql);
+          await sql`
+            UPDATE perjadin SET status_verifikasi = 'ditolak', catatan_admin = ${catatan_admin || null}, updated_at = NOW()
+            WHERE pengajuan_id = ${pengajuanId}
+          `;
+        } catch (e) { console.error('[reject pengajuan] sinkron perjadin gagal', e); }
         await logAudit(sql, event, {
           user_id: auth.id, nama: auth.nama, email: auth.email,
           aksi: 'reject_pengajuan_absensi', entitas: 'absensi_pengajuan', entitas_id: pengajuanId,
@@ -563,7 +814,11 @@ export const handler = async (event) => {
         if (existing[0].user_id !== auth.id && !full) return errorResponse('Unauthorized', 401);
         if (!['pending', 'ditolak'].includes(existing[0].status_persetujuan)) return errorResponse('Pengajuan yang sudah disetujui tidak bisa dihapus dari sini', 409);
         await sql`DELETE FROM absensi_pengajuan WHERE id = ${pengajuanId}`;
-        if (existing[0].data_dukung_url) await deleteFromCloudinary(existing[0].data_dukung_url).catch(() => {});
+        try {
+          await ensurePerjadinSchema(sql);
+          await sql`DELETE FROM perjadin WHERE pengajuan_id = ${pengajuanId}`;
+        } catch (e) { console.error('[delete pengajuan] hapus perjadin terkait gagal', e); }
+        await cleanupReplacedFile(sql, existing[0].data_dukung_url, null);
         await logAudit(sql, event, {
           user_id: auth.id, nama: auth.nama, email: auth.email,
           aksi: 'batalkan_pengajuan_absensi', entitas: 'absensi_pengajuan', entitas_id: pengajuanId,
@@ -1069,6 +1324,26 @@ export const handler = async (event) => {
   }
 
 
+  if (event.httpMethod === 'GET' && recordId) {
+    try {
+      const rows = await sql`
+        SELECT a.*, a.tanggal::text AS tanggal, u.nama AS user_nama
+        FROM absensi a JOIN users u ON u.id = a.user_id WHERE a.id = ${recordId} LIMIT 1
+      `;
+      if (!rows.length) return errorResponse('Data absensi tidak ditemukan', 404);
+      if (!full && rows[0].user_id !== auth.id) return errorResponse('Unauthorized', 401);
+      let perjadin = null;
+      if (full && rows[0].status === 'tugas_luar') {
+        perjadin = await cariPerjadinAbsensi(sql, { user_id: rows[0].user_id, tanggal: rows[0].tanggal, pengajuan_id: rows[0].pengajuan_id || null })
+          .catch(e => { console.error('[GET absensi/:id perjadin]', e); return null; });
+      }
+      return jsonResponse({ absensi: rows[0], perjadin });
+    } catch (err) {
+      console.error('[GET /api/absensi/:id]', err);
+      return errorResponse('Gagal mengambil data absensi');
+    }
+  }
+
   if (event.httpMethod === 'GET' && !recordId) {
     const { user_id, dari, sampai, bulan, tahun, page, bidang_id, status } = event.queryStringParameters || {};
     const targetUserId = full ? (user_id ? parseInt(user_id) : null) : auth.id;
@@ -1140,7 +1415,7 @@ export const handler = async (event) => {
 
   if (event.httpMethod === 'POST' && !recordId && !isCheckin) {
     if (!full) return errorResponse('Unauthorized', 401);
-    const { user_id, tanggal, tanggal_selesai, jam_masuk, jam_keluar, status, keterangan, data_dukung_url, data_dukung_nama } = parseBody(event);
+    const { user_id, tanggal, tanggal_selesai, jam_masuk, jam_keluar, status, keterangan, data_dukung_url, data_dukung_nama, perjadin } = parseBody(event);
     if (!user_id || !tanggal) return errorResponse('Pegawai dan tanggal wajib diisi', 400);
     if (status && !STATUS_VALID.includes(status)) return errorResponse('Status tidak valid', 400);
     // Tugas Luar / Cuti boleh dicatat untuk tanggal ke depan (rencana); status lain hanya untuk tanggal yang sudah terjadi.
@@ -1164,6 +1439,11 @@ export const handler = async (event) => {
 
       const tanggalList = _rentangTanggalYMD(tanggal, tanggal_selesai);
       try {
+        let pjPrep = null;
+        if (status === 'tugas_luar' && perjadin && typeof perjadin === 'object') {
+          pjPrep = await siapkanPerjadinAbsensi(sql, perjadin, { user_id: parseInt(user_id), tgl_mulai: tanggal, tgl_selesai: tanggal_selesai });
+          if (pjPrep.error) return errorResponse(pjPrep.error, 400);
+        }
         const bentrok = await sql`
           SELECT id, tanggal::text AS tanggal, status, input_by, keterangan
           FROM absensi WHERE user_id = ${user_id} AND tanggal = ANY(${tanggalList}::date[])
@@ -1201,6 +1481,12 @@ export const handler = async (event) => {
           aksi: 'create_absensi_rentang', entitas: 'absensi', entitas_id: inserted[0]?.id,
           detail: { user_id, tanggal, tanggal_selesai, status, jumlah_hari: tanggalList.length, jumlah_overwrite_alpa: overwriteMap.size },
         });
+        if (status === 'tugas_luar') {
+          await (pjPrep
+            ? terapkanPerjadinAbsensi(sql, pjPrep, { input_by: auth.id })
+            : syncPerjadinDariAbsensi(sql, { user_id: parseInt(user_id), tgl_mulai: tanggal, tgl_selesai: tanggal_selesai, keterangan, input_by: auth.id })
+          ).catch(e => console.error('[sync perjadin rentang]', e));
+        }
         return jsonResponse({ absensi: inserted }, 201);
       } catch (err) {
         console.error('[POST /api/absensi] rentang', err);
@@ -1229,6 +1515,12 @@ export const handler = async (event) => {
           return errorResponse('Absensi pegawai untuk tanggal tersebut sudah ada, silakan edit', 409);
         }
         overwriteId = exist[0].id; 
+      }
+
+      let pjPrep = null;
+      if (status === 'tugas_luar' && perjadin && typeof perjadin === 'object') {
+        pjPrep = await siapkanPerjadinAbsensi(sql, perjadin, { user_id: parseInt(user_id), tgl_mulai: tanggal, tgl_selesai: tanggal });
+        if (pjPrep.error) return errorResponse(pjPrep.error, 400);
       }
 
       const settingsAsli = await getSettingsAsli(sql);
@@ -1260,6 +1552,12 @@ export const handler = async (event) => {
         aksi: overwriteId ? 'overwrite_absensi_cron_alpa' : 'create_absensi', entitas: 'absensi', entitas_id: rows[0].id,
         detail: { user_id, tanggal, status: finalStatus },
       });
+      if (finalStatus === 'tugas_luar') {
+        await (pjPrep
+          ? terapkanPerjadinAbsensi(sql, pjPrep, { input_by: auth.id })
+          : syncPerjadinDariAbsensi(sql, { user_id: parseInt(user_id), tgl_mulai: tanggal, tgl_selesai: tanggal, keterangan, input_by: auth.id })
+        ).catch(e => console.error('[sync perjadin single]', e));
+      }
       return jsonResponse({ absensi: rows[0] }, overwriteId ? 200 : 201);
     } catch (err) {
       console.error('[POST /api/absensi]', err);
@@ -1269,7 +1567,7 @@ export const handler = async (event) => {
 
   if (event.httpMethod === 'PUT' && recordId) {
     if (!full) return errorResponse('Unauthorized', 401);
-    const { jam_masuk, jam_keluar, status, keterangan, data_dukung_url, data_dukung_nama, clear_data_dukung } = parseBody(event);
+    const { jam_masuk, jam_keluar, status, keterangan, data_dukung_url, data_dukung_nama, clear_data_dukung, perjadin } = parseBody(event);
     if (status && !STATUS_VALID.includes(status)) return errorResponse('Status tidak valid', 400);
 
     try {
@@ -1282,6 +1580,13 @@ export const handler = async (event) => {
       const finalDukungUrl = clear_data_dukung ? null : (data_dukung_url !== undefined ? (data_dukung_url || null) : existing[0].data_dukung_url);
       const finalDukungNama = clear_data_dukung ? null : (data_dukung_nama !== undefined ? (data_dukung_nama || null) : existing[0].data_dukung_nama);
       const tanggalStr = existing[0].tanggal;
+      let pjPrep = null;
+      if (finalStatus === 'tugas_luar' && perjadin && typeof perjadin === 'object') {
+        pjPrep = await siapkanPerjadinAbsensi(sql, perjadin, {
+          user_id: existing[0].user_id, tgl_mulai: tanggalStr, tgl_selesai: tanggalStr, pengajuan_id: existing[0].pengajuan_id || null,
+        });
+        if (pjPrep.error) return errorResponse(pjPrep.error, 400);
+      }
       const settingsAsli = await getSettingsAsli(sql);
       const periods = await getRamadhanPeriods(sql);
 
@@ -1304,14 +1609,24 @@ export const handler = async (event) => {
         WHERE id = ${recordId}
         RETURNING *
       `;
-      if (existing[0].data_dukung_url && existing[0].data_dukung_url !== finalDukungUrl) {
-        await deleteFromCloudinary(existing[0].data_dukung_url).catch(() => {});
-      }
+      await cleanupReplacedFile(sql, existing[0].data_dukung_url, finalDukungUrl);
       await logAudit(sql, event, {
         user_id: auth.id, nama: auth.nama, email: auth.email,
         aksi: 'update_absensi', entitas: 'absensi', entitas_id: recordId,
         detail: { status: finalStatus },
       });
+      if (pjPrep) {
+        await terapkanPerjadinAbsensi(sql, pjPrep, { pengajuan_id: existing[0].pengajuan_id || null, input_by: auth.id })
+          .catch(e => console.error('[perjadin put]', e));
+      } else if (finalStatus === 'tugas_luar' && existing[0].status !== 'tugas_luar') {
+        await syncPerjadinDariAbsensi(sql, {
+          user_id: existing[0].user_id, tgl_mulai: tanggalStr, tgl_selesai: tanggalStr,
+          keterangan: rows[0].keterangan, pengajuan_id: existing[0].pengajuan_id || null, input_by: auth.id,
+        }).catch(e => console.error('[sync perjadin put]', e));
+      } else if (finalStatus !== 'tugas_luar' && existing[0].status === 'tugas_luar') {
+        await bersihkanKerangkaPerjadin(sql, { user_id: existing[0].user_id, tanggal: tanggalStr })
+          .catch(e => console.error('[bersihkan perjadin put]', e));
+      }
       return jsonResponse({ absensi: rows[0] });
     } catch (err) {
       console.error('[PUT /api/absensi/:id]', err);
@@ -1322,12 +1637,9 @@ export const handler = async (event) => {
   if (event.httpMethod === 'DELETE' && recordId) {
     if (!full) return errorResponse('Unauthorized', 401);
     try {
-      const existing = await sql`SELECT id, data_dukung_url, pengajuan_id FROM absensi WHERE id = ${recordId} LIMIT 1`;
+      const existing = await sql`SELECT id, user_id, status, tanggal::text AS tanggal, data_dukung_url, pengajuan_id FROM absensi WHERE id = ${recordId} LIMIT 1`;
       if (!existing.length) return errorResponse('Data absensi tidak ditemukan', 404);
       await sql`DELETE FROM absensi WHERE id = ${recordId}`;
-      if (existing[0].data_dukung_url) {
-        await deleteFromCloudinary(existing[0].data_dukung_url).catch(() => {});
-      }
 
       if (existing[0].pengajuan_id) {
         const sisa = await sql`SELECT id FROM absensi WHERE pengajuan_id = ${existing[0].pengajuan_id} LIMIT 1`;
@@ -1335,10 +1647,16 @@ export const handler = async (event) => {
           await sql`DELETE FROM absensi_pengajuan WHERE id = ${existing[0].pengajuan_id}`;
         }
       }
+      // File dukung dipakai bersama semua tanggal dalam satu pengajuan: hapus dari Cloudinary hanya kalau sudah tidak dipakai record mana pun.
+      await cleanupReplacedFile(sql, existing[0].data_dukung_url, null);
       await logAudit(sql, event, {
         user_id: auth.id, nama: auth.nama, email: auth.email,
         aksi: 'delete_absensi', entitas: 'absensi', entitas_id: recordId,
       });
+      if (existing[0].status === 'tugas_luar') {
+        await bersihkanKerangkaPerjadin(sql, { user_id: existing[0].user_id, tanggal: existing[0].tanggal })
+          .catch(e => console.error('[bersihkan perjadin delete]', e));
+      }
       return jsonResponse({ ok: true });
     } catch (err) {
       console.error('[DELETE /api/absensi/:id]', err);

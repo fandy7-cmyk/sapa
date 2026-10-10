@@ -639,9 +639,18 @@ const PERM_GROUPS = [
       { key: 'kinerja.pantau.semua', manual: true, name: 'Pantau Beberapa Unit Kerja', desc: 'Hanya lihat & pantau indikator di unit kerja yang dipilih (untuk Sekretaris Dinas) — pilih unitnya setelah dicentang' },
       { key: 'kinerja.full',   name: 'Admin Penuh', admin: true, desc: 'Kelola indikator, target, jenis kinerja, laporan, periode & monitoring pengisian (setara admin kinerja)' },
     ] },
+  { id: 'walidata', name: 'Walidata', icon: 'M3 3h18v18H3zM3 9h18M3 15h18M9 3v18',
+    base: { key: 'walidata', desc: 'Lihat Data SSD indikator milik unit kerjanya' }, items: [
+      { key: 'walidata.input', name: 'Input Realisasi', desc: 'Input & ubah realisasi Data SSD untuk unit kerjanya (selama periode terbuka)' },
+      { key: 'walidata.full',  name: 'Admin Penuh', admin: true, desc: 'Lihat semua unit kerja, kelola indikator, import Excel & periode Walidata (setara admin)' },
+    ] },
   { id: 'absensi', name: 'Absensi', icon: 'M12 8v4l3 3M21 12a9 9 0 11-18 0 9 9 0 0118 0z',
     base: { key: 'absensi', desc: 'Input & lihat absensi harian sendiri' }, items: [
       { key: 'absensi.full', name: 'Admin Penuh', admin: true, desc: 'Kelola absensi semua pegawai, atur jam kerja & hari libur (setara admin)' },
+    ] },
+  { id: 'perjadin', name: 'Perjadin', icon: 'M20 7H4a2 2 0 00-2 2v10a2 2 0 002 2h16a2 2 0 002-2V9a2 2 0 00-2-2zM16 7V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v2',
+    base: { key: 'perjadin', desc: 'Lihat data perjalanan dinas milik sendiri' }, items: [
+      { key: 'perjadin.full', name: 'Admin Penuh', admin: true, desc: 'Lihat semua data perjalanan dinas, input, edit, hapus & verifikasi (setara admin)' },
     ] },
   { id: 'lembur', name: 'Lembur', icon: 'M12 3v1m0 16v1m9-9h-1M4 12H3m15.36-6.36l-.7.7M6.34 17.66l-.7.7m12.72 0l-.7-.7M6.34 6.34l-.7-.7M16 12a4 4 0 11-8 0 4 4 0 018 0z',
     base: { key: 'lembur', desc: 'Isi uraian tugas lembur milik sendiri' }, items: [
@@ -820,6 +829,7 @@ function togglePerm(key) {
     if (key === 'surat.keluar.full') _selectedPerms.add('surat.keluar');
     if (key === 'absensi.full')      _selectedPerms.add('absensi');
     if (key === 'lembur.full')       _selectedPerms.add('lembur');
+    if (key === 'perjadin.full')     _selectedPerms.add('perjadin');
   }
   renderPermsGrid();
 }

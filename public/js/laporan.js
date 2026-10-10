@@ -1,4 +1,16 @@
 
+// Garis pemisah antar baris tabel di semua halaman Laporan (warna sama dengan garis antar indikator Walidata).
+const _LAP_GARIS = '#dbe3ec';
+(function() {
+  if (document.getElementById('lap-rowline-style')) return;
+  const s = document.createElement('style');
+  s.id = 'lap-rowline-style';
+  const pages = ['absensi', 'perjadin', 'lembur', 'surat', 'kinerja'].map(m => `#page-laporan-${m} tbody tr:not(.empty-row):not(:last-child) > td`).join(',\n');
+  // border-bottom (bukan top): tabel .surat-table memakai border-collapse, di situ border-bottom baris atas menang atas border-top baris bawah
+  s.textContent = `${pages} { border-bottom:1px solid ${_LAP_GARIS}; }`;
+  document.head.appendChild(s);
+})();
+
 (function() {
   if (document.getElementById('lap-mp-style')) return;
   const s = document.createElement('style');
@@ -9,7 +21,7 @@
     .lap-mp.open  { border-color:#0d9488; box-shadow:0 0 0 3px rgba(13,148,136,.10); }
     .lap-mp-label { flex:1; }
     .lap-mp-caret { opacity:.4; flex-shrink:0; }
-    .lap-mp-panel { position:absolute; top:calc(100% + 6px); left:0; z-index:1100; background:#fff; border:1.5px solid #e2e8f0; border-radius:14px; box-shadow:0 10px 30px rgba(0,0,0,.13); padding:12px; display:none; min-width:200px; }
+    .lap-mp-panel { position:absolute; top:calc(100% + 6px); left:0; z-index:1100; background:#fff; border:1.5px solid #e2e8f0; border-radius:14px; box-shadow:0 10px 30px rgba(0,0,0,.13); padding:12px; display:none; min-width:270px; }
     .lap-mp.open .lap-mp-panel { display:block; }
     .lap-mp-nav { display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; }
     .lap-mp-year { font-size:0.9rem; font-weight:800; color:#0f172a; }
@@ -17,7 +29,7 @@
     .lap-mp-nav-btn:hover:not(:disabled) { background:#f1f5f9; color:#0d9488; }
     .lap-mp-nav-btn:disabled { opacity:.25; cursor:default; }
     .lap-mp-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:4px; }
-    .lap-mp-cell { padding:7px 4px; text-align:center; border-radius:8px; font-size:0.78rem; font-weight:600; color:#374151; cursor:pointer; transition:background .12s,color .12s; }
+    .lap-mp-cell { padding:7px 4px; text-align:center; white-space:nowrap; border-radius:8px; font-size:0.78rem; font-weight:600; color:#374151; cursor:pointer; transition:background .12s,color .12s; }
     .lap-mp-cell:hover:not(.disabled) { background:#f0fdfa; color:#0d9488; }
     .lap-mp-cell.active { background:#0d9488; color:#fff !important; }
     .lap-mp-cell.disabled { color:#cbd5e1; cursor:default; }
@@ -40,7 +52,7 @@
     @media (max-width: 480px) {
       .lap-range-wrap { gap:6px; }
       .lap-range-wrap .lap-mp { padding:0 10px; gap:6px; font-size:0.78rem; }
-      .lap-mp-panel { min-width:0; width:200px; }
+      .lap-mp-panel { min-width:0; width:270px; max-width:calc(100vw - 24px); }
     }
   `;
   document.head.appendChild(s);
@@ -739,6 +751,328 @@ async function loadLaporanAbsensi(page = 1) {
   } catch (err) {
     console.error('[loadLaporanAbsensi]', err);
     tbody.innerHTML = `<tr class="empty-row"><td colspan="6">Gagal memuat data</td></tr>`;
+  }
+}
+
+// ── Perjadin ─────────────────────────────────────────────────────────────────
+let _lapPjData = [];
+let _lapPjFull = false;
+let _lapPjFilteredRows = [];
+let _lapPjPage = 1;
+let _lapPjReady = false;
+const _LAP_PJ_PER_PAGE = 10;
+const _lapPjF = { tahun: '', bulan: '', jenis: '', status: '', pj: '', pegawai: '' };
+const _LAP_PJ_PJ = { ya: 'Dipertanggungjawabkan', tidak: 'Tidak Dipertanggungjawabkan' };
+const _LAP_PJ_STATUS = { menunggu: ['Menunggu Persetujuan', 'badge-warning'], terverifikasi: ['Disetujui', 'badge-hijau'], ditolak: ['Ditolak', 'badge-merah'] };
+const _LAP_PJ_JENIS = ['Dalam Kota', 'Luar Kota Dalam Provinsi', 'Luar Provinsi'];
+
+const _lapPjRp = (n) => 'Rp ' + (Number(n) || 0).toLocaleString('id-ID');
+const _lapPjNum = (n) => (Number(n) || 0) ? (Number(n) || 0).toLocaleString('id-ID') : '-';
+function _lapPjTgl(s, panjang) {
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(s || '');
+  if (!m) return '-';
+  const nama = BULAN_NAMA[+m[2] - 1];
+  return `${m[3]} ${panjang ? nama : nama.slice(0, 3)} ${m[1]}`;
+}
+function _lapPjDetail(r) {
+  let d = r.detail;
+  if (typeof d === 'string') { try { d = JSON.parse(d); } catch { d = {}; } }
+  return d && typeof d === 'object' ? d : {};
+}
+// Pecahan biaya satu baris (sama dengan pengelompokan di backend hitungTotal)
+function _lapPjBiaya(r) {
+  const d = _lapPjDetail(r), n = (k) => Number(d[k]) || 0;
+  return {
+    transport: Number(r.jumlah_transport) || 0,
+    taksi: Number(r.jumlah_taksi) || 0,
+    uang: n('uang_harian_rp') + n('uang_representasi_rp'),
+    inap: n('penginapan_rp') + n('penginapan_30_rp'),
+    lain: n('lain_rp'),
+    total: Number(r.jumlah_biaya) || 0,
+  };
+}
+// Dipertanggungjawabkan = ada rincian anggaran (detail) atau No./Tgl SP2D (sama dengan _pjAdaAnggaran di perjadin_frontend.js)
+const _lapPjDipj = (r) => Object.keys(_lapPjDetail(r)).length > 0 || !!r.no_sp2d || !!r.tgl_sp2d;
+const _lapPjAdaBiaya = (r) => (Number(r.jumlah_biaya) || 0) > 0 || !!r.jenis_perjadin;
+
+function filterLaporanPerjadin() {
+  const tbody = document.getElementById('lapPjTableBody');
+  if (!tbody) return;
+  const term = (document.getElementById('lapPjSearch')?.value || '').toString().toLowerCase().trim();
+  const rows = !term ? _lapPjData : _lapPjData.filter(r =>
+    [r.pelaksana_nama, r.pelaksana_nip, r.no_surat_tugas, r.rincian_kegiatan, r.kota_asal, r.kota_tujuan, r.jenis_perjadin]
+      .some(v => (v || '').toString().toLowerCase().includes(term)));
+  _lapPjFilteredRows = rows;
+  _lapPjPage = 1;
+  _renderLapPjRows();
+}
+
+// Data sudah ada di _lapPjFilteredRows (client-side), jadi cukup ganti halaman & render ulang.
+function _lapPjGoPage(p) {
+  _lapPjPage = p;
+  _renderLapPjRows();
+}
+
+function _renderLapPjRows() {
+  const tbody = document.getElementById('lapPjTableBody');
+  if (!tbody) return;
+  const rows = _lapPjFilteredRows;
+  if (!rows.length) {
+    tbody.innerHTML = `<tr class="empty-row"><td colspan="14">Belum ada data perjalanan dinas pada periode ini</td></tr>`;
+    if (typeof renderPagination === 'function') renderPagination('lapPjPagination', 0, 1, _LAP_PJ_PER_PAGE, '_lapPjGoPage');
+    return;
+  }
+  const totalPages = Math.max(1, Math.ceil(rows.length / _LAP_PJ_PER_PAGE));
+  if (_lapPjPage > totalPages) _lapPjPage = totalPages;
+  const start = (_lapPjPage - 1) * _LAP_PJ_PER_PAGE;
+  tbody.innerHTML = rows.slice(start, start + _LAP_PJ_PER_PAGE).map((r, i) => {
+    const st = _LAP_PJ_STATUS[r.status_verifikasi] || [esc(r.status_verifikasi || '-'), 'badge-abu'];
+    const b = _lapPjBiaya(r);
+    return `<tr>
+      <td style="text-align:center;vertical-align:top">${start + i + 1}</td>
+      <td style="text-align:left;vertical-align:top"><div style="font-weight:600">${esc(r.pelaksana_nama || '')}</div>
+        <div class="pj-cell-sub">${[r.pelaksana_nip ? 'NIP. ' + esc(r.pelaksana_nip) : ''].filter(Boolean).join(' · ')}</div></td>
+      <td style="text-align:left;vertical-align:top">${esc(r.no_surat_tugas || '-')}</td>
+      <td style="text-align:left;vertical-align:top"><div class="pj-ket" data-tip="${esc(r.rincian_kegiatan || '')}">${esc(r.rincian_kegiatan || '-')}</div></td>
+      <td style="text-align:center;vertical-align:top">${esc(r.kota_tujuan || '-')}</td>
+      <td style="text-align:center;vertical-align:top;white-space:nowrap">${_lapPjTgl(r.tgl_mulai)}</td>
+      <td style="text-align:center;vertical-align:top;white-space:nowrap">${_lapPjTgl(r.tgl_selesai)}</td>
+      <td style="text-align:right;vertical-align:top;white-space:nowrap">${_lapPjNum(b.transport + b.taksi)}</td>
+      <td style="text-align:right;vertical-align:top;white-space:nowrap">${_lapPjNum(b.uang)}</td>
+      <td style="text-align:right;vertical-align:top;white-space:nowrap">${_lapPjNum(b.inap)}</td>
+      <td style="text-align:right;vertical-align:top;white-space:nowrap;font-weight:700">${_lapPjNum(b.total)}</td>
+      <td style="text-align:center;vertical-align:top">${_lapPjDipj(r) ? '<span class="badge badge-hijau">Ya</span>' : '<span class="badge badge-abu">Tidak</span>'}</td>
+      <td style="text-align:center;vertical-align:top">${esc(r.sumber_dana || '-')}</td>
+      <td style="text-align:center;vertical-align:top"><span class="badge ${st[1]}">${st[0]}</span></td>
+    </tr>`;
+  }).join('');
+  if (typeof renderPagination === 'function') renderPagination('lapPjPagination', rows.length, _lapPjPage, _LAP_PJ_PER_PAGE, '_lapPjGoPage');
+}
+
+function _lapPjFillSelect(id, html, value) {
+  const sel = document.getElementById(id);
+  if (!sel) return;
+  sel.innerHTML = html;
+  sel.value = value;
+  syncCustomSelect?.(id);
+}
+
+// Isi dropdown filter hanya dengan nilai yang ada datanya (dari /api/perjadin/opsi).
+async function _lapPjBuildFilters(full) {
+  const pegawaiWrap = document.getElementById('lapPjPegawaiWrap');
+  if (pegawaiWrap) pegawaiWrap.style.display = full ? '' : 'none';
+  const searchInput = document.getElementById('lapPjSearch');
+  if (searchInput) searchInput.placeholder = full ? 'Cari pelaksana, surat tugas, kegiatan, tujuan…' : 'Cari surat tugas, kegiatan, atau tujuan…';
+
+  let o = { tahun: [], bulan: [], jenis: [], status: [] };
+  for (let i = 0; i < 3; i++) {
+    const qs = new URLSearchParams();
+    if (_lapPjF.tahun) qs.set('tahun', _lapPjF.tahun);
+    if (_lapPjF.bulan) qs.set('bulan', _lapPjF.bulan);
+    try {
+      const r = await fetch(`/api/perjadin/opsi?${qs}`, { headers: authHeaders() });
+      if (r.ok) o = await r.json();
+    } catch (err) { console.error('[lapPjBuildFilters]', err); }
+    let changed = false;
+    if (!_lapPjReady) {
+      // Pertama kali: tahun berjalan kalau ada datanya, kalau tidak tahun terbaru yang ada datanya.
+      const y = new Date().getFullYear();
+      _lapPjF.tahun = o.tahun.includes(y) ? String(y) : (o.tahun[0] ? String(o.tahun[0]) : '');
+      _lapPjReady = true; changed = true;
+    } else if (_lapPjF.tahun && !o.tahun.includes(parseInt(_lapPjF.tahun, 10))) { _lapPjF.tahun = ''; changed = true; }
+    if (_lapPjF.bulan && !o.bulan.includes(parseInt(_lapPjF.bulan, 10))) { _lapPjF.bulan = ''; changed = true; }
+    if (!changed) break;
+  }
+  if (_lapPjF.jenis && !o.jenis.includes(_lapPjF.jenis)) _lapPjF.jenis = '';
+  if (_lapPjF.status && !o.status.includes(_lapPjF.status)) _lapPjF.status = '';
+
+  _lapPjFillSelect('lapPjTahun', '<option value="">Semua Tahun</option>' + o.tahun.map(t => `<option value="${t}">${t}</option>`).join(''), _lapPjF.tahun);
+  _lapPjFillSelect('lapPjBulan', '<option value="">Semua Bulan</option>' + o.bulan.map(m => `<option value="${m}">${BULAN_NAMA[m - 1]}</option>`).join(''), _lapPjF.bulan);
+  _lapPjFillSelect('lapPjJenis', '<option value="">Semua Jenis</option>' + _LAP_PJ_JENIS.filter(j => o.jenis.includes(j)).map(j => `<option value="${esc(j)}">${esc(j)}</option>`).join(''), _lapPjF.jenis);
+  _lapPjFillSelect('lapPjPj', '<option value="">Semua Pertanggungjawaban</option>' + Object.entries(_LAP_PJ_PJ).map(([v, l]) => `<option value="${v}">${l}</option>`).join(''), _lapPjF.pj);
+  _lapPjFillSelect('lapPjStatus', '<option value="">Semua Status</option>' + ['menunggu', 'terverifikasi', 'ditolak'].filter(s => o.status.includes(s)).map(s => `<option value="${s}">${_LAP_PJ_STATUS[s][0]}</option>`).join(''), _lapPjF.status);
+
+  if (full) {
+    const pegSel = document.getElementById('lapPjPegawai');
+    if (pegSel && !pegSel.dataset.rebuilt) {
+      pegSel.dataset.rebuilt = '1';
+      try {
+        const r = await fetch('/api/perjadin/pelaksana', { headers: authHeaders() });
+        const d = r.ok ? await r.json() : { pelaksana: [] };
+        // Hanya pegawai unit kerja Sub Bagian Perencanaan (nama unit dicocokkan tanpa peduli huruf besar-kecil).
+        const lc = (x) => String(x || '').trim().toLowerCase();
+        const semua = d.pelaksana || [];
+        let unit = semua.filter(p => lc(p.sub_unit) === 'sub bagian perencanaan');
+        if (!unit.length) unit = semua.filter(p => lc(p.sub_unit).includes('perencanaan'));
+        pegSel.innerHTML = '<option value="">Semua Pegawai</option>' + unit.map(p => `<option value="${p.id}">${esc(p.nama)}</option>`).join('');
+      } catch { pegSel.innerHTML = '<option value="">Semua Pegawai</option>'; }
+      pegSel.value = _lapPjF.pegawai || '';
+      syncCustomSelect?.('lapPjPegawai');
+    }
+  }
+}
+
+function setLapPjFilter() {
+  _lapPjF.tahun = document.getElementById('lapPjTahun')?.value || '';
+  _lapPjF.bulan = document.getElementById('lapPjBulan')?.value || '';
+  _lapPjF.jenis = document.getElementById('lapPjJenis')?.value || '';
+  _lapPjF.status = document.getElementById('lapPjStatus')?.value || '';
+  _lapPjF.pj = document.getElementById('lapPjPj')?.value || '';
+  _lapPjF.pegawai = document.getElementById('lapPjPegawai')?.value || '';
+  loadLaporanPerjadin();
+}
+
+async function loadLaporanPerjadin() {
+  const tbody = document.getElementById('lapPjTableBody');
+  const rekapBox = document.getElementById('lapPjRekapBox');
+  if (!tbody) return;
+  if (typeof pjCanView === 'function' && !pjCanView()) return;
+
+  const full = typeof pjIsAdmin === 'function' ? pjIsAdmin() : !!(_user && _user.is_admin);
+
+  if (rekapBox) rekapBox.innerHTML = _lapStatSkeleton(full ? 5 : 4);
+  tbody.innerHTML = `<tr><td colspan="14"><div class="lap-loading-wrap"><div class="lap-spinner"></div><div style="margin-top:.75rem;color:#64748b;font-size:.85rem">Memuat data...</div></div></td></tr>`;
+
+  try {
+    await _lapPjBuildFilters(full);
+
+    const qs = new URLSearchParams();
+    Object.entries(_lapPjF).forEach(([k, v]) => {
+      if (!v) return;
+      if (k === 'pegawai') { if (full) qs.set('user_id', v); } else qs.set(k, v);
+    });
+    const r = await fetch(`/api/perjadin/laporan?${qs}`, { headers: authHeaders() });
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    const d = await r.json();
+    _lapPjData = d.perjadin || [];
+    _lapPjFull = full;
+
+    const rows = _lapPjData;
+    const totalBiaya = rows.reduce((a, x) => a + (Number(x.jumlah_biaya) || 0), 0);
+    const totalHari = rows.reduce((a, x) => a + (Number(x.jumlah_hari) || 0), 0);
+    const totalPegawai = new Set(rows.map(x => x.user_id ?? x.pelaksana_nama)).size;
+    const disetujui = rows.filter(x => x.status_verifikasi === 'terverifikasi').length;
+
+    const ic = (path) => `<svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${path}</svg>`;
+    const iconTrip = ic('<rect width="20" height="14" x="2" y="7" rx="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/>');
+    const iconHari = ic('<rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/><path d="M8 2v4"/><path d="M16 2v4"/>');
+    const iconRp = ic('<rect width="20" height="12" x="2" y="6" rx="2"/><circle cx="12" cy="12" r="2"/><path d="M6 12h.01M18 12h.01"/>');
+    const iconPeg = ic('<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>');
+    const iconOk = ic('<path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>');
+
+    const menunggu = rows.filter(x => x.status_verifikasi === 'menunggu').length;
+    const rata = rows.length ? Math.round(totalHari / rows.length * 10) / 10 : 0;
+    if (rekapBox) rekapBox.innerHTML =
+      _lapKpiCard({ icon: iconTrip, label: 'Perjalanan Dinas', value: rows.length, sub: _lapPjF.bulan ? `${BULAN_NAMA[parseInt(_lapPjF.bulan, 10) - 1]} ${_lapPjF.tahun}`.trim() : (_lapPjF.tahun ? `Tahun ${_lapPjF.tahun}` : 'Semua periode'), color: 'teal' }) +
+      _lapKpiCard({ icon: iconHari, label: 'Total Hari', value: `${totalHari} hari`, sub: rows.length ? `Rata-rata ${rata.toLocaleString('id-ID')} hari/trip` : null, color: 'purple' }) +
+      _lapKpiCard({ icon: iconRp, label: 'Total Biaya', value: _lapPjRp(totalBiaya), sub: rows.length ? `Rata-rata ${_lapPjRp(Math.round(totalBiaya / rows.length))}` : null, color: 'blue' }) +
+      (full ? _lapKpiCard({ icon: iconPeg, label: 'Pegawai Terlibat', value: totalPegawai, color: 'amber' }) : '') +
+      _lapKpiCard({ icon: iconOk, label: 'Disetujui', value: disetujui, sub: menunggu ? `${menunggu} menunggu` : null, color: 'green' });
+
+    filterLaporanPerjadin();
+  } catch (err) {
+    console.error('[loadLaporanPerjadin]', err);
+    tbody.innerHTML = `<tr class="empty-row"><td colspan="14">Gagal memuat data</td></tr>`;
+    if (rekapBox) rekapBox.innerHTML = '';
+  }
+}
+
+async function downloadLaporanPerjadinPDF(btnEl) {
+  const rows = _lapPjData || [];
+  if (!rows.length) { toast('Tidak ada data perjalanan dinas pada periode ini', 'error'); return; }
+
+  const originalHtml = btnEl ? btnEl.innerHTML : '';
+  if (btnEl) { btnEl.disabled = true; btnEl.innerHTML = `<span class="btn-spin" style="width:12px;height:12px"></span> Memuat...`; }
+
+  try {
+    const full = _lapPjFull;
+    const tahun = _lapPjF.tahun || 'Semua Tahun';
+    const bulanLabel = _lapPjF.bulan ? BULAN_NAMA[parseInt(_lapPjF.bulan, 10) - 1] : 'Semua Bulan';
+    const periodeLabel = _lapPjF.tahun ? `${bulanLabel} ${tahun}` : (_lapPjF.bulan ? `${bulanLabel} (Semua Tahun)` : 'Semua Periode');
+    const pegawaiLabel = full ? (_lapPjF.pegawai ? (document.getElementById('lapPjPegawai')?.selectedOptions?.[0]?.textContent || '') : 'Semua Pegawai') : (_user.nama || '');
+    const jenisLabel = _lapPjF.jenis;
+    const statusLabel = _lapPjF.status ? _LAP_PJ_STATUS[_lapPjF.status][0] : '';
+    const pjLabel = _lapPjF.pj ? _LAP_PJ_PJ[_lapPjF.pj] : '';
+
+    const kepalaDinas = await _fetchKepalaDinas();
+    const nowStrTtd = new Date().toLocaleDateString('id-ID', { day: '2-digit', month: 'long', year: 'numeric' });
+
+    const td = 'padding:4px 6px;border:1px solid #000;vertical-align:top;font-size:7.5px';
+    const tot = { transport: 0, uang: 0, inap: 0, total: 0 };
+    const detailRows = rows.map((r, i) => {
+      const b = _lapPjBiaya(r);
+      const transportasi = b.transport + b.taksi;
+      tot.transport += transportasi; tot.uang += b.uang; tot.inap += b.inap; tot.total += b.total;
+      const st = (_LAP_PJ_STATUS[r.status_verifikasi] || [r.status_verifikasi || '-'])[0];
+      return `<tr>
+        <td style="${td};text-align:center">${i + 1}</td>
+        <td style="${td};text-align:left"><div>${esc(r.pelaksana_nama || '')}</div>${r.pelaksana_nip ? `<div style="font-size:6.5px">NIP. ${esc(r.pelaksana_nip)}</div>` : ''}</td>
+        <td style="${td};text-align:left">${esc(r.no_surat_tugas || '-')}</td>
+        <td style="${td};text-align:left">${esc(r.rincian_kegiatan || '-')}</td>
+        <td style="${td};text-align:center">${esc(r.kota_tujuan || '-')}</td>
+        <td style="${td};text-align:center;white-space:nowrap">${_lapPjTgl(r.tgl_mulai)}</td>
+        <td style="${td};text-align:center;white-space:nowrap">${_lapPjTgl(r.tgl_selesai)}</td>
+        <td style="${td};text-align:right">${_lapPjNum(transportasi)}</td>
+        <td style="${td};text-align:right">${_lapPjNum(b.uang)}</td>
+        <td style="${td};text-align:right">${_lapPjNum(b.inap)}</td>
+        <td style="${td};text-align:right;font-weight:700">${_lapPjNum(b.total)}</td>
+        <td style="${td};text-align:center">${_lapPjDipj(r) ? 'Ya' : 'Tidak'}</td>
+        <td style="${td};text-align:center">${esc(r.sumber_dana || '-')}</td>
+        <td style="${td};text-align:center">${esc(st)}</td>
+      </tr>`;
+    }).join('');
+
+    const th = 'color:white;padding:5px 6px;border:1px solid #000;text-align:center;font-size:7.5px';
+    const bodyHtml = `
+      ${_kopSuratHtml()}
+      <div style="text-align:center;margin:14px 0 12px">
+        <div style="font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.5px">Laporan Perjalanan Dinas</div>
+        <div style="font-size:11px;color:#1e293b;margin-top:4px">Periode : ${esc(periodeLabel)}${full ? ` &nbsp;|&nbsp; Pegawai : ${esc(pegawaiLabel)}` : ''}${jenisLabel ? ` &nbsp;|&nbsp; Jenis : ${esc(jenisLabel)}` : ''}${statusLabel ? ` &nbsp;|&nbsp; Status : ${esc(statusLabel)}` : ''}${pjLabel ? ` &nbsp;|&nbsp; Pertanggungjawaban : ${esc(pjLabel)}` : ''}</div>
+      </div>
+      <table>
+        <thead>
+          <tr style="background:#0d9488">
+            <th rowspan="2" style="${th};width:26px">NO</th>
+            <th rowspan="2" style="${th};width:105px">PELAKSANA</th>
+            <th rowspan="2" style="${th};width:85px">NOMOR SURAT TUGAS</th>
+            <th rowspan="2" style="${th}">MAKSUD PERJALANAN DINAS</th>
+            <th rowspan="2" style="${th};width:65px">TUJUAN</th>
+            <th colspan="2" style="${th}">PELAKSANAAN</th>
+            <th colspan="4" style="${th}">BIAYA PERJALANAN DINAS</th>
+            <th rowspan="2" style="${th};width:72px">DIPERTANGGUNG-JAWABKAN</th>
+            <th rowspan="2" style="${th};width:55px">SUMBER DANA</th>
+            <th rowspan="2" style="${th};width:52px">STATUS</th>
+          </tr>
+          <tr style="background:#0d9488">
+            <th style="${th};width:52px">TANGGAL BERANGKAT</th>
+            <th style="${th};width:52px">TANGGAL KEMBALI</th>
+            <th style="${th};width:52px">TRANSPORTASI (Rp)</th>
+            <th style="${th};width:52px">UANG HARIAN (Rp)</th>
+            <th style="${th};width:52px">PENGINAPAN (Rp)</th>
+            <th style="${th};width:58px">JUMLAH (Rp)</th>
+          </tr>
+        </thead>
+        <tbody>${detailRows}
+          <tr>
+            <td colspan="7" style="${td};text-align:right;font-weight:700">TOTAL (${rows.length} perjalanan)</td>
+            <td style="${td};text-align:right;font-weight:700">${_lapPjNum(tot.transport)}</td>
+            <td style="${td};text-align:right;font-weight:700">${_lapPjNum(tot.uang)}</td>
+            <td style="${td};text-align:right;font-weight:700">${_lapPjNum(tot.inap)}</td>
+            <td style="${td};text-align:right;font-weight:700">${_lapPjNum(tot.total)}</td>
+            <td style="${td}"></td>
+            <td style="${td}"></td>
+            <td style="${td}"></td>
+          </tr>
+        </tbody>
+      </table>
+      ${_ttdHtml(kepalaDinas, nowStrTtd, 24, 8)}`;
+
+    _bukaPreviewPDF(bodyHtml, `Laporan Perjadin ${periodeLabel}`, 'landscape');
+  } catch (err) {
+    console.error('[downloadLaporanPerjadinPDF]', err);
+    toast('Gagal membuat laporan PDF', 'error');
+  } finally {
+    if (btnEl) { btnEl.disabled = false; btnEl.innerHTML = originalHtml; }
   }
 }
 
@@ -2498,17 +2832,17 @@ function _rebuildSuratStatusOptions(allRows, currentVal) {
 }
 
 
-// Card KPI Laporan: gaya sama dengan card di Dashboard (.dm-kpi). CSS-nya dipinjam dari dashboard.js (_dmStyle).
+// Card KPI Laporan: gaya sama dengan card di Dashboard (.dm-kpi): garis aksen atas, ikon + label, angka netral, chip keterangan. CSS-nya dipinjam dari dashboard.js (_dmStyle).
 // color: nama di _KPI_COLORS atau warna CSS langsung (hex / var(...)).
 function _lapKpiCard({ icon, label, value, sub = null, color = 'teal', valColor = null, extra = '' }) {
   if (typeof _dmStyle === 'function') _dmStyle();
   const c = (typeof _KPI_COLORS !== 'undefined' && _KPI_COLORS[color]?.text) || color;
   const v = valColor ? ` style="color:${valColor}"` : '';
-  return `<div class="dm-kpi" style="--c:${c}">
-    <div class="dm-kpi-top"><span>${esc(label)}</span><span class="dm-kpi-ic" style="color:${c};background:color-mix(in srgb,${c} 12%,transparent)">${icon}</span></div>
+  return `<div class="dm-kpi" style="--c:${c}"><div class="dm-kpi-in">
+    <div class="dm-kpi-top"><span class="dm-kpi-ic">${icon}</span><span class="dm-kpi-lb">${esc(label)}</span></div>
     <div class="dm-kpi-val"${v}>${esc(String(value))}</div>
     ${sub ? `<div class="dm-kpi-foot"><div class="dm-kpi-sub">${esc(sub)}</div></div>` : ''}${extra}
-  </div>`;
+  </div></div>`;
 }
 function _statCard(label, value, color, iconPath) {
   const icon = `<svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${iconPath}</svg>`;
@@ -3323,5 +3657,317 @@ async function downloadLaporanByPengukuran(btnEl) {
     toast('Gagal generate laporan: ' + e.message, 'error');
   } finally {
     if (btnEl) { btnEl.disabled = false; btnEl.innerHTML = `${_btnIcon} Pengukuran Kinerja`; }
+  }
+}
+
+// ═══ LAPORAN (Walidata) ═════════════════════════════════════════════════════
+// Rekap realisasi per indikator x unit kerja untuk satu tahun (data dari GET /data, jadi aturan akses sama dengan Data SSD).
+// Admin melihat semua unit + kolom Total; user biasa hanya unit kerjanya sendiri.
+const _wdl = { tahun: new Date().getFullYear(), dari: null, sampai: null, data: null, search: '', unit: '', status: '', page: 1, perPage: 10 };
+
+async function loadLaporanWalidata() {
+  _wdEnsurePages();
+  _dmStyle();
+  const body = document.getElementById('wdlBody');
+  const stats = document.getElementById('wdlStats');
+  if (stats) stats.innerHTML = _lapStatSkeleton(4);
+  body.innerHTML = `<tr><td colspan="7"><div class="lap-loading-wrap"><div class="lap-spinner"></div><div style="margin-top:.75rem;color:#64748b;font-size:.85rem">Memuat data...</div></div></td></tr>`;
+  try {
+    let d = await _wdFetch('/data?tahun=' + _wdl.tahun);
+    const dt = (d.daftar_tahun || []).map(Number);
+    if (dt.length && !dt.includes(_wdl.tahun)) {
+      _wdl.tahun = Math.max(...dt);
+      d = await _wdFetch('/data?tahun=' + _wdl.tahun);
+    }
+    _wdl.data = d;
+  } catch (e) {
+    console.error('[loadLaporanWalidata]', e);
+    if (stats) stats.innerHTML = '';
+    body.innerHTML = `<tr><td colspan="7" style="text-align:center;padding:24px;color:#991b1b">${esc(e.message)}</td></tr>`;
+    renderPagination('wdlPagination', 0, 1, _wdl.perPage, 'wdlKePage');
+    return;
+  }
+  const admin = !!_wdl.data.me?.admin;
+  document.getElementById('wdlUnitWrap').style.display = admin ? '' : 'none';
+  document.getElementById('wdlThTotal').style.display = admin ? '' : 'none';
+  const sub = document.getElementById('wdlSub');
+  if (sub) sub.textContent = admin ? 'Rekap realisasi indikator Walidata per tahun dan unit kerja' : 'Rekap realisasi indikator Walidata unit kerja Anda';
+  _wdlIsiTahun();
+  _wdlIsiUnit();
+  _wdl.page = 1;
+  _wdlRender();
+}
+
+function _wdlIsiTahun() {
+  const sel = document.getElementById('wdlTahun');
+  if (!sel) return;
+  if (!_wdl.data?.me?.admin && !(_wdl.data?.daftar_tahun || []).length) {
+    sel.innerHTML = '<option value="">Belum ada periode</option>'; sel.disabled = true;
+  } else {
+    sel.disabled = false;
+    sel.innerHTML = _wdDaftarTahun(_wdl.data?.daftar_tahun, _wdl.tahun).map(t => `<option value="${t}" ${t === _wdl.tahun ? 'selected' : ''}>${t}</option>`).join('');
+  }
+  if (typeof syncCustomSelect === 'function') syncCustomSelect('wdlTahun');
+  _wdlIsiRentang();
+}
+// Dropdown rentang tahun untuk download (urut naik). Default = tahun yang sedang dipilih.
+function _wdlIsiRentang() {
+  const dDari = document.getElementById('wdlDari'), dSampai = document.getElementById('wdlSampai');
+  if (!dDari || !dSampai) return;
+  const list = _wdDaftarTahun(_wdl.data?.daftar_tahun, _wdl.tahun).slice().sort((a, b) => a - b);
+  if (!list.includes(_wdl.dari)) _wdl.dari = list.includes(_wdl.tahun) ? _wdl.tahun : list[list.length - 1];
+  if (!list.includes(_wdl.sampai)) _wdl.sampai = list.includes(_wdl.tahun) ? _wdl.tahun : list[list.length - 1];
+  if (_wdl.dari > _wdl.sampai) _wdl.sampai = _wdl.dari;
+  const opt = (sel) => list.map(t => `<option value="${t}" ${t === sel ? 'selected' : ''}>${t}</option>`).join('');
+  dDari.innerHTML = opt(_wdl.dari); dSampai.innerHTML = opt(_wdl.sampai);
+  if (typeof syncCustomSelect === 'function') { syncCustomSelect('wdlDari'); syncCustomSelect('wdlSampai'); }
+}
+function wdlSetDari(v) { _wdl.dari = parseInt(v, 10); if (_wdl.sampai < _wdl.dari) _wdl.sampai = _wdl.dari; _wdlIsiRentang(); }
+function wdlSetSampai(v) { _wdl.sampai = parseInt(v, 10); if (_wdl.dari > _wdl.sampai) _wdl.dari = _wdl.sampai; _wdlIsiRentang(); }
+function _wdlIsiUnit() {
+  const sel = document.getElementById('wdlUnit');
+  if (!sel || !_wdl.data?.me?.admin) return;
+  const m = new Map();
+  for (const r of _wdl.data.rows) for (const x of r.detail || []) if (x.pengampu && x.bidang_id) m.set(String(x.bidang_id), x.nama);
+  const list = [...m.entries()].sort((a, b) => a[1].localeCompare(b[1], 'id'));
+  if (_wdl.unit && !m.has(_wdl.unit)) _wdl.unit = '';
+  sel.innerHTML = '<option value="">Semua Unit Kerja</option>' + list.map(([id, nama]) => `<option value="${id}" ${id === _wdl.unit ? 'selected' : ''}>${esc(nama)}</option>`).join('');
+  sel.value = _wdl.unit;
+  if (typeof syncCustomSelect === 'function') syncCustomSelect('wdlUnit');
+}
+function wdlGantiTahun(v) { _wdl.tahun = parseInt(v, 10); _wdl.dari = _wdl.sampai = _wdl.tahun; loadLaporanWalidata(); }
+function wdlSetUnit(v) { _wdl.unit = v || ''; _wdl.page = 1; _wdlRender(); }
+function wdlSetStatus(v) { _wdl.status = v || ''; _wdl.page = 1; _wdlRender(); }
+function wdlKePage(n) { _wdl.page = n; _wdlRender(); }
+
+// Baris laporan: satu grup per indikator, berisi baris unit kerja yang lolos filter.
+// Unit riwayat (bukan pengampu lagi) tidak ikut, sama dengan perhitungan total di Data SSD.
+function _wdlGroups(d = _wdl.data, abaikanStatus = false) {
+  if (!d) return [];
+  const q = _wdl.search.toLowerCase();
+  const out = [];
+  for (const r of d.rows) {
+    let det = (r.detail || []).filter(x => x.pengampu || x.tanpa_unit);
+    if (!det.length) det = [{ bidang_id: null, nama: 'Belum ditetapkan', pengampu: false, nilai: null }];
+    if (_wdl.unit) det = det.filter(x => String(x.bidang_id) === _wdl.unit);
+    if (_wdl.status && !abaikanStatus) det = det.filter(x => (x.nilai !== null) === (_wdl.status === 'terisi'));
+    if (q && !`${r.kode_ssd} ${r.uraian}`.toLowerCase().includes(q)) det = det.filter(x => `${x.nama} ${x.singkatan || ''}`.toLowerCase().includes(q));
+    if (det.length) out.push({ r, det });
+  }
+  return out;
+}
+
+function _wdlTotalHtml(r) {
+  if (r.agregasi === 'tidak_diagregasi') return '<span style="color:var(--teks-muted);font-size:.75rem">Tidak diagregasi</span>';
+  if (r.total === null) return '<span class="badge badge-yellow">Belum diinput</span>';
+  const parsial = r.jumlah_terisi < r.jumlah_pengampu ? `<div style="font-size:.66rem;color:#92400e;margin-top:2px">${r.jumlah_terisi}/${r.jumlah_pengampu} unit terisi</div>` : '';
+  return `<div style="font-weight:700">${_wdNum(r.total)}</div>${parsial}`;
+}
+
+function _wdlRender() {
+  const body = document.getElementById('wdlBody');
+  const stats = document.getElementById('wdlStats');
+  if (!body || !_wdl.data) return;
+  const admin = !!_wdl.data.me?.admin;
+  const groups = _wdlGroups();
+
+  // KPI mengikuti filter yang sedang aktif
+  const flat = groups.flatMap(g => g.det);
+  const terisi = flat.filter(x => x.nilai !== null).length;
+  const pct = _dmPct(terisi, flat.length);
+  const ic = p => `<svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${p}</svg>`;
+  if (stats) stats.innerHTML =
+    _lapKpiCard({ icon: ic('<path d="M3 3v18h18"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/>'), label: 'Total Indikator', value: _dmNf(groups.length), sub: `Tahun ${_wdl.tahun}`, color: 'teal' }) +
+    _lapKpiCard({ icon: ic('<path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>'), label: 'Terinput', value: _dmNf(terisi), sub: `dari ${_dmNf(flat.length)} isian`, color: 'green' }) +
+    _lapKpiCard({ icon: ic('<circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>'), label: 'Belum Input', value: _dmNf(flat.length - terisi), color: 'amber' }) +
+    _lapKpiCard({ icon: ic('<path d="M21.21 15.89A10 10 0 1 1 8 2.83"/><path d="M22 12A10 10 0 0 0 12 2v10z"/>'), label: 'Progress Pengisian', value: pct + '%', color: 'blue' });
+
+  if (!groups.length) {
+    body.innerHTML = `<tr><td colspan="${admin ? 7 : 6}" style="text-align:center;padding:28px;color:var(--teks-muted)">${
+      _wdl.data.rows.length ? 'Tidak ada data sesuai filter.' : (admin ? 'Belum ada indikator Walidata.' : 'Belum ada indikator yang di-assign ke akun Anda.')}</td></tr>`;
+    renderPagination('wdlPagination', 0, 1, _wdl.perPage, 'wdlKePage');
+    return;
+  }
+  const pages = Math.max(1, Math.ceil(groups.length / _wdl.perPage));
+  if (_wdl.page > pages) _wdl.page = pages;
+  const start = (_wdl.page - 1) * _wdl.perPage;
+  const nilaiHtml = x => x.nilai === null ? '<span class="badge badge-yellow">Belum diinput</span>' : `<strong>${_wdNum(x.nilai)}</strong>`;
+  body.innerHTML = groups.slice(start, start + _wdl.perPage).map((g, i) => {
+    const { r, det } = g, k = det.length;
+    const bd = 'border-top:1px solid ' + _LAP_GARIS; // garis pemisah antar indikator (tipis & soft)
+    return det.map((x, j) => `<tr>
+      ${j === 0 ? `<td rowspan="${k}" style="text-align:center;${bd}">${start + i + 1}</td>
+      <td rowspan="${k}" style="${bd}">${esc(r.kode_ssd)}</td>
+      <td rowspan="${k}" style="${bd}"><div style="line-height:1.5">${esc(r.uraian)}</div></td>
+      <td rowspan="${k}" style="text-align:center;${bd}">${esc(r.satuan || '-')}</td>` : ''}
+      <td style="text-align:center;font-size:.78rem;${j === 0 ? bd : ''}">${esc(x.nama)}</td>
+      <td style="text-align:center;${j === 0 ? bd : ''}">${nilaiHtml(x)}</td>
+      ${admin && j === 0 ? `<td rowspan="${k}" style="text-align:center;${bd}">${_wdlTotalHtml(r)}</td>` : ''}
+    </tr>`).join('');
+  }).join('');
+  renderPagination('wdlPagination', groups.length, _wdl.page, _wdl.perPage, 'wdlKePage');
+}
+
+// ── Download PDF (kop surat + tabel + tanda tangan, dibuka di tab baru untuk Print / Save as PDF) ──
+async function wdlUnduhPDF(btnEl) {
+  if (_wdl.dari && _wdl.sampai && _wdl.dari !== _wdl.sampai) return wdlUnduhPDFRentang(btnEl);
+  const groups = _wdlGroups();
+  if (!groups.length) { toast('Tidak ada data Walidata pada filter saat ini', 'error'); return; }
+  const originalHtml = btnEl ? btnEl.innerHTML : '';
+  if (btnEl) { btnEl.disabled = true; btnEl.innerHTML = `<span class="btn-spin" style="width:12px;height:12px"></span> Memuat...`; }
+  try {
+    const admin = !!_wdl.data.me?.admin;
+    const unitLabel = _wdl.unit ? (document.getElementById('wdlUnit')?.selectedOptions?.[0]?.textContent || '') : '';
+    const statusLabel = _wdl.status === 'terisi' ? 'Terinput' : _wdl.status === 'belum' ? 'Belum Input' : '';
+    const kepalaDinas = await _fetchKepalaDinas();
+    const nowStrTtd = new Date().toLocaleDateString('id-ID', { day: '2-digit', month: 'long', year: 'numeric' });
+
+    const td = 'padding:4px 6px;border:1px solid #000;font-size:9px;vertical-align:top';
+    const th = 'color:white;padding:5px 4px;border:1px solid #000;text-align:center;font-size:9px';
+    const nilai = x => x.nilai === null ? '<span style="color:#92400e">Belum diinput</span>' : _wdNum(x.nilai);
+    const total = r => r.agregasi === 'tidak_diagregasi' ? '-' : (r.total === null ? 'Belum diinput' : _wdNum(r.total));
+
+    const bodyRows = groups.map((g, i) => {
+      const { r, det } = g, k = det.length;
+      return det.map((x, j) => `<tr style="background:white">
+        ${j === 0 ? `<td rowspan="${k}" style="${td};text-align:center;width:44px;white-space:nowrap">${i + 1}</td>
+        <td rowspan="${k}" style="${td};white-space:nowrap">${esc(r.kode_ssd)}</td>
+        <td rowspan="${k}" style="${td}">${esc(r.uraian)}</td>
+        <td rowspan="${k}" style="${td};text-align:center">${esc(r.satuan || '-')}</td>` : ''}
+        <td style="${td};text-align:center">${esc(x.nama)}</td>
+        <td style="${td};text-align:center">${nilai(x)}</td>
+        ${admin && j === 0 ? `<td rowspan="${k}" style="${td};text-align:center;font-weight:700">${total(r)}</td>` : ''}
+      </tr>`).join('');
+    }).join('');
+
+    const flat = groups.flatMap(g => g.det), terisi = flat.filter(x => x.nilai !== null).length;
+    const filterTxt = [`Tahun : ${_wdl.tahun}`, unitLabel && `Unit Kerja : ${esc(unitLabel)}`, statusLabel && `Status : ${statusLabel}`].filter(Boolean).join(' &nbsp;|&nbsp; ');
+    const bodyHtml = `
+      ${_kopSuratHtml()}
+      <div style="text-align:center;margin:14px 0 12px">
+        <div style="font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.5px">Laporan Realisasi Walidata (Data SSD)</div>
+        <div style="font-size:11px;color:#1e293b;margin-top:4px">${filterTxt}</div>
+      </div>
+      <table style="border-collapse:collapse;border-spacing:0;width:100%;table-layout:auto">
+        <thead>
+          <tr style="background:#0d9488">
+            <th style="${th};width:44px">NO</th>
+            <th style="${th};width:70px">KODE SSD</th>
+            <th style="${th};min-width:200px">URAIAN</th>
+            <th style="${th};width:60px">SATUAN</th>
+            <th style="${th};min-width:150px">UNIT KERJA</th>
+            <th style="${th};width:90px">REALISASI</th>
+            ${admin ? `<th style="${th};width:90px">CAPAIAN</th>` : ''}
+          </tr>
+        </thead>
+        <tbody>${bodyRows}</tbody>
+      </table>
+      <div style="font-size:9px;color:#1e293b;margin-top:8px">Jumlah indikator: ${groups.length} &nbsp;|&nbsp; Isian terinput: ${terisi} dari ${flat.length}${admin ? '. Capaian dihitung dari unit kerja yang sudah menginput; yang belum input tidak dihitung sebagai nol.' : ''}</div>
+      ${_ttdHtml(kepalaDinas, nowStrTtd, 24, 8)}`;
+
+    _bukaPreviewPDF(bodyHtml, `Laporan Walidata ${_wdl.tahun}`, 'landscape');
+  } catch (err) {
+    console.error('[wdlUnduhPDF]', err);
+    toast('Gagal membuat laporan PDF: ' + err.message, 'error');
+  } finally {
+    if (btnEl) { btnEl.disabled = false; btnEl.innerHTML = originalHtml; }
+  }
+}
+
+// ── Download PDF per rentang tahun: satu kolom Realisasi (dan Total untuk admin) per tahun ──
+// Data tiap tahun diambil dari GET /data?tahun=YYYY (aturan akses sama), lalu digabung per indikator x unit kerja.
+async function wdlUnduhPDFRentang(btnEl) {
+  const MAKS_TAHUN = 8;
+  const semua = _wdDaftarTahun(_wdl.data?.daftar_tahun, _wdl.tahun).slice().sort((a, b) => a - b);
+  const tahunList = semua.filter(t => t >= _wdl.dari && t <= _wdl.sampai);
+  if (!tahunList.length) { toast('Tidak ada data pada rentang tahun tersebut', 'error'); return; }
+  if (tahunList.length > MAKS_TAHUN) { toast(`Maksimal ${MAKS_TAHUN} tahun per download, persempit rentangnya`, 'error'); return; }
+  const originalHtml = btnEl ? btnEl.innerHTML : '';
+  if (btnEl) { btnEl.disabled = true; btnEl.innerHTML = `<span class="btn-spin" style="width:12px;height:12px"></span> Memuat...`; }
+  try {
+    // satu request untuk semua tahun (GET /data-rentang), filter dikerjakan di sini
+    const d = await _wdFetch('/data-rentang?tahun=' + tahunList.join(','));
+    const q = _wdl.search.toLowerCase();
+    const groups = [];
+    for (const r of d.rows) {
+      let det = (r.detail || []).filter(x => x.pengampu || x.tanpa_unit);
+      if (!det.length) det = [{ bidang_id: null, nama: 'Belum ditetapkan', pengampu: false, nilai: {} }];
+      if (_wdl.unit) det = det.filter(x => String(x.bidang_id) === _wdl.unit);
+      if (q && !`${r.kode_ssd} ${r.uraian}`.toLowerCase().includes(q)) det = det.filter(x => `${x.nama} ${x.singkatan || ''}`.toLowerCase().includes(q));
+      if (_wdl.status) {
+        // Terinput = terisi minimal di satu tahun pada rentang; Belum Input = ada tahun yang masih kosong
+        det = det.filter(x => {
+          const v = tahunList.map(t => x.nilai[t] ?? null);
+          return _wdl.status === 'terisi' ? v.some(n => n !== null) : v.some(n => n === null);
+        });
+      }
+      if (det.length) groups.push({ r, det });
+    }
+    if (!groups.length) { toast('Tidak ada data Walidata pada filter saat ini', 'error'); return; }
+
+    const admin = !!_wdl.data.me?.admin;
+    const unitLabel = _wdl.unit ? (document.getElementById('wdlUnit')?.selectedOptions?.[0]?.textContent || '') : '';
+    const statusLabel = _wdl.status === 'terisi' ? 'Terinput' : _wdl.status === 'belum' ? 'Belum Input' : '';
+    const kepalaDinas = await _fetchKepalaDinas();
+    const nowStrTtd = new Date().toLocaleDateString('id-ID', { day: '2-digit', month: 'long', year: 'numeric' });
+
+    const td = 'padding:4px 5px;border:1px solid #000;font-size:9px;vertical-align:top;word-break:break-word';
+    const th = 'color:white;padding:5px 3px;border:1px solid #000;text-align:center;font-size:9px';
+    const nilai = v => (v === null || v === undefined) ? '<span style="color:#92400e">Belum diinput</span>' : _wdNum(v);
+    const total = (r, t) => r.agregasi === 'tidak_diagregasi' ? '-' : (r.total?.[t] == null ? 'Belum diinput' : _wdNum(r.total[t]));
+    const n = tahunList.length;
+    // lebar kolom tetap supaya URAIAN & UNIT KERJA tidak terjepit saat tahun banyak
+    const yw = admin ? (n > 4 ? 42 : 54) : (n > 4 ? 54 : 66), fs = (admin && n > 4) ? 8 : 9;
+
+    const bodyRows = groups.map((g, i) => {
+      const { r, det } = g, k = det.length;
+      return det.map((u, j) => `<tr style="background:white">
+        ${j === 0 ? `<td rowspan="${k}" style="${td};text-align:center;width:44px;white-space:nowrap">${i + 1}</td>
+        <td rowspan="${k}" style="${td};white-space:nowrap">${esc(r.kode_ssd)}</td>
+        <td rowspan="${k}" style="${td}">${esc(r.uraian)}</td>
+        <td rowspan="${k}" style="${td};text-align:center">${esc(r.satuan || '-')}</td>` : ''}
+        <td style="${td};text-align:center">${esc(u.nama)}</td>
+        ${tahunList.map(t => `<td style="${td};text-align:center;font-size:${fs}px">${nilai(u.nilai[t])}</td>`).join('')}
+        ${admin && j === 0 ? tahunList.map(t => `<td rowspan="${k}" style="${td};text-align:center;font-weight:700;font-size:${fs}px">${total(r, t)}</td>`).join('') : ''}
+      </tr>`).join('');
+    }).join('');
+
+    let isian = 0, terisi = 0;
+    for (const g of groups) for (const u of g.det) for (const t of tahunList) { isian++; if ((u.nilai[t] ?? null) !== null) terisi++; }
+    const rentangTxt = `${tahunList[0]} s/d ${tahunList[n - 1]}`;
+    const filterTxt = [`Tahun : ${rentangTxt}`, unitLabel && `Unit Kerja : ${esc(unitLabel)}`, statusLabel && `Status : ${statusLabel}`].filter(Boolean).join(' &nbsp;|&nbsp; ');
+    const rs = 2;
+    const fixTh = lbl => `<th rowspan="${rs}" style="${th}">${lbl}</th>`;
+    const yearTh = (rowspan = 1) => tahunList.map(t => `<th${rowspan > 1 ? ` rowspan="${rowspan}"` : ''} style="${th};font-size:${fs}px">${t}</th>`).join('');
+    const bodyHtml = `
+      ${_kopSuratHtml()}
+      <div style="text-align:center;margin:14px 0 12px">
+        <div style="font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.5px">Laporan Realisasi Walidata (Data SSD)</div>
+        <div style="font-size:11px;color:#1e293b;margin-top:4px">${filterTxt}</div>
+      </div>
+      <table style="border-collapse:collapse;border-spacing:0;width:100%;table-layout:fixed">
+        <colgroup>
+          <col style="width:44px"><col style="width:62px"><col><col style="width:48px"><col style="width:105px">
+          ${tahunList.map(() => `<col style="width:${yw}px">`).join('')}${admin ? tahunList.map(() => `<col style="width:${yw}px">`).join('') : ''}
+        </colgroup>
+        <thead>
+          <tr style="background:#0d9488">
+            ${fixTh('NO')}${fixTh('KODE SSD')}${fixTh('URAIAN')}${fixTh('SATUAN')}${fixTh('UNIT KERJA')}
+            <th colspan="${n}" style="${th}">REALISASI</th>
+            ${admin ? `<th colspan="${n}" style="${th}">CAPAIAN</th>` : ''}
+          </tr>
+          <tr style="background:#0d9488">${yearTh()}${admin ? yearTh() : ''}</tr>
+        </thead>
+        <tbody>${bodyRows}</tbody>
+      </table>
+      <div style="font-size:9px;color:#1e293b;margin-top:8px">Jumlah indikator: ${groups.length} &nbsp;|&nbsp; Isian terinput: ${terisi} dari ${isian}${admin ? '. Capaian dihitung dari unit kerja yang sudah menginput; yang belum input tidak dihitung sebagai nol.' : ''}</div>
+      ${_ttdHtml(kepalaDinas, nowStrTtd, 24, 8)}`;
+
+    _bukaPreviewPDF(bodyHtml, `Laporan Walidata ${tahunList[0]}-${tahunList[n - 1]}`, 'landscape');
+  } catch (err) {
+    console.error('[wdlUnduhPDFRentang]', err);
+    toast('Gagal membuat laporan PDF: ' + err.message, 'error');
+  } finally {
+    if (btnEl) { btnEl.disabled = false; btnEl.innerHTML = originalHtml; }
   }
 }

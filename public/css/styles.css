@@ -1070,6 +1070,28 @@ tr:hover td:not(.td-sticky-no):not(.td-sticky-name) { background: var(--abu-1); 
 .btn-ghost[data-tip="Batalkan"]:hover {
   background: #c2410c; color: #fff; border-color: #c2410c;
 }
+/* Tombol aksi Perjalanan Dinas: Verifikasi (hijau), Batalkan verifikasi (oranye), Duplikat (biru).
+   Edit & Hapus sudah berwarna lewat aturan di atas. */
+.btn-ghost[data-tip="Verifikasi"] {
+  background: #d1fae5; color: #047857; border-color: #6ee7b7;
+}
+.btn-ghost[data-tip="Verifikasi"]:hover {
+  background: #047857; color: #fff; border-color: #047857;
+}
+.btn-ghost[data-tip="Batalkan penolakan"],
+.btn-ghost[data-tip="Batalkan verifikasi"] {
+  background: #ffedd5; color: #c2410c; border-color: #fdba74;
+}
+.btn-ghost[data-tip="Batalkan penolakan"]:hover,
+.btn-ghost[data-tip="Batalkan verifikasi"]:hover {
+  background: #c2410c; color: #fff; border-color: #c2410c;
+}
+.btn-ghost[data-tip^="Duplikat"] {
+  background: #dbeafe; color: #1e40af; border-color: #93c5fd;
+}
+.btn-ghost[data-tip^="Duplikat"]:hover {
+  background: #1e40af; color: #fff; border-color: #1e40af;
+}
 .btn-ghost[data-tip="Tambah tahun lain"] {
   background: #d1fae5; color: #047857; border-color: #6ee7b7;
 }
@@ -2578,6 +2600,16 @@ ol.lap-md-list--alpha > li::before { content:counter(lapmdnum, lower-alpha) ".";
 .btn-reset-row:hover { background:#fee2e2; border-color:#f87171; color:#b91c1c; }
 .btn-reset-row:disabled { opacity:.5; cursor:not-allowed; }
 .btn-reset-row svg { pointer-events:none; flex-shrink:0; }
+
+/* Penanda kolom Aksi saat periode input sudah ditutup */
+.aksi-tutup-badge {
+  display:inline-flex; align-items:center; gap:5px;
+  padding:4px 10px; border-radius:7px; border:1.5px solid #fca5a5;
+  background:#fee2e2; color:#991b1b;
+  font-size:.73rem; font-weight:700; white-space:nowrap; cursor:default;
+}
+.aksi-tutup-badge svg { flex-shrink:0; }
+.aksi-tutup-badge--saved { background:#ecfdf5; border-color:#a7f3d0; color:#047857; }
 
 /* ── Warna baris berdasarkan state ──────────────────────────────────────── */
 /* Default - putih / abu bergantian, tidak ada highlight */
@@ -11091,3 +11123,47 @@ body:not(.is-admin) .abs-hariini-flex-wrap .dash-kpi-row .abs-jamkerja-wrap:nth-
 }
 .kw-cdd-search-input::placeholder { color: #94a3b8; }
 .kw-cdd-empty { padding: 8px 12px; font-size: .78rem; color: #94a3b8; text-align: center; }
+
+
+/* ── Perjadin (Perjalanan Dinas) ── */
+.pj-sec { border: 1px solid var(--abu-2, #e2e8f0); border-radius: 10px; margin-bottom: 12px; background: #fff; }
+.pj-sec > summary { cursor: pointer; padding: 10px 14px; font-weight: 700; font-size: .85rem; list-style: none; display: flex; align-items: center; user-select: none; }
+.pj-sec > summary::-webkit-details-marker { display: none; }
+.pj-sec > summary::after { content: ''; margin-left: auto; width: 7px; height: 7px; border-right: 2px solid currentColor; border-bottom: 2px solid currentColor; transform: rotate(45deg); transition: transform .15s; opacity: .55; }
+.pj-sec[open] > summary::after { transform: rotate(-135deg); }
+.pj-sec-body { padding: 4px 14px 10px; }
+.pj-grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 0 16px; }
+.pj-grid3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0 16px; }
+@media (max-width: 640px) { .pj-grid2, .pj-grid3 { grid-template-columns: 1fr; } }
+.pj-sub { font-size: .74rem; font-weight: 700; color: var(--teks-muted); text-transform: uppercase; letter-spacing: .04em; margin: 10px 0 8px; }
+.pj-rp { text-align: right; }
+.pj-total { display: flex; justify-content: space-between; align-items: center; padding: 10px 14px; border-radius: 10px; background: rgba(13,148,136,.08); font-size: .85rem; font-weight: 600; }
+.pj-total b { font-size: 1rem; color: var(--hijau); }
+.pj-toggle { display: flex; align-items: center; gap: 8px; font-weight: 700; font-size: .85rem; cursor: pointer; margin: 4px 0 12px; }
+.pj-toggle input { width: auto; margin: 0; }
+.pj-yn { display: inline-flex; gap: 4px; padding: 3px; border-radius: 10px; background: var(--abu-1); border: 1px solid var(--abu-2); }
+.pj-yn-btn { min-width: 64px; padding: 7px 18px; border-radius: 8px; border: 0; background: transparent; color: var(--teks-muted); font-size: .8rem; font-weight: 700; font-family: inherit; cursor: pointer; transition: all .15s ease; }
+.pj-yn-btn:hover { color: var(--hijau); background: #fff; }
+.pj-yn-btn.active { background: var(--hijau); color: #fff; box-shadow: 0 2px 8px rgba(15,118,110,.28); }
+.pj-yn-btn.pj-yn-tolak:hover { color: var(--merah); }
+.pj-yn-btn.pj-yn-tolak.active { background: var(--merah); color: #fff; box-shadow: 0 2px 8px rgba(220,38,38,.28); }
+/* Data Perjadin mode lihat-saja (user dengan akses dasar, bukan Admin Penuh) */
+#page-perjadin.pj-readonly .pj-admin-only,
+#page-perjadin.pj-readonly .pj-aksi-col { display: none !important; }
+.pj-yn-btn:focus-visible { outline: 2px solid var(--hijau-light); outline-offset: 1px; }
+.pj-cell-sub { font-size: .72rem; color: var(--teks-muted); margin-top: 2px; }
+.pj-ket { max-width: 280px; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+
+/* ── Kinerja: freeze kolom No & Indikator disamakan dgn Perjadin ──
+   (lebar 180-220px, dilepas di HP ≤640px). Kolom No dikunci tepat 44px
+   (padding 6px) supaya left:44px kolom Indikator pas & tidak bergeser pas discroll. */
+.kinerja-table th[style*="left:0"],
+.kinerja-table td.td-sticky-no { width:44px; min-width:44px; max-width:44px; padding-left:6px; padding-right:6px; }
+.kinerja-table td.td-sticky-name,
+.kinerja-table th[style*="left:34px"] { min-width:180px; }
+@media (max-width: 640px) {
+  .kinerja-table td.td-sticky-no,
+  .kinerja-table td.td-sticky-name { position:static !important; }
+  .kinerja-table th[style*="left:0"],
+  .kinerja-table th[style*="left:34px"] { left:auto !important; }
+}

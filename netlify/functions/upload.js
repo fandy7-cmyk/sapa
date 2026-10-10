@@ -1,7 +1,8 @@
 
 import { v2 as cloudinary }        from 'cloudinary';
 import { requireAuth }              from './_auth.js';
-import { jsonResponse, errorResponse, getDb } from './_db.js';
+import { jsonResponse, errorResponse, getDb, parseBody } from './_db.js';
+import { deleteFromCloudinary, isFileStillReferenced } from './_cloudinary.js';
 
 cloudinary.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
@@ -48,6 +49,12 @@ function getResourceType(mimeType) {
 
 export const handler = async (event) => {
   if (event.httpMethod === 'OPTIONS') return jsonResponse({});
+  // Hapus file hasil upload yang batal dipakai (belum tersimpan di DB). Lihat hapusUploadSendiri().
+  if (event.httpMethod === 'DELETE') {
+    const authDel = requireAuth(event);
+    if (!authDel) return errorResponse('Unauthorized', 401);
+    return hapusUploadSendiri(event, authDel);
+  }
   if (event.httpMethod !== 'POST')    return errorResponse('Method not allowed', 405);
 
   const auth = requireAuth(event);
@@ -177,4 +184,38 @@ function parseMultipart(buffer, boundary) {
   }
 
   return result;
+}
+
+// DELETE /api/upload  { url }
+// Membuang file yang sudah terupload tapi tidak jadi disimpan (user menekan Hapus / mengganti file / menutup modal).
+// Aman karena: hanya file yang diupload user itu sendiri (public_id memuat id uploader), hanya folder yang
+// referensinya dicek isFileStillReferenced (Absensi, Foto Profil, Tanda Tangan), dan ditolak kalau file masih dipakai record lain.
+const HAPUS_FOLDER_OK = ['/SAPA/Absensi/', '/SAPA/Foto Profil/', '/SAPA/Tanda Tangan/'];
+
+async function hapusUploadSendiri(event, auth) {
+  const { url } = parseBody(event) || {};
+  if (!url || typeof url !== 'string') return errorResponse('URL file wajib diisi', 400);
+
+  let pathname;
+  try {
+    const u = new URL(url);
+    if (u.hostname !== 'res.cloudinary.com') return errorResponse('Bukan file milik aplikasi ini', 403);
+    pathname = decodeURIComponent(u.pathname);
+  } catch {
+    return errorResponse('URL tidak valid', 400);
+  }
+
+  const cloudName = process.env.CLOUDINARY_CLOUD_NAME || '';
+  if (!cloudName || !pathname.startsWith(`/${cloudName}/`)) return errorResponse('Bukan file milik aplikasi ini', 403);
+  if (!HAPUS_FOLDER_OK.some((f) => pathname.includes(f))) return errorResponse('File ini tidak bisa dihapus dari sini', 403);
+
+  // public_id hasil upload: `${Date.now()}_${auth.id}_${nama}`
+  const m = pathname.split('/').pop().match(/^(\d{10,})_(\d+)_/);
+  if (!m || m[2] !== String(auth.id)) return errorResponse('Hanya file yang Anda upload sendiri yang bisa dihapus', 403);
+
+  const sql = getDb();
+  if (await isFileStillReferenced(sql, url)) return jsonResponse({ ok: true, deleted: false, reason: 'masih_dipakai' });
+
+  const r = await deleteFromCloudinary(url);
+  return jsonResponse({ ok: true, deleted: !!r.ok });
 }

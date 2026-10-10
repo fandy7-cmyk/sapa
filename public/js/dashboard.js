@@ -282,13 +282,18 @@ const _DM_CSS = `
 .dm-pill i{width:8px;height:8px;border-radius:50%;flex-shrink:0}
 .dm-pill b{font-weight:700;color:var(--teks);font-variant-numeric:tabular-nums}
 .dm-kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:var(--sp-4);margin-bottom:var(--sp-4)}
-.dm-kpi{display:flex;flex-direction:column;gap:3px;padding:var(--sp-4) var(--sp-5);background:#fff;border:1.5px solid var(--abu-2);border-radius:var(--r-md);min-width:0;transition:border-color .18s,box-shadow .18s}
+.dm-kpi{display:flex;flex-direction:column;padding:0;overflow:hidden;background:#fff;border:1.5px solid var(--abu-2);border-radius:var(--r-md);min-width:0;transition:border-color .18s,box-shadow .18s}
+.dm-kpi::before{content:"";display:block;height:3px;flex-shrink:0;background:var(--c)}
 .dm-kpi[onclick]{cursor:pointer}.dm-kpi[onclick]:hover{border-color:var(--c);box-shadow:var(--shadow-md)}
-.dm-kpi-top{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:var(--fs-sm);font-weight:600;color:var(--teks-muted)}
-.dm-kpi-ic{display:flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:8px;flex-shrink:0}
-.dm-kpi-val{font-size:var(--fs-2xl);font-weight:800;line-height:1.15;color:var(--c,var(--teks));white-space:nowrap}
-.dm-kpi-foot{display:flex;align-items:flex-end;justify-content:space-between;gap:8px;min-height:28px}
-.dm-kpi-sub{font-size:.7rem;color:var(--teks-muted);line-height:1.4}
+.dm-kpi-in{display:flex;flex-direction:column;gap:4px;flex:1;padding:var(--sp-3) var(--sp-5) var(--sp-4)}
+.dm-kpi-top{display:flex;align-items:center;gap:7px;min-width:0;font-size:.72rem;font-weight:600;letter-spacing:.03em;text-transform:uppercase;color:var(--teks-muted)}
+.dm-kpi-ic{display:flex;align-items:center;justify-content:center;flex-shrink:0;color:var(--c)}
+.dm-kpi-ic svg{width:16px;height:16px}
+.dm-kpi-lb{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.dm-kpi-val{font-size:var(--fs-2xl);font-weight:800;line-height:1.2;color:var(--c);white-space:nowrap}
+.dm-kpi-foot{display:flex;align-items:center;justify-content:space-between;gap:8px;min-height:24px;margin-top:2px}
+.dm-kpi-sub{font-size:.7rem;font-weight:600;line-height:1.4;padding:1px 8px;border-radius:10px;background:color-mix(in srgb,var(--c) 12%,transparent);color:color-mix(in srgb,var(--c) 72%,#000)}
+.dm-kpi-sub:empty{display:none}
 .dm-kpi-sp{flex-shrink:0}
 .dm-cols{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,340px),1fr));gap:var(--sp-4);margin-bottom:var(--sp-4)}
 .dm-cols.wide{grid-template-columns:minmax(0,1.618fr) minmax(0,1fr)}
@@ -303,6 +308,9 @@ const _DM_CSS = `
 .dm-cols.eq>.dm-card>.dm-donut{margin-block:auto}
 .dm-sub{font-size:.7rem;color:var(--teks-muted);margin-top:2px}
 .dm-chart{width:100%;height:auto;display:block;overflow:visible}
+.dm-card:has(>.dm-fill){display:flex;flex-direction:column}
+.dm-fill{flex:1;position:relative;min-height:150px}
+.dm-fill>svg.dm-chart{position:absolute;inset:0;width:100%;height:100%}
 .dm-ax{font-size:10px;fill:var(--teks-muted)}
 .dm-gl{stroke:rgba(15,23,42,.08);stroke-dasharray:3 3}
 .dm-hit{fill:transparent}.dm-hit:hover{fill:rgba(15,23,42,.06)}
@@ -370,6 +378,7 @@ function _dmStyle() {
 }
 
 const _DM_IC = {
+  biaya: '<rect width="20" height="12" x="2" y="6" rx="2"/><circle cx="12" cy="12" r="2"/><path d="M6 12h.01M18 12h.01"/>',
   link: '<path d="M9 17H7A5 5 0 0 1 7 7h2"/><path d="M15 7h2a5 5 0 1 1 0 10h-2"/><line x1="8" x2="16" y1="12" y2="12"/>',
   click: '<path d="m9 9 5 12 1.8-5.2L21 14Z"/><path d="M7.2 2.2 8 5.1"/><path d="m5.1 8-2.9-.8"/><path d="M14 4.1 12 6"/><path d="m6 12-1.9 2"/>',
   box: '<path d="m7.5 4.27 9 5.15"/><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/>',
@@ -492,11 +501,11 @@ function _dmSpark(vals, color, w, h) {
 }
 function _dmKpi({ label, val, sub, color, icon, spark, onclick }) {
   color = color || _DM_PAL.teal;
-  return `<div class="dm-kpi" style="--c:${color}"${onclick ? ` onclick="${onclick}" role="button" tabindex="0"` : ''}>
-    <div class="dm-kpi-top"><span>${label}</span><span class="dm-kpi-ic" style="background:${color}1f">${_dmIc(icon, color, 15)}</span></div>
+  return `<div class="dm-kpi" style="--c:${color}"${onclick ? ` onclick="${onclick}" role="button" tabindex="0"` : ''}><div class="dm-kpi-in">
+    <div class="dm-kpi-top"><span class="dm-kpi-ic">${_dmIc(icon, color, 16)}</span><span class="dm-kpi-lb">${label}</span></div>
     <div class="dm-kpi-val">${val}</div>
     <div class="dm-kpi-foot"><div class="dm-kpi-sub">${sub || ''}</div>${spark ? `<div class="dm-kpi-sp">${spark}</div>` : ''}</div>
-  </div>`;
+  </div></div>`;
 }
 function _dmNiceMax(v) { const p = Math.pow(10, Math.floor(Math.log10(Math.max(v, 1)))); const f = v / p; return (f <= 1 ? 1 : f <= 2 ? 2 : f <= 5 ? 5 : 10) * p; }
 
@@ -536,6 +545,32 @@ function _dmBar({ labels, values, color, h, hi, unit }) {
     if (i % stepX === 0) bars += `<text class="dm-ax" x="${(pl + i * bw + bw / 2).toFixed(1)}" y="${H - 6}" text-anchor="middle">${esc(labels[i])}</text>`;
   });
   return `<svg class="dm-chart" viewBox="0 0 ${W} ${H}" role="img">${g}${bars}</svg>`;
+}
+// Bar chart yang tingginya mengikuti tinggi card (opt-in). Dipakai kalau card ini sebaris sama
+// card yang lebih tinggi, biar gak ada ruang kosong di bawah chart. Tinggi viewBox dihitung ulang
+// dari tinggi wrapper, jadi teks & bar gak ikut melar.
+let _dmFillList = [];
+function _dmBarFill(opts) {
+  const id = 'dmfill' + (++_dmSeq);
+  _dmFillList.push({ id, opts });
+  return `<div class="dm-fill" id="${id}">${_dmBar(opts)}</div>`;
+}
+function _dmFitOne(el) {
+  const it = _dmFillList.find(x => x.id === el.id);
+  const w = el.clientWidth, hpx = el.clientHeight;
+  if (!it || !w || !hpx) return;
+  const h = Math.max(120, Math.round(hpx * 640 / w));
+  if (el.dataset.h === String(h)) return;
+  el.dataset.h = String(h);
+  el.innerHTML = _dmBar({ ...it.opts, h });
+  _dmFixText(el);
+}
+function _dmFitFill(root) {
+  _dmFillList = _dmFillList.filter(x => document.getElementById(x.id));
+  (root || document).querySelectorAll('.dm-fill').forEach(el => {
+    if (window.ResizeObserver && !el._dmRo) { el._dmRo = new ResizeObserver(() => _dmFitOne(el)); el._dmRo.observe(el); }
+    _dmFitOne(el);
+  });
 }
 function _dmDonut(items, centerVal, centerLbl, compact) {
   const tot = items.reduce((a, b) => a + b.value, 0), R = 46, C = 2 * Math.PI * R;
@@ -600,9 +635,9 @@ function _dmMount(wrap, html) {
   wrap.classList.add('dm');
   wrap.innerHTML = html;
   _dmInitPaging(wrap);
-  requestAnimationFrame(() => _dmFixText(wrap));
+  requestAnimationFrame(() => { _dmFixText(wrap); _dmFitFill(wrap); });
 }
-window.addEventListener('resize', () => document.querySelectorAll('.dm').forEach(_dmFixText));
+window.addEventListener('resize', () => document.querySelectorAll('.dm').forEach(r => { _dmFixText(r); _dmFitFill(r); }));
 // Daftar N bulan terakhir (termasuk bulan ini) -> [{key:'YYYY-MM', label}]
 function _dmBulanTerakhir(n) {
   const now = new Date(), out = [];
@@ -785,6 +820,136 @@ function _klikTrendPanel(data) {
   </div>`;
 }
 
+// ── Perjadin ─────────────────────────────────────────────────────────────────
+const _pjdRp = (n) => 'Rp ' + _dmNf(Math.round(Number(n) || 0));
+function _pjdRpS(n) {
+  n = Number(n) || 0;
+  const f = (v, u) => (Math.round(v * 10) / 10).toLocaleString('id-ID') + ' ' + u;
+  if (n >= 1e9) return 'Rp ' + f(n / 1e9, 'M');
+  if (n >= 1e6) return 'Rp ' + f(n / 1e6, 'jt');
+  if (n >= 1e3) return 'Rp ' + f(n / 1e3, 'rb');
+  return 'Rp ' + _dmNf(n);
+}
+const _PJD_STATUS = { menunggu: ['Menunggu', 'badge-warning'], terverifikasi: ['Disetujui', 'badge-hijau'], ditolak: ['Ditolak', 'badge-merah'] };
+
+async function loadDashboardPerjadin() {
+  const wrap = document.getElementById('dashPerjadinStats');
+  if (!wrap) return;
+  _dmStyle();
+  wrap.innerHTML = `
+    <div class="skeleton" style="height:96px;border-radius:16px;margin-bottom:13px"></div>
+    <div class="dash-kpi-row">${Array(5).fill(0).map(() => `<div class="skeleton" style="height:98px;border-radius:14px"></div>`).join('')}</div>
+    <div class="skeleton" style="height:200px;border-radius:16px"></div>`;
+
+  let d = null;
+  try {
+    const r = await fetch('/api/perjadin/dashboard', { headers: authHeaders() });
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    d = await r.json();
+  } catch (err) {
+    console.error('[loadDashboardPerjadin]', err);
+    wrap.innerHTML = '<div class="card" style="padding:24px;text-align:center;color:#64748b">Gagal memuat dashboard perjalanan dinas</div>';
+    return;
+  }
+
+  const full = !!d.full;
+  const k = d.ringkas || {};
+  const icon = `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor" style="flex-shrink:0;opacity:.85"><path fill-rule="evenodd" d="M3 5H8V3C8 2.44772 8.44772 2 9 2H15C15.5523 2 16 2.44772 16 3V5H21C21.5523 5 22 5.44772 22 6V20C22 20.5523 21.5523 21 21 21H3C2.44772 21 2 20.5523 2 20V6C2 5.44772 2.44772 5 3 5ZM10 4V5H14V4H10ZM4 7V19H20V7H4ZM4 11H20V13H4V11Z"/></svg>`;
+  let html = _dashModuleHeader(icon, 'Dashboard', full ? 'Ringkasan perjalanan dinas seluruh pegawai' : 'Ringkasan perjalanan dinas Anda');
+
+  // Tren 6 bulan
+  const bln = _dmBulanTerakhir(6);
+  const mJml = new Map(bln.map(b => [b.key, 0])), mBiaya = new Map(bln.map(b => [b.key, 0]));
+  (d.bulan || []).forEach(b => { if (mJml.has(b.ym)) { mJml.set(b.ym, b.jumlah); mBiaya.set(b.ym, b.biaya); } });
+  const serJml = bln.map(b => mJml.get(b.key)), serBiaya = bln.map(b => mBiaya.get(b.key));
+
+  const total = k.total || 0;
+  const menunggu = k.menunggu || 0, disetujui = k.terverifikasi || 0, belumLengkap = k.belum_lengkap || 0;
+  const tone = !total ? 'abu' : (menunggu || belumLengkap) ? 'warn' : 'ok';
+  html += _dmHero({
+    tone,
+    title: !total ? 'Belum ada data perjalanan dinas' : `${k.bulan_ini || 0} perjalanan dinas bulan ini (${_pjdRpS(k.biaya_bulan_ini)})`,
+    text: [
+      `${full ? 'Seluruh pegawai' : 'Anda'} tercatat <b>${_dmNf(total)}</b> perjalanan dinas, total <b>${_dmNf(k.total_hari)}</b> hari dengan biaya <b>${_pjdRp(k.total_biaya)}</b>.`,
+      menunggu ? `<b>${menunggu}</b> perjalanan dinas menunggu persetujuan.` : '',
+      belumLengkap ? `<b>${belumLengkap}</b> perjalanan dinas dari Tugas Luar belum dilengkapi rinciannya.` : '',
+    ],
+    ring: { pct: _dmPct(disetujui, total), label: 'disetujui', tip: `${disetujui} dari ${total} perjalanan dinas sudah disetujui` },
+    seg: [
+      { label: 'Disetujui', val: disetujui, color: _DM_PAL.ok },
+      { label: 'Menunggu', val: menunggu, color: _DM_PAL.warn },
+      { label: 'Sedang berjalan', val: k.sedang_berjalan || 0, color: _DM_PAL.info, bar: false },
+      { label: 'Akan datang', val: k.akan_datang || 0, color: _DM_PAL.sky, bar: false },
+    ],
+    trend: {
+      label: 'Biaya bulan ini',
+      val: _pjdRpS(k.biaya_bulan_ini),
+      d: serBiaya.length >= 2 ? Math.round(((k.biaya_bulan_ini || 0) - serBiaya[serBiaya.length - 2]) / 1e6 * 10) / 10 : null,
+      unit: 'jt', vs: 'dari bulan lalu', neutral: true,
+      vals: serBiaya,
+    },
+    reload: 'loadDashboardPerjadin()',
+  });
+
+  html += `<div class="dm-kpis">
+    ${_dmKpi({ label: full ? 'Total Perjalanan Dinas' : 'Perjalanan Dinas Saya', val: _dmNf(total), sub: `${_dmNf(k.tahun_ini)} tahun ini · ${_dmNf(k.bulan_ini)} bulan ini`, color: _DM_PAL.teal, icon: 'grid', spark: _dmSpark(serJml, _DM_PAL.teal) })}
+    ${_dmKpi({ label: 'Total Biaya', val: _pjdRpS(k.total_biaya), sub: `${_pjdRpS(k.biaya_tahun_ini)} tahun ini`, color: _DM_PAL.info, icon: 'biaya', spark: _dmSpark(serBiaya, _DM_PAL.info) })}
+    ${_dmKpi({ label: 'Total Hari', val: `${_dmNf(k.total_hari)} hari`, sub: total ? `rata-rata ${(Math.round((k.total_hari || 0) / total * 10) / 10).toLocaleString('id-ID')} hari/perjalanan` : '', color: _DM_PAL.ungu, icon: 'cal' })}
+    ${full ? _dmKpi({ label: 'Pegawai Berangkat', val: _dmNf(k.pegawai), sub: 'Pegawai yang pernah dinas luar', color: _DM_PAL.sky, icon: 'user' }) : ''}
+    ${_dmKpi({ label: 'Menunggu Persetujuan', val: _dmNf(menunggu), sub: `${_dmNf(disetujui)} sudah disetujui`, color: menunggu ? _DM_PAL.warn : _DM_PAL.ok, icon: 'clock' })}
+  </div>`;
+
+  html += _dmCols([
+    _dmCard('Perjalanan dinas dan biaya', '6 bulan terakhir', _dmArea({ labels: bln, h: 120, series: [{ name: 'Perjalanan', color: _DM_PAL.teal, values: serJml }] }) + _dmLegend([[_DM_PAL.teal, 'Perjalanan dinas']])),
+    _dmCard('Biaya per bulan', serBiaya.some(v => v >= 1e6) ? '6 bulan terakhir (juta rupiah)' : '6 bulan terakhir (ribu rupiah)', Math.max(...serBiaya) > 0
+      ? _dmBarFill({ labels: bln.map(b => b.short), values: serBiaya.map(v => Math.round(v / (serBiaya.some(x => x >= 1e6) ? 1e6 : 1e3) * 10) / 10), color: _DM_PAL.info, hi: serBiaya.indexOf(Math.max(...serBiaya)), h: 140, unit: serBiaya.some(v => v >= 1e6) ? ' jt' : ' rb' })
+      : _dmEmpty('Belum ada data biaya')),
+  ], true);
+
+  // Jenis & komposisi biaya
+  const jenisItems = (d.jenis || []).map((j, i) => ({
+    label: j.jenis || 'Belum dilengkapi', value: j.jumlah,
+    color: j.jenis ? [_DM_PAL.teal, _DM_PAL.info, _DM_PAL.ungu][i % 3] : _DM_PAL.abu,
+  }));
+  const komposisi = [
+    ['Transport', k.transport, _DM_PAL.teal], ['Taksi', k.taksi, _DM_PAL.sky], ['Uang harian', k.uang_harian, _DM_PAL.info],
+    ['Uang representasi', k.uang_representasi, _DM_PAL.ungu], ['Penginapan', k.penginapan, _DM_PAL.warn], ['Lain-lain', k.lain, _DM_PAL.abu],
+  ].filter(x => (x[1] || 0) > 0).sort((a, b) => b[1] - a[1]);
+  html += _dmCols([
+    _dmCard('Jenis perjalanan dinas', 'Menurut jarak tujuan', _dmDonut(jenisItems, _dmNf(total), 'perjalanan')),
+    _dmCard('Komposisi biaya', 'Urut biaya terbesar', _dmHbAuto(komposisi.map(([n, v, c]) => ({ label: n, value: Math.round(v), color: c, right: `<b style="color:${c}">${_pjdRpS(v)}</b>`, sub: `${_dmPct(v, k.total_biaya)}% dari total` })), 'Belum ada data biaya')),
+  ]);
+
+  // Tujuan & pelaksana teratas
+  const cards3 = [
+    _dmCard('Tujuan terbanyak', 'Kota tujuan perjalanan dinas', _dmHbAuto((d.tujuan || []).map(t => ({ label: t.nama, value: t.jumlah, suffix: 'x', color: _DM_PAL.teal, sub: _pjdRpS(t.biaya) })), 'Belum ada data')),
+  ];
+  if (full) cards3.push(_dmCard('Pegawai paling sering dinas', 'Urut jumlah perjalanan', _dmHbAuto((d.pelaksana || []).map(p => ({ label: p.nama, full: true, value: p.jumlah, suffix: 'x', color: _DM_PAL.warn, sub: `${p.hari} hari · ${_pjdRpS(p.biaya)}` })), 'Belum ada data')));
+  html += _dmCols(cards3);
+
+  // Terbaru
+  const fmtTgl = (s) => (typeof pjFmtTgl === 'function' ? pjFmtTgl(s) : s);
+  const terbaru = (d.terbaru || []).map(r => {
+    const st = _PJD_STATUS[r.status_verifikasi] || [r.status_verifikasi, 'badge-abu'];
+    return {
+      title: `${full ? r.pelaksana_nama + ' · ' : ''}${r.kota_tujuan || 'Tujuan belum diisi'}`,
+      sub: `${fmtTgl(r.tgl_mulai)} s/d ${fmtTgl(r.tgl_selesai)}${r.jumlah_biaya ? ' · ' + _pjdRp(r.jumlah_biaya) : ''}`,
+      badge: `<span class="badge ${st[1]}">${st[0]}</span>`,
+    };
+  });
+  html += _dmCols([_dmCard('Perjalanan dinas terbaru', 'Urut tanggal berangkat', _dmFeed(terbaru, 'Belum ada perjalanan dinas'))]);
+
+  const ins = [];
+  if (menunggu) ins.push(_dmIns('warn', `<b>${menunggu}</b> perjalanan dinas masih menunggu persetujuan.`));
+  if (belumLengkap) ins.push(_dmIns('warn', `<b>${belumLengkap}</b> perjalanan dinas hasil sinkron Tugas Luar belum dilengkapi (jenis, rute, dan biaya).`));
+  if (k.sedang_berjalan) ins.push(_dmIns('info', `Ada <b>${k.sedang_berjalan}</b> perjalanan dinas yang sedang berlangsung hari ini.`));
+  if (k.akan_datang) ins.push(_dmIns('info', `Ada <b>${k.akan_datang}</b> perjalanan dinas terjadwal ke depan.`));
+  if (!ins.length) ins.push(_dmIns('ok', 'Tidak ada catatan khusus untuk perjalanan dinas saat ini.'));
+  html += `<div class="dm-card" style="margin-bottom:var(--sp-4)"><div class="dm-card-h"><div class="dm-card-hl">${_dmCardIcon('Catatan')}<div class="dm-card-t">Catatan</div></div></div>${ins.join('')}</div>`;
+
+  _dmMount(wrap, html);
+}
+
 // ── Lembur ───────────────────────────────────────────────────────────────────
 async function _fetchLemburDashData() {
   try {
@@ -911,7 +1076,7 @@ async function loadDashboardLembur() {
   const topKeg = [...perKeg.values()].sort((a, b) => b.jam - a.jam);
 
   html += _dmCols([
-    _dmCard('Sebaran hari lembur', 'Sesi menurut hari dalam seminggu', sesiRelevant.length ? _dmBar({ labels: HARI, values: perHari, color: _DM_PAL.info, hi: perHari.indexOf(Math.max(...perHari)), h: 140 }) : _dmEmpty('Belum ada data')),
+    _dmCard('Sebaran hari lembur', 'Sesi menurut hari dalam seminggu', sesiRelevant.length ? _dmBarFill({ labels: HARI, values: perHari, color: _DM_PAL.info, hi: perHari.indexOf(Math.max(...perHari)), h: 140 }) : _dmEmpty('Belum ada data')),
     _dmCard('Kegiatan dengan jam terbanyak', 'Urut jam terbanyak', _dmHbAuto(topKeg.map(k => ({ label: k.nama, value: Math.round(k.jam), suffix: ' jam', color: _DM_PAL.teal, sub: `${k.sesi} sesi` })), 'Belum ada data')),
   ]);
 
@@ -1951,6 +2116,8 @@ async function loadDashboardKinerja() {
   const jenisMap = { IKU: 0, IKK: 0, SPM: 0, 'Sub Kegiatan': 0 };
   rekap.forEach(x => { if (x.jenis_monev === true) jenisMap.IKU++; if (x.jenis_ikk === true) jenisMap.IKK++; if (x.jenis_spm === true) jenisMap.SPM++; if (_kinIsSubkeg(x)) jenisMap['Sub Kegiatan']++; });
   const jenisColors = Object.fromEntries(Object.keys(_KIN_JENIS_KODE).map(j => [j, _kinJenisWarna(j).teks]));
+  // Batang grafik jenis pakai campuran warna_bg + warna_teks; angka di sisi kanan tetap pakai warna teks supaya terbaca.
+  const jenisBarColors = Object.fromEntries(Object.keys(_KIN_JENIS_KODE).map(j => [j, _kinWarnaBar(j)]));
 
   // Per jenis: satu indikator dihitung di tiap jenis yang dimilikinya (IKU/IKK/SPM/Sub Kegiatan).
   const grp = new Map();
@@ -2012,10 +2179,10 @@ async function loadDashboardKinerja() {
   ]).replace('class="dm-cols','class="dm-cols eq',1);
 
   html += _dmCols([
-    _dmCard('Sebaran jenis indikator', 'Satu indikator bisa masuk lebih dari satu jenis', _dmHbAuto(Object.entries(jenisMap).filter(([, c]) => c > 0).map(([j, c]) => ({ label: j, value: c, color: jenisColors[j] })), 'Belum ada data')),
+    _dmCard('Sebaran jenis indikator', 'Satu indikator bisa masuk lebih dari satu jenis', _dmHbAuto(Object.entries(jenisMap).filter(([, c]) => c > 0).map(([j, c]) => ({ label: j, value: c, color: jenisBarColors[j], right: `<b style="color:${jenisColors[j]}">${_dmNf(c)}</b>` })), 'Belum ada data')),
     _dmCard('Capaian menurut jenis', 'Rata-rata capaian dan pengisian', _dmHb(grpList.sort((a, b) => b.total - a.total).map(g => {
       const r = g.nCap ? Math.round(g.sumCap / g.nCap) : null;
-      const warnaBar = _KIN_JENIS_KODE[g.nama] ? _kinJenisWarna(g.nama).teks : (r == null ? '#cbd5e1' : _kwCapaianColor(r));
+      const warnaBar = _KIN_JENIS_KODE[g.nama] ? _kinWarnaBar(g.nama) : (r == null ? '#cbd5e1' : _kwCapaianColor(r));
       return { label: g.nama, value: r || 0, max: 100, color: warnaBar, right: r == null ? 'Belum ada' : `<b style="color:${_kwCapaianColor(r)}">${r}%</b>`, sub: `${g.terisi}/${g.total} indikator terisi` };
     }), 'Belum ada data')),
   ]);
@@ -2418,7 +2585,7 @@ function _renderIkuGrid(bulan, tahun, pa) {
   const filterBarHtml = `
     <div class="kw-filter-row" style="margin-bottom:10px">
         <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="opacity:.4;flex-shrink:0"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
-        <span style="font-size:0.72rem;font-weight:700;color:#64748b;white-space:nowrap">Filter Periode:</span>
+        <span style="font-size:0.72rem;font-weight:700;color:#64748b;white-space:nowrap">Periode:</span>
         <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
 
         <div class="kw-cdd" id="ikuFilterModeDd" style="min-width:90px" onclick="event.stopPropagation();_kwCddToggle('ikuFilterModeDd')">
@@ -2791,6 +2958,14 @@ async function _kinLoadJenisWarna() {
 function _kinJenisWarna(label) {
   const peta = _kinJenisWarnaCache || _KIN_JENIS_DEFAULT;
   return peta[_KIN_JENIS_KODE[label]] || _KIN_JENIS_DEFAULT[_KIN_JENIS_KODE[label]] || { bg: '#e2e8f0', teks: '#334155' };
+}
+// Warna batang grafik jenis: campuran warna_bg dan warna_teks (50:50), tengah-tengah antara pastel dan pekat.
+function _kinWarnaBar(label) {
+  const c = _kinJenisWarna(label);
+  const hex = (h) => { const m = /^#?([0-9a-f]{6})$/i.exec(String(h || '').trim()); return m ? [0, 2, 4].map(i => parseInt(m[1].substr(i, 2), 16)) : null; };
+  const a = hex(c.bg), b = hex(c.teks);
+  if (!a || !b) return c.teks;
+  return '#' + a.map((v, i) => Math.round(v * 0.5 + b[i] * 0.5).toString(16).padStart(2, '0')).join('');
 }
 function _kbJenisBadge(label) {
   const c = _kinJenisWarna(label);
@@ -4126,7 +4301,7 @@ function _renderKinerjaWatch() {
       ${_kwWatchedId ? `
       <div class="kw-filter-row">
         <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="opacity:.4;flex-shrink:0"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
-        <span style="font-size:0.72rem;font-weight:700;color:#64748b;white-space:nowrap">Filter Periode:</span>
+        <span style="font-size:0.72rem;font-weight:700;color:#64748b;white-space:nowrap">Periode:</span>
         ${rangeFilterHtml}
       </div>` : ''}
 
@@ -6045,3 +6220,156 @@ div.kw-insight-card-v2 {
   el.textContent = DASH_STYLE_CSS;
   document.head.appendChild(el);
 })();
+
+// ═══ DASHBOARD (Walidata) ═══════════════════════════════════════════════════
+// Memakai kit dashboard modul (_dm*, di dashboard.js). Data dari GET /dashboard?tahun=
+// Admin: seluruh indikator & unit kerja. User biasa: isian unit kerjanya untuk indikator yang di-assign ke akunnya.
+const _wdd = { tahun: new Date().getFullYear(), data: null };
+const _wdFmtWita = iso => iso
+  ? new Date(iso).toLocaleString('id-ID', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', hourCycle: 'h23', timeZone: 'Asia/Makassar' })
+      .replace(' pukul', '').replace(/(\d{1,2})\.(\d{2})$/, '$1:$2') + ' WITA'
+  : '-';
+const WD_PERIODE_LABEL = { terbuka: 'Terbuka', ditutup: 'Ditutup', belum_dibuka: 'Belum dibuka', belum_diatur: 'Belum diatur' };
+const WD_AKSI_LOG = { input: ['Input', 'badge-green'], ubah: ['Diubah', 'badge-blue'], hapus: ['Dikosongkan', 'badge-red'],
+                      import: ['Import', 'badge-blue'], pindah_unit: ['Pindah unit', 'badge-yellow'] };
+
+function _wddIsiTahun(d) {
+  const sel = document.getElementById('wddTahun');
+  if (!sel) return;
+  sel.innerHTML = _wdDaftarTahun(d?.daftar_tahun, _wdd.tahun).map(t => `<option value="${t}" ${t === _wdd.tahun ? 'selected' : ''}>${t}</option>`).join('');
+  if (typeof syncCustomSelect === 'function') syncCustomSelect('wddTahun');
+}
+function wddGantiTahun(v) { _wdd.tahun = parseInt(v, 10); loadDashboardWalidata(); }
+
+async function loadDashboardWalidata() {
+  _wdEnsurePages();
+  const wrap = document.getElementById('dashWalidataStats');
+  if (!wrap) return;
+  _dmStyle();
+  wrap.innerHTML = `
+    <div class="skeleton" style="height:96px;border-radius:16px;margin-bottom:13px"></div>
+    <div class="dash-kpi-row">${Array(5).fill(0).map(() => `<div class="skeleton" style="height:98px;border-radius:14px"></div>`).join('')}</div>
+    <div class="skeleton" style="height:200px;border-radius:16px"></div>`;
+
+  let d;
+  try {
+    d = await _wdFetch('/dashboard?tahun=' + _wdd.tahun);
+    // Tahun terpilih tidak punya data/periode: pindah ke tahun terbaru yang ada (sama dengan Data SSD).
+    const dt = (d.daftar_tahun || []).map(Number);
+    if (dt.length && !dt.includes(_wdd.tahun)) {
+      _wdd.tahun = Math.max(...dt);
+      d = await _wdFetch('/dashboard?tahun=' + _wdd.tahun);
+    }
+  } catch (err) {
+    console.error('[loadDashboardWalidata]', err);
+    wrap.innerHTML = `<div class="card" style="padding:24px;text-align:center;color:#64748b">${esc(err.message || 'Gagal memuat dashboard Walidata')}</div>`;
+    return;
+  }
+  _wdd.data = d;
+  _wddIsiTahun(d);
+
+  const full = !!d.full;
+  const sub = document.getElementById('wddSub');
+  if (sub) sub.textContent = full ? 'Ringkasan pengisian data Walidata seluruh unit kerja' : 'Ringkasan pengisian data Walidata unit kerja Anda';
+
+  const k = d.ringkas || {}, pd = d.periode || {}, tren = d.tren || [];
+  const pct = _dmPct(k.terisi, k.isian);
+  const tone = !k.isian ? 'abu' : pct >= 80 ? 'ok' : pct >= 40 ? 'warn' : 'bad';
+  const toneCol = p => p >= 80 ? _DM_PAL.ok : p >= 40 ? _DM_PAL.warn : _DM_PAL.bad;
+
+  // selisih terhadap tahun sebelumnya (dari tren isian terinput per tahun)
+  const idx = tren.findIndex(t => t.tahun === d.tahun);
+  const prev = idx > 0 ? tren[idx - 1] : null;
+  const serTren = tren.map(t => t.terisi);
+
+  const periodeTxt = pd.status === 'terbuka' ? `Periode penginputan <b>terbuka</b> sampai ${_wdFmtWita(pd.close_at)}.`
+    : pd.status === 'ditutup' ? `Periode penginputan tahun ${d.tahun} sudah <b>ditutup</b>.`
+    : pd.status === 'belum_dibuka' ? `Periode penginputan tahun ${d.tahun} dibuka mulai ${_wdFmtWita(pd.open_at)}.`
+    : `Periode penginputan tahun ${d.tahun} <b>belum diatur</b>.`;
+
+  let html = '';
+  html += _dmHero({
+    tone,
+    title: !k.isian ? (full ? 'Belum ada indikator Walidata' : 'Belum ada indikator Walidata untuk akun Anda')
+                    : `${pct}% isian Walidata tahun ${d.tahun} sudah terinput`,
+    text: !k.isian ? [] : [
+      `<b>${_dmNf(k.terisi)}</b> dari <b>${_dmNf(k.isian)}</b> isian ${full ? 'unit kerja' : 'unit kerja Anda'} sudah diinput, terdiri dari <b>${_dmNf(k.indikator)}</b> indikator.`,
+      k.belum_isi ? `<b>${_dmNf(k.belum_isi)}</b> isian masih menunggu input.` : '',
+      periodeTxt,
+    ],
+    ring: { pct, label: 'terinput', tip: `${k.terisi} dari ${k.isian} isian sudah terinput` },
+    seg: [
+      { label: 'Terinput', val: k.terisi || 0, color: _DM_PAL.ok },
+      { label: 'Belum input', val: k.belum_isi || 0, color: _DM_PAL.warn },
+    ],
+    trend: {
+      label: 'Isian terinput', val: _dmNf(k.terisi),
+      d: prev ? (k.terisi || 0) - prev.terisi : null, unit: '', vs: `dari ${prev ? prev.tahun : 'tahun lalu'}`, neutral: true,
+      vals: serTren,
+    },
+    reload: 'loadDashboardWalidata()',
+  });
+
+  const unitLengkap = (d.unit || []).filter(u => u.terisi === u.total).length;
+  html += `<div class="dm-kpis">
+    ${_dmKpi({ label: 'Total Indikator', val: _dmNf(k.indikator), sub: `${_dmNf(k.lengkap)} lengkap · ${_dmNf(k.sebagian)} sebagian · ${_dmNf(k.belum)} belum`, color: _DM_PAL.teal, icon: 'grid', spark: _dmSpark(serTren, _DM_PAL.teal) })}
+    ${_dmKpi({ label: 'Isian Terinput', val: _dmNf(k.terisi), sub: `${pct}% dari ${_dmNf(k.isian)} isian`, color: _DM_PAL.ok, icon: 'check' })}
+    ${_dmKpi({ label: 'Belum Input', val: _dmNf(k.belum_isi), sub: k.belum_isi ? 'Isian yang belum diinput' : 'Semua isian sudah terinput', color: k.belum_isi ? _DM_PAL.warn : _DM_PAL.ok, icon: 'clock' })}
+    ${full ? _dmKpi({ label: 'Unit Kerja Pengampu', val: _dmNf((d.unit || []).length), sub: `${_dmNf(unitLengkap)} unit sudah lengkap`, color: _DM_PAL.info, icon: 'user' }) : ''}
+    ${_dmKpi({ label: 'Periode Input', val: WD_PERIODE_LABEL[pd.status] || '-', sub: pd.status === 'terbuka' ? `s.d. ${_wdFmtWita(pd.close_at)}` : `Tahun ${d.tahun}`, color: pd.status === 'terbuka' ? _DM_PAL.ok : _DM_PAL.abu, icon: 'cal' })}
+  </div>`;
+
+  // Progres per unit kerja + komposisi status indikator
+  const unitRows = (d.unit || []).map(u => {
+    const p = _dmPct(u.terisi, u.total), c = toneCol(p);
+    return { label: u.unit, full: true, value: u.terisi, max: u.total, color: c, right: `<b style="color:${c}">${p}%</b>`, sub: `${_dmNf(u.terisi)} dari ${_dmNf(u.total)} isian terinput` };
+  });
+  const statusItems = [
+    { label: 'Lengkap', value: k.lengkap || 0, color: _DM_PAL.ok },
+    { label: 'Sebagian', value: k.sebagian || 0, color: _DM_PAL.warn },
+    { label: 'Belum diisi', value: k.belum || 0, color: _DM_PAL.bad },
+  ];
+  html += _dmCols([
+    _dmCard(full ? 'Progres per unit kerja' : 'Progres unit kerja Anda', 'Urut dari progres terendah', _dmHbAuto(unitRows, 'Belum ada data')),
+    _dmCard('Status indikator', `Tahun ${d.tahun}`, _dmDonut(statusItems, _dmNf(k.indikator), 'indikator')),
+  ], true);
+
+  // Tren per tahun + daftar yang belum diisi
+  const trenHtml = tren.length
+    ? _dmBarFill({ labels: tren.map(t => String(t.tahun)), values: tren.map(t => t.terisi), color: _DM_PAL.teal, hi: idx, h: 140, unit: 'isian' })
+    : _dmEmpty('Belum ada data realisasi');
+  const belumRows = (d.belum_diisi || []).map(r => ({
+    title: `${r.kode_ssd} · ${r.uraian}`,
+    sub: esc(r.unit) + (full && r.pic_users?.length ? ' · ' + esc(r.pic_users.join(', ')) : ''),
+    badge: '<span class="badge badge-yellow">Belum input</span>',
+  }));
+  const jBelum = d.jumlah_belum_diisi || 0;
+  html += _dmCols([
+    _dmCard('Isian terinput per tahun', 'Tahun terpilih disorot', trenHtml),
+    _dmCard('Belum diinput', jBelum > (d.belum_diisi || []).length ? `${_dmNf(jBelum)} isian (100 teratas)` : `${_dmNf(jBelum)} isian`, _dmFeed(belumRows, 'Semua isian sudah terinput')),
+  ], true);
+
+  // Aktivitas terbaru
+  const terbaru = (d.terbaru || []).map(r => {
+    const a = WD_AKSI_LOG[r.aksi] || [r.aksi, 'badge-abu'];
+    return {
+      title: `${r.kode_ssd} · ${r.unit}`,
+      sub: `${esc(r.oleh || 'Sistem')} · Tahun ${r.tahun}${r.nilai !== null && r.nilai !== undefined ? ' · ' + _wdNum(r.nilai) : ''} · ${_wdFmtWita(r.waktu)}`,
+      badge: `<span class="badge ${a[1]}">${a[0]}</span>`,
+    };
+  });
+  html += _dmCols([_dmCard('Aktivitas terbaru', 'Input, perubahan, dan import realisasi', _dmFeed(terbaru, 'Belum ada aktivitas'))]);
+
+  // Catatan
+  const ins = [];
+  if (k.belum_isi) ins.push(_dmIns('warn', `<b>${_dmNf(k.belum_isi)}</b> isian tahun ${d.tahun} belum diinput.`));
+  if (k.sebagian) ins.push(_dmIns('info', `<b>${_dmNf(k.sebagian)}</b> indikator baru terisi sebagian (sebagian unit pengampu belum menginput).`));
+  if (full && k.tanpa_pengampu) ins.push(_dmIns('warn', `<b>${_dmNf(k.tanpa_pengampu)}</b> indikator belum punya unit kerja pengampu. Atur di Kelola Indikator.`));
+  if (pd.status === 'terbuka') ins.push(_dmIns('info', `Periode penginputan tahun ${d.tahun} terbuka sampai ${_wdFmtWita(pd.close_at)}.`));
+  else if (pd.status === 'belum_diatur') ins.push(_dmIns('warn', `Periode penginputan tahun ${d.tahun} belum diatur${full ? ' (Master Data → Periode)' : ''}.`));
+  if (!ins.length) ins.push(_dmIns('ok', 'Tidak ada catatan khusus untuk data Walidata saat ini.'));
+  html += `<div class="dm-card" style="margin-bottom:var(--sp-4)"><div class="dm-card-h"><div class="dm-card-hl">${_dmCardIcon('Catatan')}<div class="dm-card-t">Catatan</div></div></div>${ins.join('')}</div>`;
+
+  _dmMount(wrap, html);
+}
+

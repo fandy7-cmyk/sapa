@@ -419,7 +419,7 @@ function _renderKinerjaCountdown(containerId, jenis) {
       <div class="kperiode-body">
         <div class="kperiode-action-label">
           <span class="kperiode-jenis-pill" style="background:${jm.bg};color:${jm.fg}">${jm.icon}${jm.label}</span>
-          PENGISIAN INDIKATOR
+          Periode Penginputan
         </div>
         <div class="kperiode-progress-track">
           <div class="kperiode-progress-fill ok" id="${containerId}_fill" style="width:0%"></div>
@@ -684,6 +684,17 @@ const _KIN_AKSI_CLS    = { monev: 'col-aksi-iku', ikk: 'col-aksi-ikk', spm: 'col
 function _kinAksiHidden(jenis) {
   return !_isKinerjaAdmin() && !_punyaHakInputKinerja(jenis);
 }
+// Periode input sudah ditutup: kolom Aksi tidak dikosongkan.
+// Sudah ada realisasi -> "Tersimpan" (data sudah masuk, tidak bisa diubah lagi); belum diisi -> "Ditutup".
+function _aksiTutupBadge(saved) {
+  const svgOpen = '<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">';
+  if (saved) {
+    return '<span class="aksi-tutup-badge aksi-tutup-badge--saved" data-tip="Data sudah tersimpan. Periode input sudah ditutup, data tidak bisa diubah lagi.">'
+      + svgOpen + '<path d="M20 6 9 17l-5-5"/></svg>Tersimpan</span>';
+  }
+  return '<span class="aksi-tutup-badge" data-tip="Periode input sudah ditutup. Data tidak bisa diisi lagi.">'
+    + svgOpen + '<rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>Ditutup</span>';
+}
 function _applyKinAksiCol(jenis) {
   const hide = _kinAksiHidden(jenis);
   document.querySelectorAll('.' + _KIN_AKSI_CLS[jenis]).forEach(el => { el.style.display = hide ? 'none' : ''; });
@@ -706,6 +717,7 @@ function _kinColSpan(tbody) {
 }
 
 async function loadKinerjaRekap({ keepPage = false } = {}) {
+  _kinUnitPrefill('monev');
   _applyKinAksiCol('monev');
   const tbody = document.getElementById('kinerjaTableBody');
   if (!tbody) return;
@@ -899,15 +911,10 @@ function _goSubkegPage(p) { _subkegPage = p; _renderSubkegTable(document.getElem
 // ═══ Filter Unit Kerja (admin / kinerja.full) untuk tabel IKU, IKK, SPM, Sub Kegiatan ═══
 const _kinUnit = { monev: '', ikk: '', spm: '', subkeg: '' };
 const _KIN_UNIT_SEL = { monev: 'kinerjaUnitFilter', ikk: 'ikkUnitFilter', spm: 'spmUnitFilter', subkeg: 'subkegUnitFilter' };
-function _kinUnitSyncSelect(jenis, rows) {
-  const sel = document.getElementById(_KIN_UNIT_SEL[jenis]);
-  if (!sel) return;
-  const admin = _isKinerjaAdmin();
-  const wrap = sel.closest('.select-wrap');
-  if (wrap) wrap.style.display = admin ? '' : 'none';
-  if (!admin) { _kinUnit[jenis] = ''; return; }
-  const list = [...new Set((rows || []).map(r => r.penanggung_jawab).filter(Boolean))]
-    .sort((a, b) => a.localeCompare(b, 'id'));
+// Daftar unit kerja terakhir disimpan per user & jenis di sessionStorage supaya dropdown langsung terisi
+// saat reload (sebelum data tabel selesai di-fetch). Setelah data datang, daftar asli menggantikannya.
+function _kinUnitCacheKey(jenis) { return `sapa_kinunit_${(typeof _user !== 'undefined' && _user && _user.id) || 'x'}_${jenis}`; }
+function _kinUnitApply(sel, jenis, list) {
   if (_kinUnit[jenis] && !list.includes(_kinUnit[jenis])) _kinUnit[jenis] = '';
   const sig = list.join('\u0001');
   if (sel.dataset.sig !== sig) {
@@ -917,6 +924,30 @@ function _kinUnitSyncSelect(jenis, rows) {
   }
   sel.value = _kinUnit[jenis];
   if (typeof syncCustomSelect === 'function') syncCustomSelect(sel.id);
+}
+// Dipanggil di awal loader tiap jenis (sebelum fetch).
+function _kinUnitPrefill(jenis) {
+  const sel = document.getElementById(_KIN_UNIT_SEL[jenis]);
+  if (!sel || !_isKinerjaAdmin() || sel.dataset.sig) return;
+  try {
+    const list = JSON.parse(sessionStorage.getItem(_kinUnitCacheKey(jenis)) || 'null');
+    if (!Array.isArray(list) || !list.length) return;
+    const wrap = sel.closest('.select-wrap');
+    if (wrap) wrap.style.display = '';
+    _kinUnitApply(sel, jenis, list);
+  } catch (e) {}
+}
+function _kinUnitSyncSelect(jenis, rows) {
+  const sel = document.getElementById(_KIN_UNIT_SEL[jenis]);
+  if (!sel) return;
+  const admin = _isKinerjaAdmin();
+  const wrap = sel.closest('.select-wrap');
+  if (wrap) wrap.style.display = admin ? '' : 'none';
+  if (!admin) { _kinUnit[jenis] = ''; return; }
+  const list = [...new Set((rows || []).map(r => r.penanggung_jawab).filter(Boolean))]
+    .sort((a, b) => a.localeCompare(b, 'id'));
+  _kinUnitApply(sel, jenis, list);
+  try { sessionStorage.setItem(_kinUnitCacheKey(jenis), JSON.stringify(list)); } catch (e) {}
 }
 function _kinUnitMatch(jenis, row) {
   return !_kinUnit[jenis] || row.penanggung_jawab === _kinUnit[jenis];
@@ -1052,7 +1083,7 @@ function renderKinerjaTable(tbody) {
   ? '<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/><path d="M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7"/><path d="M7 3v4a1 1 0 0 0 1 1h7"/></svg> Tersimpan'
   : '<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/><path d="M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7"/><path d="M7 3v4a1 1 0 0 0 1 1h7"/></svg> Simpan'}
           </button>
-        ` : ''}
+        ` : (!canEdit ? _aksiTutupBadge(!!row.realisasi_id) : '')}
         ${_isSuperAdminKinerja() && row.realisasi_id ? `
           <button class="btn-reset-row" id="resetbtn_${row.id}" data-tip="Reset data realisasi baris ini (super admin)"
             onclick="resetRealisasiRow(${row.id}, 'monev')">
@@ -4316,6 +4347,7 @@ function setIkkBulan(bulan) {
 }
 
 async function loadIkkRekap({ keepPage = false } = {}) {
+  _kinUnitPrefill('ikk');
   _applyKinAksiCol('ikk');
   const tbody = document.getElementById('ikkTableBody');
   if (!tbody) return;
@@ -4792,7 +4824,7 @@ function _renderIkkTable(tbody) {
   ? '<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/><path d="M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7"/><path d="M7 3v4a1 1 0 0 0 1 1h7"/></svg> Tersimpan'
   : '<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/><path d="M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7"/><path d="M7 3v4a1 1 0 0 0 1 1h7"/></svg> Simpan'}
           </button>
-        ` : ''}
+        ` : (!canEdit ? _aksiTutupBadge(!!row.realisasi_id) : '')}
         ${_isSuperAdminKinerja() && row.realisasi_id ? `
           <button class="btn-reset-row" id="ikk_resetbtn_${row.id}" data-tip="Reset data realisasi baris ini (super admin)"
             onclick="resetRealisasiRow(${row.id}, 'ikk')">
@@ -7034,6 +7066,7 @@ function _renderSpmPeriodeInfo() {
 }
 
 async function loadSpmRekap({ keepPage = false } = {}) {
+  _kinUnitPrefill('spm');
   _applyKinAksiCol('spm');
   const tbody = document.getElementById('spmTableBody');
   if (!tbody) return;
@@ -7187,7 +7220,7 @@ function _renderSpmTable(tbody) {
   ? '<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/><path d="M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7"/><path d="M7 3v4a1 1 0 0 0 1 1h7"/></svg> Tersimpan'
   : '<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/><path d="M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7"/><path d="M7 3v4a1 1 0 0 0 1 1h7"/></svg> Simpan'}
           </button>
-        ` : ''}
+        ` : (!canEdit ? _aksiTutupBadge(!!row.realisasi_id) : '')}
         ${_isSuperAdminKinerja() && row.realisasi_id ? `
           <button class="btn-reset-row" id="spm_resetbtn_${row.id}" data-tip="Reset data realisasi baris ini (super admin)"
             onclick="resetRealisasiRow(${row.id}, 'spm')">
@@ -7651,6 +7684,7 @@ function _renderSubkegPeriodeInfo() {
 }
 
 async function loadSubkegRekap({ keepPage = false } = {}) {
+  _kinUnitPrefill('subkeg');
   _applyKinAksiCol('subkeg');
   const tbody = document.getElementById('subkegTableBody');
   if (!tbody) return;
@@ -7804,7 +7838,7 @@ function _renderSubkegTable(tbody) {
   ? '<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/><path d="M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7"/><path d="M7 3v4a1 1 0 0 0 1 1h7"/></svg> Tersimpan'
   : '<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/><path d="M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7"/><path d="M7 3v4a1 1 0 0 0 1 1h7"/></svg> Simpan'}
           </button>
-        ` : ''}
+        ` : (!canEdit ? _aksiTutupBadge(!!row.realisasi_id) : '')}
         ${_isSuperAdminKinerja() && row.realisasi_id ? `
           <button class="btn-reset-row" id="subkeg_resetbtn_${row.id}" data-tip="Reset data realisasi baris ini (super admin)"
             onclick="resetRealisasiRow(${row.id}, 'subkeg')">

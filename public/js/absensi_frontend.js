@@ -1024,6 +1024,10 @@ function onAbsStatusChange() {
   
   
   document.getElementById('absDukungWrap').style.display = isCutiOrTugas ? '' : 'none';
+  // Tugas Luar: keterangan diganti Rincian Kegiatan (form Perjalanan Dinas), jadi kolom Keterangan disembunyikan.
+  const ketWrap = document.getElementById('absKeteranganWrap');
+  if (ketWrap) ketWrap.style.display = status === 'tugas_luar' ? 'none' : '';
+  pjAbsSync?.();
 
   if (!isCutiOrTugas) {
     document.getElementById('absTanggalSelesai').value = '';
@@ -1046,7 +1050,17 @@ function _absUpdateSaveBtnState() {
   btn.disabled = !!(sedangUpload || wajibTapiKosong);
 }
 
+// File yang baru diupload di modal ini (belum tersimpan di DB) dibuang dari Cloudinary kalau dihapus/diganti/modal ditutup.
+// File yang sudah tersimpan (dimuat dari record) tidak disentuh di sini; backend yang membersihkannya saat disimpan.
+function _absBuangDukungBaru() {
+  const f = _absDukung;
+  if (f?._baru && f.url) { hapusUploadYatim(f.url); f._baru = false; }
+}
+window._modalCloseHooks = window._modalCloseHooks || {};
+window._modalCloseHooks.modalAbs = _absBuangDukungBaru;
+
 function _resetAbsDukung() {
+  _absBuangDukungBaru();
   _absDukung = null;
   const area = document.getElementById('absDukungUploadArea');
   const fi   = document.getElementById('absDukungFileInput');
@@ -1080,8 +1094,8 @@ function _renderAbsDukungPreview() {
           ${f.url && !f._loading ? `<button type="button" class="btn btn-ghost btn-sm" data-tip="Preview" onclick="viewDoc(decodeURIComponent('${encodeURIComponent(f.url)}'), decodeURIComponent('${encodeURIComponent(f.name || '')}'))">
             <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
           </button>` : ''}
-          ${!f._loading ? `<button type="button" class="btn btn-ghost btn-sm" data-tip="Hapus" onclick="_resetAbsDukung()">
-            <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+          ${!f._loading ? `<button type="button" class="btn-hapus" data-tip="Hapus" onclick="_resetAbsDukung()">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6m4-6v6"/><path d="M9 6V4h6v2"/></svg>
           </button>` : ''}
         </div>
       </div>
@@ -1131,6 +1145,7 @@ function _absUploadFileWithProgress(file, onProgress) {
 async function _processAbsDukungFile(file) {
   if (file.size > 2 * 1024 * 1024) { toast(`${file.name}: terlalu besar (maks. 2 MB)`, 'error'); return; }
 
+  _absBuangDukungBaru();   // diganti file baru -> file upload sebelumnya yang belum tersimpan dibuang
   _absDukung = { url: null, name: file.name, _loading: true };
   _renderAbsDukungPreview();
   _absUpdateSaveBtnState();
@@ -1143,7 +1158,7 @@ async function _processAbsDukungFile(file) {
   try {
     const d = await _absUploadFileWithProgress(file, (pct) => { if (pb) pb.style.width = pct + '%'; });
     if (pb) { pb.style.width = '100%'; setTimeout(() => { if (pw) pw.style.display = 'none'; }, 600); }
-    _absDukung = { url: d.url, name: d.name || file.name };
+    _absDukung = { url: d.url, name: d.name || file.name, _baru: true };
     _renderAbsDukungPreview();
     _absUpdateSaveBtnState();
     toast(`${file.name} berhasil diupload`);
@@ -1167,11 +1182,7 @@ async function openAbsModal(id = null) {
     ? fetch('/api/users', { headers: authHeaders() }).then(r => r.json()).catch(() => null)
     : Promise.resolve(null);
   const absensiPromise = id
-    ? (() => {
-        const params = new URLSearchParams({ bulan: _absFilterBulan, tahun: _absFilterTahun });
-        if (_absFilterPegawai) params.set('user_id', _absFilterPegawai);
-        return fetch(`/api/absensi?${params}`, { headers: authHeaders() }).then(r => r.json()).catch(() => null);
-      })()
+    ? fetch(`/api/absensi/${id}`, { headers: authHeaders() }).then(r => r.ok ? r.json() : null).catch(() => null)
     : Promise.resolve(null);
   const [pegawaiData, absensiData] = await Promise.all([pegawaiPromise, absensiPromise]);
 
@@ -1187,7 +1198,7 @@ async function openAbsModal(id = null) {
   if (id) {
     
     
-    row = ((absensiData && absensiData.absensi) || []).find(x => x.id === id);
+    row = (absensiData && absensiData.absensi) || null;
     if (!row) { toast('Data tidak ditemukan', 'error'); return; }
     document.getElementById('absId').value = row.id;
     document.getElementById('absTanggal').value = row.tanggal.slice(0, 10);
@@ -1218,6 +1229,7 @@ async function openAbsModal(id = null) {
   syncCustomSelect?.('absStatus');
   onAbsStatusChange();
   openModal('modalAbs');
+  pjAbsInit?.(absensiData?.perjadin || null, row ? row.user_id : null);
 
   
   setTimeout(() => {
@@ -1273,6 +1285,10 @@ async function saveAbs() {
     }
   }
 
+  const pj = (typeof pjAbsCollect === 'function') ? pjAbsCollect() : null;
+  if (pj?.error) { toast(pj.error, 'error'); return; }
+  if (pj) { payload.perjadin = pj; payload.keterangan = pj.rincian_kegiatan || null; }
+
   try {
     const url = id ? `/api/absensi/${id}` : '/api/absensi';
     const r = await fetch(url, {
@@ -1283,6 +1299,7 @@ async function saveAbs() {
     const d = await r.json();
     if (!r.ok) { toast(d.error || 'Gagal menyimpan absensi', 'error'); return; }
     toast('Absensi berhasil disimpan', 'success');
+    _absDukung = null;   // sudah tersimpan: jangan dibuang oleh hook tutup modal
     closeModal('modalAbs');
     await rebuildAbsFilterTahun();
     await rebuildAbsFilterBulan();
@@ -1796,13 +1813,72 @@ const PENG_STATUS_ICON = {
 
 let _pengDukung = null;
 
+// Mode modal pengajuan: null = pengajuan baru, 'edit' = ubah pengajuan pending, 'ulang' = ajukan ulang yang ditolak.
+let _pengEditId = null;
+let _pengEditMode = null;
+
+function _setPengModalMode(mode) {
+  _pengEditMode = mode;
+  const judul = { edit: 'Edit Pengajuan', ulang: 'Ajukan Ulang Pengajuan' }[mode] || 'Ajukan Tugas Luar / Cuti';
+  const label = { edit: 'Simpan Perubahan', ulang: 'Ajukan Ulang' }[mode] || 'Ajukan';
+  const t = document.getElementById('pengModalTitle'); if (t) t.textContent = judul;
+  const l = document.getElementById('btnSimpanPengajuanLabel'); if (l) l.textContent = label;
+}
+
+function _pengAdaAnggaran(pj) {
+  const det = pj?.detail || {};
+  return Number(pj?.jumlah_biaya) > 0 || Object.values(det).some((v) => typeof v === 'number' && v > 0);
+}
+
+// Buka modal terisi data pengajuan lama: mode 'edit' (pending) atau 'ulang' (ditolak).
+async function bukaEditPengajuan(id, mode) {
+  let d;
+  try {
+    const r = await fetch(`/api/absensi/pengajuan/${id}`, { headers: authHeaders() });
+    d = await r.json();
+    if (!r.ok) { toast(d.error || 'Gagal memuat pengajuan', 'error'); return; }
+  } catch { toast('Gagal memuat pengajuan', 'error'); return; }
+  const p = d.pengajuan, pj = d.perjadin;
+
+  openPengajuanModal();                 // reset form + render form Perjalanan Dinas
+  _pengEditId = id;
+  _setPengModalMode(mode === 'ulang' ? 'ulang' : 'edit');
+
+  document.getElementById('pengStatus').value = p.status;
+  syncCustomSelect?.('pengStatus');
+  document.getElementById('pengKeterangan').value = p.status === 'cuti' ? (p.keterangan || '') : '';
+  _pengDukung = p.data_dukung_url ? { url: p.data_dukung_url, name: p.data_dukung_nama || 'Data dukung' } : null;
+  _renderPengDukungPreview();
+  _updatePengAjukanBtnState();
+
+  if (pj && typeof pjFillForm === 'function') {
+    pjFillForm('pjU', pj, false);
+    pjSetYN('pjU', _pengAdaAnggaran(pj) ? 'ya' : 'tidak');
+  } else if (p.status === 'tugas_luar') {
+    const rk = document.getElementById('pjU_rincian_kegiatan');   // pengajuan lama tanpa data perjadin
+    if (rk) rk.value = p.keterangan || '';
+  }
+  if (typeof pjPengSync === 'function') pjPengSync();
+
+  // Tanggal diisi setelah openPengajuanModal() selesai mengosongkan date picker (timeout 30 ms).
+  setTimeout(() => {
+    [['pengTanggal', p.tanggal], ['pengTanggalSelesai', p.tanggal_selesai]].forEach(([k, v]) => {
+      const el = document.getElementById(k); if (el) el.value = v || '';
+      document.getElementById(`cdtp_${k}`)?._cdtp?.set(v || null);
+    });
+  }, 80);
+}
+
 function openPengajuanModal() {
+  _pengEditId = null;
+  _setPengModalMode(null);
   document.getElementById('pengStatus').value = 'tugas_luar';
   document.getElementById('pengTanggal').value = '';
   document.getElementById('pengTanggalSelesai').value = '';
   document.getElementById('pengKeterangan').value = '';
   _resetPengDukung();
   syncCustomSelect?.('pengStatus');
+  if (typeof pjPengInit === 'function') pjPengInit();   // form Perjalanan Dinas (muncul saat Tugas Luar)
   openModal('modalPengajuanAbsen');
 
   setTimeout(() => {
@@ -1856,7 +1932,15 @@ function _updatePengAjukanBtnState() {
   btn.disabled = !_pengDukung?.url || !!_pengDukung?._loading;
 }
 
+function _pengBuangDukungBaru() {
+  const f = _pengDukung;
+  if (f?._baru && f.url) { hapusUploadYatim(f.url); f._baru = false; }
+}
+window._modalCloseHooks = window._modalCloseHooks || {};
+window._modalCloseHooks.modalPengajuanAbsen = _pengBuangDukungBaru;
+
 function _resetPengDukung() {
+  _pengBuangDukungBaru();
   _pengDukung = null;
   const area = document.getElementById('pengDukungUploadArea');
   const fi   = document.getElementById('pengDukungFileInput');
@@ -1890,8 +1974,8 @@ function _renderPengDukungPreview() {
           ${f.url && !f._loading ? `<button type="button" class="btn btn-ghost btn-sm" data-tip="Preview" onclick="viewDoc(decodeURIComponent('${encodeURIComponent(f.url)}'), decodeURIComponent('${encodeURIComponent(f.name || '')}'))">
             <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
           </button>` : ''}
-          ${!f._loading ? `<button type="button" class="btn btn-ghost btn-sm" data-tip="Hapus" onclick="_resetPengDukung()">
-            <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+          ${!f._loading ? `<button type="button" class="btn-hapus" data-tip="Hapus" onclick="_resetPengDukung()">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6m4-6v6"/><path d="M9 6V4h6v2"/></svg>
           </button>` : ''}
         </div>
       </div>
@@ -1917,6 +2001,7 @@ function handlePengDukungDrop(e) {
 async function _processPengDukungFile(file) {
   if (file.size > 2 * 1024 * 1024) { toast(`${file.name}: terlalu besar (maks. 2 MB)`, 'error'); return; }
 
+  _pengBuangDukungBaru();   // diganti file baru -> file upload sebelumnya yang belum tersimpan dibuang
   _pengDukung = { url: null, name: file.name, _loading: true };
   _renderPengDukungPreview();
   _updatePengAjukanBtnState();
@@ -1929,7 +2014,7 @@ async function _processPengDukungFile(file) {
   try {
     const d = await _absUploadFileWithProgress(file, (pct) => { if (pb) pb.style.width = pct + '%'; });
     if (pb) { pb.style.width = '100%'; setTimeout(() => { if (pw) pw.style.display = 'none'; }, 600); }
-    _pengDukung = { url: d.url, name: d.name || file.name };
+    _pengDukung = { url: d.url, name: d.name || file.name, _baru: true };
     _renderPengDukungPreview();
     _updatePengAjukanBtnState();
     toast(`${file.name} berhasil diupload`);
@@ -1946,7 +2031,7 @@ async function savePengajuan() {
   const status = document.getElementById('pengStatus').value;
   const tanggal = document.getElementById('pengTanggal').value;
   const tanggal_selesai = document.getElementById('pengTanggalSelesai').value;
-  const keterangan = document.getElementById('pengKeterangan').value.trim();
+  let keterangan = document.getElementById('pengKeterangan').value.trim();
 
   if (!tanggal || !tanggal_selesai) { toast('Tanggal mulai dan selesai wajib diisi', 'error'); return; }
   if (tanggal_selesai < tanggal) { toast('Tanggal selesai tidak boleh sebelum tanggal mulai', 'error'); return; }
@@ -1961,20 +2046,32 @@ async function savePengajuan() {
     return;
   }
 
+  // Perjalanan Dinas: Tugas Luar selalu perjalanan dinas, jadi ikut terkirim bersama pengajuan (null kalau Cuti).
+  let perjadin = null;
+  if (status === 'tugas_luar' && typeof pjPengCollect === 'function') {
+    perjadin = pjPengCollect();
+    if (perjadin?.error) { toast(perjadin.error, 'error'); return; }
+    // Keterangan pengajuan = Rincian Kegiatan (kolom Keterangan disembunyikan untuk Tugas Luar).
+    if (perjadin) keterangan = perjadin.rincian_kegiatan || keterangan;
+  }
+
   const btn = document.getElementById('btnSimpanPengajuan');
   btn.disabled = true;
   try {
-    const r = await fetch('/api/absensi/pengajuan', {
-      method: 'POST',
+    const r = await fetch(_pengEditId ? `/api/absensi/pengajuan/${_pengEditId}` : '/api/absensi/pengajuan', {
+      method: _pengEditId ? 'PUT' : 'POST',
       headers: { ...authHeaders(), 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        status, tanggal, tanggal_selesai, keterangan,
+        status, tanggal, tanggal_selesai, keterangan, perjadin,
         data_dukung_url: _pengDukung.url, data_dukung_nama: _pengDukung.name,
       }),
     });
     const d = await r.json();
     if (!r.ok) { toast(d.error || 'Gagal mengajukan', 'error'); return; }
-    toast('Pengajuan berhasil dikirim, menunggu persetujuan admin', 'success');
+    toast(_pengEditMode === 'edit' ? 'Perubahan pengajuan disimpan'
+      : _pengEditMode === 'ulang' ? 'Pengajuan diajukan ulang, menunggu persetujuan admin'
+      : 'Pengajuan berhasil dikirim, menunggu persetujuan admin', 'success');
+    _pengDukung = null;   // sudah tersimpan: jangan dibuang oleh hook tutup modal
     closeModal('modalPengajuanAbsen');
     await loadPengajuanSaya();
     if (typeof renderAbsHariIni === 'function') renderAbsHariIni();
@@ -1992,6 +2089,10 @@ async function loadPengajuanSaya() {
     const rows = (d.pengajuan || []).slice(0, 5);
     if (!rows.length) { box.style.display = 'none'; return; }
     box.style.display = '';
+    // Judul mengikuti isi daftar: semua Tugas Luar / semua Cuti / campuran.
+    const jenisSet = new Set(rows.map(p => p.status));
+    const judulEl = document.getElementById('absPengajuanSayaTitle');
+    if (judulEl) judulEl.textContent = 'Pengajuan ' + (jenisSet.size === 1 ? (_PERSETUJUAN_JENIS_LABEL[[...jenisSet][0]] || 'Tugas Luar / Cuti') : 'Tugas Luar / Cuti') + ' Saya';
     list.innerHTML = rows.map(p => `
       <div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--abu-2,#e2e8f0)">
         <div style="flex:1;min-width:0">
@@ -1999,10 +2100,16 @@ async function loadPengajuanSaya() {
           ${p.catatan_admin ? `<div style="font-size:.72rem;color:var(--teks-muted)">Catatan admin: ${esc(p.catatan_admin)}</div>` : ''}
         </div>
         <span class="badge ${PENG_STATUS_BADGE[p.status_persetujuan]}">${PENG_STATUS_ICON[p.status_persetujuan] || ''}${esc(PENG_STATUS_LABEL[p.status_persetujuan])}</span>
-        ${p.status_persetujuan === 'pending' ? `<button class="btn btn-ghost btn-sm" data-tip="Batalkan" onclick="batalkanPengajuan(${p.id})">
+        ${p.status_persetujuan === 'pending' ? `<button class="btn btn-ghost btn-sm" data-tip="Edit" onclick="bukaEditPengajuan(${p.id}, 'edit')">
+          <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+        </button>
+        <button class="btn btn-ghost btn-sm" data-tip="Batalkan" onclick="batalkanPengajuan(${p.id})">
           <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
         </button>` : ''}
-        ${p.status_persetujuan === 'ditolak' ? `<button class="btn btn-danger btn-sm" data-tip="Hapus" onclick="hapusPengajuanDitolak(${p.id})">
+        ${p.status_persetujuan === 'ditolak' ? `<button class="btn btn-primary btn-sm" onclick="bukaEditPengajuan(${p.id}, 'ulang')">
+          <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="margin-right:5px;vertical-align:-1px"><path d="M3 12a9 9 0 0 1 15.5-6.2L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-15.5 6.2L3 16"/><path d="M3 21v-5h5"/></svg>Ajukan Ulang
+        </button>
+        <button class="btn btn-danger btn-sm" data-tip="Hapus" onclick="hapusPengajuanDitolak(${p.id})">
           <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
         </button>` : ''}
       </div>
@@ -2048,15 +2155,18 @@ function fmtTglSingkat(s) {
 }
 
 async function refreshPengajuanPendingBadge() {
-  const badge = document.getElementById('absPengajuanPendingBadge');
-  if (!badge) return;
+  // Badge Absensi = semua pengajuan pending; badge Perjadin = hanya Tugas Luar (cuti tidak relevan di sana).
+  const abs = document.getElementById('absPengajuanPendingBadge');
+  const pj = document.getElementById('pjPengajuanPendingBadge');
+  if (!abs && !pj) return;
+  const set = (b, n) => { if (!b) return; if (n > 0) { b.textContent = n; b.style.display = ''; } else { b.style.display = 'none'; } };
   try {
     const r = await fetch('/api/absensi/pengajuan?status_persetujuan=pending', { headers: authHeaders() });
     const d = await r.json();
-    const n = (d.pengajuan || []).length;
-    if (n > 0) { badge.textContent = n; badge.style.display = ''; }
-    else { badge.style.display = 'none'; }
-  } catch { badge.style.display = 'none'; }
+    const rows = d.pengajuan || [];
+    set(abs, rows.length);
+    set(pj, rows.filter((p) => p.status === 'tugas_luar').length);
+  } catch { set(abs, 0); set(pj, 0); }
 }
 
 async function _cekPengajuanPendingReminder() {
@@ -2071,7 +2181,25 @@ async function _cekPengajuanPendingReminder() {
   } catch {  }
 }
 
-async function openPersetujuanModal() {
+// jenis: 'tugas_luar' | 'cuti' = daftar difilter ke jenis itu (mis. dari halaman Perjadin);
+// kosong = semua jenis (menu Absensi / popup login), judul menyesuaikan isi daftar.
+let _persetujuanJenis = null;
+const _PERSETUJUAN_JENIS_LABEL = { tugas_luar: 'Tugas Luar', cuti: 'Cuti' };
+
+function _setJudulPersetujuan(rows) {
+  const el = document.getElementById('absPersetujuanTitle');
+  if (!el) return;
+  let jenis = _persetujuanJenis;
+  if (!jenis) {
+    const set = new Set((rows || []).map((p) => p.status));
+    if (set.size === 1) jenis = [...set][0];
+  }
+  el.textContent = 'Persetujuan Pengajuan ' + (_PERSETUJUAN_JENIS_LABEL[jenis] || 'Tugas Luar / Cuti');
+}
+
+async function openPersetujuanModal(jenis) {
+  _persetujuanJenis = (jenis === 'tugas_luar' || jenis === 'cuti') ? jenis : null;
+  _setJudulPersetujuan([]);
   openModal('modalPersetujuanAbsen');
   
   await loadPersetujuanList({ silent: false });
@@ -2084,7 +2212,9 @@ async function loadPersetujuanList({ silent = true } = {}) {
   try {
     const r = await fetch('/api/absensi/pengajuan?status_persetujuan=pending', { headers: authHeaders() });
     const d = await r.json();
-    const rows = d.pengajuan || [];
+    let rows = d.pengajuan || [];
+    if (_persetujuanJenis) rows = rows.filter((p) => p.status === _persetujuanJenis);
+    _setJudulPersetujuan(rows);
     if (!rows.length) {
       if (silent) {
         
@@ -2094,7 +2224,7 @@ async function loadPersetujuanList({ silent = true } = {}) {
       }
       
       
-      container.innerHTML = `<div style="text-align:center;padding:24px;color:var(--teks-muted);font-size:.85rem">Tidak ada pengajuan yang perlu disetujui saat ini.</div>`;
+      container.innerHTML = `<div style="text-align:center;padding:24px;color:var(--teks-muted);font-size:.85rem">Tidak ada pengajuan${_persetujuanJenis ? ' ' + _PERSETUJUAN_JENIS_LABEL[_persetujuanJenis].toLowerCase() : ''} yang perlu disetujui saat ini.</div>`;
       return;
     }
     container.innerHTML = rows.map(p => `
@@ -2104,12 +2234,13 @@ async function loadPersetujuanList({ silent = true } = {}) {
             <div style="font-weight:700;font-size:.85rem">${esc(p.nama_pegawai)}</div>
             <div style="font-size:.78rem;color:var(--teks-muted);margin-top:2px">${esc(STATUS_LABEL[p.status] || p.status)} - ${fmtTglSingkat(p.tanggal)} s/d ${fmtTglSingkat(p.tanggal_selesai)}</div>
             ${p.keterangan ? `<div style="font-size:.78rem;margin-top:4px">${esc(p.keterangan)}</div>` : ''}
+            ${p.perjadin_id ? `<div style="font-size:.78rem;margin-top:4px;color:var(--aksen,#0d9488);font-weight:600">Tujuan: ${esc(p.perjadin_tujuan || '-')}${Number(p.perjadin_biaya) > 0 ? ' - ' + pjFmtRp(p.perjadin_biaya) : ''}</div>` : ''}
             ${p.data_dukung_url ? `<button type="button" class="btn btn-ghost btn-sm" style="margin-top:6px" onclick="viewDoc(decodeURIComponent('${encodeURIComponent(p.data_dukung_url)}'), decodeURIComponent('${encodeURIComponent(p.data_dukung_nama || 'Data Dukung')}'))">
               <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" style="margin-right:4px;vertical-align:-1px"><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>Lihat Data Dukung
             </button>` : ''}
           </div>
           <div style="display:flex;gap:6px;flex-shrink:0">
-            <button class="btn btn-secondary btn-sm" onclick="openTolakModal(${p.id})"><svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M18 6L6 18M6 6l12 12"/></svg>Tolak</button>
+            <button class="btn btn-danger btn-sm" onclick="openTolakModal(${p.id})"><svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M18 6L6 18M6 6l12 12"/></svg>Tolak</button>
             <button class="btn btn-primary btn-sm" onclick="approvePengajuan(${p.id})"><svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M20 6L9 17l-5-5"/></svg>Setujui</button>
           </div>
         </div>
@@ -2133,6 +2264,7 @@ async function approvePengajuan(id) {
     toast('Pengajuan disetujui', 'success');
     await loadPersetujuanList();
     await refreshPengajuanPendingBadge();
+    if (typeof pjRefreshSetelahPengajuan === 'function') await pjRefreshSetelahPengajuan();
     await renderAbsHariIni();
     await loadAbsRekap();
       await loadAbsTable(1);
@@ -2160,6 +2292,7 @@ async function submitTolakPengajuan() {
     closeModal('modalTolakPengajuan');
     await loadPersetujuanList();
     await refreshPengajuanPendingBadge();
+    if (typeof pjRefreshSetelahPengajuan === 'function') await pjRefreshSetelahPengajuan();
   } catch { toast('Gagal menolak pengajuan', 'error'); }
 }
 /* ── Tinggi card "Hari Ini" (kiri) vs kolom KPI+Jam Kerja (kanan) ──
