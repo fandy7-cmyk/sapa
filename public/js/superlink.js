@@ -878,16 +878,16 @@ function _openItemDetail(type, id, info) {
   const label = type === 'bundle' ? 'bundle' : 'link';
   const pTitle = document.getElementById('ldProtectedTitle');
   const pBtn   = document.getElementById('ldProtectedBtn');
-  if (info.is_protected) { pTitle.textContent = `This ${label} is protected`; pBtn.textContent = 'Ganti Password'; }
-  else { pTitle.textContent = `This ${label} is not protected`; pBtn.textContent = 'Set Password'; }
+  if (info.is_protected) { pTitle.textContent = `This ${label} is protected`; _ldSetBtnText(pBtn, 'Ganti Password'); }
+  else { pTitle.textContent = `This ${label} is not protected`; _ldSetBtnText(pBtn, 'Set Password'); }
 
   const eTitle = document.getElementById('ldExpiryTitle');
   const eBtn   = document.getElementById('ldExpiryBtn');
   if (info.expired_at) {
     const expired = new Date(info.expired_at) < new Date();
     eTitle.textContent = (expired ? 'Expired on ' : 'Active until ') + fmtDate(info.expired_at);
-    eBtn.textContent = 'Ubah Waktu';
-  } else { eTitle.textContent = 'No expiration set'; eBtn.textContent = 'Set Time'; }
+    _ldSetBtnText(eBtn, 'Ubah Waktu');
+  } else { eTitle.textContent = 'No expiration set'; _ldSetBtnText(eBtn, 'Set Time'); }
 
   openModal('modalLinkDetail');
 
@@ -947,6 +947,13 @@ function _ldDateOnly(v) {
   return new Date(d.getTime() + 8 * 3600000).toISOString().slice(0, 10);
 }
 
+// Ganti label tombol tanpa menghapus ikon svg di dalamnya (textContent = ... akan membuang ikonnya)
+function _ldSetBtnText(btn, text) {
+  if (!btn) return;
+  Array.from(btn.childNodes).forEach(n => { if (n.nodeType === 3) n.remove(); });
+  btn.appendChild(document.createTextNode(text));
+}
+
 async function _ldReloadAnalytics(dariOverride, sampaiOverride) {
   if (!_ldCurrentId) return;
   const dari   = dariOverride   || _ldDateOnly(document.getElementById('ldRangeDari').value);
@@ -954,15 +961,24 @@ async function _ldReloadAnalytics(dariOverride, sampaiOverride) {
   if (!dari || !sampai) return;
   const params = new URLSearchParams({ dari, sampai });
   const base = _ldCurrentType === 'bundle' ? '/api/bundles' : '/api/links';
+  const _ldVals = ['ldStatTotal', 'ldStatUnique', 'ldStatQr'].map(id => document.getElementById(id)).filter(Boolean);
+  const _ldSkel = on => _ldVals.forEach(e => {
+    e.classList.toggle('skeleton', on);
+    e.style.cssText = on ? 'display:block;height:1.1rem;width:44px;margin:4px auto' : '';
+    if (on) e.textContent = '';
+  });
+  _ldSkel(true);
   try {
     const r = await fetch(`${base}/${_ldCurrentId}/analytics?${params}`, { headers: authHeaders() });
     const d = await r.json();
     if (!r.ok) throw new Error(d.error || 'Gagal memuat');
+    _ldSkel(false);
     document.getElementById('ldStatTotal').textContent  = d.total_visitor ?? 0;
     document.getElementById('ldStatUnique').textContent = d.unique_visitor ?? 0;
     document.getElementById('ldStatQr').textContent     = d.qr_visitor ?? 0;
     _renderLdChart(d.daily || [], dari, sampai);
   } catch (err) {
+    _ldSkel(false); _ldVals.forEach(e => { e.textContent = '0'; });
     document.getElementById('ldChartBox').innerHTML = '<div class="ld-chart-empty">Gagal memuat data</div>';
   }
 }

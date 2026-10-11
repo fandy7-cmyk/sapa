@@ -53,7 +53,7 @@ function _wdDaftarTahun(daftar, aktif) {
   const st = document.createElement('style'); st.id = 'wdStyle';
   st.textContent = `.wdEdIn{padding:6px 9px;border:1.5px solid var(--abu-2,#e2e8f0);border-radius:7px;font-size:.82rem;font-family:inherit;color:var(--teks,#1e293b);background:#fff;text-align:center;font-weight:700;outline:none;transition:border-color .15s,box-shadow .15s;box-sizing:border-box}
 .wdEdIn:focus{border-color:var(--hijau,#047d78);box-shadow:0 0 0 3px rgba(6,95,70,.08)}
-.wdEdIn::placeholder{font-weight:400;color:#94a3b8}`;
+.wdEdIn::placeholder{font-weight:400;font-size:.72rem;color:#94a3b8}`;
   document.head.appendChild(st);
 })();
 // Sel realisasi dengan mode lihat + tombol Edit (ikon). Klik Edit -> muncul input + ikon Simpan + ikon Batal.
@@ -70,17 +70,41 @@ function _wdEditCell(inputId, nilai, saveCall, inputW = 110) {
       <button class="btn btn-sm btn-primary" data-tip="Simpan" onclick="${saveCall}">${_WD_IC_SIMPAN}</button>
       <button class="btn btn-ghost btn-sm" data-tip="Batal" onclick="wdEdBatal('${inputId}')">${_WD_IC.close}</button></div></div>`;
 }
+// Versi tabel Data SSD: nilai/input di kolom Jumlah, semua tombol (Edit/Simpan/Batal) di kolom Aksi.
+function _wdEditSplit(inputId, nilai, saveCall, inputW = 110) {
+  const val = nilai === null || nilai === undefined ? '' : String(nilai).replace('.', ',');
+  const lihat = val === '' ? '<span class="badge badge-yellow">Belum diinput</span>' : `<strong>${_wdNum(nilai)}</strong>`;
+  return {
+    nilai: `<div id="${inputId}-wrap">
+      <div class="wdEdView" style="display:flex;gap:6px;align-items:center;justify-content:center">${lihat}</div>
+      <div class="wdEdForm" style="display:none;gap:6px;align-items:center;justify-content:center">
+        <input type="text" inputmode="decimal" class="wdEdIn" id="${inputId}" value="${val}" data-awal="${val}" placeholder="Belum diinput" style="width:${inputW}px"
+          onkeydown="if(event.key==='Enter')${saveCall};else if(event.key==='Escape')wdEdBatal('${inputId}')" /></div></div>`,
+    aksi: `<div id="${inputId}-aksi">
+      <div class="wdEdView" style="display:flex;gap:6px;align-items:center;justify-content:center">
+        <button class="btn btn-ghost btn-sm" data-tip="Edit" onclick="wdEdMulai('${inputId}')">${_WD_BTN.edit}</button></div>
+      <div class="wdEdForm" style="display:none;gap:6px;align-items:center;justify-content:center">
+        <button class="btn btn-sm btn-primary" data-tip="Simpan" onclick="${saveCall}">${_WD_IC_SIMPAN}</button>
+        <button class="btn btn-ghost btn-sm" data-tip="Batal" onclick="wdEdBatal('${inputId}')">${_WD_IC.close}</button></div></div>`
+  };
+}
 function wdEdMulai(inputId) {
   const w = document.getElementById(inputId + '-wrap'); if (!w) return;
-  w.querySelector('.wdEdView').style.display = 'none';
-  w.querySelector('.wdEdForm').style.display = 'flex';
+  [w, document.getElementById(inputId + '-aksi')].forEach(el => {
+    if (!el) return;
+    el.querySelector('.wdEdView').style.display = 'none';
+    el.querySelector('.wdEdForm').style.display = 'flex';
+  });
   const i = document.getElementById(inputId); i.focus(); i.select();
 }
 function wdEdBatal(inputId) {
   const w = document.getElementById(inputId + '-wrap'); if (!w) return;
   const i = document.getElementById(inputId); i.value = i.dataset.awal || '';
-  w.querySelector('.wdEdForm').style.display = 'none';
-  w.querySelector('.wdEdView').style.display = 'flex';
+  [w, document.getElementById(inputId + '-aksi')].forEach(el => {
+    if (!el) return;
+    el.querySelector('.wdEdForm').style.display = 'none';
+    el.querySelector('.wdEdView').style.display = 'flex';
+  });
 }
 function _wdUnitLabel(u) { return u.singkatan || u.nama; }
 function _wdToWita(iso) {   // ISO -> value untuk <input type=datetime-local> (WITA, UTC+8)
@@ -151,7 +175,7 @@ function _wdEnsurePages() {
     p.className = 'page'; p.id = 'page-walidata-ssd';
     p.innerHTML = `
       <div class="page-title">${_WD_IC.table}Data Statistik Sektoral Daerah</div>
-      <div class="page-subtitle">Realisasi indikator walidata per Kode SSD, unit kerja, dan tahun pelaporan</div>
+      <div class="page-subtitle">Data indikator walidata per Kode SSD, unit kerja, dan tahun pelaporan</div>
       <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;row-gap:12px;margin-bottom:6px">
         <span style="font-size:.72rem;font-weight:600;color:var(--text-secondary,#64748b);white-space:nowrap;letter-spacing:.01em;margin-right:2px">Tahun</span>
         <div class="select-wrap tahun-select-wrap" style="min-width:88px"><select id="wdTahun" autocomplete="off" onchange="wdGantiTahun(this.value)"></select></div>
@@ -167,7 +191,7 @@ function _wdEnsurePages() {
           <thead><tr>
             <th style="width:46px">No</th><th style="width:110px">Kode SSD</th><th>Uraian</th>
             <th style="width:100px;text-align:center">Satuan</th><th style="width:220px;text-align:center">Unit Kerja</th>
-            <th style="width:200px;text-align:center">Realisasi</th><th style="width:90px;text-align:center">Aksi</th>
+            <th style="width:200px;text-align:center">Jumlah</th><th style="width:90px;text-align:center">Aksi</th>
           </tr></thead>
           <tbody id="wdBody"></tbody>
         </table>
@@ -187,7 +211,7 @@ function _wdEnsurePages() {
         <div class="search-wrap">${_WD_IC.search}<input type="text" id="wdiSearch" placeholder="Cari kode SSD, uraian, satuan…" /></div>
         <div style="flex:1"></div>
         <button class="btn btn-primary btn-sm" onclick="wdBukaFormIndikator()">${_WD_BTN.tambah}Tambah Indikator</button>
-        <button class="btn btn-primary btn-sm" onclick="wdBukaImport()" data-tip="Impor banyak indikator dan realisasi sekaligus dari file Excel">${_WD_BTN.excel}Import Excel</button>
+        <button class="btn btn-primary btn-sm" onclick="wdBukaImport()" data-tip="Impor banyak indikator beserta datanya sekaligus dari file Excel">${_WD_BTN.excel}Import Excel</button>
         <button class="btn btn-primary btn-sm" onclick="wdUnduhTemplate()" data-tip="Unduh template Excel untuk import">${_WD_BTN.unduh}Unduh Template</button>
         <button class="btn btn-primary btn-sm" onclick="wdUnduhIndikatorPDF(this)" data-tip="Download data indikator (sesuai filter) sebagai PDF">${_WD_BTN.unduh}Download Indikator</button>
       </div>
@@ -229,7 +253,7 @@ function _wdEnsurePages() {
             <th style="width:46px;text-align:center">No</th><th style="width:110px">Kode SSD</th><th style="min-width:220px">Indikator</th>
             <th style="min-width:180px;white-space:normal;text-align:center">Unit Kerja</th>
             <th style="width:130px;text-align:center">Status</th><th style="min-width:180px;text-align:center">Penanggung Jawab (User)</th>
-            <th style="width:120px;text-align:center">Realisasi</th>
+            <th style="width:120px;text-align:center">Jumlah</th>
           </tr></thead>
           <tbody id="wdmBody"></tbody>
         </table>
@@ -256,7 +280,7 @@ function _wdEnsurePages() {
     p.className = 'page'; p.id = 'page-walidata-laporan';
     p.innerHTML = `
       <div class="page-title" style="display:flex;align-items:center;gap:10px">${_WD_IC.laporan}Laporan Walidata</div>
-      <div class="page-subtitle" id="wdlSub">Rekap realisasi indikator Walidata per tahun dan unit kerja</div>
+      <div class="page-subtitle" id="wdlSub">Rekap data indikator Walidata per tahun dan unit kerja</div>
       <div id="wdlStats" class="dash-kpi-row"></div>
       <div class="toolbar" style="flex-wrap:wrap;gap:8px;align-items:center">
         <div class="search-wrap" style="flex:2;min-width:200px">${_WD_IC.search}<input type="text" id="wdlSearch" placeholder="Cari kode SSD, uraian, atau unit kerja…" /></div>
@@ -277,7 +301,7 @@ function _wdEnsurePages() {
           <thead><tr>
             <th style="width:46px;text-align:center">No</th><th style="width:110px">Kode SSD</th><th>Uraian</th>
             <th style="width:90px;text-align:center">Satuan</th><th style="width:210px;text-align:center">Unit Kerja</th>
-            <th style="width:130px;text-align:center">Realisasi</th><th style="width:130px;text-align:center" id="wdlThTotal">Capaian</th>
+            <th style="width:130px;text-align:center">Jumlah</th><th style="width:130px;text-align:center" id="wdlThTotal">Total</th>
           </tr></thead>
           <tbody id="wdlBody"></tbody>
         </table>
@@ -296,9 +320,9 @@ async function loadWalidataSsd() {
 }
 
 // silent = refresh setelah simpan: tabel tidak dikosongkan dulu supaya posisi scroll tidak loncat
-async function _wdMuatData(silent) {
+async function _wdMuatData(silent, bg) {
   const body = document.getElementById('wdBody');
-  if (!silent) body.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:24px;color:var(--teks-muted)">Memuat data…</td></tr>';
+  if (!silent) body.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:24px;color:var(--teks-muted)"><span class="btn-spin" style="width:11px;height:11px;vertical-align:-1px;margin-right:6px"></span>Memuat data…</td></tr>';
   try {
     _wd.data = await _wdFetch('/data?tahun=' + _wd.tahun);
     // Tahun terpilih tidak punya data (mis. tahun berjalan masih kosong): pindah ke tahun terbaru yang ada datanya.
@@ -315,7 +339,7 @@ async function _wdMuatData(silent) {
   _wdIsiTahun();
   _wdRenderPeriode();
   if (_wdAdmin()) await _wdIsiFilterUnit();
-  _wdRenderTable();
+  if (!(bg && _wdSedangEdit())) _wdRenderTable();   // sinkron di belakang layar: jangan timpa isian yang sedang diedit
 }
 
 function _wdIsiTahun() {
@@ -430,10 +454,68 @@ function _wdAksiTutupBadge(saved) {
 }
 function _wdAksiCell(r) {
   const me = _wd.data.me;
-  if (me.admin) return `<button class="btn btn-ghost btn-sm" data-tip="Detail" onclick="wdBukaDetail(${r.id})">${_WD_BTN.detail}</button>`;
+  if (me.admin) {
+    const detailBtn = `<button class="btn btn-ghost btn-sm" data-tip="Detail" onclick="wdBukaDetail(${r.id})">${_WD_BTN.detail}</button>`;
+    // Reset khusus Super Admin (sama seperti Kinerja), hanya muncul bila sudah ada realisasi.
+    const ada = r.detail.some(d => d.nilai !== null && d.nilai !== undefined);
+    const resetBtn = (_user && _user.is_admin && ada)
+      ? `<button class="btn-reset-row" id="wdresetbtn_${r.id}" data-tip="Reset data baris ini" style="margin-top:0;min-width:34px;min-height:34px;padding:6px;justify-content:center;border-radius:var(--r-sm)" onclick="wdResetRealisasi(${r.id})">${_WD_RESET_IDLE}</button>` : '';
+    return `<div style="display:flex;gap:6px;align-items:center;justify-content:center">${detailBtn}${resetBtn}</div>`;
+  }
   const mine = r.detail[0];
   if (mine && !me.can_input) return _wdAksiTutupBadge(mine.nilai !== null);
+  if (mine) return _wdEditSplit('wdIn-' + r.id, mine.nilai, `wdSimpanUser(${r.id},${mine.bidang_id})`, 100).aksi;
   return '';
+}
+
+const _WD_RESET_IDLE = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>`;
+
+async function wdResetRealisasi(id) {
+  if (!(_user && _user.is_admin)) return;
+  const r = _wd.rows.find(x => x.id === id); if (!r) return;
+  const ok = await showConfirm({ title: 'Reset Data', okText: 'Ya, Reset', icon: 'trash',
+    msg: `Semua data <b>${esc(r.kode_ssd)}</b> tahun <b>${_wd.tahun}</b> (seluruh unit kerja) akan dihapus dan baris kembali kosong.` });
+  if (!ok) return;
+  const btn = document.getElementById('wdresetbtn_' + id);
+  if (btn) { btn.disabled = true; btn.innerHTML = '<span class="btn-spin" style="width:11px;height:11px"></span>'; }
+  try {
+    await _wdFetch(`/realisasi/reset?indikator_id=${id}&tahun=${_wd.tahun}`, { method: 'DELETE' });
+    r.detail.forEach(d => { d.nilai = null; d.updated_at = null; });
+    _wdHitungUlang(r);
+    _wdRenderTable();
+    toast('Data berhasil direset');
+    _wdMuatData(true, true);
+  } catch (e) {
+    toast(e.message, 'error');
+    if (btn) { btn.disabled = false; btn.innerHTML = _WD_RESET_IDLE; }
+  }
+}
+
+// ── Update lokal (optimistic) ───────────────────────────────────────────────
+// Setelah PUT/DELETE berhasil, tabel langsung diperbarui dari data lokal supaya tombol aksi tidak menunggu
+// muat ulang /data; sinkron dengan server tetap jalan di belakang layar.
+function _wdSedangEdit() { return [...document.querySelectorAll('.wdEdForm')].some(el => el.style.display !== 'none'); }
+function _wdHitungUlang(r) {
+  if (!_wd.data?.me?.admin) return;   // user biasa hanya punya baris unitnya sendiri; total tidak ditampilkan
+  const n = r.detail.filter(d => (d.pengampu || d.tanpa_unit) && d.nilai !== null && d.nilai !== undefined).map(d => Number(d.nilai));
+  r.jumlah_terisi = r.detail.filter(d => d.pengampu && d.nilai !== null && d.nilai !== undefined).length;
+  if (!n.length || r.agregasi === 'tidak_diagregasi') r.total = null;
+  else if (r.agregasi === 'rata_rata') r.total = n.reduce((a, b) => a + b, 0) / n.length;
+  else if (r.agregasi === 'maksimum') r.total = Math.max(...n);
+  else if (r.agregasi === 'minimum') r.total = Math.min(...n);
+  else r.total = n.reduce((a, b) => a + b, 0);
+}
+function _wdTerapkanLokal(indikatorId, bidangId, nilai) {
+  const r = _wd.rows.find(x => x.id === indikatorId); if (!r) return;
+  const d = r.detail.find(x => x.bidang_id === bidangId);
+  if (d) { d.nilai = nilai; d.updated_at = nilai === null ? null : new Date().toISOString(); }
+  _wdHitungUlang(r);
+}
+function _wdSibukkan(inputId, on) {   // tombol Simpan jadi spinner selama request berjalan
+  const b = document.querySelector(`#${inputId}-aksi .wdEdForm .btn-primary`);
+  if (!b) return;
+  if (on) { b.dataset.html = b.innerHTML; b.disabled = true; b.innerHTML = '<span class="btn-spin" style="width:11px;height:11px"></span>'; }
+  else { b.disabled = false; if (b.dataset.html) b.innerHTML = b.dataset.html; }
 }
 
 function _wdRealisasiCell(r) {
@@ -448,7 +530,7 @@ function _wdRealisasiCell(r) {
   const mine = r.detail[0];
   if (!mine) return '-';
   if (!me.can_input) return mine.nilai === null ? '<span class="badge badge-yellow">Belum diinput</span>' : `<strong>${_wdNum(mine.nilai)}</strong>`;
-  return _wdEditCell('wdIn-' + r.id, mine.nilai, `wdSimpanUser(${r.id},${mine.bidang_id})`, 100);
+  return _wdEditSplit('wdIn-' + r.id, mine.nilai, `wdSimpanUser(${r.id},${mine.bidang_id})`, 100).nilai;
 }
 
 function _wdRenderTable() {
@@ -483,12 +565,15 @@ function wdKePage(n) { _wd.page = n; _wdRenderTable(); }
 
 async function wdSimpanUser(indikatorId, bidangId) {
   const inp = document.getElementById('wdIn-' + indikatorId);
+  _wdSibukkan('wdIn-' + indikatorId, true);
   try {
     const r = await _wdFetch('/realisasi', { method: 'PUT', body: JSON.stringify({
       indikator_id: indikatorId, bidang_id: bidangId, tahun: _wd.tahun, nilai: inp.value.trim() === '' ? null : inp.value }) });
-    toast(r.nilai === null ? 'Realisasi dikosongkan' : 'Realisasi tersimpan');
-    await _wdMuatData(true);
-  } catch (e) { toast(e.message, 'error'); }
+    _wdTerapkanLokal(indikatorId, bidangId, r.nilai);
+    _wdRenderTable();
+    toast(r.nilai === null ? 'Data dikosongkan' : 'Data tersimpan');
+    _wdMuatData(true, true);
+  } catch (e) { toast(e.message, 'error'); _wdSibukkan('wdIn-' + indikatorId, false); }
 }
 
 // ── Detail per unit (admin) ────────────────────────────────────────────────
@@ -502,23 +587,25 @@ function _wdDetailBody(r) {
     const badge = d.pengampu ? ''
       : d.tanpa_unit ? ' <span class="badge badge-yellow" data-tip="Unit kerja belum ditetapkan. Ikut dihitung di total.">Perlu ditetapkan</span>'
       : ' <span class="badge badge-yellow" data-tip="Bukan pengampu lagi - tidak masuk total">Riwayat</span>';
-    let isi;
+    let isi, aksi = '<span style="color:var(--teks-muted)">-</span>';
     if (d.tanpa_unit) {
       isi = pengampuList.length
         ? `<div style="display:flex;gap:6px;align-items:center;justify-content:center;flex-wrap:wrap"><strong>${_wdNum(d.nilai)}</strong>
-             <select id="wdPindah-${r.id}" class="input" style="padding:5px 8px;max-width:170px">${pengampuList.map(u => `<option value="${u.bidang_id}">${esc(u.nama)}</option>`).join('')}</select>
-             <button class="btn btn-sm" onclick="wdPindahTanpaUnit(${r.id})">${_WD_BTN.pindah}Pindahkan</button></div>`
+             <select id="wdPindah-${r.id}" class="input" style="padding:5px 8px;max-width:170px">${pengampuList.map(u => `<option value="${u.bidang_id}">${esc(u.nama)}</option>`).join('')}</select></div>`
         : `<strong>${_wdNum(d.nilai)}</strong><div style="font-size:.7rem;color:var(--teks-muted);margin-top:2px">Tetapkan unit kerja di Kelola Indikator</div>`;
+      if (pengampuList.length) aksi = `<button class="btn btn-ghost btn-sm" data-tip="Pindahkan ke unit terpilih" onclick="wdPindahTanpaUnit(${r.id})">${_WD_BTN.pindah}</button>`;
     } else if (d.pengampu) {
-      isi = _wdEditCell('wdDt-' + d.bidang_id, d.nilai, `wdSimpanDetail(${r.id},${d.bidang_id})`, 130);
+      const sp = _wdEditSplit('wdDt-' + d.bidang_id, d.nilai, `wdSimpanDetail(${r.id},${d.bidang_id})`, 130);
+      isi = sp.nilai; aksi = sp.aksi;
     } else {
       isi = `<strong>${_wdNum(d.nilai)}</strong>`;
     }
     return `<tr>
       <td style="${_wdDtTd}"><div style="font-weight:600;line-height:1.4">${esc(d.nama)}${badge}</div>${d.singkatan ? `<div style="font-size:.7rem;color:var(--teks-muted)">${esc(d.singkatan)}</div>` : ''}</td>
       <td style="${_wdDtTd};text-align:center;white-space:nowrap">${isi}</td>
-      <td style="${_wdDtTd};text-align:center;white-space:nowrap;font-size:.72rem;color:var(--teks-muted)">${d.updated_at ? fmtDate(d.updated_at) : '-'}</td></tr>`;
-  }).join('') || `<tr><td colspan="3" style="${_wdDtTd};text-align:center;color:var(--teks-muted)">Unit kerja belum ditetapkan. Atur di Kelola Indikator.</td></tr>`;
+      <td style="${_wdDtTd};text-align:center;white-space:nowrap;font-size:.72rem;color:var(--teks-muted)">${d.updated_at ? fmtDate(d.updated_at) : '-'}</td>
+      <td style="${_wdDtTd};text-align:center;white-space:nowrap">${aksi}</td></tr>`;
+  }).join('') || `<tr><td colspan="4" style="${_wdDtTd};text-align:center;color:var(--teks-muted)">Unit kerja belum ditetapkan. Atur di Kelola Indikator.</td></tr>`;
   // Info ringkas tanpa kotak/border: label abu-abu, nilai tebal.
   const info = (label, nilai) => `<div style="font-size:.8rem;color:#64748b">${label}: <strong style="color:var(--teks,#1e293b)">${nilai}</strong></div>`;
   return `
@@ -527,21 +614,20 @@ function _wdDetailBody(r) {
     <div style="display:flex;gap:6px 22px;flex-wrap:wrap">
       ${info('Tahun', _wd.tahun)}${info('Satuan', esc(r.satuan || '-'))}${info('Agregasi', esc(WD_AGREGASI[r.agregasi] || r.agregasi))}
       ${info('Total', r.agregasi === 'tidak_diagregasi' ? '-' : (r.total === null ? 'Belum diinput' : _wdNum(r.total)))}</div>
-    <div style="border:1px solid #e2e8f0;border-radius:8px;overflow-x:auto;-webkit-overflow-scrolling:touch"><table class="kinerja-table" style="margin:0;width:100%;min-width:600px">
-      <thead><tr><th style="${_wdDtTh};text-align:left;min-width:180px">Unit Kerja</th><th style="${_wdDtTh};text-align:center;min-width:260px">Realisasi</th><th style="${_wdDtTh};text-align:center;min-width:110px">Diperbarui</th></tr></thead>
+    <div style="border:1px solid #e2e8f0;border-radius:8px;overflow-x:auto;-webkit-overflow-scrolling:touch"><table class="kinerja-table" style="margin:0;width:100%;min-width:640px">
+      <thead><tr><th style="${_wdDtTh};text-align:left;min-width:180px">Unit Kerja</th><th style="${_wdDtTh};text-align:center;min-width:200px">Jumlah</th><th style="${_wdDtTh};text-align:center;min-width:110px">Diperbarui</th><th style="${_wdDtTh};text-align:center;width:110px">Aksi</th></tr></thead>
       <tbody>${baris}</tbody></table></div>
     <div style="font-size:.72rem;color:var(--teks-muted)">Kosongkan isian lalu Simpan untuk mengembalikan ke "belum diinput". Unit yang belum diinput tidak dihitung sebagai nol.</div>`;
 }
 function wdBukaDetail(indikatorId) {
   const r = _wd.rows.find(x => x.id === indikatorId);
   if (!r) return;
-  _wdModal('modalWdDetail', 'Rincian Realisasi per Unit Kerja', 'Data SSD tahun ' + _wd.tahun, _wdDetailBody(r),
+  _wdModal('modalWdDetail', 'Rincian Jumlah per Unit Kerja', 'Data SSD tahun ' + _wd.tahun, _wdDetailBody(r),
     `<button class="btn btn-ghost" onclick="closeModal('modalWdDetail')">${_WD_BTN.tutup}Tutup</button>`, 820);
   openModal('modalWdDetail');
 }
 // Setelah simpan/pindah: muat ulang data di belakang dan segarkan isi modal di tempat (modal tidak ditutup-buka lagi, scroll tetap).
-async function _wdSegarkanDetail(indikatorId) {
-  await _wdMuatData(true);
+function _wdRenderModalDetail(indikatorId) {
   const body = document.querySelector('#modalWdDetail .modal-body');
   const r = _wd.rows.find(x => x.id === indikatorId);
   if (!body || !r) return;
@@ -549,11 +635,16 @@ async function _wdSegarkanDetail(indikatorId) {
   body.innerHTML = _wdDetailBody(r);
   body.scrollTop = top;
 }
+async function _wdSegarkanDetail(indikatorId, bg) {
+  await _wdMuatData(true, bg);
+  if (bg && _wdSedangEdit()) return;
+  _wdRenderModalDetail(indikatorId);
+}
 async function wdPindahTanpaUnit(indikatorId) {
   const bid = document.getElementById('wdPindah-' + indikatorId)?.value;
   if (!bid) return;
-  if (!await showConfirm({ title: 'Pindahkan Realisasi', type: 'warning', icon: 'trash', okText: 'Ya, Pindahkan',
-    msg: 'Seluruh realisasi (semua tahun) yang belum ditetapkan unitnya akan dipindahkan ke unit kerja yang dipilih. Lanjutkan?' })) return;
+  if (!await showConfirm({ title: 'Pindahkan Data', type: 'warning', icon: 'trash', okText: 'Ya, Pindahkan',
+    msg: 'Seluruh data (semua tahun) yang belum ditetapkan unitnya akan dipindahkan ke unit kerja yang dipilih. Lanjutkan?' })) return;
   try {
     const r = await _wdFetch('/realisasi/pindah', { method: 'POST', body: JSON.stringify({ indikator_id: indikatorId, bidang_id: parseInt(bid, 10) }) });
     toast(`${r.dipindah} data dipindahkan` + (r.bentrok ? `, ${r.bentrok} dilewati karena unit tujuan sudah punya nilai di tahun yang sama` : ''));
@@ -562,18 +653,22 @@ async function wdPindahTanpaUnit(indikatorId) {
 }
 async function wdSimpanDetail(indikatorId, bidangId) {
   const v = document.getElementById('wdDt-' + bidangId).value.trim();
+  _wdSibukkan('wdDt-' + bidangId, true);
   try {
-    await _wdFetch('/realisasi', { method: 'PUT', body: JSON.stringify({ indikator_id: indikatorId, bidang_id: bidangId, tahun: _wd.tahun, nilai: v === '' ? null : v }) });
-    toast(v === '' ? 'Realisasi dikosongkan' : 'Realisasi tersimpan');
-    await _wdSegarkanDetail(indikatorId);
-  } catch (e) { toast(e.message, 'error'); }
+    const r = await _wdFetch('/realisasi', { method: 'PUT', body: JSON.stringify({ indikator_id: indikatorId, bidang_id: bidangId, tahun: _wd.tahun, nilai: v === '' ? null : v }) });
+    _wdTerapkanLokal(indikatorId, bidangId, r.nilai);
+    _wdRenderModalDetail(indikatorId);
+    _wdRenderTable();
+    toast(v === '' ? 'Data dikosongkan' : 'Data tersimpan');
+    _wdSegarkanDetail(indikatorId, true);
+  } catch (e) { toast(e.message, 'error'); _wdSibukkan('wdDt-' + bidangId, false); }
 }
 
 // ── Rekap Excel ────────────────────────────────────────────────────────────
 async function wdUnduhRekap() {
   try {
     await _loadXlsx();
-    const out = [['Tahun', 'Kode SSD', 'Uraian', 'Definisi Operasional', 'Satuan', 'Unit Kerja', 'Realisasi Unit', 'Total Realisasi']];
+    const out = [['Tahun', 'Kode SSD', 'Uraian', 'Definisi Operasional', 'Satuan', 'Unit Kerja', 'Jumlah Unit', 'Total']];
     for (const r of _wdFiltered()) {
       const rows = r.detail.length ? r.detail : [{ nama: '-', nilai: null }];
       rows.forEach((d, i) => out.push([_wd.tahun, r.kode_ssd, r.uraian, r.definisi || '', r.satuan || '',
@@ -591,7 +686,7 @@ async function wdUnduhRekap() {
 async function loadWalidataIndikator() {
   _wdEnsurePages();
   const body = document.getElementById('wdiBody');
-  body.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:24px;color:var(--teks-muted)">Memuat data…</td></tr>';
+  body.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:24px;color:var(--teks-muted)"><span class="btn-spin" style="width:11px;height:11px;vertical-align:-1px;margin-right:6px"></span>Memuat data…</td></tr>';
   try {
     const [ind, bid] = await Promise.all([_wdFetch('/indikator'), fetch('/api/bidang', { headers: authHeaders() }).then(r => r.json())]);
     _wd.indikator = ind.indikator; _wd.bidang = (bid.bidang || []).filter(b => b.aktif !== false);
@@ -721,7 +816,7 @@ function wdBukaFormIndikator(id) {
     <div class="field"><label>Unit Kerja <span style="font-weight:400;color:var(--teks-muted)">(boleh dikosongkan)</span></label>
       <div class="search-wrap" style="min-width:0;margin-bottom:6px">${_WD_IC.search}<input type="text" id="wdfUnitSearch" placeholder="Cari unit kerja..." oninput="wdFilterUnit(this.value)" style="width:100%;box-sizing:border-box"></div>
       <div id="wdfUnitList" style="max-height:220px;overflow:auto;border:1px solid #e2e8f0;border-radius:8px;padding:2px 10px;background:#fff">${unitHtml}<div id="wdfUnitKosong" style="display:none;padding:14px;text-align:center;color:var(--teks-muted);font-size:.8rem">Unit kerja tidak ditemukan</div></div>
-      <div style="font-size:.72rem;color:var(--teks-muted);margin-top:3px">Bila hanya satu unit dipilih, realisasi hasil import yang belum punya unit otomatis dipindahkan ke unit itu. Melepas unit tidak menghapus realisasi yang pernah diinput; datanya tersimpan sebagai riwayat dan tidak masuk total. Penanggung jawab (user) diatur lewat tombol Assign User di daftar indikator.</div></div>`;
+      <div style="font-size:.72rem;color:var(--teks-muted);margin-top:3px">Bila hanya satu unit dipilih, data hasil import yang belum punya unit otomatis dipindahkan ke unit itu. Melepas unit tidak menghapus isian yang pernah diinput; datanya tersimpan sebagai riwayat dan tidak masuk total. Penanggung jawab (user) diatur lewat tombol Assign User di daftar indikator.</div></div>`;
   _wdModal('modalWdIndikator', i ? 'Ubah Indikator' : 'Tambah Indikator', 'Master indikator Walidata', body,
     `<button class="btn btn-ghost" onclick="closeModal('modalWdIndikator')">${_WD_BTN.batal}Batal</button>
      <button class="btn btn-primary" onclick="wdSimpanIndikator()">${_WD_BTN.simpan}Simpan</button>`, 580);
@@ -744,7 +839,7 @@ async function wdBukaAssignUser(id) {
     `<button class="btn btn-ghost" onclick="closeModal('modalWdAssignUser')">${_WD_BTN.batal}Batal</button>
      <button class="btn btn-primary" id="wdAuiSave" onclick="wdSimpanAssignUser()" disabled>${_WD_BTN.simpan}Simpan</button>`, 560);
   document.getElementById('wdAuiSearch').addEventListener('input', _wdAuiRender);
-  document.getElementById('wdAuiList').innerHTML = '<div style="padding:18px;text-align:center;color:var(--teks-muted);font-size:.85rem">Memuat data...</div>';
+  document.getElementById('wdAuiList').innerHTML = '<div style="padding:18px;text-align:center;color:var(--teks-muted);font-size:.85rem"><span class="btn-spin" style="width:11px;height:11px;vertical-align:-1px;margin-right:6px"></span>Memuat data...</div>';
   openModal('modalWdAssignUser');
   try {
     const d = await _wdFetch('/indikator/' + id + '/users');
@@ -806,15 +901,15 @@ async function wdSimpanIndikator() {
   };
   try {
     const r = await _wdFetch(_wd.editId ? '/indikator/' + _wd.editId : '/indikator', { method: _wd.editId ? 'PUT' : 'POST', body: JSON.stringify(payload) });
-    toast(r.dipulihkan ? 'Indikator lama dengan kode ini dipulihkan beserta riwayat realisasinya'
-      : r.pindah?.dipindah ? `Indikator tersimpan; ${r.pindah.dipindah} realisasi dipindahkan ke unit kerja` : 'Indikator tersimpan');
+    toast(r.dipulihkan ? 'Indikator lama dengan kode ini dipulihkan beserta riwayat datanya'
+      : r.pindah?.dipindah ? `Indikator tersimpan; ${r.pindah.dipindah} data dipindahkan ke unit kerja` : 'Indikator tersimpan');
     closeModal('modalWdIndikator');
     await loadWalidataIndikator();
   } catch (e) { toast(e.message, 'error'); }
 }
 async function wdHapusIndikator(id) {
   const i = _wd.indikator.find(x => x.id === id);
-  const ada = i?.jumlah_realisasi ? `<br><br>Indikator ini punya <b>${i.jumlah_realisasi}</b> data realisasi. Data tidak dihapus: indikator hanya diarsipkan dan dipulihkan otomatis bila Kode SSD yang sama ditambahkan lagi.` : '';
+  const ada = i?.jumlah_realisasi ? `<br><br>Indikator ini punya <b>${i.jumlah_realisasi}</b> data tersimpan. Data tidak dihapus: indikator hanya diarsipkan dan dipulihkan otomatis bila Kode SSD yang sama ditambahkan lagi.` : '';
   if (!await showConfirm({ title: 'Hapus Indikator', msg: `Hapus indikator <b>${esc(i?.kode_ssd)}</b>?${ada}`, okText: 'Ya, Hapus' })) return;
   try { await _wdFetch('/indikator/' + id, { method: 'DELETE' }); toast('Indikator dihapus'); await loadWalidataIndikator(); }
   catch (e) { toast(e.message, 'error'); }
@@ -823,7 +918,7 @@ async function wdHapusIndikator(id) {
 // ── Template & Import Excel ────────────────────────────────────────────────
 // Format utama (lebar): No | Kode DSSD | Uraian DSSD | Satuan | Definisi Operasional | 2017 | 2018 | ...
 // Kolom "Unit Kerja" bersifat opsional; bila tidak ada, unit dipilih di jendela import.
-// Format panjang (Tahun + Realisasi per baris) tetap didukung.
+// Format panjang (Tahun + Jumlah per baris) tetap didukung.
 const WD_ALIAS = {
   kode_ssd:   ['kodessd', 'kodedssd', 'kode'],
   uraian:     ['uraian', 'uraiandssd', 'uraianssd', 'uraianindikator'],
@@ -831,7 +926,7 @@ const WD_ALIAS = {
   satuan:     ['satuan'],
   unit_kerja: ['unitkerja', 'unit', 'opd', 'bidang'],
   tahun:      ['tahun'],
-  realisasi:  ['realisasi'],
+  realisasi:  ['jumlah', 'nilai', 'realisasi'],   // key internal tetap 'realisasi'; header file boleh "Jumlah", "Nilai", atau "Realisasi"
 };
 const _wdIsYear = h => /^\s*(19|20)\d{2}\s*$/.test(String(h ?? ''));
 const _wdKosong = v => v === '' || v === null || v === undefined || (typeof v === 'string' && v.trim() === '');
@@ -868,9 +963,9 @@ function wdBukaImport() {
       <input type="file" id="wdImpFile" accept=".xlsx,.xls" onchange="wdImportPilihFile(this)"></div>
     <div class="field"><label>Unit Kerja untuk seluruh data di file <span style="font-weight:400;color:var(--teks-muted)">(opsional)</span></label>
       <select id="wdImpUnit" class="input" onchange="wdImportProses()"><option value="">Belum ditetapkan (admin set manual nanti)</option>${unitOpt}</select>
-      <div style="font-size:.72rem;color:var(--teks-muted);margin-top:3px">Dipakai bila file tidak punya kolom "Unit Kerja". Bila dikosongkan, realisasi tersimpan sebagai "Belum ditetapkan unit" dan ikut dihitung di total; setelah unit kerja ditetapkan di Kelola Indikator, datanya dipindahkan ke unit tersebut.</div></div>
+      <div style="font-size:.72rem;color:var(--teks-muted);margin-top:3px">Dipakai bila file tidak punya kolom "Unit Kerja". Bila dikosongkan, data tersimpan sebagai "Belum ditetapkan unit" dan ikut dihitung di total; setelah unit kerja ditetapkan di Kelola Indikator, datanya dipindahkan ke unit tersebut.</div></div>
     <div id="wdImpPreview"></div>`;
-  _wdModal('modalWdImport', 'Import Excel Walidata', 'Master indikator & realisasi tahun-tahun sebelumnya (tetap bisa saat periode ditutup)', body,
+  _wdModal('modalWdImport', 'Import Excel Walidata', 'Master indikator & data tahun-tahun sebelumnya (tetap bisa saat periode ditutup)', body,
     `<button class="btn btn-ghost" onclick="closeModal('modalWdImport')">${_WD_BTN.batal}Batal</button>
      <button class="btn btn-primary" id="wdImpSimpan" disabled onclick="wdImportSimpan()">${_WD_BTN.simpan}Simpan</button>`, 980);
   openModal('modalWdImport');
@@ -970,7 +1065,7 @@ function _wdRenderPreviewImport(ringkas) {
   const range = g => g.tahun.length ? `${Math.min(...g.tahun)}–${Math.max(...g.tahun)} (${g.tahun.length} thn)` : '-';
   document.getElementById('wdImpPreview').innerHTML = `
     <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;align-items:center">
-      <span style="font-size:.8rem"><b>${daftar.length}</b> indikator · <b>${h.filter(x => x.nilai !== null).length}</b> data realisasi</span>
+      <span style="font-size:.8rem"><b>${daftar.length}</b> indikator · <b>${h.filter(x => x.nilai !== null).length}</b> data</span>
       ${chip('baru', 'baru')}${chip('master', 'master')}${chip('konflik', 'sudah ada')}${chip('sama', 'sama (dilewati)')}${chip('error', 'error (dilewati)')}</div>
     ${ringkas.konflik ? `<label style="display:flex;gap:8px;align-items:center;font-size:.82rem;margin-bottom:10px;padding:8px 10px;background:#fef3c7;border-radius:8px">
       <input type="checkbox" id="wdImpTimpa"> Timpa ${ringkas.konflik} data yang sudah tersimpan dengan nilai dari file ini</label>` : ''}
@@ -988,7 +1083,7 @@ function _wdRenderPreviewImport(ringkas) {
 async function wdImportSimpan() {
   const timpa = !!document.getElementById('wdImpTimpa')?.checked;
   if (timpa && !await showConfirm({ title: 'Timpa Data', type: 'warning', icon: 'trash', okText: 'Ya, Timpa',
-    msg: 'Nilai realisasi yang sudah tersimpan akan diganti dengan nilai dari file. Perubahan tercatat di riwayat. Lanjutkan?' })) return;
+    msg: 'Data yang sudah tersimpan akan diganti dengan data dari file. Perubahan tercatat di riwayat. Lanjutkan?' })) return;
   const btn = document.getElementById('wdImpSimpan');
   btn.disabled = true; btn.innerHTML = _WD_BTN.simpan + 'Menyimpan…';
   const total = { master_baru: 0, realisasi_disimpan: 0, ditimpa: 0, dilewati: 0 };
@@ -1007,7 +1102,7 @@ async function wdImportSimpan() {
       const r = await _wdFetch('/import', { method: 'POST', body: JSON.stringify({ mode: 'commit', overwrite: timpa, rows }) });
       for (const k of Object.keys(total)) total[k] += r.ringkas[k] || 0;
     }
-    toast(`Import selesai: ${total.realisasi_disimpan} realisasi, ${total.master_baru} indikator baru`);
+    toast(`Import selesai: ${total.realisasi_disimpan} data, ${total.master_baru} indikator baru`);
     closeModal('modalWdImport');
     await loadWalidataIndikator();
   } catch (e) {
@@ -1027,6 +1122,7 @@ async function loadWalidataMonitoring() {
   _wdEnsurePages();
   const body = document.getElementById('wdmBody');
   body.innerHTML = `<tr><td colspan="7" style="text-align:center;padding:28px;color:#94a3b8"><span class="btn-spin" style="width:14px;height:14px;vertical-align:-2px;margin-right:6px"></span>Memuat data monitoring…</td></tr>`;
+  { const _sm = document.getElementById('wdmSummary'); if (_sm) _sm.innerHTML = _monKpiSkeleton(3); }
   renderPagination('wdmPagination', 0, 1, _wdm.perPage, 'wdmGoPage');
   _wdm.page = 1;
   try {
@@ -1039,6 +1135,7 @@ async function loadWalidataMonitoring() {
     _wdm.loadedAt = new Date();
   } catch (e) {
     toast(e.message, 'error');
+    { const _sm = document.getElementById('wdmSummary'); if (_sm) _sm.innerHTML = ''; }
     body.innerHTML = `<tr><td colspan="7" style="text-align:center;padding:24px;color:#ef4444">Gagal memuat data.</td></tr>`;
     return;
   }

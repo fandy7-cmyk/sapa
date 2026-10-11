@@ -309,7 +309,7 @@
     const o = /Android/.test(ua) ? 'Android' : /iPhone|iPad/.test(ua) ? 'iOS' : /Windows/.test(ua) ? 'Windows' : /Mac OS/.test(ua) ? 'macOS' : /Linux/.test(ua) ? 'Linux' : '';
     return b + (o ? ' di ' + o : '');
   }
-  const loading = () => `<div class="mon-empty"><span class="btn-spin" style="width:11px;height:11px;vertical-align:-1px;margin-right:6px"></span>Memuat data...</div>`;
+  const loading = () => `<div class="mon-kpis">${typeof _statSkeleton === 'function' ? _statSkeleton(4) : ''}</div><div class="mon-empty"><span class="btn-spin" style="width:11px;height:11px;vertical-align:-1px;margin-right:6px"></span>Memuat data...</div>`;
   const gagal = (e) => `<div class="mon-empty">Gagal memuat: ${monEsc(e && e.message)}</div>`;
 
   function badgeStatusCek(s) {
@@ -583,7 +583,7 @@
   async function tabError() {
     body$().innerHTML = `
       <div id="monErrHero"></div>
-      <div id="monErrStats"></div>
+      <div id="monErrStats"><div class="mon-kpis">${typeof _statSkeleton === 'function' ? _statSkeleton(4) : ''}</div></div>
       <div class="toolbar" style="flex-wrap:wrap;gap:8px">
         <div class="search-wrap"><svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-4.35-4.35"/></svg><input type="text" id="monErrQ" placeholder="Cari pesan, endpoint, atau pengguna…" oninput="monCariError()" /></div>
         <div class="select-wrap" style="min-width:170px">
@@ -601,7 +601,7 @@
       </div>
       <div class="card" style="padding:0;overflow:auto;-webkit-overflow-scrolling:touch">
         <table class="freeze-table"><thead><tr><th>Terakhir</th><th>Error</th><th>Pengguna</th><th>Jumlah</th><th>Status</th><th>Aksi</th></tr></thead>
-        <tbody id="monErrBody"><tr class="empty-row"><td colspan="6">Memuat data...</td></tr></tbody></table>
+        <tbody id="monErrBody"><tr class="empty-row"><td colspan="6"><span class="btn-spin" style="width:11px;height:11px;vertical-align:-1px;margin-right:6px"></span>Memuat data...</td></tr></tbody></table>
       </div>
       <div id="monErrPagination"></div>`;
     if (typeof window.initCustomSelects === 'function') window.initCustomSelects();

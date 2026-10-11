@@ -282,16 +282,18 @@ const _DM_CSS = `
 .dm-pill i{width:8px;height:8px;border-radius:50%;flex-shrink:0}
 .dm-pill b{font-weight:700;color:var(--teks);font-variant-numeric:tabular-nums}
 .dm-kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:var(--sp-4);margin-bottom:var(--sp-4)}
-.dm-kpi{display:flex;flex-direction:column;padding:0;overflow:hidden;background:#fff;border:1.5px solid var(--abu-2);border-radius:var(--r-md);min-width:0;transition:border-color .18s,box-shadow .18s}
-.dm-kpi::before{content:"";display:block;height:3px;flex-shrink:0;background:var(--c)}
-.dm-kpi[onclick]{cursor:pointer}.dm-kpi[onclick]:hover{border-color:var(--c);box-shadow:var(--shadow-md)}
-.dm-kpi-in{display:flex;flex-direction:column;gap:4px;flex:1;padding:var(--sp-3) var(--sp-5) var(--sp-4)}
-.dm-kpi-top{display:flex;align-items:center;gap:7px;min-width:0;font-size:.72rem;font-weight:600;letter-spacing:.03em;text-transform:uppercase;color:var(--teks-muted)}
-.dm-kpi-ic{display:flex;align-items:center;justify-content:center;flex-shrink:0;color:var(--c)}
-.dm-kpi-ic svg{width:16px;height:16px}
-.dm-kpi-lb{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.dm-kpi-val{font-size:var(--fs-2xl);font-weight:800;line-height:1.2;color:var(--c);white-space:nowrap}
-.dm-kpi-foot{display:flex;align-items:center;justify-content:space-between;gap:8px;min-height:24px;margin-top:2px}
+.dm-kpi{background:rgba(255,255,255,.95);border:1.5px solid rgba(255,255,255,.8);border-left:3px solid var(--c);border-radius:var(--r-md);box-shadow:var(--shadow-sm);min-width:0;transition:box-shadow var(--transition),transform var(--transition)}
+.dm-kpi:hover{box-shadow:var(--shadow-md);transform:translateY(-2px)}
+.dm-kpi[onclick]{cursor:pointer}
+.dm-kpi-in{display:grid;grid-template-columns:minmax(0,1fr) auto;grid-template-areas:"lb ic" "val ic" "foot foot";column-gap:var(--sp-3);align-items:start;padding:var(--sp-4) var(--sp-5)}
+.dm-kpi-top{display:contents}
+.dm-kpi-lb{grid-area:lb;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:var(--fs-xs);font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--teks-muted)}
+.dm-kpi-ic{grid-area:ic;display:flex;align-items:center;justify-content:center;flex-shrink:0;width:var(--sp-6);height:var(--sp-6);border-radius:var(--r-sm);background:color-mix(in srgb,var(--c) 12%,transparent);color:var(--c);margin-top:2px}
+.dm-kpi-ic svg{width:17px;height:17px}
+.dm-kpi-val{grid-area:val;font-size:var(--fs-2xl);font-weight:800;line-height:1;color:var(--c);margin-top:var(--sp-1);white-space:nowrap}
+.dm-kpi-foot{grid-area:foot;display:flex;align-items:center;justify-content:flex-end;gap:8px;margin-top:var(--sp-2)}
+.dm-kpi-foot:empty,.dm-kpi-foot:has(>.dm-kpi-sub:empty:only-child){display:none}
+.dm-kpi-in>:not(.dm-kpi-top):not(.dm-kpi-val):not(.dm-kpi-foot){grid-column:1/-1}
 .dm-kpi-sub{font-size:.7rem;font-weight:600;line-height:1.4;padding:1px 8px;border-radius:10px;background:color-mix(in srgb,var(--c) 12%,transparent);color:color-mix(in srgb,var(--c) 72%,#000)}
 .dm-kpi-sub:empty{display:none}
 .dm-kpi-sp{flex-shrink:0}
@@ -504,7 +506,7 @@ function _dmKpi({ label, val, sub, color, icon, spark, onclick }) {
   return `<div class="dm-kpi" style="--c:${color}"${onclick ? ` onclick="${onclick}" role="button" tabindex="0"` : ''}><div class="dm-kpi-in">
     <div class="dm-kpi-top"><span class="dm-kpi-ic">${_dmIc(icon, color, 16)}</span><span class="dm-kpi-lb">${label}</span></div>
     <div class="dm-kpi-val">${val}</div>
-    <div class="dm-kpi-foot"><div class="dm-kpi-sub">${sub || ''}</div>${spark ? `<div class="dm-kpi-sp">${spark}</div>` : ''}</div>
+    ${spark ? `<div class="dm-kpi-foot"><div class="dm-kpi-sp">${spark}</div></div>` : ''}
   </div></div>`;
 }
 function _dmNiceMax(v) { const p = Math.pow(10, Math.floor(Math.log10(Math.max(v, 1)))); const f = v / p; return (f <= 1 ? 1 : f <= 2 ? 2 : f <= 5 ? 5 : 10) * p; }
@@ -1638,7 +1640,7 @@ async function loadDashboardAbsensi() {
     }));
     html += _dmCols([_dmCard(full ? 'Menunggu persetujuan' : 'Pengajuan saya menunggu persetujuan', `${pengajuanPending.length} pengajuan`,
       _dmFeed(baris)
-      + (full ? `<button class="btn btn-secondary btn-sm" style="margin-top:10px;width:100%" onclick="_dashBukaPersetujuanAbsensi()">Buka persetujuan</button>` : ''))]);
+      + (full ? `<button class="btn btn-secondary btn-sm" style="margin-top:10px;width:100%" onclick="_dashBukaPersetujuanAbsensi()"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="margin-right:5px;vertical-align:-2px"><path d="M5 13l4 4L19 7"/></svg>Buka persetujuan</button>` : ''))]);
   }
 
   const ins = [];
@@ -2163,18 +2165,25 @@ async function loadDashboardKinerja() {
     reload: 'loadDashboardKinerja()',
   });
 
+  // Status verifikasi isian periode berjalan (disetujui / menunggu / ditolak / draft)
+  const _vn = { disetujui: 0, menunggu: 0, perbaikan: 0, draft: 0, kosong: 0 };
+  rekap.forEach(x => { _vn[typeof _verifKelompok === 'function' ? _verifKelompok(x) : (x.realisasi != null ? 'disetujui' : 'kosong')]++; });
+
   html += `<div class="dm-kpis">
     ${_dmKpi({ label: 'Total Indikator', val: _dmNf(total), sub: labelTw, color: _DM_PAL.teal, icon: 'target' })}
-    ${_dmKpi({ label: 'Sudah Diisi', val: _dmNf(sudah), sub: `${pct}% dari total`, color: _DM_PAL.info, icon: 'check' })}
-    ${_dmKpi({ label: 'Belum Diisi', val: _dmNf(belum), sub: belum ? 'Perlu segera dilengkapi' : 'Sudah lengkap', color: belum ? _DM_PAL.bad : _DM_PAL.ok, icon: 'warn' })}
+    ${_dmKpi({ label: 'Disetujui', val: _dmNf(_vn.disetujui), sub: `${_dmPct(_vn.disetujui, total)}% dari total indikator`, color: _DM_PAL.ok, icon: 'check' })}
     ${_dmKpi({ label: 'Rata-rata Capaian', val: rata == null ? '-' : `${Math.round(rata)}%`, sub: rata == null ? 'Belum ada capaian' : _kwCapaianLabel(rata), color: rata == null ? '#94a3b8' : _kwCapaianColor(rata), icon: 'trend' })}
     ${_dmKpi({ label: 'On Track (≥75%)', val: _dmNf(onTrack), sub: withCap.length ? `dari ${withCap.length} terisi` : null, color: _DM_PAL.ok, icon: 'check' })}
+  </div>`;
+
+  html += `<div class="dm-kpis">
     ${_dmKpi({ label: 'Perlu Tindakan', val: _dmNf(perluTindakan), sub: 'Capaian di bawah 75%', color: perluTindakan ? _DM_PAL.warn : _DM_PAL.ok, icon: 'warn' })}
+    ${_dmKpi({ label: 'Menunggu Verifikasi', val: _dmNf(_vn.menunggu), sub: _vn.menunggu ? 'Menunggu diperiksa verifikator' : 'Tidak ada antrean', color: _DM_PAL.warn, icon: 'clock' })}
+    ${_dmKpi({ label: 'Ditolak', val: _dmNf(_vn.perbaikan), sub: _vn.perbaikan ? 'Perlu diperbaiki penginput' : 'Tidak ada yang ditolak', color: _DM_PAL.bad, icon: 'warn' })}
+    ${_dmKpi({ label: 'Draft', val: _dmNf(_vn.draft), sub: _vn.kosong ? `${_dmNf(_vn.kosong)} belum diisi` : (_vn.draft ? 'Belum diajukan' : 'Tidak ada draft'), color: _DM_PAL.abu, icon: 'doc' })}
   </div>`;
 
   html += _dmCols([
-    _dmCard('Progres pengisian', labelTw, `<div style="margin-block:auto"><div class="dm-big"><b style="color:${pct >= 100 ? _DM_PAL.ok : _DM_PAL.warn}">${pct}%</b><span>${sudah} dari ${total} indikator</span></div>
-      <div class="dm-hb-track" style="height:10px"><i style="width:${pct}%;background:${pct >= 100 ? _DM_PAL.ok : _DM_PAL.warn}"></i></div></div>`),
     _dmCard('Skala nilai capaian', 'Lampiran Permendagri No. 86 Tahun 2017', withCap.length ? _dmDonut(tiers.map(t => ({ label: t.label, value: t.n, color: t.color })), withCap.length, 'terisi', true) : _dmEmpty('Belum ada capaian terisi')),
   ]).replace('class="dm-cols','class="dm-cols eq',1);
 
@@ -2541,16 +2550,6 @@ function _renderIkuGrid(bulan, tahun, pa) {
       <div class="iku-sum-item">
         <span class="iku-sum-val">${total}</span>
         <span class="iku-sum-lbl">Total IKU</span>
-      </div>
-      <div style="width:1px;height:28px;background:#e2e8f0;flex-shrink:0"></div>
-      <div class="iku-sum-item">
-        <span class="iku-sum-val" style="color:${terisi > 0 ? '#0d9488' : '#94a3b8'}">${terisi}</span>
-        <span class="iku-sum-lbl">Sudah Diisi</span>
-      </div>
-      <div style="width:1px;height:28px;background:#e2e8f0;flex-shrink:0"></div>
-      <div class="iku-sum-item">
-        <span class="iku-sum-val" style="color:${total - terisi > 0 ? '#ef4444' : '#10b981'}">${total - terisi}</span>
-        <span class="iku-sum-lbl">Belum Diisi</span>
       </div>
       <div style="width:1px;height:28px;background:#e2e8f0;flex-shrink:0"></div>
       <div class="iku-sum-item">
@@ -3041,6 +3040,15 @@ const _KPI_COLORS = {
   slate: { bg: '#e2e8f0', text: '#334155' },
   fuchsia: { bg: '#fae8ff', text: '#a21caf' },
 };
+
+// Skeleton statcard (dipakai semua modul): n kotak .skeleton setinggi kartu selagi data dimuat
+function _statSkeleton(n, h = 98) {
+  return Array(n).fill(0).map(() => `<div class="skeleton" style="height:${h}px;border-radius:14px"></div>`).join('');
+}
+// Skeleton untuk grid .mon-kpi-grid (n kartu + 1 kartu progress selebar penuh)
+function _monKpiSkeleton(n) {
+  return `<div class="mon-kpi-grid">${_statSkeleton(n)}<div class="skeleton mon-kpi-progress" style="height:98px;border-radius:14px"></div></div>`;
+}
 
 function _kpiCard({ icon, label, value, sub = null, subUp = null, color = 'teal' }) {
   const c = _KPI_COLORS[color] || _KPI_COLORS.teal;

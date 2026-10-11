@@ -3,6 +3,7 @@
 //   GET    /data-rentang?tahun=2022,2023,...  rekap beberapa tahun sekaligus (maks 8) untuk download Laporan
 //   GET    /data?tahun=YYYY          rekap Data SSD (admin: semua; user: indikator unit kerjanya)
 //   PUT    /realisasi                simpan/kosongkan realisasi {indikator_id,bidang_id,tahun,nilai}
+//   DELETE /realisasi/reset?indikator_id=&tahun=   reset semua realisasi satu indikator pada satu tahun (Super Admin)
 //   GET    /indikator                master indikator (admin)
 //   POST   /indikator                tambah indikator (admin)
 //   PUT    /indikator/:id            ubah indikator (admin)
@@ -83,6 +84,7 @@ async function getCtx(event, sql) {
   return {
     id: u.id,
     admin,
+    superAdmin: !!u.is_admin,   // Super Admin saja (bukan sekadar walidata.full) - dipakai untuk Reset realisasi
     bidang_id: urow?.bidang_id ?? null,
     canView: admin || perms.includes(PERM_VIEW) || perms.includes(PERM_INPUT),
     canInput: admin || perms.includes(PERM_INPUT),
@@ -145,6 +147,7 @@ export const handler = async (event) => {
     if (seg0 === 'data-rentang' && m === 'GET') return await getDataRentang(event, sql, ctx);
     if (seg0 === 'monitoring' && m === 'GET') return await getMonitoring(event, sql, ctx);
     if (seg0 === 'dashboard' && m === 'GET') return await getDashboard(event, sql, ctx);
+    if (seg0 === 'realisasi' && seg1 === 'reset' && m === 'DELETE') return await resetRealisasi(event, sql, ctx);
     if (seg0 === 'realisasi' && seg1 === 'pindah' && m === 'POST') return await pindahRealisasi(event, sql, ctx);
     if (seg0 === 'realisasi' && m === 'PUT') return await putRealisasi(event, sql, ctx);
     if (seg0 === 'indikator') return await handleIndikator(event, sql, ctx, m, id, seg2);
@@ -438,13 +441,13 @@ async function getDashboard(event, sql, ctx) {
 
 // ── PUT /realisasi ─────────────────────────────────────────────────────────
 async function putRealisasi(event, sql, ctx) {
-  if (!ctx.canInput) return errorResponse('Anda tidak memiliki akses menginput realisasi', 403);
+  if (!ctx.canInput) return errorResponse('Anda tidak memiliki akses menginput data', 403);
   const { indikator_id, bidang_id, tahun, nilai } = parseBody(event);
   const iid = parseInt(indikator_id, 10), bid = parseInt(bidang_id, 10), thn = parseInt(tahun, 10);
   if (!iid || !bid || !thn) return errorResponse('Indikator, unit kerja, dan tahun wajib diisi', 400);
 
   if (!ctx.admin) {
-    if (bid !== ctx.bidang_id) return errorResponse('Anda hanya dapat menginput realisasi unit kerja sendiri', 403);
+    if (bid !== ctx.bidang_id) return errorResponse('Anda hanya dapat menginput data unit kerja sendiri', 403);
     const periode = (await sql`SELECT * FROM periode WHERE jenis = 'walidata' AND bulan IS NULL AND tahun = ${thn} LIMIT 1`)[0];
     if (periodeStatus(periode) !== 'terbuka') return errorResponse('Periode penginputan tahun ' + thn + ' tidak sedang dibuka', 403);
   }
@@ -458,7 +461,7 @@ async function putRealisasi(event, sql, ctx) {
   }
 
   const baru = parseNum(nilai);
-  if (Number.isNaN(baru)) return errorResponse('Nilai realisasi harus berupa angka', 400);
+  if (Number.isNaN(baru)) return errorResponse('Jumlah harus berupa angka', 400);
 
   const lama = (await sql`SELECT nilai FROM walidata_realisasi WHERE indikator_id = ${iid} AND bidang_id = ${bid} AND tahun = ${thn}`)[0];
   if (baru === null) {   // kosongkan = kembali ke "belum diinput"
@@ -476,6 +479,23 @@ async function putRealisasi(event, sql, ctx) {
   return jsonResponse({ ok: true, nilai: baru });
 }
 
+// ── DELETE /realisasi/reset?indikator_id=&tahun= ───────────────────────────
+// Khusus Super Admin (padanan Reset realisasi di Kinerja): hapus semua realisasi indikator pada tahun tsb
+// (semua unit kerja, termasuk riwayat) sehingga baris kembali "belum diinput". Setiap nilai yang dihapus dicatat di log.
+async function resetRealisasi(event, sql, ctx) {
+  if (!ctx.superAdmin) return errorResponse('Reset data hanya untuk Super Admin', 403);
+  const qs = event.queryStringParameters || {};
+  const iid = parseInt(qs.indikator_id, 10), thn = parseInt(qs.tahun, 10);
+  if (!iid || !thn) return errorResponse('Indikator dan tahun wajib diisi', 400);
+  const lama = await sql`SELECT bidang_id, nilai FROM walidata_realisasi WHERE indikator_id = ${iid} AND tahun = ${thn}`;
+  if (!lama.length) return jsonResponse({ ok: true, dihapus: 0 });
+  await sql`DELETE FROM walidata_realisasi WHERE indikator_id = ${iid} AND tahun = ${thn}`;
+  for (const r of lama) {
+    await catatLog(sql, { indikator_id: iid, bidang_id: r.bidang_id, tahun: thn, lama: r.nilai, baru: null, aksi: 'reset', user_id: ctx.id });
+  }
+  return jsonResponse({ ok: true, dihapus: lama.length });
+}
+
 // Pindahkan realisasi "belum ditetapkan unit" (bidang_id 0) ke satu unit pengampu. Nilai yang bentrok dengan data unit tsb dilewati.
 async function pindahTanpaUnit(sql, indikatorId, bidangId, userId) {
   const bentrok = await sql`SELECT COUNT(*)::int AS n FROM walidata_realisasi r WHERE r.indikator_id = ${indikatorId} AND r.bidang_id = 0
@@ -491,7 +511,7 @@ async function pindahTanpaUnit(sql, indikatorId, bidangId, userId) {
 }
 
 async function pindahRealisasi(event, sql, ctx) {
-  if (!ctx.admin) return errorResponse('Hanya admin yang dapat memindahkan realisasi', 403);
+  if (!ctx.admin) return errorResponse('Hanya admin yang dapat memindahkan data', 403);
   const { indikator_id, bidang_id } = parseBody(event);
   const iid = parseInt(indikator_id, 10), bid = parseInt(bidang_id, 10);
   if (!iid || !bid) return errorResponse('Indikator dan unit kerja wajib diisi', 400);
@@ -668,14 +688,14 @@ async function handleImport(event, sql, ctx) {
 
     out.unit0 = out.unit_ids[0] ?? 0;   // 0 = unit belum ditetapkan (diset admin belakangan)
     const nilai = parseNum(r.realisasi);
-    if (Number.isNaN(nilai)) err('Realisasi bukan angka');
+    if (Number.isNaN(nilai)) err('Jumlah bukan angka');
     else out.nilai = nilai;
 
     if (out.nilai !== null) {
       const thn = parseInt(r.tahun, 10);
       if (!thn || thn < 1990 || thn > 2100) err('Tahun tidak valid');
       else out.tahun = thn;
-      if (namaUnit.length > 1) err('Baris dengan Realisasi hanya boleh satu Unit Kerja');
+      if (namaUnit.length > 1) err('Baris dengan Jumlah hanya boleh satu Unit Kerja');
     }
 
     if (out.status !== 'error' && out.nilai !== null) {

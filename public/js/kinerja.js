@@ -695,6 +695,19 @@ function _aksiTutupBadge(saved) {
   return '<span class="aksi-tutup-badge" data-tip="Periode input sudah ditutup. Data tidak bisa diisi lagi.">'
     + svgOpen + '<rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>Ditutup</span>';
 }
+// Baris terkunci karena verifikasi (menunggu / diajukan kembali / disetujui): kolom Aksi tidak dikosongkan,
+// diisi penanda sesuai status supaya jelas kenapa tombol Simpan/Edit tidak ada.
+function _aksiKunciBadge(row) {
+  if (!_verifTerkunci(row)) return '';
+  const st = _verifStatus(row);
+  const svgOpen = '<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">';
+  if (st === 'disetujui') {
+    return '<span class="aksi-tutup-badge aksi-tutup-badge--saved" data-tip="Realisasi sudah disetujui verifikator, data tidak bisa diubah lagi.">'
+      + svgOpen + '<path d="M20 6 9 17l-5-5"/></svg>Tersimpan</span>';
+  }
+  return '<span class="aksi-tutup-badge aksi-tutup-badge--wait" data-tip="Sedang dalam proses verifikasi, data tidak bisa diubah sampai ada keputusan verifikator.">'
+    + svgOpen + '<rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>Terkunci</span>';
+}
 function _applyKinAksiCol(jenis) {
   const hide = _kinAksiHidden(jenis);
   document.querySelectorAll('.' + _KIN_AKSI_CLS[jenis]).forEach(el => { el.style.display = hide ? 'none' : ''; });
@@ -702,10 +715,14 @@ function _applyKinAksiCol(jenis) {
 
 // Akun pantau (Kabid dsb.) melihat seluruh indikator unitnya, tapi hanya boleh MENGISI indikator yang
 // di-assign langsung ke dirinya. Indikator unit lain: tampil saja (tanpa input & tombol Simpan/Edit).
-function _barisBolehEdit(row) {
+function _barisBolehEditDasar(row) {
   if (_isKinerjaAdmin()) return true;
   if (_isPantauKinerja()) return _myIndikatorIds.has(Number(row.id ?? row.indikator_id));   // akun pantau: hanya indikator yang di-assign ke dirinya
   return true;
+}
+// Verifikasi: baris yang sedang diverifikasi / sudah disetujui terkunci untuk user (lihat _verifTerkunci).
+function _barisBolehEdit(row) {
+  return _barisBolehEditDasar(row) && !_verifTerkunci(row);
 }
 
 function _kinColSpan(tbody) {
@@ -751,11 +768,12 @@ async function loadKinerjaRekap({ keepPage = false } = {}) {
   if (_msgEl) _msgEl.style.display = 'none';
 
   tbody.innerHTML = `<tr class="empty-row"><td colspan="${_kinColSpan(tbody)}"><span class="btn-spin" style="width:11px;height:11px;vertical-align:-1px;margin-right:6px"></span>Memuat data...</td></tr>`;
+  _kinStatCards('monev', tbody, [], true);
   { const _pg = document.getElementById('ikuPagination'); if (_pg) _pg.innerHTML = ''; }
   try {
     const r = await fetch(`/api/kinerja/rekap?bulan=${_kinerja_bulan}&tahun=${_kinerja_tahun}`, { headers: authHeaders() });
     const d = await r.json();
-    if (!r.ok) { tbody.innerHTML = `<tr class="empty-row"><td colspan="${_kinColSpan(tbody)}">${d.error || 'Gagal memuat'}</td></tr>`; return; }
+    if (!r.ok) { _kinStatCards('monev', tbody, []); tbody.innerHTML = `<tr class="empty-row"><td colspan="${_kinColSpan(tbody)}">${d.error || 'Gagal memuat'}</td></tr>`; return; }
     let rekap = d.rekap || [];
 
     // Filter per assigned indikator user (non-admin hanya lihat indikator yg di-assign)
@@ -771,6 +789,7 @@ async function loadKinerjaRekap({ keepPage = false } = {}) {
     if (!keepPage) _ikuPage = 1;
     renderKinerjaTable(tbody);
   } catch (err) {
+    _kinStatCards('monev', tbody, []);
     tbody.innerHTML = `<tr class="empty-row"><td colspan="${_kinColSpan(tbody)}">Error: ${err.message}</td></tr>`;
   }
 }
@@ -831,7 +850,7 @@ function _ensureResetBtn(indikatorId, prefix, jenis) {
     <button class="btn-reset-row" id="${prefix}resetbtn_${indikatorId}" data-tip="Reset data realisasi baris ini (super admin)"
       onclick="resetRealisasiRow(${indikatorId}, '${jenis}')">
       <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
-      Reset
+
     </button>`);
 }
 
@@ -899,10 +918,10 @@ function _renderDukungBtn(row, tw, tahun, source, initialEditable = false) {
   </button>`;
 }
 
-let _ikuPage = 1; const _ikuPageSize = 10;
-let _ikkPage = 1; const _ikkPageSize = 10;
-let _spmPage = 1; const _spmPageSize = 10;
-let _subkegPage = 1; const _subkegPageSize = 10;
+let _ikuPage = 1; const _ikuPageSize = 5;
+let _ikkPage = 1; const _ikkPageSize = 5;
+let _spmPage = 1; const _spmPageSize = 5;
+let _subkegPage = 1; const _subkegPageSize = 5;
 function _goIkuPage(p) { _ikuPage = p; renderKinerjaTable(document.getElementById('kinerjaTableBody')); }
 function _goIkkPage(p) { _ikkPage = p; _renderIkkTable(document.getElementById('ikkTableBody')); }
 function _goSpmPage(p) { _spmPage = p; _renderSpmTable(document.getElementById('spmTableBody')); }
@@ -952,6 +971,40 @@ function _kinUnitSyncSelect(jenis, rows) {
 function _kinUnitMatch(jenis, row) {
   return !_kinUnit[jenis] || row.penanggung_jawab === _kinUnit[jenis];
 }
+// Filter Status verifikasi (IKU / IKK / SPM / Sub Kegiatan). Nilai: '' = semua, 'kosong' = belum diisi,
+// selain itu = kunci VERIF_STATUS_META (draft, menunggu, perlu_perbaikan, diajukan_kembali, disetujui).
+const _kinStatus = { monev: '', ikk: '', spm: '', subkeg: '' };
+const _KIN_STATUS_SEL = { monev: 'kinerjaStatusFilter', ikk: 'ikkStatusFilter', spm: 'spmStatusFilter', subkeg: 'subkegStatusFilter' };
+// Isi dropdown status hanya dengan status yang benar-benar ada di data tabel (status tanpa data tidak ditampilkan).
+function _kinStatusSyncSelect(jenis, rows) {
+  const sel = document.getElementById(_KIN_STATUS_SEL[jenis]);
+  if (!sel) return;
+  const ada = new Set((rows || []).map(r => _verifStatus(r) || 'kosong'));
+  const urut = ['kosong', 'draft', 'menunggu', 'perlu_perbaikan', 'diajukan_kembali', 'disetujui'];
+  const list = urut.filter(k => ada.has(k));
+  if (_kinStatus[jenis] && !list.includes(_kinStatus[jenis])) _kinStatus[jenis] = '';
+  const sig = list.join(',');
+  if (sel.dataset.sig !== sig) {
+    sel.innerHTML = '<option value="">Semua Status</option>' +
+      list.map(k => `<option value="${k}">${k === 'kosong' ? 'Belum Diisi' : VERIF_STATUS_META[k].label}</option>`).join('');
+    sel.dataset.sig = sig;
+  }
+  sel.value = _kinStatus[jenis];
+  if (typeof syncCustomSelect === 'function') syncCustomSelect(sel.id);
+}
+function _kinStatusMatch(jenis, row) {
+  const f = _kinStatus[jenis];
+  if (!f) return true;
+  const st = _verifStatus(row);
+  return f === 'kosong' ? !st : st === f;
+}
+function setKinStatusFilter(jenis, v) {
+  _kinStatus[jenis] = v || '';
+  if (jenis === 'ikk')         { _ikkPage = 1;    _renderIkkTable(document.getElementById('ikkTableBody')); }
+  else if (jenis === 'spm')    { _spmPage = 1;    _renderSpmTable(document.getElementById('spmTableBody')); }
+  else if (jenis === 'subkeg') { _subkegPage = 1; _renderSubkegTable(document.getElementById('subkegTableBody')); }
+  else                         { _ikuPage = 1;    renderKinerjaTable(document.getElementById('kinerjaTableBody')); }
+}
 function setKinUnitFilter(jenis, v) {
   _kinUnit[jenis] = v || '';
   if (jenis === 'ikk')         { _ikkPage = 1;    _renderIkkTable(document.getElementById('ikkTableBody')); }
@@ -967,8 +1020,11 @@ function filterKinerjaTable() {
 }
 
 function renderKinerjaTable(tbody) {
+  _injectVerifStyles(); // CSS badge status & tombol Ajukan harus ada di halaman ini, bukan cuma di halaman Verifikasi
   _kinUnitSyncSelect('monev', _kinerjaData);
+  _kinStatusSyncSelect('monev', _kinerjaData);
   if (!_kinerjaData.length) {
+    _kinStatCards('monev', tbody, []);
     let emptyMsg = 'Belum ada indikator aktif. Admin perlu menambahkan indikator terlebih dahulu.';
     if (!_isKinerjaAdmin()) {
       if (!_userIndikatorIds || _userIndikatorIds.size === 0) {
@@ -990,6 +1046,8 @@ function renderKinerjaTable(tbody) {
       )
     : _kinerjaData;
   _filtered = _filtered.filter(row => _kinUnitMatch('monev', row));
+  _kinStatCards('monev', tbody, _filtered);
+  _filtered = _filtered.filter(row => _kinStatusMatch('monev', row));
 
   if (!_filtered.length) {
     tbody.innerHTML = `<tr class="empty-row"><td colspan="${_kinColSpan(tbody)}">Tidak ada indikator yang cocok dengan filter/pencarian${_kinerjaSearch ? ` "${escHtml(_kinerjaSearch)}"` : ''}.</td></tr>`;
@@ -1045,7 +1103,7 @@ function renderKinerjaTable(tbody) {
 
     html += `<tr data-id="${row.id}" class="${rowStateClass}">
       <td class="td-sticky-no" style="text-align:center;color:var(--teks-muted);position:sticky;left:0;z-index:3">${no}</td>
-      <td class="td-sticky-name" style="position:sticky;left:34px;z-index:3"><div style="font-weight:600;line-height:1.6"><span>${escHtml(row.indikator_kinerja)}</span>${negBadge}</div><div style="display:flex;align-items:center;gap:6px;margin-top:5px">${row.formula ? `<div class="fx-wrap"><button style="display:inline-flex;align-items:center;justify-content:center;gap:4px;box-sizing:border-box;height:24px;font-size:0.62rem;font-weight:700;line-height:1;color:#0f766e;background:#f0fdfa;border:1px solid #99f6e4;border-radius:4px;padding:0 8px;cursor:pointer;font-family:inherit;appearance:none;-webkit-appearance:none;margin:0" data-tip="Lihat formula perhitungan" data-formula="${escHtml(row.formula)}" onclick="toggleFormulaPanel(this)"><span>Σ</span><span class=\"fx-arrow\" style=\"display:inline-block;transition:transform .2s;font-style:normal\">▾</span></button></div>` : ''}${_tipeBadge(row.tipe_perhitungan)}</div></td>
+      <td class="td-sticky-name" style="position:sticky;left:34px;z-index:3"><div style="font-weight:600;line-height:1.6"><span>${escHtml(row.indikator_kinerja)}</span>${negBadge}</div><div style="display:flex;align-items:center;gap:6px;margin-top:5px">${row.formula ? `<div class="fx-wrap"><button style="display:inline-flex;align-items:center;justify-content:center;gap:4px;box-sizing:border-box;height:24px;font-size:0.62rem;font-weight:700;line-height:1;color:#0f766e;background:#f0fdfa;border:1px solid #99f6e4;border-radius:4px;padding:0 8px;cursor:pointer;font-family:inherit;appearance:none;-webkit-appearance:none;margin:0" data-tip="Lihat formula perhitungan" data-formula="${escHtml(row.formula)}" onclick="toggleFormulaPanel(this)"><span>Σ</span><span class=\"fx-arrow\" style=\"display:inline-block;transition:transform .2s;font-style:normal\">▾</span></button></div>` : ''}${_tipeBadge(row.tipe_perhitungan)}</div>${_verifExtraWrap(row, 'monev')}</td>
       <td class="td-satuan">${escHtml(row.satuan || '')}</td>
       <td class="td-target" style="font-weight:700">${targetFmt}</td>
       ${_isKinerjaAdmin() ? `<td class="td-bidang" style="color:var(--teks-mid)">${escHtml(row.penanggung_jawab || '-')}</td>` : ''}
@@ -1068,29 +1126,31 @@ function renderKinerjaTable(tbody) {
         ${_renderPSCell('rencana', row.id, row.rencana_tl, capaian, rowCanEdit, 'rencana tindak lanjut', 'markDirty', !!row.realisasi_id, true, row.tipe_nilai === 'predikat', row.realisasi == null && !row.realisasi_id)}
       </td>
       <td class="textarea-cell" style="text-align:left;vertical-align:top" data-col="dukung">${_renderDukungInlineCell(row, rowCanEdit, 'monev')}</td>
+      <td data-col="status" style="text-align:center;vertical-align:middle">${_verifStatusWrap(row, 'monev')}</td>
       <td class="col-aksi-iku" style="text-align:center;white-space:nowrap${_kinAksiHidden('monev') ? ';display:none' : ''}">
         ${rowCanEdit ? `
           <button class="btn-edit-row" id="editbtn_${row.id}" data-tip="Edit baris ini"
             onclick="toggleEditRow(${row.id})"
             style="${row.realisasi_id ? '' : 'display:none'}">
             <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
-            Edit
+
           </button>
           <button class="save-row-btn" id="savebtn_${row.id}" disabled
-            onclick="saveRealisasiRow(${row.id})" data-tip="Simpan"
+            onclick="saveRealisasiRow(${row.id})" data-tip="${row.realisasi_id ? 'Tersimpan' : 'Simpan'}"
             style="font-family:'Plus Jakarta Sans',sans-serif!important;${row.realisasi_id ? 'background:var(--sukses);color:#fff' : ''}">
             ${row.realisasi_id
-  ? '<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/><path d="M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7"/><path d="M7 3v4a1 1 0 0 0 1 1h7"/></svg> Tersimpan'
-  : '<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/><path d="M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7"/><path d="M7 3v4a1 1 0 0 0 1 1h7"/></svg> Simpan'}
+  ? '<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/><path d="M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7"/><path d="M7 3v4a1 1 0 0 0 1 1h7"/></svg>'
+  : '<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/><path d="M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7"/><path d="M7 3v4a1 1 0 0 0 1 1h7"/></svg>'}
           </button>
-        ` : (!canEdit ? _aksiTutupBadge(!!row.realisasi_id) : '')}
+        ` : (!canEdit ? _aksiTutupBadge(!!row.realisasi_id) : _aksiKunciBadge(row))}
         ${_isSuperAdminKinerja() && row.realisasi_id ? `
           <button class="btn-reset-row" id="resetbtn_${row.id}" data-tip="Reset data realisasi baris ini (super admin)"
             onclick="resetRealisasiRow(${row.id}, 'monev')">
             <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
-            Reset
+
           </button>
         ` : ''}
+        ${_verifAksiWrap(row, 'monev')}
       </td>
     </tr>`;
   });
@@ -1205,12 +1265,12 @@ function toggleEditRow(indikatorId) {
     }
     
     if (editBtn) {
-      editBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg> Sedang Diedit`;
+      editBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>`;
       editBtn.classList.add('btn-edit-row--active');
       editBtn.dataset.tip = 'Klik untuk batalkan edit';
     }
     if (saveBtn) {
-      saveBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/><path d="M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7"/><path d="M7 3v4a1 1 0 0 0 1 1h7"/></svg> Simpan`;
+      saveBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/><path d="M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7"/><path d="M7 3v4a1 1 0 0 0 1 1h7"/></svg>`; saveBtn.dataset.tip = 'Simpan';
       saveBtn.style.background = '';
       saveBtn.style.color = '';
     }
@@ -1226,17 +1286,18 @@ function toggleEditRow(indikatorId) {
     }
     
     if (editBtn) {
-      editBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg> Edit`;
+      editBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>`;
       editBtn.classList.remove('btn-edit-row--active');
       editBtn.dataset.tip = 'Edit baris ini';
     }
     if (saveBtn) {
-      saveBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/><path d="M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7"/><path d="M7 3v4a1 1 0 0 0 1 1h7"/></svg> Simpan`;
+      saveBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/><path d="M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7"/><path d="M7 3v4a1 1 0 0 0 1 1h7"/></svg>`; saveBtn.dataset.tip = 'Simpan';
       saveBtn.style.background = row?.realisasi_id ? 'var(--sukses)' : '';
       saveBtn.style.color = row?.realisasi_id ? '#fff' : '';
       saveBtn.disabled = true;
     }
   }
+  _verifRefreshAksi('monev', indikatorId); // Ajukan nonaktif selama baris masih diedit
 }
 
 function toggleIkkEditRow(indikatorId) {
@@ -1324,12 +1385,12 @@ function toggleIkkEditRow(indikatorId) {
       tr.classList.add('row-state-editing');
     }
     if (editBtn) {
-      editBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg> Sedang Diedit`;
+      editBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>`;
       editBtn.classList.add('btn-edit-row--active');
       editBtn.dataset.tip = 'Klik untuk batalkan edit';
     }
     if (saveBtn) {
-      saveBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/><path d="M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7"/><path d="M7 3v4a1 1 0 0 0 1 1h7"/></svg> Simpan`;
+      saveBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/><path d="M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7"/><path d="M7 3v4a1 1 0 0 0 1 1h7"/></svg>`; saveBtn.dataset.tip = 'Simpan';
       saveBtn.disabled = true;
       saveBtn.style.background = '';
       saveBtn.style.color = '';
@@ -1344,17 +1405,18 @@ function toggleIkkEditRow(indikatorId) {
       tr.classList.add(row?.realisasi_id ? 'row-state-saved' : 'row-state-default');
     }
     if (editBtn) {
-      editBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg> Edit`;
+      editBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>`;
       editBtn.classList.remove('btn-edit-row--active');
       editBtn.dataset.tip = 'Edit baris ini';
     }
     if (saveBtn) {
-      saveBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/><path d="M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7"/><path d="M7 3v4a1 1 0 0 0 1 1h7"/></svg> Simpan`;
+      saveBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/><path d="M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7"/><path d="M7 3v4a1 1 0 0 0 1 1h7"/></svg>`; saveBtn.dataset.tip = 'Simpan';
       saveBtn.style.background = row?.realisasi_id ? 'var(--sukses)' : '';
       saveBtn.style.color = row?.realisasi_id ? '#fff' : '';
       saveBtn.disabled = true;
     }
   }
+  _verifRefreshAksi('ikk', indikatorId); // Ajukan nonaktif selama baris masih diedit
 }
 
 function markDirty(indikatorId) {
@@ -1461,7 +1523,7 @@ function _updateSaveBtnState(indikatorId) {
   const _saved = !ok && !!row?.realisasi_id && !document.querySelector(`tr[data-id="${indikatorId}"]`)?.classList.contains('row-state-editing');
   btn.style.background = ok ? '#0d9488' : (_saved ? 'var(--sukses)' : '');
   btn.style.color      = (ok || _saved) ? '#fff' : '';
-  btn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/><path d="M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7"/><path d="M7 3v4a1 1 0 0 0 1 1h7"/></svg> Simpan`;
+  btn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/><path d="M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7"/><path d="M7 3v4a1 1 0 0 0 1 1h7"/></svg>`; btn.dataset.tip = 'Simpan';
 
   _dukungSetEnabled(indikatorId, 'monev', okUpload);
   _dukungSyncErr(indikatorId, 'monev', false);
@@ -1567,7 +1629,7 @@ async function saveRealisasiRow(indikatorId) {
   if (btn) {
     btn.disabled = true;
     btn.style.background = '#0d9488'; btn.style.color = '#fff'; btn.style.webkitTextFillColor = '#fff'; 
-    btn.innerHTML = `<span class="btn-spin" style="width:11px;height:11px"></span> Menyimpan...`;
+    btn.innerHTML = `<span class="btn-spin" style="width:11px;height:11px"></span>`;
   }
   try {
     const r = await fetch('/api/kinerja/realisasi', {
@@ -1581,7 +1643,7 @@ async function saveRealisasiRow(indikatorId) {
       }),
     });
     const d = await r.json();
-    if (!r.ok) { toast(d.error || 'Gagal menyimpan', 'error'); if (btn) { btn.disabled = false; btn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/><path d="M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7"/><path d="M7 3v4a1 1 0 0 0 1 1h7"/></svg> Simpan`; } }
+    if (!r.ok) { toast(d.error || 'Gagal menyimpan', 'error'); if (btn) { btn.disabled = false; btn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/><path d="M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7"/><path d="M7 3v4a1 1 0 0 0 1 1h7"/></svg>`; btn.dataset.tip = 'Simpan'; } }
     else {
       toast('Tersimpan');
       
@@ -1609,13 +1671,13 @@ async function saveRealisasiRow(indikatorId) {
       }
       const editBtn = document.getElementById(`editbtn_${indikatorId}`);
       if (editBtn) {
-        editBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg> Edit`;
+        editBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>`;
         editBtn.classList.remove('btn-edit-row--active');
         editBtn.dataset.tip = 'Edit baris ini';
         editBtn.style.display = ''; // tampilkan tombol Edit setelah data tersimpan
       }
       if (btn) {
-        btn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/><path d="M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7"/><path d="M7 3v4a1 1 0 0 0 1 1h7"/></svg> Tersimpan`;
+        btn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/><path d="M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7"/><path d="M7 3v4a1 1 0 0 0 1 1h7"/></svg>`; btn.dataset.tip = 'Tersimpan';
         btn.style.background = 'var(--sukses)';
         btn.style.color = '#fff';
         btn.disabled = true;
@@ -1629,6 +1691,7 @@ async function saveRealisasiRow(indikatorId) {
         _kinerjaData[idx].f_pendukung       = d.realisasi?.f_pendukung ?? null;
         _kinerjaData[idx].rencana_tl        = d.realisasi?.rencana_tl ?? null;
         _kinerjaData[idx].realisasi_id      = d.realisasi?.id ?? _kinerjaData[idx].realisasi_id;
+        _verifApplySaved('monev', _kinerjaData[idx], d.realisasi);
         if (_dk.changed) { _kinerjaData[idx].data_dukung_url = _dk.json; _kinerjaData[idx].data_dukung_nama = _dk.name; }
       }
       // Kunci sel link SETELAH data lokal diperbarui (supaya link baru tampil)
@@ -1687,7 +1750,7 @@ _togglePermasalahanSolusi('', indikatorId, _capaianFinal);
     }
   } catch (err) {
     toast('Error: ' + err.message, 'error');
-    if (btn) { btn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/><path d="M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7"/><path d="M7 3v4a1 1 0 0 0 1 1h7"/></svg> Simpan`; btn.disabled = false; }
+    if (btn) { btn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/><path d="M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7"/><path d="M7 3v4a1 1 0 0 0 1 1h7"/></svg>`; btn.dataset.tip = 'Simpan'; btn.disabled = false; }
   }
 }
 
@@ -2693,7 +2756,7 @@ async function openAssignUserIndikator(id) {
   document.getElementById('auiInfo').textContent = row?.indikator_kinerja || '';
   document.getElementById('auiSearch').value = '';
   document.getElementById('auiSaveBtn').disabled = true;
-  document.getElementById('auiList').innerHTML = '<div style="padding:18px;text-align:center;color:var(--teks-muted);font-size:.85rem">Memuat data...</div>';
+  document.getElementById('auiList').innerHTML = '<div style="padding:18px;text-align:center;color:var(--teks-muted);font-size:.85rem"><span class="btn-spin" style="width:11px;height:11px;vertical-align:-1px;margin-right:6px"></span>Memuat data...</div>';
   document.getElementById('auiCounter').textContent = '0 dipilih';
   openModal('modalAssignUserIndikator');
   try {
@@ -4381,11 +4444,12 @@ async function loadIkkRekap({ keepPage = false } = {}) {
   if (_msgEl) _msgEl.style.display = 'none';
 
   tbody.innerHTML = `<tr class="empty-row"><td colspan="${_kinColSpan(tbody)}"><span class="btn-spin" style="width:11px;height:11px;vertical-align:-1px;margin-right:6px"></span>Memuat data...</td></tr>`;
+  _kinStatCards('ikk', tbody, [], true);
   { const _pg = document.getElementById('ikkPagination'); if (_pg) _pg.innerHTML = ''; }
   try {
     const r = await fetch(`/api/kinerja/rekap?bulan=${_ikk_bulan}&tahun=${_ikk_tahun}&jenis=ikk`, { headers: authHeaders() });
     const d = await r.json();
-    if (!r.ok) { tbody.innerHTML = `<tr class="empty-row"><td colspan="${_kinColSpan(tbody)}">${d.error || 'Gagal memuat'}</td></tr>`; return; }
+    if (!r.ok) { _kinStatCards('ikk', tbody, []); tbody.innerHTML = `<tr class="empty-row"><td colspan="${_kinColSpan(tbody)}">${d.error || 'Gagal memuat'}</td></tr>`; return; }
     let rekap = d.rekap || [];
 
     // Filter per assigned indikator user (non-admin hanya lihat indikator yg di-assign)
@@ -4400,6 +4464,7 @@ async function loadIkkRekap({ keepPage = false } = {}) {
     if (!keepPage) _ikkPage = 1;
     _renderIkkTable(tbody);
   } catch (err) {
+    _kinStatCards('ikk', tbody, []);
     tbody.innerHTML = `<tr class="empty-row"><td colspan="${_kinColSpan(tbody)}">Error: ${err.message}</td></tr>`;
   }
 }
@@ -4711,8 +4776,11 @@ function _dukungPrepareSave(indikatorId, jenis) {
 }
 
 function _renderIkkTable(tbody) {
+  _injectVerifStyles(); // CSS badge status & tombol Ajukan harus ada di halaman ini, bukan cuma di halaman Verifikasi
   _kinUnitSyncSelect('ikk', _ikkData);
+  _kinStatusSyncSelect('ikk', _ikkData);
   if (!_ikkData.length) {
+    _kinStatCards('ikk', tbody, []);
     let emptyMsg = 'Belum ada indikator IKK aktif. Admin perlu menambahkan indikator dengan jenis IKK.';
     if (!_isKinerjaAdmin()) {
       if (!_userIndikatorIds || _userIndikatorIds.size === 0) {
@@ -4733,6 +4801,8 @@ function _renderIkkTable(tbody) {
       )
     : _ikkData;
   _filtered = _filtered.filter(row => _kinUnitMatch('ikk', row));
+  _kinStatCards('ikk', tbody, _filtered);
+  _filtered = _filtered.filter(row => _kinStatusMatch('ikk', row));
 
   if (!_filtered.length) {
     tbody.innerHTML = `<tr class="empty-row"><td colspan="${_kinColSpan(tbody)}">Tidak ada indikator yang cocok dengan filter/pencarian${_ikkSearch ? ` "${escHtml(_ikkSearch)}"` : ''}.</td></tr>`;
@@ -4786,7 +4856,7 @@ function _renderIkkTable(tbody) {
     // Reuse dukung button (references _ikkData so we need a separate handler)
     html += `<tr data-id="${row.id}" class="${ikkRowStateClass}">
       <td class="td-sticky-no" style="text-align:center;color:var(--teks-muted);position:sticky;left:0;z-index:3">${no}</td>
-      <td class="td-sticky-name" style="position:sticky;left:34px;z-index:3"><div style="font-weight:600;line-height:1.6"><span>${escHtml(row.indikator_kinerja)}</span>${row.bermakna_negatif ? `<span data-tip="Bermakna Negatif" data-tip-variant="danger" style="display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;background:#fee2e2;border-radius:50%;margin-left:5px;vertical-align:middle;flex-shrink:0"><svg xmlns=\"http://www.w3.org/2000/svg\" width=\"9\" height=\"9\" fill=\"none\" viewBox=\"0 0 24 24\" stroke=\"#991b1b\" stroke-width=\"2.8\"><path stroke-linecap=\"round\" stroke-linejoin=\"round\" d=\"M19 14l-7 7m0 0l-7-7m7 7V3\"/></svg></span>` : `<span data-tip="Bermakna Positif" data-tip-variant="success" style="display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;background:#d1fae5;border-radius:50%;margin-left:5px;vertical-align:middle;flex-shrink:0"><svg xmlns=\"http://www.w3.org/2000/svg\" width=\"9\" height=\"9\" fill=\"none\" viewBox=\"0 0 24 24\" stroke=\"#065f46\" stroke-width=\"2.8\"><path stroke-linecap=\"round\" stroke-linejoin=\"round\" d=\"M5 10l7-7m0 0l7 7m-7-7v18\"/></svg></span>`}</div><div style="display:flex;align-items:center;gap:6px;margin-top:5px">${row.formula ? `<div class="fx-wrap"><button style="display:inline-flex;align-items:center;justify-content:center;gap:4px;box-sizing:border-box;height:24px;font-size:0.62rem;font-weight:700;line-height:1;color:#0f766e;background:#f0fdfa;border:1px solid #99f6e4;border-radius:4px;padding:0 8px;cursor:pointer;font-family:inherit;appearance:none;-webkit-appearance:none;margin:0" data-tip="Lihat formula perhitungan" data-formula="${escHtml(row.formula)}" onclick="toggleFormulaPanel(this)"><span>Σ</span><span class=\"fx-arrow\" style=\"display:inline-block;transition:transform .2s;font-style:normal\">▾</span></button></div>` : ''}${_tipeBadge(row.tipe_perhitungan)}</div></td>
+      <td class="td-sticky-name" style="position:sticky;left:34px;z-index:3"><div style="font-weight:600;line-height:1.6"><span>${escHtml(row.indikator_kinerja)}</span>${row.bermakna_negatif ? `<span data-tip="Bermakna Negatif" data-tip-variant="danger" style="display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;background:#fee2e2;border-radius:50%;margin-left:5px;vertical-align:middle;flex-shrink:0"><svg xmlns=\"http://www.w3.org/2000/svg\" width=\"9\" height=\"9\" fill=\"none\" viewBox=\"0 0 24 24\" stroke=\"#991b1b\" stroke-width=\"2.8\"><path stroke-linecap=\"round\" stroke-linejoin=\"round\" d=\"M19 14l-7 7m0 0l-7-7m7 7V3\"/></svg></span>` : `<span data-tip="Bermakna Positif" data-tip-variant="success" style="display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;background:#d1fae5;border-radius:50%;margin-left:5px;vertical-align:middle;flex-shrink:0"><svg xmlns=\"http://www.w3.org/2000/svg\" width=\"9\" height=\"9\" fill=\"none\" viewBox=\"0 0 24 24\" stroke=\"#065f46\" stroke-width=\"2.8\"><path stroke-linecap=\"round\" stroke-linejoin=\"round\" d=\"M5 10l7-7m0 0l7 7m-7-7v18\"/></svg></span>`}</div><div style="display:flex;align-items:center;gap:6px;margin-top:5px">${row.formula ? `<div class="fx-wrap"><button style="display:inline-flex;align-items:center;justify-content:center;gap:4px;box-sizing:border-box;height:24px;font-size:0.62rem;font-weight:700;line-height:1;color:#0f766e;background:#f0fdfa;border:1px solid #99f6e4;border-radius:4px;padding:0 8px;cursor:pointer;font-family:inherit;appearance:none;-webkit-appearance:none;margin:0" data-tip="Lihat formula perhitungan" data-formula="${escHtml(row.formula)}" onclick="toggleFormulaPanel(this)"><span>Σ</span><span class=\"fx-arrow\" style=\"display:inline-block;transition:transform .2s;font-style:normal\">▾</span></button></div>` : ''}${_tipeBadge(row.tipe_perhitungan)}</div>${_verifExtraWrap(row, 'ikk')}</td>
       <td class="td-satuan">${escHtml(row.satuan || '')}</td>
       <td class="td-target" style="font-weight:700">${targetFmt}</td>
       ${_isKinerjaAdmin() ? `<td class="td-bidang" style="color:var(--teks-mid)">${escHtml(row.penanggung_jawab || '-')}</td>` : ''}
@@ -4809,29 +4879,31 @@ function _renderIkkTable(tbody) {
         ${_renderPSCell('ikk_rencana', row.id, row.rencana_tl, capaian, rowCanEdit, 'rencana tindak lanjut', 'markIkkDirty', !!row.realisasi_id, true, row.tipe_nilai === 'predikat', row.realisasi == null && !row.realisasi_id)}
       </td>
       <td class="textarea-cell" style="text-align:left;vertical-align:top" data-col="dukung">${_renderDukungInlineCell(row, rowCanEdit, 'ikk')}</td>
+      <td data-col="status" style="text-align:center;vertical-align:middle">${_verifStatusWrap(row, 'ikk')}</td>
       <td class="col-aksi-ikk" style="text-align:center;white-space:nowrap${_kinAksiHidden('ikk') ? ';display:none' : ''}">
         ${rowCanEdit ? `
           <button class="btn-edit-row" id="ikk_editbtn_${row.id}" data-tip="Edit baris ini"
             onclick="toggleIkkEditRow(${row.id})"
             style="${row.realisasi_id ? '' : 'display:none'}">
             <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
-            Edit
+
           </button>
           <button class="save-row-btn" id="ikk_savebtn_${row.id}" disabled
-            onclick="saveIkkRealisasiRow(${row.id})" data-tip="Simpan"
+            onclick="saveIkkRealisasiRow(${row.id})" data-tip="${row.realisasi_id ? 'Tersimpan' : 'Simpan'}"
             style="font-family:'Plus Jakarta Sans',sans-serif!important;${row.realisasi_id ? 'background:var(--sukses);color:#fff' : ''}">
             ${row.realisasi_id
-  ? '<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/><path d="M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7"/><path d="M7 3v4a1 1 0 0 0 1 1h7"/></svg> Tersimpan'
-  : '<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/><path d="M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7"/><path d="M7 3v4a1 1 0 0 0 1 1h7"/></svg> Simpan'}
+  ? '<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/><path d="M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7"/><path d="M7 3v4a1 1 0 0 0 1 1h7"/></svg>'
+  : '<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/><path d="M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7"/><path d="M7 3v4a1 1 0 0 0 1 1h7"/></svg>'}
           </button>
-        ` : (!canEdit ? _aksiTutupBadge(!!row.realisasi_id) : '')}
+        ` : (!canEdit ? _aksiTutupBadge(!!row.realisasi_id) : _aksiKunciBadge(row))}
         ${_isSuperAdminKinerja() && row.realisasi_id ? `
           <button class="btn-reset-row" id="ikk_resetbtn_${row.id}" data-tip="Reset data realisasi baris ini (super admin)"
             onclick="resetRealisasiRow(${row.id}, 'ikk')">
             <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
-            Reset
+
           </button>
         ` : ''}
+        ${_verifAksiWrap(row, 'ikk')}
       </td>
     </tr>`;
   });
@@ -4850,7 +4922,7 @@ function _renderIkkTable(tbody) {
 function markIkkDirty(indikatorId) {
   const btn = document.getElementById(`ikk_savebtn_${indikatorId}`);
   if (btn) {
-    btn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/><path d="M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7"/><path d="M7 3v4a1 1 0 0 0 1 1h7"/></svg> Simpan`;
+    btn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/><path d="M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7"/><path d="M7 3v4a1 1 0 0 0 1 1h7"/></svg>`; btn.dataset.tip = 'Simpan';
   }
   
   const row = _ikkData.find(r => r.id === indikatorId);
@@ -4939,7 +5011,7 @@ async function saveIkkRealisasiRow(indikatorId) {
   const _dk = _dukungPrepareSave(indikatorId, 'ikk');
   if (!_dk) return;
 
-  if (btn) { btn.disabled = true; btn.style.background = '#0d9488'; btn.style.color = '#fff'; btn.style.webkitTextFillColor = '#fff'; btn.innerHTML = `<span class="btn-spin" style="width:11px;height:11px"></span> Menyimpan...`; }
+  if (btn) { btn.disabled = true; btn.style.background = '#0d9488'; btn.style.color = '#fff'; btn.style.webkitTextFillColor = '#fff'; btn.innerHTML = `<span class="btn-spin" style="width:11px;height:11px"></span>`; }
   try {
     const r = await fetch('/api/kinerja/realisasi', {
       method: 'POST', headers: authHeaders(),
@@ -4952,7 +5024,7 @@ async function saveIkkRealisasiRow(indikatorId) {
       }),
     });
     const d = await r.json();
-    if (!r.ok) { toast(d.error || 'Gagal menyimpan', 'error'); if (btn) { btn.disabled = false; btn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/><path d="M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7"/><path d="M7 3v4a1 1 0 0 0 1 1h7"/></svg> Simpan`; } }
+    if (!r.ok) { toast(d.error || 'Gagal menyimpan', 'error'); if (btn) { btn.disabled = false; btn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/><path d="M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7"/><path d="M7 3v4a1 1 0 0 0 1 1h7"/></svg>`; btn.dataset.tip = 'Simpan'; } }
     else {
       toast('Tersimpan');
       
@@ -4977,13 +5049,13 @@ async function saveIkkRealisasiRow(indikatorId) {
       }
       const editBtn = document.getElementById(`ikk_editbtn_${indikatorId}`);
       if (editBtn) {
-        editBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg> Edit`;
+        editBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>`;
         editBtn.classList.remove('btn-edit-row--active');
         editBtn.dataset.tip = 'Edit baris ini';
         editBtn.style.display = ''; // tampilkan tombol Edit setelah data tersimpan
       }
       if (btn) {
-        btn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/><path d="M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7"/><path d="M7 3v4a1 1 0 0 0 1 1h7"/></svg> Tersimpan`;
+        btn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/><path d="M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7"/><path d="M7 3v4a1 1 0 0 0 1 1h7"/></svg>`; btn.dataset.tip = 'Tersimpan';
         btn.style.background = 'var(--sukses)';
         btn.style.color = '#fff';
         btn.disabled = true;
@@ -4997,6 +5069,7 @@ async function saveIkkRealisasiRow(indikatorId) {
         _ikkData[idx].f_pendukung       = d.realisasi?.f_pendukung ?? null;
         _ikkData[idx].rencana_tl        = d.realisasi?.rencana_tl ?? null;
         _ikkData[idx].realisasi_id      = d.realisasi?.id ?? _ikkData[idx].realisasi_id;
+        _verifApplySaved('ikk', _ikkData[idx], d.realisasi);
         if (_dk.changed) { _ikkData[idx].data_dukung_url = _dk.json; _ikkData[idx].data_dukung_nama = _dk.name; }
       }
       
@@ -5039,7 +5112,7 @@ _togglePermasalahanSolusi('ikk', indikatorId, _cIkk);
         });
       
     }
-  } catch (err) { toast('Error: ' + err.message, 'error'); if (btn) { btn.disabled = false; btn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/><path d="M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7"/><path d="M7 3v4a1 1 0 0 0 1 1h7"/></svg> Simpan`; } }
+  } catch (err) { toast('Error: ' + err.message, 'error'); if (btn) { btn.disabled = false; btn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/><path d="M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7"/><path d="M7 3v4a1 1 0 0 0 1 1h7"/></svg>`; btn.dataset.tip = 'Simpan'; } }
 }
 
 async function openIkkDukungModal(indikatorId, bulan, tahun) {
@@ -6354,6 +6427,45 @@ let _mon_search = '';
 let _mon_page   = 1;
 const _MON_PER_PAGE = 10;
 let _mon_data   = null;
+// Status verifikasi baris monitoring. 'belum' = belum ada isian. Backend lama (tanpa kolom status_verifikasi) -> dianggap disetujui.
+// Kelompok: belum | draft | menunggu (termasuk diajukan kembali) | ditolak | disetujui
+function _monVerRaw(r) {
+  if (r.status !== 'terisi') return null;
+  return r.status_verifikasi === undefined ? 'disetujui' : (r.status_verifikasi || 'draft');
+}
+function _monVerKey(r) {
+  const st = _monVerRaw(r);
+  if (!st) return 'belum';
+  if (st === 'diajukan_kembali') return 'menunggu';
+  if (st === 'perlu_perbaikan') return 'ditolak';
+  return st;
+}
+const _MON_STATUS_LABEL = { belum: 'Belum Input', draft: 'Draft', menunggu: 'Menunggu Verifikasi', ditolak: 'Ditolak', disetujui: 'Disetujui' };
+// Dropdown status hanya berisi status yang ada datanya.
+function _monPopulateStatusSelect() {
+  const sel = document.getElementById('monStatusSelect');
+  if (!sel || !_mon_data) return;
+  const ada = new Set((_mon_data.indikator || []).map(_monVerKey));
+  const list = Object.keys(_MON_STATUS_LABEL).filter(k => ada.has(k));
+  if (_mon_status !== 'all' && !list.includes(_mon_status)) _mon_status = 'all';
+  sel.innerHTML = '<option value="">Semua Status</option>' + list.map(k => `<option value="${k}">${_MON_STATUS_LABEL[k]}</option>`).join('');
+  sel.value = _mon_status === 'all' ? '' : _mon_status;
+  if (typeof syncCustomSelect === 'function') syncCustomSelect('monStatusSelect');
+}
+// Progress per unit kerja dihitung dari baris (yang dihitung selesai = disetujui)
+function _monPJList() {
+  const map = {};
+  (_mon_data?.indikator || []).forEach(r => {
+    const pj = r.penanggung_jawab || '- Tanpa PJ -';
+    const m = map[pj] || (map[pj] = { penanggung_jawab: pj, total: 0, disetujui: 0 });
+    m.total++;
+    if (_monVerKey(r) === 'disetujui') m.disetujui++;
+  });
+  return Object.values(map).sort((a, b) =>
+    ((a.penanggung_jawab === '- Tanpa PJ -') - (b.penanggung_jawab === '- Tanpa PJ -')) ||
+    ((b.total - b.disetujui) - (a.total - a.disetujui)) ||
+    a.penanggung_jawab.localeCompare(b.penanggung_jawab, 'id'));
+}
 let _mon_loaded_at = null;   // waktu data monitoring terakhir dimuat dari server
 
 // Ingat Tahun + Triwulan terakhir yang dipilih di Monitoring Pengisian supaya reload halaman
@@ -6450,6 +6562,7 @@ async function loadMonitoringKinerja() {
     <span class="btn-spin" style="width:14px;height:14px;vertical-align:-2px;margin-right:6px"></span>
     Memuat data monitoring…</td></tr>`;
   { const _pg = document.getElementById('monPagination'); if (_pg) _pg.innerHTML = ''; }
+  { const _sc = document.getElementById('monSummaryCards'); if (_sc) _sc.innerHTML = _monKpiSkeleton(6); }
 
   try {
     const _monBuildUrl = () => {
@@ -6460,15 +6573,17 @@ async function loadMonitoringKinerja() {
     };
     const res = await fetch(_monBuildUrl(), { headers: authHeaders() });
     const d = await res.json();
-    if (!res.ok) { toast(d.error || 'Gagal memuat monitoring', 'error'); return; }
+    if (!res.ok) { toast(d.error || 'Gagal memuat monitoring', 'error'); const _sc = document.getElementById('monSummaryCards'); if (_sc) _sc.innerHTML = ''; return; }
     _mon_data = d;
     _mon_loaded_at = new Date();
   } catch (err) {
     toast('Error: ' + err.message, 'error');
+    { const _sc = document.getElementById('monSummaryCards'); if (_sc) _sc.innerHTML = ''; }
     body.innerHTML = `<tr><td colspan="7" style="text-align:center;padding:24px;color:#ef4444">Gagal memuat data.</td></tr>`;
     return;
   }
 
+  _monPopulateStatusSelect();
   _monRenderSummary();
   _monPopulatePJSelect();
   _monRenderPJCards();
@@ -6481,16 +6596,14 @@ function _monRenderSummary() {
   const el = document.getElementById('monSummaryCards');
   if (!el || !_mon_data) return;
   const { bulan, tahun, jenis } = _mon_data;
-  // Kartu ikut filter Unit Kerja & User (kalau tidak ada filter, pakai summary dari server)
-  let summary = _mon_data.summary;
-  if (_mon_pj || _mon_user) {
-    let rows = _mon_data.indikator || [];
-    if (_mon_pj)   rows = rows.filter(r => r.penanggung_jawab === _mon_pj);
-    if (_mon_user) rows = rows.filter(r => Array.isArray(r.pic_users) && r.pic_users.includes(_mon_user));
-    const terisi = rows.filter(r => r.status === 'terisi').length;
-    summary = { total: rows.length, terisi, belum: rows.length - terisi };
-  }
-  const pct = summary.total ? Math.round(summary.terisi / summary.total * 100) : 0;
+  // Kartu ikut filter Unit Kerja & User; dihitung dari status verifikasi tiap baris
+  let rows = _mon_data.indikator || [];
+  if (_mon_pj)   rows = rows.filter(r => r.penanggung_jawab === _mon_pj);
+  if (_mon_user) rows = rows.filter(r => Array.isArray(r.pic_users) && r.pic_users.includes(_mon_user));
+  const n = { belum: 0, draft: 0, menunggu: 0, ditolak: 0, disetujui: 0 };
+  rows.forEach(r => { n[_monVerKey(r)]++; });
+  const summary = { total: rows.length, disetujui: n.disetujui };
+  const pct = summary.total ? Math.round(summary.disetujui / summary.total * 100) : 0;
   const tone = pct >= 80 ? { c: '#16a34a', c2: '#22c55e', bg: 'rgba(22,163,74,.1)' }
              : pct >= 50 ? { c: '#d97706', c2: '#f59e0b', bg: 'rgba(217,119,6,.1)' }
              :             { c: '#dc2626', c2: '#ef4444', bg: 'rgba(220,38,38,.1)' };
@@ -6508,16 +6621,22 @@ function _monRenderSummary() {
 
   el.innerHTML = `
     <div class="mon-kpi-grid">
-      ${kpi(summary.terisi, 'Terinput', '#16a34a', 'rgba(22,163,74,.12)',
-        '<path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>')}
-      ${kpi(summary.belum, 'Belum Input', '#d97706', 'rgba(217,119,6,.12)',
-        '<circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>')}
-      ${kpi(summary.total, 'Total', 'var(--hijau)', 'rgba(15,118,110,.12)',
+      ${kpi(summary.total, 'Total Indikator', 'var(--hijau)', 'rgba(15,118,110,.12)',
         '<path d="M3 3v18h18"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/>')}
+      ${kpi(n.disetujui, 'Disetujui', '#16a34a', 'rgba(22,163,74,.12)',
+        '<path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>')}
+      ${kpi(n.belum, 'Belum Input', '#dc2626', 'rgba(220,38,38,.12)',
+        '<circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>')}
+      ${kpi(n.draft, 'Draft', '#64748b', 'rgba(100,116,139,.12)',
+        '<path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/>')}
+      ${kpi(n.menunggu, 'Menunggu Verifikasi', '#d97706', 'rgba(217,119,6,.12)',
+        '<circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>')}
+      ${kpi(n.ditolak, 'Ditolak', '#ea580c', 'rgba(234,88,12,.12)',
+        '<path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>')}
 
       <div class="stat-card mon-kpi-progress" style="flex-direction:column;align-items:stretch;border-left-color:${tone.c}">
         <div style="display:flex;justify-content:space-between;align-items:baseline;gap:var(--sp-3)">
-          <span class="stat-label">Progress Pengisian</span>
+          <span class="stat-label">Progress Disetujui</span>
           <span style="font-size:var(--fs-lg);font-weight:800;color:${tone.c};font-variant-numeric:tabular-nums">${pct}%</span>
         </div>
         <div style="background:var(--abu-2);border-radius:99px;height:9px;overflow:hidden;margin-top:var(--sp-3);box-shadow:inset 0 1px 2px rgba(0,0,0,.06)">
@@ -6566,13 +6685,13 @@ function _monLastUpdateLabel() {
 function _monRenderPJCards() {
   const el = document.getElementById('monPJCards');
   if (!el) return;
-  const list = _mon_data?.summary_pj;
-  if (!list?.length) { el.innerHTML = ''; return; }
+  const list = _monPJList();
+  if (!list.length) { el.innerHTML = ''; return; }
 
   const R = 19, C = 2 * Math.PI * R;
 
   const cards = list.map(pj => {
-    const pct = pj.total ? Math.round(pj.terisi / pj.total * 100) : 0;
+    const pct = pj.total ? Math.round(pj.disetujui / pj.total * 100) : 0;
     const tone = pct >= 91 ? { c: '#16a34a', c2: '#4ade80' }  // Sangat Tinggi 91-100
                : pct >= 76 ? { c: '#65a30d', c2: '#a3e635' }  // Tinggi        76-90
                : pct >= 66 ? { c: '#ca8a04', c2: '#eab308' }  // Sedang        66-75
@@ -6607,7 +6726,7 @@ function _monRenderPJCards() {
           </div>
           <div style="font-size:var(--fs-xs);color:var(--teks-muted);margin-top:var(--sp-2);font-variant-numeric:tabular-nums;display:flex;align-items:center;gap:4px">
             <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;opacity:.6"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
-            <span>${pj.terisi} dari ${pj.total} terinput</span>
+            <span>${pj.disetujui} dari ${pj.total} disetujui</span>
           </div>
         </div>
       </div>
@@ -6646,7 +6765,7 @@ function _monRenderUserCards() {
     users.forEach(u => {
       if (!userMap[u]) userMap[u] = { nama: u, total: 0, terisi: 0 };
       userMap[u].total++;
-      if (r.status === 'terisi') userMap[u].terisi++;
+      if (_monVerKey(r) === 'disetujui') userMap[u].terisi++;
     });
   });
   const list = Object.values(userMap).sort((a, b) => {
@@ -6685,7 +6804,7 @@ function _monRenderUserCards() {
       </div>
       <div style="min-width:0;flex:1">
         <div style="font-size:.78rem;font-weight:700;color:var(--teks);white-space:normal;word-break:break-word;line-height:1.3">${escHtml(u.nama)}</div>
-        <div style="font-size:.68rem;color:${tone.c};font-weight:600;margin-top:2px">${u.terisi} dari ${u.total} terinput (${pct}%)</div>
+        <div style="font-size:.68rem;color:${tone.c};font-weight:600;margin-top:2px">${u.terisi} dari ${u.total} disetujui (${pct}%)</div>
       </div>
     </div>`;
   }).join('');
@@ -6713,6 +6832,7 @@ function _monGoPage(p) {
 function _monRenderTable() {
   const body = document.getElementById('monTableBody');
   if (!body || !_mon_data) return;
+  _injectVerifStyles();   // CSS badge status verifikasi
 
   
   const isAllBulan = (_mon_bulan === '' || _mon_bulan == null);
@@ -6748,8 +6868,7 @@ function _monRenderTable() {
   let rows = [...(_mon_data.indikator || [])];
 
   
-  if (_mon_status === 'terisi') rows = rows.filter(r => r.status === 'terisi');
-  if (_mon_status === 'belum')  rows = rows.filter(r => r.status === 'belum');
+  if (_mon_status !== 'all') rows = rows.filter(r => _monVerKey(r) === _mon_status);
 
   
   if (_mon_pj) rows = rows.filter(r => r.penanggung_jawab === _mon_pj);
@@ -6803,7 +6922,7 @@ function _monRenderTable() {
     const isTerisi = r.status === 'terisi';
 
     const statusBadge = isTerisi
-      ? `<span style="display:inline-block;background:#dcfce7;color:#15803d;border-radius:6px;padding:3px 9px;font-size:.71rem;font-weight:700">Terinput</span>`
+      ? _verifStatusCellHtml(_monVerRaw(r), {})
       : `<span style="display:inline-block;background:#fef2f2;color:#b91c1c;border-radius:6px;padding:3px 9px;font-size:.71rem;font-weight:700">Belum Input</span>`;
 
     const picList = Array.isArray(r.pic_users) ? r.pic_users.filter(Boolean) : [];
@@ -7097,11 +7216,12 @@ async function loadSpmRekap({ keepPage = false } = {}) {
   if (_msgEl) _msgEl.style.display = 'none';
 
   tbody.innerHTML = `<tr class="empty-row"><td colspan="${_kinColSpan(tbody)}"><span class="btn-spin" style="width:11px;height:11px;vertical-align:-1px;margin-right:6px"></span>Memuat data...</td></tr>`;
+  _kinStatCards('spm', tbody, [], true);
   { const _pg = document.getElementById('spmPagination'); if (_pg) _pg.innerHTML = ''; }
   try {
     const r = await fetch(`/api/kinerja/rekap?bulan=${_spm_bulan}&tahun=${_spm_tahun}&jenis=spm`, { headers: authHeaders() });
     const d = await r.json();
-    if (!r.ok) { tbody.innerHTML = `<tr class="empty-row"><td colspan="${_kinColSpan(tbody)}">${d.error || 'Gagal memuat'}</td></tr>`; return; }
+    if (!r.ok) { _kinStatCards('spm', tbody, []); tbody.innerHTML = `<tr class="empty-row"><td colspan="${_kinColSpan(tbody)}">${d.error || 'Gagal memuat'}</td></tr>`; return; }
     let rekap = d.rekap || [];
 
     // Filter per assigned indikator user (non-admin hanya lihat indikator yg di-assign)
@@ -7116,6 +7236,7 @@ async function loadSpmRekap({ keepPage = false } = {}) {
     if (!keepPage) _spmPage = 1;
     _renderSpmTable(tbody);
   } catch (err) {
+    _kinStatCards('spm', tbody, []);
     tbody.innerHTML = `<tr class="empty-row"><td colspan="${_kinColSpan(tbody)}">Error: ${err.message}</td></tr>`;
   }
 }
@@ -7128,8 +7249,11 @@ function filterSpmTable() {
 }
 
 function _renderSpmTable(tbody) {
+  _injectVerifStyles(); // CSS badge status & tombol Ajukan harus ada di halaman ini, bukan cuma di halaman Verifikasi
   _kinUnitSyncSelect('spm', _spmData);
+  _kinStatusSyncSelect('spm', _spmData);
   if (!_spmData.length) {
+    _kinStatCards('spm', tbody, []);
     let emptyMsg = 'Belum ada indikator SPM aktif. Admin perlu menambahkan indikator dengan jenis SPM.';
     if (!_isKinerjaAdmin()) {
       if (!_userIndikatorIds || _userIndikatorIds.size === 0) {
@@ -7150,6 +7274,8 @@ function _renderSpmTable(tbody) {
       )
     : _spmData;
   _filtered = _filtered.filter(row => _kinUnitMatch('spm', row));
+  _kinStatCards('spm', tbody, _filtered);
+  _filtered = _filtered.filter(row => _kinStatusMatch('spm', row));
 
   if (!_filtered.length) {
     tbody.innerHTML = `<tr class="empty-row"><td colspan="${_kinColSpan(tbody)}">Tidak ada indikator yang cocok dengan filter/pencarian${_spmSearch ? ` "${escHtml(_spmSearch)}"` : ''}.</td></tr>`;
@@ -7182,7 +7308,7 @@ function _renderSpmTable(tbody) {
     const rowStateClass = row.realisasi_id ? 'row-state-saved' : 'row-state-default';
     html += `<tr data-id="${row.id}" class="${rowStateClass}">
       <td class="td-sticky-no" style="text-align:center;color:var(--teks-muted);position:sticky;left:0;z-index:3">${i}</td>
-      <td class="td-sticky-name" style="position:sticky;left:34px;z-index:3"><div style="font-weight:600;line-height:1.6"><span>${escHtml(row.nama_indikator || row.indikator_kinerja || '')}</span>${row.bermakna_negatif ? `<span data-tip="Bermakna Negatif" data-tip-variant="danger" style="display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;background:#fee2e2;border-radius:50%;margin-left:5px;vertical-align:middle;flex-shrink:0"><svg xmlns=\"http://www.w3.org/2000/svg\" width=\"9\" height=\"9\" fill=\"none\" viewBox=\"0 0 24 24\" stroke=\"#991b1b\" stroke-width=\"2.8\"><path stroke-linecap=\"round\" stroke-linejoin=\"round\" d=\"M19 14l-7 7m0 0l-7-7m7 7V3\"/></svg></span>` : `<span data-tip="Bermakna Positif" data-tip-variant="success" style="display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;background:#d1fae5;border-radius:50%;margin-left:5px;vertical-align:middle;flex-shrink:0"><svg xmlns=\"http://www.w3.org/2000/svg\" width=\"9\" height=\"9\" fill=\"none\" viewBox=\"0 0 24 24\" stroke=\"#065f46\" stroke-width=\"2.8\"><path stroke-linecap=\"round\" stroke-linejoin=\"round\" d=\"M5 10l7-7m0 0l7 7m-7-7v18\"/></svg></span>`}</div><div style="display:flex;align-items:center;gap:6px;margin-top:5px">${row.formula ? `<div class="fx-wrap"><button style="display:inline-flex;align-items:center;justify-content:center;gap:4px;box-sizing:border-box;height:24px;font-size:0.62rem;font-weight:700;line-height:1;color:#0f766e;background:#f0fdfa;border:1px solid #99f6e4;border-radius:4px;padding:0 8px;cursor:pointer;font-family:inherit;appearance:none;-webkit-appearance:none;margin:0" data-tip="Lihat formula perhitungan" data-formula="${escHtml(row.formula)}" onclick="toggleFormulaPanel(this)"><span>Σ</span><span class=\"fx-arrow\" style=\"display:inline-block;transition:transform .2s;font-style:normal\">▾</span></button></div>` : ''}${_tipeBadge(row.tipe_perhitungan)}</div></td>
+      <td class="td-sticky-name" style="position:sticky;left:34px;z-index:3"><div style="font-weight:600;line-height:1.6"><span>${escHtml(row.nama_indikator || row.indikator_kinerja || '')}</span>${row.bermakna_negatif ? `<span data-tip="Bermakna Negatif" data-tip-variant="danger" style="display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;background:#fee2e2;border-radius:50%;margin-left:5px;vertical-align:middle;flex-shrink:0"><svg xmlns=\"http://www.w3.org/2000/svg\" width=\"9\" height=\"9\" fill=\"none\" viewBox=\"0 0 24 24\" stroke=\"#991b1b\" stroke-width=\"2.8\"><path stroke-linecap=\"round\" stroke-linejoin=\"round\" d=\"M19 14l-7 7m0 0l-7-7m7 7V3\"/></svg></span>` : `<span data-tip="Bermakna Positif" data-tip-variant="success" style="display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;background:#d1fae5;border-radius:50%;margin-left:5px;vertical-align:middle;flex-shrink:0"><svg xmlns=\"http://www.w3.org/2000/svg\" width=\"9\" height=\"9\" fill=\"none\" viewBox=\"0 0 24 24\" stroke=\"#065f46\" stroke-width=\"2.8\"><path stroke-linecap=\"round\" stroke-linejoin=\"round\" d=\"M5 10l7-7m0 0l7 7m-7-7v18\"/></svg></span>`}</div><div style="display:flex;align-items:center;gap:6px;margin-top:5px">${row.formula ? `<div class="fx-wrap"><button style="display:inline-flex;align-items:center;justify-content:center;gap:4px;box-sizing:border-box;height:24px;font-size:0.62rem;font-weight:700;line-height:1;color:#0f766e;background:#f0fdfa;border:1px solid #99f6e4;border-radius:4px;padding:0 8px;cursor:pointer;font-family:inherit;appearance:none;-webkit-appearance:none;margin:0" data-tip="Lihat formula perhitungan" data-formula="${escHtml(row.formula)}" onclick="toggleFormulaPanel(this)"><span>Σ</span><span class=\"fx-arrow\" style=\"display:inline-block;transition:transform .2s;font-style:normal\">▾</span></button></div>` : ''}${_tipeBadge(row.tipe_perhitungan)}</div>${_verifExtraWrap(row, 'spm')}</td>
       <td class="td-satuan">${escHtml(row.satuan || '')}</td>
       <td class="td-target" style="font-weight:700">${targetFmt}</td>
       ${_isKinerjaAdmin() ? `<td class="td-bidang" style="color:var(--teks-mid)">${escHtml(row.penanggung_jawab || '-')}</td>` : ''}
@@ -7205,29 +7331,31 @@ function _renderSpmTable(tbody) {
         ${_renderPSCell('spm_rencana', row.id, row.rencana_tl, capaian, rowCanEdit, 'rencana tindak lanjut', 'markSpmDirty', !!row.realisasi_id, true, row.tipe_nilai === 'predikat', row.realisasi == null && !row.realisasi_id)}
       </td>
       <td class="textarea-cell" style="text-align:left;vertical-align:top" data-col="dukung">${_renderDukungInlineCell(row, rowCanEdit, 'spm')}</td>
+      <td data-col="status" style="text-align:center;vertical-align:middle">${_verifStatusWrap(row, 'spm')}</td>
       <td class="col-aksi-spm" style="text-align:center;white-space:nowrap${_kinAksiHidden('spm') ? ';display:none' : ''}">
         ${rowCanEdit ? `
           <button class="btn-edit-row" id="spm_editbtn_${row.id}" data-tip="Edit baris ini"
             onclick="toggleSpmEditRow(${row.id})"
             style="${row.realisasi_id ? '' : 'display:none'}">
             <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
-            Edit
+
           </button>
           <button class="save-row-btn" id="spm_savebtn_${row.id}" disabled
-            onclick="saveSpmRealisasiRow(${row.id})" data-tip="Simpan"
+            onclick="saveSpmRealisasiRow(${row.id})" data-tip="${row.realisasi_id ? 'Tersimpan' : 'Simpan'}"
             style="font-family:'Plus Jakarta Sans',sans-serif!important;${row.realisasi_id ? 'background:var(--sukses);color:#fff' : ''}">
             ${row.realisasi_id
-  ? '<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/><path d="M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7"/><path d="M7 3v4a1 1 0 0 0 1 1h7"/></svg> Tersimpan'
-  : '<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/><path d="M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7"/><path d="M7 3v4a1 1 0 0 0 1 1h7"/></svg> Simpan'}
+  ? '<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/><path d="M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7"/><path d="M7 3v4a1 1 0 0 0 1 1h7"/></svg>'
+  : '<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/><path d="M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7"/><path d="M7 3v4a1 1 0 0 0 1 1h7"/></svg>'}
           </button>
-        ` : (!canEdit ? _aksiTutupBadge(!!row.realisasi_id) : '')}
+        ` : (!canEdit ? _aksiTutupBadge(!!row.realisasi_id) : _aksiKunciBadge(row))}
         ${_isSuperAdminKinerja() && row.realisasi_id ? `
           <button class="btn-reset-row" id="spm_resetbtn_${row.id}" data-tip="Reset data realisasi baris ini (super admin)"
             onclick="resetRealisasiRow(${row.id}, 'spm')">
             <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
-            Reset
+
           </button>
         ` : ''}
+        ${_verifAksiWrap(row, 'spm')}
       </td>
     </tr>`;
   });
@@ -7335,12 +7463,12 @@ function toggleSpmEditRow(indikatorId) {
   if (isReadonly) {
     if (tr) { tr.classList.remove('row-state-default', 'row-state-saved'); tr.classList.add('row-state-editing'); }
     if (editBtn) {
-      editBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg> Sedang Diedit`;
+      editBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>`;
       editBtn.classList.add('btn-edit-row--active');
       editBtn.dataset.tip = 'Klik untuk batalkan edit';
     }
     if (saveBtn) {
-      saveBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/><path d="M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7"/><path d="M7 3v4a1 1 0 0 0 1 1h7"/></svg> Simpan`;
+      saveBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/><path d="M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7"/><path d="M7 3v4a1 1 0 0 0 1 1h7"/></svg>`; saveBtn.dataset.tip = 'Simpan';
       saveBtn.disabled = true;
       saveBtn.style.background = '';
       saveBtn.style.color = '';
@@ -7351,17 +7479,18 @@ function toggleSpmEditRow(indikatorId) {
     const row = _spmData.find(r => r.id === indikatorId);
     if (tr) { tr.classList.remove('row-state-editing'); tr.classList.add(row?.realisasi_id ? 'row-state-saved' : 'row-state-default'); }
     if (editBtn) {
-      editBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg> Edit`;
+      editBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>`;
       editBtn.classList.remove('btn-edit-row--active');
       editBtn.dataset.tip = 'Edit baris ini';
     }
     if (saveBtn) {
-      saveBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/><path d="M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7"/><path d="M7 3v4a1 1 0 0 0 1 1h7"/></svg> Simpan`;
+      saveBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/><path d="M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7"/><path d="M7 3v4a1 1 0 0 0 1 1h7"/></svg>`; saveBtn.dataset.tip = 'Simpan';
       saveBtn.style.background = row?.realisasi_id ? 'var(--sukses)' : '';
       saveBtn.style.color = row?.realisasi_id ? '#fff' : '';
       saveBtn.disabled = true;
     }
   }
+  _verifRefreshAksi('spm', indikatorId); // Ajukan nonaktif selama baris masih diedit
 }
 
 function markSpmDirty(indikatorId) {
@@ -7390,7 +7519,7 @@ function _updateSpmSaveBtnState(indikatorId) {
   const _saved = !ok && !!row?.realisasi_id && !document.querySelector(`tr[data-id="${indikatorId}"]`)?.classList.contains('row-state-editing');
   btn.style.background = ok ? '#0d9488' : (_saved ? 'var(--sukses)' : '');
   btn.style.color      = (ok || _saved) ? '#fff' : '';
-  btn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/><path d="M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7"/><path d="M7 3v4a1 1 0 0 0 1 1h7"/></svg> Simpan`;
+  btn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/><path d="M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7"/><path d="M7 3v4a1 1 0 0 0 1 1h7"/></svg>`; btn.dataset.tip = 'Simpan';
 
   _dukungSetEnabled(indikatorId, 'spm', okUpload);
   _dukungSyncErr(indikatorId, 'spm', false);
@@ -7452,7 +7581,7 @@ async function saveSpmRealisasiRow(indikatorId) {
   const _dk = _dukungPrepareSave(indikatorId, 'spm');
   if (!_dk) return;
 
-  if (btn) { btn.disabled = true; btn.style.background = '#0d9488'; btn.style.color = '#fff'; btn.style.webkitTextFillColor = '#fff'; btn.innerHTML = `<span class="btn-spin" style="width:11px;height:11px"></span> Menyimpan...`; }
+  if (btn) { btn.disabled = true; btn.style.background = '#0d9488'; btn.style.color = '#fff'; btn.style.webkitTextFillColor = '#fff'; btn.innerHTML = `<span class="btn-spin" style="width:11px;height:11px"></span>`; }
   try {
     const r = await fetch('/api/kinerja/realisasi', {
       method: 'POST', headers: authHeaders(),
@@ -7467,7 +7596,7 @@ async function saveSpmRealisasiRow(indikatorId) {
     const d = await r.json();
     if (!r.ok) {
       toast(d.error || 'Gagal menyimpan', 'error');
-      if (btn) { btn.disabled = false; btn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/><path d="M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7"/><path d="M7 3v4a1 1 0 0 0 1 1h7"/></svg> Simpan`; }
+      if (btn) { btn.disabled = false; btn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/><path d="M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7"/><path d="M7 3v4a1 1 0 0 0 1 1h7"/></svg>`; btn.dataset.tip = 'Simpan'; }
     } else {
       toast('Tersimpan');
       
@@ -7490,13 +7619,13 @@ async function saveSpmRealisasiRow(indikatorId) {
       if (tr) { tr.classList.remove('row-state-default', 'row-state-editing'); tr.classList.add('row-state-saved'); }
       const editBtn = document.getElementById(`spm_editbtn_${indikatorId}`);
       if (editBtn) {
-        editBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg> Edit`;
+        editBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>`;
         editBtn.classList.remove('btn-edit-row--active');
         editBtn.dataset.tip = 'Edit baris ini';
         editBtn.style.display = ''; // tampilkan tombol Edit setelah data tersimpan
       }
       if (btn) {
-        btn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/><path d="M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7"/><path d="M7 3v4a1 1 0 0 0 1 1h7"/></svg> Tersimpan`;
+        btn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/><path d="M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7"/><path d="M7 3v4a1 1 0 0 0 1 1h7"/></svg>`; btn.dataset.tip = 'Tersimpan';
         btn.style.background = 'var(--sukses)';
         btn.style.color = '#fff';
         btn.disabled = true;
@@ -7510,6 +7639,7 @@ async function saveSpmRealisasiRow(indikatorId) {
         _spmData[idx].f_pendukung       = d.realisasi?.f_pendukung ?? null;
         _spmData[idx].rencana_tl        = d.realisasi?.rencana_tl ?? null;
         _spmData[idx].realisasi_id      = d.realisasi?.id ?? _spmData[idx].realisasi_id;
+        _verifApplySaved('spm', _spmData[idx], d.realisasi);
         if (_dk.changed) { _spmData[idx].data_dukung_url = _dk.json; _spmData[idx].data_dukung_nama = _dk.name; }
       }
       // Kunci sel link SETELAH data lokal diperbarui (supaya link baru tampil)
@@ -7563,7 +7693,7 @@ _togglePermasalahanSolusi('spm', indikatorId, _cSpm);
     }
   } catch (err) {
     toast('Error: ' + err.message, 'error');
-    if (btn) { btn.disabled = false; btn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/><path d="M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7"/><path d="M7 3v4a1 1 0 0 0 1 1h7"/></svg> Simpan`; }
+    if (btn) { btn.disabled = false; btn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/><path d="M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7"/><path d="M7 3v4a1 1 0 0 0 1 1h7"/></svg>`; btn.dataset.tip = 'Simpan'; }
   }
 }
 
@@ -7715,11 +7845,12 @@ async function loadSubkegRekap({ keepPage = false } = {}) {
   if (_msgEl) _msgEl.style.display = 'none';
 
   tbody.innerHTML = `<tr class="empty-row"><td colspan="${_kinColSpan(tbody)}"><span class="btn-spin" style="width:11px;height:11px;vertical-align:-1px;margin-right:6px"></span>Memuat data...</td></tr>`;
+  _kinStatCards('subkeg', tbody, [], true);
   { const _pg = document.getElementById('subkegPagination'); if (_pg) _pg.innerHTML = ''; }
   try {
     const r = await fetch(`/api/kinerja/rekap?bulan=${_subkeg_bulan}&tahun=${_subkeg_tahun}&jenis=subkeg`, { headers: authHeaders() });
     const d = await r.json();
-    if (!r.ok) { tbody.innerHTML = `<tr class="empty-row"><td colspan="${_kinColSpan(tbody)}">${d.error || 'Gagal memuat'}</td></tr>`; return; }
+    if (!r.ok) { _kinStatCards('subkeg', tbody, []); tbody.innerHTML = `<tr class="empty-row"><td colspan="${_kinColSpan(tbody)}">${d.error || 'Gagal memuat'}</td></tr>`; return; }
     let rekap = d.rekap || [];
 
     // Filter per assigned indikator user (non-admin hanya lihat indikator yg di-assign)
@@ -7734,6 +7865,7 @@ async function loadSubkegRekap({ keepPage = false } = {}) {
     if (!keepPage) _subkegPage = 1;
     _renderSubkegTable(tbody);
   } catch (err) {
+    _kinStatCards('subkeg', tbody, []);
     tbody.innerHTML = `<tr class="empty-row"><td colspan="${_kinColSpan(tbody)}">Error: ${err.message}</td></tr>`;
   }
 }
@@ -7746,8 +7878,11 @@ function filterSubkegTable() {
 }
 
 function _renderSubkegTable(tbody) {
+  _injectVerifStyles(); // CSS badge status & tombol Ajukan harus ada di halaman ini, bukan cuma di halaman Verifikasi
   _kinUnitSyncSelect('subkeg', _subkegData);
+  _kinStatusSyncSelect('subkeg', _subkegData);
   if (!_subkegData.length) {
+    _kinStatCards('subkeg', tbody, []);
     let emptyMsg = 'Belum ada indikator Sub Kegiatan aktif. Admin perlu menambahkan indikator dengan jenis Sub Kegiatan.';
     if (!_isKinerjaAdmin()) {
       if (!_userIndikatorIds || _userIndikatorIds.size === 0) {
@@ -7768,6 +7903,8 @@ function _renderSubkegTable(tbody) {
       )
     : _subkegData;
   _filtered = _filtered.filter(row => _kinUnitMatch('subkeg', row));
+  _kinStatCards('subkeg', tbody, _filtered);
+  _filtered = _filtered.filter(row => _kinStatusMatch('subkeg', row));
 
   if (!_filtered.length) {
     tbody.innerHTML = `<tr class="empty-row"><td colspan="${_kinColSpan(tbody)}">Tidak ada indikator yang cocok dengan filter/pencarian${_subkegSearch ? ` "${escHtml(_subkegSearch)}"` : ''}.</td></tr>`;
@@ -7800,7 +7937,7 @@ function _renderSubkegTable(tbody) {
     const rowStateClass = row.realisasi_id ? 'row-state-saved' : 'row-state-default';
     html += `<tr data-id="${row.id}" class="${rowStateClass}">
       <td class="td-sticky-no" style="text-align:center;color:var(--teks-muted);position:sticky;left:0;z-index:3">${i}</td>
-      <td class="td-sticky-name" style="position:sticky;left:34px;z-index:3"><div style="font-weight:600;line-height:1.6"><span>${escHtml(row.nama_indikator || row.indikator_kinerja || '')}</span>${row.bermakna_negatif ? `<span data-tip="Bermakna Negatif" data-tip-variant="danger" style="display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;background:#fee2e2;border-radius:50%;margin-left:5px;vertical-align:middle;flex-shrink:0"><svg xmlns=\"http://www.w3.org/2000/svg\" width=\"9\" height=\"9\" fill=\"none\" viewBox=\"0 0 24 24\" stroke=\"#991b1b\" stroke-width=\"2.8\"><path stroke-linecap=\"round\" stroke-linejoin=\"round\" d=\"M19 14l-7 7m0 0l-7-7m7 7V3\"/></svg></span>` : `<span data-tip="Bermakna Positif" data-tip-variant="success" style="display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;background:#d1fae5;border-radius:50%;margin-left:5px;vertical-align:middle;flex-shrink:0"><svg xmlns=\"http://www.w3.org/2000/svg\" width=\"9\" height=\"9\" fill=\"none\" viewBox=\"0 0 24 24\" stroke=\"#065f46\" stroke-width=\"2.8\"><path stroke-linecap=\"round\" stroke-linejoin=\"round\" d=\"M5 10l7-7m0 0l7 7m-7-7v18\"/></svg></span>`}</div><div style="display:flex;align-items:center;gap:6px;margin-top:5px">${row.formula ? `<div class="fx-wrap"><button style="display:inline-flex;align-items:center;justify-content:center;gap:4px;box-sizing:border-box;height:24px;font-size:0.62rem;font-weight:700;line-height:1;color:#0f766e;background:#f0fdfa;border:1px solid #99f6e4;border-radius:4px;padding:0 8px;cursor:pointer;font-family:inherit;appearance:none;-webkit-appearance:none;margin:0" data-tip="Lihat formula perhitungan" data-formula="${escHtml(row.formula)}" onclick="toggleFormulaPanel(this)"><span>Σ</span><span class=\"fx-arrow\" style=\"display:inline-block;transition:transform .2s;font-style:normal\">▾</span></button></div>` : ''}${_tipeBadge(row.tipe_perhitungan)}</div></td>
+      <td class="td-sticky-name" style="position:sticky;left:34px;z-index:3"><div style="font-weight:600;line-height:1.6"><span>${escHtml(row.nama_indikator || row.indikator_kinerja || '')}</span>${row.bermakna_negatif ? `<span data-tip="Bermakna Negatif" data-tip-variant="danger" style="display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;background:#fee2e2;border-radius:50%;margin-left:5px;vertical-align:middle;flex-shrink:0"><svg xmlns=\"http://www.w3.org/2000/svg\" width=\"9\" height=\"9\" fill=\"none\" viewBox=\"0 0 24 24\" stroke=\"#991b1b\" stroke-width=\"2.8\"><path stroke-linecap=\"round\" stroke-linejoin=\"round\" d=\"M19 14l-7 7m0 0l-7-7m7 7V3\"/></svg></span>` : `<span data-tip="Bermakna Positif" data-tip-variant="success" style="display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;background:#d1fae5;border-radius:50%;margin-left:5px;vertical-align:middle;flex-shrink:0"><svg xmlns=\"http://www.w3.org/2000/svg\" width=\"9\" height=\"9\" fill=\"none\" viewBox=\"0 0 24 24\" stroke=\"#065f46\" stroke-width=\"2.8\"><path stroke-linecap=\"round\" stroke-linejoin=\"round\" d=\"M5 10l7-7m0 0l7 7m-7-7v18\"/></svg></span>`}</div><div style="display:flex;align-items:center;gap:6px;margin-top:5px">${row.formula ? `<div class="fx-wrap"><button style="display:inline-flex;align-items:center;justify-content:center;gap:4px;box-sizing:border-box;height:24px;font-size:0.62rem;font-weight:700;line-height:1;color:#0f766e;background:#f0fdfa;border:1px solid #99f6e4;border-radius:4px;padding:0 8px;cursor:pointer;font-family:inherit;appearance:none;-webkit-appearance:none;margin:0" data-tip="Lihat formula perhitungan" data-formula="${escHtml(row.formula)}" onclick="toggleFormulaPanel(this)"><span>Σ</span><span class=\"fx-arrow\" style=\"display:inline-block;transition:transform .2s;font-style:normal\">▾</span></button></div>` : ''}${_tipeBadge(row.tipe_perhitungan)}</div>${_verifExtraWrap(row, 'subkeg')}</td>
       <td class="td-satuan">${escHtml(row.satuan || '')}</td>
       <td class="td-target" style="font-weight:700">${targetFmt}</td>
       ${_isKinerjaAdmin() ? `<td class="td-bidang" style="color:var(--teks-mid)">${escHtml(row.penanggung_jawab || '-')}</td>` : ''}
@@ -7823,29 +7960,31 @@ function _renderSubkegTable(tbody) {
         ${_renderPSCell('subkeg_rencana', row.id, row.rencana_tl, capaian, rowCanEdit, 'rencana tindak lanjut', 'markSubkegDirty', !!row.realisasi_id, true, row.tipe_nilai === 'predikat', row.realisasi == null && !row.realisasi_id)}
       </td>
       <td class="textarea-cell" style="text-align:left;vertical-align:top" data-col="dukung">${_renderDukungInlineCell(row, rowCanEdit, 'subkeg')}</td>
+      <td data-col="status" style="text-align:center;vertical-align:middle">${_verifStatusWrap(row, 'subkeg')}</td>
       <td class="col-aksi-subkeg" style="text-align:center;white-space:nowrap${_kinAksiHidden('subkeg') ? ';display:none' : ''}">
         ${rowCanEdit ? `
           <button class="btn-edit-row" id="subkeg_editbtn_${row.id}" data-tip="Edit baris ini"
             onclick="toggleSubkegEditRow(${row.id})"
             style="${row.realisasi_id ? '' : 'display:none'}">
             <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
-            Edit
+
           </button>
           <button class="save-row-btn" id="subkeg_savebtn_${row.id}" disabled
-            onclick="saveSubkegRealisasiRow(${row.id})" data-tip="Simpan"
+            onclick="saveSubkegRealisasiRow(${row.id})" data-tip="${row.realisasi_id ? 'Tersimpan' : 'Simpan'}"
             style="font-family:'Plus Jakarta Sans',sans-serif!important;${row.realisasi_id ? 'background:var(--sukses);color:#fff' : ''}">
             ${row.realisasi_id
-  ? '<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/><path d="M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7"/><path d="M7 3v4a1 1 0 0 0 1 1h7"/></svg> Tersimpan'
-  : '<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/><path d="M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7"/><path d="M7 3v4a1 1 0 0 0 1 1h7"/></svg> Simpan'}
+  ? '<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/><path d="M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7"/><path d="M7 3v4a1 1 0 0 0 1 1h7"/></svg>'
+  : '<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/><path d="M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7"/><path d="M7 3v4a1 1 0 0 0 1 1h7"/></svg>'}
           </button>
-        ` : (!canEdit ? _aksiTutupBadge(!!row.realisasi_id) : '')}
+        ` : (!canEdit ? _aksiTutupBadge(!!row.realisasi_id) : _aksiKunciBadge(row))}
         ${_isSuperAdminKinerja() && row.realisasi_id ? `
           <button class="btn-reset-row" id="subkeg_resetbtn_${row.id}" data-tip="Reset data realisasi baris ini (super admin)"
             onclick="resetRealisasiRow(${row.id}, 'subkeg')">
             <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
-            Reset
+
           </button>
         ` : ''}
+        ${_verifAksiWrap(row, 'subkeg')}
       </td>
     </tr>`;
   });
@@ -7953,12 +8092,12 @@ function toggleSubkegEditRow(indikatorId) {
   if (isReadonly) {
     if (tr) { tr.classList.remove('row-state-default', 'row-state-saved'); tr.classList.add('row-state-editing'); }
     if (editBtn) {
-      editBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg> Sedang Diedit`;
+      editBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>`;
       editBtn.classList.add('btn-edit-row--active');
       editBtn.dataset.tip = 'Klik untuk batalkan edit';
     }
     if (saveBtn) {
-      saveBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/><path d="M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7"/><path d="M7 3v4a1 1 0 0 0 1 1h7"/></svg> Simpan`;
+      saveBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/><path d="M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7"/><path d="M7 3v4a1 1 0 0 0 1 1h7"/></svg>`; saveBtn.dataset.tip = 'Simpan';
       saveBtn.disabled = true;
       saveBtn.style.background = '';
       saveBtn.style.color = '';
@@ -7969,17 +8108,18 @@ function toggleSubkegEditRow(indikatorId) {
     const row = _subkegData.find(r => r.id === indikatorId);
     if (tr) { tr.classList.remove('row-state-editing'); tr.classList.add(row?.realisasi_id ? 'row-state-saved' : 'row-state-default'); }
     if (editBtn) {
-      editBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg> Edit`;
+      editBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>`;
       editBtn.classList.remove('btn-edit-row--active');
       editBtn.dataset.tip = 'Edit baris ini';
     }
     if (saveBtn) {
-      saveBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/><path d="M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7"/><path d="M7 3v4a1 1 0 0 0 1 1h7"/></svg> Simpan`;
+      saveBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/><path d="M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7"/><path d="M7 3v4a1 1 0 0 0 1 1h7"/></svg>`; saveBtn.dataset.tip = 'Simpan';
       saveBtn.style.background = row?.realisasi_id ? 'var(--sukses)' : '';
       saveBtn.style.color = row?.realisasi_id ? '#fff' : '';
       saveBtn.disabled = true;
     }
   }
+  _verifRefreshAksi('subkeg', indikatorId); // Ajukan nonaktif selama baris masih diedit
 }
 
 function markSubkegDirty(indikatorId) {
@@ -8008,7 +8148,7 @@ function _updateSubkegSaveBtnState(indikatorId) {
   const _saved = !ok && !!row?.realisasi_id && !document.querySelector(`tr[data-id="${indikatorId}"]`)?.classList.contains('row-state-editing');
   btn.style.background = ok ? '#0d9488' : (_saved ? 'var(--sukses)' : '');
   btn.style.color      = (ok || _saved) ? '#fff' : '';
-  btn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/><path d="M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7"/><path d="M7 3v4a1 1 0 0 0 1 1h7"/></svg> Simpan`;
+  btn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/><path d="M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7"/><path d="M7 3v4a1 1 0 0 0 1 1h7"/></svg>`; btn.dataset.tip = 'Simpan';
 
   _dukungSetEnabled(indikatorId, 'subkeg', okUpload);
   _dukungSyncErr(indikatorId, 'subkeg', false);
@@ -8070,7 +8210,7 @@ async function saveSubkegRealisasiRow(indikatorId) {
   const _dk = _dukungPrepareSave(indikatorId, 'subkeg');
   if (!_dk) return;
 
-  if (btn) { btn.disabled = true; btn.style.background = '#0d9488'; btn.style.color = '#fff'; btn.style.webkitTextFillColor = '#fff'; btn.innerHTML = `<span class="btn-spin" style="width:11px;height:11px"></span> Menyimpan...`; }
+  if (btn) { btn.disabled = true; btn.style.background = '#0d9488'; btn.style.color = '#fff'; btn.style.webkitTextFillColor = '#fff'; btn.innerHTML = `<span class="btn-spin" style="width:11px;height:11px"></span>`; }
   try {
     const r = await fetch('/api/kinerja/realisasi', {
       method: 'POST', headers: authHeaders(),
@@ -8085,7 +8225,7 @@ async function saveSubkegRealisasiRow(indikatorId) {
     const d = await r.json();
     if (!r.ok) {
       toast(d.error || 'Gagal menyimpan', 'error');
-      if (btn) { btn.disabled = false; btn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/><path d="M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7"/><path d="M7 3v4a1 1 0 0 0 1 1h7"/></svg> Simpan`; }
+      if (btn) { btn.disabled = false; btn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/><path d="M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7"/><path d="M7 3v4a1 1 0 0 0 1 1h7"/></svg>`; btn.dataset.tip = 'Simpan'; }
     } else {
       toast('Tersimpan');
       
@@ -8108,13 +8248,13 @@ async function saveSubkegRealisasiRow(indikatorId) {
       if (tr) { tr.classList.remove('row-state-default', 'row-state-editing'); tr.classList.add('row-state-saved'); }
       const editBtn = document.getElementById(`subkeg_editbtn_${indikatorId}`);
       if (editBtn) {
-        editBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg> Edit`;
+        editBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>`;
         editBtn.classList.remove('btn-edit-row--active');
         editBtn.dataset.tip = 'Edit baris ini';
         editBtn.style.display = ''; // tampilkan tombol Edit setelah data tersimpan
       }
       if (btn) {
-        btn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/><path d="M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7"/><path d="M7 3v4a1 1 0 0 0 1 1h7"/></svg> Tersimpan`;
+        btn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/><path d="M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7"/><path d="M7 3v4a1 1 0 0 0 1 1h7"/></svg>`; btn.dataset.tip = 'Tersimpan';
         btn.style.background = 'var(--sukses)';
         btn.style.color = '#fff';
         btn.disabled = true;
@@ -8128,6 +8268,7 @@ async function saveSubkegRealisasiRow(indikatorId) {
         _subkegData[idx].f_pendukung       = d.realisasi?.f_pendukung ?? null;
         _subkegData[idx].rencana_tl        = d.realisasi?.rencana_tl ?? null;
         _subkegData[idx].realisasi_id      = d.realisasi?.id ?? _subkegData[idx].realisasi_id;
+        _verifApplySaved('subkeg', _subkegData[idx], d.realisasi);
         if (_dk.changed) { _subkegData[idx].data_dukung_url = _dk.json; _subkegData[idx].data_dukung_nama = _dk.name; }
       }
       // Kunci sel link SETELAH data lokal diperbarui (supaya link baru tampil)
@@ -8181,7 +8322,7 @@ _togglePermasalahanSolusi('subkeg', indikatorId, _cSubkeg);
     }
   } catch (err) {
     toast('Error: ' + err.message, 'error');
-    if (btn) { btn.disabled = false; btn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/><path d="M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7"/><path d="M7 3v4a1 1 0 0 0 1 1h7"/></svg> Simpan`; }
+    if (btn) { btn.disabled = false; btn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/><path d="M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7"/><path d="M7 3v4a1 1 0 0 0 1 1h7"/></svg>`; btn.dataset.tip = 'Simpan'; }
   }
 }
 
@@ -8268,4 +8409,830 @@ async function openSubkegDukungModal(indikatorId, bulan, tahun) {
   }
   _renderDukungList();
   openModal('modalDukung');
+}
+
+
+// ═════════════════════════════════════════════════════════════════════════════
+// VERIFIKASI KINERJA (IKU / IKK / SPM / Sub Kegiatan)
+// Status: draft -> menunggu -> perlu_perbaikan -> diajukan_kembali -> disetujui
+// ═════════════════════════════════════════════════════════════════════════════
+const VERIF_STATUS_META = {
+  draft:            { label: 'Draft',               bg: '#f1f5f9', fg: '#475569', bd: '#cbd5e1' },
+  menunggu:         { label: 'Menunggu Verifikasi', bg: '#fef3c7', fg: '#92400e', bd: '#fcd34d' },
+  perlu_perbaikan:  { label: 'Ditolak',             bg: '#fee2e2', fg: '#991b1b', bd: '#fca5a5' },
+  diajukan_kembali: { label: 'Diajukan Kembali',    bg: '#e0f2fe', fg: '#075985', bd: '#7dd3fc' },
+  disetujui:        { label: 'Disetujui',           bg: '#d1fae5', fg: '#065f46', bd: '#6ee7b7' },
+};
+// Ikon kecil di depan label badge status verifikasi (mengikuti warna teks badge)
+const VERIF_STATUS_ICON = {
+  draft:            '<path d="M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z"/><path d="m15 5 4 4"/>',
+  menunggu:         '<circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/>',
+  perlu_perbaikan:  '<circle cx="12" cy="12" r="10"/><path d="m15 9-6 6"/><path d="m9 9 6 6"/>',
+  diajukan_kembali: '<path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/>',
+  disetujui:        '<circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/>',
+};
+function _verifStatusIcon(status) {
+  const d = VERIF_STATUS_ICON[status] || VERIF_STATUS_ICON.draft;
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" style="flex:none">${d}</svg>`;
+}
+const VERIF_JENIS_LABEL = { monev: 'IKU', ikk: 'IKK', spm: 'SPM', subkeg: 'Sub Kegiatan' };
+const VERIF_AKSI_LABEL = { submit: 'Diajukan', ajukan_ulang: 'Diajukan ulang', setujui: 'Disetujui', tolak: 'Ditolak' };
+const _VERIF_PREFIX = { monev: '', ikk: 'ikk_', spm: 'spm_', subkeg: 'subkeg_' };
+
+let _verifInfoMap = {};          // { 'Nama Unit Kerja': [{ user_id, nama }] }
+let _verifInfoLoaded = false;
+let _verifInfoLoading = null;
+
+function _injectVerifStyles() {
+  if (document.getElementById('verifStyles')) return;
+  const st = document.createElement('style');
+  st.id = 'verifStyles';
+  st.textContent = `
+    .verif-extra{margin-top:5px;display:flex;flex-direction:column;gap:4px;font-weight:400}
+    .verif-ver-line{font-size:.68rem;color:var(--teks-muted);line-height:1.45;display:flex;align-items:flex-start;gap:5px}
+    .verif-ver-line svg{flex:none;display:block;margin-top:1px;color:var(--hijau)}
+    .verif-ver-line > span{line-height:1.45;min-width:0}
+    .verif-ver-line b{color:var(--teks-mid);font-weight:600;line-height:inherit;vertical-align:baseline}
+    .verif-ver-warn{font-size:.68rem;font-weight:400;line-height:1.45;text-align:left;white-space:normal;word-break:normal;letter-spacing:normal;box-sizing:border-box;color:#92400e;background:#fffbeb;border:1px solid #fde68a;border-radius:6px;padding:2px 7px;display:inline-block;width:fit-content;max-width:100%}
+    .verif-badge{display:inline-flex;align-items:center;gap:4px;font-size:.66rem;font-weight:700;padding:2px 9px;border-radius:999px;border:1px solid;cursor:pointer;width:fit-content;font-family:inherit;line-height:1.5}
+    .verif-tolak-box{font-size:.7rem;color:#991b1b;background:#fef2f2;border:1px solid #fecaca;border-radius:6px;padding:4px 8px;white-space:pre-wrap;word-break:break-word}
+    .verif-aksi{display:inline-flex}
+    .verif-status{font-weight:400;text-align:center}
+    /* Ajukan / Ajukan Ulang: ukuran & bentuk disamakan dengan Edit/Simpan/Reset (btn-edit-row),
+       warna ikut konvensi global tombol Ajukan/Submit (biru lembut -> solid saat hover). */
+    .btn-verif-ajukan{display:inline-flex;align-items:center;justify-content:center;gap:5px;padding:6px 8px;border-radius:7px;border:1.5px solid #93c5fd;background:#dbeafe;color:#1e40af;font-size:.73rem;font-weight:700;cursor:pointer;font-family:inherit;white-space:nowrap;transition:all var(--transition)}
+    .btn-verif-ajukan:hover{background:#1e40af;color:#fff;border-color:#1e40af}
+    .btn-verif-ajukan svg{pointer-events:none;flex-shrink:0}
+    .btn-verif-ajukan:disabled{opacity:.6;cursor:not-allowed;background:#dbeafe;color:#1e40af;border-color:#93c5fd}
+    .vf-kpis.dm-kpis{margin:0 0 12px}
+    .vf-btns{display:flex;gap:6px;justify-content:center;flex-wrap:wrap}
+    .vf-btn{display:inline-flex;align-items:center;gap:4px;height:28px;padding:0 10px;border-radius:6px;border:1px solid;font-size:.72rem;font-weight:700;cursor:pointer;font-family:inherit;background:#fff}
+    .vf-btn.ok{color:#fff;background:#059669;border-color:#059669}
+    .vf-btn.no{color:#b91c1c;border-color:#fca5a5}
+    .vf-btn.dt{color:#334155;border-color:#cbd5e1}
+    .vf-btn:disabled{opacity:.6;cursor:not-allowed}
+    .vp-opts{display:flex;flex-direction:column;gap:8px}
+    .vp-opt{display:flex;align-items:flex-start;gap:10px;width:100%;text-align:left;padding:10px 12px;border-radius:10px;border:1.5px solid var(--abu-2,#e2e8f0);background:#fff;cursor:pointer;font-family:inherit;transition:all .15s}
+    .vp-opt .vp-ic{width:28px;height:28px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;background:var(--abu-1,#f1f5f9);color:var(--teks-muted)}
+    .vp-opt .vp-tx{display:flex;flex-direction:column;gap:2px;min-width:0}
+    .vp-opt .vp-tx b{font-size:.84rem;color:var(--teks)}
+    .vp-opt .vp-tx small{font-size:.72rem;color:var(--teks-muted);line-height:1.45}
+    .vp-opt.vp-ok:hover{border-color:#6ee7b7;background:#f0fdf9}
+    .vp-opt.vp-no:hover{border-color:#fca5a5;background:#fef7f7}
+    .vp-opt.vp-ok.sel{border-color:#059669;background:#ecfdf5}
+    .vp-opt.vp-ok.sel .vp-ic{background:#059669;color:#fff}
+    .vp-opt.vp-no.sel{border-color:#dc2626;background:#fef2f2}
+    .vp-opt.vp-no.sel .vp-ic{background:#dc2626;color:#fff}
+    .vf-narr{font-size:.78rem;line-height:1.55;color:var(--teks);background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:8px 10px;word-break:break-word}
+    .vf-hist{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:8px}
+    .vf-hist li{border-left:3px solid #cbd5e1;padding:2px 0 2px 10px;font-size:.78rem}
+    .vf-hist li .t{color:var(--teks-muted);font-size:.68rem}
+    .kv-chip{display:inline-flex;align-items:center;gap:4px;font-size:.72rem;font-weight:600;padding:2px 9px;border-radius:999px;background:#f0fdfa;color:#0f766e;border:1px solid #99f6e4}
+    .kv-chip.off{background:#f1f5f9;color:#64748b;border-color:#cbd5e1}
+    .kv-bidang-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:6px}
+    .kv-bidang-head label{margin:0 !important}
+    .kv-bidang-count{font-size:.72rem;font-weight:700;color:#0f766e;background:#f0fdfa;border:1px solid #99f6e4;border-radius:999px;padding:2px 9px;white-space:nowrap}
+    .kv-bidang-box{border:1px solid #e2e8f0;border-radius:10px;overflow:hidden;background:#fff}
+    .kv-bidang-tools{display:flex;gap:6px;align-items:center;padding:8px;border-bottom:1px solid #f1f5f9;background:#f8fafc}
+    .kv-bidang-tools input{flex:1;min-width:0;padding:7px 10px !important;font-size:.8rem !important}
+    .kv-bidang-tools .btn{white-space:nowrap;flex-shrink:0}
+    #kvBidangList{max-height:250px;overflow-y:auto}
+    .field .kv-opt{display:flex;align-items:center;gap:10px;margin:0;padding:8px 12px;border-bottom:1px solid #f1f5f9;cursor:pointer;font-size:.82rem;font-weight:500;line-height:1.35;color:var(--teks)}
+    .field .kv-opt:last-child{border-bottom:0}
+    .field .kv-opt:hover{background:#f8fafc}
+    .field .kv-opt.on{background:#f0fdfa}
+    .kv-opt input.chk{width:18px !important;height:18px !important;padding:0 !important;margin:0;flex:0 0 18px;box-shadow:none}
+    .kv-opt span{flex:1;min-width:0;word-break:break-word}
+    .kv-empty{padding:16px;text-align:center;color:var(--teks-muted);font-size:.8rem}
+  `;
+  document.head.appendChild(st);
+}
+
+// ── helper data ─────────────────────────────────────────────────────────────
+function _verifArr(jenis) { return jenis === 'ikk' ? _ikkData : jenis === 'spm' ? _spmData : jenis === 'subkeg' ? _subkegData : _kinerjaData; }
+function _verifRow(jenis, id) { return _verifArr(jenis).find(r => Number(r.id) === Number(id)); }
+function _verifBulanTahun(jenis) {
+  if (jenis === 'ikk')    return { bulan: _ikk_bulan,    tahun: _ikk_tahun };
+  if (jenis === 'spm')    return { bulan: _spm_bulan,    tahun: _spm_tahun };
+  if (jenis === 'subkeg') return { bulan: _subkeg_bulan, tahun: _subkeg_tahun };
+  return { bulan: _kinerja_bulan, tahun: _kinerja_tahun };
+}
+function _verifStatus(row) { return row && row.realisasi_id ? (row.status_verifikasi || 'draft') : null; }
+// Status verifikasi baris REKAP untuk Dashboard & Laporan. null = belum ada isian.
+// Backend lama yang belum mengirim kolom status: data dianggap sudah final (sama seperti migrasi data lama).
+function _verifStatusRekap(row) {
+  if (!row || !row.realisasi_id) return null;
+  if (row.status_verifikasi === undefined) return 'disetujui';
+  return row.status_verifikasi || 'draft';
+}
+// Hanya realisasi berstatus "disetujui" yang dihitung sebagai data resmi di Dashboard & Laporan.
+function _verifResmi(row) {
+  const st = _verifStatusRekap(row);
+  return st === null || st === 'disetujui';
+}
+// Kelompok status untuk ringkasan: disetujui | menunggu (menunggu + diajukan kembali) | perbaikan | draft | kosong
+function _verifKelompok(row) {
+  const st = _verifStatusRekap(row);
+  if (st === null) return 'kosong';
+  if (st === 'disetujui') return 'disetujui';
+  if (st === 'menunggu' || st === 'diajukan_kembali') return 'menunggu';
+  if (st === 'perlu_perbaikan') return 'perbaikan';
+  return 'draft';
+}
+// Pengajuan yang sedang diverifikasi / sudah disetujui dikunci untuk user (Admin tetap bisa).
+function _verifTerkunci(row) {
+  if (_isKinerjaAdmin()) return false;
+  return ['menunggu', 'diajukan_kembali', 'disetujui'].includes(_verifStatus(row));
+}
+function _verifUnitKey(row) { return String(row?.penanggung_jawab || '').trim(); }
+
+async function _loadVerifInfo(force = false) {
+  if (_verifInfoLoaded && !force) return;
+  if (_verifInfoLoading && !force) return _verifInfoLoading;
+  _verifInfoLoading = (async () => {
+    try {
+      const r = await fetch('/api/kinerja/verifikator/info', { headers: authHeaders() });
+      if (r.ok) { const d = await r.json(); _verifInfoMap = d.verifikator || {}; _verifInfoLoaded = true; }
+    } catch {}
+    _verifInfoLoading = null;
+    _verifRefreshAll();
+  })();
+  return _verifInfoLoading;
+}
+
+function _verifBadgeHtml(status, jenis, id) {
+  return _verifStatusCellHtml(status, { jenis, id, clickable: true, badgeOnly: true });
+}
+// Isi sel Status - SATU sumber untuk tabel Verifikasi Kinerja dan tabel IKU/IKK/SPM/Sub Kegiatan
+// (badge + alasan penolakan + "oleh <verifikator>"), supaya tampilannya selalu sama.
+// clickable: badge membuka riwayat verifikasi (dipakai di 4 tabel kinerja).
+function _verifStatusCellHtml(status, o = {}) {
+  const key = status in VERIF_STATUS_META ? status : 'draft';
+  const m = VERIF_STATUS_META[key];
+  const act = o.onclick ? ` data-tip="Lihat detail & riwayat verifikasi" onclick="${o.onclick}"`
+    : (o.clickable ? ` data-tip="Lihat riwayat verifikasi" onclick="openVerifRiwayat('${o.jenis}', ${o.id})"` : '');
+  let h = `<span class="verif-badge" style="${(o.clickable || o.onclick) ? '' : 'cursor:default;'}background:${m.bg};color:${m.fg};border-color:${m.bd}"${act}>${_verifStatusIcon(key)}${m.label}</span>`;
+  if (o.badgeOnly) return h;
+  if (status === 'perlu_perbaikan' && o.alasan) h += `<div class="verif-tolak-box" style="margin-top:5px;text-align:left">${escHtml(o.alasan)}</div>`;
+  if (status === 'disetujui' && o.oleh && !o.hideOleh) h += `<div style="font-size:.68rem;color:var(--teks-muted);margin-top:3px">oleh ${escHtml(o.oleh)}</div>`;
+  return h;
+}
+
+// Baris "Verifikator: ..." (ikon + nama) / peringatan kalau unit belum punya verifikator
+function _verifVerLineHtml(vers) {
+  return vers && vers.length
+    ? `<div class="verif-ver-line"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:var(--hijau)"><path d="M2 21a8 8 0 0 1 13.292-6"/><circle cx="10" cy="8" r="5"/><path d="m16 19 2 2 4-4"/></svg><span>Verifikator: <b>${vers.map(v => escHtml(v.nama)).join(', ')}</b></span></div>`
+    : `<div class="verif-ver-warn">Belum ada verifikator untuk indikator ini</div>`;
+}
+// Sel nama indikator: verifikator + status + alasan penolakan
+function _verifExtraInner(row, jenis) {
+  if (!_verifInfoLoaded) { _loadVerifInfo(); return ''; }
+  const vers = _verifInfoMap[_verifUnitKey(row)] || [];
+  return _verifVerLineHtml(vers);
+}
+// Kolom Status (IKU / IKK / SPM / Sub Kegiatan): badge status verifikasi + alasan penolakan
+function _verifStatusInner(row, jenis) {
+  const st = _verifStatus(row);
+  if (!st) return '<span style="color:var(--teks-muted)">-</span>';
+  return _verifStatusCellHtml(st, { jenis, id: row.id, clickable: true, alasan: row.alasan_tolak, oleh: row.verifikator_nama, hideOleh: true });
+}
+function _verifStatusWrap(row, jenis) {
+  return `<div class="verif-status" data-jenis="${jenis}" data-id="${row.id}">${_verifStatusInner(row, jenis)}</div>`;
+}
+function _verifExtraWrap(row, jenis) {
+  return `<div class="verif-extra" data-jenis="${jenis}" data-id="${row.id}">${_verifExtraInner(row, jenis)}</div>`;
+}
+
+// Sel Aksi: tombol Ajukan / Ajukan Ulang
+function _verifAksiInner(row, jenis) {
+  const st = _verifStatus(row);
+  if (!st || !['draft', 'perlu_perbaikan'].includes(st)) return '';
+  if (!_isKinerjaInputOpen(null, jenis) || !_barisBolehEditDasar(row)) return '';
+  const ulang = st === 'perlu_perbaikan';
+  // Selama baris masih dalam mode edit, Ajukan nonaktif; aktif lagi setelah disimpan / edit dibatalkan.
+  const editing = !!document.getElementById(`${_VERIF_PREFIX[jenis]}editbtn_${row.id}`)?.classList.contains('btn-edit-row--active');
+  const tip = editing ? 'Simpan atau batalkan edit dulu sebelum mengajukan'
+                      : (ulang ? 'Kirim ulang perbaikan ke verifikator' : 'Kirim realisasi ke verifikator');
+  return `<button type="button" class="btn-verif-ajukan" id="${_VERIF_PREFIX[jenis]}ajukanbtn_${row.id}"${editing ? ' disabled' : ''}
+      data-tip="${tip}"
+      aria-label="${ulang ? 'Ajukan Ulang' : 'Ajukan'}"
+      onclick="ajukanVerifikasi('${jenis}', ${row.id})">
+      <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></svg></button>`;
+}
+// Render ulang sel Ajukan (dipanggil saat masuk/keluar mode edit supaya status disabled-nya ikut berubah)
+function _verifRefreshAksi(jenis, id) {
+  const row = _verifRow(jenis, id);
+  if (!row) return;
+  document.querySelectorAll(`.verif-aksi[data-jenis="${jenis}"][data-id="${id}"]`).forEach(el => { el.innerHTML = _verifAksiInner(row, jenis); });
+}
+function _verifAksiWrap(row, jenis) {
+  return `<div class="verif-aksi" data-jenis="${jenis}" data-id="${row.id}">${_verifAksiInner(row, jenis)}</div>`;
+}
+
+// ── Statcard ringkasan indikator (IKU / IKK / SPM / Sub Kegiatan) ─────────────────
+// Dihitung dari baris yang sedang tampil di tabel (sesuai filter unit kerja & pencarian).
+const _kinStatRows = {};
+function _kinStatRender(jenis) {
+  const el = document.getElementById('kinStats_' + jenis);
+  if (!el) return;
+  const rows = _kinStatRows[jenis] || [];
+  const c = { belum: 0, draft: 0, menunggu: 0, perbaikan: 0, disetujui: 0 };
+  rows.forEach(r => {
+    const st = _verifStatus(r);
+    if (!st) c.belum++;
+    else if (st === 'draft') c.draft++;
+    else if (st === 'menunggu' || st === 'diajukan_kembali') c.menunggu++;
+    else if (st === 'perlu_perbaikan') c.perbaikan++;
+    else if (st === 'disetujui') c.disetujui++;
+  });
+  const card = (value, label, color, bg, iconSvg) => `
+    <div class="stat-card" style="border-left-color:${color}">
+      <div class="stat-card-body">
+        <div class="stat-label">${label}</div>
+        <div class="stat-value" style="color:${color}">${value}</div>
+      </div>
+      <div class="stat-icon" style="background:${bg};opacity:1">
+        <svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" fill="none" viewBox="0 0 24 24" stroke="${color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${iconSvg}</svg>
+      </div>
+    </div>`;
+  el.innerHTML =
+    card(rows.length, 'Total Indikator', 'var(--hijau)', 'rgba(15,118,110,.12)',
+      '<path d="M3 3v18h18"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/>') +
+    card(c.disetujui, 'Disetujui', '#16a34a', 'rgba(22,163,74,.12)',
+      '<path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>') +
+    card(c.belum, 'Belum Diisi', '#dc2626', 'rgba(220,38,38,.12)',
+      '<circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>') +
+    card(c.draft, 'Draft', '#64748b', 'rgba(100,116,139,.12)',
+      '<path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/>') +
+    card(c.menunggu, 'Menunggu Verifikasi', '#d97706', 'rgba(217,119,6,.12)',
+      '<circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>') +
+    card(c.perbaikan, 'Ditolak', '#ea580c', 'rgba(234,88,12,.12)',
+      '<path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>');
+}
+function _kinStatCards(jenis, tbody, rows, loading = false) {
+  const wrap = tbody && tbody.closest ? tbody.closest('.kinerja-table-wrap') : null;
+  if (!wrap || !wrap.parentNode) return;
+  if (!document.getElementById('kinStatStyles')) {
+    const st = document.createElement('style');
+    st.id = 'kinStatStyles';
+    st.textContent = `
+      .kin-stat-grid{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:var(--sp-4);align-items:stretch;width:100%;margin-bottom:var(--sp-5)}
+      .kin-stat-grid .stat-label{white-space:normal;line-height:1.25}
+      @media (max-width:1100px){.kin-stat-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
+      @media (max-width:600px){.kin-stat-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}`;
+    document.head.appendChild(st);
+  }
+  let el = document.getElementById('kinStats_' + jenis);
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'kinStats_' + jenis;
+    el.className = 'kin-stat-grid';
+    // Letakkan tepat di ATAS blok filter (dropdown Tahun/Periode, skala, countdown)
+    const hdr = document.getElementById((jenis === 'monev' ? 'kinerja' : jenis) + 'BulanWrapper');
+    if (hdr && hdr.parentNode && !wrap.contains(hdr)) hdr.insertAdjacentElement('beforebegin', el);
+    else wrap.parentNode.insertBefore(el, wrap);
+  }
+  if (loading) { el.innerHTML = _statSkeleton(6); return; }
+  _kinStatRows[jenis] = rows || [];
+  _kinStatRender(jenis);
+}
+
+function _verifRefreshRow(jenis, id) {
+  const row = _verifRow(jenis, id);
+  if (!row) return;
+  document.querySelectorAll(`.verif-extra[data-jenis="${jenis}"][data-id="${id}"]`).forEach(el => { el.innerHTML = _verifExtraInner(row, jenis); });
+  document.querySelectorAll(`.verif-status[data-jenis="${jenis}"][data-id="${id}"]`).forEach(el => { el.innerHTML = _verifStatusInner(row, jenis); });
+  document.querySelectorAll(`.verif-aksi[data-jenis="${jenis}"][data-id="${id}"]`).forEach(el => { el.innerHTML = _verifAksiInner(row, jenis); });
+  _kinStatRender(jenis);
+}
+function _verifRefreshAll() {
+  document.querySelectorAll('.verif-extra[data-jenis]').forEach(el => {
+    const row = _verifRow(el.dataset.jenis, el.dataset.id);
+    if (row) el.innerHTML = _verifExtraInner(row, el.dataset.jenis);
+  });
+}
+// Dipanggil setelah Simpan berhasil: realisasi baru otomatis berstatus draft.
+function _verifApplySaved(jenis, row, saved) {
+  if (!row) return;
+  row.status_verifikasi = saved?.status_verifikasi || row.status_verifikasi || 'draft';
+  row.alasan_tolak = saved?.alasan_tolak ?? row.alasan_tolak ?? null;
+  _verifRefreshRow(jenis, row.id);
+}
+function _verifRerender(jenis) {
+  if (jenis === 'ikk')         _renderIkkTable(document.getElementById('ikkTableBody'));
+  else if (jenis === 'spm')    _renderSpmTable(document.getElementById('spmTableBody'));
+  else if (jenis === 'subkeg') _renderSubkegTable(document.getElementById('subkegTableBody'));
+  else                         renderKinerjaTable(document.getElementById('kinerjaTableBody'));
+}
+
+// ── Ajukan ──────────────────────────────────────────────────────────────────
+async function ajukanVerifikasi(jenis, id) {
+  const row = _verifRow(jenis, id);
+  if (!row?.realisasi_id) { toast('Simpan realisasi terlebih dahulu sebelum mengajukan', 'error'); return; }
+  const sb = document.getElementById(`${_VERIF_PREFIX[jenis]}savebtn_${id}`);
+  if (sb && !sb.disabled) { toast('Ada perubahan yang belum disimpan. Simpan dulu sebelum mengajukan.', 'error'); return; }
+  const vers = _verifInfoMap[_verifUnitKey(row)] || [];
+  if (!vers.length) { toast('Belum ada verifikator untuk indikator ini. Hubungi Superadmin.', 'error'); return; }
+  const ulang = _verifStatus(row) === 'perlu_perbaikan';
+  const ok = await showConfirm({
+    title: ulang ? 'Ajukan Ulang' : 'Ajukan Verifikasi',
+    msg: `Realisasi akan dikirim ke verifikator: <b>${vers.map(v => escHtml(v.nama)).join(', ')}</b>.<br>Selama proses verifikasi, data tidak dapat diubah.`,
+    okText: 'Ya, Ajukan', type: 'warning', icon: 'person',
+  });
+  if (!ok) return;
+  const btn = document.getElementById(`${_VERIF_PREFIX[jenis]}ajukanbtn_${id}`);
+  if (btn) { btn.disabled = true; btn.innerHTML = '<span class="btn-spin" style="width:12px;height:12px"></span>'; }
+  const { bulan, tahun } = _verifBulanTahun(jenis);
+  try {
+    const r = await fetch('/api/kinerja/verifikasi/submit', {
+      method: 'POST', headers: authHeaders(),
+      body: JSON.stringify({ indikator_id: id, bulan, tahun }),
+    });
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok) { toast(d.error || 'Gagal mengajukan', 'error'); _verifRefreshRow(jenis, id); return; }
+    row.status_verifikasi = d.realisasi?.status_verifikasi || 'menunggu';
+    row.alasan_tolak = null;
+    row.submitted_at = d.realisasi?.submitted_at || null;
+    toast(ulang ? 'Pengajuan ulang terkirim ke verifikator' : 'Pengajuan terkirim ke verifikator');
+    _verifRerender(jenis);
+  } catch (err) {
+    toast('Error: ' + err.message, 'error');
+    _verifRefreshRow(jenis, id);
+  }
+}
+
+// ── Riwayat / detail ────────────────────────────────────────────────────────
+function _verifDukungUrl(raw) {
+  if (!raw) return null;
+  try { const a = JSON.parse(raw); if (Array.isArray(a) && a[0]?.url) return a[0].url; } catch {}
+  return /^https?:\/\//i.test(String(raw)) ? String(raw) : null;
+}
+function _verifFmtReal(r) {
+  const v = r.realisasi_display != null && String(r.realisasi_display) !== '' ? r.realisasi_display : r.realisasi;
+  return v == null || v === '' ? '-' : String(v);
+}
+function _verifNarr(label, val) {
+  if (!val || !String(val).trim()) return '';
+  const html = typeof _mdToHtmlDisplay === 'function' ? _mdToHtmlDisplay(String(val)) : escHtml(String(val));
+  return `<div class="vm-sec"><div class="vm-lbl">${label}</div><div class="vf-narr vm-narr">${html}</div></div>`;
+}
+
+// Satu modal dipakai bersama: dari tabel indikator (riwayat) dan dari halaman Verifikasi (detail).
+async function _verifOpenModal({ judul, sub, status, indikatorId, bulan, tahun, data, aksiRealisasiId }) {
+  const m = VERIF_STATUS_META[status] || null;
+  document.getElementById('verifDetailTitle').textContent = judul || 'Riwayat Verifikasi';
+  document.getElementById('verifDetailSub').textContent = sub || '';
+  const body = document.getElementById('verifDetailBody');
+  const foot = document.getElementById('verifDetailAksi');
+  foot.innerHTML = '';
+  const link = data ? _verifDukungUrl(data.data_dukung_url) : null;
+  let head = m ? `<span class="verif-badge" style="cursor:default;background:${m.bg};color:${m.fg};border-color:${m.bd}">${_verifStatusIcon(status)}${m.label}</span>` : '';
+  let detail = '';
+  if (data) {
+    detail = `
+      <div class="vm-facts">
+        <div><div class="vm-lbl">Realisasi</div><div class="vm-val">${escHtml(_verifFmtReal(data))} ${escHtml(data.satuan || '')}</div></div>
+        ${data.target_label != null ? `<div><div class="vm-lbl">Target Tahunan</div><div class="vm-val">${escHtml(String(data.target_label))}</div></div>` : ''}
+        <div><div class="vm-lbl">Data Dukung</div><div class="vm-val">${link ? `<a href="${escHtml(link)}" target="_blank" rel="noopener noreferrer">Buka link ↗</a>` : '<span class="vm-empty-val">Belum diisi</span>'}</div></div>
+      </div>
+      ${_verifNarr('Faktor Penghambat', data.f_penghambat)}${_verifNarr('Solusi', data.solusi)}
+      ${_verifNarr('Faktor Pendukung', data.f_pendukung)}${_verifNarr('Rencana Tindak Lanjut', data.rencana_tl)}`;
+  }
+  body.innerHTML = `<div style="display:flex;flex-direction:column;gap:12px">${head}${detail}
+    <div class="vm-sec"><div class="vm-lbl">Riwayat</div><div id="verifRiwayatList" class="vm-riw">Memuat...</div></div></div>`;
+  if (aksiRealisasiId) {
+    foot.innerHTML = `<button class="btn btn-primary" onclick="openVerifProses(${aksiRealisasiId})"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:5px;vertical-align:-2px"><path d="M21.801 10A10 10 0 1 1 17 3.335"/><path d="m9 11 3 3L22 4"/></svg>Verifikasi</button>`;
+  }
+  openModal('modalVerifDetail');
+  try {
+    const r = await fetch(`/api/kinerja/verifikasi/riwayat?indikator_id=${indikatorId}&bulan=${bulan}&tahun=${tahun}`, { headers: authHeaders() });
+    const d = await r.json().catch(() => ({}));
+    const el = document.getElementById('verifRiwayatList');
+    if (!el) return;
+    if (!r.ok) { el.textContent = d.error || 'Gagal memuat riwayat'; return; }
+    const list = d.riwayat || [];
+    if (!list.length) { el.textContent = 'Belum ada riwayat pengajuan.'; return; }
+    el.innerHTML = `<ul class="vf-hist">${list.map(h => {
+      const mm = VERIF_STATUS_META[h.status_sesudah] || VERIF_STATUS_META.draft;
+      return `<li style="border-left-color:${mm.bd}">
+        <div><b>${VERIF_AKSI_LABEL[h.aksi] || escHtml(h.aksi)}</b> oleh ${escHtml(h.user_nama || '-')}</div>
+        <div class="t">${fmtDate(h.created_at)}</div>
+        ${h.alasan ? `<div class="verif-tolak-box" style="margin-top:4px"><b>Alasan:</b> ${escHtml(h.alasan)}</div>` : ''}</li>`;
+    }).join('')}</ul>`;
+  } catch (err) {
+    const el = document.getElementById('verifRiwayatList');
+    if (el) el.textContent = 'Error: ' + err.message;
+  }
+}
+
+function openVerifRiwayat(jenis, id) {
+  const row = _verifRow(jenis, id);
+  if (!row) return;
+  const { bulan, tahun } = _verifBulanTahun(jenis);
+  _verifOpenModal({
+    judul: 'Riwayat Verifikasi',
+    sub: `${row.nama_indikator || row.indikator_kinerja || ''} · ${_twNama(bulan)} ${tahun}`,
+    status: _verifStatus(row), indikatorId: id, bulan, tahun,
+    data: { ...row, target_label: row.target_display ?? row.target_tahun ?? null },
+  });
+}
+
+// ═════════════ Halaman Verifikasi Kinerja (verifikator / superadmin) ═════════════
+let _vfData = [];
+let _vfUnits = [];
+let _vfIndUnit = [];   // jumlah indikator aktif per unit kerja { unit, total, monev, ikk, spm, subkeg }
+let _vfPage = 1;
+const _vfPageSize = 5;
+let _vf = { tahun: new Date().getFullYear(), bulan: '', jenis: '', status: '', unit: '', q: '' };
+// (_isVerifikatorKinerja dideklarasikan di app.js)
+
+async function _cekVerifikator() {
+  try {
+    const r = await fetch('/api/kinerja/verifikasi/saya', { headers: authHeaders() });
+    if (r.ok) { const d = await r.json(); _isVerifikatorKinerja = !!d.is_verifikator; }
+  } catch {}
+}
+
+function _vfFillSelect(id, html, val) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.innerHTML = html;
+  el.value = val ?? '';
+  if (typeof syncCustomSelect === 'function') syncCustomSelect(id);
+}
+
+// Periode default halaman Verifikasi: periode yang sedang aktif (dibuka); kalau tidak ada yang aktif,
+// pakai periode terakhir yang sudah pernah dibuka; kalau belum ada periode sama sekali, triwulan berjalan.
+let _vfPeriodeSudahDipilih = false;
+function _vfPeriodeDefault() {
+  const urut = (a, b) => a.tahun !== b.tahun ? a.tahun - b.tahun : a.bulan - b.bulan;
+  const norm = p => ({ tahun: parseInt(p.tahun), bulan: Math.min(12, Math.ceil((parseInt(p.bulan) || 3) / 3) * 3) });
+  const valid = p => p && parseInt(p.tahun) && parseInt(p.bulan);
+  const aktif = (_periodeListTerbuka || []).filter(valid).map(norm).sort(urut);
+  if (aktif.length) return aktif[aktif.length - 1];
+  const pernah = (_periodeListTampil || []).filter(valid).map(norm).sort(urut);
+  if (pernah.length) return pernah[pernah.length - 1];
+  return { tahun: new Date().getFullYear(), bulan: _twBulanSekarang() };
+}
+
+async function initVerifikasiKinerja() {
+  _injectVerifStyles();
+  if (!_vfPeriodeSudahDipilih) {
+    try { await _refreshPeriodeKinerja(); } catch {}
+    const pd = _vfPeriodeDefault();
+    _vf.tahun = pd.tahun;
+    _vf.bulan = pd.bulan;
+    _vfPeriodeSudahDipilih = true;
+  }
+  const yr = new Date().getFullYear();
+  const years = [...new Set([yr + 1, yr, yr - 1, yr - 2, _vf.tahun])].sort((a, b) => b - a);
+  _vfFillSelect('vfTahun', years.map(t => `<option value="${t}">${t}</option>`).join(''), _vf.tahun);
+  _vfFillSelect('vfBulan', '<option value="">Semua Periode</option>' + [3, 6, 9, 12].map(b => `<option value="${b}">${_twNama(b)}</option>`).join(''), _vf.bulan);
+  _vfFillSelect('vfJenis', '<option value="">Semua Jenis</option>' + Object.entries(VERIF_JENIS_LABEL).map(([k, v]) => `<option value="${k}">${v}</option>`).join(''), _vf.jenis);
+  _vfFillSelect('vfStatus', '<option value="">Semua Status</option>' + ['menunggu', 'diajukan_kembali', 'perlu_perbaikan', 'disetujui'].map(k => `<option value="${k}">${VERIF_STATUS_META[k].label}</option>`).join(''), _vf.status);
+  const _vfSearchEl = document.getElementById('vfSearch');
+  if (_vfSearchEl) _vfSearchEl.placeholder = _isSuperAdminKinerja() ? 'Cari indikator atau verifikator…' : 'Cari nama indikator…';
+  await loadVerifikasiKinerja();
+}
+
+async function loadVerifikasiKinerja() {
+  const tbody = document.getElementById('vfTableBody');
+  if (!tbody) return;
+  tbody.innerHTML = `<tr class="empty-row"><td colspan="10"><span class="btn-spin" style="width:11px;height:11px;vertical-align:-1px;margin-right:6px"></span>Memuat data...</td></tr>`;
+  { const _vs = document.getElementById('vfSummary'); if (_vs) { if (typeof _dmStyle === 'function') _dmStyle(); _vs.innerHTML = `<div class="dm-kpis vf-kpis">${_statSkeleton(5)}</div>`; } }
+  try {
+    const r = await fetch(`/api/kinerja/verifikasi?tahun=${_vf.tahun}`, { headers: authHeaders() });
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok) { const _vs = document.getElementById('vfSummary'); if (_vs) _vs.innerHTML = ''; tbody.innerHTML = `<tr class="empty-row"><td colspan="10">${escHtml(d.error || 'Gagal memuat')}</td></tr>`; return; }
+    _vfData = d.pengajuan || [];
+    _vfUnits = d.units || [];
+    _vfIndUnit = d.indikator_unit || [];
+    _vfFillSelect('vfUnit', '<option value="">Semua Unit Kerja</option>' + _vfUnits.map(u => `<option value="${escHtml(u.nama)}">${escHtml(u.nama)}</option>`).join(''), _vf.unit);
+    _vfPage = 1;
+    _vfRender();
+  } catch (err) {
+    { const _vs = document.getElementById('vfSummary'); if (_vs) _vs.innerHTML = ''; }
+    tbody.innerHTML = `<tr class="empty-row"><td colspan="10">Error: ${escHtml(err.message)}</td></tr>`;
+  }
+}
+
+function setVfFilter(key, val) {
+  _vf[key] = key === 'tahun' ? parseInt(val) : (key === 'bulan' && val ? parseInt(val) : val);
+  _vfPage = 1;
+  if (key === 'tahun') loadVerifikasiKinerja(); else _vfRender();
+}
+function _goVfPage(p) { _vfPage = p; _vfRender(); }
+
+// Superadmin: pencarian juga mencocokkan nama verifikator unit kerja indikator (dan verifikator yang menyetujui)
+function _vfMatchVerifikator(r, q) {
+  if (!_isSuperAdminKinerja()) return false;
+  const names = (_verifInfoMap[_verifUnitKey(r)] || []).map(v => v.nama);
+  if (r.verifikator_nama) names.push(r.verifikator_nama);
+  return names.some(n => String(n || '').toLowerCase().includes(q));
+}
+function _vfFiltered(ignoreStatus = false) {
+  const q = _vf.q.trim().toLowerCase();
+  return _vfData.filter(r =>
+    (!_vf.bulan || r.bulan === _vf.bulan) &&
+    (!_vf.jenis || (r.jenis || []).includes(_vf.jenis)) &&
+    (!_vf.unit || String(r.penanggung_jawab || '').trim() === _vf.unit.trim()) &&
+    (!q || String(r.indikator_kinerja || '').toLowerCase().includes(q) || _vfMatchVerifikator(r, q)) &&
+    (ignoreStatus || !_vf.status || r.status_verifikasi === _vf.status)
+  );
+}
+
+// Ikon makna indikator (positif/negatif) + badge jenis kinerja - sama dengan tabel IKU/IKK/SPM
+function _vfMaknaIcon(r) {
+  return r.bermakna_negatif
+    ? `<span data-tip="Bermakna Negatif" data-tip-variant="danger" style="display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;background:#fee2e2;border-radius:50%;margin-left:5px;vertical-align:middle;flex-shrink:0"><svg xmlns="http://www.w3.org/2000/svg" width="9" height="9" fill="none" viewBox="0 0 24 24" stroke="#991b1b" stroke-width="2.8"><path stroke-linecap="round" stroke-linejoin="round" d="M19 14l-7 7m0 0l-7-7m7 7V3"/></svg></span>`
+    : `<span data-tip="Bermakna Positif" data-tip-variant="success" style="display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;background:#d1fae5;border-radius:50%;margin-left:5px;vertical-align:middle;flex-shrink:0"><svg xmlns="http://www.w3.org/2000/svg" width="9" height="9" fill="none" viewBox="0 0 24 24" stroke="#065f46" stroke-width="2.8"><path stroke-linecap="round" stroke-linejoin="round" d="M5 10l7-7m0 0l7 7m-7-7v18"/></svg></span>`;
+}
+function _vfCapaianBadge(r) {
+  const c = r.capaian_persen != null ? Number(r.capaian_persen) : null;
+  if (c === null || isNaN(c)) return '<span class="capaian-badge na">-</span>';
+  const cls = c >= 91 ? 'st' : c >= 76 ? 'ti' : c >= 66 ? 'sd' : c >= 51 ? 'rd' : 'sr';
+  return `<span class="capaian-badge ${cls}">${c.toFixed(1)}%</span>`;
+}
+function _vfFormulaBtn(r) {
+  if (!r.formula) return '';
+  return `<div class="fx-wrap"><button style="display:inline-flex;align-items:center;justify-content:center;gap:4px;box-sizing:border-box;height:24px;font-size:0.62rem;font-weight:700;line-height:1;color:#0f766e;background:#f0fdfa;border:1px solid #99f6e4;border-radius:4px;padding:0 8px;cursor:pointer;font-family:inherit;appearance:none;-webkit-appearance:none;margin:0" data-tip="Lihat formula perhitungan" data-formula="${escHtml(r.formula)}" onclick="toggleFormulaPanel(this)"><span>Σ</span><span class="fx-arrow" style="display:inline-block;transition:transform .2s;font-style:normal">▾</span></button></div>`;
+}
+function _vfJenisBadges(r) {
+  const LBL = { monev: 'IKU', ikk: 'IKK', spm: 'SPM', subkeg: 'Sub Kegiatan' };
+  return (r.jenis || []).filter(j => LBL[j]).map(j => jenisBadgeHtml(j, LBL[j])).join(' ');
+}
+
+// Keterangan card Total Indikator: nama unit kerja (filter / satu-satunya unit yang punya indikator), atau jumlah unit yang punya indikator
+function _vfSubTotalIndikator() {
+  if (_vf.unit) return escHtml(_vf.unit);
+  // Hanya unit kerja yang punya indikator (ikut filter Jenis) — unit tanpa indikator tidak dihitung
+  const key = _vf.jenis || 'total';
+  const units = _vfIndUnit.filter(r => (Number(r[key]) || 0) > 0 && String(r.unit || '').trim());
+  if (units.length === 1) return escHtml(String(units[0].unit).trim());
+  return units.length ? `${units.length} unit kerja` : '';
+}
+// Total indikator aktif: ikut filter Unit Kerja & Jenis yang dipilih
+function _vfTotalIndikator() {
+  const u = (_vf.unit || '').trim();
+  const key = _vf.jenis || 'total';
+  return _vfIndUnit
+    .filter(r => !u || String(r.unit || '').trim() === u)
+    .reduce((a, r) => a + (Number(r[key]) || 0), 0);
+}
+
+let _vfVerInfoTried = false;
+function _vfRender() {
+  if (!_verifInfoLoaded && !_vfVerInfoTried) {
+    _vfVerInfoTried = true;
+    Promise.resolve(_loadVerifInfo()).then(() => { if (_verifInfoLoaded) _vfRender(); });
+  }
+  const base = _vfFiltered(true);
+  const cnt = k => base.filter(r => r.status_verifikasi === k).length;
+  if (typeof _dmStyle === 'function') _dmStyle();   // CSS card sama dengan Dashboard & Laporan
+  const D = (typeof _DM_PAL !== 'undefined') ? _DM_PAL : { ok: '#16a34a', warn: '#d97706', bad: '#dc2626', info: '#2563eb', teal: '#047D78' };
+  const total = base.length;
+  const nSetuju = cnt('disetujui'), nMenunggu = cnt('menunggu'), nKembali = cnt('diajukan_kembali'), nTolak = cnt('perlu_perbaikan');
+  const cards = [
+    ['', 'Total Indikator', _vfTotalIndikator(), _vfSubTotalIndikator(), D.teal, 'grid'],
+    ['disetujui', 'Disetujui', nSetuju, `${total ? Math.round(nSetuju * 100 / total) : 0}% dari semua pengajuan`, D.ok, 'check'],
+    ['menunggu', 'Menunggu Verifikasi', nMenunggu, nMenunggu ? 'Perlu segera diperiksa' : 'Tidak ada antrean', D.warn, 'clock'],
+    ['diajukan_kembali', 'Diajukan Kembali', nKembali, nKembali ? 'Sudah diperbaiki penginput' : 'Tidak ada', D.info, 'send'],
+    ['perlu_perbaikan', 'Ditolak', nTolak, nTolak ? 'Menunggu perbaikan penginput' : 'Tidak ada yang ditolak', D.bad, 'warn'],
+  ];
+  document.getElementById('vfSummary').innerHTML = `<div class="dm-kpis vf-kpis">${cards.map(([key, label, n, sub, color, icon]) =>
+    _dmKpi({ label, val: _dmNf(n), sub, color, icon })).join('')}</div>`;
+
+  const rows = _vfFiltered();
+  const tbody = document.getElementById('vfTableBody');
+  if (!rows.length) {
+    tbody.innerHTML = `<tr class="empty-row"><td colspan="10">Belum ada pengajuan yang cocok dengan filter.</td></tr>`;
+    renderPagination('vfPagination', 0, 1, _vfPageSize, '_goVfPage');
+    return;
+  }
+  _vfPage = Math.min(_vfPage, Math.max(1, Math.ceil(rows.length / _vfPageSize)));
+  const start = (_vfPage - 1) * _vfPageSize;
+  tbody.innerHTML = rows.slice(start, start + _vfPageSize).map((r, i) => {
+    const link = _verifDukungUrl(r.data_dukung_url);
+    const pending = ['menunggu', 'diajukan_kembali'].includes(r.status_verifikasi);
+    return `<tr class="row-state-default">
+      <td class="td-sticky-no" style="text-align:center;color:var(--teks-muted);position:sticky;left:0;z-index:3">${start + i + 1}</td>
+      <td class="td-sticky-name" style="position:sticky;left:34px;z-index:3"><div style="font-weight:600;line-height:1.5"><span>${escHtml(r.indikator_kinerja)}</span>${_vfMaknaIcon(r)}</div>
+        ${(r.formula || _vfJenisBadges(r)) ? `<div style="margin-top:5px;display:flex;align-items:center;gap:6px;flex-wrap:wrap">${_vfFormulaBtn(r)}${_vfJenisBadges(r)}</div>` : ''}
+        ${_verifInfoLoaded ? `<div style="margin-top:5px">${_verifVerLineHtml(_verifInfoMap[_verifUnitKey(r)])}</div>` : ''}</td>
+      <td style="text-align:center">${escHtml(r.satuan || '-')}</td>
+      <td style="text-align:center">${escHtml(r.target_label != null && String(r.target_label) !== '' ? String(r.target_label) : '-')}</td>
+      <td style="text-align:center;white-space:nowrap;font-weight:700">${escHtml(_verifFmtReal(r))}</td>
+      <td style="text-align:center;white-space:nowrap">${_vfCapaianBadge(r)}</td>
+      <td style="text-align:center;white-space:nowrap">${link ? `<a href="${escHtml(link)}" target="_blank" rel="noopener noreferrer" style="color:#0f766e;font-weight:600;font-size:.76rem">Buka link ↗</a>` : '<span style="color:#b91c1c;font-size:.74rem">Tanpa data dukung</span>'}</td>
+      <td style="text-align:center"><div style="font-weight:600;font-size:.8rem">${escHtml(r.penginput || '-')}</div></td>
+      <td style="text-align:center">${_verifStatusCellHtml(r.status_verifikasi, { onclick: `openVfDetail(${r.realisasi_id})`, alasan: r.alasan_tolak, oleh: r.verifikator_nama, hideOleh: true })}</td>
+      <td><div class="vf-btns">
+        ${pending ? `<button class="btn-buka" data-tip="Verifikasi" onclick="openVerifProses(${r.realisasi_id})"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.801 10A10 10 0 1 1 17 3.335"/><path d="m9 11 3 3L22 4"/></svg></button>` : ''}
+        <button class="btn btn-ghost btn-sm" data-tip="Detail" onclick="openVfDetail(${r.realisasi_id})"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 6h13M8 12h13M8 18h13"/><path d="M3 6h.01M3 12h.01M3 18h.01"/></svg></button></div></td>
+    </tr>`;
+  }).join('');
+  renderPagination('vfPagination', rows.length, _vfPage, _vfPageSize, '_goVfPage');
+}
+
+function openVfDetail(realisasiId) {
+  const r = _vfData.find(x => x.realisasi_id === realisasiId);
+  if (!r) return;
+  const pending = ['menunggu', 'diajukan_kembali'].includes(r.status_verifikasi);
+  _verifOpenModal({
+    judul: 'Detail Pengajuan',
+    sub: `${r.indikator_kinerja} · ${_twNama(r.bulan)} ${r.tahun}`,
+    status: r.status_verifikasi, indikatorId: r.indikator_id, bulan: r.bulan, tahun: r.tahun,
+    data: r, aksiRealisasiId: pending ? r.realisasi_id : null,
+  });
+}
+
+async function _vfKirimAksi(realisasiId, aksi, alasan) {
+  const r = await fetch('/api/kinerja/verifikasi/aksi', {
+    method: 'POST', headers: authHeaders(),
+    body: JSON.stringify({ realisasi_id: realisasiId, aksi, alasan }),
+  });
+  const d = await r.json().catch(() => ({}));
+  if (!r.ok) { toast(d.error || 'Gagal memproses verifikasi', 'error'); return false; }
+  toast(aksi === 'setujui' ? 'Pengajuan disetujui' : 'Pengajuan ditolak, user diminta memperbaiki');
+  closeModal('modalVerifDetail');
+  closeModal('modalVerifProses');
+  await loadVerifikasiKinerja();
+  return true;
+}
+
+// Satu pintu verifikasi: verifikator memilih Setujui atau Tolak (Tolak langsung isi alasan)
+let _vpPilih = '';
+function openVerifProses(realisasiId) {
+  const r = _vfData.find(x => x.realisasi_id === realisasiId);
+  document.getElementById('verifProsesId').value = realisasiId;
+  document.getElementById('verifProsesSub').textContent = r ? `${r.indikator_kinerja} · ${_twNama(r.bulan)} ${r.tahun}` : 'Pilih hasil verifikasi';
+  document.getElementById('verifTolakAlasan').value = '';
+  document.getElementById('verifTolakErr').style.display = 'none';
+  vfProsesPilih('');
+  openModal('modalVerifProses');
+}
+function vfProsesPilih(v) {
+  _vpPilih = v;
+  document.getElementById('vpOptSetuju')?.classList.toggle('sel', v === 'setujui');
+  document.getElementById('vpOptTolak')?.classList.toggle('sel', v === 'tolak');
+  document.getElementById('verifProsesAlasanWrap').style.display = v === 'tolak' ? '' : 'none';
+  const id = parseInt(document.getElementById('verifProsesId').value);
+  const r = _vfData.find(x => x.realisasi_id === id);
+  document.getElementById('verifProsesWarn').style.display = (v === 'setujui' && r && !_verifDukungUrl(r.data_dukung_url)) ? '' : 'none';
+  const btn = document.getElementById('verifProsesBtn');
+  btn.disabled = !v;
+  btn.className = v === 'tolak' ? 'btn btn-danger' : 'btn btn-primary';
+  const _vpIc = p => `<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="margin-right:5px;vertical-align:-2px">${p}</svg>`;
+  btn.innerHTML = v === 'setujui' ? _vpIc('<path d="M5 13l4 4L19 7"/>') + 'Setujui Pengajuan'
+                : v === 'tolak'   ? _vpIc('<path d="M6 18L18 6M6 6l12 12"/>') + 'Tolak Pengajuan'
+                :                   _vpIc('<path d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>') + 'Verifikasi';
+  if (v === 'tolak') setTimeout(() => document.getElementById('verifTolakAlasan')?.focus(), 60);
+}
+async function submitVerifProses() {
+  const id = parseInt(document.getElementById('verifProsesId').value);
+  if (!_vpPilih) return;
+  const btn = document.getElementById('verifProsesBtn');
+  if (_vpPilih === 'setujui') {
+    const r = _vfData.find(x => x.realisasi_id === id);
+    if (r && !_verifDukungUrl(r.data_dukung_url)) {
+      toast('Data dukung belum ada, pengajuan sebaiknya ditolak untuk dilengkapi', 'error');
+      return;
+    }
+    btn.disabled = true;
+    try { await _vfKirimAksi(id, 'setujui', null); } finally { btn.disabled = !_vpPilih; }
+    return;
+  }
+  const alasan = document.getElementById('verifTolakAlasan').value.trim();
+  const err = document.getElementById('verifTolakErr');
+  if (alasan.length < 3) { err.style.display = ''; return; }
+  err.style.display = 'none';
+  btn.disabled = true;
+  try { await _vfKirimAksi(id, 'tolak', alasan); } finally { btn.disabled = !_vpPilih; }
+}
+
+// ═════════════ Kelola Verifikator (Superadmin) ═════════════
+let _kvData = [];
+let _kvUsers = [];
+let _kvBidang = [];
+
+async function loadKelolaVerifikator() {
+  _injectVerifStyles();
+  const tbody = document.getElementById('kvTableBody');
+  if (!tbody) return;
+  tbody.innerHTML = `<tr class="empty-row"><td colspan="5"><span class="btn-spin" style="width:11px;height:11px;vertical-align:-1px;margin-right:6px"></span>Memuat data...</td></tr>`;
+  try {
+    const r = await fetch('/api/kinerja/verifikator', { headers: authHeaders() });
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok) { tbody.innerHTML = `<tr class="empty-row"><td colspan="5">${escHtml(d.error || 'Gagal memuat')}</td></tr>`; return; }
+    _kvData = d.verifikator || []; _kvUsers = d.users || []; _kvBidang = d.bidang || [];
+    renderKelolaVerifikator();
+  } catch (err) {
+    tbody.innerHTML = `<tr class="empty-row"><td colspan="5">Error: ${escHtml(err.message)}</td></tr>`;
+  }
+}
+
+function renderKelolaVerifikator() {
+  const tbody = document.getElementById('kvTableBody');
+  if (!_kvData.length) {
+    tbody.innerHTML = `<tr class="empty-row"><td colspan="5">Belum ada verifikator. Klik "Tambah Verifikator" untuk menetapkan akun dan unit kerjanya.</td></tr>`;
+    return;
+  }
+  const svgPower = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v10"/><path d="M18.4 6.6a9 9 0 1 1-12.77.04"/></svg>';
+  const svgTrash = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path stroke-linecap="round" stroke-linejoin="round" d="M19 6l-1 14H6L5 6"/><path stroke-linecap="round" stroke-linejoin="round" d="M10 11v6m4-6v6"/><path stroke-linecap="round" stroke-linejoin="round" d="M9 6V4h6v2"/></svg>';
+  tbody.innerHTML = _kvData.map((v, i) => `<tr>
+    <td style="text-align:center;color:var(--teks-muted)">${i + 1}</td>
+    <td style="font-weight:600;text-align:center">${escHtml(v.user_nama)}</td>
+    <td style="text-align:center">${escHtml(v.bidang_nama)}</td>
+    <td style="text-align:center"><span class="kv-chip${v.aktif ? '' : ' off'}">${v.aktif ? 'Aktif' : 'Nonaktif'}</span></td>
+    <td style="text-align:center;white-space:nowrap">
+      <button class="btn btn-ghost btn-sm" data-tip="${v.aktif ? 'Nonaktifkan penugasan' : 'Aktifkan penugasan'}" onclick="toggleVerifikator(${v.id}, ${!v.aktif})">${svgPower}</button>
+      <button class="btn-hapus" data-tip="Cabut penugasan" onclick="hapusVerifikator(${v.id})">${svgTrash}</button>
+    </td></tr>`).join('');
+}
+
+let _kvPilih = new Set();
+
+function _kvRenderBidang() {
+  const q = (document.getElementById('kvBidangSearch')?.value || '').trim().toLowerCase();
+  const box = document.getElementById('kvBidangList');
+  if (!box) return;
+  const rows = _kvBidang.filter(b => !q || String(b.nama || '').toLowerCase().includes(q))
+    .map((b, i) => ({ b, i, on: _kvPilih.has(Number(b.id)) }))
+    .sort((x, y) => (y.on - x.on) || (x.i - y.i))   // yang terpilih naik ke atas
+    .map(x => x.b);
+  box.innerHTML = rows.length
+    ? rows.map(b => {
+        const on = _kvPilih.has(Number(b.id));
+        return `<label class="kv-opt${on ? ' on' : ''}"><input type="checkbox" class="chk kv-bidang-cb" value="${b.id}"${on ? ' checked' : ''}><span>${escHtml(b.nama)}</span></label>`;
+      }).join('')
+    : `<div class="kv-empty">${_kvBidang.length ? 'Unit kerja tidak ditemukan' : 'Belum ada data unit kerja'}</div>`;
+  const cnt = document.getElementById('kvBidangCount');
+  if (cnt) cnt.textContent = `${_kvPilih.size} dipilih`;
+}
+
+function openVerifikatorModal() {
+  _injectVerifStyles();
+  const sel = document.getElementById('kvUser');
+  sel.innerHTML = '<option value="">Pilih akun pengguna...</option>' +
+    _kvUsers.map(u => `<option value="${u.id}">${escHtml(u.nama)}${u.bidang_nama ? ' — ' + escHtml(u.bidang_nama) : ''}</option>`).join('');
+  sel.value = '';
+  if (typeof syncCustomSelect === 'function') syncCustomSelect('kvUser');
+  _kvPilih = new Set();
+  const cari = document.getElementById('kvBidangSearch');
+  if (cari) cari.value = '';
+  const box = document.getElementById('kvBidangList');
+  box.onchange = (e) => {
+    const cb = e.target.closest('input.kv-bidang-cb');
+    if (!cb) return;
+    const id = Number(cb.value);
+    if (cb.checked) _kvPilih.add(id); else _kvPilih.delete(id);
+    _kvRenderBidang();
+    box.scrollTop = 0;
+  };
+  _kvRenderBidang();
+  openModal('modalVerifikator');
+}
+
+async function saveVerifikator() {
+  const user_id = parseInt(document.getElementById('kvUser').value);
+  const bidang_ids = [..._kvPilih];
+  if (!user_id) { toast('Pilih akun pengguna terlebih dahulu', 'error'); return; }
+  if (!bidang_ids.length) { toast('Pilih minimal satu unit kerja', 'error'); return; }
+  const btn = document.getElementById('kvSaveBtn');
+  btn.disabled = true;
+  try {
+    const r = await fetch('/api/kinerja/verifikator', { method: 'POST', headers: authHeaders(), body: JSON.stringify({ user_id, bidang_ids }) });
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok) { toast(d.error || 'Gagal menyimpan', 'error'); return; }
+    toast('Penugasan verifikator disimpan');
+    closeModal('modalVerifikator');
+    _verifInfoLoaded = false;
+    await loadKelolaVerifikator();
+  } catch (err) { toast('Error: ' + err.message, 'error'); }
+  finally { btn.disabled = false; }
+}
+
+async function toggleVerifikator(id, aktif) {
+  const v = _kvData.find(x => x.id === id);
+  if (v) { v.aktif = aktif; renderKelolaVerifikator(); }
+  try {
+    const r = await fetch(`/api/kinerja/verifikator/${id}`, { method: 'PUT', headers: authHeaders(), body: JSON.stringify({ aktif }) });
+    if (!r.ok) { const d = await r.json().catch(() => ({})); toast(d.error || 'Gagal mengubah penugasan', 'error'); await loadKelolaVerifikator(); return; }
+    _verifInfoLoaded = false;
+    toast(aktif ? 'Penugasan diaktifkan' : 'Penugasan dinonaktifkan');
+  } catch (err) { toast('Error: ' + err.message, 'error'); await loadKelolaVerifikator(); }
+}
+
+async function hapusVerifikator(id) {
+  const v = _kvData.find(x => x.id === id);
+  const ok = await showConfirm({ title: 'Cabut Penugasan', msg: `Penugasan <b>${escHtml(v?.user_nama || '')}</b> pada <b>${escHtml(v?.bidang_nama || '')}</b> akan dicabut. Riwayat verifikasi yang sudah ada tetap tersimpan.`, okText: 'Ya, Cabut', icon: 'trash' });
+  if (!ok) return;
+  _kvData = _kvData.filter(x => x.id !== id);
+  renderKelolaVerifikator();
+  try {
+    const r = await fetch(`/api/kinerja/verifikator/${id}`, { method: 'DELETE', headers: authHeaders() });
+    if (!r.ok) { const d = await r.json().catch(() => ({})); toast(d.error || 'Gagal mencabut penugasan', 'error'); await loadKelolaVerifikator(); return; }
+    _verifInfoLoaded = false;
+    toast('Penugasan dicabut');
+  } catch (err) { toast('Error: ' + err.message, 'error'); await loadKelolaVerifikator(); }
 }

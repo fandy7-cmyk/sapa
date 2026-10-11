@@ -802,6 +802,7 @@ async function _submitAbsReminder(tipe) {
 async function loadAbsRekap() {
   const box = document.getElementById('absRekapBox');
   if (!box) return;
+  if (typeof _statSkeleton === 'function') box.innerHTML = _statSkeleton(6);
   const params = new URLSearchParams({ bulan: _absFilterBulan, tahun: _absFilterTahun });
   if (isAbsensiFull()) {
     if (_absFilterPegawai) params.set('user_id', _absFilterPegawai);

@@ -66,11 +66,11 @@
   </script>
   <!-- Preload file theme-engine.js juga, paralel dari awal - jangan
        nunggu parser sampe ke <script> di akhir body baru mulai narik. -->
-  <link rel="preload" as="script" href="js/theme-engine.js?v=1.2.11" />
+  <link rel="preload" as="script" href="js/theme-engine.js?v=1.2.12" />
   <script>history.replaceState(null, '', location.origin);</script>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>SAPA Perencanaan</title>
-  <meta name="app-version" content="1.2.11" />
+  <meta name="app-version" content="1.2.12" />
   <link rel="icon" type="image/png" href="/favicon.png" />
   <link rel="manifest" href="/manifest.json" />
   <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
@@ -81,7 +81,7 @@
   <meta name="apple-mobile-web-app-title" content="SAPA" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="css/styles.css?v=1.2.11" />
+  <link rel="stylesheet" href="css/styles.css?v=1.2.12" />
   <style>
     
     .filter-bar {
@@ -293,7 +293,7 @@
       <div class="topbar-constellation" id="topbarConstellation" aria-hidden="true">
         <canvas id="topbarConstellationCanvas"></canvas>
       </div>
-      <script src="js/topbar_constellation.js?v=1.2.11"></script>
+      <script src="js/topbar_constellation.js?v=1.2.12"></script>
 
       <div class="topbar-profile">
         <div class="topbar-user-info">
@@ -1136,7 +1136,7 @@
                 <th rowspan="2" style="position:static;text-align:center">Tujuan</th>
                 <th colspan="2" style="position:static;text-align:center">Pelaksanaan</th>
                 <th colspan="4" style="position:static;text-align:center">Biaya Perjalanan Dinas</th>
-                <th rowspan="2" style="position:static;text-align:center">Dipertanggungjawabkan</th>
+                <th rowspan="2" style="position:static;text-align:center">Perlu SPJ</th>
                 <th rowspan="2" style="position:static;text-align:center">Sumber Dana</th>
                 <th rowspan="2" style="position:static;text-align:center">Status</th>
                 <th rowspan="2" style="position:static;text-align:center">Aksi</th>
@@ -1150,7 +1150,7 @@
                 <th style="position:static;text-align:center">Jumlah</th>
               </tr>
             </thead>
-            <tbody id="pjTableBody"><tr class="empty-row"><td colspan="15">Memuat data...</td></tr></tbody>
+            <tbody id="pjTableBody"><tr class="empty-row"><td colspan="15"><span class="btn-spin" style="width:11px;height:11px;vertical-align:-1px;margin-right:6px"></span>Memuat data...</td></tr></tbody>
           </table>
         </div>
         <div id="pjPagination"></div>
@@ -1220,7 +1220,7 @@
                 <th rowspan="2" style="position:static;text-align:center">Tujuan</th>
                 <th colspan="2" style="position:static;text-align:center">Pelaksanaan</th>
                 <th colspan="4" style="position:static;text-align:center">Biaya Perjalanan Dinas</th>
-                <th rowspan="2" style="position:static;text-align:center">Dipertanggungjawabkan</th>
+                <th rowspan="2" style="position:static;text-align:center">Perlu SPJ</th>
                 <th rowspan="2" style="position:static;text-align:center">Sumber Dana</th>
                 <th rowspan="2" style="position:static;text-align:center">Status</th>
               </tr>
@@ -1307,6 +1307,9 @@
               <div class="select-wrap" style="min-width:180px;display:none">
                 <select id="kinerjaUnitFilter" data-searchable="1" data-search-placeholder="Cari unit kerja…" autocomplete="off" onchange="setKinUnitFilter('monev', this.value)"><option value="">Semua Unit Kerja</option></select>
               </div>
+              <div class="select-wrap" style="min-width:170px">
+                <select id="kinerjaStatusFilter" autocomplete="off" onchange="setKinStatusFilter('monev', this.value)"><option value="">Semua Status</option><option value="kosong">Belum Diisi</option><option value="draft">Draft</option><option value="menunggu">Menunggu Verifikasi</option><option value="perlu_perbaikan">Ditolak</option><option value="diajukan_kembali">Diajukan Kembali</option><option value="disetujui">Disetujui</option></select>
+              </div>
               <div class="search-wrap" style="min-width:220px;flex:1;max-width:320px">
                 <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-4.35-4.35"/></svg>
                 <input type="text" placeholder="Cari indikator…" id="kinerjaSearch" oninput="debounceInput('kinerjaSearch', () => filterKinerjaTable(), 180)" />
@@ -1343,6 +1346,7 @@
                 <th style="min-width:150px">Faktor Pendukung</th>
                 <th style="min-width:150px">Rencana Tindak Lanjut</th>
                 <th style="width:90px;text-align:center">Data Dukung</th>
+                <th style="min-width:140px;text-align:center">Status</th>
                 <th class="col-aksi-iku" style="width:70px;text-align:center">Aksi</th>
               </tr>
             </thead>
@@ -1378,6 +1382,9 @@
               
               <div class="select-wrap" style="min-width:180px;display:none">
                 <select id="ikkUnitFilter" data-searchable="1" data-search-placeholder="Cari unit kerja…" autocomplete="off" onchange="setKinUnitFilter('ikk', this.value)"><option value="">Semua Unit Kerja</option></select>
+              </div>
+              <div class="select-wrap" style="min-width:170px">
+                <select id="ikkStatusFilter" autocomplete="off" onchange="setKinStatusFilter('ikk', this.value)"><option value="">Semua Status</option><option value="kosong">Belum Diisi</option><option value="draft">Draft</option><option value="menunggu">Menunggu Verifikasi</option><option value="perlu_perbaikan">Ditolak</option><option value="diajukan_kembali">Diajukan Kembali</option><option value="disetujui">Disetujui</option></select>
               </div>
               <div class="search-wrap" style="min-width:220px;flex:1;max-width:320px">
                 <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-4.35-4.35"/></svg>
@@ -1415,6 +1422,7 @@
                 <th style="min-width:150px">Faktor Pendukung</th>
                 <th style="min-width:150px">Rencana Tindak Lanjut</th>
                 <th style="width:90px;text-align:center">Data Dukung</th>
+                <th style="min-width:140px;text-align:center">Status</th>
                 <th class="col-aksi-ikk" style="width:70px;text-align:center">Aksi</th>
               </tr>
             </thead>
@@ -1428,7 +1436,7 @@
 
       
       <div class="page" id="page-spm">
-        <div class="page-title" style="display:flex;align-items:center;gap:10px"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor" style="flex-shrink:0;opacity:.85"><path d="M12 2L4 5V11C4 16.5 7.5 21.26 12 22.5C16.5 21.26 20 16.5 20 11V5L12 2ZM16.2071 10.2071L11.4571 14.9571C11.0666 15.3476 10.4334 15.3476 10.0429 14.9571L7.79289 12.7071C7.40237 12.3166 7.40237 11.6834 7.79289 11.2929C8.18342 10.9024 8.81658 10.9024 9.20711 11.2929L10.75 12.8358L14.7929 8.79289C15.1834 8.40237 15.8166 8.40237 16.2071 8.79289C16.5976 9.18342 16.5976 9.81658 16.2071 10.2071Z"/></svg>Indikator SPM (Standar Pelayanan Minimal)</div>
+        <div class="page-title" style="display:flex;align-items:center;gap:10px"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;opacity:.85"><path d="M11 2v2"/><path d="M5 2v2"/><path d="M5 3H4a2 2 0 0 0-2 2v4a6 6 0 0 0 12 0V5a2 2 0 0 0-2-2h-1"/><path d="M8 15a6 6 0 0 0 12 0v-3"/><circle cx="20" cy="10" r="2.2" fill="currentColor"/></svg>Indikator SPM (Standar Pelayanan Minimal)</div>
         <div class="page-subtitle">Capaian Standar Pelayanan Minimal Perangkat Daerah</div>
 
         
@@ -1450,6 +1458,9 @@
               
               <div class="select-wrap" style="min-width:180px;display:none">
                 <select id="spmUnitFilter" data-searchable="1" data-search-placeholder="Cari unit kerja…" autocomplete="off" onchange="setKinUnitFilter('spm', this.value)"><option value="">Semua Unit Kerja</option></select>
+              </div>
+              <div class="select-wrap" style="min-width:170px">
+                <select id="spmStatusFilter" autocomplete="off" onchange="setKinStatusFilter('spm', this.value)"><option value="">Semua Status</option><option value="kosong">Belum Diisi</option><option value="draft">Draft</option><option value="menunggu">Menunggu Verifikasi</option><option value="perlu_perbaikan">Ditolak</option><option value="diajukan_kembali">Diajukan Kembali</option><option value="disetujui">Disetujui</option></select>
               </div>
               <div class="search-wrap" style="min-width:220px;flex:1;max-width:320px">
                 <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-4.35-4.35"/></svg>
@@ -1487,6 +1498,7 @@
                 <th style="min-width:150px">Faktor Pendukung</th>
                 <th style="min-width:150px">Rencana Tindak Lanjut</th>
                 <th style="width:90px;text-align:center">Data Dukung</th>
+                <th style="min-width:140px;text-align:center">Status</th>
                 <th class="col-aksi-spm" style="width:70px;text-align:center">Aksi</th>
               </tr>
             </thead>
@@ -1521,6 +1533,9 @@
               
               <div class="select-wrap" style="min-width:180px;display:none">
                 <select id="subkegUnitFilter" data-searchable="1" data-search-placeholder="Cari unit kerja…" autocomplete="off" onchange="setKinUnitFilter('subkeg', this.value)"><option value="">Semua Unit Kerja</option></select>
+              </div>
+              <div class="select-wrap" style="min-width:170px">
+                <select id="subkegStatusFilter" autocomplete="off" onchange="setKinStatusFilter('subkeg', this.value)"><option value="">Semua Status</option><option value="kosong">Belum Diisi</option><option value="draft">Draft</option><option value="menunggu">Menunggu Verifikasi</option><option value="perlu_perbaikan">Ditolak</option><option value="diajukan_kembali">Diajukan Kembali</option><option value="disetujui">Disetujui</option></select>
               </div>
               <div class="search-wrap" style="min-width:220px;flex:1;max-width:320px">
                 <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-4.35-4.35"/></svg>
@@ -1558,6 +1573,7 @@
                 <th style="min-width:150px">Faktor Pendukung</th>
                 <th style="min-width:150px">Rencana Tindak Lanjut</th>
                 <th style="width:90px;text-align:center">Data Dukung</th>
+                <th style="min-width:140px;text-align:center">Status</th>
                 <th class="col-aksi-subkeg" style="width:70px;text-align:center">Aksi</th>
               </tr>
             </thead>
@@ -1756,7 +1772,7 @@
 
         
         <div id="ktCardContainer" class="kinerja-table-wrap card" style="margin-top:14px;padding:0">
-          <div style="text-align:center;padding:32px;color:var(--teks-muted)">Memuat data…</div>
+          <div style="text-align:center;padding:32px;color:var(--teks-muted)"><span class="btn-spin" style="width:11px;height:11px;vertical-align:-1px;margin-right:6px"></span>Memuat data…</div>
         </div>
         <div id="ktPagination"></div>
       </div>
@@ -1768,6 +1784,8 @@
           Monitoring Pengisian Kinerja
         </div>
         <div class="page-subtitle">Pantau indikator mana yang belum diisi dan siapa yang menginput</div>
+
+        <div id="monSummaryCards"></div>
 
         
         <div class="toolbar">
@@ -1790,7 +1808,10 @@
             <select id="monStatusSelect" onchange="setMonFilterStatus(this.value)">
               <option value="">Semua Status</option>
               <option value="belum">Belum Input</option>
-              <option value="terisi">Terinput</option>
+              <option value="draft">Draft</option>
+              <option value="menunggu">Menunggu Verifikasi</option>
+              <option value="ditolak">Ditolak</option>
+              <option value="disetujui">Disetujui</option>
             </select>
           </div>
           
@@ -1812,8 +1833,6 @@
           </div>
         </div>
 
-        
-        <div id="monSummaryCards"></div>
         
         <div id="monPJCards"></div>
         
@@ -1845,6 +1864,76 @@
       
 
       
+      <div class="page" id="page-verifikasi-kinerja">
+        <div class="page-title" style="display:flex;align-items:center;gap:10px"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor" style="flex-shrink:0;opacity:.85"><path fill-rule="evenodd" clip-rule="evenodd" d="M3.85 8.62a4 4 0 0 1 4.78-4.77 4 4 0 0 1 6.74 0 4 4 0 0 1 4.78 4.78 4 4 0 0 1 0 6.74 4 4 0 0 1-4.77 4.78 4 4 0 0 1-6.75 0 4 4 0 0 1-4.78-4.77 4 4 0 0 1 0-6.76Z M16.2 10.2L11.5 14.9C11.1 15.3 10.4 15.3 10 14.9L7.8 12.7C7.4 12.3 7.4 11.7 7.8 11.3C8.2 10.9 8.8 10.9 9.2 11.3L10.75 12.85L14.8 8.8C15.2 8.4 15.8 8.4 16.2 8.8C16.6 9.2 16.6 9.8 16.2 10.2Z"/></svg>
+          Verifikasi Kinerja
+        </div>
+        <div class="page-subtitle">Periksa realisasi dan data dukung yang diajukan, lalu setujui atau tolak dengan alasan</div>
+
+        <div id="vfSummary"></div>
+
+        <div class="toolbar">
+          <div class="select-wrap" style="flex:1"><select id="vfTahun" autocomplete="off" onchange="setVfFilter('tahun', this.value)"></select></div>
+          <div class="select-wrap" style="flex:1"><select id="vfBulan" autocomplete="off" onchange="setVfFilter('bulan', this.value)"></select></div>
+          <div class="select-wrap" style="flex:1"><select id="vfJenis" autocomplete="off" onchange="setVfFilter('jenis', this.value)"></select></div>
+          <div class="select-wrap" style="flex:1"><select id="vfStatus" autocomplete="off" onchange="setVfFilter('status', this.value)"></select></div>
+          <div class="select-wrap" style="flex:1"><select id="vfUnit" autocomplete="off" onchange="setVfFilter('unit', this.value)"></select></div>
+          <div class="search-wrap" style="flex:1">
+            <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path stroke-linecap="round" d="m21 21-4.3-4.3"/></svg>
+            <input type="text" id="vfSearch" placeholder="Cari nama indikator…" oninput="debounceInput('vfSearch', () => setVfFilter('q', this.value), 180)"/>
+          </div>
+        </div>
+
+        <div class="kinerja-table-wrap card" style="padding:0">
+          <table class="kinerja-table vf-table" style="min-width:1200px">
+            <colgroup>
+              <col style="width:3.7%"><col style="width:26%"><col style="width:6.5%"><col style="width:8%"><col style="width:8%">
+              <col style="width:9%"><col style="width:9.5%"><col style="width:12%"><col style="width:10%"><col style="width:7.3%">
+            </colgroup>
+            <thead>
+              <tr>
+                <th style="text-align:center;position:sticky;left:0;z-index:3">No</th>
+                <th style="position:sticky;left:34px;z-index:3">Indikator Kinerja</th>
+                <th style="text-align:center">Satuan</th>
+                <th style="text-align:center">Target Tahunan</th>
+                <th style="text-align:center">Realisasi</th>
+                <th style="text-align:center">Capaian</th>
+                <th style="text-align:center">Data Dukung</th>
+                <th style="text-align:center">Penginput</th>
+                <th style="text-align:center">Status</th>
+                <th style="text-align:center">Aksi</th>
+              </tr>
+            </thead>
+            <tbody id="vfTableBody"></tbody>
+          </table>
+        </div>
+        <div id="vfPagination"></div>
+      </div>
+
+      <div class="page" id="page-kelola-verifikator">
+        <div class="page-title" style="display:flex;align-items:center;gap:10px"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;opacity:.85"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="m9 12 2 2 4-4"/></svg>
+          Kelola Verifikator
+        </div>
+        <div class="page-subtitle">Tetapkan akun verifikator dan unit kerja yang menjadi tanggung jawabnya. Satu verifikator dapat menangani beberapa unit kerja, dan satu unit kerja dapat memiliki lebih dari satu verifikator.</div>
+        <div class="toolbar">
+          <button class="btn btn-primary btn-sm" onclick="openVerifikatorModal()"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M12 5v14M5 12h14"/></svg>Tambah Verifikator</button>
+        </div>
+        <div class="kinerja-table-wrap card" style="padding:0">
+          <table class="kinerja-table" style="min-width:640px">
+            <thead>
+              <tr>
+                <th style="width:34px;text-align:center">No</th>
+                <th style="min-width:200px;text-align:center">Verifikator</th>
+                <th style="min-width:220px;text-align:center">Unit Kerja</th>
+                <th style="width:110px;text-align:center">Status</th>
+                <th style="width:120px;text-align:center">Aksi</th>
+              </tr>
+            </thead>
+            <tbody id="kvTableBody"></tbody>
+          </table>
+        </div>
+      </div>
+
       <div class="page" id="page-pengguna">
         <div class="page-title" style="display:flex;align-items:center;gap:10px"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor" style="flex-shrink:0;opacity:.85"><path d="M2 22C2 17.5817 5.58172 14 10 14C14.4183 14 18 17.5817 18 22H2ZM10 13C6.685 13 4 10.315 4 7C4 3.685 6.685 1 10 1C13.315 1 16 3.685 16 7C16 10.315 13.315 13 10 13ZM17.3628 15.2332C20.4482 16.0217 22.7679 18.7235 22.9836 22H20C20 19.3902 19.0002 17.0139 17.3628 15.2332ZM15.3401 12.9569C16.9728 11.4922 18 9.36607 18 7C18 5.58266 17.6314 4.25141 16.9849 3.09687C19.2753 3.55397 21 5.57465 21 8C21 10.7625 18.7625 13 16 13C15.7763 13 15.556 12.9853 15.3401 12.9569Z"/></svg>Pengguna</div>
         <div class="page-subtitle">Kelola akun pengguna sistem</div>
@@ -2065,9 +2154,9 @@
         <div class="page-title" style="display:flex;align-items:center;gap:10px"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor" style="flex-shrink:0;opacity:.85"><path d="M16 2L21 7V21.0082C21 21.556 20.5551 22 20.0066 22H3.9934C3.44476 22 3 21.5447 3 21.0082V2.9918C3 2.44405 3.44495 2 3.9934 2H16ZM11 7V17H13V7H11ZM15 11V17H17V11H15ZM7 13V17H9V13H7Z"/></svg>Laporan Kinerja</div>
         <div class="page-subtitle">Rekap capaian indikator kinerja per triwulan</div>
 
+        
         <div id="laporanKinerjaStats" class="stat-grid"></div>
 
-        
         <div class="toolbar lap-kinerja-toolbar" style="margin-bottom:1rem;gap:8px;flex-wrap:wrap;align-items:center">
           
           <div id="lapKinerjaRangeFilter" class="lap-kinerja-range"></div>
@@ -5061,6 +5150,95 @@
   </div>
 </div>
 
+<div class="modal-overlay" id="modalVerifDetail">
+  <div class="modal" style="max-width:640px">
+    <div class="modal-header">
+      <div class="modal-title-wrap">
+        <span class="modal-icon-badge modal-icon-badge--blue"><svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l3 2"/></svg></span>
+        <div>
+          <div class="modal-title" id="verifDetailTitle">Riwayat Verifikasi</div>
+          <div class="modal-subtitle" id="verifDetailSub"></div>
+        </div>
+      </div>
+      <button class="btn-close" onclick="closeModal('modalVerifDetail')"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg></button>
+    </div>
+    <div class="modal-body" id="verifDetailBody"></div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('modalVerifDetail')"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>Tutup</button>
+      <span id="verifDetailAksi" style="display:inline-flex;gap:8px"></span>
+    </div>
+  </div>
+</div>
+<div class="modal-overlay" id="modalVerifProses">
+  <div class="modal" style="max-width:500px">
+    <div class="modal-header">
+      <div class="modal-title-wrap">
+        <span class="modal-icon-badge"><svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/><path d="m9 12 2 2 4-4"/></svg></span>
+        <div>
+          <div class="modal-title">Verifikasi Pengajuan</div>
+          <div class="modal-subtitle" id="verifProsesSub">Pilih hasil verifikasi</div>
+        </div>
+      </div>
+      <button class="btn-close" onclick="closeModal('modalVerifProses')"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg></button>
+    </div>
+    <div class="modal-body" style="display:flex;flex-direction:column;gap:12px">
+      <input type="hidden" id="verifProsesId">
+      <div class="vp-opts">
+        <button type="button" class="vp-opt vp-ok" id="vpOptSetuju" onclick="vfProsesPilih('setujui')">
+          <span class="vp-ic"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></span>
+          <span class="vp-tx"><b>Setujui</b><small>Realisasi dan data dukung dinyatakan sesuai. Setelah disetujui, user tidak dapat mengubah data ini.</small></span>
+        </button>
+        <button type="button" class="vp-opt vp-no" id="vpOptTolak" onclick="vfProsesPilih('tolak')">
+          <span class="vp-ic"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></span>
+          <span class="vp-tx"><b>Tolak</b><small>Kembalikan ke penginput untuk diperbaiki. Alasan penolakan wajib diisi.</small></span>
+        </button>
+      </div>
+      <div id="verifProsesWarn" style="display:none;font-size:.76rem;color:#92400e;background:#fffbeb;border:1px solid #fde68a;border-radius:6px;padding:6px 10px">Data dukung belum ada, sebaiknya pengajuan ditolak untuk dilengkapi.</div>
+      <div class="field" id="verifProsesAlasanWrap" style="display:none">
+        <label>Alasan Penolakan <span style="color:var(--merah)">*</span></label>
+        <textarea id="verifTolakAlasan" class="input" rows="4" maxlength="1000" placeholder="Contoh: data dukung tidak sesuai dengan realisasi yang diinput…"></textarea>
+        <div id="verifTolakErr" style="display:none;font-size:.74rem;color:var(--merah);margin-top:4px">Alasan penolakan wajib diisi.</div>
+        <div class="field-hint">Alasan akan dilihat oleh penginput.</div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('modalVerifProses')"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"/></svg>Batal</button>
+      <button class="btn btn-primary" id="verifProsesBtn" onclick="submitVerifProses()" disabled><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="margin-right:5px;vertical-align:-2px"><path d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>Verifikasi</button>
+    </div>
+  </div>
+</div>
+<div class="modal-overlay" id="modalVerifikator">
+  <div class="modal" style="max-width:480px">
+    <div class="modal-header">
+      <div class="modal-title-wrap">
+        <span class="modal-icon-badge"><svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="m16 11 2 2 4-4"/></svg></span>
+        <div>
+          <div class="modal-title">Tambah Verifikator</div>
+          <div class="modal-subtitle">Pilih akun dan unit kerja yang diverifikasi</div>
+        </div>
+      </div>
+      <button class="btn-close" onclick="closeModal('modalVerifikator')"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg></button>
+    </div>
+    <div class="modal-body" style="display:flex;flex-direction:column;gap:14px">
+      <div class="field">
+        <label>Akun Pengguna <span style="color:var(--merah)">*</span></label>
+        <div class="select-wrap"><select id="kvUser" data-searchable="1"></select></div>
+      </div>
+      <div class="field">
+        <label>Unit Kerja yang Menjadi Tanggung Jawab <span style="color:var(--merah)">*</span></label>
+        <div style="display:flex;gap:8px;align-items:center;margin-bottom:8px">
+          <input type="text" id="kvBidangSearch" class="input" style="flex:1;min-width:0" placeholder="Cari unit kerja..." autocomplete="off" oninput="_kvRenderBidang()">
+        </div>
+        <div id="kvBidangList" style="max-height:240px;overflow:auto;border:1px solid #e2e8f0;border-radius:8px;padding:6px 10px"></div>
+        <div id="kvBidangCount" style="margin-top:6px;font-size:.72rem;color:var(--teks-muted)">0 dipilih</div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('modalVerifikator')"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"/></svg>Batal</button>
+      <button class="btn btn-primary" id="kvSaveBtn" onclick="saveVerifikator()"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>Simpan</button>
+    </div>
+  </div>
+</div>
 <div class="modal-overlay" id="modalDukung">
   <div class="modal" style="max-width:480px">
     <div class="modal-header">
@@ -5266,7 +5444,7 @@
 </div>
 
 
-<script src="js/periode_frontend.js?v=1.2.11"></script>
+<script src="js/periode_frontend.js?v=1.2.12"></script>
 <script>
 (function() {
   'use strict';
@@ -5409,27 +5587,27 @@
 })();
 </script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/quill/1.3.7/quill.min.js"></script>
-  <script src="js/monitoring_frontend.js?v=1.2.11"></script>
-  <script src="js/app.js?v=1.2.11"></script>
-<script src="js/dashboard.js?v=1.2.11"></script>
+  <script src="js/monitoring_frontend.js?v=1.2.12"></script>
+  <script src="js/app.js?v=1.2.12"></script>
+<script src="js/dashboard.js?v=1.2.12"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
-<script src="js/superlink.js?v=1.2.11"></script>
-<script src="js/pengumuman_frontend.js?v=1.2.11"></script>
-<script src="js/surat.js?v=1.2.11"></script>
-<script src="js/eplanning_frontend.js?v=1.2.11"></script>
-<script src="js/absensi_frontend.js?v=1.2.11"></script>
-<script src="js/perjadin_frontend.js?v=1.2.11"></script>
-<script src="js/lembur_frontend.js?v=1.2.11"></script>
-<script src="js/users_frontend.js?v=1.2.11"></script>
-<script src="js/kinerja.js?v=1.2.11"></script>
-<script src="js/walidata_frontend.js?v=1.2.11"></script>
-<script src="js/laporan.js?v=1.2.11"></script>
-<script src="js/struktur_frontend.js?v=1.2.11"></script>
-<script src="js/audit_frontend.js?v=1.2.11"></script>
-<script src="js/dokumen_publik_frontend.js?v=1.2.11"></script>
-<script src="js/profil_frontend.js?v=1.2.11"></script>
-<script src="js/tema_musiman_frontend.js?v=1.2.11"></script>
-<script src="js/theme-engine.js?v=1.2.11"></script>
+<script src="js/superlink.js?v=1.2.12"></script>
+<script src="js/pengumuman_frontend.js?v=1.2.12"></script>
+<script src="js/surat.js?v=1.2.12"></script>
+<script src="js/eplanning_frontend.js?v=1.2.12"></script>
+<script src="js/absensi_frontend.js?v=1.2.12"></script>
+<script src="js/perjadin_frontend.js?v=1.2.12"></script>
+<script src="js/lembur_frontend.js?v=1.2.12"></script>
+<script src="js/users_frontend.js?v=1.2.12"></script>
+<script src="js/kinerja.js?v=1.2.12"></script>
+<script src="js/walidata_frontend.js?v=1.2.12"></script>
+<script src="js/laporan.js?v=1.2.12"></script>
+<script src="js/struktur_frontend.js?v=1.2.12"></script>
+<script src="js/audit_frontend.js?v=1.2.12"></script>
+<script src="js/dokumen_publik_frontend.js?v=1.2.12"></script>
+<script src="js/profil_frontend.js?v=1.2.12"></script>
+<script src="js/tema_musiman_frontend.js?v=1.2.12"></script>
+<script src="js/theme-engine.js?v=1.2.12"></script>
 
 <script>
 (function () {

@@ -446,6 +446,7 @@ async function pjLoadTable(page = 1) {
   const tbody = _pjById('pjTableBody');
   if (!tbody) return;
   tbody.innerHTML = '<tr class="empty-row"><td colspan="15"><span class="btn-spin" style="width:11px;height:11px;vertical-align:-1px;margin-right:6px"></span>Memuat data...</td></tr>';
+  { const _kb = _pjById('pjKpiBox'); if (_kb && typeof _statSkeleton === 'function') _kb.innerHTML = _statSkeleton(4); }
   try {
     const r = await fetch(`/api/perjadin?${_pjParams({ page, limit: PJ_PAGE_SIZE })}`, { headers: authHeaders() });
     if (!r.ok) throw new Error(`HTTP ${r.status}`);
@@ -481,7 +482,7 @@ async function pjLoadTable(page = 1) {
         <td style="text-align:right;white-space:nowrap">${pjFmtNum(b.uang)}</td>
         <td style="text-align:right;white-space:nowrap">${pjFmtNum(b.inap)}</td>
         <td style="text-align:right;white-space:nowrap;font-weight:700">${pjFmtNum(b.total)}</td>
-        <td style="text-align:center">${_pjAdaAnggaran(r) ? '<span class="badge badge-hijau">Ya</span>' : '<span class="badge badge-abu">Tidak</span>'}</td>
+        <td style="text-align:center">${_pjAdaAnggaran(r) ? '<span class="badge badge-hijau">Ya</span>' : '<span class="badge badge-merah">Tidak</span>'}</td>
         <td style="text-align:center">${esc(r.sumber_dana || '-')}</td>
         <td style="text-align:center"><span class="badge ${PJ_STATUS_BADGE[st] || 'badge-abu'}"${r.catatan_admin ? ` data-tip="${esc(r.catatan_admin)}"` : ''}>${PJ_STATUS_LABEL[st] || esc(st)}</span></td>
         <td class="pj-aksi-col" style="text-align:center;white-space:nowrap">${admin ? `${aksiVerif}
@@ -493,6 +494,7 @@ async function pjLoadTable(page = 1) {
     renderPagination('pjPagination', d.total || 0, page, PJ_PAGE_SIZE, 'goPjPage');
   } catch (err) {
     console.error('[pjLoadTable]', err);
+    _pjRenderKpi({ total: 0, total_biaya: 0, menunggu: 0, terverifikasi: 0 });
     tbody.innerHTML = '<tr class="empty-row"><td colspan="15">Gagal memuat data</td></tr>';
   }
 }

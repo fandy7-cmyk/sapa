@@ -762,7 +762,7 @@ let _lapPjPage = 1;
 let _lapPjReady = false;
 const _LAP_PJ_PER_PAGE = 10;
 const _lapPjF = { tahun: '', bulan: '', jenis: '', status: '', pj: '', pegawai: '' };
-const _LAP_PJ_PJ = { ya: 'Dipertanggungjawabkan', tidak: 'Tidak Dipertanggungjawabkan' };
+const _LAP_PJ_PJ = { ya: 'Perlu SPJ', tidak: 'Tidak Perlu SPJ' };
 const _LAP_PJ_STATUS = { menunggu: ['Menunggu Persetujuan', 'badge-warning'], terverifikasi: ['Disetujui', 'badge-hijau'], ditolak: ['Ditolak', 'badge-merah'] };
 const _LAP_PJ_JENIS = ['Dalam Kota', 'Luar Kota Dalam Provinsi', 'Luar Provinsi'];
 
@@ -841,7 +841,7 @@ function _renderLapPjRows() {
       <td style="text-align:right;vertical-align:top;white-space:nowrap">${_lapPjNum(b.uang)}</td>
       <td style="text-align:right;vertical-align:top;white-space:nowrap">${_lapPjNum(b.inap)}</td>
       <td style="text-align:right;vertical-align:top;white-space:nowrap;font-weight:700">${_lapPjNum(b.total)}</td>
-      <td style="text-align:center;vertical-align:top">${_lapPjDipj(r) ? '<span class="badge badge-hijau">Ya</span>' : '<span class="badge badge-abu">Tidak</span>'}</td>
+      <td style="text-align:center;vertical-align:top">${_lapPjDipj(r) ? '<span class="badge badge-hijau">Ya</span>' : '<span class="badge badge-merah">Tidak</span>'}</td>
       <td style="text-align:center;vertical-align:top">${esc(r.sumber_dana || '-')}</td>
       <td style="text-align:center;vertical-align:top"><span class="badge ${st[1]}">${st[0]}</span></td>
     </tr>`;
@@ -889,7 +889,7 @@ async function _lapPjBuildFilters(full) {
   _lapPjFillSelect('lapPjTahun', '<option value="">Semua Tahun</option>' + o.tahun.map(t => `<option value="${t}">${t}</option>`).join(''), _lapPjF.tahun);
   _lapPjFillSelect('lapPjBulan', '<option value="">Semua Bulan</option>' + o.bulan.map(m => `<option value="${m}">${BULAN_NAMA[m - 1]}</option>`).join(''), _lapPjF.bulan);
   _lapPjFillSelect('lapPjJenis', '<option value="">Semua Jenis</option>' + _LAP_PJ_JENIS.filter(j => o.jenis.includes(j)).map(j => `<option value="${esc(j)}">${esc(j)}</option>`).join(''), _lapPjF.jenis);
-  _lapPjFillSelect('lapPjPj', '<option value="">Semua Pertanggungjawaban</option>' + Object.entries(_LAP_PJ_PJ).map(([v, l]) => `<option value="${v}">${l}</option>`).join(''), _lapPjF.pj);
+  _lapPjFillSelect('lapPjPj', '<option value="">Semua Status SPJ</option>' + Object.entries(_LAP_PJ_PJ).map(([v, l]) => `<option value="${v}">${l}</option>`).join(''), _lapPjF.pj);
   _lapPjFillSelect('lapPjStatus', '<option value="">Semua Status</option>' + ['menunggu', 'terverifikasi', 'ditolak'].filter(s => o.status.includes(s)).map(s => `<option value="${s}">${_LAP_PJ_STATUS[s][0]}</option>`).join(''), _lapPjF.status);
 
   if (full) {
@@ -1004,6 +1004,9 @@ async function downloadLaporanPerjadinPDF(btnEl) {
       const transportasi = b.transport + b.taksi;
       tot.transport += transportasi; tot.uang += b.uang; tot.inap += b.inap; tot.total += b.total;
       const st = (_LAP_PJ_STATUS[r.status_verifikasi] || [r.status_verifikasi || '-'])[0];
+      // Pill berwarna (sama dengan badge-hijau / badge-merah / badge-warning / badge-abu di sistem); inline karena dokumen PDF tidak memuat styles.css
+      const pill = (txt, bg, fg) => `<span style="background:${bg};color:${fg};padding:1px 6px;border-radius:99px;font-size:7.5px;font-weight:700;white-space:nowrap">${txt}</span>`;
+      const pillSt = { menunggu: ['#fef3c7', '#92400e'], terverifikasi: ['#d1fae5', '#065f46'], ditolak: ['#fee2e2', '#991b1b'] }[r.status_verifikasi] || ['#f1f5f9', '#0f172a'];
       return `<tr>
         <td style="${td};text-align:center">${i + 1}</td>
         <td style="${td};text-align:left"><div>${esc(r.pelaksana_nama || '')}</div>${r.pelaksana_nip ? `<div style="font-size:6.5px">NIP. ${esc(r.pelaksana_nip)}</div>` : ''}</td>
@@ -1016,9 +1019,9 @@ async function downloadLaporanPerjadinPDF(btnEl) {
         <td style="${td};text-align:right">${_lapPjNum(b.uang)}</td>
         <td style="${td};text-align:right">${_lapPjNum(b.inap)}</td>
         <td style="${td};text-align:right;font-weight:700">${_lapPjNum(b.total)}</td>
-        <td style="${td};text-align:center">${_lapPjDipj(r) ? 'Ya' : 'Tidak'}</td>
+        <td style="${td};text-align:center">${_lapPjDipj(r) ? pill('Ya', '#d1fae5', '#065f46') : pill('Tidak', '#fee2e2', '#991b1b')}</td>
         <td style="${td};text-align:center">${esc(r.sumber_dana || '-')}</td>
-        <td style="${td};text-align:center">${esc(st)}</td>
+        <td style="${td};text-align:center">${pill(esc(st), pillSt[0], pillSt[1])}</td>
       </tr>`;
     }).join('');
 
@@ -1027,7 +1030,7 @@ async function downloadLaporanPerjadinPDF(btnEl) {
       ${_kopSuratHtml()}
       <div style="text-align:center;margin:14px 0 12px">
         <div style="font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.5px">Laporan Perjalanan Dinas</div>
-        <div style="font-size:11px;color:#1e293b;margin-top:4px">Periode : ${esc(periodeLabel)}${full ? ` &nbsp;|&nbsp; Pegawai : ${esc(pegawaiLabel)}` : ''}${jenisLabel ? ` &nbsp;|&nbsp; Jenis : ${esc(jenisLabel)}` : ''}${statusLabel ? ` &nbsp;|&nbsp; Status : ${esc(statusLabel)}` : ''}${pjLabel ? ` &nbsp;|&nbsp; Pertanggungjawaban : ${esc(pjLabel)}` : ''}</div>
+        <div style="font-size:11px;color:#1e293b;margin-top:4px">Periode : ${esc(periodeLabel)}${full ? ` &nbsp;|&nbsp; Pegawai : ${esc(pegawaiLabel)}` : ''}${jenisLabel ? ` &nbsp;|&nbsp; Jenis : ${esc(jenisLabel)}` : ''}${statusLabel ? ` &nbsp;|&nbsp; Status : ${esc(statusLabel)}` : ''}${pjLabel ? ` &nbsp;|&nbsp; SPJ : ${esc(pjLabel)}` : ''}</div>
       </div>
       <table>
         <thead>
@@ -1039,7 +1042,7 @@ async function downloadLaporanPerjadinPDF(btnEl) {
             <th rowspan="2" style="${th};width:65px">TUJUAN</th>
             <th colspan="2" style="${th}">PELAKSANAAN</th>
             <th colspan="4" style="${th}">BIAYA PERJALANAN DINAS</th>
-            <th rowspan="2" style="${th};width:72px">DIPERTANGGUNG-JAWABKAN</th>
+            <th rowspan="2" style="${th};width:52px">PERLU SPJ</th>
             <th rowspan="2" style="${th};width:55px">SUMBER DANA</th>
             <th rowspan="2" style="${th};width:52px">STATUS</th>
           </tr>
@@ -1806,11 +1809,23 @@ function _lapMdToHtml(md, flush) {
   return html;
 }
 
+// Label status verifikasi di sel realisasi (hanya tampilan layar; PDF/unduhan tetap "-").
+function _lapVerifPill(st) {
+  const m = (typeof VERIF_STATUS_META !== 'undefined' && VERIF_STATUS_META[st]) || null;
+  if (!m) return '-';
+  const pendek = { draft: 'Draft', menunggu: 'Menunggu', diajukan_kembali: 'Menunggu', perlu_perbaikan: 'Ditolak' }[st] || m.label;
+  return `<span data-tip="${m.label}: belum masuk laporan" style="display:inline-block;font-size:.6rem;font-weight:700;padding:1px 7px;border-radius:999px;background:${m.bg};color:${m.fg};border:1px solid ${m.bd};white-space:nowrap;cursor:default">${pendek}</span>`;
+}
+
 function _lapKinerjaRowHtml(r, no, bulanTampil) {
   const bulanCells = bulanTampil.map(c => {
-    const v = c.type === 'tw' ? r.realisasiPerBulan[c.lastBulan] : r.realisasiPerBulan[c.bulan];
+    const bln = c.type === 'tw' ? c.lastBulan : c.bulan;
+    const v = r.realisasiPerBulan[bln];
     const isEmpty = v === null || v === undefined || v === '';
-    return `<td style="text-align:center;font-size:.75rem;color:${isEmpty ? '#000000' : '#1e293b'}">${isEmpty ? '-' : v}</td>`;
+    // Isian yang belum disetujui verifikator tidak ditampilkan angkanya; diganti label status.
+    const stv = r.statusPerBulan?.[bln];
+    const isi = !isEmpty ? v : (stv && stv !== 'disetujui' ? _lapVerifPill(stv) : '-');
+    return `<td style="text-align:center;font-size:.75rem;color:${isEmpty ? '#000000' : '#1e293b'}">${isi}</td>`;
   }).join('');
   const sdPelaporan = r._realisasiSd ?? '-';
   const capaian     = r._capaian !== null ? r._capaian + '%' : '-';
@@ -2344,15 +2359,22 @@ async function loadLaporanKinerja() {
             rencanaTlPerBulan:     {},
             targetPerBulan:        {},
             dataDukungPerBulan:    {},
+            statusPerBulan:        {},
           };
         }
+        // Sistem verifikasi: hanya realisasi berstatus "disetujui" yang masuk laporan. Isian yang masih draft /
+        // menunggu / perlu perbaikan dikosongkan di sini, jadi tidak ikut terhitung di Realisasi s.d TW, Capaian,
+        // maupun semua unduhan (PDF, Pengukuran Kinerja, Monev). Statusnya dicatat di statusPerBulan untuk label di layar.
+        const _stv   = _verifStatusRekap(row);
+        const _resmi = _stv === null || _stv === 'disetujui';
+        allBulanData[key].statusPerBulan[b]      = _stv;
         allBulanData[key].targetPerBulan[b]      = { t: row.target_tahun, d: row.target_display };
-        allBulanData[key].realisasiPerBulan[b]   = row.realisasi_display ?? row.realisasi;
-        allBulanData[key].fpenghambatPerBulan[b]  = row.f_penghambat;
-        allBulanData[key].solusiPerBulan[b]        = row.solusi;
-        allBulanData[key].fpendukungPerBulan[b]   = row.f_pendukung;
-        allBulanData[key].rencanaTlPerBulan[b]    = row.rencana_tl;
-        allBulanData[key].dataDukungPerBulan[b]   = row.data_dukung_url;
+        allBulanData[key].realisasiPerBulan[b]   = _resmi ? (row.realisasi_display ?? row.realisasi) : null;
+        allBulanData[key].fpenghambatPerBulan[b]  = _resmi ? row.f_penghambat : null;
+        allBulanData[key].solusiPerBulan[b]        = _resmi ? row.solusi : null;
+        allBulanData[key].fpendukungPerBulan[b]   = _resmi ? row.f_pendukung : null;
+        allBulanData[key].rencanaTlPerBulan[b]    = _resmi ? row.rencana_tl : null;
+        allBulanData[key].dataDukungPerBulan[b]   = _resmi ? row.data_dukung_url : null;
       });
     });
   });
@@ -2431,6 +2453,13 @@ async function loadLaporanKinerja() {
     if (_tg) { row.target_tahun = _tg.t; row.target_display = _tg.d; }
 
     row._realisasiSd = lastVal;
+    // Status verifikasi di bulan pelaporan (dipakai kartu ringkasan) + jumlah bulan dalam rentang yang belum disetujui.
+    row._statusPeriode = row.statusPerBulan?.[bulanSampai] ?? null;
+    row._verifTertunda = 0;
+    for (let b = bulanDari; b <= bulanSampai; b++) {
+      const st = row.statusPerBulan?.[b];
+      if (st && st !== 'disetujui') row._verifTertunda++;
+    }
     row._fpenghambat  = lastFpenghambat;
     row._solusi       = lastSolusi;
     row._fpendukung   = lastFpendukung;
@@ -2841,7 +2870,7 @@ function _lapKpiCard({ icon, label, value, sub = null, color = 'teal', valColor 
   return `<div class="dm-kpi" style="--c:${c}"><div class="dm-kpi-in">
     <div class="dm-kpi-top"><span class="dm-kpi-ic">${icon}</span><span class="dm-kpi-lb">${esc(label)}</span></div>
     <div class="dm-kpi-val"${v}>${esc(String(value))}</div>
-    ${sub ? `<div class="dm-kpi-foot"><div class="dm-kpi-sub">${esc(sub)}</div></div>` : ''}${extra}
+    ${extra}
   </div></div>`;
 }
 function _statCard(label, value, color, iconPath) {
@@ -2879,26 +2908,54 @@ async function _fetchKepalaDinas() {
   } catch { return null; }
 }
 
-// Statcard Laporan Kinerja: dihitung dari baris yang sedang tampil (ikut filter Unit Kerja & pencarian)
+// Statcard Laporan Kinerja: isi & gaya sama dengan card di Dashboard Kinerja (2 baris: capaian + status verifikasi).
+// Dihitung dari baris yang sedang tampil (ikut filter Unit Kerja & pencarian). Hanya "disetujui" yang masuk angka laporan.
 function _lapRenderKinerjaStats(rows) {
   const el = document.getElementById('laporanKinerjaStats');
   if (!el) return;
-  const total      = rows.length;
-  const sudahDiisi = rows.filter(r => r._realisasiSd !== null && r._realisasiSd !== undefined && r._realisasiSd !== '').length;
-  const belumDiisi = total - sudahDiisi;
-  // Tiga kartu pertama warna tetap (sama dengan kartu KPI di Monitoring Pengisian);
-  // kartu Persentase mengikuti warna progress: >=80% hijau, >=50% oranye, di bawahnya merah
-  const pct  = total ? Math.round(sudahDiisi / total * 100) : 0;
-  const tone = pct >= 80 ? '#16a34a' : pct >= 50 ? '#d97706' : '#dc2626';
-  el.innerHTML =
-    _statCard('Total Indikator', total, 'var(--hijau)',
-      '<path d="M3 3v18h18"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/>') +
-    _statCard('Sudah Diisi', sudahDiisi, '#16a34a',
-      '<path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>') +
-    _statCard('Belum Diisi', belumDiisi, '#d97706',
-      '<circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>') +
-    _statCard('Persentase Pengisian', pct + '%', tone,
-      '<polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/>');
+  if (typeof _dmStyle === 'function') _dmStyle();
+  el.classList.remove('stat-grid');   // baris card memakai grid .dm-kpis (sama seperti Dashboard)
+  const total = rows.length;
+  const D = (typeof _DM_PAL !== 'undefined') ? _DM_PAL : { ok: '#16a34a', warn: '#d97706', bad: '#dc2626', info: '#2563eb', teal: '#047D78', abu: '#64748b' };
+  const nf  = v => Number(v || 0).toLocaleString('id-ID');
+  const pc  = (a, b) => b ? Math.round(a * 100 / b) : 0;
+
+  // Periode pelaporan
+  const dt = window._laporanKinerjaData || {};
+  const periode = dt.bulanSampai ? `s.d. TW ${_LAP_ROMAWI[_lapTwOf(dt.bulanSampai) - 1]} ${dt.tahun || ''}`.trim() : '';
+
+  // Capaian (hanya dari realisasi yang sudah disetujui)
+  const cap = r => parseFloat(r._capaian);
+  const withCap = rows.filter(r => r._capaian !== null && r._capaian !== undefined && !isNaN(cap(r)));
+  const rata = withCap.length ? withCap.reduce((a, r) => a + Math.min(cap(r), 100), 0) / withCap.length : null;
+  const onTrack = withCap.filter(r => cap(r) >= 75).length;
+  const perluTindakan = withCap.filter(r => cap(r) < 75).length;
+
+  // Status verifikasi di bulan pelaporan
+  const kel = st => st === 'disetujui' ? 'disetujui'
+    : (st === 'menunggu' || st === 'diajukan_kembali') ? 'menunggu'
+    : st === 'perlu_perbaikan' ? 'perbaikan'
+    : st ? 'draft' : 'kosong';
+  const n = { disetujui: 0, menunggu: 0, perbaikan: 0, draft: 0, kosong: 0 };
+  rows.forEach(r => { n[kel(r._statusPeriode)]++; });
+
+  const rataColor = rata == null ? '#94a3b8' : (typeof _kwCapaianColor === 'function' ? _kwCapaianColor(rata) : D.teal);
+  const rataLabel = rata == null ? 'Belum ada capaian' : (typeof _kwCapaianLabel === 'function' ? _kwCapaianLabel(rata) : '');
+
+  el.innerHTML = `<div class="dm-kpis">
+    ${_dmKpi({ label: 'Total Indikator', val: nf(total), sub: periode, color: D.teal, icon: 'target' })}
+    ${_dmKpi({ label: 'Disetujui', val: nf(n.disetujui), sub: `${pc(n.disetujui, total)}% dari total indikator`, color: D.ok, icon: 'check' })}
+    ${_dmKpi({ label: 'Rata-rata Capaian', val: rata == null ? '-' : `${Math.round(rata)}%`, sub: rataLabel, color: rataColor, icon: 'trend' })}
+    ${_dmKpi({ label: 'On Track (≥75%)', val: nf(onTrack), sub: withCap.length ? `dari ${withCap.length} terisi` : null, color: D.ok, icon: 'check' })}
+  </div>
+  <div class="dm-kpis">
+    ${_dmKpi({ label: 'Perlu Tindakan', val: nf(perluTindakan), sub: 'Capaian di bawah 75%', color: perluTindakan ? D.warn : D.ok, icon: 'warn' })}
+    ${_dmKpi({ label: 'Menunggu Verifikasi', val: nf(n.menunggu), sub: n.menunggu ? 'Menunggu diperiksa verifikator' : 'Tidak ada antrean', color: D.warn, icon: 'clock' })}
+    ${_dmKpi({ label: 'Ditolak', val: nf(n.perbaikan), sub: n.perbaikan ? 'Perlu diperbaiki penginput' : 'Tidak ada yang ditolak', color: D.bad, icon: 'warn' })}
+    ${_dmKpi({ label: 'Draft', val: nf(n.draft), sub: n.kosong ? `${nf(n.kosong)} belum diisi` : (n.draft ? 'Belum diajukan' : 'Tidak ada draft'), color: D.abu, icon: 'doc' })}
+  </div>`;
+  const note = document.getElementById('laporanKinerjaVerifNote');
+  if (note) note.style.display = total ? '' : 'none';
 }
 
 function _filterLaporanKinerjaByBidang() {
@@ -3691,7 +3748,7 @@ async function loadLaporanWalidata() {
   document.getElementById('wdlUnitWrap').style.display = admin ? '' : 'none';
   document.getElementById('wdlThTotal').style.display = admin ? '' : 'none';
   const sub = document.getElementById('wdlSub');
-  if (sub) sub.textContent = admin ? 'Rekap realisasi indikator Walidata per tahun dan unit kerja' : 'Rekap realisasi indikator Walidata unit kerja Anda';
+  if (sub) sub.textContent = admin ? 'Rekap data indikator Walidata per tahun dan unit kerja' : 'Rekap data indikator Walidata unit kerja Anda';
   _wdlIsiTahun();
   _wdlIsiUnit();
   _wdl.page = 1;
@@ -3819,7 +3876,7 @@ async function wdlUnduhPDF(btnEl) {
     const admin = !!_wdl.data.me?.admin;
     const unitLabel = _wdl.unit ? (document.getElementById('wdlUnit')?.selectedOptions?.[0]?.textContent || '') : '';
     const statusLabel = _wdl.status === 'terisi' ? 'Terinput' : _wdl.status === 'belum' ? 'Belum Input' : '';
-    const kepalaDinas = await _fetchKepalaDinas();
+    const kepalaDinas = admin ? await _fetchKepalaDinas() : null;
     const nowStrTtd = new Date().toLocaleDateString('id-ID', { day: '2-digit', month: 'long', year: 'numeric' });
 
     const td = 'padding:4px 6px;border:1px solid #000;font-size:9px;vertical-align:top';
@@ -3834,18 +3891,17 @@ async function wdlUnduhPDF(btnEl) {
         <td rowspan="${k}" style="${td};white-space:nowrap">${esc(r.kode_ssd)}</td>
         <td rowspan="${k}" style="${td}">${esc(r.uraian)}</td>
         <td rowspan="${k}" style="${td};text-align:center">${esc(r.satuan || '-')}</td>` : ''}
-        <td style="${td};text-align:center">${esc(x.nama)}</td>
+        ${admin ? `<td style="${td};text-align:center">${esc(x.nama)}</td>` : ''}
         <td style="${td};text-align:center">${nilai(x)}</td>
         ${admin && j === 0 ? `<td rowspan="${k}" style="${td};text-align:center;font-weight:700">${total(r)}</td>` : ''}
       </tr>`).join('');
     }).join('');
 
-    const flat = groups.flatMap(g => g.det), terisi = flat.filter(x => x.nilai !== null).length;
     const filterTxt = [`Tahun : ${_wdl.tahun}`, unitLabel && `Unit Kerja : ${esc(unitLabel)}`, statusLabel && `Status : ${statusLabel}`].filter(Boolean).join(' &nbsp;|&nbsp; ');
     const bodyHtml = `
       ${_kopSuratHtml()}
       <div style="text-align:center;margin:14px 0 12px">
-        <div style="font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.5px">Laporan Realisasi Walidata (Data SSD)</div>
+        <div style="font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.5px">Laporan Data Walidata (Data SSD)</div>
         <div style="font-size:11px;color:#1e293b;margin-top:4px">${filterTxt}</div>
       </div>
       <table style="border-collapse:collapse;border-spacing:0;width:100%;table-layout:auto">
@@ -3855,15 +3911,14 @@ async function wdlUnduhPDF(btnEl) {
             <th style="${th};width:70px">KODE SSD</th>
             <th style="${th};min-width:200px">URAIAN</th>
             <th style="${th};width:60px">SATUAN</th>
-            <th style="${th};min-width:150px">UNIT KERJA</th>
-            <th style="${th};width:90px">REALISASI</th>
-            ${admin ? `<th style="${th};width:90px">CAPAIAN</th>` : ''}
+            ${admin ? `<th style="${th};min-width:150px">UNIT KERJA</th>` : ''}
+            <th style="${th};width:90px">JUMLAH</th>
+            ${admin ? `<th style="${th};width:90px">TOTAL</th>` : ''}
           </tr>
         </thead>
         <tbody>${bodyRows}</tbody>
       </table>
-      <div style="font-size:9px;color:#1e293b;margin-top:8px">Jumlah indikator: ${groups.length} &nbsp;|&nbsp; Isian terinput: ${terisi} dari ${flat.length}${admin ? '. Capaian dihitung dari unit kerja yang sudah menginput; yang belum input tidak dihitung sebagai nol.' : ''}</div>
-      ${_ttdHtml(kepalaDinas, nowStrTtd, 24, 8)}`;
+      ${admin ? _ttdHtml(kepalaDinas, nowStrTtd, 24, 8) : ''}`;
 
     _bukaPreviewPDF(bodyHtml, `Laporan Walidata ${_wdl.tahun}`, 'landscape');
   } catch (err) {
@@ -3874,7 +3929,7 @@ async function wdlUnduhPDF(btnEl) {
   }
 }
 
-// ── Download PDF per rentang tahun: satu kolom Realisasi (dan Total untuk admin) per tahun ──
+// ── Download PDF per rentang tahun: satu kolom Jumlah (dan Total untuk admin) per tahun ──
 // Data tiap tahun diambil dari GET /data?tahun=YYYY (aturan akses sama), lalu digabung per indikator x unit kerja.
 async function wdlUnduhPDFRentang(btnEl) {
   const MAKS_TAHUN = 8;
@@ -3908,7 +3963,7 @@ async function wdlUnduhPDFRentang(btnEl) {
     const admin = !!_wdl.data.me?.admin;
     const unitLabel = _wdl.unit ? (document.getElementById('wdlUnit')?.selectedOptions?.[0]?.textContent || '') : '';
     const statusLabel = _wdl.status === 'terisi' ? 'Terinput' : _wdl.status === 'belum' ? 'Belum Input' : '';
-    const kepalaDinas = await _fetchKepalaDinas();
+    const kepalaDinas = admin ? await _fetchKepalaDinas() : null;
     const nowStrTtd = new Date().toLocaleDateString('id-ID', { day: '2-digit', month: 'long', year: 'numeric' });
 
     const td = 'padding:4px 5px;border:1px solid #000;font-size:9px;vertical-align:top;word-break:break-word';
@@ -3926,14 +3981,12 @@ async function wdlUnduhPDFRentang(btnEl) {
         <td rowspan="${k}" style="${td};white-space:nowrap">${esc(r.kode_ssd)}</td>
         <td rowspan="${k}" style="${td}">${esc(r.uraian)}</td>
         <td rowspan="${k}" style="${td};text-align:center">${esc(r.satuan || '-')}</td>` : ''}
-        <td style="${td};text-align:center">${esc(u.nama)}</td>
+        ${admin ? `<td style="${td};text-align:center">${esc(u.nama)}</td>` : ''}
         ${tahunList.map(t => `<td style="${td};text-align:center;font-size:${fs}px">${nilai(u.nilai[t])}</td>`).join('')}
         ${admin && j === 0 ? tahunList.map(t => `<td rowspan="${k}" style="${td};text-align:center;font-weight:700;font-size:${fs}px">${total(r, t)}</td>`).join('') : ''}
       </tr>`).join('');
     }).join('');
 
-    let isian = 0, terisi = 0;
-    for (const g of groups) for (const u of g.det) for (const t of tahunList) { isian++; if ((u.nilai[t] ?? null) !== null) terisi++; }
     const rentangTxt = `${tahunList[0]} s/d ${tahunList[n - 1]}`;
     const filterTxt = [`Tahun : ${rentangTxt}`, unitLabel && `Unit Kerja : ${esc(unitLabel)}`, statusLabel && `Status : ${statusLabel}`].filter(Boolean).join(' &nbsp;|&nbsp; ');
     const rs = 2;
@@ -3942,26 +3995,25 @@ async function wdlUnduhPDFRentang(btnEl) {
     const bodyHtml = `
       ${_kopSuratHtml()}
       <div style="text-align:center;margin:14px 0 12px">
-        <div style="font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.5px">Laporan Realisasi Walidata (Data SSD)</div>
+        <div style="font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.5px">Laporan Data Walidata (Data SSD)</div>
         <div style="font-size:11px;color:#1e293b;margin-top:4px">${filterTxt}</div>
       </div>
       <table style="border-collapse:collapse;border-spacing:0;width:100%;table-layout:fixed">
         <colgroup>
-          <col style="width:44px"><col style="width:62px"><col><col style="width:48px"><col style="width:105px">
+          <col style="width:44px"><col style="width:62px"><col><col style="width:48px">${admin ? '<col style="width:105px">' : ''}
           ${tahunList.map(() => `<col style="width:${yw}px">`).join('')}${admin ? tahunList.map(() => `<col style="width:${yw}px">`).join('') : ''}
         </colgroup>
         <thead>
           <tr style="background:#0d9488">
-            ${fixTh('NO')}${fixTh('KODE SSD')}${fixTh('URAIAN')}${fixTh('SATUAN')}${fixTh('UNIT KERJA')}
-            <th colspan="${n}" style="${th}">REALISASI</th>
-            ${admin ? `<th colspan="${n}" style="${th}">CAPAIAN</th>` : ''}
+            ${fixTh('NO')}${fixTh('KODE SSD')}${fixTh('URAIAN')}${fixTh('SATUAN')}${admin ? fixTh('UNIT KERJA') : ''}
+            <th colspan="${n}" style="${th}">JUMLAH</th>
+            ${admin ? `<th colspan="${n}" style="${th}">TOTAL</th>` : ''}
           </tr>
           <tr style="background:#0d9488">${yearTh()}${admin ? yearTh() : ''}</tr>
         </thead>
         <tbody>${bodyRows}</tbody>
       </table>
-      <div style="font-size:9px;color:#1e293b;margin-top:8px">Jumlah indikator: ${groups.length} &nbsp;|&nbsp; Isian terinput: ${terisi} dari ${isian}${admin ? '. Capaian dihitung dari unit kerja yang sudah menginput; yang belum input tidak dihitung sebagai nol.' : ''}</div>
-      ${_ttdHtml(kepalaDinas, nowStrTtd, 24, 8)}`;
+      ${admin ? _ttdHtml(kepalaDinas, nowStrTtd, 24, 8) : ''}`;
 
     _bukaPreviewPDF(bodyHtml, `Laporan Walidata ${tahunList[0]}-${tahunList[n - 1]}`, 'landscape');
   } catch (err) {

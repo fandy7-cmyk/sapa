@@ -2280,7 +2280,7 @@ function _epMakeRekeningCombobox(inputId) {
     const q = input.value.trim();
     delete input.dataset.kode; 
     if (q.length === 1) { renderState('Ketik minimal 2 huruf…'); return; }
-    renderState(q.length === 0 ? 'Memuat rekening yang sering dipakai…' : 'Mencari…');
+    renderState(q.length === 0 ? '<span class="btn-spin" style="width:11px;height:11px;vertical-align:-1px;margin-right:6px"></span>Memuat rekening yang sering dipakai…' : '<span class="btn-spin" style="width:11px;height:11px;vertical-align:-1px;margin-right:6px"></span>Mencari…');
     // Kirim kategori Objek Belanja yang udah dipilih ke backend, biar query-nya disaring
     // langsung ke rekening yang cocok sama kategori itu - bukan cuma nyaring top-30 rekening
     // paling sering dipake se-instansi di client (kategori jarang dipake bisa keluar dari
@@ -2410,7 +2410,7 @@ function _epMakeRekeningMultiCombobox(inputId, wrapId) {
     const input = document.getElementById(inputId);
     const q = input.value.trim();
     if (q.length === 1) { renderState('Ketik minimal 2 huruf…'); return; }
-    renderState(q.length === 0 ? 'Memuat rekening yang sering dipakai…' : 'Mencari…');
+    renderState(q.length === 0 ? '<span class="btn-spin" style="width:11px;height:11px;vertical-align:-1px;margin-right:6px"></span>Memuat rekening yang sering dipakai…' : '<span class="btn-spin" style="width:11px;height:11px;vertical-align:-1px;margin-right:6px"></span>Mencari…');
     try {
       const r = await fetch(`/api/eplanning/rekening?q=${encodeURIComponent(q)}`, { headers: authHeaders() });
       const d = await r.json();
@@ -3888,7 +3888,7 @@ function _epMakeStandarHargaCombobox(inputId, kategoriSelectId, opts = {}) {
       : (typeof _epTahunAktif !== 'undefined' ? _epTahunAktif : '');
     if (opts.onTyping) opts.onTyping();
     if (q.length === 1) { renderState('Ketik minimal 2 huruf…'); return; }
-    renderState(q.length === 0 ? 'Memuat komponen…' : 'Mencari…');
+    renderState(q.length === 0 ? '<span class="btn-spin" style="width:11px;height:11px;vertical-align:-1px;margin-right:6px"></span>Memuat komponen…' : '<span class="btn-spin" style="width:11px;height:11px;vertical-align:-1px;margin-right:6px"></span>Mencari…');
     // Kode Rekening yang lagi kepilih di form (kalau ada) dikirim biar komponen yang relevan
     // sama rekening itu diprioritasin naik ke atas hasil pencarian.
     const kodeRekening = _epRincKodeRekeningActive || document.getElementById('epRincKodeRekening')?.dataset.kode || '';
@@ -4128,7 +4128,7 @@ function epOpenRekeningPenyusun() {
   const listEl = document.getElementById('epRekPenyusunList');
   listEl.innerHTML = kodeList.map(kode => `
     <div class="csel-option" style="border:1px solid var(--border,#e2e8f0);border-radius:8px;margin-bottom:6px;padding:10px" onclick="epPickRekeningPenyusun('${esc(kode)}', this)">
-      <b>${esc(kode)}</b><br><span style="font-size:12px;color:var(--text-secondary,#64748b)" data-nama-rekening="${esc(kode)}">Memuat nama rekening…</span>
+      <b>${esc(kode)}</b><br><span style="font-size:12px;color:var(--text-secondary,#64748b)" data-nama-rekening="${esc(kode)}"><span class="btn-spin" style="width:11px;height:11px;vertical-align:-1px;margin-right:6px"></span>Memuat nama rekening…</span>
     </div>`).join('');
   Promise.all(kodeList.map(async kode => {
     try {
@@ -4161,7 +4161,7 @@ function epOpenTampilkanRekening(id) {
   document.getElementById('epTampilRekSpek').textContent = x.spesifikasi || '-';
   document.getElementById('epTampilRekSatuan').textContent = x.satuan || '-';
   const kodeList = (x.kode_rekening || '').split(',').map(s => s.trim()).filter(Boolean);
-  _epTampilRekList = kodeList.map(kode => ({ kode, nama: 'Memuat nama rekening…' }));
+  _epTampilRekList = kodeList.map(kode => ({ kode, nama: '', loading: true }));
   _epTampilRekPage = 1;
   const searchInput = document.getElementById('epTampilRekSearch');
   if (searchInput) searchInput.value = '';
@@ -4175,7 +4175,7 @@ function epOpenTampilkanRekening(id) {
       const d = await r.json();
       const match = (d.rekening || []).find(rk => rk.kode_rekening === kode);
       const item = _epTampilRekList.find(it => it.kode === kode);
-      if (item) item.nama = match ? match.nama_rekening : '(tidak ada di master rekening)';
+      if (item) { item.nama = match ? match.nama_rekening : '(tidak ada di master rekening)'; item.loading = false; }
       _epRenderTampilRekening();
     } catch {}
   }));
@@ -4203,7 +4203,7 @@ function _epRenderTampilRekening() {
   if (tb) {
     tb.innerHTML = pageItems.length ? pageItems.map(it => `
       <tr>
-        <td>${esc(it.kode)}${it.nama ? ' ' + esc(it.nama) : ''}</td>
+        <td>${esc(it.kode)}${it.loading ? ' <span style="color:var(--teks-muted)"><span class="btn-spin" style="width:11px;height:11px;vertical-align:-1px;margin-right:6px"></span>Memuat nama rekening…</span>' : (it.nama ? ' ' + esc(it.nama) : '')}</td>
         <td style="text-align:right"><button class="btn btn-ghost btn-sm" data-tip="Salin kode" onclick="epCopyKodeRekening('${esc(it.kode)}')">${EP_ICON_COPY}</button></td>
       </tr>`).join('') : `<tr class="empty-row"><td colspan="2">${document.getElementById('epTampilRekSearch')?.value?.trim() ? 'Tidak ditemukan' : 'Belum ada rekening'}</td></tr>`;
   }

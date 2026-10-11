@@ -152,6 +152,133 @@ async function kinerjaSkemaStatus(sql) {
   }
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// VERIFIKASI KINERJA (PRD SAPA Perencanaan)
+// Status: draft -> menunggu -> (perlu_perbaikan -> diajukan_kembali)* -> disetujui
+// Verifikator ditetapkan Superadmin per Unit Kerja (kinerja_verifikator); indikator dipetakan lewat
+// kinerja_indikator.penanggung_jawab = bidang.nama (pola yang sama dengan akun pantau).
+// ─────────────────────────────────────────────────────────────────────────────
+const VERIF_LOCKED = ['menunggu', 'diajukan_kembali', 'disetujui'];
+const VERIF_PENDING = ['menunggu', 'diajukan_kembali'];
+const VERIF_JENIS_LABEL = { monev: 'IKU', ikk: 'IKK', spm: 'SPM', subkeg: 'Sub Kegiatan' };
+
+let _verifSkemaOk = false;
+async function ensureVerifSchema(sql) {
+  if (_verifSkemaOk) return;
+  try {
+    const [r] = await sql`
+      SELECT
+        EXISTS (SELECT 1 FROM pg_attribute WHERE attrelid = to_regclass('kinerja_realisasi')
+                  AND attname = 'status_verifikasi' AND NOT attisdropped) AS kolom,
+        to_regclass('kinerja_verifikator') IS NOT NULL AS t_ver,
+        to_regclass('kinerja_verifikasi_log') IS NOT NULL AS t_log
+    `;
+    if (r.kolom && r.t_ver && r.t_log) { _verifSkemaOk = true; return; }
+  } catch { /* gagal cek -> jalankan migrasi */ }
+  await runOnce('kinerja.verifikasi_v1', async () => {
+    await sql`ALTER TABLE kinerja_realisasi ADD COLUMN IF NOT EXISTS status_verifikasi TEXT`;
+    await sql`ALTER TABLE kinerja_realisasi ADD COLUMN IF NOT EXISTS submitted_at TIMESTAMPTZ`;
+    await sql`ALTER TABLE kinerja_realisasi ADD COLUMN IF NOT EXISTS submitted_by INTEGER`;
+    await sql`ALTER TABLE kinerja_realisasi ADD COLUMN IF NOT EXISTS verified_at TIMESTAMPTZ`;
+    await sql`ALTER TABLE kinerja_realisasi ADD COLUMN IF NOT EXISTS verified_by INTEGER`;
+    await sql`ALTER TABLE kinerja_realisasi ADD COLUMN IF NOT EXISTS alasan_tolak TEXT`;
+    await sql`
+      CREATE TABLE IF NOT EXISTS kinerja_verifikator (
+        id         SERIAL PRIMARY KEY,
+        user_id    INTEGER NOT NULL,
+        bidang_id  INTEGER NOT NULL,
+        aktif      BOOLEAN NOT NULL DEFAULT TRUE,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        UNIQUE (user_id, bidang_id)
+      )
+    `;
+    await sql`
+      CREATE TABLE IF NOT EXISTS kinerja_verifikasi_log (
+        id             SERIAL PRIMARY KEY,
+        realisasi_id   INTEGER,
+        indikator_id   INTEGER NOT NULL,
+        bulan          INTEGER NOT NULL,
+        tahun          INTEGER NOT NULL,
+        aksi           TEXT NOT NULL,
+        status_sebelum TEXT,
+        status_sesudah TEXT,
+        user_id        INTEGER,
+        user_nama      TEXT,
+        alasan         TEXT,
+        created_at     TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      )
+    `;
+    await sql`
+      CREATE INDEX IF NOT EXISTS kinerja_verifikasi_log_ind_idx
+        ON kinerja_verifikasi_log (indikator_id, tahun, bulan, created_at DESC)
+    `;
+    // Data realisasi yang sudah ada sebelum fitur ini dianggap sudah final (disetujui), supaya laporan lama tidak berubah.
+    await sql`UPDATE kinerja_realisasi SET status_verifikasi = 'disetujui' WHERE status_verifikasi IS NULL`;
+  });
+  _verifSkemaOk = true;
+}
+
+function verifJenisList(ind) {
+  let jc = ind.jenis_custom;
+  if (typeof jc === 'string') { try { jc = JSON.parse(jc); } catch { jc = []; } }
+  const list = [];
+  if (ind.jenis_monev) list.push('monev');
+  if (ind.jenis_ikk)   list.push('ikk');
+  if (ind.jenis_spm)   list.push('spm');
+  if (Array.isArray(jc) && jc.includes('subkeg')) list.push('subkeg');
+  return list;
+}
+
+// Verifikator aktif untuk satu indikator (berdasarkan unit kerja penanggung jawab).
+async function verifikatorUntukIndikator(sql, indikatorId) {
+  return sql`
+    SELECT kv.user_id, u.nama, b.nama AS unit
+    FROM kinerja_indikator ki
+    JOIN bidang b ON TRIM(b.nama) = TRIM(ki.penanggung_jawab) AND b.deleted_at IS NULL
+    JOIN kinerja_verifikator kv ON kv.bidang_id = b.id AND kv.aktif = TRUE
+    JOIN users u ON u.id = kv.user_id
+    WHERE ki.id = ${indikatorId}
+    ORDER BY u.nama ASC
+  `;
+}
+
+async function verifUnitSaya(sql, userId) {
+  return sql`
+    SELECT b.id AS bidang_id, b.nama
+    FROM kinerja_verifikator kv JOIN bidang b ON b.id = kv.bidang_id
+    WHERE kv.user_id = ${userId} AND kv.aktif = TRUE AND b.deleted_at IS NULL
+    ORDER BY b.nama ASC
+  `;
+}
+
+async function verifLog(sql, { realisasi_id, indikator_id, bulan, tahun, aksi, status_sebelum, status_sesudah, user, alasan }) {
+  let nama = user?.nama || null;
+  if (!nama && user?.id) {
+    try { const r = await sql`SELECT nama FROM users WHERE id = ${user.id} LIMIT 1`; nama = r[0]?.nama || null; } catch {}
+  }
+  await sql`
+    INSERT INTO kinerja_verifikasi_log
+      (realisasi_id, indikator_id, bulan, tahun, aksi, status_sebelum, status_sesudah, user_id, user_nama, alasan)
+    VALUES (${realisasi_id ?? null}, ${indikator_id}, ${bulan}, ${tahun}, ${aksi},
+            ${status_sebelum ?? null}, ${status_sesudah ?? null}, ${user?.id ?? null}, ${nama}, ${alasan || null})
+  `;
+}
+
+// Cek window periode input (sama dengan aturan POST /realisasi). Return pesan error atau null.
+async function verifCekPeriode(sql, jenisList, bulan, tahun) {
+  if (!jenisList.length) return null;
+  const aktif = await sql`
+    SELECT 1 FROM periode
+    WHERE bulan = ${bulan} AND tahun = ${tahun} AND jenis = ANY(${jenisList})
+      AND open_at <= NOW() AND close_at >= NOW()
+    LIMIT 1
+  `;
+  if (aktif.length) return null;
+  const label = VERIF_JENIS_LABEL[jenisList[0]] || 'Kinerja';
+  return `Periode input ${label} untuk triwulan ini sedang tidak dibuka. Pengajuan tidak dapat dilakukan.`;
+}
+
 export const handler = async (event) => {
   if (event.httpMethod === 'OPTIONS') return jsonResponse({});
 
@@ -225,6 +352,9 @@ export const handler = async (event) => {
   } catch (migErr) {
     console.error('[migrate idx_realisasi]', migErr);
   }
+
+  // Skema verifikasi kinerja (kolom status di kinerja_realisasi + tabel verifikator & log).
+  try { await ensureVerifSchema(sql); } catch (migErr) { console.error('[migrate verifikasi]', migErr); }
 
   // Tentukan sekali apakah user ini Admin Kinerja (kinerja.full); dipakai oleh requireAuth lokal di atas.
   try {
@@ -989,6 +1119,377 @@ export const handler = async (event) => {
     }
   }
 
+  // ───────────────────────── VERIFIKASI KINERJA ─────────────────────────
+  // GET    /verifikator            (Superadmin) daftar penugasan + master user & unit kerja
+  // POST   /verifikator            (Superadmin) { user_id, bidang_ids: [] }
+  // PUT    /verifikator/:id        (Superadmin) { aktif }
+  // DELETE /verifikator/:id        (Superadmin) cabut penugasan (riwayat verifikasi tetap tersimpan)
+  // GET    /verifikator/info       semua user login: verifikator aktif per unit kerja (tampil di tiap indikator)
+  if (sub === 'verifikator') {
+    const base = _baseRequireAuth(event);
+    if (!base) return errorResponse('Unauthorized', 401);
+    try { await ensureVerifSchema(sql); } catch (e) { return errorResponse('Gagal menyiapkan skema verifikasi: ' + e.message); }
+
+    if (segments[1] === 'info' && event.httpMethod === 'GET') {
+      try {
+        const rows = await sql`
+          SELECT b.nama AS unit, kv.user_id, u.nama
+          FROM kinerja_verifikator kv
+          JOIN bidang b ON b.id = kv.bidang_id AND b.deleted_at IS NULL
+          JOIN users u ON u.id = kv.user_id
+          WHERE kv.aktif = TRUE
+          ORDER BY u.nama ASC
+        `;
+        const map = {};
+        for (const r of rows) {
+          const k = String(r.unit || '').trim();
+          (map[k] = map[k] || []).push({ user_id: r.user_id, nama: r.nama });
+        }
+        return jsonResponse({ verifikator: map });
+      } catch (err) {
+        return errorResponse('Gagal mengambil info verifikator: ' + err.message);
+      }
+    }
+
+    if (!base.is_admin) return errorResponse('Hanya Superadmin yang dapat mengelola verifikator', 403);
+
+    if (event.httpMethod === 'GET') {
+      try {
+        const rows = await sql`
+          SELECT kv.id, kv.user_id, u.nama AS user_nama, kv.bidang_id, b.nama AS bidang_nama, kv.aktif, kv.updated_at
+          FROM kinerja_verifikator kv
+          JOIN users u ON u.id = kv.user_id
+          JOIN bidang b ON b.id = kv.bidang_id
+          WHERE b.deleted_at IS NULL
+          ORDER BY u.nama ASC, b.nama ASC
+        `;
+        const users = await sql`
+          SELECT u.id, u.nama, b.nama AS bidang_nama
+          FROM users u LEFT JOIN bidang b ON b.id = u.bidang_id
+          ORDER BY u.nama ASC
+        `;
+        const bidang = await sql`SELECT id, nama FROM bidang WHERE deleted_at IS NULL AND aktif = TRUE ORDER BY urutan ASC, nama ASC`;
+        return jsonResponse({ verifikator: rows, users, bidang });
+      } catch (err) {
+        return errorResponse('Gagal mengambil data verifikator: ' + err.message);
+      }
+    }
+
+    if (event.httpMethod === 'POST') {
+      const { user_id, bidang_ids } = parseBody(event);
+      const uid = parseInt(user_id);
+      const bids = [...new Set((Array.isArray(bidang_ids) ? bidang_ids : []).map(n => parseInt(n)).filter(n => Number.isInteger(n) && n > 0))];
+      if (!uid) return errorResponse('Akun pengguna wajib dipilih', 400);
+      if (!bids.length) return errorResponse('Pilih minimal satu unit kerja', 400);
+      try {
+        const ada = await sql`SELECT id FROM users WHERE id = ${uid} LIMIT 1`;
+        if (!ada.length) return errorResponse('Akun pengguna tidak ditemukan', 404);
+        for (const bid of bids) {
+          await sql`
+            INSERT INTO kinerja_verifikator (user_id, bidang_id, aktif)
+            VALUES (${uid}, ${bid}, TRUE)
+            ON CONFLICT (user_id, bidang_id) DO UPDATE SET aktif = TRUE, updated_at = NOW()
+          `;
+        }
+        return jsonResponse({ ok: true }, 201);
+      } catch (err) {
+        return errorResponse('Gagal menyimpan penugasan: ' + err.message);
+      }
+    }
+
+    if (event.httpMethod === 'PUT' && id) {
+      const { aktif } = parseBody(event);
+      if (typeof aktif !== 'boolean') return errorResponse('Nilai aktif tidak valid', 400);
+      try {
+        const rows = await sql`UPDATE kinerja_verifikator SET aktif = ${aktif}, updated_at = NOW() WHERE id = ${id} RETURNING id`;
+        if (!rows.length) return errorResponse('Penugasan tidak ditemukan', 404);
+        return jsonResponse({ ok: true });
+      } catch (err) {
+        return errorResponse('Gagal mengubah penugasan: ' + err.message);
+      }
+    }
+
+    if (event.httpMethod === 'DELETE' && id) {
+      try {
+        const rows = await sql`DELETE FROM kinerja_verifikator WHERE id = ${id} RETURNING id`;
+        if (!rows.length) return errorResponse('Penugasan tidak ditemukan', 404);
+        return jsonResponse({ ok: true });
+      } catch (err) {
+        return errorResponse('Gagal menghapus penugasan: ' + err.message);
+      }
+    }
+    return errorResponse('Not found', 404);
+  }
+
+  // GET  /verifikasi/saya                  status verifikator user login (+ jumlah menunggu)
+  // GET  /verifikasi?tahun&bulan&jenis&status&bidang_id&q   daftar pengajuan (sesuai cakupan penugasan)
+  // GET  /verifikasi/riwayat?indikator_id&bulan&tahun
+  // POST /verifikasi/submit   { indikator_id, bulan, tahun }          ajukan / ajukan ulang
+  // POST /verifikasi/aksi     { realisasi_id, aksi: setujui|tolak, alasan }
+  if (sub === 'verifikasi') {
+    const auth = requireAuth(event);
+    if (!auth) return errorResponse('Unauthorized', 401);
+    const base = _baseRequireAuth(event);
+    try { await ensureVerifSchema(sql); } catch (e) { return errorResponse('Gagal menyiapkan skema verifikasi: ' + e.message); }
+    const aksiSeg = segments[1] || null;
+
+    if (aksiSeg === 'saya' && event.httpMethod === 'GET') {
+      try {
+        const units = await verifUnitSaya(sql, auth.id);
+        const [{ n }] = await sql`
+          SELECT COUNT(*)::int AS n
+          FROM kinerja_realisasi kr JOIN kinerja_indikator ki ON ki.id = kr.indikator_id
+          WHERE kr.status_verifikasi = ANY(${VERIF_PENDING})
+            AND (${!!auth.is_admin} OR TRIM(ki.penanggung_jawab) IN (
+              SELECT TRIM(b.nama) FROM kinerja_verifikator kv JOIN bidang b ON b.id = kv.bidang_id
+              WHERE kv.user_id = ${auth.id} AND kv.aktif = TRUE))
+        `;
+        return jsonResponse({ is_verifikator: units.length > 0, units, menunggu: (units.length > 0 || auth.is_admin) ? n : 0 });
+      } catch (err) {
+        return errorResponse('Gagal memuat status verifikator: ' + err.message);
+      }
+    }
+
+    if (aksiSeg === 'riwayat' && event.httpMethod === 'GET') {
+      const indikatorId = parseInt(qs.indikator_id), bln = parseInt(qs.bulan), thn = parseInt(qs.tahun);
+      if (!indikatorId || !bln || !thn) return errorResponse('indikator_id, bulan, dan tahun wajib diisi', 400);
+      try {
+        const rows = await sql`
+          SELECT id, aksi, status_sebelum, status_sesudah, user_nama, alasan, created_at
+          FROM kinerja_verifikasi_log
+          WHERE indikator_id = ${indikatorId} AND bulan = ${bln} AND tahun = ${thn}
+          ORDER BY created_at DESC, id DESC
+        `;
+        return jsonResponse({ riwayat: rows });
+      } catch (err) {
+        return errorResponse('Gagal mengambil riwayat: ' + err.message);
+      }
+    }
+
+    if (!aksiSeg && event.httpMethod === 'GET') {
+      const thn = parseInt(qs.tahun) || new Date().getFullYear();
+      const bln = qs.bulan ? parseInt(qs.bulan) : null;
+      const jenis = ['monev', 'ikk', 'spm', 'subkeg'].includes(qs.jenis) ? qs.jenis : null;
+      const status = ['menunggu', 'diajukan_kembali', 'perlu_perbaikan', 'disetujui'].includes(qs.status) ? qs.status : null;
+      const bidangId = qs.bidang_id ? parseInt(qs.bidang_id) : null;
+      const q = qs.q ? `%${String(qs.q).trim()}%` : null;
+      try {
+        const units = await verifUnitSaya(sql, auth.id);
+        if (!auth.is_admin && !units.length) return errorResponse('Anda tidak ditetapkan sebagai verifikator', 403);
+        const rows = await sql`
+          SELECT kr.id AS realisasi_id, kr.indikator_id, kr.bulan, kr.tahun, kr.realisasi, kr.realisasi_display,
+                 kr.f_penghambat, kr.solusi, kr.f_pendukung, kr.rencana_tl, kr.data_dukung_url, kr.data_dukung_nama,
+                 kr.status_verifikasi, kr.submitted_at, kr.verified_at, kr.alasan_tolak,
+                 ki.indikator_kinerja, ki.satuan, ki.penanggung_jawab, ki.tipe_nilai,
+                 ki.jenis_monev, ki.jenis_ikk, ki.jenis_spm, ki.jenis_custom, ki.bermakna_negatif, ki.formula,
+                 -- Target tahunan (triwulan = 0) = pembagi realisasi tiap TW; kalau belum diisi, pakai target TW (sama seperti rekap)
+                 (SELECT COALESCE(t.target_display, t.target::text) FROM kinerja_target t
+                   WHERE t.indikator_id = kr.indikator_id AND t.tahun = kr.tahun
+                     AND t.triwulan IN (0, LEAST(4, CEIL(kr.bulan / 3.0)::int))
+                   ORDER BY (t.triwulan = 0) DESC
+                   LIMIT 1) AS target_label,
+                 us.nama AS penginput, vf.nama AS verifikator_nama,
+                 -- Capaian (%): rumus sama dengan rekap IKU/IKK (tipe perhitungan, bermakna negatif, target tahunan > target TW)
+                 CASE
+                   WHEN nv.v IS NULL OR kt.target IS NULL OR kt.target = 0 THEN NULL
+                   WHEN ki.bermakna_negatif = TRUE
+                     THEN ROUND((kt.target::NUMERIC - (nv.v::NUMERIC - kt.target::NUMERIC)) / kt.target::NUMERIC * 100, 2)
+                   ELSE ROUND(nv.v::NUMERIC / kt.target::NUMERIC * 100, 2)
+                 END AS capaian_persen
+          FROM kinerja_realisasi kr
+          JOIN kinerja_indikator ki ON ki.id = kr.indikator_id
+          LEFT JOIN users us ON us.id = COALESCE(kr.submitted_by, kr.diisi_oleh)
+          LEFT JOIN users vf ON vf.id = kr.verified_by
+          LEFT JOIN LATERAL (
+            SELECT SUM(x.realisasi) AS sum_kum, AVG(x.realisasi) AS avg_kum
+            FROM kinerja_realisasi x
+            WHERE x.indikator_id = kr.indikator_id AND x.tahun = kr.tahun
+              AND x.bulan IN (3, 6, 9, 12) AND x.bulan <= kr.bulan
+          ) kag ON TRUE
+          LEFT JOIN LATERAL (
+            SELECT COALESCE(
+              CASE WHEN ki.tipe_perhitungan = 'non_kumulatif' THEN kag.sum_kum
+                   WHEN ki.tipe_perhitungan = 'rata_rata'     THEN kag.avg_kum
+                   ELSE kr.realisasi END,
+              kr.realisasi) AS v
+          ) nv ON TRUE
+          LEFT JOIN LATERAL (
+            SELECT COALESCE(
+              (SELECT COALESCE(t.target, CASE UPPER(TRIM(t.target_display))
+                        WHEN 'D' THEN 1 WHEN 'C' THEN 2 WHEN 'CC' THEN 3 WHEN 'B' THEN 4
+                        WHEN 'BB' THEN 5 WHEN 'A' THEN 6 WHEN 'AA' THEN 7 END)
+                 FROM kinerja_target t
+                WHERE t.indikator_id = kr.indikator_id AND t.tahun = kr.tahun AND t.triwulan = 0),
+              (SELECT COALESCE(t.target, CASE UPPER(TRIM(t.target_display))
+                        WHEN 'D' THEN 1 WHEN 'C' THEN 2 WHEN 'CC' THEN 3 WHEN 'B' THEN 4
+                        WHEN 'BB' THEN 5 WHEN 'A' THEN 6 WHEN 'AA' THEN 7 END)
+                 FROM kinerja_target t
+                WHERE t.indikator_id = kr.indikator_id AND t.tahun = kr.tahun
+                  AND t.triwulan = LEAST(4, CEIL(kr.bulan / 3.0)::int))
+            ) AS target
+          ) kt ON TRUE
+          WHERE kr.tahun = ${thn}
+            AND kr.status_verifikasi IS NOT NULL AND kr.status_verifikasi <> 'draft'
+            AND (${bln}::int IS NULL OR kr.bulan = ${bln}::int)
+            AND (${status}::text IS NULL OR kr.status_verifikasi = ${status}::text)
+            AND (${q}::text IS NULL OR ki.indikator_kinerja ILIKE ${q}::text)
+            AND (${bidangId}::int IS NULL OR TRIM(ki.penanggung_jawab) IN (SELECT TRIM(nama) FROM bidang WHERE id = ${bidangId}::int))
+            AND (${jenis}::text IS NULL
+                 OR (${jenis}::text = 'monev'   AND ki.jenis_monev = TRUE)
+                 OR (${jenis}::text = 'ikk'     AND ki.jenis_ikk = TRUE)
+                 OR (${jenis}::text = 'spm'     AND ki.jenis_spm = TRUE)
+                 OR (${jenis}::text = 'subkeg'  AND ki.jenis_custom @> '["subkeg"]'::jsonb))
+            AND (${!!auth.is_admin} OR TRIM(ki.penanggung_jawab) IN (
+                  SELECT TRIM(b.nama) FROM kinerja_verifikator kv JOIN bidang b ON b.id = kv.bidang_id
+                  WHERE kv.user_id = ${auth.id} AND kv.aktif = TRUE))
+          ORDER BY (CASE WHEN kr.status_verifikasi = ANY(${VERIF_PENDING}) THEN 0 ELSE 1 END),
+                   kr.submitted_at DESC NULLS LAST, kr.id DESC
+          LIMIT 1000
+        `;
+        const bidangRows = auth.is_admin
+          ? await sql`SELECT id AS bidang_id, nama FROM bidang WHERE deleted_at IS NULL AND aktif = TRUE ORDER BY urutan ASC, nama ASC`
+          : units;
+        // Jumlah indikator aktif per unit kerja (untuk card "Total Indikator"), dibatasi cakupan verifikator.
+        const indikatorUnit = await sql`
+          SELECT TRIM(ki.penanggung_jawab) AS unit,
+                 COUNT(*)::int AS total,
+                 COUNT(*) FILTER (WHERE ki.jenis_monev = TRUE)::int AS monev,
+                 COUNT(*) FILTER (WHERE ki.jenis_ikk = TRUE)::int AS ikk,
+                 COUNT(*) FILTER (WHERE ki.jenis_spm = TRUE)::int AS spm,
+                 COUNT(*) FILTER (WHERE ki.jenis_custom @> '["subkeg"]'::jsonb)::int AS subkeg
+          FROM kinerja_indikator ki
+          WHERE ki.aktif = TRUE
+            AND (ki.jenis_monev = TRUE OR ki.jenis_ikk = TRUE OR ki.jenis_spm = TRUE
+                 OR ki.jenis_custom @> '["subkeg"]'::jsonb)
+            AND (${!!auth.is_admin} OR TRIM(ki.penanggung_jawab) IN (
+                  SELECT TRIM(b.nama) FROM kinerja_verifikator kv JOIN bidang b ON b.id = kv.bidang_id
+                  WHERE kv.user_id = ${auth.id} AND kv.aktif = TRUE))
+          GROUP BY TRIM(ki.penanggung_jawab)
+        `;
+        return jsonResponse({
+          pengajuan: rows.map(r => {
+            const j = verifJenisList(r);
+            return { ...r, jenis: j, jenis_label: j.map(x => VERIF_JENIS_LABEL[x]).join(', ') };
+          }),
+          units: bidangRows,
+          indikator_unit: indikatorUnit,
+        });
+      } catch (err) {
+        return errorResponse('Gagal mengambil daftar verifikasi: ' + err.message);
+      }
+    }
+
+    if (aksiSeg === 'submit' && event.httpMethod === 'POST') {
+      let user = auth;
+      if (!auth.is_admin) {
+        try {
+          const perms = await sql`SELECT menu_key FROM user_permissions WHERE user_id = ${auth.id}`;
+          user = { ...auth, permissions: perms.map(p => p.menu_key) };
+        } catch { user = { ...auth, permissions: [] }; }
+      }
+      if (!canInput(user, null)) return errorResponse('Akses ditolak', 403);
+      const { indikator_id, bulan, tahun } = parseBody(event);
+      const iid = parseInt(indikator_id), bln = parseInt(bulan), thn = parseInt(tahun);
+      if (!iid || !bln || !thn) return errorResponse('indikator_id, bulan, dan tahun wajib diisi', 400);
+      try {
+        const rows = await sql`
+          SELECT kr.*, ki.jenis_monev, ki.jenis_ikk, ki.jenis_spm, ki.jenis_custom, ki.penanggung_jawab
+          FROM kinerja_realisasi kr JOIN kinerja_indikator ki ON ki.id = kr.indikator_id
+          WHERE kr.indikator_id = ${iid} AND kr.bulan = ${bln} AND kr.tahun = ${thn} LIMIT 1
+        `;
+        if (!rows.length) return errorResponse('Realisasi belum disimpan. Simpan dulu sebagai draft sebelum diajukan.', 404);
+        const row = rows[0];
+        const lama = row.status_verifikasi || 'draft';
+        if (!['draft', 'perlu_perbaikan'].includes(lama)) {
+          return errorResponse(lama === 'disetujui' ? 'Pengajuan sudah disetujui.' : 'Pengajuan sedang menunggu verifikasi.', 409);
+        }
+        if (!auth.is_admin) {
+          const perm = user.permissions || [];
+          if (perm.includes('kinerja.pantau') || perm.includes('kinerja.pantau.semua')) {
+            const own = await sql`SELECT 1 FROM user_indikator WHERE user_id = ${auth.id} AND indikator_id = ${iid} LIMIT 1`;
+            if (!own.length) return errorResponse('Akses ditolak: indikator ini bukan penugasan Anda', 403);
+          }
+          const jl = verifJenisList(row);
+          for (const j of jl) if (!canInput(user, j)) return errorResponse(`Akses ditolak: Anda tidak memiliki izin untuk input ${VERIF_JENIS_LABEL[j]}`, 403);
+          const errPeriode = await verifCekPeriode(sql, jl, bln, thn);
+          if (errPeriode) return errorResponse(errPeriode, 403);
+        }
+        const kosong = row.realisasi == null && (row.realisasi_display == null || String(row.realisasi_display).trim() === '');
+        if (kosong) return errorResponse('Realisasi belum diisi.', 400);
+        if (!row.data_dukung_url || !String(row.data_dukung_url).trim() || row.data_dukung_url === '[]') {
+          return errorResponse('Data dukung wajib diisi sebelum diajukan.', 400);
+        }
+        const verifikator = await verifikatorUntukIndikator(sql, iid);
+        if (!verifikator.length) {
+          return errorResponse('Belum ada verifikator yang ditetapkan untuk unit kerja indikator ini. Hubungi Superadmin.', 409);
+        }
+        const baru = lama === 'perlu_perbaikan' ? 'diajukan_kembali' : 'menunggu';
+        const upd = await sql`
+          UPDATE kinerja_realisasi SET
+            status_verifikasi = ${baru}, submitted_at = NOW(), submitted_by = ${auth.id},
+            verified_at = NULL, verified_by = NULL, alasan_tolak = NULL, updated_at = NOW()
+          WHERE id = ${row.id} AND COALESCE(status_verifikasi, 'draft') = ${lama}
+          RETURNING id, status_verifikasi, submitted_at, alasan_tolak
+        `;
+        if (!upd.length) return errorResponse('Status pengajuan berubah, muat ulang halaman.', 409);
+        await verifLog(sql, {
+          realisasi_id: row.id, indikator_id: iid, bulan: bln, tahun: thn,
+          aksi: lama === 'perlu_perbaikan' ? 'ajukan_ulang' : 'submit',
+          status_sebelum: lama, status_sesudah: baru, user: auth,
+        });
+        return jsonResponse({ realisasi: upd[0], verifikator });
+      } catch (err) {
+        return errorResponse('Gagal mengajukan verifikasi: ' + err.message);
+      }
+    }
+
+    if (aksiSeg === 'aksi' && event.httpMethod === 'POST') {
+      const { realisasi_id, aksi, alasan } = parseBody(event);
+      const rid = parseInt(realisasi_id);
+      if (!rid) return errorResponse('realisasi_id wajib diisi', 400);
+      if (!['setujui', 'tolak'].includes(aksi)) return errorResponse('Aksi tidak valid', 400);
+      const alasanBersih = String(alasan || '').trim();
+      if (aksi === 'tolak' && alasanBersih.length < 3) return errorResponse('Alasan penolakan wajib diisi', 400);
+      try {
+        const rows = await sql`
+          SELECT kr.*, ki.penanggung_jawab
+          FROM kinerja_realisasi kr JOIN kinerja_indikator ki ON ki.id = kr.indikator_id
+          WHERE kr.id = ${rid} LIMIT 1
+        `;
+        if (!rows.length) return errorResponse('Pengajuan tidak ditemukan', 404);
+        const row = rows[0];
+        if (!VERIF_PENDING.includes(row.status_verifikasi)) return errorResponse('Pengajuan ini tidak sedang menunggu verifikasi', 409);
+        if (!base?.is_admin) {
+          const boleh = await sql`
+            SELECT 1 FROM kinerja_verifikator kv JOIN bidang b ON b.id = kv.bidang_id
+            WHERE kv.user_id = ${auth.id} AND kv.aktif = TRUE AND TRIM(b.nama) = TRIM(${row.penanggung_jawab || ''}) LIMIT 1
+          `;
+          if (!boleh.length) return errorResponse('Akses ditolak: pengajuan ini di luar cakupan penugasan Anda', 403);
+        }
+        const baru = aksi === 'setujui' ? 'disetujui' : 'perlu_perbaikan';
+        const upd = await sql`
+          UPDATE kinerja_realisasi SET
+            status_verifikasi = ${baru}, verified_by = ${auth.id}, verified_at = NOW(),
+            alasan_tolak = ${aksi === 'tolak' ? alasanBersih : null}, updated_at = NOW()
+          WHERE id = ${rid} AND status_verifikasi = ${row.status_verifikasi}
+          RETURNING id, status_verifikasi, verified_at, alasan_tolak
+        `;
+        if (!upd.length) return errorResponse('Status pengajuan berubah, muat ulang halaman.', 409);
+        await verifLog(sql, {
+          realisasi_id: rid, indikator_id: row.indikator_id, bulan: row.bulan, tahun: row.tahun,
+          aksi: aksi === 'setujui' ? 'setujui' : 'tolak',
+          status_sebelum: row.status_verifikasi, status_sesudah: baru, user: auth,
+          alasan: aksi === 'tolak' ? alasanBersih : null,
+        });
+        return jsonResponse({ realisasi: upd[0] });
+      } catch (err) {
+        return errorResponse('Gagal memproses verifikasi: ' + err.message);
+      }
+    }
+
+    return errorResponse('Not found', 404);
+  }
+
   if (sub === 'realisasi') {
     const auth = requireAuth(event);
     if (!auth) return errorResponse('Unauthorized', 401);
@@ -1108,6 +1609,21 @@ export const handler = async (event) => {
           console.warn('[kinerja/realisasi] Gagal cek window periode:', err.message);
         }
       }
+      // Verifikasi: pengajuan yang sedang diverifikasi / sudah disetujui tidak bisa diubah user (Admin tetap bisa).
+      if (!auth.is_admin) {
+        try {
+          const _st = await sql`
+            SELECT status_verifikasi FROM kinerja_realisasi
+            WHERE indikator_id = ${parseInt(indikator_id)} AND bulan = ${parseInt(bulan)} AND tahun = ${parseInt(tahun)} LIMIT 1
+          `;
+          const _sv = _st[0]?.status_verifikasi;
+          if (_sv && VERIF_LOCKED.includes(_sv)) {
+            return errorResponse(_sv === 'disetujui'
+              ? 'Data sudah disetujui verifikator dan tidak dapat diubah.'
+              : 'Data sedang dalam proses verifikasi dan tidak dapat diubah.', 409);
+          }
+        } catch (err) { console.warn('[kinerja/realisasi] cek status verifikasi:', err.message); }
+      }
       try {
         let oldDukungUrls = [];
         if (clear_data_dukung || data_dukung_url !== undefined) {
@@ -1121,12 +1637,12 @@ export const handler = async (event) => {
 
         const rows = await sql`
           INSERT INTO kinerja_realisasi
-            (indikator_id, bulan, tahun, realisasi, realisasi_display, f_penghambat, solusi, f_pendukung, rencana_tl, data_dukung_url, data_dukung_nama, diisi_oleh)
+            (indikator_id, bulan, tahun, realisasi, realisasi_display, f_penghambat, solusi, f_pendukung, rencana_tl, data_dukung_url, data_dukung_nama, diisi_oleh, status_verifikasi)
           VALUES
             (${parseInt(indikator_id)}, ${parseInt(bulan)}, ${parseInt(tahun)},
              ${realisasi ?? null}, ${realisasi_display != null ? String(realisasi_display) : null},
              ${f_penghambat || null}, ${solusi || null}, ${f_pendukung || null}, ${rencana_tl || null},
-             ${data_dukung_url ?? null}, ${data_dukung_nama ?? null}, ${auth.id})
+             ${data_dukung_url ?? null}, ${data_dukung_nama ?? null}, ${auth.id}, 'draft')
           ON CONFLICT (indikator_id, bulan, tahun) DO UPDATE SET
             realisasi         = COALESCE(EXCLUDED.realisasi, kinerja_realisasi.realisasi),
             realisasi_display = COALESCE(EXCLUDED.realisasi_display, kinerja_realisasi.realisasi_display),
@@ -1143,6 +1659,7 @@ export const handler = async (event) => {
               WHEN EXCLUDED.data_dukung_nama IS NOT NULL THEN EXCLUDED.data_dukung_nama
               ELSE kinerja_realisasi.data_dukung_nama END,
             diisi_oleh        = EXCLUDED.diisi_oleh,
+            status_verifikasi = COALESCE(kinerja_realisasi.status_verifikasi, 'draft'),
             updated_at        = NOW()
           RETURNING *
         `;
@@ -1294,6 +1811,10 @@ export const handler = async (event) => {
               kr.f_pendukung,
               kr.rencana_tl,
               kr.data_dukung_url,
+              kr.status_verifikasi,
+              kr.alasan_tolak,
+              (SELECT vu.nama FROM users vu WHERE vu.id = kr.verified_by) AS verifikator_nama,
+              kr.submitted_at,
               kr.data_dukung_nama,
               kr.diisi_oleh,
               kr.updated_at AS realisasi_updated_at,
@@ -1421,6 +1942,10 @@ export const handler = async (event) => {
               kr.f_pendukung,
               kr.rencana_tl,
               kr.data_dukung_url,
+              kr.status_verifikasi,
+              kr.alasan_tolak,
+              (SELECT vu.nama FROM users vu WHERE vu.id = kr.verified_by) AS verifikator_nama,
+              kr.submitted_at,
               kr.data_dukung_nama,
               kr.diisi_oleh,
               kr.updated_at AS realisasi_updated_at,
@@ -1548,6 +2073,10 @@ export const handler = async (event) => {
               kr.f_pendukung,
               kr.rencana_tl,
               kr.data_dukung_url,
+              kr.status_verifikasi,
+              kr.alasan_tolak,
+              (SELECT vu.nama FROM users vu WHERE vu.id = kr.verified_by) AS verifikator_nama,
+              kr.submitted_at,
               kr.data_dukung_nama,
               kr.diisi_oleh,
               kr.updated_at AS realisasi_updated_at,
@@ -1677,6 +2206,10 @@ export const handler = async (event) => {
               kr.f_pendukung,
               kr.rencana_tl,
               kr.data_dukung_url,
+              kr.status_verifikasi,
+              kr.alasan_tolak,
+              (SELECT vu.nama FROM users vu WHERE vu.id = kr.verified_by) AS verifikator_nama,
+              kr.submitted_at,
               kr.data_dukung_nama,
               kr.diisi_oleh,
               kr.updated_at AS realisasi_updated_at,
@@ -1804,6 +2337,10 @@ export const handler = async (event) => {
               kr.f_pendukung,
               kr.rencana_tl,
               kr.data_dukung_url,
+              kr.status_verifikasi,
+              kr.alasan_tolak,
+              (SELECT vu.nama FROM users vu WHERE vu.id = kr.verified_by) AS verifikator_nama,
+              kr.submitted_at,
               kr.data_dukung_nama,
               kr.diisi_oleh,
               kr.updated_at AS realisasi_updated_at,
@@ -1931,6 +2468,10 @@ export const handler = async (event) => {
               kr.f_pendukung,
               kr.rencana_tl,
               kr.data_dukung_url,
+              kr.status_verifikasi,
+              kr.alasan_tolak,
+              (SELECT vu.nama FROM users vu WHERE vu.id = kr.verified_by) AS verifikator_nama,
+              kr.submitted_at,
               kr.data_dukung_nama,
               kr.diisi_oleh,
               kr.updated_at AS realisasi_updated_at,
@@ -2060,6 +2601,10 @@ export const handler = async (event) => {
               kr.f_pendukung,
               kr.rencana_tl,
               kr.data_dukung_url,
+              kr.status_verifikasi,
+              kr.alasan_tolak,
+              (SELECT vu.nama FROM users vu WHERE vu.id = kr.verified_by) AS verifikator_nama,
+              kr.submitted_at,
               kr.data_dukung_nama,
               kr.diisi_oleh,
               kr.updated_at AS realisasi_updated_at,
@@ -2187,6 +2732,10 @@ export const handler = async (event) => {
               kr.f_pendukung,
               kr.rencana_tl,
               kr.data_dukung_url,
+              kr.status_verifikasi,
+              kr.alasan_tolak,
+              (SELECT vu.nama FROM users vu WHERE vu.id = kr.verified_by) AS verifikator_nama,
+              kr.submitted_at,
               kr.data_dukung_nama,
               kr.diisi_oleh,
               kr.updated_at AS realisasi_updated_at,
@@ -2314,6 +2863,10 @@ export const handler = async (event) => {
               kr.f_pendukung,
               kr.rencana_tl,
               kr.data_dukung_url,
+              kr.status_verifikasi,
+              kr.alasan_tolak,
+              (SELECT vu.nama FROM users vu WHERE vu.id = kr.verified_by) AS verifikator_nama,
+              kr.submitted_at,
               kr.data_dukung_nama,
               kr.diisi_oleh,
               kr.updated_at AS realisasi_updated_at,
@@ -2442,6 +2995,10 @@ export const handler = async (event) => {
               kr.f_pendukung,
               kr.rencana_tl,
               kr.data_dukung_url,
+              kr.status_verifikasi,
+              kr.alasan_tolak,
+              (SELECT vu.nama FROM users vu WHERE vu.id = kr.verified_by) AS verifikator_nama,
+              kr.submitted_at,
               kr.data_dukung_nama,
               kr.diisi_oleh,
               kr.updated_at AS realisasi_updated_at,
@@ -2569,6 +3126,10 @@ export const handler = async (event) => {
               kr.f_pendukung,
               kr.rencana_tl,
               kr.data_dukung_url,
+              kr.status_verifikasi,
+              kr.alasan_tolak,
+              (SELECT vu.nama FROM users vu WHERE vu.id = kr.verified_by) AS verifikator_nama,
+              kr.submitted_at,
               kr.data_dukung_nama,
               kr.diisi_oleh,
               kr.updated_at AS realisasi_updated_at,
@@ -2696,6 +3257,10 @@ export const handler = async (event) => {
               kr.f_pendukung,
               kr.rencana_tl,
               kr.data_dukung_url,
+              kr.status_verifikasi,
+              kr.alasan_tolak,
+              (SELECT vu.nama FROM users vu WHERE vu.id = kr.verified_by) AS verifikator_nama,
+              kr.submitted_at,
               kr.data_dukung_nama,
               kr.diisi_oleh,
               kr.updated_at AS realisasi_updated_at,
@@ -2898,6 +3463,10 @@ export const handler = async (event) => {
               kr.f_pendukung,
               kr.rencana_tl,
               kr.data_dukung_url,
+              kr.status_verifikasi,
+              kr.alasan_tolak,
+              (SELECT vu.nama FROM users vu WHERE vu.id = kr.verified_by) AS verifikator_nama,
+              kr.submitted_at,
               kr.data_dukung_nama,
               kr.diisi_oleh,
               kr.updated_at AS realisasi_updated_at,
@@ -3023,6 +3592,10 @@ export const handler = async (event) => {
               kr.f_pendukung,
               kr.rencana_tl,
               kr.data_dukung_url,
+              kr.status_verifikasi,
+              kr.alasan_tolak,
+              (SELECT vu.nama FROM users vu WHERE vu.id = kr.verified_by) AS verifikator_nama,
+              kr.submitted_at,
               kr.data_dukung_nama,
               kr.diisi_oleh,
               kr.updated_at AS realisasi_updated_at,
@@ -3148,6 +3721,10 @@ export const handler = async (event) => {
               kr.f_pendukung,
               kr.rencana_tl,
               kr.data_dukung_url,
+              kr.status_verifikasi,
+              kr.alasan_tolak,
+              (SELECT vu.nama FROM users vu WHERE vu.id = kr.verified_by) AS verifikator_nama,
+              kr.submitted_at,
               kr.data_dukung_nama,
               kr.diisi_oleh,
               kr.updated_at AS realisasi_updated_at,
@@ -3275,6 +3852,10 @@ export const handler = async (event) => {
               kr.f_pendukung,
               kr.rencana_tl,
               kr.data_dukung_url,
+              kr.status_verifikasi,
+              kr.alasan_tolak,
+              (SELECT vu.nama FROM users vu WHERE vu.id = kr.verified_by) AS verifikator_nama,
+              kr.submitted_at,
               kr.data_dukung_nama,
               kr.diisi_oleh,
               kr.updated_at AS realisasi_updated_at,
@@ -3400,6 +3981,10 @@ export const handler = async (event) => {
               kr.f_pendukung,
               kr.rencana_tl,
               kr.data_dukung_url,
+              kr.status_verifikasi,
+              kr.alasan_tolak,
+              (SELECT vu.nama FROM users vu WHERE vu.id = kr.verified_by) AS verifikator_nama,
+              kr.submitted_at,
               kr.data_dukung_nama,
               kr.diisi_oleh,
               kr.updated_at AS realisasi_updated_at,
@@ -3525,6 +4110,10 @@ export const handler = async (event) => {
               kr.f_pendukung,
               kr.rencana_tl,
               kr.data_dukung_url,
+              kr.status_verifikasi,
+              kr.alasan_tolak,
+              (SELECT vu.nama FROM users vu WHERE vu.id = kr.verified_by) AS verifikator_nama,
+              kr.submitted_at,
               kr.data_dukung_nama,
               kr.diisi_oleh,
               kr.updated_at AS realisasi_updated_at,
@@ -3652,6 +4241,10 @@ export const handler = async (event) => {
               kr.f_pendukung,
               kr.rencana_tl,
               kr.data_dukung_url,
+              kr.status_verifikasi,
+              kr.alasan_tolak,
+              (SELECT vu.nama FROM users vu WHERE vu.id = kr.verified_by) AS verifikator_nama,
+              kr.submitted_at,
               kr.data_dukung_nama,
               kr.diisi_oleh,
               kr.updated_at AS realisasi_updated_at,
@@ -3777,6 +4370,10 @@ export const handler = async (event) => {
               kr.f_pendukung,
               kr.rencana_tl,
               kr.data_dukung_url,
+              kr.status_verifikasi,
+              kr.alasan_tolak,
+              (SELECT vu.nama FROM users vu WHERE vu.id = kr.verified_by) AS verifikator_nama,
+              kr.submitted_at,
               kr.data_dukung_nama,
               kr.diisi_oleh,
               kr.updated_at AS realisasi_updated_at,
@@ -3902,6 +4499,10 @@ export const handler = async (event) => {
               kr.f_pendukung,
               kr.rencana_tl,
               kr.data_dukung_url,
+              kr.status_verifikasi,
+              kr.alasan_tolak,
+              (SELECT vu.nama FROM users vu WHERE vu.id = kr.verified_by) AS verifikator_nama,
+              kr.submitted_at,
               kr.data_dukung_nama,
               kr.diisi_oleh,
               kr.updated_at AS realisasi_updated_at,
@@ -4028,6 +4629,10 @@ export const handler = async (event) => {
               kr.f_pendukung,
               kr.rencana_tl,
               kr.data_dukung_url,
+              kr.status_verifikasi,
+              kr.alasan_tolak,
+              (SELECT vu.nama FROM users vu WHERE vu.id = kr.verified_by) AS verifikator_nama,
+              kr.submitted_at,
               kr.data_dukung_nama,
               kr.diisi_oleh,
               kr.updated_at AS realisasi_updated_at,
@@ -4153,6 +4758,10 @@ export const handler = async (event) => {
               kr.f_pendukung,
               kr.rencana_tl,
               kr.data_dukung_url,
+              kr.status_verifikasi,
+              kr.alasan_tolak,
+              (SELECT vu.nama FROM users vu WHERE vu.id = kr.verified_by) AS verifikator_nama,
+              kr.submitted_at,
               kr.data_dukung_nama,
               kr.diisi_oleh,
               kr.updated_at AS realisasi_updated_at,
@@ -4278,6 +4887,10 @@ export const handler = async (event) => {
               kr.f_pendukung,
               kr.rencana_tl,
               kr.data_dukung_url,
+              kr.status_verifikasi,
+              kr.alasan_tolak,
+              (SELECT vu.nama FROM users vu WHERE vu.id = kr.verified_by) AS verifikator_nama,
+              kr.submitted_at,
               kr.data_dukung_nama,
               kr.diisi_oleh,
               kr.updated_at AS realisasi_updated_at,
@@ -4500,7 +5113,7 @@ export const handler = async (event) => {
             kg.nama AS group_nama, kg.jenis AS group_jenis, kg.urutan AS group_urutan,
             kr.id AS realisasi_id, kr.bulan, kr.tahun AS realisasi_tahun,
             kr.realisasi, kr.realisasi_display, kr.f_penghambat, kr.solusi, kr.f_pendukung, kr.rencana_tl,
-            kr.updated_at AS diisi_pada,
+            kr.updated_at AS diisi_pada, kr.status_verifikasi,
             u.id AS user_id, u.nama AS user_nama, u.email AS user_email,
             b.nama AS user_bidang, b.singkatan AS user_bidang_singkatan,
             CASE WHEN kr.realisasi IS NOT NULL THEN 'terisi' ELSE 'belum' END AS status,
@@ -4604,7 +5217,7 @@ export const handler = async (event) => {
             kg.nama AS group_nama, kg.jenis AS group_jenis, kg.urutan AS group_urutan,
             kr.id AS realisasi_id, kr.bulan, kr.tahun AS realisasi_tahun,
             kr.realisasi, kr.realisasi_display, kr.f_penghambat, kr.solusi, kr.f_pendukung, kr.rencana_tl,
-            kr.updated_at AS diisi_pada,
+            kr.updated_at AS diisi_pada, kr.status_verifikasi,
             u.id AS user_id, u.nama AS user_nama, u.email AS user_email,
             b.nama AS user_bidang, b.singkatan AS user_bidang_singkatan,
             CASE WHEN kr.realisasi IS NOT NULL THEN 'terisi' ELSE 'belum' END AS status,
@@ -4709,7 +5322,7 @@ export const handler = async (event) => {
             kg.nama AS group_nama, kg.jenis AS group_jenis, kg.urutan AS group_urutan,
             kr.id AS realisasi_id, kr.bulan, kr.tahun AS realisasi_tahun,
             kr.realisasi, kr.realisasi_display, kr.f_penghambat, kr.solusi, kr.f_pendukung, kr.rencana_tl,
-            kr.updated_at AS diisi_pada,
+            kr.updated_at AS diisi_pada, kr.status_verifikasi,
             u.id AS user_id, u.nama AS user_nama, u.email AS user_email,
             b.nama AS user_bidang, b.singkatan AS user_bidang_singkatan,
             CASE WHEN kr.realisasi IS NOT NULL THEN 'terisi' ELSE 'belum' END AS status,
@@ -4813,7 +5426,7 @@ export const handler = async (event) => {
             kg.nama AS group_nama, kg.jenis AS group_jenis, kg.urutan AS group_urutan,
             kr.id AS realisasi_id, kr.bulan, kr.tahun AS realisasi_tahun,
             kr.realisasi, kr.realisasi_display, kr.f_penghambat, kr.solusi, kr.f_pendukung, kr.rencana_tl,
-            kr.updated_at AS diisi_pada,
+            kr.updated_at AS diisi_pada, kr.status_verifikasi,
             u.id AS user_id, u.nama AS user_nama, u.email AS user_email,
             b.nama AS user_bidang, b.singkatan AS user_bidang_singkatan,
             CASE WHEN kr.realisasi IS NOT NULL THEN 'terisi' ELSE 'belum' END AS status,

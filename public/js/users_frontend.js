@@ -637,6 +637,7 @@ const PERM_GROUPS = [
       { key: 'kinerja.subkeg', name: 'Sub Kegiatan',                    desc: 'Input realisasi Sub Kegiatan' },
       { key: 'kinerja.pantau', manual: true, name: 'Pantau Unit Kerja', desc: 'Hanya lihat & pantau semua indikator di unit kerjanya (untuk Kepala Bidang / Kepala Sub Bagian / Sekretaris Dinas yang tidak punya indikator sendiri)' },
       { key: 'kinerja.pantau.semua', manual: true, name: 'Pantau Beberapa Unit Kerja', desc: 'Hanya lihat & pantau indikator di unit kerja yang dipilih (untuk Sekretaris Dinas) — pilih unitnya setelah dicentang' },
+      { key: 'kinerja.verifikator', verif: true, manual: true, name: 'Verifikator Kinerja', desc: 'Memverifikasi realisasi kinerja di unit kerja yang dipilih - pilih unit kerjanya setelah dicentang' },
       { key: 'kinerja.full',   name: 'Admin Penuh', admin: true, desc: 'Kelola indikator, target, jenis kinerja, laporan, periode & monitoring pengisian (setara admin kinerja)' },
     ] },
   { id: 'walidata', name: 'Walidata', icon: 'M3 3h18v18H3zM3 9h18M3 15h18M9 3v18',
@@ -671,7 +672,14 @@ let _editingPermsUserId = null;
 let _selectedPerms = new Set();
 let _permsOpenGroups = new Set();
 
-function _permGroupKeys(g) { return [g.base?.key, ...g.items.map(i => i.key)].filter(Boolean); }
+// Verifikator Kinerja: penugasan disimpan di tabel kinerja_verifikator (bukan user_permissions).
+// Key 'kinerja.verifikator' & 'kinerja.verifikator.unit.<id>' hanya state UI, dibuang sebelum simpan hak akses.
+let _vfAvail = false;      // true kalau user login boleh mengelola verifikator (Superadmin)
+let _vfBidangOpts = [];    // daftar unit kerja aktif
+let _vfRows = [];          // penugasan milik user yang sedang diedit
+const _VF_KEY = 'kinerja.verifikator';
+const _VF_UNIT = 'kinerja.verifikator.unit.';
+function _permGroupKeys(g) { return [g.base?.key, ...g.items.filter(i => !(i.verif && !_vfAvail)).map(i => i.key)].filter(Boolean); }
 function _permRegularKeys(g) { return g.items.filter(i => !i.admin && !i.manual).map(i => i.key); }
 
 async function openPermsModal(userId) {
@@ -685,6 +693,23 @@ async function openPermsModal(userId) {
     const d = await r.json();
     _selectedPerms = new Set(d.permissions || []);
   } catch { _selectedPerms = new Set(); }
+
+  // Penugasan verifikator user ini (hanya Superadmin yang bisa memuat)
+  _vfAvail = false; _vfBidangOpts = []; _vfRows = [];
+  try {
+    const rv = await fetch('/api/kinerja/verifikator', { headers: authHeaders() });
+    if (rv.ok) {
+      const dv = await rv.json();
+      _vfAvail = true;
+      _vfBidangOpts = dv.bidang || [];
+      _vfRows = (dv.verifikator || []).filter(x => Number(x.user_id) === Number(userId));
+      const aktif = _vfRows.filter(x => x.aktif);
+      if (aktif.length) {
+        _selectedPerms.add(_VF_KEY);
+        aktif.forEach(x => _selectedPerms.add(_VF_UNIT + x.bidang_id));
+      }
+    }
+  } catch { _vfAvail = false; }
 
   // Grup yang sudah punya akses dibuka otomatis; sisanya tertutup
   _permsOpenGroups = new Set(PERM_GROUPS.filter(g => _permGroupKeys(g).some(k => _selectedPerms.has(k))).map(g => g.id));
@@ -728,7 +753,7 @@ function renderPermsGrid() {
     }
     const sub = g.base ? g.base.desc : (hasKids ? `${g.items.length} sub-menu` : '');
 
-    const kids = g.items.map(it => {
+    const kids = g.items.filter(it => !(it.verif && !_vfAvail)).map(it => {
       const sel = _selectedPerms.has(it.key);
       return `
         <div class="perm-child ${sel ? 'selected' : ''} ${it.admin ? 'is-admin' : ''}" onclick="togglePerm('${it.key}')">
@@ -764,7 +789,29 @@ function renderPermsGrid() {
 // Daftar unit kerja yang boleh dipantau (muncul saat "Pantau Beberapa Unit Kerja" dicentang).
 // Disimpan sebagai permission 'kinerja.pantau.unit.<bidang_id>'.
 function _permUnitPickerHtml(g) {
-  if (g.id !== 'kinerja' || !_selectedPerms.has('kinerja.pantau.semua')) return '';
+  if (g.id !== 'kinerja') return '';
+  return _permPantauPickerHtml() + _permVerifPickerHtml();
+}
+
+// Unit kerja yang ditugaskan ke verifikator (muncul saat "Verifikator Kinerja" dicentang).
+function _permVerifPickerHtml() {
+  if (!_vfAvail || !_selectedPerms.has(_VF_KEY)) return '';
+  const rows = _vfBidangOpts.map(b => {
+    const key = _VF_UNIT + b.id;
+    const sel = _selectedPerms.has(key);
+    return `
+        <div class="perm-child ${sel ? 'selected' : ''}" onclick="togglePerm('${key}')">
+          <div class="perm-check"></div>
+          <div class="perm-child-txt"><div class="perm-name">${esc(b.nama)}</div></div>
+        </div>`;
+  }).join('');
+  return `
+        <div class="perm-desc" style="padding:10px 4px 4px;font-weight:700">Unit kerja yang diverifikasi</div>
+        ${rows || '<div class="perm-desc" style="padding:4px">Daftar unit kerja belum termuat</div>'}`;
+}
+
+function _permPantauPickerHtml() {
+  if (!_selectedPerms.has('kinerja.pantau.semua')) return '';
   const units = (typeof _bidang !== 'undefined' && Array.isArray(_bidang)) ? _bidang : [];
   const rows = units.map(b => {
     const key = `kinerja.pantau.unit.${b.id}`;
@@ -821,6 +868,7 @@ function togglePerm(key) {
   if (_selectedPerms.has(key)) {
     _selectedPerms.delete(key);
     if (key === 'kinerja.pantau.semua') [..._selectedPerms].filter(k => k.startsWith('kinerja.pantau.unit.')).forEach(k => _selectedPerms.delete(k));
+    if (key === _VF_KEY) [..._selectedPerms].filter(k => k.startsWith(_VF_UNIT)).forEach(k => _selectedPerms.delete(k));
   } else {
     _selectedPerms.add(key);
     if (key === 'superlink.shortlink' || key === 'superlink.bundle') _permSyncSuperlink();
@@ -836,16 +884,45 @@ function togglePerm(key) {
 
 async function savePerms() {
   const userId = document.getElementById('permsUserId').value;
+  const isVfKey = k => k === _VF_KEY || k.startsWith(_VF_UNIT);
+  const vfOn = _selectedPerms.has(_VF_KEY);
+  const vfUnits = [..._selectedPerms].filter(k => k.startsWith(_VF_UNIT)).map(k => Number(k.slice(_VF_UNIT.length)));
+  if (_vfAvail && vfOn && !vfUnits.length) { toast('Pilih minimal satu unit kerja untuk Verifikator Kinerja', 'error'); return; }
   try {
     const r = await fetch(`/api/users/${userId}/permissions`, {
       method: 'PUT', headers: authHeaders(),
-      body: JSON.stringify({ permissions: [..._selectedPerms] }),
+      body: JSON.stringify({ permissions: [..._selectedPerms].filter(k => !isVfKey(k)) }),
     });
     const d = await r.json();
     if (!r.ok) { toast(d.error || 'Gagal', 'error'); return; }
+    if (_vfAvail) {
+      const ok = await _syncVerifikator(userId, vfOn ? vfUnits : []);
+      if (!ok) return;
+    }
     toast('Hak akses disimpan');
     closeModal('modalPerms');
   } catch { toast('Gagal menyimpan', 'error'); }
+}
+
+// Samakan penugasan verifikator user dengan pilihan di modal: unit baru/nonaktif -> POST (aktifkan),
+// unit aktif yang dilepas -> DELETE (cabut penugasan; riwayat verifikasi tetap tersimpan).
+async function _syncVerifikator(userId, wantUnits) {
+  const want = new Set(wantUnits.map(Number));
+  const aktifNow = new Set(_vfRows.filter(x => x.aktif).map(x => Number(x.bidang_id)));
+  const tambah = [...want].filter(id => !aktifNow.has(id));
+  const cabut = _vfRows.filter(x => x.aktif && !want.has(Number(x.bidang_id)));
+  try {
+    if (tambah.length) {
+      const r = await fetch('/api/kinerja/verifikator', { method: 'POST', headers: authHeaders(), body: JSON.stringify({ user_id: Number(userId), bidang_ids: tambah }) });
+      if (!r.ok) { const e = await r.json().catch(() => ({})); toast(e.error || 'Hak akses tersimpan, tapi penugasan verifikator gagal', 'error'); return false; }
+    }
+    for (const row of cabut) {
+      const r = await fetch(`/api/kinerja/verifikator/${row.id}`, { method: 'DELETE', headers: authHeaders() });
+      if (!r.ok) { const e = await r.json().catch(() => ({})); toast(e.error || 'Hak akses tersimpan, tapi pencabutan verifikator gagal', 'error'); return false; }
+    }
+    try { if (typeof _verifInfoLoaded !== 'undefined') _verifInfoLoaded = false; } catch {}
+    return true;
+  } catch { toast('Hak akses tersimpan, tapi penugasan verifikator gagal', 'error'); return false; }
 }
 
 let _bidangList     = [];

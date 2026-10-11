@@ -830,7 +830,7 @@ th {
 }
 td {
   font-size: .78rem; color: var(--teks);
-  padding: var(--sp-3) var(--sp-3); border-bottom: 1px solid var(--abu-1); vertical-align: middle;
+  padding: var(--sp-3) var(--sp-3); border-bottom: 1px solid var(--abu-2); vertical-align: middle;
 }
 tr:last-child td { border-bottom: none; }
 tr:hover td:not(.td-sticky-no):not(.td-sticky-name) { background: var(--abu-1); }
@@ -2174,7 +2174,7 @@ input[type="checkbox"].chk:disabled:checked { background: var(--abu-2); border-c
 .card:has(> table.kinerja-table) { border-radius: var(--r-lg); overflow-y: auto !important; }
 .kinerja-table th[style*="left:0"]    { z-index:5 !important; background:var(--hijau); }
 .kinerja-table th[style*="left:34px"] { z-index:5 !important; border-right:1px solid rgba(0,0,0,.12); left:44px !important; background:var(--hijau); }
-.kinerja-table td { padding:var(--sp-3) var(--sp-3); border-bottom:1px solid var(--abu-1); vertical-align:middle; user-select:text; overflow:hidden; background:#fff; }
+.kinerja-table td { padding:var(--sp-3) var(--sp-3); border-bottom:1px solid var(--abu-2); vertical-align:middle; user-select:text; overflow:hidden; background:#fff; }
 /* Laporan Kinerja: Faktor Penghambat/Solusi/Faktor Pendukung/RTL - baris "1. "/"- "
    dirender jadi <ol>/<ul> beneran (lihat _lapMdToHtml di laporan.js) supaya wrap-nya
    hanging-indent rapi, bukan nempel ke margin kiri kayak sebelumnya. */
@@ -2203,6 +2203,25 @@ ol.lap-md-list--alpha > li::before { content:counter(lapmdnum, lower-alpha) ".";
 .kinerja-table td.td-sticky-no  { box-shadow:none; width:44px; min-width:44px; max-width:44px; overflow:hidden; }
 .kinerja-table td.td-sticky-name { border-right:none; max-width:220px; width:220px; overflow:hidden; left:44px !important; background:#fff; }
 .kinerja-table td.td-sticky-name > div { overflow:hidden; max-width:200px; white-space:normal; word-break:break-word; }
+/* Tabel Verifikasi Kinerja: lebar kolom proporsional (persen via <colgroup>) */
+.kinerja-table.vf-table { table-layout:fixed; width:100%; }
+.kinerja-table.vf-table th { white-space:normal; }
+.kinerja-table.vf-table td.td-sticky-no { width:auto; min-width:0; max-width:none; }
+.kinerja-table.vf-table td.td-sticky-name { width:auto; max-width:none; }
+.kinerja-table.vf-table td.td-sticky-name > div { max-width:none; }
+/* Kinerja (IKU / IKK / SPM / Sub Kegiatan): kolom Indikator dilebarkan supaya label
+   "Belum ada verifikator untuk unit kerja ini" muat 1 baris seperti di tabel Verifikasi Kinerja */
+#page-kinerja .kinerja-table td.td-sticky-name,
+#page-realisasi-ikk .kinerja-table td.td-sticky-name,
+#page-spm .kinerja-table td.td-sticky-name,
+#page-subkeg .kinerja-table td.td-sticky-name { width:270px; max-width:270px; }
+#page-kinerja .kinerja-table td.td-sticky-name > div,
+#page-realisasi-ikk .kinerja-table td.td-sticky-name > div,
+#page-spm .kinerja-table td.td-sticky-name > div,
+#page-subkeg .kinerja-table td.td-sticky-name > div { max-width:none; }
+.kinerja-table.vf-table td:last-child { padding-left:6px; padding-right:6px; }
+.kinerja-table.vf-table .vf-btns { gap:4px; }
+.kinerja-table.vf-table .vf-btns > * { padding:6px 8px; }
 .kinerja-table tr.row-state-saved td.td-sticky-no,
 .kinerja-table tr.row-state-saved td.td-sticky-name   { background:#ecfdf5 !important; z-index:3 !important; }
 .kinerja-table tr.row-state-editing td.td-sticky-no,
@@ -2610,6 +2629,7 @@ ol.lap-md-list--alpha > li::before { content:counter(lapmdnum, lower-alpha) ".";
 }
 .aksi-tutup-badge svg { flex-shrink:0; }
 .aksi-tutup-badge--saved { background:#ecfdf5; border-color:#a7f3d0; color:#047857; }
+.aksi-tutup-badge--wait { background:#fef3c7; border-color:#fcd34d; color:#92400e; }
 
 /* ── Warna baris berdasarkan state ──────────────────────────────────────── */
 /* Default - putih / abu bergantian, tidak ada highlight */
@@ -2640,7 +2660,7 @@ ol.lap-md-list--alpha > li::before { content:counter(lapmdnum, lower-alpha) ".";
 .dukung-warning svg { flex-shrink:0; color:#d97706; }
 
 /* ── IKK: Data Dukung = isian link inline (gaya sama dgn Faktor Penghambat dll) ── */
-.dukung-inline { display:flex; flex-direction:column; gap:4px; min-width:190px; text-align:left; }
+.dukung-inline { display:flex; flex-direction:column; gap:4px; min-width:150px; text-align:left; }
 .dukung-inline-input {
   width:100%; box-sizing:border-box; padding:6px 9px; min-height:36px;
   border:1.5px solid var(--abu-2); border-radius:7px;
@@ -3636,7 +3656,7 @@ body.login-page::before {
   border-bottom: 1px solid var(--batas, #e5e7eb);
   background: var(--latar, #f9fafb);
 }
-.dash-panel-table td { padding: 10px 18px; border-bottom: 1px solid var(--batas, #f3f4f6); }
+.dash-panel-table td { padding: 10px 18px; border-bottom: 1px solid var(--abu-2); }
 .dash-panel-table tr:last-child td { border-bottom: none; }
 .dash-panel-table tr:hover td { background: var(--latar, #f9fafb); }
 
@@ -6772,7 +6792,7 @@ td.col-perihal {
 .kw-month-table-v2 td {
   font-size: .8rem;
   padding: 6px 0;
-  border-bottom: 1px solid var(--border, #f1f5f9);
+  border-bottom: 1px solid var(--abu-2);
   color: var(--teks, #334155);
   vertical-align: middle;
 }
@@ -7527,7 +7547,7 @@ td {
   font-size: .78rem;
   color: var(--teks);
   padding: var(--sp-3) var(--sp-4);
-  border-bottom: 1px solid var(--abu-1);
+  border-bottom: 1px solid var(--abu-2);
   vertical-align: middle;
   line-height: var(--lh-body);
 }
@@ -8313,7 +8333,7 @@ tr:hover td:not(.td-sticky-no):not(.td-sticky-name) { background: var(--abu-1); 
 
 .kinerja-table td {
   padding: var(--sp-3) var(--sp-3);
-  border-bottom: 1px solid var(--abu-1);
+  border-bottom: 1px solid var(--abu-2);
   vertical-align: middle;
   line-height: var(--lh-body);
   font-size: var(--fs-sm);
@@ -8791,7 +8811,7 @@ tr:hover td:not(.td-sticky-no):not(.td-sticky-name) { background: var(--abu-1); 
 }
 .surat-table td {
   padding: 8px 10px;
-  border-bottom: 1px solid var(--abu-1);
+  border-bottom: 1px solid var(--abu-2);
   font-size: .78rem;
   line-height: var(--lh-body);
   vertical-align: middle;
@@ -10772,11 +10792,11 @@ body:not(.is-admin) .abs-hariini-flex-wrap .dash-kpi-row .abs-jamkerja-wrap:nth-
 }
 
 /* ── Monitoring Pengisian: layout card pakai CSS grid (kolom rata & sejajar) ──
-   .mon-kpi-grid  : 3 card KPI sama lebar + card Progress 2x lebar
+   .mon-kpi-grid  : 6 card KPI sama lebar + card Progress selebar penuh di baris bawah
    .mon-card-grid : card Unit Kerja & User, kolom otomatis min 220px */
 .mon-kpi-grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr)) minmax(0, 2fr);
+  grid-template-columns: repeat(6, minmax(0, 1fr));
   gap: var(--sp-4);
   align-items: stretch;
   margin-bottom: var(--sp-5);
@@ -10786,12 +10806,12 @@ body:not(.is-admin) .abs-hariini-flex-wrap .dash-kpi-row .abs-jamkerja-wrap:nth-
   grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
   gap: var(--sp-3);
 }
-@media (max-width: 900px) {
+.mon-kpi-grid .mon-kpi-progress { grid-column: 1 / -1; }
+@media (max-width: 1100px) {
   .mon-kpi-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-  .mon-kpi-grid .mon-kpi-progress { grid-column: 1 / -1; }
 }
 @media (max-width: 600px) {
-  .mon-kpi-grid { grid-template-columns: 1fr; }
+  .mon-kpi-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .mon-card-grid { grid-template-columns: 1fr; }
 }
 
@@ -11167,3 +11187,58 @@ body:not(.is-admin) .abs-hariini-flex-wrap .dash-kpi-row .abs-jamkerja-wrap:nth-
   .kinerja-table th[style*="left:0"],
   .kinerja-table th[style*="left:34px"] { left:auto !important; }
 }
+
+/* Tombol aksi baris IKU/IKK/SPM/Sub Kegiatan: icon-only (label lewat tooltip) */
+.kinerja-table .save-row-btn,
+.kinerja-table .btn-edit-row,
+.kinerja-table .btn-reset-row,
+.kinerja-table .btn-verif-ajukan {
+  box-sizing:border-box; min-width:34px; min-height:34px; padding:6px;
+  justify-content:center; vertical-align:middle; margin-top:0;
+}
+/* Wrapper tombol Ajukan (inline-flex, default baseline) disejajarkan sama Edit/Simpan/Reset */
+.kinerja-table .verif-aksi { vertical-align:middle; }
+
+/* Tombol Edit baris: kuning (sama dengan .btn-edit global); saat mode edit aktif jadi solid amber */
+.kinerja-table .btn-edit-row { background:#fef3c7; color:#92400e; border-color:#fde68a; }
+.kinerja-table .btn-edit-row:hover { background:#fde68a; color:#92400e; border-color:#f59e0b; }
+.kinerja-table .btn-edit-row--active { background:#f59e0b !important; color:#fff !important; border-color:#f59e0b !important; }
+.kinerja-table .btn-edit-row--active:hover { background:#d97706 !important; color:#fff !important; border-color:#d97706 !important; }
+
+/* Modal Riwayat / Detail Verifikasi: narasi (hasil _mdToHtmlDisplay) dirapikan seperti di tabel -
+   sebelumnya .md-list cuma di-style untuk .ps-read-*, jadi di modal ini daftar & baris tampil mentah. */
+.vf-narr .md-line { white-space:pre-wrap; }
+.vf-narr .md-line:empty { min-height:1em; }
+.vf-narr .md-list { margin:0; padding-left:1.3em; }
+.vf-narr .md-list li { margin-bottom:3px; padding-left:2px; white-space:normal; }
+.vf-narr ol.md-list { list-style:none; counter-reset:mdnum; padding-left:1.6em; }
+.vf-narr ol.md-list > li { counter-increment:mdnum; position:relative; }
+.vf-narr ol.md-list > li::before {
+  content:counter(mdnum) "."; position:absolute; left:-1.6em; width:1.4em;
+  text-align:left; white-space:nowrap; color:var(--teks); font-weight:400;
+}
+.vf-narr ol.md-list[style*="lower-alpha"] > li::before { content:counter(mdnum, lower-alpha) "."; }
+.vf-narr .md-list li:last-child { margin-bottom:0; }
+
+/* Daftar riwayat pengajuan: spasi & baris lebih rapi */
+#verifDetailBody .vf-hist { gap:10px; }
+#verifDetailBody .vf-hist li { padding:3px 0 3px 12px; line-height:1.5; text-align:left; }
+#verifDetailBody .vf-hist li .t { margin-top:1px; }
+#verifDetailBody .vf-hist li .verif-tolak-box { margin-top:6px; line-height:1.5; }
+
+/* ── Modal Riwayat / Detail Verifikasi: ukuran font seragam & lebih berwarna ── */
+#verifDetailBody .vm-lbl { font-size:.66rem; font-weight:700; letter-spacing:.05em; text-transform:uppercase; color:#475569; margin-bottom:4px; }
+#verifDetailBody .vm-facts {
+  display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:12px;
+  padding:12px 14px; background:#f0fdfa; border:1px solid #99f6e4; border-radius:10px;
+}
+#verifDetailBody .vm-facts .vm-lbl { color:#0f766e; }
+#verifDetailBody .vm-val { font-size:.82rem; font-weight:700; color:#0f172a; line-height:1.35; }
+#verifDetailBody .vm-val a { color:#0f766e; font-size:.78rem; font-weight:600; text-decoration:underline; }
+#verifDetailBody .vm-empty-val { color:#b91c1c; font-size:.78rem; font-weight:600; }
+#verifDetailBody .vm-narr {
+  font-size:.78rem; line-height:1.55; color:#1e293b; background:#fff;
+  border:1px solid #e2e8f0; border-left:3px solid #047D78; border-radius:8px; padding:8px 12px;
+}
+#verifDetailBody .vm-riw { font-size:.78rem; color:#475569; }
+
