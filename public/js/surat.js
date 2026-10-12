@@ -198,8 +198,8 @@ async function loadSuratMasuk(page = 1) {
     const smOffset = (page - 1) * 10;
     tb.innerHTML = (d.surat||[]).length ? d.surat.map((s, idx) => `
       <tr>
-        <td style="text-align:center">${smOffset + idx + 1}</td>
-        <td>${esc(s.asal_surat)}</td>
+        <td class="td-sticky-no" style="text-align:center">${smOffset + idx + 1}</td>
+        <td class="td-sticky-name">${esc(s.asal_surat)}</td>
         <td style="text-align:left;white-space:nowrap">${s.no_surat ? esc(s.no_surat) : '-'}</td>
         <td style="text-align:center">${s.tanggal_surat ? fmtDateOnly(s.tanggal_surat) : '-'}</td>
         <td>${esc(s.perihal)}</td>
@@ -207,7 +207,7 @@ async function loadSuratMasuk(page = 1) {
         <td style="text-align:center">${s.batas_waktu ? `<span style="white-space:nowrap">${fmtDateOnly(s.batas_waktu)}</span>` : '-'}</td>
         <td>${Array.isArray(s.pegawai_list) && s.pegawai_list.length ? s.pegawai_list.map(p => `<span style="white-space:nowrap">${esc(p)}</span>`).join('<br>') : '-'}</td>
         <td style="text-align:center">${renderDocsBadge(s.file_url, 'Surat Masuk - ' + (s.perihal||''))}</td>
-        <td>
+        <td style="text-align:center">
           ${(() => {
             const isTerlambat = !s.selesai && s.batas_waktu && new Date(s.batas_waktu) < new Date();
             const cls = s.selesai ? 'badge-green' : (isTerlambat ? 'badge-red' : 'badge-yellow');
@@ -371,8 +371,8 @@ async function loadSuratKeluar(page = 1) {
     const skOffset = (page - 1) * 10;
     tb.innerHTML = (d.surat||[]).length ? d.surat.map((s, idx) => `
       <tr>
-        <td style="text-align:center">${skOffset + idx + 1}</td>
-        <td>${_fmtTujuanSurat(s.tujuan_surat)}</td>
+        <td class="td-sticky-no" style="text-align:center">${skOffset + idx + 1}</td>
+        <td class="td-sticky-name">${_fmtTujuanSurat(s.tujuan_surat)}</td>
         <td style="text-align:left;white-space:nowrap">${s.no_surat ? esc(s.no_surat) : '-'}</td>
         <td style="text-align:center">${s.tanggal_surat ? fmtDateOnly(s.tanggal_surat) : '-'}</td>
         <td>${esc(s.perihal)}</td>

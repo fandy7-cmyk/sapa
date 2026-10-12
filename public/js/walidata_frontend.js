@@ -189,7 +189,7 @@ function _wdEnsurePages() {
       <div class="kinerja-table-wrap card" style="padding:0;overflow-x:auto">
         <table class="kinerja-table" style="min-width:860px">
           <thead><tr>
-            <th style="width:46px">No</th><th style="width:110px">Kode SSD</th><th>Uraian</th>
+            <th style="width:34px;text-align:center;position:sticky;left:0;z-index:3">No</th><th style="width:110px;position:sticky;left:34px;z-index:3">Kode SSD</th><th>Uraian</th>
             <th style="width:100px;text-align:center">Satuan</th><th style="width:220px;text-align:center">Unit Kerja</th>
             <th style="width:200px;text-align:center">Jumlah</th><th style="width:90px;text-align:center">Aksi</th>
           </tr></thead>
@@ -250,7 +250,7 @@ function _wdEnsurePages() {
       <div class="kinerja-table-wrap card" style="padding:0;overflow-x:auto">
         <table class="kinerja-table" style="min-width:900px">
           <thead><tr>
-            <th style="width:46px;text-align:center">No</th><th style="width:110px">Kode SSD</th><th style="min-width:220px">Indikator</th>
+            <th style="width:34px;text-align:center;position:sticky;left:0;z-index:3">No</th><th style="width:110px;position:sticky;left:34px;z-index:3">Kode SSD</th><th style="min-width:220px">Indikator</th>
             <th style="min-width:180px;white-space:normal;text-align:center">Unit Kerja</th>
             <th style="width:130px;text-align:center">Status</th><th style="min-width:180px;text-align:center">Penanggung Jawab (User)</th>
             <th style="width:120px;text-align:center">Jumlah</th>
@@ -299,7 +299,7 @@ function _wdEnsurePages() {
       <div class="kinerja-table-wrap card" style="padding:0;overflow-x:auto">
         <table class="kinerja-table" style="min-width:900px">
           <thead><tr>
-            <th style="width:46px;text-align:center">No</th><th style="width:110px">Kode SSD</th><th>Uraian</th>
+            <th style="width:34px;text-align:center;position:sticky;left:0;z-index:3">No</th><th style="width:110px;position:sticky;left:34px;z-index:3">Kode SSD</th><th>Uraian</th>
             <th style="width:90px;text-align:center">Satuan</th><th style="width:210px;text-align:center">Unit Kerja</th>
             <th style="width:130px;text-align:center">Jumlah</th><th style="width:130px;text-align:center" id="wdlThTotal">Total</th>
           </tr></thead>
@@ -549,9 +549,9 @@ function _wdRenderTable() {
   }
   body.innerHTML = slice.map((r, i) => {
     const unit = r.detail.filter(d => d.pengampu).map(_wdUnitLabel).map(esc).join(', ') || '<span style="color:var(--teks-muted);font-style:italic">Belum ditetapkan</span>';
-    return `<tr>
-      <td style="text-align:center">${start + i + 1}</td>
-      <td style="font-weight:600">${esc(r.kode_ssd)}</td>
+    return `<tr class="row-state-default">
+      <td class="td-sticky-no" style="text-align:center;position:sticky;left:0;z-index:3">${start + i + 1}</td>
+      <td class="td-sticky-name" style="font-weight:600;overflow-wrap:anywhere;position:sticky;left:34px;z-index:3">${esc(r.kode_ssd)}</td>
       <td><div style="font-weight:600;line-height:1.5">${esc(r.uraian)}</div>${_wdDefinisi(r.definisi)}</td>
       <td style="text-align:center">${esc(r.satuan || '-')}</td>
       <td style="font-size:.78rem;text-align:center">${unit}</td>
@@ -1340,9 +1340,9 @@ function _wdmRenderTable() {
       ? r.pic_users.map(n => `<div style="font-size:.74rem;font-weight:600;color:#1e293b;line-height:1.4">${esc(n)}</div>`).join('') + (ok && r.diisi_pada ? `<div style="font-size:.65rem;color:#94a3b8;margin-top:2px">${fmtDT(r.diisi_pada)}</div>` : '')
       : `<span style="font-size:.72rem;color:#94a3b8;font-style:italic">Belum ditugaskan</span>`;
     const nilai = ok ? `<strong>${_wdNum(r.nilai)}</strong>${r.satuan ? ` <span style="font-size:.68rem;color:var(--teks-muted)">${esc(r.satuan)}</span>` : ''}` : '<span class="capaian-badge na">-</span>';
-    return `<tr style="${ok ? '' : 'background:#fffbf7'}">
-      <td style="text-align:center;font-size:.78rem;color:#94a3b8;padding:10px 8px">${start + i + 1}</td>
-      <td style="font-weight:600;padding:10px 8px">${esc(r.kode_ssd)}</td>
+    return `<tr class="${ok ? '' : 'wdm-row-belum'}" style="${ok ? '' : 'background:#fffbf7'}">
+      <td class="td-sticky-no" style="text-align:center;font-size:.78rem;color:#94a3b8;padding:10px 8px;position:sticky;left:0;z-index:3">${start + i + 1}</td>
+      <td class="td-sticky-name" style="font-weight:600;padding:10px 8px;overflow-wrap:anywhere;position:sticky;left:34px;z-index:3">${esc(r.kode_ssd)}</td>
       <td style="padding:10px 10px"><div style="font-size:.82rem;font-weight:600;color:#1e293b;line-height:1.4;white-space:normal;word-break:break-word">${esc(r.uraian)}</div>${_wdDefinisi(r.definisi)}</td>
       <td style="font-size:.78rem;color:#64748b;padding:10px 8px;text-align:center;white-space:normal"><div style="max-width:220px;margin:0 auto;line-height:1.4;overflow-wrap:anywhere">${esc(r.unit || '-')}</div></td>
       <td style="text-align:center;padding:10px 8px">${badge}</td>

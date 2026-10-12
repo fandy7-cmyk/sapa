@@ -6960,9 +6960,9 @@ function _monRenderTable() {
          </td>`
       : '';
 
-    html += `<tr style="${isTerisi ? '' : 'background:#fffbf7'}">
-      <td style="text-align:center;font-size:.78rem;color:#94a3b8;padding:10px 8px">${no}</td>
-      <td style="padding:10px 10px">
+    html += `<tr class="${isTerisi ? '' : 'mon-row-belum'}" style="${isTerisi ? '' : 'background:#fffbf7'}">
+      <td class="td-sticky-no" style="text-align:center;font-size:.78rem;color:#94a3b8;padding:10px 8px;position:sticky;left:0;z-index:3">${no}</td>
+      <td class="td-sticky-name" style="padding:10px 10px;position:sticky;left:44px;z-index:3">
         <div style="font-size:.82rem;font-weight:600;color:#1e293b;line-height:1.4;white-space:normal;word-break:break-word"><span>${escHtml(r.indikator_kinerja)}</span>${maknaIcon}</div>
         <div style="margin-top:3px;display:flex;align-items:center;gap:3px;flex-wrap:wrap">${tipeBadge}${jenisBadges}</div>
       </td>
@@ -8901,7 +8901,7 @@ async function loadVerifikasiKinerja() {
   tbody.innerHTML = `<tr class="empty-row"><td colspan="10"><span class="btn-spin" style="width:11px;height:11px;vertical-align:-1px;margin-right:6px"></span>Memuat data...</td></tr>`;
   { const _vs = document.getElementById('vfSummary'); if (_vs) { if (typeof _dmStyle === 'function') _dmStyle(); _vs.innerHTML = `<div class="dm-kpis vf-kpis">${_statSkeleton(5)}</div>`; } }
   try {
-    const r = await fetch(`/api/kinerja/verifikasi?tahun=${_vf.tahun}`, { headers: authHeaders() });
+    const r = await fetch(`/api/kinerja/verifikasi?tahun=${_vf.tahun}${_vf.bulan ? `&bulan=${_vf.bulan}` : ''}`, { headers: authHeaders() });   // bulan difilter di server: tidak narik semua triwulan setahun
     const d = await r.json().catch(() => ({}));
     if (!r.ok) { const _vs = document.getElementById('vfSummary'); if (_vs) _vs.innerHTML = ''; tbody.innerHTML = `<tr class="empty-row"><td colspan="10">${escHtml(d.error || 'Gagal memuat')}</td></tr>`; return; }
     _vfData = d.pengajuan || [];
@@ -8919,7 +8919,7 @@ async function loadVerifikasiKinerja() {
 function setVfFilter(key, val) {
   _vf[key] = key === 'tahun' ? parseInt(val) : (key === 'bulan' && val ? parseInt(val) : val);
   _vfPage = 1;
-  if (key === 'tahun') loadVerifikasiKinerja(); else _vfRender();
+  if (key === 'tahun' || key === 'bulan') loadVerifikasiKinerja(); else _vfRender();
 }
 function _goVfPage(p) { _vfPage = p; _vfRender(); }
 

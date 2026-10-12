@@ -1276,7 +1276,7 @@ export const handler = async (event) => {
       try {
         const units = await verifUnitSaya(sql, auth.id);
         if (!auth.is_admin && !units.length) return errorResponse('Anda tidak ditetapkan sebagai verifikator', 403);
-        const rows = await sql`
+        const rowsQ = sql`
           SELECT kr.id AS realisasi_id, kr.indikator_id, kr.bulan, kr.tahun, kr.realisasi, kr.realisasi_display,
                  kr.f_penghambat, kr.solusi, kr.f_pendukung, kr.rencana_tl, kr.data_dukung_url, kr.data_dukung_nama,
                  kr.status_verifikasi, kr.submitted_at, kr.verified_at, kr.alasan_tolak,
@@ -1346,11 +1346,11 @@ export const handler = async (event) => {
                    kr.submitted_at DESC NULLS LAST, kr.id DESC
           LIMIT 1000
         `;
-        const bidangRows = auth.is_admin
-          ? await sql`SELECT id AS bidang_id, nama FROM bidang WHERE deleted_at IS NULL AND aktif = TRUE ORDER BY urutan ASC, nama ASC`
-          : units;
+        const bidangQ = auth.is_admin
+          ? sql`SELECT id AS bidang_id, nama FROM bidang WHERE deleted_at IS NULL AND aktif = TRUE ORDER BY urutan ASC, nama ASC`
+          : Promise.resolve(units);
         // Jumlah indikator aktif per unit kerja (untuk card "Total Indikator"), dibatasi cakupan verifikator.
-        const indikatorUnit = await sql`
+        const indikatorQ = sql`
           SELECT TRIM(ki.penanggung_jawab) AS unit,
                  COUNT(*)::int AS total,
                  COUNT(*) FILTER (WHERE ki.jenis_monev = TRUE)::int AS monev,
@@ -1366,6 +1366,8 @@ export const handler = async (event) => {
                   WHERE kv.user_id = ${auth.id} AND kv.aktif = TRUE))
           GROUP BY TRIM(ki.penanggung_jawab)
         `;
+        // Tiga query di atas saling independen -> jalan paralel (sebelumnya berurutan, latensi DB ditumpuk 3x).
+        const [rows, bidangRows, indikatorUnit] = await Promise.all([rowsQ, bidangQ, indikatorQ]);
         return jsonResponse({
           pengajuan: rows.map(r => {
             const j = verifJenisList(r);

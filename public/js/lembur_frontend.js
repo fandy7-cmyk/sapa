@@ -248,8 +248,8 @@ async function _lemburRenderKegiatanList() {
   const rows = pageItems.length
     ? pageItems.map((k, i) => `
         <tr class="lembur-row-plain">
-          <td style="width:48px;text-align:center;color:var(--teks-muted)">${start + i + 1}</td>
-          <td>${esc(k.nama_kegiatan)}</td>
+          <td class="td-sticky-no" style="width:44px;text-align:center;color:var(--teks-muted)">${start + i + 1}</td>
+          <td class="td-sticky-name">${esc(k.nama_kegiatan)}</td>
           <td style="text-align:center">${k.jumlah_sesi} hari${k.maks_hari ? `<div style="font-size:.7rem;color:var(--teks-muted);margin-top:2px">maks. ${k.maks_hari} hari/orang</div>` : ''}</td>
           <td style="text-align:center">${k.created_at ? fmtDate(k.created_at) : '-'}</td>
           <td style="text-align:center;white-space:nowrap">
@@ -266,7 +266,7 @@ async function _lemburRenderKegiatanList() {
     <div class="lembur-toolbar" style="display:flex;justify-content:flex-end;margin-bottom:12px">${addBtn}</div>
     <div class="card" style="padding:0;overflow:auto;-webkit-overflow-scrolling:touch">
       <table class="surat-table">
-        <thead><tr><th style="width:48px;text-align:center">No</th><th>Nama Kegiatan</th><th>Jumlah Hari</th><th>Dibuat</th><th style="width:120px">Aksi</th></tr></thead>
+        <thead><tr><th class="th-sticky-no" style="width:44px;text-align:center">No</th><th class="th-sticky-name">Nama Kegiatan</th><th>Jumlah Hari</th><th>Dibuat</th><th style="width:120px">Aksi</th></tr></thead>
         <tbody>${rows}</tbody>
       </table>
     </div>
@@ -684,8 +684,8 @@ async function _lemburRenderSesiList() {
   const rows = daftarSesi.length
     ? daftarSesi.map((s, i) => `
         <tr class="lembur-row-plain" data-sesi-id="${s.id}">
-          <td style="width:48px;text-align:center;color:var(--teks-muted)">${i + 1}</td>
-          <td style="text-align:center">${new Date(s.tanggal).toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}</td>
+          <td class="td-sticky-no" style="width:44px;text-align:center;color:var(--teks-muted)">${i + 1}</td>
+          <td class="td-sticky-name" style="text-align:center">${new Date(s.tanggal).toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}</td>
           <td style="text-align:center">${s.jam_mulai ? s.jam_mulai.slice(0,5) : '-'} WITA - ${s.jam_selesai ? s.jam_selesai.slice(0,5) : '-'} WITA</td>
           <td style="text-align:center">${s.jumlah_peserta} pegawai</td>
           <td style="text-align:center;white-space:nowrap" data-col="dok">
@@ -731,7 +731,7 @@ async function _lemburRenderSesiList() {
     </div>
     <div class="card" style="padding:0;overflow:auto;-webkit-overflow-scrolling:touch">
       <table class="surat-table">
-        <thead><tr><th style="width:48px;text-align:center">No</th><th>Tanggal</th><th>Jam Lembur</th><th>Peserta</th><th>Dokumentasi</th><th style="width:170px">Aksi</th></tr></thead>
+        <thead><tr><th class="th-sticky-no" style="width:44px;text-align:center">No</th><th class="th-sticky-name">Tanggal</th><th>Jam Lembur</th><th>Peserta</th><th>Dokumentasi</th><th style="width:170px">Aksi</th></tr></thead>
         <tbody>${rows}</tbody>
       </table>
     </div>
@@ -940,8 +940,8 @@ function _lemburRenderSesiDetail() {
     const hapusBtn = _lemburFull ? `<button class="btn-hapus" data-tip="Hapus Peserta" onclick="_lemburHapusPeserta(${e.id})"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path stroke-linecap="round" stroke-linejoin="round" d="M19 6l-1 14H6L5 6"/><path stroke-linecap="round" stroke-linejoin="round" d="M10 11v6m4-6v6"/><path stroke-linecap="round" stroke-linejoin="round" d="M9 6V4h6v2"/></svg></button>` : '';
     return `
       <tr>
-        <td style="width:48px;text-align:center;color:var(--teks-muted);vertical-align:top">${i + 1}</td>
-        <td style="vertical-align:top">
+        <td class="td-sticky-no" style="width:44px;text-align:center;color:var(--teks-muted);vertical-align:top">${i + 1}</td>
+        <td class="td-sticky-name" style="vertical-align:top">
           <div style="display:flex;align-items:center;gap:10px">
             <div class="lembur-peserta-avatar" style="flex-shrink:0">${_lemburAvatarHtml(e)}</div>
             <div style="min-width:0">
@@ -976,7 +976,7 @@ function _lemburRenderSesiDetail() {
     <div class="card" style="padding:0;overflow:auto;-webkit-overflow-scrolling:touch">
       <table class="surat-table" style="table-layout:fixed;width:100%;min-width:700px">
         <thead>
-          <tr><th style="width:4%;text-align:center">No</th><th style="width:20%">Pegawai</th><th style="width:12%;text-align:center">Tanggal</th><th style="width:${_lemburFull ? '17' : '14'}%;text-align:center">Jam Lembur</th><th style="width:${_lemburFull ? '23' : '29'}%">Uraian Tugas</th><th style="width:${_lemburFull ? '15' : '18'}%">Catatan</th>${_lemburFull ? '<th style="width:6%;text-align:center">Aksi</th>' : ''}</tr>
+          <tr><th class="th-sticky-no" style="width:44px;text-align:center">No</th><th class="th-sticky-name">Pegawai</th><th style="width:12%;text-align:center">Tanggal</th><th style="width:${_lemburFull ? '17' : '14'}%;text-align:center">Jam Lembur</th><th style="width:${_lemburFull ? '23' : '29'}%">Uraian Tugas</th><th style="width:${_lemburFull ? '15' : '18'}%">Catatan</th>${_lemburFull ? '<th style="width:6%;text-align:center">Aksi</th>' : ''}</tr>
         </thead>
         <tbody>${pesertaRows}</tbody>
       </table>

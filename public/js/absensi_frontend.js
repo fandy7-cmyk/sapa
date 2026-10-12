@@ -55,6 +55,7 @@ async function loadAbsensi() {
   if (btnAjukan) btnAjukan.style.display = _user.is_admin ? 'none' : '';
   const thNama = document.getElementById('absThNama');
   if (thNama) thNama.style.display = isAbsensiFull() ? '' : 'none';
+  if (thNama && thNama.nextElementSibling) thNama.nextElementSibling.classList.toggle('th-sticky-name', !isAbsensiFull());
   const thAksi = document.getElementById('absThAksi');
   if (thAksi) thAksi.style.display = isAbsensiFull() ? '' : 'none';
   const tbAbs0 = document.getElementById('absTableBody');
@@ -960,9 +961,9 @@ async function loadAbsTable(page = 1) {
       const statusCursor = (a.status === 'cuti' || a.status === 'tugas_luar') && a.keterangan ? ' style="cursor:pointer"' : '';
       return `
         <tr>
-          <td style="text-align:center">${startNo + i + 1}</td>
-          ${isAbsensiFull() ? `<td style="text-align:left">${esc(a.user_nama)}</td>` : ''}
-          <td style="text-align:center">${tglLabel}</td>
+          <td class="td-sticky-no" style="text-align:center">${startNo + i + 1}</td>
+          ${isAbsensiFull() ? `<td class="td-sticky-name" style="text-align:left">${esc(a.user_nama)}</td>` : ''}
+          <td${isAbsensiFull() ? '' : ' class="td-sticky-name"'} style="text-align:center">${tglLabel}</td>
           <td style="text-align:center">${a.jam_masuk ? a.jam_masuk.slice(0, 5) + ' WITA' : '-'}</td>
           <td style="text-align:center">${jamKeluarCell}</td>
           <td style="text-align:center"><span class="badge ${statusBadge}"${statusTip}${statusCursor}>${statusIcon}${statusLabel}</span></td>

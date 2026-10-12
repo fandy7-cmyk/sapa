@@ -288,8 +288,8 @@ function renderShortlinks() {
   const slice = _slFiltered.slice(start, start + _slPageSize);
   tb.innerHTML = slice.length ? slice.map((l, i) => `
     <tr>
-      <td style="text-align:center;color:var(--teks)">${start + i + 1}</td>
-      <td>
+      <td class="td-sticky-no" style="text-align:center;color:var(--teks)">${start + i + 1}</td>
+      <td class="td-sticky-name">
         <div style="display:flex;align-items:center;gap:4px;flex-wrap:wrap">
           ${l.slug_pendek
             ? `<code style="font-size:.8rem;font-weight:700;color:var(--hijau);background:var(--hijau-light);padding:2px 8px;border-radius:5px;font-family:'Plus Jakarta Sans',sans-serif">/${esc(l.slug_pendek)}</code>`
@@ -363,8 +363,8 @@ function renderBundles() {
   const tb = document.getElementById('bundleTableBody');
   tb.innerHTML = slice.length ? slice.map((b, i) => `
     <tr>
-      <td style="text-align:center;color:var(--teks)">${start + i + 1}</td>
-      <td>
+      <td class="td-sticky-no" style="text-align:center;color:var(--teks)">${start + i + 1}</td>
+      <td class="td-sticky-name">
         <div style="font-weight:700;color:var(--teks);font-size:.85rem">${esc(b.judul)}</div>
         <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:3px">
           <code style="font-size:.75rem;font-weight:600;color:var(--hijau);background:var(--hijau-light);padding:2px 8px;border-radius:5px;font-family:'Plus Jakarta Sans',sans-serif">/${esc(b.slug)}</code>

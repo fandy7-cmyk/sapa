@@ -80,6 +80,7 @@ async function _populateLapAbsFilters() {
   if (bidangWrap) bidangWrap.style.display = full ? '' : 'none';
   if (pegawaiWrap) pegawaiWrap.style.display = full ? '' : 'none';
   if (thNama) thNama.style.display = full ? '' : 'none';
+  if (thNama && thNama.nextElementSibling) thNama.nextElementSibling.classList.toggle('th-sticky-name', !full);
 
   if (full) {
     if (!document.getElementById('lapAbsBidang')?.dataset.rebuilt) {
@@ -736,9 +737,9 @@ async function loadLaporanAbsensi(page = 1) {
         const statusTip = tipParts.length ? ` data-tip="${tipParts.join(' • ')}"` : '';
         return `
         <tr>
-          <td style="text-align:center">${(page - 1) * 10 + i + 1}</td>
-          <td style="display:${full ? '' : 'none'}">${esc(a.user_nama || '')}</td>
-          <td style="text-align:center">${new Date(a.tanggal).toLocaleDateString('id-ID', { day: '2-digit', month: 'long', year: 'numeric' })}</td>
+          <td class="td-sticky-no" style="text-align:center">${(page - 1) * 10 + i + 1}</td>
+          <td class="td-sticky-name" style="display:${full ? '' : 'none'}">${esc(a.user_nama || '')}</td>
+          <td${full ? '' : ' class="td-sticky-name"'} style="text-align:center">${new Date(a.tanggal).toLocaleDateString('id-ID', { day: '2-digit', month: 'long', year: 'numeric' })}</td>
           <td style="text-align:center">${a.jam_masuk ? a.jam_masuk.slice(0,5) + ' WITA' : '-'}</td>
           <td style="text-align:center">${jamKeluarCell}</td>
           <td style="text-align:center"><span class="badge ${statusBadge}"${statusTip}>${statusIcon}${statusLabel}</span></td>
@@ -1129,9 +1130,9 @@ function _renderLapLemburRows(full) {
   const pageRows = rows.slice(start, start + _LAP_LEMBUR_PER_PAGE);
   tbody.innerHTML = pageRows.map((r, i) => `
     <tr>
-      <td style="text-align:center;vertical-align:top">${start + i + 1}</td>
-      <td style="display:${full ? '' : 'none'};text-align:left;vertical-align:top">${esc(r.nama || '')}</td>
-      <td style="text-align:left;vertical-align:top">${esc(r.sesi.kegiatan_nama || '')}</td>
+      <td class="td-sticky-no" style="text-align:center;vertical-align:top">${start + i + 1}</td>
+      <td class="td-sticky-name" style="display:${full ? '' : 'none'};text-align:left;vertical-align:top">${esc(r.nama || '')}</td>
+      <td${full ? '' : ' class="td-sticky-name"'} style="text-align:left;vertical-align:top">${esc(r.sesi.kegiatan_nama || '')}</td>
       <td style="text-align:center;vertical-align:top">${new Date(r.sesi.tanggal).toLocaleDateString('id-ID', { day: '2-digit', month: 'long', year: 'numeric' })}</td>
       <td style="text-align:center;vertical-align:top">${(r.jam_mulai || r.sesi.jam_mulai) ? (r.jam_mulai || r.sesi.jam_mulai).slice(0,5) : '-'} WITA - ${(r.jam_selesai || r.sesi.jam_selesai) ? (r.jam_selesai || r.sesi.jam_selesai).slice(0,5) : '-'} WITA</td>
       <td style="text-align:left;vertical-align:top">${r.uraian_tugas ? _lapMdToHtml(r.uraian_tugas) : '-'}</td>
@@ -1218,6 +1219,7 @@ async function _populateLapLemburFilters(sesiList) {
 
   if (pegawaiWrap) pegawaiWrap.style.display = full ? '' : 'none';
   if (thNama) thNama.style.display = full ? '' : 'none';
+  if (thNama && thNama.nextElementSibling) thNama.nextElementSibling.classList.toggle('th-sticky-name', !full);
 
   const searchInput = document.getElementById('lapLemburSearch');
   if (searchInput) {
@@ -1714,8 +1716,8 @@ function _lapRenderSuratTbody(rows) {
       statusBadge = `<span style="background:#fef3c7;color:#92400e;padding:2px 8px;border-radius:99px;font-size:.7rem">Belum Selesai</span>`;
     }
     return `<tr>
-      <td style="text-align:center">${start + i + 1}</td>
-      <td style="text-align:left;white-space:nowrap">${r.no_surat}</td>
+      <td class="td-sticky-no" style="text-align:center">${start + i + 1}</td>
+      <td class="td-sticky-name" style="text-align:left;white-space:nowrap">${r.no_surat}</td>
       <td>${r.perihal}</td>
       <td style="text-align:center;white-space:nowrap">${jenisBadge}</td>
       <td style="text-align:center">${tgl}</td>
@@ -3852,9 +3854,9 @@ function _wdlRender() {
   body.innerHTML = groups.slice(start, start + _wdl.perPage).map((g, i) => {
     const { r, det } = g, k = det.length;
     const bd = 'border-top:1px solid ' + _LAP_GARIS; // garis pemisah antar indikator (tipis & soft)
-    return det.map((x, j) => `<tr>
-      ${j === 0 ? `<td rowspan="${k}" style="text-align:center;${bd}">${start + i + 1}</td>
-      <td rowspan="${k}" style="${bd}">${esc(r.kode_ssd)}</td>
+    return det.map((x, j) => `<tr class="row-state-default">
+      ${j === 0 ? `<td rowspan="${k}" class="td-sticky-no" style="text-align:center;position:sticky;left:0;z-index:3;${bd}">${start + i + 1}</td>
+      <td rowspan="${k}" class="td-sticky-name" style="overflow-wrap:anywhere;position:sticky;left:34px;z-index:3;${bd}">${esc(r.kode_ssd)}</td>
       <td rowspan="${k}" style="${bd}"><div style="line-height:1.5">${esc(r.uraian)}</div></td>
       <td rowspan="${k}" style="text-align:center;${bd}">${esc(r.satuan || '-')}</td>` : ''}
       <td style="text-align:center;font-size:.78rem;${j === 0 ? bd : ''}">${esc(x.nama)}</td>

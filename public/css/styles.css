@@ -11175,18 +11175,12 @@ body:not(.is-admin) .abs-hariini-flex-wrap .dash-kpi-row .abs-jamkerja-wrap:nth-
 .pj-ket { max-width: 280px; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
 
 /* ── Kinerja: freeze kolom No & Indikator disamakan dgn Perjadin ──
-   (lebar 180-220px, dilepas di HP ≤640px). Kolom No dikunci tepat 44px
+   (lebar 180-220px, tetap freeze di HP). Kolom No dikunci tepat 44px
    (padding 6px) supaya left:44px kolom Indikator pas & tidak bergeser pas discroll. */
 .kinerja-table th[style*="left:0"],
 .kinerja-table td.td-sticky-no { width:44px; min-width:44px; max-width:44px; padding-left:6px; padding-right:6px; }
 .kinerja-table td.td-sticky-name,
 .kinerja-table th[style*="left:34px"] { min-width:180px; }
-@media (max-width: 640px) {
-  .kinerja-table td.td-sticky-no,
-  .kinerja-table td.td-sticky-name { position:static !important; }
-  .kinerja-table th[style*="left:0"],
-  .kinerja-table th[style*="left:34px"] { left:auto !important; }
-}
 
 /* Tombol aksi baris IKU/IKK/SPM/Sub Kegiatan: icon-only (label lewat tooltip) */
 .kinerja-table .save-row-btn,
@@ -11242,3 +11236,124 @@ body:not(.is-admin) .abs-hariini-flex-wrap .dash-kpi-row .abs-jamkerja-wrap:nth-
 }
 #verifDetailBody .vm-riw { font-size:.78rem; color:#475569; }
 
+/* ── Shortlink, Bundle, Surat Masuk, Surat Keluar & Laporan Surat & Absensi: freeze kolom No & Tautan (tetap freeze di HP) ── */
+:is(#page-shortlink, #page-bundle, #page-surat-masuk, #page-surat-keluar, #page-laporan-surat, #page-absensi, #page-laporan-absensi, #page-lembur-kegiatan, #page-laporan-lembur) :is(.freeze-table, .surat-table) th.th-sticky-no,
+:is(#page-shortlink, #page-bundle, #page-surat-masuk, #page-surat-keluar, #page-laporan-surat, #page-absensi, #page-laporan-absensi, #page-lembur-kegiatan, #page-laporan-lembur) :is(.freeze-table, .surat-table) th.th-sticky-name { position:sticky; z-index:4; }
+:is(#page-shortlink, #page-bundle, #page-surat-masuk, #page-surat-keluar, #page-laporan-surat, #page-absensi, #page-laporan-absensi, #page-lembur-kegiatan, #page-laporan-lembur) :is(.freeze-table, .surat-table) th.th-sticky-no { left:0; width:44px; min-width:44px; max-width:44px; padding-left:6px; padding-right:6px; }
+:is(#page-shortlink, #page-bundle, #page-surat-masuk, #page-surat-keluar, #page-laporan-surat, #page-absensi, #page-laporan-absensi, #page-lembur-kegiatan, #page-laporan-lembur) :is(.freeze-table, .surat-table) th.th-sticky-name { left:44px; box-shadow:2px 0 4px rgba(0,0,0,.08); }
+:is(#page-shortlink, #page-bundle, #page-surat-masuk, #page-surat-keluar, #page-laporan-surat, #page-absensi, #page-laporan-absensi, #page-lembur-kegiatan, #page-laporan-lembur) :is(.freeze-table, .surat-table) td.td-sticky-no,
+:is(#page-shortlink, #page-bundle, #page-surat-masuk, #page-surat-keluar, #page-laporan-surat, #page-absensi, #page-laporan-absensi, #page-lembur-kegiatan, #page-laporan-lembur) :is(.freeze-table, .surat-table) td.td-sticky-name { position:sticky; z-index:3; background:#fff; }
+:is(#page-shortlink, #page-bundle, #page-surat-masuk, #page-surat-keluar, #page-laporan-surat, #page-absensi, #page-laporan-absensi, #page-lembur-kegiatan, #page-laporan-lembur) :is(.freeze-table, .surat-table) td.td-sticky-no { left:0; width:44px; min-width:44px; max-width:44px; padding-left:6px; padding-right:6px; }
+:is(#page-shortlink, #page-bundle, #page-surat-masuk, #page-surat-keluar, #page-laporan-surat, #page-absensi, #page-laporan-absensi, #page-lembur-kegiatan, #page-laporan-lembur) :is(.freeze-table, .surat-table) td.td-sticky-name { left:44px; box-shadow:2px 0 4px rgba(0,0,0,.08); }
+:is(#page-shortlink, #page-bundle, #page-surat-masuk, #page-surat-keluar, #page-laporan-surat, #page-absensi, #page-laporan-absensi, #page-lembur-kegiatan, #page-laporan-lembur) :is(.freeze-table, .surat-table) tr:hover td.td-sticky-no,
+:is(#page-shortlink, #page-bundle, #page-surat-masuk, #page-surat-keluar, #page-laporan-surat, #page-absensi, #page-laporan-absensi, #page-lembur-kegiatan, #page-laporan-lembur) :is(.freeze-table, .surat-table) tr:hover td.td-sticky-name { background:var(--abu-1); }
+
+
+/* ── Monitoring pengisian: kolom No & Indikator Kinerja di-freeze (sticky kiri) ── */
+#page-monitoring-kinerja .kinerja-table td.td-sticky-name {
+  width:270px; min-width:270px; max-width:270px;
+  border-right:none;
+}
+#page-monitoring-kinerja .kinerja-table td.td-sticky-name > div { max-width:none; }
+#page-monitoring-kinerja .kinerja-table tr.mon-row-belum td.td-sticky-no,
+#page-monitoring-kinerja .kinerja-table tr.mon-row-belum td.td-sticky-name { background:#fffbf7 !important; }
+#monTableHeadRow th:nth-child(1) { position:sticky; left:0;    z-index:5; width:44px; min-width:44px; max-width:44px; padding-left:6px; padding-right:6px; overflow:hidden; }
+#monTableHeadRow th:nth-child(2) { position:sticky; left:44px; z-index:5; width:270px; min-width:270px; border-right:none !important; }
+
+/* Verifikasi Kinerja: kolom No dikunci tepat 44px (bukan 3.7%) supaya left:44px kolom Indikator
+   pas & tidak bergeser pas discroll, sama kayak IKU/IKK/SPM. Kolom lain tetap persen via <colgroup>. */
+.kinerja-table.vf-table col:first-child { width:44px !important; }
+/* Kolom Indikator tanpa persen: dia yang menyerap sisa lebar, jadi No tetap persis 44px (tanpa pecahan) */
+.kinerja-table.vf-table col:nth-child(2) { width:auto !important; }
+.kinerja-table.vf-table th:first-child { padding-left:6px; padding-right:6px; }
+
+/* Data SSD, Laporan & Monitoring Walidata: kolom No & Kode SSD di-freeze (sticky kiri), pola sama dgn IKU/IKK. Kode SSD sempit (110px),
+   bukan 270px seperti kolom Indikator. Tetap freeze di HP. */
+#page-walidata-ssd .kinerja-table td.td-sticky-name,
+#page-walidata-ssd .kinerja-table th[style*="left:34px"],
+#page-walidata-laporan .kinerja-table td.td-sticky-name,
+#page-walidata-laporan .kinerja-table th[style*="left:34px"],
+#page-walidata-monitoring .kinerja-table td.td-sticky-name,
+#page-walidata-monitoring .kinerja-table th[style*="left:34px"] { width:110px; min-width:110px; max-width:110px; }
+/* Monitoring Walidata: baris "Belum Input" tetap krem di kolom yang freeze */
+#page-walidata-monitoring .kinerja-table tr.wdm-row-belum td.td-sticky-no,
+#page-walidata-monitoring .kinerja-table tr.wdm-row-belum td.td-sticky-name { background:#fffbf7 !important; }
+
+/* ── Usulanku (Pra Usulan, Usulan, Pembahasan, Pra Final, Final): freeze kolom No & Kegiatan (tetap freeze di HP) ── */
+.ep-usulanku-tab .surat-table th:nth-child(1),
+.ep-usulanku-tab .surat-table th:nth-child(2),
+.ep-usulanku-tab .surat-table tbody tr:not(.empty-row) td:nth-child(1),
+.ep-usulanku-tab .surat-table tbody tr:not(.empty-row) td:nth-child(2) { position:sticky; }
+.ep-usulanku-tab .surat-table th:nth-child(1),
+.ep-usulanku-tab .surat-table th:nth-child(2) { top:0; z-index:4; }
+.ep-usulanku-tab .surat-table tbody tr:not(.empty-row) td:nth-child(1),
+.ep-usulanku-tab .surat-table tbody tr:not(.empty-row) td:nth-child(2) { z-index:3; background:#fff; }
+.ep-usulanku-tab .surat-table th:nth-child(1),
+.ep-usulanku-tab .surat-table tbody tr:not(.empty-row) td:nth-child(1) { left:0; width:44px; min-width:44px; max-width:44px; padding-left:6px; padding-right:6px; }
+.ep-usulanku-tab .surat-table th:nth-child(2),
+.ep-usulanku-tab .surat-table tbody tr:not(.empty-row) td:nth-child(2) { left:44px; min-width:240px; max-width:300px; box-shadow:2px 0 4px rgba(0,0,0,.08); }
+.ep-usulanku-tab .surat-table tbody tr:not(.empty-row):hover td:nth-child(1),
+.ep-usulanku-tab .surat-table tbody tr:not(.empty-row):hover td:nth-child(2) { background:var(--abu-1); }
+
+/* ── Pengguna: freeze kolom No & Nama (tetap freeze di HP) ── */
+#userTable th:nth-child(1),
+#userTable th:nth-child(2),
+#userTable tbody tr:not(.empty-row) td:nth-child(1),
+#userTable tbody tr:not(.empty-row) td:nth-child(2) { position:sticky; }
+#userTable th:nth-child(1),
+#userTable th:nth-child(2) { top:0; z-index:4; }
+#userTable tbody tr:not(.empty-row) td:nth-child(1),
+#userTable tbody tr:not(.empty-row) td:nth-child(2) { z-index:3; background:#fff; }
+#userTable th:nth-child(1),
+#userTable tbody tr:not(.empty-row) td:nth-child(1) { left:0; width:44px; min-width:44px; max-width:44px; padding-left:6px; padding-right:6px; }
+#userTable th:nth-child(2),
+#userTable tbody tr:not(.empty-row) td:nth-child(2) { left:44px; min-width:180px; max-width:240px; box-shadow:2px 0 4px rgba(0,0,0,.08); }
+#userTable tbody tr:not(.empty-row) td:nth-child(2) { white-space:normal; word-break:break-word; }
+#userTable tbody tr:not(.empty-row):hover td:nth-child(1),
+#userTable tbody tr:not(.empty-row):hover td:nth-child(2) { background:var(--abu-1); }
+
+/* ── Struktur Organisasi: freeze kolom Nama / NIP (tetap freeze di HP) ── */
+#pegawaiTable th:nth-child(1),
+#pegawaiTable tbody tr:not(.empty-row) td:nth-child(1) { position:sticky; left:0; min-width:240px; box-shadow:2px 0 4px rgba(0,0,0,.08); }
+#pegawaiTable th:nth-child(1) { top:0; z-index:4; }
+#pegawaiTable tbody tr:not(.empty-row) td:nth-child(1) { z-index:3; background:#fff; }
+#pegawaiTable tbody tr:not(.empty-row):hover td:nth-child(1) { background:var(--abu-1); }
+
+/* ── HP ≤640px: freeze tetap aktif di semua tabel; kolom nama dipersempit supaya masih ada ruang buat geser ── */
+@media (max-width: 640px) {
+  .kinerja-table td.td-sticky-name,
+  .kinerja-table th[style*="left:34px"],
+  #monTableHeadRow th:nth-child(2) { min-width:0 !important; max-width:150px !important; }
+  .ep-usulanku-tab .surat-table th:nth-child(2),
+  .ep-usulanku-tab .surat-table tbody tr:not(.empty-row) td:nth-child(2) { min-width:150px; max-width:170px; }
+  #userTable th:nth-child(2),
+  #userTable tbody tr:not(.empty-row) td:nth-child(2) { min-width:130px; max-width:150px; }
+  #pegawaiTable th:nth-child(1),
+  #pegawaiTable tbody tr:not(.empty-row) td:nth-child(1) { min-width:200px; }
+}
+
+/* ── Shortlink & Bundle: kolom Tautan dikunci lebarnya (URL asli panjang dipotong ellipsis) supaya kolom freeze tidak menutupi kolom lain ── */
+:is(#page-shortlink, #page-bundle) .freeze-table th.th-sticky-name,
+:is(#page-shortlink, #page-bundle) .freeze-table td.td-sticky-name { width:300px; min-width:300px; max-width:300px; overflow-wrap:anywhere; }
+:is(#page-shortlink, #page-bundle) .freeze-table td.td-sticky-name a { max-width:100% !important; }
+@media (max-width: 640px) {
+  :is(#page-shortlink, #page-bundle) .freeze-table th.th-sticky-name,
+  :is(#page-shortlink, #page-bundle) .freeze-table td.td-sticky-name { width:170px; min-width:170px; max-width:170px; }
+}
+
+/* ── Kolom Aksi: tombol selalu sejajar horizontal (tidak turun ke bawah) di Verifikasi Kinerja, Tema Musiman & Absensi ── */
+.kinerja-table.vf-table .vf-btns { flex-wrap:nowrap; }
+#temaMusimanTable tbody td:last-child,
+#absTableBody td:last-child { white-space:nowrap; }
+
+/* ── Data Perjadin & Laporan Perjadin: freeze kolom No & Pelaksana juga di HP ≤640px (versi desktop ada di <style> inline app.html, @media min-width:641px) ── */
+@media (max-width: 640px) {
+  :is(#pjTable, #lapPjTable) thead tr:first-child th:nth-child(-n+2),
+  :is(#pjTable, #lapPjTable) tbody td:nth-child(-n+2):not([colspan]) { position: sticky !important; left: 0; z-index: 1; background: #fff; }
+  :is(#pjTable, #lapPjTable) thead tr:first-child th:nth-child(-n+2) { z-index: 3; background: var(--hijau); }
+  :is(#pjTable, #lapPjTable) thead tr:first-child th:nth-child(1),
+  :is(#pjTable, #lapPjTable) tbody td:nth-child(1):not([colspan]) { width: 44px; min-width: 44px; max-width: 44px; padding-left: 6px; padding-right: 6px; }
+  :is(#pjTable, #lapPjTable) thead tr:first-child th:nth-child(2),
+  :is(#pjTable, #lapPjTable) tbody td:nth-child(2):not([colspan]) { left: 44px; min-width: 130px; max-width: 150px; box-shadow: 2px 0 4px -2px rgba(15,23,42,.22); }
+  :is(#pjTable, #lapPjTable) tbody tr:hover td:nth-child(-n+2):not([colspan]) { background: var(--abu-1); }
+}
