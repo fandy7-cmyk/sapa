@@ -2,6 +2,7 @@ import { getDb, jsonResponse, errorResponse, parseBody } from './_db.js';
 import { requireAuth } from './_auth.js';
 import { logAudit } from './_audit.js';
 import { deleteFromCloudinary, cleanupReplacedFile } from './_cloudinary.js';
+import { notifSuratDitugaskan, sinkronSuratMasuk, tutupNotifSurat } from './_notif.js';
 
 let _smMigrated = false;
 async function ensureSchema(sql) {
@@ -16,6 +17,11 @@ function _pegawaiArr(pegawai) {
   if (Array.isArray(pegawai)) return pegawai.filter(Boolean);
   if (pegawai) return [pegawai];
   return [];
+}
+
+// Notifikasi lonceng bersifat best-effort: kegagalannya tidak boleh menggagalkan simpan/ubah/hapus surat.
+async function notifSafe(fn) {
+  try { await fn(); } catch (e) { console.error('[notif surat-masuk]', e); }
 }
 
 async function checkAccess(auth, sql) {
@@ -187,6 +193,10 @@ export const handler = async (event) => {
         aksi: 'create', entitas: 'surat_masuk', entitas_id: rows[0].id,
         detail: { no_agenda, perihal, asal_surat }
       });
+      await notifSafe(async () => {
+        await notifSuratDitugaskan(sql, rows[0].id, _pegawaiArr(pegawai), auth.id);
+        await sinkronSuratMasuk(sql);
+      });
       return jsonResponse({ surat: rows[0] }, 201);
     } catch (err) { console.error('[POST surat-masuk]', err); return errorResponse('Gagal menyimpan surat masuk: ' + err.message); }
   }
@@ -202,6 +212,9 @@ export const handler = async (event) => {
     try {
       const prevFile = file_url !== undefined
         ? await sql`SELECT file_url FROM surat_masuk WHERE id = ${numId}`
+        : [];
+      const prevPegawai = pegawai !== undefined
+        ? await sql`SELECT pegawai_list FROM surat_masuk WHERE id = ${numId}`
         : [];
       const rows = await sql`
         UPDATE surat_masuk SET
@@ -226,6 +239,15 @@ export const handler = async (event) => {
         aksi: 'update', entitas: 'surat_masuk', entitas_id: numId,
         detail: { no_agenda: rows[0].no_agenda, perihal: rows[0].perihal }
       });
+      await notifSafe(async () => {
+        if (pegawai !== undefined) {
+          const lama = new Set(Array.isArray(prevPegawai[0]?.pegawai_list) ? prevPegawai[0].pegawai_list : []);
+          const baru = _pegawaiArr(pegawai).filter((n) => !lama.has(n));
+          if (baru.length) await notifSuratDitugaskan(sql, numId, baru, auth.id);
+        }
+        if (rows[0].selesai) await tutupNotifSurat(sql, numId);
+        await sinkronSuratMasuk(sql);
+      });
       return jsonResponse({ surat: rows[0] });
     } catch (err) { console.error('[PUT surat-masuk]', err); return errorResponse('Gagal mengupdate surat masuk: ' + err.message); }
   }
@@ -240,6 +262,7 @@ export const handler = async (event) => {
       }
     }
     const { selesai } = parseBody(event);
+    if (!selesai && !fullAccess) return errorResponse('Hanya admin yang dapat membuka kembali surat', 403);
     try {
       const rows = await sql`UPDATE surat_masuk SET selesai = ${Boolean(selesai)}, updated_at = NOW() WHERE id = ${numId} RETURNING *`;
       if (!rows.length) return errorResponse('Surat tidak ditemukan', 404);
@@ -247,6 +270,10 @@ export const handler = async (event) => {
         user_id: auth.id, nama: auth.nama, email: auth.email,
         aksi: 'update_status', entitas: 'surat_masuk', entitas_id: numId,
         detail: { selesai: Boolean(selesai) }
+      });
+      await notifSafe(async () => {
+        if (rows[0].selesai) await tutupNotifSurat(sql, numId);
+        await sinkronSuratMasuk(sql);
       });
       return jsonResponse({ surat: rows[0] });
     } catch (err) { return errorResponse('Gagal mengupdate status: ' + err.message); }
@@ -268,6 +295,10 @@ export const handler = async (event) => {
         user_id: auth.id, nama: auth.nama, email: auth.email,
         aksi: 'delete', entitas: 'surat_masuk', entitas_id: numId,
         detail: before[0] || null
+      });
+      await notifSafe(async () => {
+        await tutupNotifSurat(sql, numId);
+        await sinkronSuratMasuk(sql);
       });
       return jsonResponse({ ok: true });
     } catch (err) { return errorResponse('Gagal menghapus surat masuk: ' + err.message); }

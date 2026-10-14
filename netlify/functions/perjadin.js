@@ -6,6 +6,12 @@ import {
   ensurePerjadinSchema, buildPerjadin, insertPerjadin, updatePerjadin, backfillPerjadinDariAbsensi,
   JENIS_PERJADIN, STATUS_VERIFIKASI, SKPD_DEFAULT,
 } from './_perjadin.js';
+import { sinkronPerjadin, notifPerjadinHasil } from './_notif_modul.js';
+
+// Notifikasi lonceng bersifat best-effort: kegagalannya tidak boleh menggagalkan aksi utamanya.
+async function notifSafe(fn) {
+  try { await fn(); } catch (e) { console.error('[notif]', e); }
+}
 
 // Hak akses Perjadin (diatur admin di menu Hak Akses, sama seperti Absensi/Surat):
 //  - admin, atau permission 'perjadin.full' (Admin Penuh): lihat semua data, input, edit, hapus & verifikasi.
@@ -336,10 +342,11 @@ export const handler = async (event) => {
     if (error) return errorResponse(error, 400);
     row.nama_skpd = SKPD_DEFAULT;   // Nama SKPD read-only
     try {
-      const saved = await insertPerjadin(sql, row, { sumber: 'admin', input_by: auth.id });
+      const saved = await insertPerjadin(sql, row, { sumber: 'admin', input_by: auth.id, disetujui: true });
       await audit('create_perjadin', saved.id, {
         pelaksana: row.pelaksana_nama, tujuan: row.kota_tujuan, tgl_mulai: row.tgl_mulai, tgl_selesai: row.tgl_selesai,
       });
+      await notifSafe(() => sinkronPerjadin(sql));
       return jsonResponse({ perjadin: saved }, 201);
     } catch (err) {
       console.error('[POST /api/perjadin]', err);
@@ -364,6 +371,10 @@ export const handler = async (event) => {
       `;
       if (!rows.length) return errorResponse('Data perjalanan dinas tidak ditemukan', 404);
       await audit('verifikasi_perjadin', id, { status, catatan: _txt(catatan) });
+      await notifSafe(async () => {
+        await notifPerjadinHasil(sql, id, status, _txt(catatan), auth.id);
+        await sinkronPerjadin(sql);
+      });
       return jsonResponse({ perjadin: rows[0] });
     } catch (err) {
       console.error('[PUT /api/perjadin/:id/verifikasi]', err);
@@ -440,6 +451,7 @@ export const handler = async (event) => {
       await audit('delete_perjadin', id, {
         pelaksana: rows[0].pelaksana_nama, tujuan: rows[0].kota_tujuan, absensi_dihapus: absensiHapus.length,
       });
+      await notifSafe(() => sinkronPerjadin(sql));
       return jsonResponse({ ok: true, absensi_dihapus: absensiHapus.length });
     } catch (err) {
       console.error('[DELETE /api/perjadin/:id]', err);

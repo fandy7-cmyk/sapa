@@ -13,7 +13,6 @@ const PJ_KENDARAAN = ['Dinas', 'Pribadi', 'Sewa', 'Travel'];
 const PJ_BULAN = ['', 'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
 const PJ_STATUS_LABEL = { menunggu: 'Menunggu Persetujuan', terverifikasi: 'Disetujui', ditolak: 'Ditolak' };
 const PJ_STATUS_BADGE = { menunggu: 'badge-warning', terverifikasi: 'badge-hijau', ditolak: 'badge-merah' };
-const PJ_KOTA_ASAL_DEFAULT = 'Banggai Laut';   // hanya prefill; bisa diubah
 
 // Kunci field rincian biaya. Harus sama dengan DETAIL_* di netlify/functions/_perjadin.js.
 const PJ_D_RP = ['udara_pergi_rp', 'udara_pulang_rp', 'darat_pergi_rp', 'darat_pulang_rp', 'laut_pergi_rp', 'laut_pulang_rp',
@@ -167,8 +166,8 @@ function pjFormHTML(p, admin) {
     <div class="field" style="margin-top:14px">
       <label>Perjalanan dinas ini perlu dipertanggungjawabkan?</label>
       <div class="pj-yn" id="${p}_yn" role="radiogroup" aria-label="Perlu dipertanggungjawabkan">
-        <button type="button" class="pj-yn-btn" data-val="ya" role="radio" onclick="pjSetYN('${p}', 'ya')">Ya</button>
-        <button type="button" class="pj-yn-btn active" data-val="tidak" role="radio" onclick="pjSetYN('${p}', 'tidak')">Tidak</button>
+        <button type="button" class="pj-yn-btn" data-val="ya" role="radio" onclick="pjSetYN('${p}', 'ya')"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="margin-right:5px;vertical-align:-2px" aria-hidden="true"><path d="M5 13l4 4L19 7"/></svg>Ya</button>
+        <button type="button" class="pj-yn-btn active" data-val="tidak" role="radio" onclick="pjSetYN('${p}', 'tidak')"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="margin-right:5px;vertical-align:-2px" aria-hidden="true"><path d="M6 18L18 6M6 6l12 12"/></svg>Tidak</button>
       </div>
       <div class="field-hint">Pilih Ya untuk mengisi rincian anggaran perjalanan dinas. Pilih Tidak kalau bisa langsung disimpan.</div>
     </div>` : '';
@@ -653,7 +652,6 @@ async function openPerjadinModal(id = null, duplicate = false) {
   _pjMountWidgets('pjA');
   pjFillForm('pjA', row, true);
   _pjRenderSumberDana('pjA', row?.sumber_dana || '');
-  if (!row) _pjById('pjA_kota_asal').value = PJ_KOTA_ASAL_DEFAULT;
   // Nama SKPD hanya baca (selalu nama dinas).
   const skpd = _pjById('pjA_nama_skpd');
   skpd.value = _pjSkpdDefault || skpd.value;
@@ -780,7 +778,7 @@ async function pjAbsInit(pjRow, userId = null) {
     if (/^Pelaksana/i.test(d.querySelector('summary')?.textContent || '')) d.style.display = 'none';
   });
   if (pjRow) pjFillForm('pjE', pjRow, true);
-  else { _pjById('pjE_kota_asal').value = PJ_KOTA_ASAL_DEFAULT; pjUpdateTotal('pjE'); }
+  else { pjUpdateTotal('pjE'); }
   _pjRenderSumberDana('pjE', pjRow?.sumber_dana || '');   // opsi master dimuat di bawah, nilai lama dijaga
   pjOpenFilledSections('pjE');
   // Nama SKPD hanya baca; Sub Unit SKPD otomatis dari unit kerja pegawai.

@@ -2,6 +2,12 @@ import bcrypt from 'bcryptjs';
 import { getDb, jsonResponse, errorResponse, parseBody, runOnce } from './_db.js';
 import { signToken, requireAuth, generateRefreshToken, hashRefreshToken } from './_auth.js';
 import { logAudit, getReqMeta, checkLoginRateLimit, recordLoginAttempt, clearLoginAttempts, MAX_LOGIN_ATTEMPTS } from './_audit.js';
+import { sinkronKeamanan } from './_notif_modul.js';
+
+// Notifikasi lonceng bersifat best-effort: kegagalannya tidak boleh menggagalkan aksi utamanya.
+async function notifSafe(fn) {
+  try { await fn(); } catch (e) { console.error('[notif]', e); }
+}
 
 // 125 detik -> "3 menit", 3700 detik -> "1 jam 2 menit"
 function _fmtTunggu(sec) {
@@ -61,7 +67,10 @@ export const handler = async (event) => {
         await recordLoginAttempt(sql, nipNorm, ip);
         await logAudit(sql, event, { aksi: 'login_failed', detail: { nip: nipNorm, reason: 'nip_not_found' }, lokasi_client: lokasi });
         const after = await checkLoginRateLimit(sql, nipNorm, ip);
-        if (!after.allowed) return _blokir(after.retryAfterSec, after.lockMinutes);
+        if (!after.allowed) {
+          await notifSafe(() => sinkronKeamanan(sql));   // percobaan ini memicu kunci -> beri tahu admin
+          return _blokir(after.retryAfterSec, after.lockMinutes);
+        }
         return errorResponse('Akun tidak terdaftar, hubungi admin', 401);
       }
 
@@ -76,7 +85,10 @@ export const handler = async (event) => {
         await logAudit(sql, event, { user_id: user.id, nama: user.nama, email: user.email, aksi: 'login_failed', detail: { nip: nipNorm, reason: 'wrong_password' }, lokasi_client: lokasi });
         // Hitung ulang setelah percobaan ini tercatat: kalau ini percobaan yang memicu kunci, langsung kunci.
         const after = await checkLoginRateLimit(sql, nipNorm, ip);
-        if (!after.allowed) return _blokir(after.retryAfterSec, after.lockMinutes);
+        if (!after.allowed) {
+          await notifSafe(() => sinkronKeamanan(sql));   // percobaan ini memicu kunci -> beri tahu admin
+          return _blokir(after.retryAfterSec, after.lockMinutes);
+        }
         return errorResponse('Username atau password salah', 401, { sisa_percobaan: after.remaining });
       }
 

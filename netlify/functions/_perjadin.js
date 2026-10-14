@@ -226,20 +226,27 @@ export function buildPerjadin(input = {}, { admin = false, base = {} } = {}) {
   return { row };
 }
 
-export async function insertPerjadin(sql, row, { sumber = 'admin', pengajuan_id = null, input_by = null } = {}) {
+// disetujui=true: input oleh admin / user akses penuh -> langsung 'terverifikasi' (Disetujui), tanpa menunggu.
+// Input user biasa (pengajuan) tetap 'menunggu' sampai admin menyetujui.
+export async function insertPerjadin(sql, row, { sumber = 'admin', pengajuan_id = null, input_by = null, disetujui = false } = {}) {
+  const stat = disetujui ? 'terverifikasi' : 'menunggu';
+  const vBy = disetujui ? input_by : null;
+  const vAt = disetujui ? new Date().toISOString() : null;
   const rows = await sql`
     INSERT INTO perjadin (
       user_id, sumber, pengajuan_id, nama_skpd, sub_unit, no_sp2d, tgl_sp2d, sumber_dana, no_surat_tugas, tgl_surat_tugas,
       rincian_kegiatan, jenis_perjadin, pelaksana_nama, pelaksana_nip,
       tgl_mulai, tgl_selesai, jumlah_hari, kota_asal, kota_tujuan, detail,
-      jumlah_transport, jumlah_taksi, jumlah_biaya, input_by
+      jumlah_transport, jumlah_taksi, jumlah_biaya, input_by,
+      status_verifikasi, verified_by, verified_at
     ) VALUES (
       ${row.user_id}, ${sumber}, ${pengajuan_id}, ${row.nama_skpd}, ${row.sub_unit}, ${row.no_sp2d}, ${row.tgl_sp2d}, ${row.sumber_dana ?? null},
       ${row.no_surat_tugas}, ${row.tgl_surat_tugas}, ${row.rincian_kegiatan}, ${row.jenis_perjadin},
       ${row.pelaksana_nama}, ${row.pelaksana_nip},
       ${row.tgl_mulai}, ${row.tgl_selesai}, ${row.jumlah_hari}, ${row.kota_asal}, ${row.kota_tujuan},
       ${JSON.stringify(row.detail)}::jsonb,
-      ${row.jumlah_transport}, ${row.jumlah_taksi}, ${row.jumlah_biaya}, ${input_by}
+      ${row.jumlah_transport}, ${row.jumlah_taksi}, ${row.jumlah_biaya}, ${input_by},
+      ${stat}, ${vBy}, ${vAt}
     )
     RETURNING *, tgl_mulai::text AS tgl_mulai, tgl_selesai::text AS tgl_selesai,
               tgl_sp2d::text AS tgl_sp2d, tgl_surat_tugas::text AS tgl_surat_tugas
@@ -272,7 +279,7 @@ export async function updatePerjadin(sql, id, row) {
 // Dinas (lewat pengajuan), baris itu dipakai apa adanya. Kalau belum (input manual admin, pengajuan tanpa form,
 // ubah status jadi Tugas Luar), dibuat baris "kerangka": jenis/kota/biaya kosong, status verifikasi 'menunggu',
 // supaya admin tinggal melengkapinya dari menu Perjadin.
-export async function syncPerjadinDariAbsensi(sql, { user_id, tgl_mulai, tgl_selesai, keterangan = null, pengajuan_id = null, input_by = null }) {
+export async function syncPerjadinDariAbsensi(sql, { user_id, tgl_mulai, tgl_selesai, keterangan = null, pengajuan_id = null, input_by = null, disetujui = false }) {
   if (!user_id || !_isYMD(tgl_mulai) || !_isYMD(tgl_selesai)) return null;
   await ensurePerjadinSchema(sql);
   if (pengajuan_id) {
@@ -298,7 +305,7 @@ export async function syncPerjadinDariAbsensi(sql, { user_id, tgl_mulai, tgl_sel
     kota_asal: null, kota_tujuan: null, detail: {},
     jumlah_transport: 0, jumlah_taksi: 0, jumlah_biaya: 0,
   };
-  return insertPerjadin(sql, row, { sumber: 'absensi', pengajuan_id, input_by });
+  return insertPerjadin(sql, row, { sumber: 'absensi', pengajuan_id, input_by, disetujui });
 }
 
 // Absensi Tugas Luar dihapus → buang baris kerangka Perjadin yang belum dilengkapi, kalau sudah tidak ada
@@ -309,7 +316,7 @@ export async function bersihkanKerangkaPerjadin(sql, { user_id, tanggal }) {
   const stubs = await sql`
     SELECT id, tgl_mulai::text AS tgl_mulai, tgl_selesai::text AS tgl_selesai FROM perjadin
     WHERE user_id = ${user_id} AND sumber = 'absensi' AND jenis_perjadin IS NULL
-      AND jumlah_biaya = 0 AND status_verifikasi = 'menunggu'
+      AND jumlah_biaya = 0 AND status_verifikasi IN ('menunggu', 'terverifikasi')
       AND tgl_mulai <= ${tanggal}::date AND tgl_selesai >= ${tanggal}::date
   `;
   for (const s of stubs) {

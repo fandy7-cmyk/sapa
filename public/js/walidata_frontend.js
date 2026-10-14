@@ -176,13 +176,12 @@ function _wdEnsurePages() {
     p.innerHTML = `
       <div class="page-title">${_WD_IC.table}Data Statistik Sektoral Daerah</div>
       <div class="page-subtitle">Data indikator walidata per Kode SSD, unit kerja, dan tahun pelaporan</div>
+      <div id="wdSsdStats"></div>
       <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;row-gap:12px;margin-bottom:6px">
         <span style="font-size:.72rem;font-weight:600;color:var(--text-secondary,#64748b);white-space:nowrap;letter-spacing:.01em;margin-right:2px">Tahun</span>
         <div class="select-wrap tahun-select-wrap" style="min-width:88px"><select id="wdTahun" autocomplete="off" onchange="wdGantiTahun(this.value)"></select></div>
         <div class="search-wrap" style="min-width:220px;flex:1;max-width:320px">${_WD_IC.search}<input type="text" id="wdSearch" placeholder="Cari kode SSD, uraian…" /></div>
         <div class="select-wrap" style="min-width:200px" id="wdUnitWrap"><select id="wdUnit"><option value="">Semua Unit Kerja</option></select></div>
-        <div style="flex:1"></div>
-        <button class="btn btn-sm btn-primary" onclick="wdUnduhRekap()">${_WD_BTN.unduh}Unduh Rekap Excel</button>
       </div>
       <div id="wdCountdownBar" style="display:none"></div>
       <div style="height:12px"></div>
@@ -315,6 +314,7 @@ function _wdEnsurePages() {
 // ═══ DATA SSD ═══════════════════════════════════════════════════════════════
 async function loadWalidataSsd() {
   _wdEnsurePages();
+  if (!_wd.data) _wdRenderSsdStats();
   document.getElementById('wdUnitWrap').style.display = _wdAdmin() ? '' : 'none';
   await _wdMuatData();
 }
@@ -336,6 +336,7 @@ async function _wdMuatData(silent, bg) {
     return;
   }
   _wd.rows = _wd.data.rows;
+  _wdRenderSsdStats();   // juga saat tabel tidak dirender ulang (sedang edit)
   _wdIsiTahun();
   _wdRenderPeriode();
   if (_wdAdmin()) await _wdIsiFilterUnit();
@@ -430,6 +431,65 @@ async function _wdIsiFilterUnit() {
   const cur = _wd.unitFilter;
   sel.innerHTML = '<option value="">Semua Unit Kerja</option>' +
     _wd.bidang.map(b => `<option value="${b.id}" ${String(b.id) === String(cur) ? 'selected' : ''}>${esc(b.nama)}</option>`).join('');
+}
+
+/* ── Statcard Data SSD ──
+   Gaya sama dengan Monitoring Pengisian (.stat-card + garis aksen kiri). Dihitung dari baris yang
+   sedang tampil di tabel (ikut Tahun, pencarian, dan filter Unit Kerja), per indikator.
+   Admin: status pengisian semua unit pengampu. User unit: hanya indikator miliknya. */
+const _WD_STAT_IC = {
+  chart: '<path d="M3 3v18h18"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/>',
+  ok:    '<path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>',
+  pie:   '<path d="M21.21 15.89A10 10 0 1 1 8 2.83"/><path d="M22 12A10 10 0 0 0 12 2v10z"/>',
+  belum: '<circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>'
+};
+function _wdStatCardsHtml(cards) {
+  return `<div class="stat-grid" style="grid-template-columns:repeat(auto-fit,minmax(150px,1fr))">
+    ${cards.map(([v, label, color, bg, ic]) => `
+      <div class="stat-card" style="border-left-color:${color}">
+        <div class="stat-card-body">
+          <div class="stat-label">${label}</div>
+          <div class="stat-value" style="color:${color}">${v == null ? '–' : Number(v).toLocaleString('id-ID')}</div>
+        </div>
+        <div class="stat-icon" style="background:${bg};opacity:1">
+          <svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" fill="none" viewBox="0 0 24 24" stroke="${color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${_WD_STAT_IC[ic]}</svg>
+        </div>
+      </div>`).join('')}
+  </div>`;
+}
+function _wdRenderSsdStats() {
+  const el = document.getElementById('wdSsdStats');
+  if (!el) return;
+  const filled = d => d.nilai !== null && d.nilai !== undefined;
+  const admin = _wd.data?.me ? !!_wd.data.me.admin : _wdAdmin();
+  const C = { hijau: ['var(--hijau)', 'rgba(15,118,110,.12)'], ok: ['#16a34a', 'rgba(22,163,74,.12)'],
+              amber: ['#d97706', 'rgba(217,119,6,.12)'], merah: ['#dc2626', 'rgba(220,38,38,.12)'] };
+  // Data belum dimuat: tampilkan kartu kosong ("–") supaya tata letak tidak loncat
+  const list = _wd.data ? _wdFiltered() : null;
+  const n = (fn) => list ? list.filter(fn).length : null;
+  if (admin) {
+    // Status per indikator, sama dengan perhitungan total di tabel (unit pengampu + data tanpa unit)
+    const st = r => {
+      const pengampu = r.detail.filter(d => d.pengampu);
+      const terisiPengampu = pengampu.filter(filled).length;
+      const terisiSemua = r.detail.filter(d => (d.pengampu || d.tanpa_unit) && filled(d)).length;
+      if (pengampu.length && terisiPengampu >= pengampu.length) return 'lengkap';
+      return terisiSemua > 0 ? 'sebagian' : 'belum';
+    };
+    el.innerHTML = _wdStatCardsHtml([
+      [list && list.length, 'Total Indikator', ...C.hijau, 'chart'],
+      [n(r => st(r) === 'lengkap'),  'Terisi Lengkap',  ...C.ok,    'ok'],
+      [n(r => st(r) === 'sebagian'), 'Terisi Sebagian', ...C.amber, 'pie'],
+      [n(r => st(r) === 'belum'),    'Belum Diinput',   ...C.merah, 'belum']
+    ]);
+  } else {
+    const terinput = r => !!(r.detail[0] && filled(r.detail[0]));
+    el.innerHTML = _wdStatCardsHtml([
+      [list && list.length, 'Total Indikator', ...C.hijau, 'chart'],
+      [n(terinput),                 'Terinput',    ...C.ok,    'ok'],
+      [n(r => !terinput(r)),        'Belum Input', ...C.merah, 'belum']
+    ]);
+  }
 }
 
 function _wdFiltered() {
@@ -534,6 +594,7 @@ function _wdRealisasiCell(r) {
 }
 
 function _wdRenderTable() {
+  _wdRenderSsdStats();
   const body = document.getElementById('wdBody');
   const list = _wdFiltered();
   const total = list.length;
@@ -591,7 +652,7 @@ function _wdDetailBody(r) {
     if (d.tanpa_unit) {
       isi = pengampuList.length
         ? `<div style="display:flex;gap:6px;align-items:center;justify-content:center;flex-wrap:wrap"><strong>${_wdNum(d.nilai)}</strong>
-             <select id="wdPindah-${r.id}" class="input" style="padding:5px 8px;max-width:170px">${pengampuList.map(u => `<option value="${u.bidang_id}">${esc(u.nama)}</option>`).join('')}</select></div>`
+             <div class="select-wrap" style="min-width:150px;max-width:190px"><select id="wdPindah-${r.id}" data-searchable="1" data-search-placeholder="Cari unit kerja…">${pengampuList.map(u => `<option value="${u.bidang_id}">${esc(u.nama)}</option>`).join('')}</select></div></div>`
         : `<strong>${_wdNum(d.nilai)}</strong><div style="font-size:.7rem;color:var(--teks-muted);margin-top:2px">Tetapkan unit kerja di Kelola Indikator</div>`;
       if (pengampuList.length) aksi = `<button class="btn btn-ghost btn-sm" data-tip="Pindahkan ke unit terpilih" onclick="wdPindahTanpaUnit(${r.id})">${_WD_BTN.pindah}</button>`;
     } else if (d.pengampu) {
@@ -662,24 +723,6 @@ async function wdSimpanDetail(indikatorId, bidangId) {
     toast(v === '' ? 'Data dikosongkan' : 'Data tersimpan');
     _wdSegarkanDetail(indikatorId, true);
   } catch (e) { toast(e.message, 'error'); _wdSibukkan('wdDt-' + bidangId, false); }
-}
-
-// ── Rekap Excel ────────────────────────────────────────────────────────────
-async function wdUnduhRekap() {
-  try {
-    await _loadXlsx();
-    const out = [['Tahun', 'Kode SSD', 'Uraian', 'Definisi Operasional', 'Satuan', 'Unit Kerja', 'Jumlah Unit', 'Total']];
-    for (const r of _wdFiltered()) {
-      const rows = r.detail.length ? r.detail : [{ nama: '-', nilai: null }];
-      rows.forEach((d, i) => out.push([_wd.tahun, r.kode_ssd, r.uraian, r.definisi || '', r.satuan || '',
-        d.nama + (d.pengampu === false ? ' (riwayat)' : ''), d.nilai, i === 0 ? r.total : '']));
-    }
-    const ws = XLSX.utils.aoa_to_sheet(out);
-    ws['!cols'] = [{ wch: 7 }, { wch: 12 }, { wch: 46 }, { wch: 40 }, { wch: 12 }, { wch: 32 }, { wch: 14 }, { wch: 14 }];
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, 'Rekap ' + _wd.tahun);
-    XLSX.writeFile(wb, `Rekap_Walidata_${_wd.tahun}.xlsx`);
-  } catch (e) { toast(e.message, 'error'); }
 }
 
 // ═══ KELOLA INDIKATOR ═══════════════════════════════════════════════════════
@@ -962,7 +1005,7 @@ function wdBukaImport() {
     <div class="field"><label>File Excel (.xlsx)</label>
       <input type="file" id="wdImpFile" accept=".xlsx,.xls" onchange="wdImportPilihFile(this)"></div>
     <div class="field"><label>Unit Kerja untuk seluruh data di file <span style="font-weight:400;color:var(--teks-muted)">(opsional)</span></label>
-      <select id="wdImpUnit" class="input" onchange="wdImportProses()"><option value="">Belum ditetapkan (admin set manual nanti)</option>${unitOpt}</select>
+      <div class="select-wrap"><select id="wdImpUnit" data-searchable="1" data-search-placeholder="Cari unit kerja…" onchange="wdImportProses()"><option value="">Belum ditetapkan (admin set manual nanti)</option>${unitOpt}</select></div>
       <div style="font-size:.72rem;color:var(--teks-muted);margin-top:3px">Dipakai bila file tidak punya kolom "Unit Kerja". Bila dikosongkan, data tersimpan sebagai "Belum ditetapkan unit" dan ikut dihitung di total; setelah unit kerja ditetapkan di Kelola Indikator, datanya dipindahkan ke unit tersebut.</div></div>
     <div id="wdImpPreview"></div>`;
   _wdModal('modalWdImport', 'Import Excel Walidata', 'Master indikator & data tahun-tahun sebelumnya (tetap bisa saat periode ditutup)', body,

@@ -641,8 +641,8 @@ const PERM_GROUPS = [
       { key: 'kinerja.full',   name: 'Admin Penuh', admin: true, desc: 'Kelola indikator, target, jenis kinerja, laporan, periode & monitoring pengisian (setara admin kinerja)' },
     ] },
   { id: 'walidata', name: 'Walidata', icon: 'M3 3h18v18H3zM3 9h18M3 15h18M9 3v18',
-    base: { key: 'walidata', desc: 'Lihat Data SSD indikator milik unit kerjanya' }, items: [
-      { key: 'walidata.input', name: 'Input Realisasi', desc: 'Input & ubah realisasi Data SSD untuk unit kerjanya (selama periode terbuka)' },
+    base: { key: 'walidata', desc: 'Lihat Data SSD indikator yang di-assign ke akunnya (di unit kerjanya)' }, items: [
+      { key: 'walidata.input', name: 'Input Realisasi', desc: 'Input & ubah realisasi Data SSD hanya untuk indikator yang di-assign ke akunnya di unit kerjanya (selama periode terbuka)' },
       { key: 'walidata.full',  name: 'Admin Penuh', admin: true, desc: 'Lihat semua unit kerja, kelola indikator, import Excel & periode Walidata (setara admin)' },
     ] },
   { id: 'absensi', name: 'Absensi', icon: 'M12 8v4l3 3M21 12a9 9 0 11-18 0 9 9 0 0118 0z',
@@ -768,7 +768,7 @@ function renderPermsGrid() {
     return `
       <div class="perm-group ${cnt ? 'has-sel' : ''} ${open ? 'open' : ''}">
         <div class="perm-group-head">
-          <div class="perm-check-lg ${state}" onclick="permsToggleGroup('${g.id}')" title="${g.base ? 'Beri/cabut akses menu ini' : 'Pilih/kosongkan semua sub-menu (kecuali Admin)'}"></div>
+          <div class="perm-check-lg ${state}" onclick="permsToggleGroup('${g.id}')" data-tip="${g.base ? 'Beri/cabut akses menu ini' : 'Pilih/kosongkan semua sub-menu (kecuali Admin)'}"></div>
           <div class="perm-group-main" onclick="${hasKids ? `permsToggleOpen('${g.id}')` : `permsToggleGroup('${g.id}')`}">
             <div class="perm-group-ico"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="${g.icon}"/></svg></div>
             <div class="perm-group-txt">

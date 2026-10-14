@@ -424,7 +424,7 @@
     });
     const bw = iw / Math.max(n - 1, 1);
     let hit = '';
-    for (let i = 0; i < n; i++) hit += `<rect class="mon-hit" x="${(x(i) - bw / 2).toFixed(1)}" y="${pt}" width="${bw.toFixed(1)}" height="${ih}"><title>${monEsc(labels[i].full || labels[i])}\n${series.map(s => s.name + ': ' + (s.values[i] == null ? '-' : fmt(s.values[i]))).join('\n')}</title></rect>`;
+    for (let i = 0; i < n; i++) hit += `<rect class="mon-hit" x="${(x(i) - bw / 2).toFixed(1)}" y="${pt}" width="${bw.toFixed(1)}" height="${ih}" data-tip="${monEsc((labels[i].full || labels[i]) + '\n' + series.map(s => s.name + ': ' + (s.values[i] == null ? '-' : fmt(s.values[i]))).join('\n'))}"></rect>`;
     return `<svg class="mon-chart" viewBox="0 0 ${W} ${H}" role="img">${g}${paths}${xl}${hit}</svg>`;
   }
 
@@ -438,7 +438,7 @@
     let bars = '';
     values.forEach((v, i) => {
       const hh = Math.max(v > 0 ? 2 : 0, (v / max) * ih), xx = pl + i * bw + bw * .14;
-      bars += `<rect x="${xx.toFixed(1)}" y="${(pt + ih - hh).toFixed(1)}" width="${(bw * .72).toFixed(1)}" height="${hh.toFixed(1)}" rx="2.5" fill="${i === hi ? PAL.warn : color}"${i === hi ? '' : ' opacity=".85"'}><title>${monEsc(labels[i])}: ${fmt(v)}${unit ? ' ' + unit : ''}</title></rect>`;
+      bars += `<rect x="${xx.toFixed(1)}" y="${(pt + ih - hh).toFixed(1)}" width="${(bw * .72).toFixed(1)}" height="${hh.toFixed(1)}" rx="2.5" fill="${i === hi ? PAL.warn : color}"${i === hi ? '' : ' opacity=".85"'} data-tip="${monEsc(labels[i])}: ${fmt(v)}${unit ? ' ' + unit : ''}"></rect>`;
       if (i % stepX === 0) bars += `<text class="mon-ax" x="${(pl + i * bw + bw / 2).toFixed(1)}" y="${H - 6}" text-anchor="middle">${monEsc(labels[i])}</text>`;
     });
     return `<svg class="mon-chart" viewBox="0 0 ${W} ${H}" role="img">${g}${bars}</svg>`;
@@ -449,7 +449,7 @@
     let off = 0;
     const arcs = tot ? items.filter(i => i.value > 0).map(i => {
       const len = i.value / tot * C;
-      const s = `<circle cx="60" cy="60" r="${R}" fill="none" stroke="${i.color}" stroke-width="16" stroke-dasharray="${len.toFixed(2)} ${(C - len).toFixed(2)}" stroke-dashoffset="${(-off).toFixed(2)}" transform="rotate(-90 60 60)"><title>${monEsc(i.label)}: ${nf(i.value)}</title></circle>`;
+      const s = `<circle cx="60" cy="60" r="${R}" fill="none" stroke="${i.color}" stroke-width="16" stroke-dasharray="${len.toFixed(2)} ${(C - len).toFixed(2)}" stroke-dashoffset="${(-off).toFixed(2)}" transform="rotate(-90 60 60)" data-tip="${monEsc(i.label)}: ${nf(i.value)}"></circle>`;
       off += len; return s;
     }).join('') : '';
     return `<div class="mon-donut"><svg viewBox="0 0 120 120" role="img"><circle cx="60" cy="60" r="${R}" fill="none" stroke="#eef2f6" stroke-width="16"/>${arcs}
@@ -459,7 +459,7 @@
 
   function hbars(items, kosong) {
     if (!items.length) return `<div class="mon-empty">${kosong || 'Belum ada data'}</div>`;
-    return items.map(i => `<div class="mon-hb"><div class="mon-hb-top"><span class="mon-hb-l" title="${monEsc(i.label)}">${monEsc(i.label)}</span><span class="mon-hb-r">${i.right || ''}</span></div><div class="mon-hb-track"><i style="width:${Math.max(2, Math.round(i.value * 100 / (i.max || 1)))}%;background:${i.color || PAL.teal}"></i></div>${i.sub ? `<div class="mon-row-sub">${i.sub}</div>` : ''}</div>`).join('');
+    return items.map(i => `<div class="mon-hb"><div class="mon-hb-top"><span class="mon-hb-l" data-tip="${monEsc(i.label)}">${monEsc(i.label)}</span><span class="mon-hb-r">${i.right || ''}</span></div><div class="mon-hb-track"><i style="width:${Math.max(2, Math.round(i.value * 100 / (i.max || 1)))}%;background:${i.color || PAL.teal}"></i></div>${i.sub ? `<div class="mon-row-sub">${i.sub}</div>` : ''}</div>`).join('');
   }
   const legend = (arr) => `<div class="mon-legend">${arr.map(([c, l]) => `<span><i style="background:${c}"></i>${l}</span>`).join('')}</div>`;
 
@@ -712,7 +712,7 @@
         </div>
         <div class="mon-cols">
           ${panel('Volume permintaan', 'Jumlah per periode', barChart({ labels: lbl.map(l => l.short), values: ser.map(r => r.n), color: PAL.teal, h: 150 }))}
-          ${panel('Sebaran kecepatan', 'Berapa banyak permintaan di tiap kelas', kp ? `<div class="mon-stack">${[['cepat', PAL.ok], ['sedang', PAL.info], ['lambat', PAL.warn], ['kritis', PAL.bad]].map(([k, c]) => `<i style="width:${pct(kp[k], t.n)}%;background:${c}" title="${k}: ${nf(kp[k])}"></i>`).join('')}</div>
+          ${panel('Sebaran kecepatan', 'Berapa banyak permintaan di tiap kelas', kp ? `<div class="mon-stack">${[['cepat', PAL.ok], ['sedang', PAL.info], ['lambat', PAL.warn], ['kritis', PAL.bad]].map(([k, c]) => `<i style="width:${pct(kp[k], t.n)}%;background:${c}" data-tip="${k}: ${nf(kp[k])}"></i>`).join('')}</div>
             ${legend([[PAL.ok, `Cepat (&lt;300 ms) ${nf(kp.cepat)}`], [PAL.info, `Sedang (300-800 ms) ${nf(kp.sedang)}`], [PAL.warn, `Lambat (0,8-2 dtk) ${nf(kp.lambat)}`], [PAL.bad, `Kritis (&gt;2 dtk) ${nf(kp.kritis)}`]])}
             <div style="margin-top:var(--sp-4)">${ins.join('')}</div>` : `<div style="margin-top:4px">${ins.join('') || '<div class="mon-empty">Belum ada data</div>'}</div>`)}
         </div>

@@ -2111,7 +2111,7 @@ async function loadPengajuanSaya() {
         ${p.status_persetujuan === 'ditolak' ? `<button class="btn btn-primary btn-sm" onclick="bukaEditPengajuan(${p.id}, 'ulang')">
           <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="margin-right:5px;vertical-align:-1px"><path d="M3 12a9 9 0 0 1 15.5-6.2L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-15.5 6.2L3 16"/><path d="M3 21v-5h5"/></svg>Ajukan Ulang
         </button>
-        <button class="btn btn-danger btn-sm" data-tip="Hapus" onclick="hapusPengajuanDitolak(${p.id})">
+        <button class="btn-hapus" data-tip="Hapus" onclick="hapusPengajuanDitolak(${p.id})">
           <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
         </button>` : ''}
       </div>

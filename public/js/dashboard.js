@@ -1605,7 +1605,7 @@ async function loadDashboardAbsensi() {
     ], `${sdh}/${tp}`, 'pegawai')));
     kartuHariIni.push(_dmCard('Belum absensi hari ini', jendelaBelumBuka ? 'Jendela absensi belum dibuka' : `${belumList.length} pegawai`,
       jendelaBelumBuka ? _dmEmpty(`Absensi masuk baru bisa dicatat mulai pukul ${esc(masukAwalHariIni || '--:--')} WITA`, true)
-        : _dmFeed(belumList.map(u => ({ title: u.nama || '-', lead: `<span class="dm-av" style="background:#fee2e2;color:#b91c1c">${esc(_dmInisial(u.nama))}</span>` })), 'Semua pegawai sudah absensi')));
+        : _dmFeed(belumList.map(u => ({ title: u.nama || '-', lead: `<span class="dm-av" style="position:relative;overflow:hidden;background:#fee2e2;color:#b91c1c">${esc(_dmInisial(u.nama))}${u.foto_url ? `<img src="${esc(u.foto_url)}" alt="" loading="lazy" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover" onerror="this.remove()">` : ''}</span>` })), 'Semua pegawai sudah absensi')));
   } else if (!full) {
     const st = hariIniRow ? (hariIniRow.alpa ? 'Alpa' : hariIniRow.tidak_lengkap ? 'Tidak lengkap' : hariIniRow.terlambat ? 'Terlambat' : hariIniRow.hadir ? 'Tepat waktu' : hariIniRow.tugas_luar ? 'Tugas luar' : hariIniRow.cuti ? 'Cuti' : 'Tercatat') : (jendelaBelumBuka ? 'Belum dibuka' : 'Belum absensi');
     kartuHariIni.push(_dmCard('Status hari ini', '', `<div class="dm-big"><b>${st}</b></div><div class="dm-sub">${hariIniRow ? 'Absensi hari ini sudah tercatat' : 'Belum ada catatan absensi hari ini'}</div>`));

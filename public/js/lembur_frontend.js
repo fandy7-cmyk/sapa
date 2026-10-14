@@ -230,6 +230,112 @@ async function _lemburFetchKegiatan() {
   } catch { toast('Gagal mengambil kegiatan lembur', 'error'); }
 }
 
+/* ── Statcard Kegiatan Lembur ──
+   Gaya sama dengan Monitoring Kinerja (.stat-card + garis aksen kiri). Ada di 3 tingkat:
+   daftar kegiatan, daftar hari lembur (sesi), dan detail peserta per hari. Semua dihitung dari
+   data yang sudah dimuat untuk tabel itu (bukan per halaman). Untuk user tanpa akses penuh,
+   angkanya hanya mencakup data milik user itu sendiri (sesuai data yang dikirim API). */
+const _LEMBUR_STAT_ICON = {
+  clip:  '<path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1"/><path d="M9 12h6"/><path d="M9 16h6"/>',
+  cal:   '<rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4"/><path d="M8 2v4"/><path d="M3 10h18"/><path d="M8 14h.01"/><path d="M12 14h.01"/><path d="M16 14h.01"/><path d="M8 18h.01"/><path d="M12 18h.01"/>',
+  calp:  '<rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4"/><path d="M8 2v4"/><path d="M3 10h18"/><path d="M12 14v4"/><path d="M10 16h4"/>',
+  pulse: '<path d="M22 12h-4l-3 9L9 3l-3 9H2"/>',
+  users: '<path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>',
+  photo: '<path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/>',
+  warn:  '<path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>',
+  ok:    '<path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>',
+  edit:  '<path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/>',
+  clock: '<circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>'
+};
+
+// cards: [[nilai, label, warna, bg, ikon], ...]; nilai angka diformat id-ID, string dipakai apa adanya
+function _lemburStatCardsHtml(cards) {
+  const fmt = n => Number(n).toLocaleString('id-ID');
+  return `
+    <div class="stat-grid" style="grid-template-columns:repeat(auto-fit,minmax(150px,1fr))">
+      ${cards.map(([value, label, color, bg, icon]) => `
+      <div class="stat-card" style="border-left-color:${color}">
+        <div class="stat-card-body">
+          <div class="stat-label">${label}</div>
+          <div class="stat-value" style="color:${color}">${typeof value === 'number' ? fmt(value) : value}</div>
+        </div>
+        <div class="stat-icon" style="background:${bg};opacity:1">
+          <svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" fill="none" viewBox="0 0 24 24" stroke="${color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${_LEMBUR_STAT_ICON[icon]}</svg>
+        </div>
+      </div>`).join('')}
+    </div>`;
+}
+
+const _LEMBUR_STAT_C = {
+  hijau:  ['var(--hijau)', 'rgba(15,118,110,.12)'],
+  ungu:   ['#7c3aed', 'rgba(124,58,237,.12)'],
+  cyan:   ['#0891b2', 'rgba(8,145,178,.12)'],
+  biru:   ['#2563eb', 'rgba(37,99,235,.12)'],
+  amber:  ['#d97706', 'rgba(217,119,6,.12)'],
+  hijauOk:['#16a34a', 'rgba(22,163,74,.12)']
+};
+const _lemburKartu = (k, v, label, icon) => [v, label, ..._LEMBUR_STAT_C[k], icon];
+
+// Tingkat 1: daftar kegiatan
+function _lemburStatsHtml(list) {
+  const totalHari = list.reduce((a, k) => a + (Number(k.jumlah_sesi) || 0), 0);
+  // Berdasarkan tanggal hari lembur (sesi) di bulan berjalan; dihitung di server (zona WITA)
+  const hariBulanIni     = list.reduce((a, k) => a + (Number(k.sesi_bulan_ini) || 0), 0);
+  const kegiatanBulanIni = list.filter(k => (Number(k.sesi_bulan_ini) || 0) > 0).length;
+  return _lemburStatCardsHtml([
+    _lemburKartu('hijau', list.length, 'Total Kegiatan', 'clip'),
+    _lemburKartu('ungu',  totalHari, _lemburFull ? 'Total Hari Lembur' : 'Hari Lembur Saya', 'cal'),
+    _lemburKartu('cyan',  kegiatanBulanIni, 'Kegiatan Bulan Ini', 'pulse'),
+    _lemburKartu('biru',  hariBulanIni, _lemburFull ? 'Hari Lembur Bulan Ini' : 'Lembur Saya Bulan Ini', 'calp')
+  ]);
+}
+
+// Tingkat 2: daftar hari lembur dalam satu kegiatan
+function _lemburSesiStatsHtml(list) {
+  const n = list.length;
+  const totalPeserta = list.reduce((a, s) => a + (Number(s.jumlah_peserta) || 0), 0);
+  const rata = n ? (totalPeserta / n).toLocaleString('id-ID', { maximumFractionDigits: 1 }) : 0;
+  const totalFoto = list.reduce((a, s) => a + (Number(s.jumlah_dokumentasi) || 0), 0);
+  const tanpaDok  = list.filter(s => !(Number(s.jumlah_dokumentasi) > 0)).length;
+  return _lemburStatCardsHtml([
+    _lemburKartu('hijau', n, _lemburFull ? 'Total Hari Lembur' : 'Hari Lembur Saya', 'cal'),
+    _lemburKartu('ungu',  rata, 'Rata-rata Peserta/Hari', 'users'),
+    _lemburKartu('biru',  totalFoto, 'Foto Dokumentasi', 'photo'),
+    _lemburKartu('amber', tanpaDok, 'Hari Tanpa Dokumentasi', 'warn')
+  ]);
+}
+
+// Tingkat 3: detail peserta satu hari lembur. Hanya untuk akses penuh (user biasa cuma melihat
+// 1 baris miliknya sendiri, jadi ringkasan tidak ada artinya).
+function _lemburEntryStatsHtml() {
+  if (!_lemburFull) return '';
+  const s = _lemburActiveSesi || {};
+  const list = _lemburEntries || [];
+  const toMin = t => { const [h, m] = String(t).slice(0, 5).split(':').map(Number); return h * 60 + m; };
+  let menit = 0;
+  list.forEach(e => {
+    const jm = e.jam_mulai || s.jam_mulai, js = e.jam_selesai || s.jam_selesai;
+    if (!jm || !js) return;
+    const d = toMin(js) - toMin(jm);
+    if (!isNaN(d)) menit += (d + 1440) % 1440;   // jam selesai lewat tengah malam tetap benar
+  });
+  const jam = (menit / 60).toLocaleString('id-ID', { maximumFractionDigits: 1 }) + ' jam';
+  const terisi = list.filter(e => String(e.uraian_tugas || '').trim()).length;
+  return _lemburStatCardsHtml([
+    _lemburKartu('hijau',   list.length, 'Peserta', 'users'),
+    _lemburKartu('hijauOk', terisi, 'Uraian Terisi', 'ok'),
+    _lemburKartu('amber',   list.length - terisi, 'Belum Ada Uraian', 'edit'),
+    _lemburKartu('ungu',    jam, 'Total Jam Lembur', 'clock')
+  ]);
+}
+
+// Dipanggil setelah uraian disimpan, supaya kartu ikut berubah tanpa render ulang tabel
+// (render ulang akan mengganggu pengetikan di kolom uraian/catatan).
+function _lemburRefreshEntryStats() {
+  const el = document.getElementById('lemburEntryStats');
+  if (el) el.innerHTML = _lemburEntryStatsHtml();
+}
+
 async function _lemburRenderKegiatanList() {
   await _lemburFetchKegiatan();
   const body = document.getElementById('lemburBody');
@@ -263,6 +369,7 @@ async function _lemburRenderKegiatanList() {
     : `<tr><td colspan="5" style="text-align:center;color:var(--teks-muted)">Belum ada kegiatan lembur${_lemburFull ? '. Klik "+ Kegiatan Lembur" untuk mulai.' : '.'}</td></tr>`;
 
   body.innerHTML = `
+    ${_lemburStatsHtml(_lemburKegiatanList)}
     <div class="lembur-toolbar" style="display:flex;justify-content:flex-end;margin-bottom:12px">${addBtn}</div>
     <div class="card" style="padding:0;overflow:auto;-webkit-overflow-scrolling:touch">
       <table class="surat-table">
@@ -299,6 +406,7 @@ async function _lemburOpenTambahKegiatan() {
   _lemburKegiatanDokFiles = [];
   _lemburRenderKegiatanDokPreview();
   document.getElementById('lemburKegiatanPesertaGrid').innerHTML = '';
+  { const _q = document.getElementById('lemburKegiatanPesertaSearch'); if (_q) _q.value = ''; }
   openModal('modalLemburKegiatan');
   // Belum ada tanggal dipilih pas modal baru dibuka - jangan langsung nge-load & nyalain
   // semua pegawai buat dipilih, soalnya status absensi (cuti/alpa/tugas luar) yang nentuin
@@ -576,14 +684,26 @@ async function _lemburCreateKegiatanMulti(nama_kegiatan, tanggalList, jam_mulai,
   } catch { toast('Gagal menyimpan kegiatan', 'error'); }
 }
 
+// Pencarian peserta (nama / NIP) di daftar centang; tiap kata harus cocok, urutan bebas.
+function _lemburFilterPegawai(list, inputId) {
+  const q = (document.getElementById(inputId)?.value || '').toLowerCase().trim();
+  if (!q) return list;
+  const tokens = q.split(/\s+/);
+  return list.filter(p => {
+    const hay = ((p.nama || '') + ' ' + (p.nip || '')).toLowerCase();
+    return tokens.every(t => hay.includes(t));
+  });
+}
+
 function _lemburRenderKegiatanPesertaGrid() {
   const grid = document.getElementById('lemburKegiatanPesertaGrid');
   if (!grid) return;
   const belumPilihTanggal = !document.getElementById('lemburKegiatanTanggal')?.value;
-  grid.innerHTML = _lemburPegawai.length
-    ? _lemburPegawai.map(p => {
+  _lemburPegawai.forEach(p => { if (_lemburStatusAbsensi(p.absensi_status)) _lemburKegiatanPesertaSelected.delete(p.id); });
+  const tampil = _lemburFilterPegawai(_lemburPegawai, 'lemburKegiatanPesertaSearch');
+  grid.innerHTML = tampil.length
+    ? tampil.map(p => {
         const st = _lemburStatusAbsensi(p.absensi_status);
-        if (st) _lemburKegiatanPesertaSelected.delete(p.id);
         return `
         <div class="perm-item${_lemburKegiatanPesertaSelected.has(p.id) ? ' selected' : ''}" style="${st ? 'opacity:.55;cursor:not-allowed' : ''}" ${st ? '' : `onclick="_lemburToggleKegiatanPeserta(${p.id}, this)"`}>
           <div class="perm-check"></div>
@@ -593,7 +713,9 @@ function _lemburRenderKegiatanPesertaGrid() {
           </div>
         </div>`;
       }).join('')
-    : belumPilihTanggal
+    : _lemburPegawai.length
+      ? `<div style="text-align:center;color:var(--teks-muted);padding:8px;font-size:.82rem">Tidak ada pegawai yang cocok.</div>`
+      : belumPilihTanggal
       ? `<div style="text-align:center;color:var(--teks-muted);padding:8px;font-size:.82rem">Pilih tanggal lembur dulu untuk menampilkan daftar peserta.</div>`
       : `<div style="text-align:center;color:var(--teks-muted);padding:8px;font-size:.82rem">Belum ada data pegawai.</div>`;
   _lemburUpdateKegiatanSelectAllLabel();
@@ -611,7 +733,7 @@ function _lemburUpdateKegiatanSelectAllLabel() {
   const label = document.getElementById('lemburKegiatanPesertaSelectAll');
   if (!label) return;
   label.style.display = _lemburPegawai.length ? '' : 'none';
-  const selectable = _lemburPegawai.filter(p => !_lemburStatusAbsensi(p.absensi_status));
+  const selectable = _lemburFilterPegawai(_lemburPegawai, 'lemburKegiatanPesertaSearch').filter(p => !_lemburStatusAbsensi(p.absensi_status));
   const allSelected = selectable.length > 0 && selectable.every(p => _lemburKegiatanPesertaSelected.has(p.id));
   label.textContent = allSelected ? 'Batalkan Semua' : 'Pilih Semua';
 }
@@ -619,7 +741,7 @@ function _lemburUpdateKegiatanSelectAllLabel() {
 function _lemburToggleSelectAllKegiatanPeserta() {
   const grid = document.getElementById('lemburKegiatanPesertaGrid');
   if (!grid) return;
-  const selectable = _lemburPegawai.filter(p => !_lemburStatusAbsensi(p.absensi_status));
+  const selectable = _lemburFilterPegawai(_lemburPegawai, 'lemburKegiatanPesertaSearch').filter(p => !_lemburStatusAbsensi(p.absensi_status));
   const allSelected = selectable.length > 0 && selectable.every(p => _lemburKegiatanPesertaSelected.has(p.id));
   if (allSelected) selectable.forEach(p => _lemburKegiatanPesertaSelected.delete(p.id));
   else selectable.forEach(p => _lemburKegiatanPesertaSelected.add(p.id));
@@ -724,6 +846,7 @@ async function _lemburRenderSesiList() {
     : `<tr><td colspan="6" style="text-align:center;color:var(--teks-muted)">Belum ada hari lembur tercatat.</td></tr>`;
 
   body.innerHTML = `
+    ${_lemburSesiStatsHtml(daftarSesi)}
     <div class="lembur-toolbar" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:12px">
       <button class="btn btn-sm lembur-btn-kembali" onclick="_lemburKembaliDaftar()"><svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.4"><path stroke-linecap="round" stroke-linejoin="round" d="M19 12H5m0 0l6-6m-6 6l6 6"/></svg>Kembali</button>
       ${_lemburActiveKegiatan?.maks_hari ? `<span class="periode-info-bar"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path stroke-linecap="round" stroke-linejoin="round" d="M12 16v-4m0-4h.01"/></svg>Maksimal ${_lemburActiveKegiatan.maks_hari} hari per orang</span>` : ''}
@@ -748,6 +871,7 @@ async function _lemburOpenTambahSesi() {
   _lemburSetJamPairSilent('lemburSesiJamMulai', 'lemburSesiJamSelesai', '16:30', '19:30');
   _lemburPesertaSelected = new Set();
   document.getElementById('lemburSesiPesertaGrid').innerHTML = '';
+  { const _q = document.getElementById('lemburSesiPesertaSearch'); if (_q) _q.value = ''; }
   document.getElementById('btnSaveLemburSesi').setAttribute('onclick', '_lemburSubmitSesi()');
   openModal('modalLemburSesi');
   await _lemburFetchPegawai(document.getElementById('lemburSesiTanggal').value);
@@ -758,11 +882,12 @@ function _lemburRenderSesiPesertaGrid(excludeIds = []) {
   const grid = document.getElementById('lemburSesiPesertaGrid');
   if (!grid) return;
   const exclude = new Set(excludeIds);
-  const options = _lemburPegawai.filter(p => !exclude.has(p.id));
+  const semua = _lemburPegawai.filter(p => !exclude.has(p.id));
+  semua.forEach(p => { if (_lemburStatusAbsensi(p.absensi_status)) _lemburPesertaSelected.delete(p.id); });
+  const options = _lemburFilterPegawai(semua, 'lemburSesiPesertaSearch');
   grid.innerHTML = options.length
     ? options.map(p => {
         const st = _lemburStatusAbsensi(p.absensi_status);
-        if (st) _lemburPesertaSelected.delete(p.id);
         return `
         <div class="perm-item${_lemburPesertaSelected.has(p.id) ? ' selected' : ''}" style="${st ? 'opacity:.55;cursor:not-allowed' : ''}" ${st ? '' : `onclick="_lemburToggleSesiPeserta(${p.id}, this)"`}>
           <div class="perm-check"></div>
@@ -772,7 +897,9 @@ function _lemburRenderSesiPesertaGrid(excludeIds = []) {
           </div>
         </div>`;
       }).join('')
-    : `<div style="text-align:center;color:var(--teks-muted);padding:8px;font-size:.82rem">Semua pegawai sudah ditambahkan.</div>`;
+    : semua.length
+      ? `<div style="text-align:center;color:var(--teks-muted);padding:8px;font-size:.82rem">Tidak ada pegawai yang cocok.</div>`
+      : `<div style="text-align:center;color:var(--teks-muted);padding:8px;font-size:.82rem">Semua pegawai sudah ditambahkan.</div>`;
   _lemburUpdateSesiSelectAllLabel(options);
 }
 
@@ -786,7 +913,7 @@ function _lemburUpdateSesiSelectAllLabel(options) {
   const label = document.getElementById('lemburSesiPesertaSelectAll');
   if (!label) return;
   label.style.display = _lemburPegawai.length ? '' : 'none';
-  const selectable = (options || _lemburPegawai).filter(p => !_lemburStatusAbsensi(p.absensi_status));
+  const selectable = (options || _lemburFilterPegawai(_lemburPegawai, 'lemburSesiPesertaSearch')).filter(p => !_lemburStatusAbsensi(p.absensi_status));
   const allSelected = selectable.length > 0 && selectable.every(p => _lemburPesertaSelected.has(p.id));
   label.textContent = allSelected ? 'Batalkan Semua' : 'Pilih Semua';
 }
@@ -794,7 +921,7 @@ function _lemburUpdateSesiSelectAllLabel(options) {
 function _lemburToggleSelectAllSesiPeserta() {
   const grid = document.getElementById('lemburSesiPesertaGrid');
   if (!grid) return;
-  const selectable = _lemburPegawai.filter(p => !_lemburStatusAbsensi(p.absensi_status));
+  const selectable = _lemburFilterPegawai(_lemburPegawai, 'lemburSesiPesertaSearch').filter(p => !_lemburStatusAbsensi(p.absensi_status));
   const allSelected = selectable.length > 0 && selectable.every(p => _lemburPesertaSelected.has(p.id));
   if (allSelected) selectable.forEach(p => _lemburPesertaSelected.delete(p.id));
   else selectable.forEach(p => _lemburPesertaSelected.add(p.id));
@@ -969,6 +1096,7 @@ function _lemburRenderSesiDetail() {
   }).join('') || `<tr><td colspan="${_lemburFull ? 7 : 6}" style="text-align:center;color:var(--teks-muted)">Belum ada peserta.</td></tr>`;
 
   body.innerHTML = `
+    <div id="lemburEntryStats">${_lemburEntryStatsHtml()}</div>
     <div class="lembur-toolbar" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
       <button class="btn btn-sm lembur-btn-kembali" onclick="_lemburOpenKegiatan(${_lemburActiveKegiatan.id})"><svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.4"><path stroke-linecap="round" stroke-linejoin="round" d="M19 12H5m0 0l6-6m-6 6l6 6"/></svg>Kembali</button>
       ${_lemburFull ? `<button class="btn btn-primary btn-sm" onclick="_lemburEditJam()"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>Kelola Peserta</button>` : ''}
@@ -990,6 +1118,8 @@ async function _lemburSaveUraian(entryId, uraian_tugas) {
     const d = await r.json();
     if (!r.ok) { toast(d.error || 'Gagal menyimpan uraian tugas', 'error'); return; }
     toast('Uraian tugas tersimpan', 'success');
+    const en = (_lemburEntries || []).find(e => e.id === entryId);
+    if (en) { en.uraian_tugas = uraian_tugas; _lemburRefreshEntryStats(); }
   } catch { toast('Gagal menyimpan uraian tugas', 'error'); }
 }
 
@@ -1250,6 +1380,7 @@ async function _lemburEditJam(id) {
 
   if (_lemburFull) {
     _lemburPesertaSelected = new Set();
+    { const _q = document.getElementById('lemburSesiPesertaSearch'); if (_q) _q.value = ''; }
     document.getElementById('lemburSesiPesertaGrid').innerHTML = `<div style="text-align:center;color:var(--teks-muted);padding:8px;font-size:.82rem"><span class="btn-spin" style="width:11px;height:11px;vertical-align:-2px;margin-right:4px"></span>Memuat peserta...</div>`;
     try {
       const [, entriesRes] = await Promise.all([

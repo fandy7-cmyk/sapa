@@ -11,6 +11,12 @@ function requireAuth(event) {
 }
 import { deleteFromCloudinary } from './_cloudinary.js';
 import { cekLinkDishare } from './_cekLink.js';
+import { sinkronKinerjaVerifikasi, notifKinerjaHasil } from './_notif_modul.js';
+
+// Notifikasi lonceng bersifat best-effort: kegagalannya tidak boleh menggagalkan aksi utamanya.
+async function notifSafe(fn) {
+  try { await fn(); } catch (e) { console.error('[notif]', e); }
+}
 
 function parseDukungUrls(raw) {
   if (!raw) return [];
@@ -1240,11 +1246,11 @@ export const handler = async (event) => {
           SELECT COUNT(*)::int AS n
           FROM kinerja_realisasi kr JOIN kinerja_indikator ki ON ki.id = kr.indikator_id
           WHERE kr.status_verifikasi = ANY(${VERIF_PENDING})
-            AND (${!!auth.is_admin} OR TRIM(ki.penanggung_jawab) IN (
+            AND (TRIM(ki.penanggung_jawab) IN (
               SELECT TRIM(b.nama) FROM kinerja_verifikator kv JOIN bidang b ON b.id = kv.bidang_id
               WHERE kv.user_id = ${auth.id} AND kv.aktif = TRUE))
         `;
-        return jsonResponse({ is_verifikator: units.length > 0, units, menunggu: (units.length > 0 || auth.is_admin) ? n : 0 });
+        return jsonResponse({ is_verifikator: units.length > 0, units, menunggu: units.length > 0 ? n : 0 });
       } catch (err) {
         return errorResponse('Gagal memuat status verifikator: ' + err.message);
       }
@@ -1275,7 +1281,7 @@ export const handler = async (event) => {
       const q = qs.q ? `%${String(qs.q).trim()}%` : null;
       try {
         const units = await verifUnitSaya(sql, auth.id);
-        if (!auth.is_admin && !units.length) return errorResponse('Anda tidak ditetapkan sebagai verifikator', 403);
+        if (!auth.is_admin && !units.length) return errorResponse('Anda tidak ditetapkan sebagai verifikator', 403);  // admin tanpa penugasan: daftar kosong
         const rowsQ = sql`
           SELECT kr.id AS realisasi_id, kr.indikator_id, kr.bulan, kr.tahun, kr.realisasi, kr.realisasi_display,
                  kr.f_penghambat, kr.solusi, kr.f_pendukung, kr.rencana_tl, kr.data_dukung_url, kr.data_dukung_nama,
@@ -1339,16 +1345,14 @@ export const handler = async (event) => {
                  OR (${jenis}::text = 'ikk'     AND ki.jenis_ikk = TRUE)
                  OR (${jenis}::text = 'spm'     AND ki.jenis_spm = TRUE)
                  OR (${jenis}::text = 'subkeg'  AND ki.jenis_custom @> '["subkeg"]'::jsonb))
-            AND (${!!auth.is_admin} OR TRIM(ki.penanggung_jawab) IN (
+            AND (TRIM(ki.penanggung_jawab) IN (
                   SELECT TRIM(b.nama) FROM kinerja_verifikator kv JOIN bidang b ON b.id = kv.bidang_id
                   WHERE kv.user_id = ${auth.id} AND kv.aktif = TRUE))
           ORDER BY (CASE WHEN kr.status_verifikasi = ANY(${VERIF_PENDING}) THEN 0 ELSE 1 END),
                    kr.submitted_at DESC NULLS LAST, kr.id DESC
           LIMIT 1000
         `;
-        const bidangQ = auth.is_admin
-          ? sql`SELECT id AS bidang_id, nama FROM bidang WHERE deleted_at IS NULL AND aktif = TRUE ORDER BY urutan ASC, nama ASC`
-          : Promise.resolve(units);
+        const bidangQ = Promise.resolve(units);  // dropdown unit kerja = unit tanggung jawab user (admin juga)
         // Jumlah indikator aktif per unit kerja (untuk card "Total Indikator"), dibatasi cakupan verifikator.
         const indikatorQ = sql`
           SELECT TRIM(ki.penanggung_jawab) AS unit,
@@ -1361,7 +1365,7 @@ export const handler = async (event) => {
           WHERE ki.aktif = TRUE
             AND (ki.jenis_monev = TRUE OR ki.jenis_ikk = TRUE OR ki.jenis_spm = TRUE
                  OR ki.jenis_custom @> '["subkeg"]'::jsonb)
-            AND (${!!auth.is_admin} OR TRIM(ki.penanggung_jawab) IN (
+            AND (TRIM(ki.penanggung_jawab) IN (
                   SELECT TRIM(b.nama) FROM kinerja_verifikator kv JOIN bidang b ON b.id = kv.bidang_id
                   WHERE kv.user_id = ${auth.id} AND kv.aktif = TRUE))
           GROUP BY TRIM(ki.penanggung_jawab)
@@ -1439,6 +1443,7 @@ export const handler = async (event) => {
           aksi: lama === 'perlu_perbaikan' ? 'ajukan_ulang' : 'submit',
           status_sebelum: lama, status_sesudah: baru, user: auth,
         });
+        await notifSafe(() => sinkronKinerjaVerifikasi(sql));
         return jsonResponse({ realisasi: upd[0], verifikator });
       } catch (err) {
         return errorResponse('Gagal mengajukan verifikasi: ' + err.message);
@@ -1482,6 +1487,10 @@ export const handler = async (event) => {
           aksi: aksi === 'setujui' ? 'setujui' : 'tolak',
           status_sebelum: row.status_verifikasi, status_sesudah: baru, user: auth,
           alasan: aksi === 'tolak' ? alasanBersih : null,
+        });
+        await notifSafe(async () => {
+          await notifKinerjaHasil(sql, rid, aksi, alasanBersih, auth.id);
+          await sinkronKinerjaVerifikasi(sql);
         });
         return jsonResponse({ realisasi: upd[0] });
       } catch (err) {

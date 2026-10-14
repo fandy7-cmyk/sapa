@@ -38,6 +38,102 @@ function renderDocsBadge(fileUrlRaw, label) {
 
 let _smFilter = '', _smPage = 1;
 
+/* ── Statcard Surat Masuk & Surat Keluar ──
+   Gaya sama dengan Monitoring Kinerja (.stat-card + garis aksen kiri). Dihitung dari
+   /filter-meta (sudah dibatasi hak akses user), tidak ikut filter/pencarian/halaman tabel.
+   Grid dibuat lewat JS dan disisipkan di atas toolbar. */
+const _SURAT_STAT_ICON = {
+  mail:  '<rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-10 7L2 7"/>',
+  send:  '<line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>',
+  clock: '<circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>',
+  warn:  '<path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>',
+  ok:    '<path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>',
+  cal:   '<rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4"/><path d="M8 2v4"/><path d="M3 10h18"/>',
+  calDay:'<rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4"/><path d="M8 2v4"/><path d="M3 10h18"/><path d="M8 14h.01"/><path d="M12 14h.01"/><path d="M16 14h.01"/><path d="M8 18h.01"/><path d="M12 18h.01"/>'
+};
+
+function _suratStatCard(value, label, color, bg, icon) {
+  return `
+    <div class="stat-card" style="border-left-color:${color}">
+      <div class="stat-card-body">
+        <div class="stat-label">${label}</div>
+        <div class="stat-value" style="color:${color}">${value}</div>
+      </div>
+      <div class="stat-icon" style="background:${bg};opacity:1">
+        <svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" fill="none" viewBox="0 0 24 24" stroke="${color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${_SURAT_STAT_ICON[icon]}</svg>
+      </div>
+    </div>`;
+}
+
+function _suratEnsureStatGrid(pageId, gridId) {
+  let el = document.getElementById(gridId);
+  if (el) return el;
+  const toolbar = document.getElementById(pageId)?.querySelector('.toolbar');
+  if (!toolbar) return null;
+  el = document.createElement('div');
+  el.id = gridId;
+  el.className = 'stat-grid';
+  // Kolom menyesuaikan lebar layar & jumlah kartu, jadi tidak perlu CSS tambahan
+  el.style.gridTemplateColumns = 'repeat(auto-fit, minmax(150px, 1fr))';
+  toolbar.parentNode.insertBefore(el, toolbar);
+  return el;
+}
+
+// cards: [[nilai, label, warna, bg, ikon], ...]; nilai null = placeholder "–"
+function _suratRenderStats(el, cards) {
+  el.innerHTML = cards.map(c =>
+    _suratStatCard(c[0] == null ? '–' : Number(c[0]).toLocaleString('id-ID'), c[1], c[2], c[3], c[4])).join('');
+}
+
+async function loadSuratMasukStats() {
+  const el = _suratEnsureStatGrid('page-surat-masuk', 'smStats');
+  if (!el) return;
+  const mk = (t, p, s, l) => [
+    [t, 'Total Surat', 'var(--hijau)', 'rgba(15,118,110,.12)', 'mail'],
+    [p, 'Proses',      '#d97706',      'rgba(217,119,6,.12)',  'clock'],
+    [l, 'Terlambat',   '#dc2626',      'rgba(220,38,38,.12)',  'warn'],
+    [s, 'Selesai',     '#16a34a',      'rgba(22,163,74,.12)',  'ok']
+  ];
+  if (!el.innerHTML) _suratRenderStats(el, mk(null, null, null, null));
+  try {
+    const r = await fetch('/api/surat-masuk/filter-meta', { headers: authHeaders() });
+    const d = await r.json();
+    if (!r.ok || !Array.isArray(d.surat)) return;
+    const now = new Date();
+    const list = d.surat;
+    const selesai   = list.filter(s => s.selesai).length;
+    // Logika sama dengan badge status di tabel
+    const terlambat = list.filter(s => !s.selesai && s.batas_waktu && new Date(s.batas_waktu) < now).length;
+    _suratRenderStats(el, mk(list.length, list.length - selesai - terlambat, selesai, terlambat));
+  } catch {}
+}
+
+async function loadSuratKeluarStats() {
+  const el = _suratEnsureStatGrid('page-surat-keluar', 'skStats');
+  if (!el) return;
+  const mk = (t, y, m) => [
+    [t, 'Total Surat', 'var(--hijau)', 'rgba(15,118,110,.12)', 'send'],
+    [y, 'Tahun Ini',   '#2563eb',      'rgba(37,99,235,.12)',  'cal'],
+    [m, 'Bulan Ini',   '#0891b2',      'rgba(8,145,178,.12)',  'calDay']
+  ];
+  if (!el.innerHTML) _suratRenderStats(el, mk(null, null, null));
+  try {
+    const r = await fetch('/api/surat-keluar/filter-meta', { headers: authHeaders() });
+    const d = await r.json();
+    if (!r.ok || !Array.isArray(d.surat)) return;
+    const now = new Date();
+    const y  = String(now.getFullYear());
+    const ym = y + '-' + String(now.getMonth() + 1).padStart(2, '0');
+    const tgl = s => (s.tanggal_surat || '');
+    const list = d.surat;
+    _suratRenderStats(el, mk(
+      list.length,
+      list.filter(s => tgl(s).slice(0, 4) === y).length,
+      list.filter(s => tgl(s).slice(0, 7) === ym).length
+    ));
+  } catch {}
+}
+
 function _populateSuratTahun(suratList, selectId) {
   const sel = document.getElementById(selectId);
   if (!sel) return;
@@ -113,20 +209,30 @@ let _selectedPegawaiSK = new Set();
 
 function _pegawaiSelSet(target) { return target === 'sk' ? _selectedPegawaiSK : _selectedPegawaiSM; }
 
-function renderPegawaiGrid(target) {
+// Daftar pegawai yang tampil sesuai kotak cari (tiap kata harus cocok, urutan bebas)
+function _pegawaiVisible(target) {
+  const q = (document.getElementById(target === 'sk' ? 'skPegawaiSearch' : 'smPegawaiSearch')?.value || '').toLowerCase().trim();
+  if (!q) return _smPegawaiList;
+  const tokens = q.split(/\s+/);
+  return _smPegawaiList.filter(u => tokens.every(t => (u.nama || '').toLowerCase().includes(t)));
+}
+
+function renderPegawaiGrid(target, fromSearch = false) {
   const grid = document.getElementById(target === 'sk' ? 'skPegawaiGrid' : 'smPegawaiGrid');
   if (!grid) return;
   const sel = _pegawaiSelSet(target);
-  grid.innerHTML = _smPegawaiList.length
-    ? _smPegawaiList.map(u => `
+  if (!fromSearch) { const q = document.getElementById(target === 'sk' ? 'skPegawaiSearch' : 'smPegawaiSearch'); if (q) q.value = ''; }
+  const vis = _pegawaiVisible(target);
+  grid.innerHTML = vis.length
+    ? vis.map(u => `
       <div class="perm-item${sel.has(u.nama) ? ' selected' : ''}" onclick="togglePegawaiItem('${target}','${esc(u.nama).replace(/'/g,"\\'")}', this)">
         <div class="perm-check"></div>
         <div><div class="perm-name">${esc(u.nama)}</div></div>
       </div>`).join('')
-    : `<div style="text-align:center;color:var(--teks-muted);padding:8px;font-size:.82rem">Belum ada data pegawai.</div>`;
+    : `<div style="text-align:center;color:var(--teks-muted);padding:8px;font-size:.82rem">${_smPegawaiList.length ? 'Pegawai tidak ditemukan.' : 'Belum ada data pegawai.'}</div>`;
   updateSelectAllLabel(target);
   const details = document.getElementById(target === 'sk' ? 'skPegawaiDetails' : 'smPegawaiDetails');
-  if (details) details.open = sel.size > 0;
+  if (details && !fromSearch) details.open = sel.size > 0;
 }
 
 function togglePegawaiItem(target, nama, el) {
@@ -140,7 +246,8 @@ function updateSelectAllLabel(target) {
   const label = document.getElementById(target === 'sk' ? 'skPegawaiSelectAll' : 'smPegawaiSelectAll');
   const sel = _pegawaiSelSet(target);
   if (label) {
-    const allSelected = _smPegawaiList.length > 0 && _smPegawaiList.every(u => sel.has(u.nama));
+    const vis = _pegawaiVisible(target);
+    const allSelected = vis.length > 0 && vis.every(u => sel.has(u.nama));
     label.textContent = allSelected ? 'Batalkan Semua' : 'Pilih Semua';
   }
   const summary = document.getElementById(target === 'sk' ? 'skPegawaiSummaryText' : 'smPegawaiSummaryText');
@@ -152,10 +259,11 @@ function updateSelectAllLabel(target) {
 
 function toggleSelectAllPegawai(target) {
   const sel = _pegawaiSelSet(target);
-  const allSelected = _smPegawaiList.length > 0 && _smPegawaiList.every(u => sel.has(u.nama));
-  if (allSelected) sel.clear();
-  else _smPegawaiList.forEach(u => sel.add(u.nama));
-  renderPegawaiGrid(target);
+  const vis = _pegawaiVisible(target);   // hanya yang tampil (sesuai pencarian)
+  const allSelected = vis.length > 0 && vis.every(u => sel.has(u.nama));
+  if (allSelected) vis.forEach(u => sel.delete(u.nama));
+  else vis.forEach(u => sel.add(u.nama));
+  renderPegawaiGrid(target, true);
 }
 
 function setSMFilter(v) {
@@ -167,6 +275,7 @@ function setSMFilter(v) {
 
 async function loadSuratMasuk(page = 1) {
   _smPage = page;
+  loadSuratMasukStats();
   const isAdmin = !!(_user && _user.is_admin);
   const isFull  = isAdmin || (typeof hasAccess === 'function' && hasAccess('surat.masuk.full'));
   
@@ -196,6 +305,10 @@ async function loadSuratMasuk(page = 1) {
     const d = await r.json();
     const tb = document.getElementById('smTableBody');
     const smOffset = (page - 1) * 10;
+    // Kolom Aksi disembunyikan kalau tidak ada tombol yang aktif untuk semua baris (user non-admin)
+    const smAksi = isFull || (d.surat||[]).some(s => !s.selesai || s.created_by === (_user && _user.id));
+    const smThAksi = tb.closest('table')?.querySelector('thead th:last-child');
+    if (smThAksi) smThAksi.style.display = smAksi ? '' : 'none';
     tb.innerHTML = (d.surat||[]).length ? d.surat.map((s, idx) => `
       <tr>
         <td class="td-sticky-no" style="text-align:center">${smOffset + idx + 1}</td>
@@ -215,13 +328,13 @@ async function loadSuratMasuk(page = 1) {
             return `<span class="badge ${cls}">${label}</span>`;
           })()}
         </td>
-        <td style="white-space:nowrap">
+        ${smAksi ? `<td style="white-space:nowrap">
           ${(isFull || s.created_by === (_user && _user.id)) ? `<button class="btn btn-ghost btn-sm" data-tip="Edit" onclick="editSM(${s.id})"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg></button>` : ''}
-          <button class="btn btn-ghost btn-sm" data-tip="${s.selesai?'Buka Kembali':'Tandai Selesai'}" onclick="toggleSMSelesai(${s.id},${s.selesai})">${s.selesai?'<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>':'<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>'}</button>
+          ${(!s.selesai || isFull) ? `<button class="btn btn-ghost btn-sm" data-tip="${s.selesai?'Buka Kembali':'Tandai Selesai'}" onclick="toggleSMSelesai(${s.id},${s.selesai})">${s.selesai?'<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>':'<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>'}</button>` : ''}
           ${(isFull || s.created_by === (_user && _user.id)) ? `<button class="btn-hapus" data-tip="Hapus" onclick="deleteSM(${s.id})"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path stroke-linecap="round" stroke-linejoin="round" d="M19 6l-1 14H6L5 6"/><path stroke-linecap="round" stroke-linejoin="round" d="M10 11v6m4-6v6"/><path stroke-linecap="round" stroke-linejoin="round" d="M9 6V4h6v2"/></svg></button>` : ''}
-        </td>
+        </td>` : ''}
       </tr>`).join('')
-      : '<tr class="empty-row"><td colspan="11">Tidak ada data</td></tr>';
+      : '<tr class="empty-row"><td colspan="' + (smAksi ? 11 : 10) + '">Tidak ada data</td></tr>';
     renderPagination('smPagination', d.total||0, page, 10, 'loadSuratMasuk');
 
     
@@ -345,6 +458,7 @@ let _skPage = 1;
 
 async function loadSuratKeluar(page = 1) {
   _skPage = page;
+  loadSuratKeluarStats();
   const isAdmin = !!(_user && _user.is_admin);
   
   const isFull  = isAdmin || (typeof hasAccess === 'function' && hasAccess('surat.keluar.full'));
@@ -369,6 +483,10 @@ async function loadSuratKeluar(page = 1) {
     const d = await r.json();
     const tb = document.getElementById('skTableBody');
     const skOffset = (page - 1) * 10;
+    // Kolom Aksi disembunyikan kalau tidak ada tombol yang bisa dipakai (user non-admin tanpa akses penuh)
+    const skAksi = isFull || (d.surat||[]).some(s => s.created_by === (_user && _user.id));
+    const skThAksi = tb.closest('table')?.querySelector('thead th:last-child');
+    if (skThAksi) skThAksi.style.display = skAksi ? '' : 'none';
     tb.innerHTML = (d.surat||[]).length ? d.surat.map((s, idx) => `
       <tr>
         <td class="td-sticky-no" style="text-align:center">${skOffset + idx + 1}</td>
@@ -378,12 +496,12 @@ async function loadSuratKeluar(page = 1) {
         <td>${esc(s.perihal)}</td>
         <td>${Array.isArray(s.pegawai_list) && s.pegawai_list.length ? s.pegawai_list.map(p => `<span style="white-space:nowrap">${esc(p)}</span>`).join('<br>') : '-'}</td>
         <td style="text-align:center">${renderDocsBadge(s.file_url, 'Surat Keluar - ' + (s.perihal||''))}</td>
-        <td style="text-align:center;white-space:nowrap">
+        ${skAksi ? `<td style="text-align:center;white-space:nowrap">
           ${(isFull || s.created_by === (_user && _user.id)) ? `<button class="btn btn-ghost btn-sm" data-tip="Edit" onclick="editSK(${s.id})"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg></button>
           <button class="btn-hapus" data-tip="Hapus" onclick="deleteSK(${s.id})"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path stroke-linecap="round" stroke-linejoin="round" d="M19 6l-1 14H6L5 6"/><path stroke-linecap="round" stroke-linejoin="round" d="M10 11v6m4-6v6"/><path stroke-linecap="round" stroke-linejoin="round" d="M9 6V4h6v2"/></svg></button>` : '<span style="color:var(--teks-muted)">-</span>'}
-        </td>
+        </td>` : ''}
       </tr>`).join('')
-      : '<tr class="empty-row"><td colspan="8">Tidak ada data</td></tr>';
+      : '<tr class="empty-row"><td colspan="' + (skAksi ? 8 : 7) + '">Tidak ada data</td></tr>';
     renderPagination('skPagination', d.total||0, page, 10, 'loadSuratKeluar');
 
     

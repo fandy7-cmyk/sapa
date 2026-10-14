@@ -3,6 +3,23 @@
 <head>
   <meta charset="UTF-8" />
   <script>
+  // Dark mode: pasang data-theme SEBELUM CSS dimuat supaya tidak ada kedip putih.
+  // Pilihan user ada di localStorage 'sapa_theme' (auto | light | dark | system); default auto (gelap 18:00-06:00 WITA).
+  // Logika lengkap (toggle, sinkron tab, tema sistem) ada di js/dark-mode.js.
+  (function () {
+    try {
+      var p = localStorage.getItem('sapa_theme');
+      if (p !== 'dark' && p !== 'light' && p !== 'system') p = 'auto';
+      var wh = new Date(Date.now() + 8 * 3600 * 1000).getUTCHours(); // jam WITA (UTC+8)
+      var d = p === 'dark' || (p === 'auto' && (wh >= 18 || wh < 6)) || (p === 'system' && window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches);
+      var h = document.documentElement;
+      h.setAttribute('data-theme', d ? 'dark' : 'light');
+      h.setAttribute('data-theme-pref', p);
+    } catch (e) {}
+  })();
+  </script>
+  <style>html[data-theme="dark"]{background:#0b1220;color-scheme:dark}</style>
+  <script>
   // Prefetch tema musiman sedini mungkin - lihat komentar sama di
   // landing.html/login.html soal cache localStorage (biar gak ada jeda
   // "halaman polos dulu baru tema muncul" akibat cold-start function/DB).
@@ -66,11 +83,11 @@
   </script>
   <!-- Preload file theme-engine.js juga, paralel dari awal - jangan
        nunggu parser sampe ke <script> di akhir body baru mulai narik. -->
-  <link rel="preload" as="script" href="js/theme-engine.js?v=1.2.13" />
+  <link rel="preload" as="script" href="js/theme-engine.js?v=1.2.17" />
   <script>history.replaceState(null, '', location.origin);</script>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>SAPA Perencanaan</title>
-  <meta name="app-version" content="1.2.13" />
+  <meta name="app-version" content="1.2.17" />
   <link rel="icon" type="image/png" href="/favicon.png" />
   <link rel="manifest" href="/manifest.json" />
   <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
@@ -81,7 +98,7 @@
   <meta name="apple-mobile-web-app-title" content="SAPA" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="css/styles.css?v=1.2.13" />
+  <link rel="stylesheet" href="css/styles.css?v=1.2.17" />
   <style>
     
     .filter-bar {
@@ -174,6 +191,7 @@
 </style>
   
   <link href="https://cdnjs.cloudflare.com/ajax/libs/quill/1.3.7/quill.snow.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="css/dark.css?v=1.2.17" />
   <style>
     
     #pengumumanEditorWrap .ql-toolbar {
@@ -293,13 +311,22 @@
       <div class="topbar-constellation" id="topbarConstellation" aria-hidden="true">
         <canvas id="topbarConstellationCanvas"></canvas>
       </div>
-      <script src="js/topbar_constellation.js?v=1.2.13"></script>
+      <script src="js/topbar_constellation.js?v=1.2.17"></script>
 
       <div class="topbar-profile">
         <div class="topbar-user-info">
           <div class="topbar-user-name" id="topbarName">-</div>
           <div class="topbar-user-role" id="topbarRole">-</div>
         </div>
+        <button class="btn-topbar-bell" id="btnInfoBell" type="button" data-action="ip-bell" aria-label="Notifikasi" aria-haspopup="dialog" aria-expanded="false" aria-controls="ipPanel" data-tip="Notifikasi">
+          <svg class="ip-ic-line" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M22 20H2V18H3V11.0314C3 6.04348 7.02944 2 12 2C16.9706 2 21 6.04348 21 11.0314V18H22V20ZM5 18H19V11.0314C19 7.14806 15.866 4 12 4C8.13401 4 5 7.14806 5 11.0314V18ZM9.5 21H14.5C14.5 22.3807 13.3807 23.5 12 23.5C10.6193 23.5 9.5 22.3807 9.5 21Z"/></svg>
+          <svg class="ip-ic-fill" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M22 20H2V18H3V11.0314C3 6.04348 7.02944 2 12 2C16.9706 2 21 6.04348 21 11.0314V18H22V20ZM9.5 21H14.5C14.5 22.3807 13.3807 23.5 12 23.5C10.6193 23.5 9.5 22.3807 9.5 21Z"/></svg>
+          <span class="ip-bell-badge" id="ipBellBadge" hidden>0</span>
+        </button>
+        <button class="btn-topbar-theme" id="btnThemeToggle" type="button" onclick="SAPA_THEME.toggle()" aria-label="Ganti ke tema gelap" data-tip="Ganti ke tema gelap">
+          <svg class="ic-moon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>
+          <svg class="ic-sun" xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/></svg>
+        </button>
         <button class="btn-topbar-avatar" id="topbarAvatar" onclick="toggleProfileDD()" aria-label="Profil">
           <span id="topbarAvatarInner">A</span>
           <span class="avatar-status-dot" aria-hidden="true" data-tip="Online"></span>
@@ -326,6 +353,17 @@
             <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 18v3c0 .6.4 1 1 1h4v-3h3v-3h2l1.4-1.4a6.5 6.5 0 1 0-4-4Z"/><circle cx="16.5" cy="7.5" r=".5" fill="currentColor"/></svg>
             Ganti Password
           </button>
+          <div class="topbar-dd-divider"></div>
+          <div class="topbar-dd-theme" role="group" aria-label="Tema tampilan">
+            <span class="topbar-dd-theme-label">Tema tampilan</span>
+            <div class="theme-seg">
+              <button type="button" data-theme-opt="auto" data-tip="Gelap otomatis pukul 18:00-06:00 WITA">Otomatis</button>
+              <button type="button" data-theme-opt="light">Terang</button>
+              <button type="button" data-theme-opt="dark">Gelap</button>
+              <button type="button" data-theme-opt="system">Sistem</button>
+            </div>
+          </div>
+          <div class="topbar-dd-divider"></div>
           <button class="topbar-dd-item danger" onclick="doLogout()">
             <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" x2="9" y1="12" y2="12"/></svg>
             Keluar
@@ -418,6 +456,50 @@
       </div>
 
       
+      <div class="page" id="page-info-popup">
+        <div class="page-title" style="display:flex;align-items:center;gap:10px"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor" style="flex-shrink:0" aria-hidden="true"><path d="M22 20H2V18H3V11.0314C3 6.04348 7.02944 2 12 2C16.9706 2 21 6.04348 21 11.0314V18H22V20ZM5 18H19V11.0314C19 7.14806 15.866 4 12 4C8.13401 4 5 7.14806 5 11.0314V18ZM9.5 21H14.5C14.5 22.3807 13.3807 23.5 12 23.5C10.6193 23.5 9.5 22.3807 9.5 21Z"/></svg>Info Popup</div>
+        <div class="page-subtitle">Kelola info yang tampil sebagai popup di dalam aplikasi dan di ikon lonceng</div>
+        <div class="card" style="padding:16px 18px;margin-bottom:12px">
+          <div class="field" style="max-width:280px;margin-bottom:8px">
+            <label for="ipAmbang">Ambang eskalasi surat terlambat (hari)</label>
+            <input id="ipAmbang" type="number" inputmode="numeric" min="1" max="60" step="1" value="3" placeholder="1 - 60">
+          </div>
+          <p class="field-hint" style="margin:0 0 12px">Ringkasan "surat terlambat" ke admin muncul setelah surat lewat batas sekian hari (1-60). Berlaku paling lambat 1 jam.</p>
+          <button class="btn btn-primary btn-sm" type="button" data-action="notif-ambang-simpan"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="margin-right:5px;vertical-align:-2px" aria-hidden="true"><path d="M5 13l4 4L19 7"/></svg>Simpan</button>
+        </div>
+        <div class="toolbar">
+          <div class="select-wrap" style="min-width:130px">
+            <select id="ipFilterTipe" aria-label="Filter tipe">
+              <option value="">Semua Tipe</option>
+              <option value="info">Info</option>
+              <option value="penting">Penting</option>
+              <option value="peringatan">Peringatan</option>
+            </select>
+          </div>
+          <div class="select-wrap" style="min-width:140px">
+            <select id="ipFilterStatus" aria-label="Filter status">
+              <option value="">Semua Status</option>
+              <option value="berlangsung">Aktif</option>
+              <option value="terjadwal">Terjadwal</option>
+              <option value="berakhir">Berakhir</option>
+              <option value="nonaktif">Nonaktif</option>
+            </select>
+          </div>
+          <div class="search-wrap" style="flex:1">
+            <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-4.35-4.35"/></svg>
+            <input type="text" placeholder="Cari info popup..." id="ipSearch" />
+          </div>
+          <button class="btn btn-primary btn-sm" type="button" data-action="ip-tambah"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>Tambah Info</button>
+        </div>
+        <div class="card" style="padding:0;overflow:auto;-webkit-overflow-scrolling:touch">
+          <table class="freeze-table">
+            <thead><tr><th>Judul / Isi</th><th>Tipe</th><th>Penerima / Modul</th><th>Jadwal</th><th>Status</th><th>Respons</th><th>Aksi</th></tr></thead>
+            <tbody id="ipTableBody"><tr class="empty-row"><td colspan="7"><span class="btn-spin" style="width:11px;height:11px;vertical-align:-1px;margin-right:6px"></span>Memuat data...</td></tr></tbody>
+          </table>
+        </div>
+        <div id="ipPagination"></div>
+      </div>
+
       <div class="page" id="page-pengumuman">
         <div class="page-title" style="display:flex;align-items:center;gap:10px"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor" style="flex-shrink:0;opacity:.85"><path d="M21 10.063V4C21 3.44772 20.5523 3 20 3H19C17.0214 4.97864 13.3027 6.08728 11 6.61281V17.3872C13.3027 17.9127 17.0214 19.0214 19 21H20C20.5523 21 21 20.5523 21 20V13.937C21.8626 13.715 22.5 12.9319 22.5 12 22.5 11.0681 21.8626 10.285 21 10.063ZM5 7C3.89543 7 3 7.89543 3 9V15C3 16.1046 3.89543 17 5 17H6L7 22H9V7H5Z"/></svg>Pengumuman</div>
         <div class="page-subtitle">Kelola pengumuman yang tampil di landing page</div>
@@ -426,7 +508,7 @@
             <select id="pengumumanFilterTipe" onchange="filterPengumuman()">
               <option value="">Semua Tipe</option>
               <option value="penting" data-icon='<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="#ef4444" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>'>Penting</option>
-              <option value="info" data-icon='<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="#3b82f6" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>'>Info</option>
+              <option value="info" data-icon='<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="#3b82f6" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0"><path d="M18 8a3 3 0 0 1 0 6"/><path d="M10 8v11a1 1 0 0 1-1 1H8a1 1 0 0 1-1-1v-5"/><path d="M12 8h0l4.524-3.77a.9.9 0 0 1 1.476.692v12.156a.9.9 0 0 1-1.476.692L12 14H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1h8"/></svg>'>Info</option>
               <option value="biasa" data-icon='<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="#f59e0b" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0"><path d="M6 3v11"/><path d="M6 3l12 6-12 6"/></svg>'>Biasa</option>
             </select>
           </div>
@@ -2509,6 +2591,15 @@
 
 <div id="toastContainer"></div>
 
+<div class="ip-overlay" id="ipOverlay" hidden>
+  <div class="ip-dialog" id="ipDialog" role="dialog" aria-modal="true" aria-labelledby="ipTitle" tabindex="-1"></div>
+</div>
+
+<div class="ip-panel" id="ipPanel" role="dialog" aria-label="Notifikasi" hidden>
+  <div class="ip-panel-head">Notifikasi</div>
+  <div class="ip-panel-list" id="ipPanelList" role="list"></div>
+</div>
+
 <div id="confirmOverlay">
   <div id="confirmBox">
     <div id="confirmHeader">
@@ -2569,6 +2660,7 @@
           <span>Peserta</span>
           <span id="lemburKegiatanPesertaSelectAll" style="font-weight:600;font-size:.78rem;color:var(--hijau);cursor:pointer;user-select:none" onclick="_lemburToggleSelectAllKegiatanPeserta()">Pilih Semua</span>
         </label>
+        <div class="search-wrap" style="min-width:0;flex:none;margin-bottom:8px"><svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-4.35-4.35"/></svg><input type="text" id="lemburKegiatanPesertaSearch" placeholder="Cari nama atau NIP…" autocomplete="off" oninput="_lemburRenderKegiatanPesertaGrid()" /></div>
         <div id="lemburKegiatanPesertaGrid" style="display:flex;flex-direction:column;gap:6px;max-height:180px;overflow-y:auto;border:1px solid var(--abu-2);border-radius:8px;padding:8px"></div>
       </div>
       <div class="field" id="lemburKegiatanDokWrap" style="margin-bottom:0">
@@ -2640,6 +2732,7 @@
           <span>Peserta <span style="font-weight:400;color:var(--teks-muted);font-size:.78rem">(centang untuk tambah, hapus centang untuk keluarkan)</span></span>
           <span id="lemburSesiPesertaSelectAll" style="font-weight:600;font-size:.78rem;color:var(--hijau);cursor:pointer;user-select:none" onclick="_lemburToggleSelectAllSesiPeserta()">Pilih Semua</span>
         </label>
+        <div class="search-wrap" style="min-width:0;flex:none;margin-bottom:8px"><svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-4.35-4.35"/></svg><input type="text" id="lemburSesiPesertaSearch" placeholder="Cari nama atau NIP…" autocomplete="off" oninput="_lemburRenderSesiPesertaGrid()" /></div>
         <div id="lemburSesiPesertaGrid" style="display:flex;flex-direction:column;gap:6px;max-height:220px;overflow-y:auto;border:1px solid var(--abu-2);border-radius:8px;padding:8px"></div>
       </div>
     </div>
@@ -2647,6 +2740,99 @@
       <button class="btn btn-ghost" onclick="closeModal('modalLemburSesi')"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"/></svg>Batal</button>
       <button class="btn btn-primary" id="btnSaveLemburSesi" onclick="_lemburSubmitSesi()"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>Simpan</button>
     </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modalInfoPopup">
+  <div class="modal" style="max-width:680px">
+    <div class="modal-header">
+      <div class="modal-title-wrap"><span class="modal-icon-badge"><svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M22 20H2V18H3V11.0314C3 6.04348 7.02944 2 12 2C16.9706 2 21 6.04348 21 11.0314V18H22V20ZM5 18H19V11.0314C19 7.14806 15.866 4 12 4C8.13401 4 5 7.14806 5 11.0314V18ZM9.5 21H14.5C14.5 22.3807 13.3807 23.5 12 23.5C10.6193 23.5 9.5 22.3807 9.5 21Z"/></svg></span><span class="modal-title" id="ipFormTitle">Tambah Info Popup</span></div>
+      <button class="btn-close" type="button" data-action="ip-form-tutup" aria-label="Tutup"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg></button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="ipFormId">
+      <div class="field">
+        <label for="ipFormJudul">Judul <span style="color:var(--merah)">*</span></label>
+        <input type="text" id="ipFormJudul" placeholder="Judul info" maxlength="200">
+      </div>
+      <div class="field">
+        <label>Isi <span style="color:var(--merah)">*</span></label>
+        <div id="ipEditorWrap"><div id="ipEditor"></div></div>
+      </div>
+      <div class="field-row" style="gap:16px">
+        <div class="field" style="flex:1">
+          <label for="ipFormTipe">Tipe</label>
+          <div class="select-wrap"><select id="ipFormTipe"></select></div>
+        </div>
+        <div class="field" style="flex:1">
+          <label for="ipFormAktif">Status</label>
+          <div class="select-wrap"><select id="ipFormAktif"></select></div>
+        </div>
+      </div>
+      <div class="field-row" style="gap:16px">
+        <div class="field" style="flex:1">
+          <label for="ipFormPenerimaTipe">Penerima</label>
+          <div class="select-wrap"><select id="ipFormPenerimaTipe"></select></div>
+        </div>
+        <div class="field" style="flex:1">
+          <label for="ipFormModul">Tampil di modul</label>
+          <div class="select-wrap"><select id="ipFormModul"></select></div>
+        </div>
+      </div>
+      <div class="field" id="ipPickBidangWrap" style="display:none">
+        <label style="display:flex;justify-content:space-between"><span>Pilih Unit Kerja</span><span class="ip-muted" id="ipPickBidangCount" style="font-weight:400">0 dipilih</span></label>
+        <div class="ip-picker" id="ipPickBidang"></div>
+      </div>
+      <div class="field" id="ipPickUserWrap" style="display:none">
+        <label style="display:flex;justify-content:space-between"><span>Pilih User</span><span class="ip-muted" id="ipPickUserCount" style="font-weight:400">0 dipilih</span></label>
+        <input type="text" id="ipPickUserSearch" placeholder="Cari nama atau unit kerja..." aria-label="Cari user" style="margin-bottom:6px">
+        <div class="ip-picker" id="ipPickUser"></div>
+      </div>
+      <div class="field-row" style="gap:16px">
+        <div class="field" style="flex:1;min-width:0">
+          <label>Mulai tampil <span class="ip-muted" style="font-weight:400">(WITA)</span></label>
+          <div class="ip-dt"><div class="dp-wrap" id="dp-ipFormMulaiTgl"></div><div class="ip-dt-jam" id="tp-ipFormMulaiJam"></div></div>
+          <input type="hidden" id="ipFormMulai">
+        </div>
+        <div class="field" style="flex:1;min-width:0">
+          <label>Berakhir <span class="ip-muted" style="font-weight:400">(WITA, kosong = tanpa batas)</span></label>
+          <div class="ip-dt"><div class="dp-wrap" id="dp-ipFormBerakhirTgl"></div><div class="ip-dt-jam" id="tp-ipFormBerakhirJam"></div></div>
+          <input type="hidden" id="ipFormBerakhir">
+        </div>
+      </div>
+      <div class="field">
+        <label class="ip-check" style="margin:0"><input type="checkbox" id="ipFormWajib"><span><b>Wajib dibaca</b> <span class="ip-muted">tanpa tombol sembunyikan, tidak bisa ditutup dengan Esc atau klik di luar, dan muncul di setiap login</span></span></label>
+      </div>
+      <div class="field" id="ipFormUlangWrap" style="display:none">
+        <label class="ip-check" style="margin:0"><input type="checkbox" id="ipFormUlang"><span><b>Tampilkan ulang ke semua penerima</b> <span class="ip-muted">termasuk yang sudah menyembunyikan info ini</span></span></label>
+      </div>
+      <div class="field">
+        <label style="display:flex;align-items:center;justify-content:space-between">
+          <span>Tombol Aksi <span style="font-weight:400;color:var(--teks-muted);font-size:.78rem">(opsional, maksimal 2)</span></span>
+          <button type="button" class="btn btn-ghost btn-sm" id="ipAksiTambah" data-action="ip-aksi-tambah" style="font-size:.75rem;gap:4px">
+            <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 5v14M5 12h14"/></svg>
+            Tambah Tombol
+          </button>
+        </label>
+        <div id="ipAksiList" style="display:flex;flex-direction:column;gap:8px;margin-top:4px"></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" type="button" data-action="ip-form-tutup"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"/></svg>Batal</button>
+      <button class="btn btn-ghost" type="button" data-action="ip-form-pratinjau" style="margin-left:auto"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="margin-right:5px;vertical-align:-2px"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>Pratinjau</button>
+      <button class="btn btn-primary" type="button" id="ipFormSimpan" data-action="ip-form-simpan"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>Simpan</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modalInfoPopupDetail">
+  <div class="modal" style="max-width:640px">
+    <div class="modal-header">
+      <div class="modal-title-wrap"><span class="modal-icon-badge"><svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></span><span class="modal-title" id="ipDetailTitle">Penerima Info</span></div>
+      <button class="btn-close" type="button" data-action="ip-detail-tutup" aria-label="Tutup"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg></button>
+    </div>
+    <div class="modal-body" id="ipDetailBody"></div>
+    <div class="modal-footer"><button class="btn btn-ghost" type="button" data-action="ip-detail-tutup"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>Tutup</button></div>
   </div>
 </div>
 
@@ -2673,7 +2859,7 @@
           <label>Tipe</label>
           <div class="select-wrap">
             <select id="pengumumanTipe">
-              <option value="info" data-icon='<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="#3b82f6" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>'>Info</option>
+              <option value="info" data-icon='<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="#3b82f6" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0"><path d="M18 8a3 3 0 0 1 0 6"/><path d="M10 8v11a1 1 0 0 1-1 1H8a1 1 0 0 1-1-1v-5"/><path d="M12 8h0l4.524-3.77a.9.9 0 0 1 1.476.692v12.156a.9.9 0 0 1-1.476.692L12 14H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1h8"/></svg>'>Info</option>
               <option value="penting" data-icon='<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="#ef4444" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>'>Penting</option>
               <option value="biasa" data-icon='<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="#f59e0b" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0"><path d="M6 3v11"/><path d="M6 3l12 6-12 6"/></svg>'>Biasa</option>
             </select>
@@ -3311,7 +3497,7 @@
     </div>
     <div class="modal-body">
       <input type="hidden" id="linkId" />
-      <div class="field"><label>URL *</label><input type="url" id="linkUrl" placeholder="https://..." /></div>
+      <div class="field"><label>URL <span style="color:var(--merah)">*</span></label><input type="url" id="linkUrl" placeholder="https://..." /></div>
       <div class="field"><label>Slug Pendek</label><input type="text" id="linkSlug" placeholder="contoh: laporan-spm" />
         <div class="field-hint">Biarkan kosong jika tidak perlu shortlink. URL: /<span id="slugPreview">-</span></div>
         <div class="slug-status" id="linkSlugStatus"></div>
@@ -3353,7 +3539,7 @@
 
       
       <div id="bundleInfoSection">
-        <div class="field"><label>Judul Bundle *</label><input type="text" id="bundleJudul" placeholder="Nama bundle" /></div>
+        <div class="field"><label>Judul Bundle <span style="color:var(--merah)">*</span></label><input type="text" id="bundleJudul" placeholder="Nama bundle" /></div>
         <div class="field"><label>Slug (URL)</label><input type="text" id="bundleSlug" placeholder="auto-generate dari judul" />
           <div class="field-hint">URL publik: /<span id="bundleSlugPreview">-</span></div>
           <div class="slug-status" id="bundleSlugStatus"></div>
@@ -3393,8 +3579,8 @@
         
         <div id="bundleInlineItemForm" style="display:none;background:var(--abu-1);border-radius:10px;padding:12px;margin-bottom:10px;border:1.5px solid var(--abu-2)">
           <input type="hidden" id="bundleItemId" />
-          <div class="field"><label>Judul *</label><input type="text" id="biJudul" placeholder="Nama item" /></div>
-          <div class="field"><label>URL *</label><input type="url" id="biUrl" placeholder="https://..." /></div>
+          <div class="field"><label>Judul <span style="color:var(--merah)">*</span></label><input type="text" id="biJudul" placeholder="Nama item" /></div>
+          <div class="field"><label>URL <span style="color:var(--merah)">*</span></label><input type="url" id="biUrl" placeholder="https://..." /></div>
           <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:4px">
             <button class="btn btn-ghost btn-sm" onclick="hideInlineItemForm()"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"/></svg>Batal</button>
             <button class="btn btn-primary btn-sm" onclick="saveBundleItem()"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>Simpan Item</button>
@@ -3513,8 +3699,8 @@
         <div class="field"><label>Tanggal Surat</label><div class="dp-wrap" id="dp-smTglSurat"></div></div>
         <div class="field"><label>Tanggal Terima</label><div class="dp-wrap" id="dp-smTglTerima"></div></div>
       </div>
-      <div class="field"><label>Asal Surat *</label><input type="text" id="smAsal" /></div>
-      <div class="field"><label>Perihal *</label><input type="text" id="smPerihal" /></div>
+      <div class="field"><label>Asal Surat <span style="color:var(--merah)">*</span></label><input type="text" id="smAsal" /></div>
+      <div class="field"><label>Perihal <span style="color:var(--merah)">*</span></label><input type="text" id="smPerihal" /></div>
       <div class="field">
         <label>Pegawai Penerima</label>
         <details id="smPegawaiDetails">
@@ -3522,6 +3708,9 @@
             <span id="smPegawaiSummaryText" style="color:var(--teks-muted)">Klik untuk pilih pegawai</span>
             <span id="smPegawaiSelectAll" style="font-weight:600;font-size:.78rem;color:var(--hijau);cursor:pointer;user-select:none" onclick="event.preventDefault();toggleSelectAllPegawai('sm')">Pilih Semua</span>
           </summary>
+          <div style="padding:8px 8px 0;border:1px solid var(--abu-2);border-top:none">
+            <div class="search-wrap" style="min-width:0;flex:none;margin-bottom:0"><svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-4.35-4.35"/></svg><input type="text" id="smPegawaiSearch" placeholder="Cari nama pegawai…" autocomplete="off" oninput="renderPegawaiGrid('sm', true)" onkeydown="if(event.key==='Enter')event.preventDefault()" /></div>
+          </div>
           <div id="smPegawaiGrid" style="display:flex;flex-direction:column;gap:6px;max-height:180px;overflow-y:auto;border:1px solid var(--abu-2);border-top:none;border-radius:0 0 8px 8px;padding:8px"></div>
         </details>
       </div>
@@ -3577,10 +3766,10 @@
       </div>
       <div class="field"><label>Tanggal Surat</label><div class="dp-wrap" id="dp-skTglSurat"></div></div>
       <div class="field">
-        <label>Tujuan Surat *</label>
+        <label>Tujuan Surat <span style="color:var(--merah)">*</span></label>
         <div class="ps-rte" id="skTujuan" contenteditable="true" spellcheck="false" style="min-height:36px"></div>
       </div>
-      <div class="field"><label>Perihal *</label><input type="text" id="skPerihal" /></div>
+      <div class="field"><label>Perihal <span style="color:var(--merah)">*</span></label><input type="text" id="skPerihal" /></div>
       <div class="field">
         <label>Pegawai Pengirim</label>
         <details id="skPegawaiDetails">
@@ -3588,6 +3777,9 @@
             <span id="skPegawaiSummaryText" style="color:var(--teks-muted)">Klik untuk pilih pegawai</span>
             <span id="skPegawaiSelectAll" style="font-weight:600;font-size:.78rem;color:var(--hijau);cursor:pointer;user-select:none" onclick="event.preventDefault();toggleSelectAllPegawai('sk')">Pilih Semua</span>
           </summary>
+          <div style="padding:8px 8px 0;border:1px solid var(--abu-2);border-top:none">
+            <div class="search-wrap" style="min-width:0;flex:none;margin-bottom:0"><svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-4.35-4.35"/></svg><input type="text" id="skPegawaiSearch" placeholder="Cari nama pegawai…" autocomplete="off" oninput="renderPegawaiGrid('sk', true)" onkeydown="if(event.key==='Enter')event.preventDefault()" /></div>
+          </div>
           <div id="skPegawaiGrid" style="display:flex;flex-direction:column;gap:6px;max-height:180px;overflow-y:auto;border:1px solid var(--abu-2);border-top:none;border-radius:0 0 8px 8px;padding:8px"></div>
         </details>
       </div>
@@ -3630,7 +3822,7 @@
         <input type="text" id="epSkpdSubUnit" readonly style="background:#f1f5f9;color:var(--text-secondary,#64748b);cursor:not-allowed" />
       </div>
       <div class="field">
-        <label>Nama Kegiatan *</label>
+        <label>Nama Kegiatan <span style="color:var(--merah)">*</span></label>
         <input type="text" id="epNamaKegiatan" placeholder="mis. Advokasi Program Bangga Kencana Tahap 1" oninput="epUpdateSaveButtonState()" />
       </div>
       <div class="field">
@@ -3643,7 +3835,7 @@
         <div id="epSumberDanaChips" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px"></div>
       </div>
       <div class="field">
-        <label>Sub Kegiatan *</label>
+        <label>Sub Kegiatan <span style="color:var(--merah)">*</span></label>
         <div class="select-wrap" id="epSubKegiatanWrap">
           <select id="epSubKegiatan" data-searchable="1" data-search-placeholder="Cari sub kegiatan…" onchange="epOnSubKegiatanChange()">
             <option value="">- Pilih Sub Kegiatan -</option>
@@ -3699,8 +3891,8 @@
       <button class="btn-close" onclick="closeModal('modalEpApproveKabid')"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg></button>
     </div>
     <div class="modal-body">
-      <div class="field"><label>Nama Kepala *</label><input type="text" id="epKabidNama" /></div>
-      <div class="field"><label>NIP Kepala *</label><input type="text" id="epKabidNip" /></div>
+      <div class="field"><label>Nama Kepala <span style="color:var(--merah)">*</span></label><input type="text" id="epKabidNama" /></div>
+      <div class="field"><label>NIP Kepala <span style="color:var(--merah)">*</span></label><input type="text" id="epKabidNip" /></div>
       <div class="field">
         <label>Tanda Tangan Elektronik (opsional)</label>
         <input type="file" onchange="epUploadFile(this,'epKabidTtd')" accept=".jpg,.jpeg,.png" />
@@ -3721,8 +3913,8 @@
       <button class="btn-close" onclick="closeModal('modalEpApproveSekretaris')"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg></button>
     </div>
     <div class="modal-body">
-      <div class="field"><label>Nama Sekretaris *</label><input type="text" id="epSekretarisNama" /></div>
-      <div class="field"><label>NIP Sekretaris *</label><input type="text" id="epSekretarisNip" /></div>
+      <div class="field"><label>Nama Sekretaris <span style="color:var(--merah)">*</span></label><input type="text" id="epSekretarisNama" /></div>
+      <div class="field"><label>NIP Sekretaris <span style="color:var(--merah)">*</span></label><input type="text" id="epSekretarisNip" /></div>
       <div class="field">
         <label>Tanda Tangan Elektronik (opsional)</label>
         <input type="file" onchange="epUploadFile(this,'epSekretarisTtd')" accept=".jpg,.jpeg,.png" />
@@ -3743,8 +3935,8 @@
       <button class="btn-close" onclick="closeModal('modalEpApproveAdmin')"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg></button>
     </div>
     <div class="modal-body">
-      <div class="field"><label>Nama Kepala Dinas *</label><input type="text" id="epKadisNama" /></div>
-      <div class="field"><label>NIP Kepala Dinas *</label><input type="text" id="epKadisNip" /></div>
+      <div class="field"><label>Nama Kepala Dinas <span style="color:var(--merah)">*</span></label><input type="text" id="epKadisNama" /></div>
+      <div class="field"><label>NIP Kepala Dinas <span style="color:var(--merah)">*</span></label><input type="text" id="epKadisNip" /></div>
       <div class="field">
         <label>Tanda Tangan Elektronik (opsional)</label>
         <input type="file" onchange="epUploadFile(this,'epKadisTtd')" accept=".jpg,.jpeg,.png" />
@@ -3767,7 +3959,7 @@
     <div class="modal-body">
       <div style="font-size:.85rem;color:var(--teks-muted,#64748b);margin-bottom:12px">Apakah ada perubahan pada usulan ini setelah dibahas?</div>
       <div class="field" id="epPfPerubahanField" style="display:none;margin-bottom:0">
-        <label>Catatan Perubahan *</label>
+        <label>Catatan Perubahan <span style="color:var(--merah)">*</span></label>
         <textarea id="epPfCatatanPerubahan" rows="3" placeholder="Tuliskan perubahan yang diminta..."></textarea>
       </div>
     </div>
@@ -3881,9 +4073,9 @@
         </div>
         <div class="field-hint">Isi Volume 1 &amp; Satuan 1 dulu buat buka baris berikutnya - hasil kalinya otomatis jadi Volume final.</div>
       </div>
-      <div class="field"><label>Volume *</label><input type="number" id="epRincVolume" disabled /></div>
-      <div class="field"><label>Koefisien (Keterangan Jumlah) *</label><input type="text" id="epRincKoefisien" disabled /></div>
-      <div class="field"><label>Total Belanja *</label><input type="text" id="epRincTotalBelanja" disabled /></div>
+      <div class="field"><label>Volume <span style="color:var(--merah)">*</span></label><input type="number" id="epRincVolume" disabled /></div>
+      <div class="field"><label>Koefisien (Keterangan Jumlah) <span style="color:var(--merah)">*</span></label><input type="text" id="epRincKoefisien" disabled /></div>
+      <div class="field"><label>Total Belanja <span style="color:var(--merah)">*</span></label><input type="text" id="epRincTotalBelanja" disabled /></div>
       </div>
     </div>
     <div class="modal-footer">
@@ -3978,11 +4170,11 @@
     <div class="modal-body">
       <input type="hidden" id="absId" />
       <div class="field" id="absPegawaiWrap">
-        <label>Pegawai *</label>
+        <label>Pegawai <span style="color:var(--merah)">*</span></label>
         <div class="select-wrap"><select id="absPegawai" data-searchable="1" data-search-placeholder="Cari pegawai…" onchange="pjAbsSetPegawai?.(this.value)"><option value="">- Pilih Pegawai -</option></select></div>
       </div>
       <div class="field-row">
-        <div class="field"><label>Tanggal *</label><div id="cdtp_absTanggal" class="cdtp-mount" data-cdtp="absTanggal" data-cdtp-date="1" data-cdtp-libur="1" data-cdtp-max-today="1" data-placeholder="Pilih tanggal"></div><input type="hidden" id="absTanggal" /></div>
+        <div class="field"><label>Tanggal <span style="color:var(--merah)">*</span></label><div id="cdtp_absTanggal" class="cdtp-mount" data-cdtp="absTanggal" data-cdtp-date="1" data-cdtp-libur="1" data-cdtp-max-today="1" data-placeholder="Pilih tanggal"></div><input type="hidden" id="absTanggal" /></div>
         <div class="field"><label>Status</label>
           <div class="select-wrap">
             <select id="absStatus" data-placeholder="Otomatis (Tepat Waktu/Terlambat)" onchange="onAbsStatusChange()">
@@ -3998,10 +4190,10 @@
         <div class="field"><label>Absensi Keluar</label><div id="ctp_absJamKeluar" class="ctp-mount" data-ctp="absJamKeluar" data-placeholder="--:--"></div><input type="hidden" id="absJamKeluar" /></div>
       </div>
       <div class="field-row" id="absDurasiRow" style="display:none">
-        <div class="field"><label>Sampai Tanggal *</label><div id="cdtp_absTanggalSelesai" class="cdtp-mount" data-cdtp="absTanggalSelesai" data-cdtp-date="1" data-cdtp-libur="1" data-cdtp-max-today="1" data-placeholder="Pilih tanggal"></div><input type="hidden" id="absTanggalSelesai" /></div>
+        <div class="field"><label>Sampai Tanggal <span style="color:var(--merah)">*</span></label><div id="cdtp_absTanggalSelesai" class="cdtp-mount" data-cdtp="absTanggalSelesai" data-cdtp-date="1" data-cdtp-libur="1" data-cdtp-max-today="1" data-placeholder="Pilih tanggal"></div><input type="hidden" id="absTanggalSelesai" /></div>
       </div>
       <div class="field" id="absDukungWrap" style="display:none">
-        <label id="absDukungLabel">Data Dukung *</label>
+        <label id="absDukungLabel">Data Dukung <span style="color:var(--merah)">*</span></label>
         <div class="upload-area" id="absDukungUploadArea"
              ondragover="handleAbsDukungDragOver(event)"
              ondragleave="handleAbsDukungDragLeave(event)"
@@ -4042,8 +4234,8 @@
       <input type="hidden" id="pjVerifId" />
       <div class="field-hint" id="pjVerifInfo" style="margin-bottom:12px"></div>
       <div class="pj-yn" id="pjVerifPilih" role="radiogroup" aria-label="Hasil verifikasi">
-        <button type="button" class="pj-yn-btn active" data-val="setuju" role="radio" onclick="pjVerifPilih('setuju')">Setuju</button>
-        <button type="button" class="pj-yn-btn pj-yn-tolak" data-val="tolak" role="radio" onclick="pjVerifPilih('tolak')">Tolak</button>
+        <button type="button" class="pj-yn-btn active" data-val="setuju" role="radio" onclick="pjVerifPilih('setuju')"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="margin-right:5px;vertical-align:-2px" aria-hidden="true"><path d="M5 13l4 4L19 7"/></svg>Setuju</button>
+        <button type="button" class="pj-yn-btn pj-yn-tolak" data-val="tolak" role="radio" onclick="pjVerifPilih('tolak')"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="margin-right:5px;vertical-align:-2px" aria-hidden="true"><path d="M6 18L18 6M6 6l12 12"/></svg>Tolak</button>
       </div>
       <div class="field" id="pjVerifCatatanWrap" style="display:none;margin-top:14px"><label>Catatan Penolakan <span style="color:var(--merah)">*</span></label><textarea id="pjVerifCatatan" placeholder="Tulis alasan penolakan"></textarea></div>
     </div>
@@ -4076,7 +4268,7 @@
     </div>
     <div class="modal-body">
       <div class="field" id="pengJenisWrap">
-        <label>Jenis Pengajuan *</label>
+        <label>Jenis Pengajuan <span style="color:var(--merah)">*</span></label>
         <div class="select-wrap">
           <select id="pengStatus" onchange="pjPengSync()">
             <option value="tugas_luar">Tugas Luar</option>
@@ -4085,11 +4277,11 @@
         </div>
       </div>
       <div class="field-row">
-        <div class="field"><label>Dari Tanggal *</label><div id="cdtp_pengTanggal" class="cdtp-mount" data-cdtp="pengTanggal" data-cdtp-date="1" data-cdtp-libur="1" data-placeholder="Pilih tanggal"></div><input type="hidden" id="pengTanggal" /></div>
-        <div class="field"><label>Sampai Tanggal *</label><div id="cdtp_pengTanggalSelesai" class="cdtp-mount" data-cdtp="pengTanggalSelesai" data-cdtp-date="1" data-cdtp-libur="1" data-placeholder="Pilih tanggal"></div><input type="hidden" id="pengTanggalSelesai" /></div>
+        <div class="field"><label>Dari Tanggal <span style="color:var(--merah)">*</span></label><div id="cdtp_pengTanggal" class="cdtp-mount" data-cdtp="pengTanggal" data-cdtp-date="1" data-cdtp-libur="1" data-placeholder="Pilih tanggal"></div><input type="hidden" id="pengTanggal" /></div>
+        <div class="field"><label>Sampai Tanggal <span style="color:var(--merah)">*</span></label><div id="cdtp_pengTanggalSelesai" class="cdtp-mount" data-cdtp="pengTanggalSelesai" data-cdtp-date="1" data-cdtp-libur="1" data-placeholder="Pilih tanggal"></div><input type="hidden" id="pengTanggalSelesai" /></div>
       </div>
       <div class="field" id="pengDukungWrap">
-        <label>Data Dukung *</label>
+        <label>Data Dukung <span style="color:var(--merah)">*</span></label>
         <div class="upload-area" id="pengDukungUploadArea"
              ondragover="handlePengDukungDragOver(event)"
              ondragleave="handlePengDukungDragLeave(event)"
@@ -4208,8 +4400,8 @@
       <div class="page-subtitle" style="margin:-4px 0 14px">Tiap periode disimpan sebagai riwayat sendiri per tahun - nambah/ubah periode tahun ini gak akan ngubah rekap &amp; jam kerja Ramadhan tahun-tahun sebelumnya</div>
 
       <div class="field-row">
-        <div class="field"><label>Tanggal Mulai Ramadhan *</label><div id="cdtp_absRmdTglMulai" class="cdtp-mount" data-cdtp="absRmdTglMulai" data-cdtp-date="1" data-cdtp-libur="1" data-placeholder="Pilih tanggal"></div><input type="hidden" id="absRmdTglMulai" /></div>
-        <div class="field"><label>Tanggal Selesai Ramadhan *</label><div id="cdtp_absRmdTglSelesai" class="cdtp-mount" data-cdtp="absRmdTglSelesai" data-cdtp-date="1" data-cdtp-libur="1" data-placeholder="Pilih tanggal"></div><input type="hidden" id="absRmdTglSelesai" /></div>
+        <div class="field"><label>Tanggal Mulai Ramadhan <span style="color:var(--merah)">*</span></label><div id="cdtp_absRmdTglMulai" class="cdtp-mount" data-cdtp="absRmdTglMulai" data-cdtp-date="1" data-cdtp-libur="1" data-placeholder="Pilih tanggal"></div><input type="hidden" id="absRmdTglMulai" /></div>
+        <div class="field"><label>Tanggal Selesai Ramadhan <span style="color:var(--merah)">*</span></label><div id="cdtp_absRmdTglSelesai" class="cdtp-mount" data-cdtp="absRmdTglSelesai" data-cdtp-date="1" data-cdtp-libur="1" data-placeholder="Pilih tanggal"></div><input type="hidden" id="absRmdTglSelesai" /></div>
       </div>
 
       <div style="font-size:var(--fs-sm);font-weight:700;color:var(--teks-muted);margin:10px 0 8px">Jendela Absensi Masuk</div>
@@ -4218,8 +4410,8 @@
         <div class="field"><label>Absensi Masuk Mulai (Jumat)</label><div id="ctp_absRmdMasukAwalJumat" class="ctp-mount" data-ctp="absRmdMasukAwalJumat" data-placeholder="--:--"></div><input type="hidden" id="absRmdMasukAwalJumat" /></div>
       </div>
       <div class="field-row">
-        <div class="field"><label>Batas Tepat Waktu (Senin–Kamis) *</label><div id="ctp_absRmdMasukSK" class="ctp-mount" data-ctp="absRmdMasukSK" data-placeholder="--:--"></div><input type="hidden" id="absRmdMasukSK" /></div>
-        <div class="field"><label>Batas Tepat Waktu (Jumat) *</label><div id="ctp_absRmdMasukJumat" class="ctp-mount" data-ctp="absRmdMasukJumat" data-placeholder="--:--"></div><input type="hidden" id="absRmdMasukJumat" /></div>
+        <div class="field"><label>Batas Tepat Waktu (Senin–Kamis) <span style="color:var(--merah)">*</span></label><div id="ctp_absRmdMasukSK" class="ctp-mount" data-ctp="absRmdMasukSK" data-placeholder="--:--"></div><input type="hidden" id="absRmdMasukSK" /></div>
+        <div class="field"><label>Batas Tepat Waktu (Jumat) <span style="color:var(--merah)">*</span></label><div id="ctp_absRmdMasukJumat" class="ctp-mount" data-ctp="absRmdMasukJumat" data-placeholder="--:--"></div><input type="hidden" id="absRmdMasukJumat" /></div>
       </div>
       <div class="field-row">
         <div class="field"><label>Absensi Masuk Sampai (Senin–Kamis)</label><div id="ctp_absRmdMasukAkhirSK" class="ctp-mount" data-ctp="absRmdMasukAkhirSK" data-placeholder="--:--"></div><input type="hidden" id="absRmdMasukAkhirSK" /></div>
@@ -4228,8 +4420,8 @@
 
       <div style="font-size:var(--fs-sm);font-weight:700;color:var(--teks-muted);margin:14px 0 8px">Jendela Absensi Keluar</div>
       <div class="field-row">
-        <div class="field"><label>Absensi Keluar Mulai (Senin–Kamis) *</label><div id="ctp_absRmdPulangSK" class="ctp-mount" data-ctp="absRmdPulangSK" data-placeholder="--:--"></div><input type="hidden" id="absRmdPulangSK" /></div>
-        <div class="field"><label>Absensi Keluar Mulai (Jumat) *</label><div id="ctp_absRmdPulangJumat" class="ctp-mount" data-ctp="absRmdPulangJumat" data-placeholder="--:--"></div><input type="hidden" id="absRmdPulangJumat" /></div>
+        <div class="field"><label>Absensi Keluar Mulai (Senin–Kamis) <span style="color:var(--merah)">*</span></label><div id="ctp_absRmdPulangSK" class="ctp-mount" data-ctp="absRmdPulangSK" data-placeholder="--:--"></div><input type="hidden" id="absRmdPulangSK" /></div>
+        <div class="field"><label>Absensi Keluar Mulai (Jumat) <span style="color:var(--merah)">*</span></label><div id="ctp_absRmdPulangJumat" class="ctp-mount" data-ctp="absRmdPulangJumat" data-placeholder="--:--"></div><input type="hidden" id="absRmdPulangJumat" /></div>
       </div>
       <div class="field-row">
         <div class="field"><label>Absensi Keluar Sampai (Senin–Kamis)</label><div id="ctp_absRmdPulangAkhirSK" class="ctp-mount" data-ctp="absRmdPulangAkhirSK" data-placeholder="--:--"></div><input type="hidden" id="absRmdPulangAkhirSK" /></div>
@@ -4305,8 +4497,8 @@
     </div>
     <div class="modal-body">
       <input type="hidden" id="userId" />
-      <div class="field"><label>Nama *</label><input type="text" id="userNama" /></div>
-      <div class="field"><label>NIP *</label><input type="text" id="userNip" inputmode="numeric" /></div>
+      <div class="field"><label>Nama <span style="color:var(--merah)">*</span></label><input type="text" id="userNama" /></div>
+      <div class="field"><label>NIP <span style="color:var(--merah)">*</span></label><input type="text" id="userNip" inputmode="numeric" /></div>
       <div class="field"><label>Email</label><input type="email" id="userEmail" /></div>
       <div class="field"><label>Jabatan</label><input type="text" id="userJabatan" maxlength="150" placeholder="cth. Kepala Sub Bagian Perencanaan (kosongkan jika tidak ada)" autocomplete="off" /></div>
 
@@ -4471,7 +4663,7 @@
     </div>
     <div class="modal-body">
       <div class="field">
-        <label>Password Lama *</label>
+        <label>Password Lama <span style="color:var(--merah)">*</span></label>
         <div style="position:relative">
           <input type="password" id="cpOld" placeholder="Masukkan password lama" style="padding-right:40px" />
           <button type="button" onclick="toggleCpEye('cpOld','eyeCpOld')" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--teks-muted)">
@@ -4480,7 +4672,7 @@
         </div>
       </div>
       <div class="field">
-        <label>Password Baru *</label>
+        <label>Password Baru <span style="color:var(--merah)">*</span></label>
         <div style="position:relative">
           <input type="password" id="cpNew" placeholder="Minimal 6 karakter" style="padding-right:40px" />
           <button type="button" onclick="toggleCpEye('cpNew','eyeCpNew')" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--teks-muted)">
@@ -4489,7 +4681,7 @@
         </div>
       </div>
       <div class="field">
-        <label>Konfirmasi Password Baru *</label>
+        <label>Konfirmasi Password Baru <span style="color:var(--merah)">*</span></label>
         <div style="position:relative">
           <input type="password" id="cpConfirm" placeholder="Ulangi password baru" style="padding-right:40px" />
           <button type="button" onclick="toggleCpEye('cpConfirm','eyeCpConfirm')" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--teks-muted)">
@@ -4513,9 +4705,9 @@
     </div>
     <div class="modal-body">
       <input type="hidden" id="bidangId" />
-      <div class="field"><label>Nama Unit Kerja *</label><input type="text" id="bidangNama" placeholder="cth. Bidang Perencanaan" /></div>
+      <div class="field"><label>Nama Unit Kerja <span style="color:var(--merah)">*</span></label><input type="text" id="bidangNama" placeholder="cth. Bidang Perencanaan" /></div>
       <div class="field">
-        <label>Tipe Unit Kerja *</label>
+        <label>Tipe Unit Kerja <span style="color:var(--merah)">*</span></label>
         <div class="select-wrap">
           <select id="bidangTipe">
             <option value="bidang">Bidang</option>
@@ -4541,13 +4733,13 @@
     </div>
     <div class="modal-body">
       <input type="hidden" id="temaId" />
-      <div class="field"><label>Nama Tema *</label><input type="text" id="temaNama" placeholder="cth. Ramadhan 1447 H" /></div>
+      <div class="field"><label>Nama Tema <span style="color:var(--merah)">*</span></label><input type="text" id="temaNama" placeholder="cth. Ramadhan 1447 H" /></div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
-        <div class="field"><label>Tanggal Mulai *</label><div class="dp-wrap" id="dp-temaTanggalMulai"></div></div>
-        <div class="field"><label>Tanggal Selesai *</label><div class="dp-wrap" id="dp-temaTanggalSelesai"></div></div>
+        <div class="field"><label>Tanggal Mulai <span style="color:var(--merah)">*</span></label><div class="dp-wrap" id="dp-temaTanggalMulai"></div></div>
+        <div class="field"><label>Tanggal Selesai <span style="color:var(--merah)">*</span></label><div class="dp-wrap" id="dp-temaTanggalSelesai"></div></div>
       </div>
       <div class="field">
-        <label>Gambar Banner *</label>
+        <label>Gambar Banner <span style="color:var(--merah)">*</span></label>
         <div class="upload-area" id="temaGambarUploadArea"
              ondragover="handleTemaGambarDragOver(event)"
              ondragleave="handleTemaGambarDragLeave(event)"
@@ -4563,7 +4755,7 @@
         </div>
         <div id="temaGambarPreviewWrap" style="display:none;position:relative;margin-top:8px;width:fit-content">
           <img id="temaGambarPreview" style="display:block;max-width:100%;max-height:120px;border-radius:8px;object-fit:cover" />
-          <button type="button" class="btn-close" onclick="removeTemaGambar()" title="Hapus gambar"
+          <button type="button" class="btn-close" onclick="removeTemaGambar()" data-tip="Hapus gambar"
                   style="position:absolute;top:-8px;right:-8px;background:#ef4444;color:#fff;border-radius:50%;width:22px;height:22px;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 6px rgba(0,0,0,.25)">
             <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
           </button>
@@ -5444,7 +5636,7 @@
 </div>
 
 
-<script src="js/periode_frontend.js?v=1.2.13"></script>
+<script src="js/periode_frontend.js?v=1.2.17"></script>
 <script>
 (function() {
   'use strict';
@@ -5587,27 +5779,29 @@
 })();
 </script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/quill/1.3.7/quill.min.js"></script>
-  <script src="js/monitoring_frontend.js?v=1.2.13"></script>
-  <script src="js/app.js?v=1.2.13"></script>
-<script src="js/dashboard.js?v=1.2.13"></script>
+  <script src="js/monitoring_frontend.js?v=1.2.17"></script>
+  <script src="js/app.js?v=1.2.17"></script>
+<script src="js/dark-mode.js?v=1.2.17"></script>
+<script src="js/dashboard.js?v=1.2.17"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
-<script src="js/superlink.js?v=1.2.13"></script>
-<script src="js/pengumuman_frontend.js?v=1.2.13"></script>
-<script src="js/surat.js?v=1.2.13"></script>
-<script src="js/eplanning_frontend.js?v=1.2.13"></script>
-<script src="js/absensi_frontend.js?v=1.2.13"></script>
-<script src="js/perjadin_frontend.js?v=1.2.13"></script>
-<script src="js/lembur_frontend.js?v=1.2.13"></script>
-<script src="js/users_frontend.js?v=1.2.13"></script>
-<script src="js/kinerja.js?v=1.2.13"></script>
-<script src="js/walidata_frontend.js?v=1.2.13"></script>
-<script src="js/laporan.js?v=1.2.13"></script>
-<script src="js/struktur_frontend.js?v=1.2.13"></script>
-<script src="js/audit_frontend.js?v=1.2.13"></script>
-<script src="js/dokumen_publik_frontend.js?v=1.2.13"></script>
-<script src="js/profil_frontend.js?v=1.2.13"></script>
-<script src="js/tema_musiman_frontend.js?v=1.2.13"></script>
-<script src="js/theme-engine.js?v=1.2.13"></script>
+<script src="js/superlink.js?v=1.2.17"></script>
+<script src="js/pengumuman_frontend.js?v=1.2.17"></script>
+<script src="js/info_popup_frontend.js?v=1.2.17"></script>
+<script src="js/surat.js?v=1.2.17"></script>
+<script src="js/eplanning_frontend.js?v=1.2.17"></script>
+<script src="js/absensi_frontend.js?v=1.2.17"></script>
+<script src="js/perjadin_frontend.js?v=1.2.17"></script>
+<script src="js/lembur_frontend.js?v=1.2.17"></script>
+<script src="js/users_frontend.js?v=1.2.17"></script>
+<script src="js/kinerja.js?v=1.2.17"></script>
+<script src="js/walidata_frontend.js?v=1.2.17"></script>
+<script src="js/laporan.js?v=1.2.17"></script>
+<script src="js/struktur_frontend.js?v=1.2.17"></script>
+<script src="js/audit_frontend.js?v=1.2.17"></script>
+<script src="js/dokumen_publik_frontend.js?v=1.2.17"></script>
+<script src="js/profil_frontend.js?v=1.2.17"></script>
+<script src="js/tema_musiman_frontend.js?v=1.2.17"></script>
+<script src="js/theme-engine.js?v=1.2.17"></script>
 
 <script>
 (function () {
@@ -5907,6 +6101,18 @@
   
   window.initCustomSelects = initAll;
 
+  // Jaring pengaman: setiap .select-wrap baru yang muncul di DOM (render dinamis) otomatis dijadikan
+  // dropdown searchable, tanpa perlu memanggil initCustomSelects() manual di tiap modul.
+  (function () {
+    let t = null;
+    const need = (n) => n.nodeType === 1 && ((n.matches && n.matches('.select-wrap:not(.csel-ready)')) || (n.querySelector && n.querySelector('.select-wrap:not(.csel-ready)')));
+    new MutationObserver((muts) => {
+      if (!muts.some(m => Array.prototype.some.call(m.addedNodes, need))) return;
+      clearTimeout(t);
+      t = setTimeout(initAll, 30);
+    }).observe(document.documentElement, { childList: true, subtree: true });
+  })();
+
   
   
   window.syncCustomSelect = function(id) {
@@ -6047,7 +6253,7 @@
         <div id="pegawaiFotoPreviewWrap" style="display:none;position:relative;margin-top:8px;width:fit-content">
           <img id="pegawaiFotoPreview" src="" alt="Foto Preview"
             style="display:none;width:72px;height:72px;border-radius:50%;object-fit:cover;border:2px solid var(--hijau)" />
-          <button type="button" class="btn-close" id="btnHapusPegawaiFoto" onclick="clearPegawaiFoto()" title="Hapus foto"
+          <button type="button" class="btn-close" id="btnHapusPegawaiFoto" onclick="clearPegawaiFoto()" data-tip="Hapus foto"
                   style="position:absolute;top:-8px;right:-8px;background:#ef4444;color:#fff;border-radius:50%;width:22px;height:22px;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 6px rgba(0,0,0,.25)">
             <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
           </button>

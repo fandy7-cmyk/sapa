@@ -1,0 +1,40 @@
+/* Tombol ganti tema melayang - dipakai login.html, landing.html, bundle.html
+   (app.html punya tombol sendiri di topbar). Ditulis manual, bukan hasil generator. */
+.theme-fab {
+  position: fixed; left: 16px; bottom: 16px; z-index: 10000;
+  width: 40px; height: 40px; border-radius: 50%; cursor: pointer; padding: 0;
+  display: inline-flex; align-items: center; justify-content: center;
+  color: #0f172a; background: rgba(255,255,255,.88);
+  border: 1px solid rgba(15,23,42,.14); box-shadow: 0 4px 14px rgba(0,0,0,.18);
+  -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px);
+  transition: transform .2s ease, background .2s ease;
+}
+.theme-fab:hover { transform: scale(1.07); }
+.theme-fab:focus-visible { outline: 2px solid #047D78; outline-offset: 2px; }
+.theme-fab .ic-sun { display: none; }
+html[data-theme="dark"] .theme-fab { color: #e5e7eb; background: rgba(17,24,39,.88); border-color: rgba(148,163,184,.3); }
+html[data-theme="dark"] .theme-fab .ic-moon { display: none; }
+html[data-theme="dark"] .theme-fab .ic-sun { display: inline; }
+html.theme-switching, html.theme-switching * { transition: background-color .25s ease, color .25s ease, border-color .25s ease !important; }
+@media (prefers-reduced-motion: reduce) { html.theme-switching, html.theme-switching * { transition: none !important; } }
+/* crossfade tema via View Transitions API (dipakai dark-mode.js bila browser mendukung) */
+::view-transition-old(root), ::view-transition-new(root) { animation-duration: .2s; animation-timing-function: ease-out; }
+@media print { .theme-fab { display: none !important; } }
+
+/* Tooltip custom (pengganti title bawaan browser) untuk halaman tanpa app.js.
+   Tampilannya disamakan dengan .qtip-box di styles.css. */
+.fab-tip {
+  position: fixed; z-index: 100000; max-width: 230px;
+  padding: 3px 8px; border-radius: 8px; text-align: center;
+  font: 600 .6rem/1.35 'Plus Jakarta Sans', sans-serif; white-space: pre-line;
+  color: #047D78; background: #ccfbf1; box-shadow: 0 2px 8px rgba(4,125,120,.15);
+  opacity: 0; pointer-events: none; transition: opacity .15s ease;
+}
+.fab-tip.show { opacity: 1; }
+.fab-tip::after { content: ''; position: absolute; left: var(--fab-arrow-left, 50%); transform: translateX(-50%); border: 5px solid transparent; }
+.fab-tip.fab-tip-top::after { top: 100%; border-top-color: #ccfbf1; }
+.fab-tip.fab-tip-bottom::after { bottom: 100%; border-bottom-color: #ccfbf1; }
+html[data-theme="dark"] .fab-tip { color: #2dd4bf; background: #15363f; box-shadow: 0 2px 8px rgba(0,0,0,.4); }
+html[data-theme="dark"] .fab-tip.fab-tip-top::after { border-top-color: #15363f; }
+html[data-theme="dark"] .fab-tip.fab-tip-bottom::after { border-bottom-color: #15363f; }
+@media print { .fab-tip { display: none !important; } }

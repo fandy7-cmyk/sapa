@@ -1,0 +1,15 @@
+/* ── Token dasar mode gelap (manual) ── */
+html[data-theme="dark"]{
+  color-scheme:dark;
+  --teks:#e5e7eb;
+  --teks-muted:#94a3b8;
+  --teks-mid:#2dd4bf;
+  --abu-1:#0e1624;
+  --abu-2:#263244;
+  --hijau-light:#123a38;
+  --hijau-pale:#0f2a2a;
+  --emas-light:#0f2a2a;
+}
+html[data-theme="dark"] body{background-color:#0b1220}
+html[data-theme="dark"] input::placeholder,
+html[data-theme="dark"] textarea::placeholder{color:#64748b}

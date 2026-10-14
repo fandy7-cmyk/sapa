@@ -3,6 +3,12 @@ import { requireAuth } from './_auth.js';
 import { logAudit } from './_audit.js';
 import { cleanupReplacedFile } from './_cloudinary.js';
 import { ensurePerjadinSchema, getPelaksana, buildPerjadin, insertPerjadin, updatePerjadin, SKPD_DEFAULT, syncPerjadinDariAbsensi, bersihkanKerangkaPerjadin } from './_perjadin.js';
+import { sinkronAbsensi, notifAbsensiPengajuanHasil } from './_notif_modul.js';
+
+// Notifikasi lonceng bersifat best-effort: kegagalannya tidak boleh menggagalkan aksi utamanya.
+async function notifSafe(fn) {
+  try { await fn(); } catch (e) { console.error('[notif]', e); }
+}
 
 const STATUS_VALID = ['hadir', 'tugas_luar', 'cuti', 'alpa'];
 
@@ -59,9 +65,9 @@ async function siapkanPerjadinAbsensi(sql, perjadin, { user_id, tgl_mulai, tgl_s
   return { row: built.row, id: cur ? cur.id : null };
 }
 
-async function terapkanPerjadinAbsensi(sql, prep, { pengajuan_id = null, input_by = null }) {
+async function terapkanPerjadinAbsensi(sql, prep, { pengajuan_id = null, input_by = null, disetujui = false }) {
   if (prep.id) return updatePerjadin(sql, prep.id, prep.row);
-  return insertPerjadin(sql, prep.row, { sumber: 'absensi', pengajuan_id, input_by });
+  return insertPerjadin(sql, prep.row, { sumber: 'absensi', pengajuan_id, input_by, disetujui });
 }
 
 function hitungTerlambat(tanggalStr, jamMasukStr, settings) {
@@ -598,7 +604,7 @@ export const handler = async (event) => {
         `;
         if (perjadinRow) {
           try {
-            await insertPerjadin(sql, perjadinRow, { sumber: 'absensi', pengajuan_id: rows[0].id, input_by: auth.id });
+            await insertPerjadin(sql, perjadinRow, { sumber: 'absensi', pengajuan_id: rows[0].id, input_by: auth.id, disetujui: !!full });
           } catch (e) {
             // Batalkan pengajuan supaya tidak ada pengajuan "tanpa" data perjadin yang sudah diisi user.
             await sql`DELETE FROM absensi_pengajuan WHERE id = ${rows[0].id}`.catch(() => {});
@@ -610,6 +616,7 @@ export const handler = async (event) => {
           aksi: 'create_pengajuan_absensi', entitas: 'absensi_pengajuan', entitas_id: rows[0].id,
           detail: { tanggal, tanggal_selesai, status, perjalanan_dinas: !!perjadinRow },
         });
+        await notifSafe(() => sinkronAbsensi(sql));
         return jsonResponse({ pengajuan: rows[0] }, 201);
       } catch (err) {
         console.error('[POST /api/absensi/pengajuan]', err);
@@ -693,7 +700,7 @@ export const handler = async (event) => {
         if (perjadinRow) {
           const pjAda = await sql`SELECT id FROM perjadin WHERE pengajuan_id = ${pengajuanId} ORDER BY id LIMIT 1`;
           if (pjAda.length) await updatePerjadin(sql, pjAda[0].id, perjadinRow);
-          else await insertPerjadin(sql, perjadinRow, { sumber: 'absensi', pengajuan_id: pengajuanId, input_by: auth.id });
+          else await insertPerjadin(sql, perjadinRow, { sumber: 'absensi', pengajuan_id: pengajuanId, input_by: auth.id, disetujui: !!full });
           if (ajukanUlang) {
             await sql`UPDATE perjadin SET status_verifikasi = 'menunggu', catatan_admin = NULL, updated_at = NOW() WHERE pengajuan_id = ${pengajuanId}`;
           }
@@ -708,6 +715,10 @@ export const handler = async (event) => {
           aksi: ajukanUlang ? 'ajukan_ulang_pengajuan_absensi' : 'edit_pengajuan_absensi',
           entitas: 'absensi_pengajuan', entitas_id: pengajuanId,
           detail: { tanggal, tanggal_selesai, status, perjalanan_dinas: !!perjadinRow },
+        });
+        await notifSafe(async () => {
+          await notifAbsensiPengajuanHasil(sql, pengajuanId, auth.id);   // diajukan ulang -> menutup hasil lama
+          await sinkronAbsensi(sql);
         });
         return jsonResponse({ pengajuan: rows[0], ajukan_ulang: ajukanUlang });
       } catch (err) {
@@ -768,6 +779,10 @@ export const handler = async (event) => {
             `;
           } catch (e) { console.error('[approve pengajuan] sinkron perjadin gagal', e); }
         }
+        await notifSafe(async () => {
+          await notifAbsensiPengajuanHasil(sql, pengajuanId, auth.id);
+          await sinkronAbsensi(sql);
+        });
         return jsonResponse({ pengajuan: updated[0], absensi: inserted });
       } catch (err) {
         console.error('[PUT /api/absensi/pengajuan/:id/approve]', err);
@@ -800,6 +815,10 @@ export const handler = async (event) => {
           aksi: 'reject_pengajuan_absensi', entitas: 'absensi_pengajuan', entitas_id: pengajuanId,
           detail: { catatan_admin },
         });
+        await notifSafe(async () => {
+          await notifAbsensiPengajuanHasil(sql, pengajuanId, auth.id);
+          await sinkronAbsensi(sql);
+        });
         return jsonResponse({ pengajuan: rows[0] });
       } catch (err) {
         console.error('[PUT /api/absensi/pengajuan/:id/reject]', err);
@@ -823,6 +842,7 @@ export const handler = async (event) => {
           user_id: auth.id, nama: auth.nama, email: auth.email,
           aksi: 'batalkan_pengajuan_absensi', entitas: 'absensi_pengajuan', entitas_id: pengajuanId,
         });
+        await notifSafe(() => sinkronAbsensi(sql));
         return jsonResponse({ ok: true });
       } catch (err) {
         console.error('[DELETE /api/absensi/pengajuan/:id]', err);
@@ -1483,8 +1503,8 @@ export const handler = async (event) => {
         });
         if (status === 'tugas_luar') {
           await (pjPrep
-            ? terapkanPerjadinAbsensi(sql, pjPrep, { input_by: auth.id })
-            : syncPerjadinDariAbsensi(sql, { user_id: parseInt(user_id), tgl_mulai: tanggal, tgl_selesai: tanggal_selesai, keterangan, input_by: auth.id })
+            ? terapkanPerjadinAbsensi(sql, pjPrep, { input_by: auth.id, disetujui: true })
+            : syncPerjadinDariAbsensi(sql, { user_id: parseInt(user_id), tgl_mulai: tanggal, tgl_selesai: tanggal_selesai, keterangan, input_by: auth.id, disetujui: true })
           ).catch(e => console.error('[sync perjadin rentang]', e));
         }
         return jsonResponse({ absensi: inserted }, 201);
@@ -1554,8 +1574,8 @@ export const handler = async (event) => {
       });
       if (finalStatus === 'tugas_luar') {
         await (pjPrep
-          ? terapkanPerjadinAbsensi(sql, pjPrep, { input_by: auth.id })
-          : syncPerjadinDariAbsensi(sql, { user_id: parseInt(user_id), tgl_mulai: tanggal, tgl_selesai: tanggal, keterangan, input_by: auth.id })
+          ? terapkanPerjadinAbsensi(sql, pjPrep, { input_by: auth.id, disetujui: true })
+          : syncPerjadinDariAbsensi(sql, { user_id: parseInt(user_id), tgl_mulai: tanggal, tgl_selesai: tanggal, keterangan, input_by: auth.id, disetujui: true })
         ).catch(e => console.error('[sync perjadin single]', e));
       }
       return jsonResponse({ absensi: rows[0] }, overwriteId ? 200 : 201);
@@ -1616,12 +1636,12 @@ export const handler = async (event) => {
         detail: { status: finalStatus },
       });
       if (pjPrep) {
-        await terapkanPerjadinAbsensi(sql, pjPrep, { pengajuan_id: existing[0].pengajuan_id || null, input_by: auth.id })
+        await terapkanPerjadinAbsensi(sql, pjPrep, { pengajuan_id: existing[0].pengajuan_id || null, input_by: auth.id, disetujui: true })
           .catch(e => console.error('[perjadin put]', e));
       } else if (finalStatus === 'tugas_luar' && existing[0].status !== 'tugas_luar') {
         await syncPerjadinDariAbsensi(sql, {
           user_id: existing[0].user_id, tgl_mulai: tanggalStr, tgl_selesai: tanggalStr,
-          keterangan: rows[0].keterangan, pengajuan_id: existing[0].pengajuan_id || null, input_by: auth.id,
+          keterangan: rows[0].keterangan, pengajuan_id: existing[0].pengajuan_id || null, input_by: auth.id, disetujui: true,
         }).catch(e => console.error('[sync perjadin put]', e));
       } else if (finalStatus !== 'tugas_luar' && existing[0].status === 'tugas_luar') {
         await bersihkanKerangkaPerjadin(sql, { user_id: existing[0].user_id, tanggal: tanggalStr })
@@ -1645,6 +1665,7 @@ export const handler = async (event) => {
         const sisa = await sql`SELECT id FROM absensi WHERE pengajuan_id = ${existing[0].pengajuan_id} LIMIT 1`;
         if (!sisa.length) {
           await sql`DELETE FROM absensi_pengajuan WHERE id = ${existing[0].pengajuan_id}`;
+          await notifSafe(() => sinkronAbsensi(sql));   // pengajuan ikut terhapus -> ringkasan & hasilnya menyesuaikan
         }
       }
       // File dukung dipakai bersama semua tanggal dalam satu pengajuan: hapus dari Cloudinary hanya kalau sudah tidak dipakai record mana pun.

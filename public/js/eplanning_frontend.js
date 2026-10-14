@@ -12,6 +12,8 @@ const EP_ICON_LIST = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height=
 const EP_ICON_SPINNER = `<span class="btn-spin"></span>`;
 const EP_ICON_COPY = `<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="8" y="8" rx="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>`;
 const EP_ICON_SEND = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/></svg>`;
+// Ajukan Ulang / Ajukan Kembali: pesawat utama + bayangan pesawat memudar di belakangnya (kesan "kirim lagi")
+const EP_ICON_RESEND = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><g transform="translate(-1.6 5.4) scale(.8)" stroke-width="3" stroke-opacity=".45"><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></g><g transform="translate(4 -1) scale(.8)" stroke-width="3"><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></g></svg>`;
 const EP_ICON_POWER_ON = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18.36 6.64A9 9 0 0 1 20.77 15"/><path d="M6.16 6.16a9 9 0 1 0 12.68 12.68"/><path d="M12 2v4"/><path d="M2 12h4"/></svg>`;
 const EP_ICON_POWER_OFF = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 12l2 2 4-4"/><circle cx="12" cy="12" r="10"/></svg>`;
 const EP_ICON_MESSAGE = `<svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/><path d="M12 8v4"/><path d="M12 16h.01"/></svg>`;
@@ -62,6 +64,99 @@ function _epUsulankuRenderTimeline() {
   }).join('');
 }
 
+/* ── Statcard Usulanku ──
+   Gaya sama dengan Surat/Superlink (.stat-card + garis aksen kiri). Grid dibuat lewat JS dan
+   disisipkan di atas toolbar tiap tab. Dihitung dari seluruh list tahap itu (sesuai hak akses
+   & Tahun Anggaran aktif), tidak ikut filter/pencarian/halaman tabel. */
+const _EP_UK_STAT_ICON = {
+  list:   '<line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/>',
+  draft:  '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="13" x2="15" y2="13"/><line x1="9" y1="17" x2="13" y2="17"/>',
+  clock:  '<circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>',
+  reject: '<circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/>',
+  ok:     '<path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>',
+  wallet: '<path d="M20 12V8H6a2 2 0 0 1-2-2c0-1.1.9-2 2-2h12v4"/><path d="M4 6v12c0 1.1.9 2 2 2h14v-4"/><path d="M18 12a2 2 0 0 0-2 2c0 1.1.9 2 2 2h4v-4h-4z"/>',
+  star:   '<polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>',
+  avg:    '<line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/>'
+};
+
+// Rp ringkas biar muat di kartu (nilai lengkap tetap muncul di tooltip kartu)
+function _epUkFmtRupiahRingkas(n) {
+  const v = Number(n) || 0;
+  const f = (x, suf) => 'Rp ' + x.toLocaleString('id-ID', { maximumFractionDigits: 2 }) + ' ' + suf;
+  if (v >= 1e12) return f(v / 1e12, 'T');
+  if (v >= 1e9)  return f(v / 1e9,  'M');
+  if (v >= 1e6)  return f(v / 1e6,  'jt');
+  return epFmtRupiah(v);
+}
+
+function _epUkStatCard(value, label, color, bg, icon, opts) {
+  const o = opts || {};
+  return `
+    <div class="stat-card" style="border-left-color:${color}"${o.tip ? ` data-tip="${esc(o.tip)}"` : ''}>
+      <div class="stat-card-body">
+        <div class="stat-label">${label}</div>
+        <div class="stat-value" style="color:${color}${o.small ? ';font-size:var(--fs-xl)' : ''}">${value}</div>
+      </div>
+      <div class="stat-icon" style="background:${bg};opacity:1">
+        <svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" fill="none" viewBox="0 0 24 24" stroke="${color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${_EP_UK_STAT_ICON[icon]}</svg>
+      </div>
+    </div>`;
+}
+
+// Satu grid bersama, di atas timeline (ikon Pra Usulan dst); isinya ikut tab yang aktif.
+function _epUkEnsureStatGrid() {
+  let el = document.getElementById('epUkStats');
+  if (el) return el;
+  const timeline = document.getElementById('epUsulankuTimeline');
+  if (!timeline) return null;
+  el = document.createElement('div');
+  el.id = 'epUkStats';
+  el.className = 'stat-grid';
+  el.style.gridTemplateColumns = 'repeat(auto-fit, minmax(170px, 1fr))';
+  timeline.parentNode.insertBefore(el, timeline);
+  return el;
+}
+
+function _epUkRenderStats(tabId) {
+  const cfg = EP_USULANKU_TABS.find(t => t.id === tabId);
+  if (!cfg || tabId !== _epUsulankuActiveTab) return;
+  const el = _epUkEnsureStatGrid();
+  if (!el) return;
+  const list = cfg.getList() || [];
+  const fmt = n => Number(n).toLocaleString('id-ID');
+  const total = list.length;
+  const sum = list.reduce((a, u) => a + (Number(u.total_anggaran) || 0), 0);
+  const HIJAU = ['var(--hijau)', 'rgba(15,118,110,.12)'];
+  const AMBER = ['#d97706', 'rgba(217,119,6,.12)'];
+  const BLUE  = ['#2563eb', 'rgba(37,99,235,.12)'];
+  const RED   = ['#dc2626', 'rgba(220,38,38,.12)'];
+  const GREEN = ['#16a34a', 'rgba(22,163,74,.12)'];
+  const card = (v, label, c, icon, o) => _epUkStatCard(v, label, c[0], c[1], icon, o);
+  const totalCard = card(fmt(total), 'Total Usulan', HIJAU, 'list');
+  const sumCard = card(_epUkFmtRupiahRingkas(sum), 'Total Anggaran', HIJAU, 'wallet', { small: true, tip: epFmtRupiah(sum) });
+  let cards;
+  if (tabId === 'praunsulan') {
+    const draft   = list.filter(u => u.status === 'DRAFT').length;
+    const verif   = list.filter(u => String(u.status || '').startsWith('MENUNGGU')).length;
+    const ditolak = list.filter(u => u.status === 'DITOLAK').length;
+    cards = [totalCard,
+      card(fmt(draft),   'Draft',           AMBER, 'draft'),
+      card(fmt(verif),   'Dalam Verifikasi', BLUE,  'clock'),
+      card(fmt(ditolak), 'Ditolak',         RED,   'reject'),
+      sumCard];
+  } else if (tabId === 'usulan') {
+    const sudah = list.filter(u => u.skala_prioritas != null).length;
+    cards = [totalCard, sumCard,
+      card(fmt(sudah),         'Sudah Prioritas', GREEN, 'ok'),
+      card(fmt(total - sudah), 'Belum Prioritas', AMBER, 'star')];
+  } else {
+    const avg = total ? sum / total : 0;
+    cards = [totalCard, sumCard,
+      card(_epUkFmtRupiahRingkas(avg), 'Rata-rata / Usulan', BLUE, 'avg', { small: true, tip: epFmtRupiah(avg) })];
+  }
+  el.innerHTML = cards.join('');
+}
+
 // Dipanggil dari sidebar (item "Usulanku") - pertama kali dibuka, balik ke tab terakhir dilihat.
 function loadEplanningUsulanku() {
   _epUsulankuRenderTimeline();
@@ -76,6 +171,7 @@ function epUsulankuGoTo(tabId) {
   const el = document.getElementById(cfg.tabEl);
   if (el) el.classList.add('active');
   _epUsulankuRenderTimeline();
+  _epUkRenderStats(cfg.id);
   cfg.loader();
 }
 
@@ -561,6 +657,7 @@ function _epFilteredList() {
 }
 
 function renderEplanningTable() {
+  _epUkRenderStats('usulan');
   const tbody = document.getElementById('epTableBody');
   if (!tbody) return;
   const role = epRole();
@@ -710,6 +807,7 @@ function _epPemFilteredList() {
 }
 
 function renderEplanningPembahasanTable() {
+  _epUkRenderStats('pembahasan');
   const tbody = document.getElementById('epPemTableBody');
   if (!tbody) return;
   const isAdmin = epRole().isAdmin;
@@ -843,6 +941,7 @@ function _epPfFilteredList() {
 }
 
 function renderEplanningPrafinalTable() {
+  _epUkRenderStats('prafinal');
   const tbody = document.getElementById('epPfTableBody');
   if (!tbody) return;
   const isAdmin = epRole().isAdmin;
@@ -997,6 +1096,7 @@ function _epFinFilteredList() {
 }
 
 function renderEplanningFinalTable() {
+  _epUkRenderStats('final');
   const tbody = document.getElementById('epFinTableBody');
   if (!tbody) return;
   const filtered = _epFinFilteredList();
@@ -1212,7 +1312,7 @@ function epRincianLokasiRowHtml(idx) {
       <div class="select-wrap"><select class="ep-rl-kabkota" onchange="epOnRincianLokasiKabkotaChange(this)">${_epKabkotaOptionsHtml('')}</select></div>
       <div class="select-wrap"><select class="ep-rl-kecamatan" disabled><option value="">Pilih Kecamatan...</option></select></div>
       <div class="select-wrap"><select class="ep-rl-desa" disabled><option value="">Pilih Desa/Kelurahan...</option></select></div>
-      <button type="button" class="btn btn-danger btn-sm" title="Hapus baris" aria-label="Hapus baris" onclick="epRemoveRincianLokasiRow(this)"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg></button>
+      <button type="button" class="btn-hapus" data-tip="Hapus baris" aria-label="Hapus baris" onclick="epRemoveRincianLokasiRow(this)"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path stroke-linecap="round" stroke-linejoin="round" d="M19 6l-1 14H6L5 6"/><path stroke-linecap="round" stroke-linejoin="round" d="M10 11v6M14 11v6"/><path stroke-linecap="round" stroke-linejoin="round" d="M9 6V4h6v2"/></svg></button>
     </div>`;
 }
 
@@ -6363,7 +6463,7 @@ function _epRenderTorRows() {
           </select></div></div>
           <input type="text" value="${esc(row.target || '')}" readonly
             placeholder="${currentIndikator ? 'Belum ada' : 'Target'}"
-            title="Otomatis dari Kelola Target${tahun ? ' tahun ' + tahun : ''}"
+            data-tip="Otomatis dari Kelola Target${tahun ? ' tahun ' + tahun : ''}"
             style="flex:0 0 130px;min-width:0;padding:var(--sp-3) var(--sp-4);border:1.5px solid var(--abu-2);border-radius:var(--r-sm);font-family:inherit;font-size:var(--fs-sm);line-height:1.4;color:var(--teks);box-sizing:border-box;background:var(--abu-1,#f1f5f9)" />
           ${editable ? `<button type="button" class="btn-hapus btn-sm" onclick="epTorRemoveRow('${key}',${i})">${EP_ICON_TRASH}</button>` : ''}
         </div>`;
@@ -6401,7 +6501,7 @@ function _epRenderTorRows() {
       return `
       <div style="display:flex;gap:6px;margin-bottom:6px;align-items:center">
         ${cols.map(([field, label]) => field === 'nama_kegiatan'
-          ? `<input type="text" value="${esc(namaOtomatis)}" readonly title="Otomatis dari nama Sub Kegiatan ini" style="flex:1;background:var(--abu-1,#f1f5f9)" />`
+          ? `<input type="text" value="${esc(namaOtomatis)}" readonly data-tip="Otomatis dari nama Sub Kegiatan ini" style="flex:1;background:var(--abu-1,#f1f5f9)" />`
           : `<input type="text" placeholder="${esc(label)}" value="${esc(row[field] || '')}" ${editable ? '' : 'readonly'}
             oninput="_epTorRows['${key}'][${i}]['${field}']=this.value" style="flex:1" />`
         ).join('')}
@@ -7138,6 +7238,7 @@ function _epDokLengkap(u) {
 }
 
 function renderEplanningPraTable() {
+  _epUkRenderStats('praunsulan');
   const tbody = document.getElementById('epPraTableBody');
   if (!tbody) return;
   const role = epRole();
@@ -7195,8 +7296,8 @@ function renderEplanningPraTable() {
       <td style="white-space:nowrap">
         <button class="btn btn-ghost btn-sm" data-tip="${dokTip}" onclick="epOpenDokumenFor('${u.id}')">${dokIcon}</button>
         ${canEdit ? `<button class="btn btn-ghost btn-sm" data-tip="Edit" onclick="openUsulanModal('${u.id}')">${EP_ICON_EDIT}</button>` : ''}
-        ${canSubmit ? `<button class="btn btn-ghost btn-sm" data-tip="${u.status === 'DITOLAK' ? 'Ajukan Kembali' : 'Submit / Ajukan'}" onclick="epSubmitUsulanPra('${u.id}')" style="color:#2563eb">${EP_ICON_SEND}</button>`
-          : canSubmitRole ? `<button class="btn btn-ghost btn-sm" disabled data-tip="${!dokStatus.ok ? 'Lengkapi dulu: ' + esc(dokStatus.missing.join(', ')) : 'Upload tanda tangan Anda dulu di Profil'}" style="color:#94a3b8;cursor:not-allowed">${EP_ICON_SEND}</button>` : ''}
+        ${canSubmit ? `<button class="btn btn-ghost btn-sm" data-tip="${u.status === 'DITOLAK' ? 'Ajukan Kembali' : 'Submit / Ajukan'}" onclick="epSubmitUsulanPra('${u.id}')" style="color:#2563eb">${u.status === 'DITOLAK' ? EP_ICON_RESEND : EP_ICON_SEND}</button>`
+          : canSubmitRole ? `<button class="btn btn-ghost btn-sm" disabled data-tip="${!dokStatus.ok ? 'Lengkapi dulu: ' + esc(dokStatus.missing.join(', ')) : 'Upload tanda tangan Anda dulu di Profil'}" style="color:#94a3b8;cursor:not-allowed">${u.status === 'DITOLAK' ? EP_ICON_RESEND : EP_ICON_SEND}</button>` : ''}
         ${canVerifikasi ? (hasTtd
           ? `<button class="btn btn-ghost btn-sm" data-tip="Setujui (Kepala)" onclick="openApproveKabidModal('${u.id}')" style="color:#16a34a">${EP_ICON_CHECK}</button>`
           : `<button class="btn btn-ghost btn-sm" disabled data-tip="Upload tanda tangan Anda dulu di Profil" style="color:#94a3b8;cursor:not-allowed">${EP_ICON_CHECK}</button>`)

@@ -3,6 +3,12 @@ import bcrypt from 'bcryptjs';
 import { getDb, jsonResponse, errorResponse, parseBody, runOnce } from './_db.js';
 import { requireAdmin, requireAuth } from './_auth.js';
 import { logAudit, _hitungKunci, LOGIN_HISTORY_HOURS } from './_audit.js';
+import { sinkronKeamanan } from './_notif_modul.js';
+
+// Notifikasi lonceng bersifat best-effort: kegagalannya tidak boleh menggagalkan aksi utamanya.
+async function notifSafe(fn) {
+  try { await fn(); } catch (e) { console.error('[notif]', e); }
+}
 import { cleanupReplacedFile } from './_cloudinary.js';
 
 const DEFAULT_PASSWORD = 'Balut2026';
@@ -472,6 +478,7 @@ export const handler = async (event) => {
         aksi: 'unlock_login', entitas: 'user', entitas_id: userId,
         detail: { target_nama: check[0].nama, target_email: check[0].email, percobaan_dihapus: dihapus.length }
       });
+      await notifSafe(() => sinkronKeamanan(sql));   // kunci dibuka -> notifikasi admin menyesuaikan
       return jsonResponse({ ok: true, percobaan_dihapus: dihapus.length });
     } catch (err) {
       console.error('[POST /api/users/:id/unlock-login]', err);

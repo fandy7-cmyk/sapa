@@ -4,6 +4,12 @@ import {
   ensureMonSchema, normalisasiEndpoint, modulDariEndpoint, bikinFingerprint,
   kirimTelegram, telegramAktif,
 } from './_monitoring.js';
+import { sinkronSistem } from './_notif_modul.js';
+
+// Notifikasi lonceng bersifat best-effort: kegagalannya tidak boleh menggagalkan aksi utamanya.
+async function notifSafe(fn) {
+  try { await fn(); } catch (e) { console.error('[notif]', e); }
+}
 
 const potong = (v, n) => (v == null ? null : String(v).slice(0, n));
 const MILESTONE_NOTIF = new Set([10, 50, 100, 500, 1000]);
@@ -180,6 +186,7 @@ export const handler = async (event) => {
       const dari = ['baru', 'dilihat'].includes(b.dari) ? b.dari : 'baru';
       const ke = ['dilihat', 'selesai'].includes(b.ke) ? b.ke : 'dilihat';
       const r = await sql`UPDATE sys_error_log SET status = ${ke} WHERE status = ${dari} RETURNING id`;
+      await notifSafe(() => sinkronSistem(sql));
       return jsonResponse({ ok: true, diubah: r.length });
     }
 
@@ -189,6 +196,7 @@ export const handler = async (event) => {
       const st = parseBody(event).status;
       if (!id || !['baru', 'dilihat', 'selesai'].includes(st)) return errorResponse('Data tidak valid', 400);
       await sql`UPDATE sys_error_log SET status = ${st} WHERE id = ${id}`;
+      await notifSafe(() => sinkronSistem(sql));
       return jsonResponse({ ok: true });
     }
 

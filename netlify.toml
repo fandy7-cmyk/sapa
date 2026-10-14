@@ -2,10 +2,6 @@
   publish = "public"
   functions = "netlify/functions"
 
-# ── Cache headers ─────────────────────────────────────────────
-# root "/" - ikut ke-rewrite ke landing.html tapi netlify match header
-# berdasarkan URL yang diketik browser, bukan tujuan redirect, jadi harus
-# di-set terpisah dari rule "/landing.html" di atas atau gak kepakai sama sekali
 [[headers]]
   for = "/"
   [headers.values]
@@ -257,8 +253,6 @@
   status = 200
   force = true
 
-# ── /app → app.html (alias tanpa ekstensi, dipake pas redirect abis
-#    login biar address bar sempet nampilin "/app" bukan "/app.html") ──
 [[redirects]]
   from = "/app"
   to = "/app.html"
@@ -337,18 +331,13 @@
 [functions]
   node_bundler = "esbuild"
 
-# ── Scheduled: auto-tandai Alpa pegawai yg gak absen sama sekali ────────────
-# Jalan tiap hari jam 00:15 WITA (16:15 UTC). Logikanya ada di function
-# terpisah netlify/functions/absensi-cron-alpa.js (BUKAN di absensi.js) -
-# sengaja dipisah krn Netlify gak izinin satu function jadi scheduled
-# function SEKALIGUS endpoint HTTP biasa; kalau digabung, semua request
-# normal ke /api/absensi/* ikut ke-block ("which is a scheduled function").
 [functions."absensi-cron-alpa"]
   schedule = "15 16 * * *"
 
 
-# ── Scheduled: cek kesehatan sistem + notifikasi Telegram saat status berubah ──
-# Tiap 15 menit. Logika di netlify/functions/monitoring-cron.js (function terpisah,
-# alasannya sama dengan absensi-cron-alpa di atas).
 [functions."monitoring-cron"]
   schedule = "*/15 * * * *"
+
+
+[functions."notif-cron"]
+  schedule = "0 * * * *"

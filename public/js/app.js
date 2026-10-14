@@ -856,6 +856,7 @@ const MENUS = [
         { id: 'pegawai', key: null, label: 'Struktur', page: 'page-pegawai', loader: () => { loadPegawai(); }, icon: `<svg class="ic-line" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M6 7C6 3.68629 8.68629 1 12 1C15.3137 1 18 3.68629 18 7C18 7.26214 17.9831 7.5207 17.9504 7.77457C19.77 8.80413 21 10.7575 21 13C21 16.3137 18.3137 19 15 19H13V22H11V19H8.5C5.46243 19 3 16.5376 3 13.5C3 11.2863 4.30712 9.37966 6.19098 8.50704C6.06635 8.02551 6 7.52039 6 7ZM7.00964 10.3319C5.82176 10.8918 5 12.1008 5 13.5C5 15.433 6.567 17 8.5 17H15C17.2091 17 19 15.2091 19 13C19 11.3056 17.9461 9.85488 16.4544 9.27234L15.6129 8.94372C15.7907 8.30337 16 7.67183 16 7C16 4.79086 14.2091 3 12 3C9.79086 3 8 4.79086 8 7C8 8.30783 8.6266 9.46903 9.60019 10.2005L8.39884 11.7995C7.85767 11.3929 7.38716 10.8963 7.00964 10.3319Z"/></svg><svg class="ic-fill" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M18 7C18 7.2624 17.9832 7.52086 17.9505 7.77437C19.7712 8.80457 21 10.7588 21 13C21 16.3137 18.3137 19 15 19C14.2987 19 13.6256 18.8797 13 18.6586V22H11V18.4003C10.2499 18.7837 9.40022 19 8.5 19C5.46243 19 3 16.5376 3 13.5C3 12.0474 3.56312 10.7263 4.48297 9.74318C4.87725 10.8232 5.49744 11.7944 6.28576 12.5989L7.71424 11.1991C6.99071 10.4607 6.45705 9.53767 6.1906 8.50688C6.06607 8.02541 6 7.5204 6 7C6 3.68629 8.68629 1 12 1C15.3137 1 18 3.68629 18 7Z"/></svg>` },
         { id: 'dokumen-publik', key: null, label: 'Dokumen Publik', page: 'page-dokumen-publik', loader: () => { loadDokumenPublik(); }, icon: `<svg class="ic-line" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M20 22H4C3.44772 22 3 21.5523 3 21V3C3 2.44772 3.44772 2 4 2H20C20.5523 2 21 2.44772 21 3V21C21 21.5523 20.5523 22 20 22ZM19 20V4H5V20H19ZM7 6H11V10H7V6ZM7 12H17V14H7V12ZM7 16H17V18H7V16ZM13 7H17V9H13V7Z"/></svg><svg class="ic-fill" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M20 22H4C3.44772 22 3 21.5523 3 21V3C3 2.44772 3.44772 2 4 2H20C20.5523 2 21 2.44772 21 3V21C21 21.5523 20.5523 22 20 22ZM7 6V10H11V6H7ZM7 12V14H17V12H7ZM7 16V18H17V16H7ZM13 7V9H17V7H13Z"/></svg>` },
         { id: 'pengumuman', key: null, adminOnly: true, label: 'Pengumuman', page: 'page-pengumuman', loader: () => { loadPengumuman(); loadTicker(); }, icon: `<svg class="ic-line" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M9 17C9 17 16 18 19 21H20C20.5523 21 21 20.5523 21 20V13.937C21.8626 13.715 22.5 12.9319 22.5 12C22.5 11.0681 21.8626 10.285 21 10.063V4C21 3.44772 20.5523 3 20 3H19C16 6 9 7 9 7H5C3.89543 7 3 7.89543 3 9V15C3 16.1046 3.89543 17 5 17H6L7 22H9V17ZM11 8.6612C11.6833 8.5146 12.5275 8.31193 13.4393 8.04373C15.1175 7.55014 17.25 6.77262 19 5.57458V18.4254C17.25 17.2274 15.1175 16.4499 13.4393 15.9563C12.5275 15.6881 11.6833 15.4854 11 15.3388V8.6612ZM5 9H9V15H5V9Z"/></svg><svg class="ic-fill" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M21 10.063V4C21 3.44772 20.5523 3 20 3H19C17.0214 4.97864 13.3027 6.08728 11 6.61281V17.3872C13.3027 17.9127 17.0214 19.0214 19 21H20C20.5523 21 21 20.5523 21 20V13.937C21.8626 13.715 22.5 12.9319 22.5 12 22.5 11.0681 21.8626 10.285 21 10.063ZM5 7C3.89543 7 3 7.89543 3 9V15C3 16.1046 3.89543 17 5 17H6L7 22H9V7H5Z"/></svg>` },
+        { id: 'info-popup', key: null, adminOnly: true, label: 'Info Popup', page: 'page-info-popup', loader: () => { loadInfoPopup(); }, icon: `<svg class="ic-line" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M22 20H2V18H3V11.0314C3 6.04348 7.02944 2 12 2C16.9706 2 21 6.04348 21 11.0314V18H22V20ZM5 18H19V11.0314C19 7.14806 15.866 4 12 4C8.13401 4 5 7.14806 5 11.0314V18ZM9.5 21H14.5C14.5 22.3807 13.3807 23.5 12 23.5C10.6193 23.5 9.5 22.3807 9.5 21Z"/></svg><svg class="ic-fill" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M22 20H2V18H3V11.0314C3 6.04348 7.02944 2 12 2C16.9706 2 21 6.04348 21 11.0314V18H22V20ZM9.5 21H14.5C14.5 22.3807 13.3807 23.5 12 23.5C10.6193 23.5 9.5 22.3807 9.5 21Z"/></svg>` },
         { id: 'profil', key: null, label: 'Profil Instansi', page: 'page-profil', loader: () => loadProfil(), icon: `<svg class="ic-line" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M20 6H23V8H22V19H23V21H1V19H2V8H1V6H4V4C4 3.44772 4.44772 3 5 3H19C19.5523 3 20 3.44772 20 4V6ZM20 8H4V19H7V12H9V19H11V12H13V19H15V12H17V19H20V8ZM6 5V6H18V5H6Z"/></svg><svg class="ic-fill" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M2 19V8H1V6H4V4C4 3.44772 4.44772 3 5 3H19C19.5523 3 20 3.44772 20 4V6H23V8H22V19H23V21H1V19H2ZM13 19V12H11V19H13ZM8 19V12H6V19H8ZM18 19V12H16V19H18ZM6 5V6H18V5H6Z"/></svg>` },
         { id: 'audit-trail', key: null, adminOnly: true, label: 'Audit Trail', page: 'page-audit-trail', loader: () => loadAuditTrail(1), icon: `<svg class="ic-line" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 1L20.2169 2.82598C20.6745 2.92766 21 3.33347 21 3.80217V13.7889C21 15.795 19.9974 17.6684 18.3282 18.7812L12 23L5.6718 18.7812C4.00261 17.6684 3 15.795 3 13.7889V3.80217C3 3.33347 3.32553 2.92766 3.78307 2.82598L12 1ZM12 3.04879L5 4.60434V13.7889C5 15.1263 5.6684 16.3752 6.7812 17.1171L12 20.5963L17.2188 17.1171C18.3316 16.3752 19 15.1263 19 13.7889V4.60434L12 3.04879ZM16.4524 8.22183L17.8666 9.63604L11.5026 16L7.25999 11.7574L8.67421 10.3431L11.5019 13.1709L16.4524 8.22183Z"/></svg><svg class="ic-fill" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 1L20.2169 2.82598C20.6745 2.92766 21 3.33347 21 3.80217V13.7889C21 15.795 19.9974 17.6684 18.3282 18.7812L12 23L5.6718 18.7812C4.00261 17.6684 3 15.795 3 13.7889V3.80217C3 3.33347 3.32553 2.92766 3.78307 2.82598L12 1ZM16.4524 8.22183L11.5019 13.1709L8.67421 10.3431L7.25999 11.7574L11.5026 16L17.8666 9.63604L16.4524 8.22183Z"/></svg>` },
         { id: 'pemantauan-sistem', key: null, adminOnly: true, label: 'Pemantauan Sistem', page: 'page-pemantauan-sistem', loader: () => loadPemantauanSistem(), icon: `<svg class="ic-line" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 12 7 12 10 5 14 19 17 12 21 12"/></svg><svg class="ic-fill" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 12 7 12 10 5 14 19 17 12 21 12"/></svg>` },
@@ -1157,6 +1158,9 @@ function navigateTo(subId, label, loader, groupId, pageId, subGroupId) {
   closeSidebar();
 
   if (loader) { _currentLoader = loader; loader(); }
+
+  // Info Popup: pergantian modul memicu pengecekan info (modul = grup menu, atau 'dashboard').
+  if (typeof infoPopupOnNavigate === 'function') infoPopupOnNavigate(groupId || 'dashboard');
 }
 
 function openSidebar()  { document.getElementById('sidebar').classList.add('open'); document.getElementById('sidebarOverlay').classList.add('open'); }
@@ -1648,6 +1652,7 @@ async function _bootRefreshTandaTangan() {
       buildSidebar();
       _applySidebarCollapse();
       _startPeriodeTimer();
+      if (typeof infoPopupInit === 'function') infoPopupInit();   // lonceng + popup Info Popup
 
       // Menu "Tanda Tangan Saya" cuma relevan buat user yang butuh ttd di e-Planning (Super Admin dikecualikan).
       const btnTandaTanganDD = document.getElementById('btnTandaTanganDD');
@@ -1804,8 +1809,9 @@ const BULAN_ID = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agus
 const HARI_ID  = ['Min','Sen','Sel','Rab','Kam','Jum','Sab'];
 
 class DatePicker {
-  constructor(containerId, { placeholder = 'Pilih tanggal', alignRight = false, showLibur = true, maxToday = false } = {}) {
+  constructor(containerId, { placeholder = 'Pilih tanggal', alignRight = false, showLibur = true, maxToday = false, onChange = null } = {}) {
     this.containerId = containerId;
+    this.onChange    = onChange;
     this.placeholder = placeholder;
     this.alignRight  = alignRight;
     this.showLibur   = showLibur;
@@ -2030,6 +2036,7 @@ class DatePicker {
     
     const hidden = document.getElementById(this.containerId.replace('dp-',''));
     if (hidden) hidden.value = this.value || '';
+    if (typeof this.onChange === 'function') this.onChange(this.value);
   }
 
   getValue() { return this.value; }
@@ -3082,8 +3089,33 @@ function _buildLapParentCsel(wrapperId, opts, selectedVal, placeholder, jenisLab
   wrap.appendChild(trigger);
 
   const panel = document.createElement('div');
-  panel.className = 'csel-panel csel-panel-fixed';
+  panel.className = 'csel-panel csel-panel-fixed csel-panel-searchable';
   panel.style.display = 'none';
+
+  // Kotak cari (sama seperti dropdown searchable lain di sistem)
+  const searchWrap = document.createElement('div');
+  searchWrap.className = 'csel-search-wrap';
+  searchWrap.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-4.35-4.35"/></svg><input type="text" class="csel-search-input" placeholder="Cari…" autocomplete="off" />`;
+  panel.appendChild(searchWrap);
+  const searchInp = searchWrap.querySelector('.csel-search-input');
+  const list = document.createElement('div');
+  list.className = 'csel-options-list';
+  panel.appendChild(list);
+  function filterOpts(q) {
+    const t = (q || '').trim().toLowerCase();
+    list.querySelectorAll('.csel-option').forEach(el => {
+      if (el.classList.contains('placeholder-opt')) { el.style.display = t ? 'none' : ''; return; }
+      el.style.display = (!t || el.textContent.toLowerCase().includes(t)) ? '' : 'none';
+    });
+  }
+  searchInp.addEventListener('input', () => filterOpts(searchInp.value));
+  searchInp.addEventListener('keydown', e => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      const first = Array.from(list.querySelectorAll('.csel-option')).find(el => el.style.display !== 'none' && !el.classList.contains('placeholder-opt'));
+      if (first) first.click();
+    }
+  });
 
   function selectValue(val, label, isPlaceholder) {
     hidden.value = isPlaceholder ? '' : val;
@@ -3099,7 +3131,7 @@ function _buildLapParentCsel(wrapperId, opts, selectedVal, placeholder, jenisLab
   phDiv.dataset.value = '';
   phDiv.innerHTML = `<span class="csel-option-check"></span><span>${placeholder}</span>`;
   phDiv.onclick = () => selectValue('', placeholder, true);
-  panel.appendChild(phDiv);
+  list.appendChild(phDiv);
 
   opts.forEach(opt => {
     const div = document.createElement('div');
@@ -3108,7 +3140,7 @@ function _buildLapParentCsel(wrapperId, opts, selectedVal, placeholder, jenisLab
     div.dataset.value = opt.value;
     div.innerHTML = `<span class="csel-option-check"><svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg></span><span>${escHtml(opt.label)}</span>`;
     div.onclick = () => selectValue(opt.value, opt.label, false);
-    panel.appendChild(div);
+    list.appendChild(div);
   });
 
   function positionPanel() {
@@ -3136,6 +3168,9 @@ function _buildLapParentCsel(wrapperId, opts, selectedVal, placeholder, jenisLab
     positionPanel();
     panel.style.visibility = 'visible';
     trigger.classList.add('open');
+    searchInp.value = '';
+    filterOpts('');
+    searchInp.focus();
   }
 
   function closePanel() {

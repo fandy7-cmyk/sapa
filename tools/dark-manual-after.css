@@ -1,0 +1,76 @@
+/* ── Pengecualian & library pihak ketiga (manual) ── */
+/* QR code harus tetap hitam di atas putih supaya terbaca scanner */
+html[data-theme="dark"] .share-qr-box{background:#fff!important;border-color:#334155!important}
+html[data-theme="dark"] .share-qr-box img.share-qr-logo{background:#fff!important}
+
+/* Quill (editor teks) */
+html[data-theme="dark"] .ql-toolbar.ql-snow{background:#0e1624;border-color:#263244!important}
+html[data-theme="dark"] .ql-container.ql-snow{background:#111827;border-color:#263244!important}
+html[data-theme="dark"] .ql-editor{color:#e5e7eb}
+html[data-theme="dark"] .ql-editor.ql-blank::before{color:#64748b}
+html[data-theme="dark"] .ql-snow .ql-stroke{stroke:#cbd5e1}
+html[data-theme="dark"] .ql-snow .ql-fill,
+html[data-theme="dark"] .ql-snow .ql-stroke.ql-fill{fill:#cbd5e1}
+html[data-theme="dark"] .ql-snow .ql-picker{color:#cbd5e1}
+html[data-theme="dark"] .ql-snow .ql-picker-options{background:#111827;border-color:#263244!important}
+html[data-theme="dark"] .ql-snow.ql-toolbar button:hover .ql-stroke,
+html[data-theme="dark"] .ql-snow.ql-toolbar button.ql-active .ql-stroke,
+html[data-theme="dark"] .ql-snow .ql-picker-label:hover .ql-stroke,
+html[data-theme="dark"] .ql-snow .ql-picker-item:hover .ql-stroke{stroke:#2dd4bf}
+html[data-theme="dark"] .ql-snow.ql-toolbar button:hover .ql-fill,
+html[data-theme="dark"] .ql-snow.ql-toolbar button.ql-active .ql-fill{fill:#2dd4bf}
+html[data-theme="dark"] .ql-snow .ql-picker-label:hover,
+html[data-theme="dark"] .ql-snow .ql-picker-item:hover{color:#2dd4bf}
+html[data-theme="dark"] .ql-snow a{color:#2dd4bf}
+
+/* Info Popup: warna tipe lewat custom property (tidak ditangkap generator) */
+html[data-theme="dark"] .ip-t-info{--ip-c:#93c5fd;--ip-bg:#172554;--ip-bd:#1e3a8a}
+html[data-theme="dark"] .ip-t-penting{--ip-c:#fcd34d;--ip-bg:#2a2010;--ip-bd:#78350f}
+html[data-theme="dark"] .ip-t-peringatan{--ip-c:#fca5a5;--ip-bg:#2a1214;--ip-bd:#7f1d1d}
+html[data-theme="dark"] .ip-t-wajib{--ip-c:#c4b5fd;--ip-bg:#1e1538;--ip-bd:#4c1d95}
+html[data-theme="dark"] .ip-t-pratinjau,
+html[data-theme="dark"] .ip-t-berakhir{--ip-c:#94a3b8;--ip-bg:#1a2335;--ip-bd:#334155}
+html[data-theme="dark"] .ip-s-baru{background:#172554;color:#93c5fd;border-color:#1e3a8a}
+html[data-theme="dark"] .ip-s-ok{background:#0f2a2a;color:#5eead4;border-color:#134e4a}
+html[data-theme="dark"] .ip-s-sembunyi,
+html[data-theme="dark"] .ip-s-berakhir{background:#1a2335;color:#94a3b8;border-color:#334155}
+html[data-theme="dark"] .ip-overlay{background:rgba(0,0,0,.7)}
+html[data-theme="dark"] .ip-panel{box-shadow:0 12px 32px rgba(0,0,0,.55)}
+html[data-theme="dark"] .ip-dialog{box-shadow:0 24px 60px rgba(0,0,0,.6)}
+
+/* Warna baris per status verifikasi (dark) */
+html[data-theme="dark"] .kinerja-table tr.vs-draft:not(.row-state-editing) td:not(.td-sticky-no):not(.td-sticky-name),
+html[data-theme="dark"] .kinerja-table tr.vs-draft:not(.row-state-editing) td.td-sticky-no,
+html[data-theme="dark"] .kinerja-table tr.vs-draft:not(.row-state-editing) td.td-sticky-name{background:#172033 !important}
+html[data-theme="dark"] .kinerja-table tr.vs-draft:not(.row-state-editing):hover td:not(.td-sticky-no):not(.td-sticky-name),
+html[data-theme="dark"] .kinerja-table tr.vs-draft:not(.row-state-editing):hover td.td-sticky-no,
+html[data-theme="dark"] .kinerja-table tr.vs-draft:not(.row-state-editing):hover td.td-sticky-name{background:#1d2940 !important}
+html[data-theme="dark"] .kinerja-table tr.vs-draft:not(.row-state-editing) .textarea-cell .ps-rte{background:#172033;border-color:#2b3a52}
+html[data-theme="dark"] .kinerja-table tr.vs-menunggu:not(.row-state-editing) td:not(.td-sticky-no):not(.td-sticky-name),
+html[data-theme="dark"] .kinerja-table tr.vs-menunggu:not(.row-state-editing) td.td-sticky-no,
+html[data-theme="dark"] .kinerja-table tr.vs-menunggu:not(.row-state-editing) td.td-sticky-name{background:#2b2412 !important}
+html[data-theme="dark"] .kinerja-table tr.vs-menunggu:not(.row-state-editing):hover td:not(.td-sticky-no):not(.td-sticky-name),
+html[data-theme="dark"] .kinerja-table tr.vs-menunggu:not(.row-state-editing):hover td.td-sticky-no,
+html[data-theme="dark"] .kinerja-table tr.vs-menunggu:not(.row-state-editing):hover td.td-sticky-name{background:#3a3015 !important}
+html[data-theme="dark"] .kinerja-table tr.vs-menunggu:not(.row-state-editing) .textarea-cell .ps-rte{background:#2b2412;border-color:#5c4a1d}
+html[data-theme="dark"] .kinerja-table tr.vs-perlu_perbaikan:not(.row-state-editing) td:not(.td-sticky-no):not(.td-sticky-name),
+html[data-theme="dark"] .kinerja-table tr.vs-perlu_perbaikan:not(.row-state-editing) td.td-sticky-no,
+html[data-theme="dark"] .kinerja-table tr.vs-perlu_perbaikan:not(.row-state-editing) td.td-sticky-name{background:#2d1a1f !important}
+html[data-theme="dark"] .kinerja-table tr.vs-perlu_perbaikan:not(.row-state-editing):hover td:not(.td-sticky-no):not(.td-sticky-name),
+html[data-theme="dark"] .kinerja-table tr.vs-perlu_perbaikan:not(.row-state-editing):hover td.td-sticky-no,
+html[data-theme="dark"] .kinerja-table tr.vs-perlu_perbaikan:not(.row-state-editing):hover td.td-sticky-name{background:#3d2128 !important}
+html[data-theme="dark"] .kinerja-table tr.vs-perlu_perbaikan:not(.row-state-editing) .textarea-cell .ps-rte{background:#2d1a1f;border-color:#5f2731}
+html[data-theme="dark"] .kinerja-table tr.vs-diajukan_kembali:not(.row-state-editing) td:not(.td-sticky-no):not(.td-sticky-name),
+html[data-theme="dark"] .kinerja-table tr.vs-diajukan_kembali:not(.row-state-editing) td.td-sticky-no,
+html[data-theme="dark"] .kinerja-table tr.vs-diajukan_kembali:not(.row-state-editing) td.td-sticky-name{background:#14263a !important}
+html[data-theme="dark"] .kinerja-table tr.vs-diajukan_kembali:not(.row-state-editing):hover td:not(.td-sticky-no):not(.td-sticky-name),
+html[data-theme="dark"] .kinerja-table tr.vs-diajukan_kembali:not(.row-state-editing):hover td.td-sticky-no,
+html[data-theme="dark"] .kinerja-table tr.vs-diajukan_kembali:not(.row-state-editing):hover td.td-sticky-name{background:#193350 !important}
+html[data-theme="dark"] .kinerja-table tr.vs-diajukan_kembali:not(.row-state-editing) .textarea-cell .ps-rte{background:#14263a;border-color:#1e4a6e}
+html[data-theme="dark"] .kinerja-table tr.vs-disetujui:not(.row-state-editing) td:not(.td-sticky-no):not(.td-sticky-name),
+html[data-theme="dark"] .kinerja-table tr.vs-disetujui:not(.row-state-editing) td.td-sticky-no,
+html[data-theme="dark"] .kinerja-table tr.vs-disetujui:not(.row-state-editing) td.td-sticky-name{background:#13292d !important}
+html[data-theme="dark"] .kinerja-table tr.vs-disetujui:not(.row-state-editing):hover td:not(.td-sticky-no):not(.td-sticky-name),
+html[data-theme="dark"] .kinerja-table tr.vs-disetujui:not(.row-state-editing):hover td.td-sticky-no,
+html[data-theme="dark"] .kinerja-table tr.vs-disetujui:not(.row-state-editing):hover td.td-sticky-name{background:#143430 !important}
+html[data-theme="dark"] .kinerja-table tr.vs-disetujui:not(.row-state-editing) .textarea-cell .ps-rte{background:#13292d;border-color:#17553a}

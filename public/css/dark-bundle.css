@@ -1,0 +1,21 @@
+/* DIHASILKAN OTOMATIS oleh tools/gen-dark.js - jangan diedit tangan.
+   Edit tools/dark-manual-*.css lalu jalankan ulang generator. */
+@media screen {
+html[data-theme="dark"] .item-card .item-icon{color:#2dd4bf}
+html[data-theme="dark"] .item-card .item-icon svg{color:#2dd4bf}
+html[data-theme="dark"] #btnUpdateAppReload:focus-visible{outline:2px solid #111827}
+html[data-theme="dark"] [style*="color: var(--hijau, #047D78)"]{color:#2dd4bf!important}
+html[data-theme="dark"] [style*="background: #fff"]{background:#111827!important}
+html[data-theme="dark"] [style*="background:var(--putih)"]{background:#111827!important}
+html[data-theme="dark"] [style*="color:#ef4444"]{color:#fca5a5!important}
+html[data-theme="dark"] [style*="outline:2px solid #fff"]{outline:2px solid #111827!important}
+html[data-theme="dark"] [style*="background:#fff"]{background:#111827!important}
+html[data-theme="dark"] [style*="color:#0f172a"]{color:#e5e7eb!important}
+html[data-theme="dark"] [style*="background:#fffbeb"]{background:#282524!important}
+html[data-theme="dark"] [style*="border-bottom:1.5px solid #e2e8f0"]{border-bottom:1.5px solid #263244!important}
+html[data-theme="dark"] [style*="background:#fef3c7"]{background:#352d23!important}
+html[data-theme="dark"] [style*="color:#d97706"]{color:#fcd34d!important}
+html[data-theme="dark"] [style*="color:#92400e"]{color:#fcd34d!important}
+html[data-theme="dark"] [style*="border:1px solid #fde68a"]{border:1px solid #61471d!important}
+
+}

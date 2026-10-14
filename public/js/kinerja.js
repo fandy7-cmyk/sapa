@@ -1101,7 +1101,7 @@ function renderKinerjaTable(tbody) {
     
     const rowStateClass = row.realisasi_id ? 'row-state-saved' : 'row-state-default';
 
-    html += `<tr data-id="${row.id}" class="${rowStateClass}">
+    html += `<tr data-id="${row.id}" class="${rowStateClass} ${_verifRowCls(row)}">
       <td class="td-sticky-no" style="text-align:center;color:var(--teks-muted);position:sticky;left:0;z-index:3">${no}</td>
       <td class="td-sticky-name" style="position:sticky;left:34px;z-index:3"><div style="font-weight:600;line-height:1.6"><span>${escHtml(row.indikator_kinerja)}</span>${negBadge}</div><div style="display:flex;align-items:center;gap:6px;margin-top:5px">${row.formula ? `<div class="fx-wrap"><button style="display:inline-flex;align-items:center;justify-content:center;gap:4px;box-sizing:border-box;height:24px;font-size:0.62rem;font-weight:700;line-height:1;color:#0f766e;background:#f0fdfa;border:1px solid #99f6e4;border-radius:4px;padding:0 8px;cursor:pointer;font-family:inherit;appearance:none;-webkit-appearance:none;margin:0" data-tip="Lihat formula perhitungan" data-formula="${escHtml(row.formula)}" onclick="toggleFormulaPanel(this)"><span>Σ</span><span class=\"fx-arrow\" style=\"display:inline-block;transition:transform .2s;font-style:normal\">▾</span></button></div>` : ''}${_tipeBadge(row.tipe_perhitungan)}</div>${_verifExtraWrap(row, 'monev')}</td>
       <td class="td-satuan">${escHtml(row.satuan || '')}</td>
@@ -2657,7 +2657,7 @@ function _renderTargetRows() {
         oninput="_targetRows[${i}].target_display=this.value;_targetRows[${i}].target=this.value"
         style="width:120px;padding:5px 8px;border:1.5px solid #e2e8f0;border-radius:6px;font-size:.83rem"></td>
       <td style="text-align:center">
-        <button onclick="_removeTargetRow(${i})" data-tip="Hapus" style="background:none;border:none;cursor:pointer;color:var(--merah);padding:2px 6px;display:inline-flex;align-items:center"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M18 6L6 18M6 6l12 12"/></svg></button>
+        <button type="button" class="btn-hapus" onclick="_removeTargetRow(${i})" data-tip="Hapus"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path stroke-linecap="round" stroke-linejoin="round" d="M19 6l-1 14H6L5 6"/><path stroke-linecap="round" stroke-linejoin="round" d="M10 11v6M14 11v6"/><path stroke-linecap="round" stroke-linejoin="round" d="M9 6V4h6v2"/></svg></button>
       </td>
     </tr>`).join('');
 }
@@ -4097,9 +4097,7 @@ function _renderDukungList() {
               ${f.url ? `<button type="button" class="btn btn-ghost btn-sm" data-tip="${isLink ? 'Buka link' : 'Preview'}" onclick="${isLink ? `window.open(decodeURIComponent('${encodeURIComponent(f.url)}'), '_blank', 'noopener,noreferrer')` : `viewDoc(decodeURIComponent('${encodeURIComponent(f.url)}'), decodeURIComponent('${encodeURIComponent(f.name || "")}'))`}">
                 <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
               </button>` : ''}
-              ${!_dukungState.readonly ? `<button type="button" class="btn btn-ghost btn-sm" data-tip="Hapus" onclick="_removeDukungFile(${idx})">
-                <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
-              </button>` : ''}
+              ${!_dukungState.readonly ? `<button type="button" class="btn-hapus" data-tip="Hapus" onclick="_removeDukungFile(${idx})"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path stroke-linecap="round" stroke-linejoin="round" d="M19 6l-1 14H6L5 6"/><path stroke-linecap="round" stroke-linejoin="round" d="M10 11v6M14 11v6"/><path stroke-linecap="round" stroke-linejoin="round" d="M9 6V4h6v2"/></svg></button>` : ''}
             </div>
           </div>`;
       }).join('')}
@@ -4854,7 +4852,7 @@ function _renderIkkTable(tbody) {
     const ikkRowStateClass = row.realisasi_id ? 'row-state-saved' : 'row-state-default';
 
     // Reuse dukung button (references _ikkData so we need a separate handler)
-    html += `<tr data-id="${row.id}" class="${ikkRowStateClass}">
+    html += `<tr data-id="${row.id}" class="${ikkRowStateClass} ${_verifRowCls(row)}">
       <td class="td-sticky-no" style="text-align:center;color:var(--teks-muted);position:sticky;left:0;z-index:3">${no}</td>
       <td class="td-sticky-name" style="position:sticky;left:34px;z-index:3"><div style="font-weight:600;line-height:1.6"><span>${escHtml(row.indikator_kinerja)}</span>${row.bermakna_negatif ? `<span data-tip="Bermakna Negatif" data-tip-variant="danger" style="display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;background:#fee2e2;border-radius:50%;margin-left:5px;vertical-align:middle;flex-shrink:0"><svg xmlns=\"http://www.w3.org/2000/svg\" width=\"9\" height=\"9\" fill=\"none\" viewBox=\"0 0 24 24\" stroke=\"#991b1b\" stroke-width=\"2.8\"><path stroke-linecap=\"round\" stroke-linejoin=\"round\" d=\"M19 14l-7 7m0 0l-7-7m7 7V3\"/></svg></span>` : `<span data-tip="Bermakna Positif" data-tip-variant="success" style="display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;background:#d1fae5;border-radius:50%;margin-left:5px;vertical-align:middle;flex-shrink:0"><svg xmlns=\"http://www.w3.org/2000/svg\" width=\"9\" height=\"9\" fill=\"none\" viewBox=\"0 0 24 24\" stroke=\"#065f46\" stroke-width=\"2.8\"><path stroke-linecap=\"round\" stroke-linejoin=\"round\" d=\"M5 10l7-7m0 0l7 7m-7-7v18\"/></svg></span>`}</div><div style="display:flex;align-items:center;gap:6px;margin-top:5px">${row.formula ? `<div class="fx-wrap"><button style="display:inline-flex;align-items:center;justify-content:center;gap:4px;box-sizing:border-box;height:24px;font-size:0.62rem;font-weight:700;line-height:1;color:#0f766e;background:#f0fdfa;border:1px solid #99f6e4;border-radius:4px;padding:0 8px;cursor:pointer;font-family:inherit;appearance:none;-webkit-appearance:none;margin:0" data-tip="Lihat formula perhitungan" data-formula="${escHtml(row.formula)}" onclick="toggleFormulaPanel(this)"><span>Σ</span><span class=\"fx-arrow\" style=\"display:inline-block;transition:transform .2s;font-style:normal\">▾</span></button></div>` : ''}${_tipeBadge(row.tipe_perhitungan)}</div>${_verifExtraWrap(row, 'ikk')}</td>
       <td class="td-satuan">${escHtml(row.satuan || '')}</td>
@@ -7306,7 +7304,7 @@ function _renderSpmTable(tbody) {
           ? (Number.isInteger(_targetNum) ? String(_targetNum) : _targetNum.toFixed(2))
           : '-');
     const rowStateClass = row.realisasi_id ? 'row-state-saved' : 'row-state-default';
-    html += `<tr data-id="${row.id}" class="${rowStateClass}">
+    html += `<tr data-id="${row.id}" class="${rowStateClass} ${_verifRowCls(row)}">
       <td class="td-sticky-no" style="text-align:center;color:var(--teks-muted);position:sticky;left:0;z-index:3">${i}</td>
       <td class="td-sticky-name" style="position:sticky;left:34px;z-index:3"><div style="font-weight:600;line-height:1.6"><span>${escHtml(row.nama_indikator || row.indikator_kinerja || '')}</span>${row.bermakna_negatif ? `<span data-tip="Bermakna Negatif" data-tip-variant="danger" style="display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;background:#fee2e2;border-radius:50%;margin-left:5px;vertical-align:middle;flex-shrink:0"><svg xmlns=\"http://www.w3.org/2000/svg\" width=\"9\" height=\"9\" fill=\"none\" viewBox=\"0 0 24 24\" stroke=\"#991b1b\" stroke-width=\"2.8\"><path stroke-linecap=\"round\" stroke-linejoin=\"round\" d=\"M19 14l-7 7m0 0l-7-7m7 7V3\"/></svg></span>` : `<span data-tip="Bermakna Positif" data-tip-variant="success" style="display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;background:#d1fae5;border-radius:50%;margin-left:5px;vertical-align:middle;flex-shrink:0"><svg xmlns=\"http://www.w3.org/2000/svg\" width=\"9\" height=\"9\" fill=\"none\" viewBox=\"0 0 24 24\" stroke=\"#065f46\" stroke-width=\"2.8\"><path stroke-linecap=\"round\" stroke-linejoin=\"round\" d=\"M5 10l7-7m0 0l7 7m-7-7v18\"/></svg></span>`}</div><div style="display:flex;align-items:center;gap:6px;margin-top:5px">${row.formula ? `<div class="fx-wrap"><button style="display:inline-flex;align-items:center;justify-content:center;gap:4px;box-sizing:border-box;height:24px;font-size:0.62rem;font-weight:700;line-height:1;color:#0f766e;background:#f0fdfa;border:1px solid #99f6e4;border-radius:4px;padding:0 8px;cursor:pointer;font-family:inherit;appearance:none;-webkit-appearance:none;margin:0" data-tip="Lihat formula perhitungan" data-formula="${escHtml(row.formula)}" onclick="toggleFormulaPanel(this)"><span>Σ</span><span class=\"fx-arrow\" style=\"display:inline-block;transition:transform .2s;font-style:normal\">▾</span></button></div>` : ''}${_tipeBadge(row.tipe_perhitungan)}</div>${_verifExtraWrap(row, 'spm')}</td>
       <td class="td-satuan">${escHtml(row.satuan || '')}</td>
@@ -7935,7 +7933,7 @@ function _renderSubkegTable(tbody) {
           ? (Number.isInteger(_targetNum) ? String(_targetNum) : _targetNum.toFixed(2))
           : '-');
     const rowStateClass = row.realisasi_id ? 'row-state-saved' : 'row-state-default';
-    html += `<tr data-id="${row.id}" class="${rowStateClass}">
+    html += `<tr data-id="${row.id}" class="${rowStateClass} ${_verifRowCls(row)}">
       <td class="td-sticky-no" style="text-align:center;color:var(--teks-muted);position:sticky;left:0;z-index:3">${i}</td>
       <td class="td-sticky-name" style="position:sticky;left:34px;z-index:3"><div style="font-weight:600;line-height:1.6"><span>${escHtml(row.nama_indikator || row.indikator_kinerja || '')}</span>${row.bermakna_negatif ? `<span data-tip="Bermakna Negatif" data-tip-variant="danger" style="display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;background:#fee2e2;border-radius:50%;margin-left:5px;vertical-align:middle;flex-shrink:0"><svg xmlns=\"http://www.w3.org/2000/svg\" width=\"9\" height=\"9\" fill=\"none\" viewBox=\"0 0 24 24\" stroke=\"#991b1b\" stroke-width=\"2.8\"><path stroke-linecap=\"round\" stroke-linejoin=\"round\" d=\"M19 14l-7 7m0 0l-7-7m7 7V3\"/></svg></span>` : `<span data-tip="Bermakna Positif" data-tip-variant="success" style="display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;background:#d1fae5;border-radius:50%;margin-left:5px;vertical-align:middle;flex-shrink:0"><svg xmlns=\"http://www.w3.org/2000/svg\" width=\"9\" height=\"9\" fill=\"none\" viewBox=\"0 0 24 24\" stroke=\"#065f46\" stroke-width=\"2.8\"><path stroke-linecap=\"round\" stroke-linejoin=\"round\" d=\"M5 10l7-7m0 0l7 7m-7-7v18\"/></svg></span>`}</div><div style="display:flex;align-items:center;gap:6px;margin-top:5px">${row.formula ? `<div class="fx-wrap"><button style="display:inline-flex;align-items:center;justify-content:center;gap:4px;box-sizing:border-box;height:24px;font-size:0.62rem;font-weight:700;line-height:1;color:#0f766e;background:#f0fdfa;border:1px solid #99f6e4;border-radius:4px;padding:0 8px;cursor:pointer;font-family:inherit;appearance:none;-webkit-appearance:none;margin:0" data-tip="Lihat formula perhitungan" data-formula="${escHtml(row.formula)}" onclick="toggleFormulaPanel(this)"><span>Σ</span><span class=\"fx-arrow\" style=\"display:inline-block;transition:transform .2s;font-style:normal\">▾</span></button></div>` : ''}${_tipeBadge(row.tipe_perhitungan)}</div>${_verifExtraWrap(row, 'subkeg')}</td>
       <td class="td-satuan">${escHtml(row.satuan || '')}</td>
@@ -8617,7 +8615,9 @@ function _verifAksiInner(row, jenis) {
       data-tip="${tip}"
       aria-label="${ulang ? 'Ajukan Ulang' : 'Ajukan'}"
       onclick="ajukanVerifikasi('${jenis}', ${row.id})">
-      <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></svg></button>`;
+      ${ulang
+        ? '<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><g transform="translate(-1.6 5.4) scale(.8)" stroke-width="3" stroke-opacity=".45"><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></g><g transform="translate(4 -1) scale(.8)" stroke-width="3"><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></g></svg>'
+        : '<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></svg>'}</button>`;
 }
 // Render ulang sel Ajukan (dipanggil saat masuk/keluar mode edit supaya status disabled-nya ikut berubah)
 function _verifRefreshAksi(jenis, id) {
@@ -8697,9 +8697,23 @@ function _kinStatCards(jenis, tbody, rows, loading = false) {
   _kinStatRender(jenis);
 }
 
+// Warna baris per status verifikasi (class vs-<status>, CSS di styles.css). Baris belum diisi = tanpa class.
+function _verifRowCls(row) {
+  const st = _verifStatus(row);
+  return st ? `vs-${st}` : '';
+}
+const _VERIF_TBODY_ID = { monev: 'kinerjaTableBody', ikk: 'ikkTableBody', spm: 'spmTableBody', subkeg: 'subkegTableBody' };
+function _verifRowSync(jenis, row) {
+  const tr = document.getElementById(_VERIF_TBODY_ID[jenis])?.querySelector(`tr[data-id="${row.id}"]`);
+  if (!tr) return;
+  [...tr.classList].filter(c => c.startsWith('vs-')).forEach(c => tr.classList.remove(c));
+  const cls = _verifRowCls(row);
+  if (cls) tr.classList.add(cls);
+}
 function _verifRefreshRow(jenis, id) {
   const row = _verifRow(jenis, id);
   if (!row) return;
+  _verifRowSync(jenis, row);
   document.querySelectorAll(`.verif-extra[data-jenis="${jenis}"][data-id="${id}"]`).forEach(el => { el.innerHTML = _verifExtraInner(row, jenis); });
   document.querySelectorAll(`.verif-status[data-jenis="${jenis}"][data-id="${id}"]`).forEach(el => { el.innerHTML = _verifStatusInner(row, jenis); });
   document.querySelectorAll(`.verif-aksi[data-jenis="${jenis}"][data-id="${id}"]`).forEach(el => { el.innerHTML = _verifAksiInner(row, jenis); });

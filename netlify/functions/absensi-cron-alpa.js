@@ -1,5 +1,11 @@
 import { getDb, jsonResponse, errorResponse } from './_db.js';
 import { heartbeat } from './_monitoring.js';
+import { notifAbsensiAlpa } from './_notif_modul.js';
+
+// Notifikasi lonceng bersifat best-effort: kegagalannya tidak boleh menggagalkan aksi utamanya.
+async function notifSafe(fn) {
+  try { await fn(); } catch (e) { console.error('[notif]', e); }
+}
 
 const TZ = 'Asia/Makassar';
 
@@ -30,6 +36,7 @@ async function jalankan(event) {
         AND NOT EXISTS (SELECT 1 FROM absensi a WHERE a.user_id = u.id AND a.tanggal = ${tanggal})
     `;
     let ditandai = 0;
+    const idsAlpa = [];
     for (const u of belumAbsen) {
       await sql`
         INSERT INTO absensi
@@ -38,7 +45,9 @@ async function jalankan(event) {
           (${u.id}, ${tanggal}, NULL, NULL, 'alpa', false, 0, 'Otomatis: tidak ada absensi masuk & pulang', NULL)
       `;
       ditandai++;
+      idsAlpa.push(u.id);
     }
+    await notifSafe(() => notifAbsensiAlpa(sql, tanggal, idsAlpa));
     console.log(`[cron-alpa] ${tanggal}: ${ditandai} pegawai ditandai Alpa otomatis`);
     return jsonResponse({ tanggal, ditandai });
   } catch (err) {

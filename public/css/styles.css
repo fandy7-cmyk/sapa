@@ -611,6 +611,7 @@ body::before {
 .qtip-box {
   position: fixed;
   max-width: 230px;
+  overflow-wrap: anywhere; /* URL/teks panjang tanpa spasi (mis. tooltip link Superlink) tetap kebungkus */
   background: var(--hijau-light); color: var(--hijau);
   font-size: .60rem; font-weight: 600; line-height: 1.35;
   padding: 3px 8px; border-radius: var(--r-sm);
@@ -11357,3 +11358,233 @@ body:not(.is-admin) .abs-hariini-flex-wrap .dash-kpi-row .abs-jamkerja-wrap:nth-
   :is(#pjTable, #lapPjTable) tbody td:nth-child(2):not([colspan]) { left: 44px; min-width: 130px; max-width: 150px; box-shadow: 2px 0 4px -2px rgba(15,23,42,.22); }
   :is(#pjTable, #lapPjTable) tbody tr:hover td:nth-child(-n+2):not([colspan]) { background: var(--abu-1); }
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   DARK MODE - tombol topbar & pilihan tema di dropdown profil
+   (aturan warna mode gelap-nya ada di css/dark.css, dihasilkan tools/gen-dark.js)
+   ═══════════════════════════════════════════════════════════════════════════ */
+.btn-topbar-theme {
+  width: var(--sp-6); height: var(--sp-6); flex-shrink: 0; cursor: pointer;
+  display: inline-flex; align-items: center; justify-content: center;
+  border-radius: var(--r-sm); color: #fff;
+  background: rgba(255,255,255,.15); border: 1px solid rgba(255,255,255,.25);
+  transition: background .2s ease;
+}
+.btn-topbar-theme:hover { background: rgba(255,255,255,.28); }
+.btn-topbar-theme .ic-sun { display: none; }
+html[data-theme="dark"] .btn-topbar-theme .ic-moon { display: none; }
+html[data-theme="dark"] .btn-topbar-theme .ic-sun { display: inline; }
+.topbar-dd-theme { padding: var(--sp-2) var(--sp-3) var(--sp-3); }
+.topbar-dd-theme-label { display: block; font-size: var(--fs-xs); font-weight: 700; color: var(--teks-muted); margin-bottom: var(--sp-2); }
+.theme-seg { display: flex; gap: 2px; padding: 2px; background: var(--abu-1); border: 1px solid var(--abu-2); border-radius: var(--r-sm); }
+.theme-seg button {
+  flex: 1; border: 0; background: transparent; font: inherit; cursor: pointer; white-space: nowrap;
+  font-size: var(--fs-xs); font-weight: 600; color: var(--teks-muted); padding: 5px 6px; border-radius: 6px;
+}
+.theme-seg button:hover:not(.active) { color: var(--teks); }
+.theme-seg button.active { background: var(--hijau); color: #fff; }
+/* transisi halus sesaat saat ganti tema (dipasang dark-mode.js ~300ms) */
+html.theme-switching, html.theme-switching * { transition: background-color .25s ease, color .25s ease, border-color .25s ease !important; }
+@media (prefers-reduced-motion: reduce) { html.theme-switching, html.theme-switching * { transition: none !important; } }
+/* crossfade tema via View Transitions API (dipakai dark-mode.js bila browser mendukung) */
+::view-transition-old(root), ::view-transition-new(root) { animation-duration: .2s; animation-timing-function: ease-out; }
+
+/* ════════════════════════════════════════════════════════════════════════
+   Info Popup (lonceng topbar, popup user, halaman admin). Lihat PRD Sistem Notifikasi Info Popup.
+   Warna tipe lewat custom property: --ip-c (teks/ikon), --ip-bg, --ip-bd.
+   ════════════════════════════════════════════════════════════════════════ */
+.ip-t-info       { --ip-c: #1d4ed8; --ip-bg: #eff6ff; --ip-bd: #bfdbfe; }
+.ip-t-penting    { --ip-c: #b45309; --ip-bg: #fffbeb; --ip-bd: #fde68a; }
+.ip-t-peringatan { --ip-c: #b91c1c; --ip-bg: #fef2f2; --ip-bd: #fecaca; }
+.ip-t-wajib      { --ip-c: #6d28d9; --ip-bg: #f5f3ff; --ip-bd: #ddd6fe; }
+.ip-t-pratinjau  { --ip-c: #475569; --ip-bg: #f1f5f9; --ip-bd: #cbd5e1; }
+.ip-t-berakhir   { --ip-c: #64748b; --ip-bg: #f1f5f9; --ip-bd: #cbd5e1; }
+
+.ip-muted { color: var(--teks-muted); font-size: .76rem; }
+.ip-clip  { overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+.ip-badge {
+  display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 999px;
+  font-size: .7rem; font-weight: 700; line-height: 1.5; white-space: nowrap;
+  color: var(--ip-c); background: var(--ip-bg); border: 1px solid var(--ip-bd);
+}
+
+/* ── Lonceng di topbar ── */
+.btn-topbar-bell {
+  position: relative; width: var(--sp-6); height: var(--sp-6); flex-shrink: 0; cursor: pointer;
+  display: inline-flex; align-items: center; justify-content: center;
+  border-radius: var(--r-sm); color: #fff;
+  background: rgba(255,255,255,.15); border: 1px solid rgba(255,255,255,.25);
+  transition: background .2s ease;
+}
+.btn-topbar-bell:hover, .btn-topbar-bell[aria-expanded="true"] { background: rgba(255,255,255,.28); }
+.btn-topbar-bell:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
+.btn-topbar-bell .ip-ic-fill { display: none; }
+.btn-topbar-bell.has-unread .ip-ic-fill { display: inline; }
+.btn-topbar-bell.has-unread .ip-ic-line { display: none; }
+.ip-bell-badge {
+  position: absolute; top: -7px; right: -7px; min-width: 21px; height: 21px; padding: 0 4px;
+  display: inline-flex; align-items: center; justify-content: center;
+  border-radius: 999px; background: #ef4444; color: #fff; border: 2px solid var(--hijau);
+  font-size: .62rem; font-weight: 800; line-height: 1; box-sizing: border-box;
+  font-variant-numeric: tabular-nums;
+}
+.ip-bell-badge[hidden] { display: none; }
+
+/* ── Panel daftar info (lonceng) ── */
+.ip-panel {
+  position: fixed; top: 58px; right: 14px; width: 360px; max-width: calc(100vw - 20px); z-index: 450;
+  background: var(--putih); border: 1px solid var(--abu-2); border-radius: var(--r-md);
+  box-shadow: 0 12px 32px rgba(15,23,42,.18); overflow: hidden;
+}
+.ip-panel[hidden] { display: none; }
+.ip-panel-head { padding: 11px 14px; font-weight: 800; font-size: .85rem; color: var(--teks); border-bottom: 1px solid var(--abu-2); }
+.ip-panel-list { max-height: min(60vh, 420px); overflow-y: auto; }
+.ip-empty { padding: 28px 14px; text-align: center; color: var(--teks-muted); font-size: .82rem; }
+.ip-item {
+  display: flex; align-items: center; gap: 10px; width: 100%; text-align: left; cursor: pointer;
+  padding: 10px 14px; border: 0; border-bottom: 1px solid var(--abu-1); background: transparent; font: inherit; color: var(--teks);
+}
+.ip-item:last-child { border-bottom: 0; }
+.ip-item:hover, .ip-item:focus-visible { background: var(--abu-1); outline: none; }
+.ip-item.unread { background: var(--emas-light); }
+.ip-item.unread:hover { background: var(--hijau-light); }
+.ip-item-ic { flex-shrink: 0; width: 30px; height: 30px; display: inline-flex; align-items: center; justify-content: center; border-radius: 8px; color: var(--ip-c); background: var(--ip-bg); }
+.ip-item-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.ip-item-title { font-size: .82rem; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ip-item.unread .ip-item-title { font-weight: 800; }
+.ip-item-meta { font-size: .7rem; color: var(--teks-muted); }
+.ip-pill { flex-shrink: 0; font-size: .64rem; font-weight: 700; padding: 2px 8px; border-radius: 999px; border: 1px solid transparent; }
+.ip-s-baru     { background: #dbeafe; color: #1e40af; border-color: #bfdbfe; }
+.ip-s-ok       { background: #d1fae5; color: #065f46; border-color: #a7f3d0; }
+.ip-s-sembunyi { background: #f1f5f9; color: #475569; border-color: #cbd5e1; }
+.ip-s-berakhir { background: #f1f5f9; color: #64748b; border-color: #e2e8f0; }
+
+/* ── Popup user ── */
+.ip-overlay {
+  position: fixed; inset: 0; z-index: 8500; display: flex; align-items: center; justify-content: center; padding: var(--sp-4);
+  background: rgba(15,23,42,.55); backdrop-filter: blur(4px); opacity: 0; transition: opacity .16s ease;
+}
+.ip-overlay[hidden] { display: none; }
+.ip-overlay.show { opacity: 1; }
+.ip-dialog {
+  position: relative; width: 100%; max-width: 480px; max-height: min(86vh, 640px); overflow: hidden;
+  display: flex; flex-direction: column; background: var(--putih); color: var(--teks);
+  border: 1px solid var(--abu-2); border-top: 4px solid var(--ip-c); border-radius: var(--r-md);
+  box-shadow: 0 24px 60px rgba(15,23,42,.35); padding: 18px 20px 16px;
+  transform: translateY(8px) scale(.98); transition: transform .16s ease;
+}
+.ip-overlay.show .ip-dialog { transform: none; }
+.ip-dialog:focus { outline: none; }
+.ip-head { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-bottom: 10px; }
+.ip-counter { margin-left: auto; font-size: .72rem; font-weight: 700; color: var(--teks-muted); }
+.ip-hide {
+  margin-left: auto; flex-shrink: 0; width: 30px; height: 30px; cursor: pointer;
+  display: inline-flex; align-items: center; justify-content: center;
+  border: 1px solid var(--abu-2); border-radius: 8px; background: var(--putih); color: var(--teks-muted);
+}
+.ip-counter + .ip-hide { margin-left: 4px; }
+.ip-hide:hover { background: var(--abu-1); color: var(--teks); }
+.ip-hide:focus-visible, .ip-dialog .btn:focus-visible { outline: 2px solid var(--hijau); outline-offset: 2px; }
+/* Tombol utama (mis. "Oke, dimengerti"): ring fokus putih, bukan teal */
+.ip-dialog .btn-primary:focus-visible { outline-color: #fff; }
+.ip-title { margin: 0 0 8px; font-size: 1.05rem; line-height: 1.35; font-weight: 800; color: var(--teks); overflow-wrap: anywhere; }
+.ip-body { flex: 1; min-height: 0; overflow-y: auto; font-size: .86rem; line-height: 1.6; color: var(--teks); overflow-wrap: anywhere; }
+.ip-body p { margin: 0 0 .6em; }
+.ip-body h3, .ip-body h4 { margin: .8em 0 .35em; font-size: .95rem; }
+.ip-body ol, .ip-body ul { margin: 0 0 .6em; padding-left: 1.4em; }
+.ip-body a { color: var(--hijau); text-decoration: underline; }
+.ip-body .ql-indent-1 { padding-left: 1.5em; } .ip-body .ql-indent-2 { padding-left: 3em; } .ip-body .ql-indent-3 { padding-left: 4.5em; }
+.ip-foot { display: flex; flex-direction: column; gap: 10px; margin-top: 14px; }
+.ip-aksi { display: flex; flex-wrap: wrap; gap: 8px; }
+.ip-aksi-btn { gap: 4px; }
+.ip-main { display: flex; justify-content: flex-end; gap: 8px; }
+body.ip-open { overflow: hidden; }
+
+/* mobile: bottom sheet */
+@media (max-width: 640px) {
+  .ip-overlay { align-items: flex-end; padding: 0; }
+  .ip-dialog { max-width: none; max-height: 88vh; border-radius: var(--r-md) var(--r-md) 0 0; border-bottom: 0; padding-bottom: calc(16px + env(safe-area-inset-bottom, 0px)); transform: translateY(24px); }
+  .ip-main .btn { flex: 1; justify-content: center; }
+  .ip-panel { top: 54px; right: 10px; left: 10px; width: auto; max-width: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ip-overlay, .ip-dialog { transition: none; }
+}
+
+/* ── Halaman admin ── */
+.ip-stat {
+  display: flex; flex-wrap: wrap; gap: 2px 10px; align-items: baseline; cursor: pointer; text-align: left;
+  border: 0; background: transparent; font: inherit; font-size: .76rem; color: var(--teks); padding: 4px 6px; margin: -4px -6px; border-radius: 6px;
+}
+.ip-stat:hover, .ip-stat:focus-visible { background: var(--abu-1); outline: none; }
+.ip-stat b { font-weight: 800; }
+.ip-tabs { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+.ip-tab { border: 1px solid var(--abu-2); background: var(--putih); color: var(--teks-muted); font: inherit; font-size: .76rem; font-weight: 600; padding: 4px 11px; border-radius: 999px; cursor: pointer; }
+.ip-tab b { color: var(--teks); margin-left: 3px; }
+.ip-tab.active { background: var(--hijau); border-color: var(--hijau); color: #fff; }
+.ip-tab.active b { color: #fff; }
+.ip-picker { max-height: 180px; overflow-y: auto; border: 1px solid var(--abu-2); border-radius: 8px; padding: 4px 8px; background: var(--putih); }
+.field label.ip-check, .ip-check { display: flex; align-items: flex-start; gap: 8px; padding: 4px 0; font-size: .82rem; font-weight: 400; color: var(--teks); cursor: pointer; }
+.field .ip-check input[type="checkbox"], .ip-check input[type="checkbox"] { width: 16px; height: 16px; padding: 0; margin: 2px 0 0; flex-shrink: 0; accent-color: var(--hijau); }
+.ip-aksi-row { display: grid; grid-template-columns: 1.1fr 150px 1.4fr auto; gap: 6px; align-items: center; }
+.ip-aksi-row .select-wrap, .ip-aksi-row select { min-width: 0; }
+@media (max-width: 640px) { .ip-aksi-row { grid-template-columns: 1fr 1fr; } }
+/* Picker tanggal + jam (Mulai tampil / Berakhir) */
+.ip-dt { display: flex; gap: 8px; align-items: stretch; }
+.ip-dt .dp-wrap { flex: 1 1 auto; min-width: 0; }
+.ip-dt .ip-dt-jam { flex: 0 0 128px; }
+.ip-dt .dp-input { box-sizing: border-box; height: var(--input-h); padding: 0 32px 0 11px; font-size: .8rem; line-height: calc(var(--input-h) - 3px); }
+.ip-dt .dp-icon, .ip-dt .dp-clear { right: 9px; }
+/* jam dipadatkan: tanpa ikon jam, kolom angka lebih sempit */
+.ip-dt .ctp-inline { padding: 0 8px; gap: 4px; justify-content: center; }
+.ip-dt .ctp-inline-icon { display: none; }
+.ip-dt .ctp-inline .cdtp-time-val { box-sizing: border-box; width: 44px; padding: 0 13px 0 2px; font-size: .8rem; }
+#ipEditorWrap { border: 1px solid var(--abu-2); border-radius: 8px; overflow: hidden; background: var(--putih); }
+#ipEditorWrap .ql-toolbar.ql-snow { border: 0; border-bottom: 1px solid var(--abu-2); background: var(--abu-1); }
+#ipEditorWrap .ql-container.ql-snow { border: 0; font-family: inherit; font-size: .86rem; }
+#ipEditorWrap .ql-editor { min-height: 130px; max-height: 260px; overflow-y: auto; color: var(--teks); }
+
+/* SHORTLINK & BUNDLE - Statcard: 5 kartu selebar halaman */
+.sl-stat-grid { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+.sl-stat-grid .stat-card { min-width: 0; }
+@media (max-width: 768px) {
+  .sl-stat-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .sl-stat-grid > :last-child:nth-child(odd) { grid-column: 1 / -1; }
+}
+
+/* Warna baris per status verifikasi (IKU / IKK / SPM / Sub Kegiatan): draft abu, menunggu kuning, ditolak merah, diajukan kembali biru, disetujui hijau */
+.kinerja-table tr.vs-draft:not(.row-state-editing) td:not(.td-sticky-no):not(.td-sticky-name),
+.kinerja-table tr.vs-draft:not(.row-state-editing) td.td-sticky-no,
+.kinerja-table tr.vs-draft:not(.row-state-editing) td.td-sticky-name{background:#f8fafc !important}
+.kinerja-table tr.vs-draft:not(.row-state-editing):hover td:not(.td-sticky-no):not(.td-sticky-name),
+.kinerja-table tr.vs-draft:not(.row-state-editing):hover td.td-sticky-no,
+.kinerja-table tr.vs-draft:not(.row-state-editing):hover td.td-sticky-name{background:#f1f5f9 !important}
+.kinerja-table tr.vs-draft:not(.row-state-editing) .textarea-cell .ps-rte{background:#f8fafc;border-color:#e2e8f0}
+.kinerja-table tr.vs-menunggu:not(.row-state-editing) td:not(.td-sticky-no):not(.td-sticky-name),
+.kinerja-table tr.vs-menunggu:not(.row-state-editing) td.td-sticky-no,
+.kinerja-table tr.vs-menunggu:not(.row-state-editing) td.td-sticky-name{background:#fffbeb !important}
+.kinerja-table tr.vs-menunggu:not(.row-state-editing):hover td:not(.td-sticky-no):not(.td-sticky-name),
+.kinerja-table tr.vs-menunggu:not(.row-state-editing):hover td.td-sticky-no,
+.kinerja-table tr.vs-menunggu:not(.row-state-editing):hover td.td-sticky-name{background:#fef3c7 !important}
+.kinerja-table tr.vs-menunggu:not(.row-state-editing) .textarea-cell .ps-rte{background:#fffbeb;border-color:#fde68a}
+.kinerja-table tr.vs-perlu_perbaikan:not(.row-state-editing) td:not(.td-sticky-no):not(.td-sticky-name),
+.kinerja-table tr.vs-perlu_perbaikan:not(.row-state-editing) td.td-sticky-no,
+.kinerja-table tr.vs-perlu_perbaikan:not(.row-state-editing) td.td-sticky-name{background:#fef2f2 !important}
+.kinerja-table tr.vs-perlu_perbaikan:not(.row-state-editing):hover td:not(.td-sticky-no):not(.td-sticky-name),
+.kinerja-table tr.vs-perlu_perbaikan:not(.row-state-editing):hover td.td-sticky-no,
+.kinerja-table tr.vs-perlu_perbaikan:not(.row-state-editing):hover td.td-sticky-name{background:#fee2e2 !important}
+.kinerja-table tr.vs-perlu_perbaikan:not(.row-state-editing) .textarea-cell .ps-rte{background:#fef2f2;border-color:#fecaca}
+.kinerja-table tr.vs-diajukan_kembali:not(.row-state-editing) td:not(.td-sticky-no):not(.td-sticky-name),
+.kinerja-table tr.vs-diajukan_kembali:not(.row-state-editing) td.td-sticky-no,
+.kinerja-table tr.vs-diajukan_kembali:not(.row-state-editing) td.td-sticky-name{background:#f0f9ff !important}
+.kinerja-table tr.vs-diajukan_kembali:not(.row-state-editing):hover td:not(.td-sticky-no):not(.td-sticky-name),
+.kinerja-table tr.vs-diajukan_kembali:not(.row-state-editing):hover td.td-sticky-no,
+.kinerja-table tr.vs-diajukan_kembali:not(.row-state-editing):hover td.td-sticky-name{background:#e0f2fe !important}
+.kinerja-table tr.vs-diajukan_kembali:not(.row-state-editing) .textarea-cell .ps-rte{background:#f0f9ff;border-color:#bae6fd}
+.kinerja-table tr.vs-disetujui:not(.row-state-editing) td:not(.td-sticky-no):not(.td-sticky-name),
+.kinerja-table tr.vs-disetujui:not(.row-state-editing) td.td-sticky-no,
+.kinerja-table tr.vs-disetujui:not(.row-state-editing) td.td-sticky-name{background:#ecfdf5 !important}
+.kinerja-table tr.vs-disetujui:not(.row-state-editing):hover td:not(.td-sticky-no):not(.td-sticky-name),
+.kinerja-table tr.vs-disetujui:not(.row-state-editing):hover td.td-sticky-no,
+.kinerja-table tr.vs-disetujui:not(.row-state-editing):hover td.td-sticky-name{background:#d1fae5 !important}
+.kinerja-table tr.vs-disetujui:not(.row-state-editing) .textarea-cell .ps-rte{background:#ecfdf5;border-color:#a7f3d0}

@@ -18,6 +18,76 @@ function _buildStatusOptions(data, getAktif = d => d.aktif, getExpired = () => f
   return opts || `<option value="">Semua Status</option>`;
 }
 
+/* ── Statcard Shortlink & Bundle ──
+   Gaya sama dengan Monitoring Kinerja (.stat-card + garis aksen kiri).
+   Grid dibuat lewat JS (disisipkan di atas toolbar) dan dihitung dari seluruh data,
+   bukan dari hasil filter/pencarian. */
+const _SL_STAT_ICON = {
+  link:  '<path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>',
+  box:   '<path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="M3.29 7 12 12l8.71-5"/><line x1="12" y1="22" x2="12" y2="12"/>',
+  ok:    '<path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>',
+  off:   '<circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/>',
+  clock: '<circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>',
+  click: '<path d="m3 3 7.07 16.97 2.51-7.39 7.39-2.51L3 3z"/><path d="m13 13 6 6"/>',
+  list:  '<line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/>'
+};
+
+function _slStatCard(value, label, color, bg, icon) {
+  return `
+    <div class="stat-card" style="border-left-color:${color}">
+      <div class="stat-card-body">
+        <div class="stat-label">${label}</div>
+        <div class="stat-value" style="color:${color}">${value}</div>
+      </div>
+      <div class="stat-icon" style="background:${bg};opacity:1">
+        <svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" fill="none" viewBox="0 0 24 24" stroke="${color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${_SL_STAT_ICON[icon]}</svg>
+      </div>
+    </div>`;
+}
+
+function _slEnsureStatGrid(pageId, gridId) {
+  let el = document.getElementById(gridId);
+  if (el) return el;
+  const toolbar = document.getElementById(pageId)?.querySelector('.toolbar');
+  if (!toolbar) return null;
+  el = document.createElement('div');
+  el.id = gridId;
+  el.className = 'stat-grid sl-stat-grid';
+  toolbar.parentNode.insertBefore(el, toolbar);
+  return el;
+}
+
+// Ringkasan status + 1 angka tambahan (klik untuk shortlink, item untuk bundle)
+function _slRenderStats(pageId, gridId, data, isExpired, cfg) {
+  const el = _slEnsureStatGrid(pageId, gridId);
+  if (!el) return;
+  const fmt = n => (n == null ? '–' : Number(n).toLocaleString('id-ID'));
+  let total = null, aktif = null, nonaktif = null, kedaluwarsa = null, extra = null;
+  if (Array.isArray(data)) {
+    total       = data.length;
+    kedaluwarsa = data.filter(d => isExpired(d)).length;
+    aktif       = data.filter(d => !isExpired(d) && d.aktif).length;
+    nonaktif    = data.filter(d => !isExpired(d) && !d.aktif).length;
+    extra       = data.reduce((a, d) => a + (Number(d[cfg.extraKey]) || 0), 0);
+  }
+  el.innerHTML =
+    _slStatCard(fmt(total),       cfg.totalLabel,  'var(--hijau)', 'rgba(15,118,110,.12)', cfg.totalIcon) +
+    _slStatCard(fmt(aktif),       'Aktif',         '#16a34a',      'rgba(22,163,74,.12)',  'ok') +
+    _slStatCard(fmt(nonaktif),    'Nonaktif',      '#64748b',      'rgba(100,116,139,.12)','off') +
+    _slStatCard(fmt(kedaluwarsa), 'Kedaluwarsa',   '#dc2626',      'rgba(220,38,38,.12)',  'clock') +
+    _slStatCard(fmt(extra),       cfg.extraLabel,  '#2563eb',      'rgba(37,99,235,.12)',  cfg.extraIcon);
+}
+
+function renderShortlinkStats(data) {
+  _slRenderStats('page-shortlink', 'slStats', data, _linkIsExpired,
+    { totalLabel: 'Total Link', totalIcon: 'link', extraKey: 'total_klik', extraLabel: 'Total Klik', extraIcon: 'click' });
+}
+
+function renderBundleStats(data) {
+  _slRenderStats('page-bundle', 'bundleStats', data, _bundleIsExpired,
+    { totalLabel: 'Total Bundle', totalIcon: 'box', extraKey: 'jumlah_item', extraLabel: 'Total Item', extraIcon: 'list' });
+}
+
 function _debounce(fn, delay = 400) {
   let timer;
   return function (...args) {
@@ -108,6 +178,7 @@ async function loadLinks() {
     
     const slfs = document.getElementById('slFilterStatus');
     if (slfs) slfs.innerHTML = _buildStatusOptions(_links, l => l.aktif, l => _linkIsExpired(l));
+    renderShortlinkStats(_links);
   } catch (e) { console.error(e); }
 }
 
@@ -259,6 +330,7 @@ async function deleteLink(id) {
 let _slFiltered = [], _slPage = 1, _slPageSize = 10;
 
 async function loadShortlinks() {
+  if (!document.getElementById('slStats')) renderShortlinkStats();
   const tb0 = document.getElementById('slTableBody');
   if (tb0) tb0.innerHTML = `<tr class="empty-row"><td colspan="5"><span class="btn-spin" style="width:11px;height:11px;vertical-align:-1px;margin-right:6px"></span>Memuat data...</td></tr>`;
   await loadLinks();
@@ -328,6 +400,7 @@ let _currentBundleId = null;
 let _currentBundleItems = [];
 
 async function loadBundles({ keepPage = false } = {}) {
+  if (!document.getElementById('bundleStats')) renderBundleStats();
   const tb0 = document.getElementById('bundleTableBody');
   if (tb0) tb0.innerHTML = `<tr class="empty-row"><td colspan="5"><span class="btn-spin" style="width:11px;height:11px;vertical-align:-1px;margin-right:6px"></span>Memuat data...</td></tr>`;
   try {
@@ -339,6 +412,7 @@ async function loadBundles({ keepPage = false } = {}) {
     
     const bfs = document.getElementById('bundleFilterStatus');
     if (bfs) bfs.innerHTML = _buildStatusOptions(_bundles, b => b.aktif, b => _bundleIsExpired(b));
+    renderBundleStats(_bundles);
   } catch {}
 }
 
@@ -867,7 +941,7 @@ function _openItemDetail(type, id, info) {
   document.getElementById('ldTitle').innerHTML =
     `<span style="color:var(--merah,#dc2626)">${esc(location.host)}</span>/${esc(info.slug)}`;
   document.getElementById('ldUrl').textContent = info.url;
-  document.getElementById('ldUrl').title = info.url;
+  document.getElementById('ldUrl').dataset.tip = info.url;
   document.getElementById('ldDate').textContent = fmtDate(info.created_at);
 
   _renderQrCode(document.getElementById('ldQrBox'), _qrTrackUrl(url), { size: 88, logoSize: 22, logoPad: 5, radius: 6 });
@@ -1013,7 +1087,7 @@ function _renderLdChart(daily, dari, sampai) {
     const x = i * (barW + barGap);
     const y = h - barH;
     const label = new Date(d.tanggal).toLocaleDateString('id-ID', { day: '2-digit', month: 'short' });
-    return `<rect x="${x}" y="${y}" width="${barW}" height="${barH}" rx="0.6" fill="var(--hijau,#0f766e)"><title>${label}: ${d.klik}</title></rect>`;
+    return `<rect x="${x}" y="${y}" width="${barW}" height="${barH}" rx="0.6" fill="var(--hijau,#0f766e)" data-tip="${label}: ${d.klik}"></rect>`;
   }).join('');
   box.innerHTML = `<svg viewBox="0 0 ${w} ${h}" width="100%" height="120" preserveAspectRatio="none">${bars}</svg>`;
 }

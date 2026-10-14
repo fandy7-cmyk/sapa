@@ -2,8 +2,14 @@ import { getDb, jsonResponse, errorResponse, parseBody } from './_db.js';
 import { requireAuth } from './_auth.js';
 import { logAudit } from './_audit.js';
 import { deleteFromCloudinary } from './_cloudinary.js';
+import { sinkronLembur, notifLemburDicatat, notifLemburJadwal, notifLemburEntri } from './_notif_modul.js';
 
 const TZ = 'Asia/Makassar';
+
+// Notifikasi lonceng bersifat best-effort: kegagalannya tidak boleh menggagalkan aksi utamanya.
+async function notifSafe(fn) {
+  try { await fn(); } catch (e) { console.error('[notif]', e); }
+}
 
 // "Hari ini" versi WITA, bukan timezone server (Netlify function jalan di UTC) - biar konsisten
 // sama batas tanggal yang dicek di frontend (_lemburIsTanggalFuture / data-cdtp-max-today).
@@ -82,7 +88,9 @@ export const handler = async (event) => {
         const rows = full
           ? await sql`
               SELECT k.*,
-                (SELECT COUNT(*)::INT FROM lembur_sesi s WHERE s.kegiatan_id = k.id) AS jumlah_sesi
+                (SELECT COUNT(*)::INT FROM lembur_sesi s WHERE s.kegiatan_id = k.id) AS jumlah_sesi,
+                (SELECT COUNT(*)::INT FROM lembur_sesi s WHERE s.kegiatan_id = k.id
+                   AND DATE_TRUNC('month', s.tanggal) = DATE_TRUNC('month', (NOW() AT TIME ZONE 'Asia/Makassar')::date)) AS sesi_bulan_ini
               FROM lembur_kegiatan k
               ORDER BY k.created_at DESC
             `
@@ -90,7 +98,11 @@ export const handler = async (event) => {
               SELECT k.*,
                 (SELECT COUNT(*)::INT FROM lembur_sesi s
                    JOIN lembur_entries e ON e.sesi_id = s.id
-                   WHERE s.kegiatan_id = k.id AND e.user_id = ${auth.id}) AS jumlah_sesi
+                   WHERE s.kegiatan_id = k.id AND e.user_id = ${auth.id}) AS jumlah_sesi,
+                (SELECT COUNT(*)::INT FROM lembur_sesi s
+                   JOIN lembur_entries e ON e.sesi_id = s.id
+                   WHERE s.kegiatan_id = k.id AND e.user_id = ${auth.id}
+                     AND DATE_TRUNC('month', s.tanggal) = DATE_TRUNC('month', (NOW() AT TIME ZONE 'Asia/Makassar')::date)) AS sesi_bulan_ini
               FROM lembur_kegiatan k
               WHERE EXISTS (
                 SELECT 1 FROM lembur_sesi s
@@ -152,6 +164,7 @@ export const handler = async (event) => {
         await sql`DELETE FROM lembur_kegiatan WHERE id = ${id1}`;
         for (const d of dokRows) { if (d.file_url) await deleteFromCloudinary(d.file_url).catch(() => {}); }
         await logAudit(sql, event, { user_id: auth.id, nama: auth.nama, email: auth.email, aksi: 'delete', entitas: 'lembur_kegiatan', entitas_id: id1 });
+        await notifSafe(() => sinkronLembur(sql));
         return jsonResponse({ ok: true });
       } catch (err) { return errorResponse('Gagal menghapus kegiatan: ' + err.message); }
     }
@@ -227,6 +240,10 @@ export const handler = async (event) => {
           LEFT JOIN pegawai p ON REGEXP_REPLACE(p.nip, '[^0-9]', '', 'g') = REGEXP_REPLACE(u.nip, '[^0-9]', '', 'g') AND p.aktif = TRUE
           WHERE e.sesi_id = ${id1} ORDER BY e.id ASC
         `;
+        await notifSafe(async () => {
+          await notifLemburDicatat(sql, id1, user_ids, auth.id);
+          await sinkronLembur(sql);
+        });
         return jsonResponse({ entries: rows });
       } catch (err) { return errorResponse('Gagal menambah peserta: ' + err.message); }
     }
@@ -236,6 +253,7 @@ export const handler = async (event) => {
       if (!full) return errorResponse('Akses ditolak', 403);
       try {
         await sql`DELETE FROM lembur_entries WHERE sesi_id = ${id1} AND user_id = ${parseInt(seg3)}`;
+        await notifSafe(() => sinkronLembur(sql));
         return jsonResponse({ ok: true });
       } catch (err) { return errorResponse('Gagal menghapus peserta: ' + err.message); }
     }
@@ -287,6 +305,10 @@ export const handler = async (event) => {
           }
         }
         await logAudit(sql, event, { user_id: auth.id, nama: auth.nama, email: auth.email, aksi: 'create', entitas: 'lembur_sesi', entitas_id: sesi.id, detail: { tanggal } });
+        await notifSafe(async () => {
+          if (Array.isArray(user_ids)) await notifLemburDicatat(sql, sesi.id, user_ids, auth.id);
+          await sinkronLembur(sql);
+        });
         return jsonResponse({ sesi }, 201);
       } catch (err) {
         if (err.message?.includes('lembur_sesi_kegiatan_id_tanggal_key')) return errorResponse('Sudah ada sesi lembur untuk tanggal ini', 409);
@@ -303,6 +325,7 @@ export const handler = async (event) => {
           const dup = await sql`SELECT 1 FROM lembur_sesi WHERE tanggal = ${tanggal} AND id != ${id1} LIMIT 1`;
           if (dup.length) return errorResponse('Sudah ada sesi lembur pada tanggal ini (di kegiatan lain)', 409);
         }
+        const sebelum = await sql`SELECT tanggal::text AS t, to_char(jam_mulai, 'HH24:MI') AS jm, to_char(jam_selesai, 'HH24:MI') AS js FROM lembur_sesi WHERE id = ${id1} LIMIT 1`;
         // COALESCE(param, kolom) - bukan nested sql`kolom` tag - driver Neon (`neon()` HTTP,
         // tanpa session) gak bisa compose sql tag bersarang; kalau field gak dikirim (undefined),
         // COALESCE bikin kolom itu tetep ikut nilai lama tanpa perlu fragment sql bersarang.
@@ -315,6 +338,13 @@ export const handler = async (event) => {
           WHERE id = ${id1} RETURNING *
         `;
         if (!rows.length) return errorResponse('Sesi tidak ditemukan', 404);
+        await notifSafe(async () => {
+          const [sesudah] = await sql`SELECT tanggal::text AS t, to_char(jam_mulai, 'HH24:MI') AS jm, to_char(jam_selesai, 'HH24:MI') AS js FROM lembur_sesi WHERE id = ${id1} LIMIT 1`;
+          if (sebelum[0] && sesudah && (sebelum[0].t !== sesudah.t || sebelum[0].jm !== sesudah.jm || sebelum[0].js !== sesudah.js)) {
+            await notifLemburJadwal(sql, id1, auth.id);
+          }
+          await sinkronLembur(sql);
+        });
         return jsonResponse({ sesi: rows[0] });
       } catch (err) { return errorResponse('Gagal mengubah sesi: ' + err.message); }
     }
@@ -326,6 +356,7 @@ export const handler = async (event) => {
         await sql`DELETE FROM lembur_sesi WHERE id = ${id1}`;
         for (const d of dokRows) { if (d.file_url) await deleteFromCloudinary(d.file_url).catch(() => {}); }
         await logAudit(sql, event, { user_id: auth.id, nama: auth.nama, email: auth.email, aksi: 'delete', entitas: 'lembur_sesi', entitas_id: id1 });
+        await notifSafe(() => sinkronLembur(sql));
         return jsonResponse({ ok: true });
       } catch (err) { return errorResponse('Gagal menghapus sesi: ' + err.message); }
     }
@@ -403,6 +434,7 @@ export const handler = async (event) => {
             `;
           }
           if (!rows.length) return errorResponse('Entri tidak ditemukan', 404);
+          await notifSafe(() => notifLemburEntri(sql, id1, 'jam', auth.id));
           return jsonResponse({ entry: rows[0] });
         }
 
@@ -416,6 +448,7 @@ export const handler = async (event) => {
               updated_at = NOW()
             WHERE id = ${id1} RETURNING *
           `;
+          await notifSafe(() => notifLemburEntri(sql, id1, 'catatan', auth.id));
           return jsonResponse({ entry: rows[0] });
         }
 
@@ -428,6 +461,7 @@ export const handler = async (event) => {
               updated_at = NOW()
             WHERE id = ${id1} RETURNING *
           `;
+          await notifSafe(() => sinkronLembur(sql));
           return jsonResponse({ entry: rows[0] });
         }
 
@@ -439,6 +473,7 @@ export const handler = async (event) => {
       if (!full) return errorResponse('Akses ditolak', 403);
       try {
         await sql`DELETE FROM lembur_entries WHERE id = ${id1}`;
+        await notifSafe(() => sinkronLembur(sql));
         return jsonResponse({ ok: true });
       } catch (err) { return errorResponse('Gagal menghapus entri: ' + err.message); }
     }
