@@ -5,11 +5,6 @@ import {
   sinkronLembur, sinkronKinerjaVerifikasi, sinkronPeriode, sinkronPerjadin, sinkronAbsensi, sinkronSistem, sinkronKeamanan,
 } from './_notif_modul.js';
 
-// Dijadwalkan via netlify.toml (tiap jam). Function terpisah dari API notifikasi.js karena Netlify tidak mengizinkan
-// satu function menjadi scheduled function sekaligus endpoint HTTP biasa (pola yang sama dengan absensi-cron-alpa).
-// Tugas: rekonsiliasi notifikasi kondisi tiap modul (buat / naikkan tingkat / tutup) dan bersihkan notifikasi lama.
-// Idempotent: tingkat dihitung dari tanggal & data terkini, jadi aman dijalankan ulang kapan saja.
-// Tiap modul dijalankan terpisah: kegagalan satu modul (mis. tabelnya belum ada) tidak menghentikan modul lain.
 const TUGAS = [
   ['surat-masuk', sinkronSuratMasuk],
   ['lembur', sinkronLembur],
@@ -39,7 +34,6 @@ async function jalankan() {
   }
 }
 
-// Catat denyut agar halaman Pemantauan Sistem tahu cron ini masih hidup (ok=false bila ada modul yang gagal).
 export const handler = async () => {
   const { res, gagal } = await jalankan();
   await heartbeat(getDb(), 'notif-cron', gagal.length === 0, gagal.length ? `Gagal: ${gagal.join(', ')}` : `HTTP ${res.statusCode}`);

@@ -158,7 +158,6 @@ function _removeAksi(i) {
   _renderAksiList();
 }
 
-/* ── Modal ────────────────────────────────────────────────────── */
 function _initQuillPengumuman() {
   if (_quillPengumuman) return;
   _quillPengumuman = new Quill('#pengumumanEditor', {
@@ -350,13 +349,7 @@ function renderTickerTable() {
       </td>
     </tr>`).join('');
 
-  // Tampilin tombol "Selengkapnya" cuma buat teks yang beneran kepotong -
-  // dan cuma di layar sempit (samain breakpoint-nya sama CSS clamp-nya,
-  // max-width:768px). Di desktop clamp-nya emang gak aktif (lihat CSS),
-  // jadi gak usah dicek sama sekali - tombolnya tetep disembunyikan.
   if (window.matchMedia('(max-width: 768px)').matches) {
-    // Toleransi setengah baris (bukan cuma +1px) biar gak kena selisih
-    // pembulatan sub-pixel font-rendering yang bisa bikin positif palsu.
     _tickerAll.forEach(t => {
       const clampEl = document.getElementById(`tkTeks_${t.id}`);
       const moreBtn = document.getElementById(`tkMore_${t.id}`);
@@ -377,9 +370,6 @@ function toggleTickerTeks(id) {
   moreBtn.innerHTML = expanded ? `<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:4px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M5 15l7-7 7 7"/></svg>Sembunyikan` : `<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:4px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>Selengkapnya`;
 }
 
-// Klik di luar area teks yang lagi "Selengkapnya" -> otomatis balik ringkas
-// (clamp 3 baris lagi), gak perlu cari-cari tombol "Sembunyikan" yang udah
-// ke-scroll jauh ke bawah kalo teksnya panjang banget.
 document.addEventListener('click', (e) => {
   document.querySelectorAll('.ticker-teks-clamp.is-expanded').forEach(clampEl => {
     const cell = clampEl.closest('td');

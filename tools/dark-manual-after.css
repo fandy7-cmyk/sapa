@@ -1,9 +1,6 @@
-/* ── Pengecualian & library pihak ketiga (manual) ── */
-/* QR code harus tetap hitam di atas putih supaya terbaca scanner */
 html[data-theme="dark"] .share-qr-box{background:#fff!important;border-color:#334155!important}
 html[data-theme="dark"] .share-qr-box img.share-qr-logo{background:#fff!important}
 
-/* Quill (editor teks) */
 html[data-theme="dark"] .ql-toolbar.ql-snow{background:#0e1624;border-color:#263244!important}
 html[data-theme="dark"] .ql-container.ql-snow{background:#111827;border-color:#263244!important}
 html[data-theme="dark"] .ql-editor{color:#e5e7eb}
@@ -23,7 +20,6 @@ html[data-theme="dark"] .ql-snow .ql-picker-label:hover,
 html[data-theme="dark"] .ql-snow .ql-picker-item:hover{color:#2dd4bf}
 html[data-theme="dark"] .ql-snow a{color:#2dd4bf}
 
-/* Info Popup: warna tipe lewat custom property (tidak ditangkap generator) */
 html[data-theme="dark"] .ip-t-info{--ip-c:#93c5fd;--ip-bg:#172554;--ip-bd:#1e3a8a}
 html[data-theme="dark"] .ip-t-penting{--ip-c:#fcd34d;--ip-bg:#2a2010;--ip-bd:#78350f}
 html[data-theme="dark"] .ip-t-peringatan{--ip-c:#fca5a5;--ip-bg:#2a1214;--ip-bd:#7f1d1d}
@@ -38,7 +34,6 @@ html[data-theme="dark"] .ip-overlay{background:rgba(0,0,0,.7)}
 html[data-theme="dark"] .ip-panel{box-shadow:0 12px 32px rgba(0,0,0,.55)}
 html[data-theme="dark"] .ip-dialog{box-shadow:0 24px 60px rgba(0,0,0,.6)}
 
-/* Warna baris per status verifikasi (dark) */
 html[data-theme="dark"] .kinerja-table tr.vs-draft:not(.row-state-editing) td:not(.td-sticky-no):not(.td-sticky-name),
 html[data-theme="dark"] .kinerja-table tr.vs-draft:not(.row-state-editing) td.td-sticky-no,
 html[data-theme="dark"] .kinerja-table tr.vs-draft:not(.row-state-editing) td.td-sticky-name{background:#172033 !important}

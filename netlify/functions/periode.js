@@ -4,7 +4,6 @@ import { requireAuth, requireKinerjaAdmin } from './_auth.js';
 
 const JENIS_VALID = ['monev', 'ikk', 'spm', 'subkeg', 'eplanning', 'walidata'];
 const JENIS_TAHUNAN = ['eplanning', 'walidata'];
-// Periode kinerja per triwulan: kolom `bulan` = bulan akhir TW (3/6/9/12)
 const TW_VALID = [3, 6, 9, 12];
 const TW_NAMA  = { 3: 'Triwulan I', 6: 'Triwulan II', 9: 'Triwulan III', 12: 'Triwulan IV' };
 
@@ -68,7 +67,6 @@ export const handler = async (event) => {
   const admin = await requireKinerjaAdmin(event, sql);
   if (!admin) return errorResponse('Unauthorized', 401);
 
-  // Admin Kinerja (non-admin) hanya boleh mengelola periode kinerja, bukan e-Planning.
   const JENIS_KINERJA = ['monev', 'ikk', 'spm', 'subkeg'];
   const kinerjaOnly = !admin.is_admin;
   if (kinerjaOnly && event.httpMethod !== 'GET') {

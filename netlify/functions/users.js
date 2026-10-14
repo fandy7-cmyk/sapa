@@ -5,7 +5,6 @@ import { requireAdmin, requireAuth } from './_auth.js';
 import { logAudit, _hitungKunci, LOGIN_HISTORY_HOURS } from './_audit.js';
 import { sinkronKeamanan } from './_notif_modul.js';
 
-// Notifikasi lonceng bersifat best-effort: kegagalannya tidak boleh menggagalkan aksi utamanya.
 async function notifSafe(fn) {
   try { await fn(); } catch (e) { console.error('[notif]', e); }
 }
@@ -49,17 +48,12 @@ export const handler = async (event) => {
   if (event.httpMethod === 'GET' && userId && segments[1] === 'indikator') {
     if (auth.id !== userId && !auth.is_admin) return errorResponse('Unauthorized', 401);
     try {
-      // LEFT JOIN supaya indikator_ids tetap identik; flag jenis dipakai frontend buat menentukan
-      // menu Kinerja (IKU/IKK/SPM) tanpa harus narik seluruh daftar indikator.
       let rows = await sql`
         SELECT ui.indikator_id, ki.jenis_monev, ki.jenis_ikk, ki.jenis_spm, ki.jenis_custom
         FROM user_indikator ui
         LEFT JOIN kinerja_indikator ki ON ki.id = ui.indikator_id
         WHERE ui.user_id = ${userId}
       `;
-      // Pimpinan tanpa indikator ter-assign (hanya-lihat):
-      //  'kinerja.pantau' = indikator aktif di unit kerjanya; 'kinerja.pantau.semua' = unit kerja pilihan
-      //  (Sekretaris Dinas), dipilih lewat permission 'kinerja.pantau.unit.<bidang_id>'.
       if (rows.length === 0) {
         const perm = await sql`
           SELECT menu_key FROM user_permissions
@@ -142,8 +136,6 @@ export const handler = async (event) => {
     }
   }
 
-  // Tanda tangan pribadi user (dipakai buat syarat wajib tanda tangan sebelum
-  // mengajukan/memverifikasi usulan e-Planning) - pola sama kayak avatar di atas.
   if (event.httpMethod === 'GET' && userId && segments[1] === 'tanda-tangan') {
     if (auth.id !== userId && !auth.is_admin) return errorResponse('Unauthorized', 401);
     try {
@@ -173,12 +165,6 @@ export const handler = async (event) => {
   }
 
   if (event.httpMethod === 'GET' && !userId) {
-    // Selain admin, staf yang punya permission 'absensi.full' juga boleh akses
-    // list ini (dipakai buat isi dropdown "Pilih Pegawai" di modal Tambah/Edit
-    // Absensi). Untuk non-admin, field yang dibalikin dibatasin (gak ada
-    // email/nip/tanda_tangan/dll) biar gak bocor data sensitif ke staf biasa.
-    // bidang_id ikut dibalikin karena dropdown "Semua Pegawai" di halaman Absensi menyaring
-    // nama per Unit Kerja (kalau kosong, daftar nama jadi kosong pas filter Unit Kerja aktif).
     let isFullAccess = auth.is_admin;
     if (!isFullAccess) {
       const rows = await sql`
@@ -224,7 +210,6 @@ export const handler = async (event) => {
         LEFT JOIN pegawai p ON REGEXP_REPLACE(p.nip, '[^0-9]', '', 'g') = REGEXP_REPLACE(u.nip, '[^0-9]', '', 'g') AND p.aktif = TRUE
         ORDER BY u.is_admin DESC, u.nama ASC
       `;
-      // Status kunci login (rate limit bertingkat) - gagal di sini jangan sampai bikin list user ikut gagal.
       try {
         const att = await sql`
           SELECT email, EXTRACT(EPOCH FROM (NOW() - attempted_at))::float AS age_sec
@@ -281,13 +266,11 @@ export const handler = async (event) => {
     }
   }
 
-  // Email opsional: kosong / "-" dianggap tidak diisi -> disimpan NULL (cek duplikat dilewati).
   const normEmail = (v) => {
     const e = (v == null ? '' : String(v)).trim().toLowerCase();
     return (!e || e === '-') ? null : e;
   };
 
-  // Jabatan opsional: kosong / "-" dianggap tidak diisi -> NULL (tampilan profil jatuh ke Unit Kerja).
   const normJabatan = (v) => {
     const j = (v == null ? '' : String(v)).replace(/\s+/g, ' ').trim().slice(0, 150);
     return (!j || j === '-') ? null : j;
@@ -333,9 +316,9 @@ export const handler = async (event) => {
   if (event.httpMethod === 'PUT' && userId && !isPermissions && segments[1] !== 'indikator' && segments[1] !== 'status') {
     const { nama, nip, bidang_id } = parseBody(event);
     const bodyPut        = parseBody(event);
-    const emailProvided  = bodyPut.email !== undefined;   // undefined = jangan diubah; ''/'-' = kosongkan
+    const emailProvided  = bodyPut.email !== undefined;
     const emailVal       = normEmail(bodyPut.email);
-    const jabatanProvided = bodyPut.jabatan !== undefined;   // undefined = jangan diubah; ''/'-' = kosongkan
+    const jabatanProvided = bodyPut.jabatan !== undefined;
     const jabatanVal      = normJabatan(bodyPut.jabatan);
     try {
       await runOnce('users.email_nullable', () => sql`ALTER TABLE users ALTER COLUMN email DROP NOT NULL`);
@@ -422,7 +405,6 @@ export const handler = async (event) => {
 
       const hash = await bcrypt.hash(DEFAULT_PASSWORD, 10);
       await sql`UPDATE users SET password_hash = ${hash} WHERE id = ${userId}`;
-      // Password baru = kesempatan baru: hapus riwayat salah login user ini
       try {
         const u = await sql`SELECT nip FROM users WHERE id = ${userId} LIMIT 1`;
         if (u[0]?.nip) await sql`DELETE FROM login_attempts WHERE email = ${String(u[0].nip).trim()}`;
@@ -448,7 +430,6 @@ export const handler = async (event) => {
       if (check[0].is_admin) return errorResponse('Tidak dapat menonaktifkan Super Admin', 403);
 
       await sql`UPDATE users SET is_active = ${is_active} WHERE id = ${userId}`;
-      // Nonaktif -> cabut semua sesi (refresh token) biar gak bisa perpanjang sesi.
       if (!is_active) {
         await sql`UPDATE refresh_tokens SET revoked_at = NOW() WHERE user_id = ${userId} AND revoked_at IS NULL`;
       }
@@ -478,7 +459,7 @@ export const handler = async (event) => {
         aksi: 'unlock_login', entitas: 'user', entitas_id: userId,
         detail: { target_nama: check[0].nama, target_email: check[0].email, percobaan_dihapus: dihapus.length }
       });
-      await notifSafe(() => sinkronKeamanan(sql));   // kunci dibuka -> notifikasi admin menyesuaikan
+      await notifSafe(() => sinkronKeamanan(sql));
       return jsonResponse({ ok: true, percobaan_dihapus: dihapus.length });
     } catch (err) {
       console.error('[POST /api/users/:id/unlock-login]', err);
@@ -518,7 +499,7 @@ export const handler = async (event) => {
       try {
         const f = await sql`SELECT avatar_url, tanda_tangan FROM users WHERE id = ${userId} LIMIT 1`;
         oldFiles = [f[0]?.avatar_url, f[0]?.tanda_tangan].filter(Boolean);
-      } catch { /* kolom belum ada -> tidak ada file */ }
+      } catch {  }
       await sql`DELETE FROM user_permissions WHERE user_id = ${userId}`;
       await sql`DELETE FROM users WHERE id = ${userId}`;
       for (const u of oldFiles) await cleanupReplacedFile(sql, u, null);

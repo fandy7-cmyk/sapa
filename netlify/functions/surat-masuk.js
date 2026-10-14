@@ -8,7 +8,6 @@ let _smMigrated = false;
 async function ensureSchema(sql) {
   if (_smMigrated) return;
   await sql`ALTER TABLE surat_masuk ADD COLUMN IF NOT EXISTS pegawai_list JSONB NOT NULL DEFAULT '[]'::jsonb`;
-  // Backfill dari kolom pegawai (single nama) lama ke pegawai_list (array nama)
   await sql`UPDATE surat_masuk SET pegawai_list = jsonb_build_array(pegawai) WHERE pegawai IS NOT NULL AND pegawai <> '' AND pegawai_list = '[]'::jsonb`;
   _smMigrated = true;
 }
@@ -19,7 +18,6 @@ function _pegawaiArr(pegawai) {
   return [];
 }
 
-// Notifikasi lonceng bersifat best-effort: kegagalannya tidak boleh menggagalkan simpan/ubah/hapus surat.
 async function notifSafe(fn) {
   try { await fn(); } catch (e) { console.error('[notif surat-masuk]', e); }
 }
@@ -64,7 +62,6 @@ export const handler = async (event) => {
       const [{ belum_selesai }] = await sql`SELECT COUNT(*)::INT AS belum_selesai FROM surat_masuk WHERE selesai = FALSE AND (${isAdmin} = TRUE OR ${isFull} = TRUE OR pegawai_list @> ${meNama}::jsonb)`;
       const [{ bulan_ini }] = await sql`SELECT COUNT(*)::INT AS bulan_ini FROM surat_masuk WHERE DATE_TRUNC('month', tanggal_terima) = DATE_TRUNC('month', (NOW() AT TIME ZONE 'Asia/Makassar')::date) AND (${isAdmin} = TRUE OR ${isFull} = TRUE OR pegawai_list @> ${meNama}::jsonb)`;
       const [{ terlambat }] = await sql`SELECT COUNT(*)::INT AS terlambat FROM surat_masuk WHERE selesai = FALSE AND batas_waktu < (NOW() AT TIME ZONE 'Asia/Makassar')::date AND (${isAdmin} = TRUE OR ${isFull} = TRUE OR pegawai_list @> ${meNama}::jsonb)`;
-      // Data tambahan buat dashboard Surat (tren, asal teratas, sisa waktu, beban pegawai).
       let ex = {};
       try {
         const [tren, topAsal, sisa, beban] = await Promise.all([

@@ -6,7 +6,6 @@ import {
 } from './_monitoring.js';
 import { sinkronSistem } from './_notif_modul.js';
 
-// Notifikasi lonceng bersifat best-effort: kegagalannya tidak boleh menggagalkan aksi utamanya.
 async function notifSafe(fn) {
   try { await fn(); } catch (e) { console.error('[notif]', e); }
 }
@@ -14,7 +13,6 @@ async function notifSafe(fn) {
 const potong = (v, n) => (v == null ? null : String(v).slice(0, n));
 const MILESTONE_NOTIF = new Set([10, 50, 100, 500, 1000]);
 
-// Statistik ringkas untuk tab Error Log & Ringkasan (tidak terpengaruh filter).
 async function statistikError(sql) {
   try {
     const [st, sumber, perJam, endpoint, [tot]] = await Promise.all([
@@ -46,7 +44,6 @@ export const handler = async (event) => {
   try {
     await ensureMonSchema(sql);
 
-    // ───── POST /error  (boleh tanpa login: halaman login juga bisa error) ─────
     if (m === 'POST' && seg[0] === 'error' && !seg[1]) {
       if ((event.body || '').length > 20000) return errorResponse('Payload terlalu besar', 413);
       const b = parseBody(event);
@@ -60,12 +57,10 @@ export const handler = async (event) => {
       const stack = potong(b.stack, 4000);
       const fingerprint = bikinFingerprint({ source, message, endpoint, http_status, stack });
 
-      // Pengaman badai error: kalau sudah ada >=60 error baru dalam semenit, tolak yang berikutnya.
       const [{ n: baruSemenit }] = await sql`
         SELECT COUNT(*)::int AS n FROM sys_error_log WHERE first_seen >= NOW() - INTERVAL '1 minute'`;
       if (baruSemenit >= 60) return jsonResponse({ ok: false, dibatasi: true }, 429);
 
-      // Error jaringan murni (sinyal HP jelek, dsb) dicatat, tapi tidak menambah badge/notifikasi.
       const statusAwal = source === 'network' ? 'dilihat' : 'baru';
 
       const [prev] = await sql`SELECT status FROM sys_error_log WHERE fingerprint = ${fingerprint}`;
@@ -90,7 +85,6 @@ export const handler = async (event) => {
       const r = rows[0];
       const kambuh = prev?.status === 'selesai' && r.status === 'baru';
 
-      // Notifikasi: error baru, atau jumlah kejadian menyentuh ambang tertentu.
       const perluNotif = r.source !== 'network' && r.status === 'baru' && (r.baru_dibuat || kambuh || MILESTONE_NOTIF.has(r.occurrences));
       if (perluNotif && telegramAktif()) {
         const judul = r.baru_dibuat ? '🔴 Error baru di SAPA'
@@ -108,7 +102,6 @@ export const handler = async (event) => {
       return jsonResponse({ ok: true });
     }
 
-    // ───── POST /perf  (batch dari browser, wajib login) ─────
     if (m === 'POST' && seg[0] === 'perf') {
       const user = requireAuth(event);
       if (!user) return errorResponse('Unauthorized', 401);
@@ -131,18 +124,15 @@ export const handler = async (event) => {
             AS x(endpoint text, method text, status int, ms int, user_id text)
         `;
       }
-      // Pembersihan ringan di sela traffic normal (cron juga melakukannya).
       if (Math.random() < 0.02) {
         await sql`DELETE FROM sys_perf_log WHERE created_at < NOW() - INTERVAL '7 days'`;
       }
       return jsonResponse({ ok: true, diterima: bersih.length });
     }
 
-    // ───── Semua endpoint di bawah ini khusus admin ─────
     const admin = requireAdmin(event);
     if (!admin) return errorResponse('Unauthorized', 401);
 
-    // GET /summary  -> dipakai badge sidebar (dipanggil berkala, harus murah)
     if (m === 'GET' && seg[0] === 'summary') {
       const [[e], st, hbs] = await Promise.all([
         sql`SELECT COUNT(*) FILTER (WHERE status = 'baru')::int AS baru,
@@ -158,7 +148,6 @@ export const handler = async (event) => {
       });
     }
 
-    // GET /errors
     if (m === 'GET' && seg[0] === 'errors' && !seg[1]) {
       const page = Math.max(1, parseInt(qs.page) || 1);
       const limit = Math.min(50, Math.max(1, parseInt(qs.limit) || 15));
@@ -180,7 +169,6 @@ export const handler = async (event) => {
       return jsonResponse({ errors: rows, total, page, limit, stats });
     }
 
-    // POST /errors/mark-all   body: { dari: 'baru', ke: 'dilihat' }
     if (m === 'POST' && seg[0] === 'errors' && seg[1] === 'mark-all') {
       const b = parseBody(event);
       const dari = ['baru', 'dilihat'].includes(b.dari) ? b.dari : 'baru';
@@ -190,7 +178,6 @@ export const handler = async (event) => {
       return jsonResponse({ ok: true, diubah: r.length });
     }
 
-    // PATCH /errors/:id   body: { status }
     if (m === 'PATCH' && seg[0] === 'errors' && seg[1]) {
       const id = parseInt(seg[1]);
       const st = parseBody(event).status;
@@ -200,7 +187,6 @@ export const handler = async (event) => {
       return jsonResponse({ ok: true });
     }
 
-    // GET /performance?jam=24
     if (m === 'GET' && seg[0] === 'performance') {
       const jam = Math.min(168, Math.max(1, parseInt(qs.jam) || 24));
       const bucket = jam <= 1 ? 300 : jam <= 6 ? 1800 : jam <= 24 ? 3600 : jam <= 72 ? 10800 : 21600;
@@ -241,7 +227,6 @@ export const handler = async (event) => {
       return jsonResponse({ jam, bucket_detik: bucket, total: { ...tot, max_ms, n_error }, endpoints: rows, series, status_kelas: kelas, kecepatan });
     }
 
-    // GET /usage?hari=7
     if (m === 'GET' && seg[0] === 'usage') {
       const hari = Math.min(30, Math.max(1, parseInt(qs.hari) || 7));
       const [perSeg, perJam, aktif, [u24], harian, userTop, [per]] = await Promise.all([
@@ -285,7 +270,6 @@ export const handler = async (event) => {
       });
     }
 
-    // GET /security
     if (m === 'GET' && seg[0] === 'security') {
       const [ringkas, terbaru, harian, ipTop, akunTop] = await Promise.all([
         sql`SELECT aksi,
@@ -318,7 +302,6 @@ export const handler = async (event) => {
       return jsonResponse({ ringkasan: ringkas, terbaru, harian, ip_top: ipTop, akun_top: akunTop });
     }
 
-    // POST /test-notif
     if (m === 'POST' && seg[0] === 'test-notif') {
       const r = await kirimTelegram('✅ Tes notifikasi SAPA: koneksi bot Telegram berhasil.');
       return jsonResponse(r, r.ok ? 200 : 400);

@@ -1,18 +1,13 @@
-// ═══════════════════════════════════════════════════════════════════════════
-//  Walidata - Data SSD & Kelola Indikator (SAPA Perencanaan)
-//  Memakai helper global SAPA: authHeaders, toast, showConfirm, openModal, closeModal, esc, _loadXlsx, hasAccess
-//  Halaman & modal dibuat dinamis, jadi app.html cukup menambah satu <script>.
-// ═══════════════════════════════════════════════════════════════════════════
 const WD_API = '/.netlify/functions/walidata';
 
 const _wd = {
   tahun: new Date().getFullYear(),
-  data: null,              // respons /data
+  data: null,
   rows: [],
   page: 1, perPage: 10,
-  indPage: 1, indPerPage: 15,   // pagination Kelola Indikator
+  indPage: 1, indPerPage: 15,
   unitFilter: '', search: '',
-  indikator: [],           // master (Kelola Indikator)
+  indikator: [],
   bidang: [],
   editId: null,
   importRows: [], importHasil: [],
@@ -23,7 +18,6 @@ const WD_AGREGASI = {
   minimum: 'Nilai terendah', tidak_diagregasi: 'Tidak diagregasi (lihat per unit)',
 };
 
-// ── util ───────────────────────────────────────────────────────────────────
 function _wdAdmin()  { return hasAccess('walidata.full'); }
 async function _wdFetch(path, opts = {}) {
   const res = await fetch(WD_API + path, { ...opts, headers: { ...authHeaders(), ...(opts.headers || {}) } });
@@ -37,17 +31,14 @@ function _wdNum(v) {
   return Number(v).toLocaleString('id-ID', { maximumFractionDigits: 4 });
 }
 function _wdDefinisi(txt) {
-  // Mengikuti gaya tombol "Σ" formula di Kinerja, tapi ikon info (ⓘ): definisi baru muncul saat ikon diklik (panel floating Kinerja).
   if (!txt) return '';
   const data = esc(JSON.stringify({ nama: String(txt) }));
   return `<div style="display:flex;align-items:center;gap:6px;margin-top:5px"><div class="fx-wrap"><button style="display:inline-flex;align-items:center;justify-content:center;gap:4px;box-sizing:border-box;height:24px;font-size:0.62rem;font-weight:700;line-height:1;color:#0f766e;background:#f0fdfa;border:1px solid #99f6e4;border-radius:4px;padding:0 8px;cursor:pointer;font-family:inherit;appearance:none;-webkit-appearance:none;margin:0" data-tip="Lihat definisi operasional" data-formula="${data}" onclick="toggleFormulaPanel(this)"><svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg><span class="fx-arrow" style="display:inline-block;transition:transform .2s;font-style:normal">▾</span></button></div></div>`;
 }
-// Dropdown tahun hanya berisi tahun yang punya data (realisasi) atau periode penginputan; bila belum ada sama sekali, tahun berjalan.
 function _wdDaftarTahun(daftar, aktif) {
   const t = [...new Set((daftar || []).map(Number).filter(Boolean))].sort((a, b) => b - a);
   return t.length ? t : [aktif];
 }
-// Gaya input realisasi: sama dengan input realisasi di Kinerja (border tipis abu, fokus hijau lembut), bukan outline hitam bawaan browser.
 (function _wdInjectStyle() {
   if (typeof document === 'undefined' || !document.head || document.getElementById('wdStyle')) return;
   const st = document.createElement('style'); st.id = 'wdStyle';
@@ -56,7 +47,6 @@ function _wdDaftarTahun(daftar, aktif) {
 .wdEdIn::placeholder{font-weight:400;font-size:.72rem;color:#94a3b8}`;
   document.head.appendChild(st);
 })();
-// Sel realisasi dengan mode lihat + tombol Edit (ikon). Klik Edit -> muncul input + ikon Simpan + ikon Batal.
 const _WD_IC_SIMPAN = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>';
 function _wdEditCell(inputId, nilai, saveCall, inputW = 110) {
   const val = nilai === null || nilai === undefined ? '' : String(nilai).replace('.', ',');
@@ -70,7 +60,6 @@ function _wdEditCell(inputId, nilai, saveCall, inputW = 110) {
       <button class="btn btn-sm btn-primary" data-tip="Simpan" onclick="${saveCall}">${_WD_IC_SIMPAN}</button>
       <button class="btn btn-ghost btn-sm" data-tip="Batal" onclick="wdEdBatal('${inputId}')">${_WD_IC.close}</button></div></div>`;
 }
-// Versi tabel Data SSD: nilai/input di kolom Jumlah, semua tombol (Edit/Simpan/Batal) di kolom Aksi.
 function _wdEditSplit(inputId, nilai, saveCall, inputW = 110) {
   const val = nilai === null || nilai === undefined ? '' : String(nilai).replace('.', ',');
   const lihat = val === '' ? '<span class="badge badge-yellow">Belum diinput</span>' : `<strong>${_wdNum(nilai)}</strong>`;
@@ -107,7 +96,7 @@ function wdEdBatal(inputId) {
   });
 }
 function _wdUnitLabel(u) { return u.singkatan || u.nama; }
-function _wdToWita(iso) {   // ISO -> value untuk <input type=datetime-local> (WITA, UTC+8)
+function _wdToWita(iso) {
   if (!iso) return '';
   return new Date(new Date(iso).getTime() + 8 * 3600 * 1000).toISOString().slice(0, 16);
 }
@@ -122,11 +111,9 @@ const _WD_IC = {
   list:   '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor" style="flex-shrink:0;opacity:.85"><path d="M6.17071 18C6.58254 16.8348 7.69378 16 9 16C10.3062 16 11.4175 16.8348 11.8293 18H22V20H11.8293C11.4175 21.1652 10.3062 22 9 22C7.69378 22 6.58254 21.1652 6.17071 20H2V18H6.17071ZM12.1707 11C12.5825 9.83481 13.6938 9 15 9C16.3062 9 17.4175 9.83481 17.8293 11H22V13H17.8293C17.4175 14.1652 16.3062 15 15 15C13.6938 15 12.5825 14.1652 12.1707 13H2V11H12.1707ZM6.17071 4C6.58254 2.83481 7.69378 2 9 2C10.3062 2 11.4175 2.83481 11.8293 4H22V6H11.8293C11.4175 7.16519 10.3062 8 9 8C7.69378 8 6.58254 7.16519 6.17071 6H2V4H6.17071Z"/></svg>',
 };
 
-// Ikon judul halaman Dashboard & Laporan (sama dengan modul lain)
 _WD_IC.dash = '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor" style="flex-shrink:0;opacity:.85"><path d="M14 21C13.4477 21 13 20.5523 13 20V12C13 11.4477 13.4477 11 14 11H20C20.5523 11 21 11.4477 21 12V20C21 20.5523 20.5523 21 20 21H14ZM4 13C3.44772 13 3 12.5523 3 12V4C3 3.44772 3.44772 3 4 3H10C10.5523 3 11 3.44772 11 4V12C11 12.5523 10.5523 13 10 13H4ZM9 11V5H5V11H9ZM4 21C3.44772 21 3 20.5523 3 20V16C3 15.4477 3.44772 15 4 15H10C10.5523 15 11 15.4477 11 16V20C11 20.5523 10.5523 21 10 21H4ZM5 19H9V17H5V19ZM15 19H19V13H15V19ZM13 4C13 3.44772 13.4477 3 14 3H20C20.5523 3 21 3.44772 21 4V8C21 8.55228 20.5523 9 20 9H14C13.4477 9 13 8.55228 13 8V4ZM15 5V7H19V5H15Z"/></svg>';
 _WD_IC.laporan = '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor" style="flex-shrink:0;opacity:.85"><path d="M16 2L21 7V21.0082C21 21.556 20.5551 22 20.0066 22H3.9934C3.44476 22 3 21.5447 3 21.0082V2.9918C3 2.44405 3.44495 2 3.9934 2H16ZM11 7V17H13V7H11ZM15 11V17H17V11H15ZM7 13V17H9V13H7Z"/></svg>';
 
-// Ikon tombol - sama dengan gaya tombol di menu Kinerja (13px, margin kanan 5px)
 const _wdTbIc = (path, sw = 2.5) => `<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="${sw}" style="margin-right:5px;vertical-align:-2px">${path}</svg>`;
 const _WD_BTN = {
   tambah:   _wdTbIc('<path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/>'),
@@ -166,7 +153,6 @@ function _wdModal(id, title, subtitle, body, footer, maxW = 560) {
   return el;
 }
 
-// ── halaman ────────────────────────────────────────────────────────────────
 function _wdEnsurePages() {
   const host = document.querySelector('.content');
   if (!host) return;
@@ -311,7 +297,6 @@ function _wdEnsurePages() {
   }
 }
 
-// ═══ DATA SSD ═══════════════════════════════════════════════════════════════
 async function loadWalidataSsd() {
   _wdEnsurePages();
   if (!_wd.data) _wdRenderSsdStats();
@@ -319,13 +304,11 @@ async function loadWalidataSsd() {
   await _wdMuatData();
 }
 
-// silent = refresh setelah simpan: tabel tidak dikosongkan dulu supaya posisi scroll tidak loncat
 async function _wdMuatData(silent, bg) {
   const body = document.getElementById('wdBody');
   if (!silent) body.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:24px;color:var(--teks-muted)"><span class="btn-spin" style="width:11px;height:11px;vertical-align:-1px;margin-right:6px"></span>Memuat data…</td></tr>';
   try {
     _wd.data = await _wdFetch('/data?tahun=' + _wd.tahun);
-    // Tahun terpilih tidak punya data (mis. tahun berjalan masih kosong): pindah ke tahun terbaru yang ada datanya.
     const dt = _wd.data.daftar_tahun || [];
     if (dt.length && !dt.map(Number).includes(_wd.tahun)) {
       _wd.tahun = Math.max(...dt.map(Number));
@@ -336,16 +319,15 @@ async function _wdMuatData(silent, bg) {
     return;
   }
   _wd.rows = _wd.data.rows;
-  _wdRenderSsdStats();   // juga saat tabel tidak dirender ulang (sedang edit)
+  _wdRenderSsdStats();
   _wdIsiTahun();
   _wdRenderPeriode();
   if (_wdAdmin()) await _wdIsiFilterUnit();
-  if (!(bg && _wdSedangEdit())) _wdRenderTable();   // sinkron di belakang layar: jangan timpa isian yang sedang diedit
+  if (!(bg && _wdSedangEdit())) _wdRenderTable();
 }
 
 function _wdIsiTahun() {
   const sel = document.getElementById('wdTahun');
-  // User non-admin tanpa data & tanpa periode terbuka: jangan paksa tampilkan tahun berjalan (periodenya memang belum ada).
   if (!_wd.data?.me?.admin && !(_wd.data?.daftar_tahun || []).length) {
     sel.innerHTML = '<option value="">Belum ada periode</option>';
     sel.disabled = true;
@@ -360,7 +342,6 @@ function wdGantiTahun(v) { _wd.tahun = parseInt(v, 10); _wd.page = 1; _wdMuatDat
 
 let _wdTimer = null;
 function _wdRenderPeriode() {
-  // Sama seperti Kinerja: kartu periode hanya untuk non-admin dan hanya saat periode terbuka.
   const wrap = document.getElementById('wdCountdownBar');
   if (_wdTimer) { clearInterval(_wdTimer); _wdTimer = null; }
   const pa = _wd.data.periode || {};
@@ -403,7 +384,7 @@ function _wdRenderPeriode() {
     const now = Date.now(), diff = closeMs - now;
     const timerEl = document.getElementById(id + '_timer'), fillEl = document.getElementById(id + '_fill'), cardEl = document.getElementById(id + '_card');
     if (!timerEl || !fillEl || !cardEl) { clearInterval(_wdTimer); _wdTimer = null; return; }
-    if (diff <= 0) {   // baru saja ditutup: sembunyikan kartu & kunci input
+    if (diff <= 0) {
       clearInterval(_wdTimer); _wdTimer = null;
       wrap.style.display = 'none'; wrap.innerHTML = '';
       _wdMuatData();
@@ -433,10 +414,6 @@ async function _wdIsiFilterUnit() {
     _wd.bidang.map(b => `<option value="${b.id}" ${String(b.id) === String(cur) ? 'selected' : ''}>${esc(b.nama)}</option>`).join('');
 }
 
-/* ── Statcard Data SSD ──
-   Gaya sama dengan Monitoring Pengisian (.stat-card + garis aksen kiri). Dihitung dari baris yang
-   sedang tampil di tabel (ikut Tahun, pencarian, dan filter Unit Kerja), per indikator.
-   Admin: status pengisian semua unit pengampu. User unit: hanya indikator miliknya. */
 const _WD_STAT_IC = {
   chart: '<path d="M3 3v18h18"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/>',
   ok:    '<path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>',
@@ -464,11 +441,9 @@ function _wdRenderSsdStats() {
   const admin = _wd.data?.me ? !!_wd.data.me.admin : _wdAdmin();
   const C = { hijau: ['var(--hijau)', 'rgba(15,118,110,.12)'], ok: ['#16a34a', 'rgba(22,163,74,.12)'],
               amber: ['#d97706', 'rgba(217,119,6,.12)'], merah: ['#dc2626', 'rgba(220,38,38,.12)'] };
-  // Data belum dimuat: tampilkan kartu kosong ("–") supaya tata letak tidak loncat
   const list = _wd.data ? _wdFiltered() : null;
   const n = (fn) => list ? list.filter(fn).length : null;
   if (admin) {
-    // Status per indikator, sama dengan perhitungan total di tabel (unit pengampu + data tanpa unit)
     const st = r => {
       const pengampu = r.detail.filter(d => d.pengampu);
       const terisiPengampu = pengampu.filter(filled).length;
@@ -501,8 +476,6 @@ function _wdFiltered() {
   });
 }
 
-// Periode input sudah ditutup: kolom Aksi tidak dikosongkan (sama dengan Kinerja).
-// Sudah ada realisasi -> "Tersimpan"; belum diisi -> "Ditutup".
 function _wdAksiTutupBadge(saved) {
   const svgOpen = '<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">';
   if (saved) {
@@ -516,7 +489,6 @@ function _wdAksiCell(r) {
   const me = _wd.data.me;
   if (me.admin) {
     const detailBtn = `<button class="btn btn-ghost btn-sm" data-tip="Detail" onclick="wdBukaDetail(${r.id})">${_WD_BTN.detail}</button>`;
-    // Reset khusus Super Admin (sama seperti Kinerja), hanya muncul bila sudah ada realisasi.
     const ada = r.detail.some(d => d.nilai !== null && d.nilai !== undefined);
     const resetBtn = (_user && _user.is_admin && ada)
       ? `<button class="btn-reset-row" id="wdresetbtn_${r.id}" data-tip="Reset data baris ini" style="margin-top:0;min-width:34px;min-height:34px;padding:6px;justify-content:center;border-radius:var(--r-sm)" onclick="wdResetRealisasi(${r.id})">${_WD_RESET_IDLE}</button>` : '';
@@ -551,12 +523,9 @@ async function wdResetRealisasi(id) {
   }
 }
 
-// ── Update lokal (optimistic) ───────────────────────────────────────────────
-// Setelah PUT/DELETE berhasil, tabel langsung diperbarui dari data lokal supaya tombol aksi tidak menunggu
-// muat ulang /data; sinkron dengan server tetap jalan di belakang layar.
 function _wdSedangEdit() { return [...document.querySelectorAll('.wdEdForm')].some(el => el.style.display !== 'none'); }
 function _wdHitungUlang(r) {
-  if (!_wd.data?.me?.admin) return;   // user biasa hanya punya baris unitnya sendiri; total tidak ditampilkan
+  if (!_wd.data?.me?.admin) return;
   const n = r.detail.filter(d => (d.pengampu || d.tanpa_unit) && d.nilai !== null && d.nilai !== undefined).map(d => Number(d.nilai));
   r.jumlah_terisi = r.detail.filter(d => d.pengampu && d.nilai !== null && d.nilai !== undefined).length;
   if (!n.length || r.agregasi === 'tidak_diagregasi') r.total = null;
@@ -571,7 +540,7 @@ function _wdTerapkanLokal(indikatorId, bidangId, nilai) {
   if (d) { d.nilai = nilai; d.updated_at = nilai === null ? null : new Date().toISOString(); }
   _wdHitungUlang(r);
 }
-function _wdSibukkan(inputId, on) {   // tombol Simpan jadi spinner selama request berjalan
+function _wdSibukkan(inputId, on) {
   const b = document.querySelector(`#${inputId}-aksi .wdEdForm .btn-primary`);
   if (!b) return;
   if (on) { b.dataset.html = b.innerHTML; b.disabled = true; b.innerHTML = '<span class="btn-spin" style="width:11px;height:11px"></span>'; }
@@ -637,7 +606,6 @@ async function wdSimpanUser(indikatorId, bidangId) {
   } catch (e) { toast(e.message, 'error'); _wdSibukkan('wdIn-' + indikatorId, false); }
 }
 
-// ── Detail per unit (admin) ────────────────────────────────────────────────
 const _wdDtTh = 'padding:10px 12px;white-space:nowrap';
 const _wdDtTd = 'padding:10px 12px;border-bottom:1px solid #f1f5f9;vertical-align:middle;overflow:visible';
 
@@ -667,7 +635,6 @@ function _wdDetailBody(r) {
       <td style="${_wdDtTd};text-align:center;white-space:nowrap;font-size:.72rem;color:var(--teks-muted)">${d.updated_at ? fmtDate(d.updated_at) : '-'}</td>
       <td style="${_wdDtTd};text-align:center;white-space:nowrap">${aksi}</td></tr>`;
   }).join('') || `<tr><td colspan="4" style="${_wdDtTd};text-align:center;color:var(--teks-muted)">Unit kerja belum ditetapkan. Atur di Kelola Indikator.</td></tr>`;
-  // Info ringkas tanpa kotak/border: label abu-abu, nilai tebal.
   const info = (label, nilai) => `<div style="font-size:.8rem;color:#64748b">${label}: <strong style="color:var(--teks,#1e293b)">${nilai}</strong></div>`;
   return `
     <div><div style="font-weight:700;color:#0f766e">${esc(r.kode_ssd)}</div>
@@ -687,7 +654,6 @@ function wdBukaDetail(indikatorId) {
     `<button class="btn btn-ghost" onclick="closeModal('modalWdDetail')">${_WD_BTN.tutup}Tutup</button>`, 820);
   openModal('modalWdDetail');
 }
-// Setelah simpan/pindah: muat ulang data di belakang dan segarkan isi modal di tempat (modal tidak ditutup-buka lagi, scroll tetap).
 function _wdRenderModalDetail(indikatorId) {
   const body = document.querySelector('#modalWdDetail .modal-body');
   const r = _wd.rows.find(x => x.id === indikatorId);
@@ -725,7 +691,6 @@ async function wdSimpanDetail(indikatorId, bidangId) {
   } catch (e) { toast(e.message, 'error'); _wdSibukkan('wdDt-' + bidangId, false); }
 }
 
-// ═══ KELOLA INDIKATOR ═══════════════════════════════════════════════════════
 async function loadWalidataIndikator() {
   _wdEnsurePages();
   const body = document.getElementById('wdiBody');
@@ -770,8 +735,6 @@ function _wdRenderIndikator() {
 
 function wdiKePage(n) { _wd.indPage = n; _wdRenderIndikator(); }
 
-// ── Download Kelola Indikator - PDF (gaya sama dengan downloadIndikatorPDF di Kinerja:
-//    kop surat resmi + tabel, dibuka di tab baru untuk di-print / Save as PDF) ──
 async function wdUnduhIndikatorPDF(btnEl) {
   if (!(_wd.indikator || []).length) { toast('Belum ada data indikator untuk didownload.', 'error'); return; }
   const originalHtml = btnEl ? btnEl.innerHTML : null;
@@ -837,8 +800,6 @@ function wdBukaFormIndikator(id) {
   const i = id ? _wd.indikator.find(x => x.id === id) : null;
   _wd.editId = id || null;
   const terpilih = new Set((i?.unit || []).map(u => u.bidang_id));
-  // Unit yang sudah terpilih dinaikkan ke atas saat modal dibuka (urutan asli tetap dijaga di dalam tiap kelompok),
-  // supaya user tidak perlu mencari/scroll ke bawah. Centang/lepas di dalam modal tidak mengubah urutan.
   const bidangUrut = [..._wd.bidang].sort((a, b) => (terpilih.has(b.id) - terpilih.has(a.id)));
   const unitHtml = bidangUrut.map(b => `<label class="wdUnitRow" data-nama="${esc(b.nama.toLowerCase())}" style="display:flex;align-items:center;gap:10px;margin:0;padding:8px 6px;font-size:.82rem;font-weight:500;line-height:1.35;cursor:pointer;border-bottom:1px solid #f1f5f9">
       <input type="checkbox" class="chk wdUnitChk" style="padding:0;margin:0" value="${b.id}" ${terpilih.has(b.id) ? 'checked' : ''}><span style="flex:1;min-width:0">${esc(b.nama)}</span></label>`).join('');
@@ -865,7 +826,6 @@ function wdBukaFormIndikator(id) {
      <button class="btn btn-primary" onclick="wdSimpanIndikator()">${_WD_BTN.simpan}Simpan</button>`, 580);
   openModal('modalWdIndikator');
 }
-// ── Assign User per Indikator (sama dengan "Assign User" di Kinerja; tabel walidata_indikator_user) ──
 let _wdAuiId = null, _wdAuiUsers = [], _wdAuiSelected = new Set(), _wdAuiPinned = new Set(), _wdAuiLoaded = false, _wdAuiSeq = 0;
 
 async function wdBukaAssignUser(id) {
@@ -889,13 +849,12 @@ async function wdBukaAssignUser(id) {
     if (seq !== _wdAuiSeq) return;
     _wdAuiUsers = d.users || [];
     _wdAuiSelected = new Set((d.user_ids || []).map(Number));
-    _wdAuiPinned = new Set(_wdAuiSelected);   // yang sudah ter-assign dinaikkan ke atas saat modal dibuka
+    _wdAuiPinned = new Set(_wdAuiSelected);
     _wdAuiLoaded = true;
     document.getElementById('wdAuiSave').disabled = false;
     _wdAuiRender();
   } catch {
     if (seq !== _wdAuiSeq) return;
-    // Gagal muat: Simpan tetap terkunci supaya assignment lama tidak tertimpa daftar kosong.
     document.getElementById('wdAuiList').innerHTML = '<div style="padding:18px;text-align:center;color:var(--merah);font-size:.85rem">Gagal memuat user. Tutup lalu coba lagi.</div>';
   }
 }
@@ -958,10 +917,6 @@ async function wdHapusIndikator(id) {
   catch (e) { toast(e.message, 'error'); }
 }
 
-// ── Template & Import Excel ────────────────────────────────────────────────
-// Format utama (lebar): No | Kode DSSD | Uraian DSSD | Satuan | Definisi Operasional | 2017 | 2018 | ...
-// Kolom "Unit Kerja" bersifat opsional; bila tidak ada, unit dipilih di jendela import.
-// Format panjang (Tahun + Jumlah per baris) tetap didukung.
 const WD_ALIAS = {
   kode_ssd:   ['kodessd', 'kodedssd', 'kode'],
   uraian:     ['uraian', 'uraiandssd', 'uraianssd', 'uraianindikator'],
@@ -969,7 +924,7 @@ const WD_ALIAS = {
   satuan:     ['satuan'],
   unit_kerja: ['unitkerja', 'unit', 'opd', 'bidang'],
   tahun:      ['tahun'],
-  realisasi:  ['jumlah', 'nilai', 'realisasi'],   // key internal tetap 'realisasi'; header file boleh "Jumlah", "Nilai", atau "Realisasi"
+  realisasi:  ['jumlah', 'nilai', 'realisasi'],
 };
 const _wdIsYear = h => /^\s*(19|20)\d{2}\s*$/.test(String(h ?? ''));
 const _wdKosong = v => v === '' || v === null || v === undefined || (typeof v === 'string' && v.trim() === '');
@@ -1029,7 +984,6 @@ async function wdImportPilihFile(input) {
   }
 }
 
-// Ubah isi sheet jadi baris import (format lebar atau panjang), lalu validasi ke server.
 async function wdImportProses() {
   const raw = _wd.importRaw;
   const prev = document.getElementById('wdImpPreview');
@@ -1065,7 +1019,7 @@ async function wdImportProses() {
       sudahKode.add(kode.toLowerCase());
       const base = { _baris: n + 2, kode_ssd: kode, unit_kerja: unit };
       if (panjang) { rows.push({ ...base, ...m, tahun: get(row, 'tahun'), realisasi: get(row, 'realisasi') }); return; }
-      let ada = false, bawaMaster = first;   // uraian/definisi/satuan hanya dibawa baris pertama tiap kode
+      let ada = false, bawaMaster = first;
       for (const yc of yearCols) {
         const v = row[yc.i];
         if (_wdKosong(v)) continue;
@@ -1073,7 +1027,7 @@ async function wdImportProses() {
         rows.push({ ...base, ...(bawaMaster ? m : {}), tahun: yc.tahun, realisasi: v });
         bawaMaster = false;
       }
-      if (!ada) rows.push({ ...base, ...m, tahun: '', realisasi: '' });   // hanya master
+      if (!ada) rows.push({ ...base, ...m, tahun: '', realisasi: '' });
     });
     if (!rows.length) throw new Error('File tidak berisi data.');
     if (rows.length > 8000) throw new Error('Maksimal 8000 baris data per impor (hasil perluasan kolom tahun). Pecah file menjadi beberapa bagian.');
@@ -1092,7 +1046,6 @@ const WD_IMP_BADGE = { baru: ['badge-green', 'Baru'], master: ['badge-blue', 'Ma
 function _wdRenderPreviewImport(ringkas) {
   const h = _wd.importHasil;
   const chip = (k, label) => ringkas[k] ? `<span class="badge ${WD_IMP_BADGE[k][0]}">${ringkas[k]} ${label}</span>` : '';
-  // ringkas per Kode SSD supaya file ribuan baris tetap terbaca
   const per = new Map();
   for (const r of h) {
     const g = per.get(r.kode_ssd) || { kode: r.kode_ssd, uraian: r.uraian, unit: r.unit_nama, n: {}, tahun: [], pesan: new Set(), baru: r.master_baru };
@@ -1103,7 +1056,7 @@ function _wdRenderPreviewImport(ringkas) {
     per.set(r.kode_ssd, g);
   }
   const daftar = [...per.values()];
-  daftar.sort((a, b) => (b.n.error ? 1 : 0) - (a.n.error ? 1 : 0));   // yang bermasalah di atas
+  daftar.sort((a, b) => (b.n.error ? 1 : 0) - (a.n.error ? 1 : 0));
   const tampil = daftar.slice(0, 200);
   const range = g => g.tahun.length ? `${Math.min(...g.tahun)}–${Math.max(...g.tahun)} (${g.tahun.length} thn)` : '-';
   document.getElementById('wdImpPreview').innerHTML = `
@@ -1134,7 +1087,6 @@ async function wdImportSimpan() {
     const CHUNK = 150;
     for (let i = 0; i < _wd.importRows.length; i += CHUNK) {
       btn.innerHTML = `${_WD_BTN.simpan}Menyimpan… ${Math.min(i + CHUNK, _wd.importRows.length)}/${_wd.importRows.length}`;
-      // baris lanjutan tidak membawa uraian/definisi: sertakan data master pada kemunculan pertama tiap kode di potongan ini
       const sudah = new Set();
       const rows = _wd.importRows.slice(i, i + CHUNK).map(r => {
         const k = String(r.kode_ssd).toLowerCase();
@@ -1154,10 +1106,8 @@ async function wdImportSimpan() {
   }
 }
 
-// Buat container halaman sejak awal (navigateTo mengaktifkan halaman SEBELUM loader jalan, mis. saat restore setelah reload)
 _wdEnsurePages();
 
-// ═══ MONITORING PENGISIAN (padanan Monitoring Pengisian di Kinerja) ═════════
 const _wdm = { tahun: new Date().getFullYear(), status: '', unit: '', user: '', search: '', page: 1, perPage: 10, data: null, loadedAt: null };
 const _wdmAttr = v => esc(JSON.stringify(v));
 
@@ -1220,7 +1170,6 @@ function _wdmRenderSummary() {
   }
   const pct = summary.total ? Math.round(summary.terisi / summary.total * 100) : 0;
   const tone = pct >= 80 ? { c: '#16a34a', c2: '#22c55e' } : pct >= 50 ? { c: '#d97706', c2: '#f59e0b' } : { c: '#dc2626', c2: '#ef4444' };
-  // Card KPI: gaya sama dengan Monitoring Pengisian di Kinerja (.stat-card, garis aksen kiri)
   const kpi = (value, label, color, bg, iconSvg) => `
     <div class="stat-card" style="border-left-color:${color}">
       <div class="stat-card-body">
@@ -1396,10 +1345,9 @@ function _wdmRenderTable() {
   renderPagination('wdmPagination', total, _wdm.page, _wdm.perPage, 'wdmGoPage');
 }
 
-// ── Filter handlers ────────────────────────────────────────────────────────
 function wdmSetTahun(t) { _wdm.tahun = parseInt(t, 10); loadWalidataMonitoring(); }
 function wdmSetStatus(s) { _wdm.page = 1; _wdm.status = s || ''; _wdmRenderTable(); }
-function wdmSetUnit(u) {   // toggle (klik kartu); '' = reset
+function wdmSetUnit(u) {
   _wdm.page = 1;
   _wdm.unit = (_wdm.unit === u) ? '' : (u || '');
   _wdm.user = '';

@@ -36,15 +36,10 @@ export async function logAudit(sql, event, { user_id = null, nama = null, email 
   }
 }
 
-export const MAX_LOGIN_ATTEMPTS   = 3;          // jumlah salah per "putaran" sebelum terkunci
-export const LOGIN_WINDOW_MINUTES = 15;         // (lama, dipertahankan buat kompatibilitas import)
+export const MAX_LOGIN_ATTEMPTS   = 3;
+export const LOGIN_WINDOW_MINUTES = 15;
 
-// Kunci bertingkat: tiap kelipatan MAX_LOGIN_ATTEMPTS salah berturut-turut, waktu tunggu naik.
-// Putaran ke-1 (salah ke-3)  -> 60 menit (1 jam)
-// Putaran ke-2 (salah ke-6)  -> 180 menit (3 jam)
-// Putaran ke-3+ (ke-9 dst)   -> 360 menit (6 jam, mentok di sini)
 export const LOGIN_LOCK_TIERS_MINUTES = [60, 180, 360];
-// Riwayat salah dihitung sejauh ini; kalau gak ada percobaan salah selama itu, hitungan mulai dari nol lagi.
 export const LOGIN_HISTORY_HOURS = 24;
 
 export function loginLockMinutes(putaran) {
@@ -52,9 +47,6 @@ export function loginLockMinutes(putaran) {
   return LOGIN_LOCK_TIERS_MINUTES[i];
 }
 
-// Hitung status kunci dari riwayat percobaan salah per identifier (NIP) saja - IP sengaja tidak dihitung,
-// jadi ganti IP/pakai data seluler tidak mengulang hitungan. (param ip tetap ada biar pemanggil lama gak rusak)
-// Return: { allowed, count, remaining, retryAfterSec, lockMinutes }
 export async function checkLoginRateLimit(sql, identifier, ip, maxAttempts = MAX_LOGIN_ATTEMPTS) {
   const rows = await sql`
     SELECT EXTRACT(EPOCH FROM (NOW() - attempted_at))::float AS age_sec
@@ -66,13 +58,11 @@ export async function checkLoginRateLimit(sql, identifier, ip, maxAttempts = MAX
   return _hitungKunci(rows.map(r => Number(r.age_sec)), maxAttempts);
 }
 
-// ages: umur tiap percobaan salah (detik), urut dari yang paling lama.
 export function _hitungKunci(ages, maxAttempts = MAX_LOGIN_ATTEMPTS) {
   const count    = ages.length;
-  const putaran  = Math.floor(count / maxAttempts);   // sudah berapa kali kena kunci
-  const sisaPutaran = count - putaran * maxAttempts;  // salah di putaran berjalan
+  const putaran  = Math.floor(count / maxAttempts);
+  const sisaPutaran = count - putaran * maxAttempts;
   if (putaran > 0) {
-    // Kunci dipicu saat percobaan salah ke-(putaran*max). Waktu tunggu dihitung dari saat itu.
     const lockMin = loginLockMinutes(putaran);
     const retryAfterSec = Math.ceil(lockMin * 60 - ages[putaran * maxAttempts - 1]);
     if (retryAfterSec > 0) {

@@ -12,7 +12,6 @@ const EP_ICON_LIST = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height=
 const EP_ICON_SPINNER = `<span class="btn-spin"></span>`;
 const EP_ICON_COPY = `<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="8" y="8" rx="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>`;
 const EP_ICON_SEND = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/></svg>`;
-// Ajukan Ulang / Ajukan Kembali: pesawat utama + bayangan pesawat memudar di belakangnya (kesan "kirim lagi")
 const EP_ICON_RESEND = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><g transform="translate(-1.6 5.4) scale(.8)" stroke-width="3" stroke-opacity=".45"><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></g><g transform="translate(4 -1) scale(.8)" stroke-width="3"><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></g></svg>`;
 const EP_ICON_POWER_ON = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18.36 6.64A9 9 0 0 1 20.77 15"/><path d="M6.16 6.16a9 9 0 1 0 12.68 12.68"/><path d="M12 2v4"/><path d="M2 12h4"/></svg>`;
 const EP_ICON_POWER_OFF = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 12l2 2 4-4"/><circle cx="12" cy="12" r="10"/></svg>`;
@@ -24,13 +23,6 @@ const EP_ICON_UK_CHAT = `<svg xmlns="http://www.w3.org/2000/svg" width="16" heig
 const EP_ICON_UK_SHIELD = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z"/><path d="M9 12l2 2 4-4"/></svg>`;
 const EP_ICON_UK_FLAG = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 22V4"/><path d="M4 4h14l-2.5 4L18 12H4"/></svg>`;
 
-// ============================================================
-// Usulanku - timeline navigasi e-Planning (Pra Usulan sampai Final)
-// Sebelumnya 5 menu sidebar terpisah, sekarang digabung jadi 1 menu
-// "Usulanku" dengan timeline/chip di atas buat pindah tahap. Tabel &
-// aksi tiap tahap tetap dipakai apa adanya (loadEplanningPraUsulan dkk),
-// cuma dibungkus 1 halaman & 1 sidebar item.
-// ============================================================
 const EP_USULANKU_TABS = [
   { id: 'praunsulan', tabEl: 'page-eplanning-praunsulan', label: 'Pra Usulan', icon: EP_ICON_UK_DRAFT,  loader: () => loadEplanningPraUsulan(), getList: () => _epPraList },
   { id: 'usulan',     tabEl: 'page-eplanning',            label: 'Usulan',     icon: EP_ICON_UK_SEND,   loader: () => loadEplanning(),          getList: () => _epUsulanList },
@@ -44,9 +36,6 @@ function _epUsulankuRenderTimeline() {
   const wrap = document.getElementById('epUsulankuTimeline');
   if (!wrap) return;
   const activeIdx = EP_USULANKU_TABS.findIndex(t => t.id === _epUsulankuActiveTab);
-  // Tahap upcoming cuma ditampilkan di timeline kalau sudah ada usulan yang sampai
-  // ke tahap itu (list-nya sudah ke-load & isinya > 0). Belum ke-load / masih kosong
-  // = belum ditampilkan sama sekali, bukan cuma dikosongin icon-nya.
   const visible = EP_USULANKU_TABS.filter((t, i) => {
     if (i <= activeIdx) return true;
     const list = t.getList();
@@ -64,10 +53,6 @@ function _epUsulankuRenderTimeline() {
   }).join('');
 }
 
-/* ── Statcard Usulanku ──
-   Gaya sama dengan Surat/Superlink (.stat-card + garis aksen kiri). Grid dibuat lewat JS dan
-   disisipkan di atas toolbar tiap tab. Dihitung dari seluruh list tahap itu (sesuai hak akses
-   & Tahun Anggaran aktif), tidak ikut filter/pencarian/halaman tabel. */
 const _EP_UK_STAT_ICON = {
   list:   '<line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/>',
   draft:  '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="13" x2="15" y2="13"/><line x1="9" y1="17" x2="13" y2="17"/>',
@@ -79,7 +64,6 @@ const _EP_UK_STAT_ICON = {
   avg:    '<line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/>'
 };
 
-// Rp ringkas biar muat di kartu (nilai lengkap tetap muncul di tooltip kartu)
 function _epUkFmtRupiahRingkas(n) {
   const v = Number(n) || 0;
   const f = (x, suf) => 'Rp ' + x.toLocaleString('id-ID', { maximumFractionDigits: 2 }) + ' ' + suf;
@@ -103,7 +87,6 @@ function _epUkStatCard(value, label, color, bg, icon, opts) {
     </div>`;
 }
 
-// Satu grid bersama, di atas timeline (ikon Pra Usulan dst); isinya ikut tab yang aktif.
 function _epUkEnsureStatGrid() {
   let el = document.getElementById('epUkStats');
   if (el) return el;
@@ -157,13 +140,11 @@ function _epUkRenderStats(tabId) {
   el.innerHTML = cards.join('');
 }
 
-// Dipanggil dari sidebar (item "Usulanku") - pertama kali dibuka, balik ke tab terakhir dilihat.
 function loadEplanningUsulanku() {
   _epUsulankuRenderTimeline();
   epUsulankuGoTo(_epUsulankuActiveTab || 'praunsulan');
 }
 
-// Pindah tahap di dalam halaman Usulanku (dipakai timeline & tombol "Kembali ke daftar usulan").
 function epUsulankuGoTo(tabId) {
   const cfg = EP_USULANKU_TABS.find(t => t.id === tabId) || EP_USULANKU_TABS[0];
   _epUsulankuActiveTab = cfg.id;
@@ -175,15 +156,10 @@ function epUsulankuGoTo(tabId) {
   cfg.loader();
 }
 
-// Dipanggil dari luar halaman Usulanku (misal tombol "Kembali ke daftar usulan" di Rincian Anggaran)
-// - mastiin halaman wrapper "Usulanku" ke-aktifin lagi via navigateTo biasa, baru pindah tab.
 function epUsulankuOpenTab(tabId) {
   navigateTo('eplanning-usulanku', 'e-Planning', () => epUsulankuGoTo(tabId), 'eplanning', 'page-eplanning-usulanku');
 }
 
-// Ganti prompt() bawaan browser dengan modal custom senada tampilan showConfirm().
-// Dipakai buat input teks wajib diisi (misal: catatan alasan penolakan).
-// Resolve ke string (trimmed, gak pernah kosong) kalau user submit, atau null kalau dibatalkan.
 function showEpPrompt({ title = 'Input', msg = '', placeholder = '', okText = 'Kirim', required = true } = {}) {
   return new Promise((resolve) => {
     const overlay = document.createElement('div');
@@ -269,7 +245,7 @@ function _epParseSumberDanaPilihan(value) {
     const parsed = JSON.parse(value);
     if (Array.isArray(parsed)) return parsed.filter(Boolean);
   } catch {}
-  return [value]; // data lama: masih format string tunggal (belum array)
+  return [value];
 }
 
 function epRenderSumberDanaSelectOptions() {
@@ -866,7 +842,6 @@ async function kirimKePrafinal(id) {
   } catch (err) { toast(err.message, 'error'); }
 }
 
-// ==================== PRA FINAL ====================
 let _epPfList = [];
 let _epPfFilterBidang = '';
 let _epPfSearchText = '';
@@ -1021,7 +996,6 @@ async function submitVerifikasiPrafinal(keputusan) {
   } catch (err) { toast(err.message, 'error'); }
 }
 
-// ==================== FINAL ====================
 let _epFinList = [];
 let _epFinFilterBidang = '';
 let _epFinSearchText = '';
@@ -1135,7 +1109,6 @@ function renderEplanningFinalTable() {
 
 window.goEpFinPage = (p) => { _epFinPage = p; renderEplanningFinalTable(); };
 
-// ==================== Skala Prioritas (tahap Usulan) ====================
 async function epSetPrioritas(id, current) {
   const val = await showEpPrompt({
     title: 'Isi Skala Prioritas',
@@ -1196,7 +1169,7 @@ async function openUsulanModal(id = null) {
         const r = await fetch(`/api/eplanning/usulan/${id}`, { headers: authHeaders() });
         const d = await r.json();
         if (r.ok) u = d.usulan;
-      } catch { /* noop */ }
+      } catch {  }
     }
     if (u) {
       _epEditingUsulan = u;
@@ -1590,8 +1563,6 @@ async function saveUsulan() {
   const skSelEl = document.getElementById('epSubKegiatan');
   const subKegiatan = skSelEl.value.trim();
   if (!subKegiatan) { toast('Sub Kegiatan wajib diisi', 'error'); return; }
-  // Snapshot kode dari opsi yang lagi kepilih di dropdown (data-kode dari master
-  // eplanning_subkegiatan) - kalau opsinya fallback/custom (gak ada di master), kodenya kosong.
   const skOpt = [...skSelEl.options].find(o => o.value === subKegiatan);
   const kodeSubKegiatan = skOpt?.dataset.kode || '';
 
@@ -1892,9 +1863,6 @@ async function submitApproveAdmin() {
 
 let _epCurrentUsulan = null;
 let _epRincianList = [];
-// Riwayat Keterangan & Uraian Paket buat kegiatan (usulan) yang lagi dibuka - diambil dari server,
-// lintas usulan/tahun anggaran (bukan cuma rincian di usulan ini), biar nilai yang pernah diketik
-// user buat kegiatan ini selalu muncul lagi di dropdown & user gak perlu ngetik ulang.
 let _epKeteranganRiwayat = [];
 let _epUraianPaketRiwayat = [];
 
@@ -1930,8 +1898,6 @@ async function _epLoadRincianRiwayat(usulanId) {
     _epKeteranganRiwayat = d.keterangan || [];
     _epUraianPaketRiwayat = d.uraian_paket || [];
   } catch (err) {
-    // Riwayat cuma buat kemudahan isi form (bukan data wajib) - kalau gagal, dropdown tetap
-    // jalan pake data rincian usulan ini aja, gak perlu ganggu alur utama dengan toast error.
   }
 }
 
@@ -1967,20 +1933,13 @@ function renderRincianTable() {
   epRenderSumberDanaRingkasan(Object.entries(perSumber).map(([nama, total]) => ({ nama, total })));
 }
 
-// Cache kategori "Objek Belanja" yang beneran punya Rekening/Akun aktif di database - dipake
-// buat nyaring EP_OBJEK_BELANJA_LIST biar kategori kosong (mis. Belanja Bunga/Subsidi di Dinas
-// Kesehatan) gak ditampilin di dropdown. null = belum dimuat (fallback tampilin semua dulu).
 let _epObjekBelanjaTersedia = null;
 async function _epLoadObjekBelanjaTersedia() {
   try {
     const r = await fetch('/api/eplanning/rekening?kategoriTersedia=1', { headers: authHeaders() });
     const d = await r.json();
     if (r.ok) _epObjekBelanjaTersedia = d.kategori || [];
-  } catch { /* noop - biarin fallback tampilin semua */ }
-  // List Objek Belanja kemungkinan udah kebuka duluan sebelum fetch ini selesai (user langsung
-  // klik field-nya pas modal baru dibuka) - refresh biar hasil penyaringannya kepake tanpa
-  // user harus klik ulang. Cuma refresh kalau field-nya masih lagi difokus, biar gak muncul
-  // dropdown sendiri kalau user udah pindah ke field lain.
+  } catch {  }
   if (document.activeElement && document.activeElement.id === 'epRincObjekBelanja') {
     _epObjekBelanjaCombo.search();
   }
@@ -1993,9 +1952,6 @@ async function openRincianItemModal(id = null, readonly = false) {
   delete document.getElementById('epRincKodeRekening').dataset.kode;
   _epRincKodeRekeningActive = '';
   document.getElementById('epRincKomponen').value = '';
-  // selectedIndex = -1 (bukan cuma value = '') biar select-nya beneran kekosongin visualnya -
-  // <select> ini gak punya opsi placeholder ber-value kosong di markup, jadi value = '' doang
-  // gak ngefek dan browser tetap nampilin opsi pertama (SBU) kepilih walau usernya belum milih.
   document.getElementById('epRincKategoriStandar').selectedIndex = -1;
   _epSyncKategoriStandarUi();
   _epUpdateKompSearchBtn();
@@ -2016,8 +1972,6 @@ async function openRincianItemModal(id = null, readonly = false) {
   delete document.getElementById('epRincObjekBelanja').dataset.manualHarga;
   _epSyncKategoriManualOption();
   _epFillKoefisienRows([]);
-  // Baru dokumen baru -> Rekening & sisa field disembunyikan sampe dipilih berjenjang.
-  // Buat edit, langsung dibuka semua biar data yang udah ada kelihatan.
   document.getElementById('epRincRekeningWrap').style.display = id ? '' : 'none';
   document.getElementById('epRincRestFields').style.display = id ? '' : 'none';
   document.getElementById('epRincPengelompokanWrap').style.display = '';
@@ -2054,12 +2008,7 @@ async function openRincianItemModal(id = null, readonly = false) {
       document.getElementById('epRincObjekBelanja').value = r.objek_belanja || '';
       if (r.objek_belanja) document.getElementById('epRincObjekBelanja').dataset.manual = '1';
       else _epAutoFillObjekBelanja();
-      // Data lama yang kategori_standar-nya MANUAL tapi objek_belanja belum kesimpan sebagai
-      // "Manual (Survei Harga)" (dibuat sebelum redesign ini) tetap disembunyikan wrap
-      // Pengelompokan-nya, biar konsisten sama alur Manual yang baru.
       if (r.kategori_standar === 'MANUAL') {
-        // Data yang kesimpan tanpa objek_belanja (bug sebelumnya: server menolak nilai "Manual
-        // (Survei Harga)" & menyimpan null) - isi ulang biar Objek Belanja tetap kepilih pas Edit.
         if (!r.objek_belanja) {
           document.getElementById('epRincObjekBelanja').value = 'Manual (Survei Harga)';
           document.getElementById('epRincObjekBelanja').dataset.manual = '1';
@@ -2067,10 +2016,8 @@ async function openRincianItemModal(id = null, readonly = false) {
         document.getElementById('epRincObjekBelanja').dataset.manualHarga = '1';
         document.getElementById('epRincPengelompokanWrap').style.display = 'none';
         _epRincStandarHargaId = r.standar_harga_id || null;
-        _epMuatSurveiRincian(r); // tampilkan data survei 3 toko (async, gak nahan pembukaan modal)
+        _epMuatSurveiRincian(r);
       }
-      // Baris lama sebelum redesign ini gak punya koefisien_detail - fallback isi Volume 1 pake
-      // volume/koefisien lama biar datanya tetap kebaca, walau gak "resmi" per-pasangan.
       const detail = Array.isArray(r.koefisien_detail) && r.koefisien_detail.length
         ? r.koefisien_detail
         : (r.volume ? [{ volume: Number(r.volume), satuan: r.koefisien || r.satuan || 'Unit' }] : []);
@@ -2083,19 +2030,10 @@ async function openRincianItemModal(id = null, readonly = false) {
   openModal('modalEpRincian');
 }
 
-// Kunci modal Tambah/Edit Rincian jadi mode "Lihat" doang (dipakai verifikator pas usulan
-// udah diajukan - lihat _epRenderRabTab). Nge-disable beneran semua field yang biasanya bisa
-// diisi (bukan cuma sembunyiin tombolnya lewat CSS), plus toggle class .ep-rincian-readonly
-// buat nyembunyiin tombol-tombol aksi (Tambah Paket/Keterangan, cari Komponen, Rekening
-// Penyusun, Simpan) - biar verifikator gak bisa ubah data walau cuma iseng klak-klik.
-// ---- Data survei 3 toko di modal Lihat/Edit Rincian (khusus rincian kategori MANUAL) ----
-// Rincian gak nyimpen relasi ke Standar Harga-nya, jadi datanya dicari lewat endpoint Standar
-// Harga (kategori MANUAL) berdasarkan Komponen + Harga Satuan yang sama, lalu survei_toko-nya
-// (nama/harga/link/bukti tiap toko + ongkir + % keuntungan) ditampilin biar bisa dicek ulang.
 let _epSurveiRincianBukti = { 1: [], 2: [], 3: [] };
 let _epSurveiRincianToken = 0;
-let _epRincStandarHargaId = null; // ID Standar Harga Manual yang dipakai rincian ini (dikirim ke server pas simpan)
-let _epSurveiRincianItem = null; // Standar Harga Manual yang lagi ditampilkan (dipakai buat prefill 'Ubah Survei Harga')
+let _epRincStandarHargaId = null;
+let _epSurveiRincianItem = null;
 function _epSurveiRincianBox() {
   let box = document.getElementById('epRincSurveiBox');
   if (!box) {
@@ -2130,14 +2068,13 @@ async function _epMuatSurveiRincian(r) {
     const d = await res.json();
     const list = Array.isArray(d.standarharga) ? d.standarharga : [];
     const sama = list.filter(x => (x.uraian_barang || '').trim() === (r.komponen || '').trim() && x.survei_toko);
-    // Kalau ada beberapa entri yang cocok (mis. survei diubah tapi harganya sama), pakai yang terbaru.
     sama.sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0));
     item = (r.standar_harga_id && sama.find(x => String(x.id) === String(r.standar_harga_id)))
       || sama.find(x => Number(x.harga_satuan) === Number(r.harga_satuan)) || sama[0] || null;
   } catch { item = null; }
-  if (token !== _epSurveiRincianToken) return; // modal udah ditutup/dibuka ulang buat rincian lain
+  if (token !== _epSurveiRincianToken) return;
   _epSurveiRincianItem = item;
-  if (item && !_epRincStandarHargaId) _epRincStandarHargaId = item.id; // data lama: relasi ketemu lewat komponen+harga, ikut disimpan pas rincian disimpan
+  if (item && !_epRincStandarHargaId) _epRincStandarHargaId = item.id;
   let survei = null;
   try { survei = item ? JSON.parse(item.survei_toko) : null; } catch { survei = null; }
   if (!survei || !Array.isArray(survei.toko) || !survei.toko.length) {
@@ -2177,11 +2114,6 @@ async function _epMuatSurveiRincian(r) {
     ${_epRincReadonly ? '' : !_epBolehUbahSurvei(item) ? `<div class="field-hint">Survei ini diinput oleh ${_epEscHtml(item.dibuat_oleh || 'user lain')}. Hanya penginput dan admin yang bisa mengubahnya - kamu tetap bisa memakainya ulang lewat pilihan Komponen.</div>` : `<button type="button" onclick="epUbahSurveiRincian()" style="display:inline-flex;align-items:center;gap:6px;margin-top:10px;padding:6px 12px;border-radius:8px;border:1.5px solid #99f6e4;background:#ccfbf1;color:#0f766e;cursor:pointer;font-family:inherit;font-size:.75rem;font-weight:600;line-height:1">${EP_ICON_EDIT}Ubah Survei Harga</button>
     <div class="field-hint">Perubahan disimpan ke data survei ini dan langsung dipakai di rincian ini.</div>`}`;
 }
-// Buka kalkulator survei 3 toko yang udah keisi data survei tersimpan, biar user tinggal ubah
-// nama/harga/link/bukti yang perlu. Hasilnya UPDATE Standar Harga Manual yang sama di DB (lewat
-// PUT - server hitung ulang harga & validasi 3 toko), lalu otomatis dipakai di rincian ini.
-// Hak ubah survei manual: admin atau penginput aslinya (dicocokkan lewat ID user, entri lama
-// tanpa ID lewat nama). Server ngecek aturan yang sama - ini cuma buat nyembunyiin tombolnya.
 function _epBolehUbahSurvei(item) {
   if (!item) return false;
   if (epRole().isAdmin) return true;
@@ -2196,7 +2128,6 @@ function epUbahSurveiRincian() {
   try { survei = JSON.parse(item.survei_toko); } catch { survei = null; }
   if (!survei || !Array.isArray(survei.toko)) return;
   epOpenStandarHargaManualFromRincian();
-  // Mode UBAH: epShId diisi ID entri yang ada -> epSaveStandarHarga() kirim PUT (update di DB), bukan POST baru.
   document.getElementById('epShId').value = item.id;
   document.getElementById('modalStandarHargaTitle').textContent = 'Ubah Standar Harga Manual (Survei 3 Toko)';
   document.getElementById('epShSpesifikasi').value = item.spesifikasi || '';
@@ -2228,20 +2159,13 @@ function _epRincianApplyReadonly(readonly) {
   if (modal) modal.classList.toggle('ep-rincian-readonly', readonly);
   const btnBatal = document.getElementById('btnBatalRincian');
   if (btnBatal) btnBatal.innerHTML = readonly ? `<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>Tutup` : `<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"/></svg>Batal`;
-  // Tombol "+ Buat Standar Harga Manual" ikut disembunyikan pas mode Lihat (dihitung ulang sesuai kategori pas dibuka lagi).
   _epUpdateKompSearchBtn();
-  // Field yang normalnya bisa diisi user - paksa disabled kalau readonly. Field yang emang
-  // udah disabled permanen dari HTML (Komponen/TKDN/Spesifikasi/Satuan/Harga/Volume/dst,
-  // yang keisi otomatis dari pilihan Komponen) gak perlu disentuh disini.
   const editableIds = [
     'epRincObjekBelanja', 'epRincKodeRekening', 'epRincJenisPaket', 'epRincUraianPaket',
     'epRincSumberDana', 'epRincKategoriStandar', 'epRincKeterangan',
     'epRincKoefVol1', 'epRincKoefSat1',
   ];
   editableIds.forEach(fid => { const el = document.getElementById(fid); if (el) el.disabled = readonly; });
-  // Vol2-4/Sat2-4 statusnya udah diatur berjenjang sama epUpdateKoefisien() (baris berikutnya
-  // cuma aktif kalau baris sebelumnya keisi) - jangan disentuh pas readonly=false biar gak
-  // ngerusak logic itu, tapi kalau readonly=true paksa disabled semua tanpa kecuali.
   if (readonly) {
     ['epRincKoefVol2', 'epRincKoefSat2', 'epRincKoefVol3', 'epRincKoefSat3', 'epRincKoefVol4', 'epRincKoefSat4']
       .forEach(fid => { const el = document.getElementById(fid); if (el) el.disabled = true; });
@@ -2256,8 +2180,6 @@ async function epLoadSumberDanaOptions() {
     const r = await fetch('/api/eplanning/sumberdana', { headers: authHeaders() });
     const d = await r.json();
     const all = d.sumberdana || [];
-    // Verifikator/admin tetap bisa pilih sumber dana yang di-nonaktifkan (mis. saat mengoreksi
-    // usulan yang sudah masuk); user biasa cuma lihat yang aktif.
     _epRincSumberDanaOptions = epRole().isAdmin ? all : all.filter(s => s.aktif !== false);
   } catch { _epRincSumberDanaOptions = []; }
 }
@@ -2276,11 +2198,6 @@ function epUpdateRincianSubtotal() {
   document.getElementById('epRincTotalBelanja').value = epFmtRupiah(v * h);
 }
 
-// Kode Rekening yang lagi aktif kepilih di modal Tambah Rincian Belanja (epRincKodeRekening).
-// Disimpen terpisah dari dataset.kode di input-nya, karena dataset.kode itu keburu dihapus
-// lagi tiap field-nya di-fokus ulang (lihat search() di bawah) - jadi gak bisa diandelin
-// buat filter Komponen. Cuma di-reset di titik yang emang seharusnya (buka form baru /
-// ganti Objek Belanja), bukan tiap kali field di-klik/fokus.
 let _epRincKodeRekeningActive = '';
 
 function _epMakeRekeningCombobox(inputId) {
@@ -2357,8 +2274,6 @@ function _epMakeRekeningCombobox(inputId) {
         div.className = 'csel-option';
         div.innerHTML = `<span class="csel-option-check"></span><span><b>${esc(x.kode_rekening)}</b> - ${esc(x.nama_rekening)}</span>`;
         div.addEventListener('click', () => {
-          // Tampilin kode-nya juga di field, biar keliatan kode rekening yang beneran
-          // kepilih (nggak cuma namanya doang) - berguna juga buat verifikasi manual.
           input.value = `${x.kode_rekening} - ${x.nama_rekening}`;
           input.dataset.kode = x.kode_rekening;
           if (inputId === 'epRincKodeRekening') {
@@ -2381,10 +2296,6 @@ function _epMakeRekeningCombobox(inputId) {
     delete input.dataset.kode; 
     if (q.length === 1) { renderState('Ketik minimal 2 huruf…'); return; }
     renderState(q.length === 0 ? '<span class="btn-spin" style="width:11px;height:11px;vertical-align:-1px;margin-right:6px"></span>Memuat rekening yang sering dipakai…' : '<span class="btn-spin" style="width:11px;height:11px;vertical-align:-1px;margin-right:6px"></span>Mencari…');
-    // Kirim kategori Objek Belanja yang udah dipilih ke backend, biar query-nya disaring
-    // langsung ke rekening yang cocok sama kategori itu - bukan cuma nyaring top-30 rekening
-    // paling sering dipake se-instansi di client (kategori jarang dipake bisa keluar dari
-    // top-30 umum itu walau sebenernya ada rekeningnya).
     let kategoriParam = '';
     if (inputId === 'epRincKodeRekening') {
       const objekBelanja = document.getElementById('epRincObjekBelanja')?.value || '';
@@ -2605,8 +2516,6 @@ function _epMakeLocalCombobox({ inputId, getOptions, matchText, renderOption, on
     p.style.visibility = 'visible';
   }
 
-  // Nyoroti opsi ke-idx (dipake pas navigasi panah atas/bawah, atau pas hover mouse biar konsisten
-  // sama posisi keyboard). Style-nya inline biar gak gantung ke class CSS yang mungkin belum ada.
   function setActive(idx) {
     if (optionEls[activeIndex]) {
       optionEls[activeIndex].style.background = '';
@@ -2633,10 +2542,6 @@ function _epMakeLocalCombobox({ inputId, getOptions, matchText, renderOption, on
     const q = input.value.trim().toLowerCase();
     const all = getOptions();
     const cocok = q ? all.filter(x => matchText(x).toLowerCase().includes(q)) : all;
-    // Riwayat Uraian Paket/Keterangan bisa numpuk ratusan-ribuan item lintas tahun anggaran -
-    // ngerender semuanya jadi elemen DOM tiap 1 huruf diketik itu yang bikin lag. Cukup
-    // tampilin 50 kecocokan teratas dulu, biar user makin ngetik makin ke-persempit hasilnya.
-    // "list" (dipake juga buat navigasi panah atas/bawah) sengaja cuma isi yang ditampilin ini.
     const TAMPIL_MAKS = 50;
     list = cocok.slice(0, TAMPIL_MAKS);
     const lebihBanyak = cocok.length - list.length;
@@ -2648,8 +2553,6 @@ function _epMakeLocalCombobox({ inputId, getOptions, matchText, renderOption, on
     if (!list.length) {
       p.innerHTML = `<div class="csel-empty">${all.length ? 'Tidak ditemukan' : 'Belum ada data master'}</div>`;
       if (!all.length) {
-        // Belum ada data master sama sekali - cukup tampil sebentar sebagai info,
-        // gak perlu nunggu diklik di luar buat nutupnya.
         emptyCloseTimer = setTimeout(() => close(), 2000);
       }
     } else {
@@ -2660,11 +2563,6 @@ function _epMakeLocalCombobox({ inputId, getOptions, matchText, renderOption, on
         div.innerHTML = `<span class="csel-option-check"></span><span>${renderOption(x)}</span>`
           + (bisaHapus ? `<button type="button" class="csel-option-del" data-tip="Hapus">${EP_ICON_TRASH}</button>` : '');
         div.addEventListener('mouseenter', () => setActive(idx));
-        // mousedown (bukan click) + preventDefault: klik opsi ini gak boleh bikin input blur
-        // duluan (browser default mousedown = pindah fokus) - kalau kepindah/ke-blur duluan,
-        // klik/pick-nya bisa gagal ke-daftar tergantung timing, jadinya opsi keliatan gak
-        // bisa dipilih padahal hover/highlight-nya jalan normal. Skip kalau yang diklik tombol
-        // hapus (ditangani listener 'click' terpisah di bawah, biar gak ke-anggep milih opsi).
         div.addEventListener('mousedown', (e) => {
           if (e.target.closest('.csel-option-del')) return;
           e.preventDefault();
@@ -2673,9 +2571,9 @@ function _epMakeLocalCombobox({ inputId, getOptions, matchText, renderOption, on
         });
         if (bisaHapus) {
           div.querySelector('.csel-option-del').addEventListener('click', (e) => {
-            e.stopPropagation(); // jangan sampe ke-anggep milih opsi ini
+            e.stopPropagation();
             onDelete(x);
-            search(); // refresh list + posisi ulang panel setelah item ilang
+            search();
           });
         }
         p.appendChild(div);
@@ -2690,9 +2588,6 @@ function _epMakeLocalCombobox({ inputId, getOptions, matchText, renderOption, on
     }
     position();
 
-    // Navigasi panah atas/bawah buat pindah opsi, Enter buat milih opsi yang lagi disorot, dan
-    // Tab tetap pindah fokus ke field berikutnya seperti biasa tapi sekalian milih opsi yang lagi
-    // disorot (kalau ada) - jadi user gak perlu klik mouse buat milih dari daftar.
     if (!inputBound) {
       inputBound = true;
       input.addEventListener('keydown', (e) => {
@@ -2729,8 +2624,6 @@ const _epSumberDanaCombo = _epMakeLocalCombobox({
 });
 function epSearchSumberDana() { _epSumberDanaCombo.search(); }
 
-// Field "Satuan" (dulu numpang di "Koefisien" sebagai teks bebas kayak "1 Unit") sekarang field
-// sendiri, tapi tetap pake master data satuan yang sama biar gampang milih dari daftar.
 const _epSatuanCombo = _epMakeLocalCombobox({
   inputId: 'epRincSatuan',
   getOptions: () => _epRincSatuanOptions,
@@ -2739,9 +2632,6 @@ const _epSatuanCombo = _epMakeLocalCombobox({
   onPick: (input, x) => { input.value = x.nama; epUpdateKoefisien(); },
 });
 
-// Satuan di modal Standar Harga Manual (Survei 3 Toko) - field bebas ketik sebelumnya bikin
-// data satuan gak konsisten sama master (mis. "pcs" vs "Buah") - sekarang pake combobox yang
-// sama sumber datanya (_epRincSatuanOptions) biar user tinggal pilih dari daftar yang udah ada.
 const _epShSatuanCombo = _epMakeLocalCombobox({
   inputId: 'epShSatuan',
   getOptions: () => _epRincSatuanOptions,
@@ -2754,10 +2644,6 @@ function epSearchShSatuan() {
   else _epShSatuanCombo.search();
 }
 
-// Satuan 1-4 di blok Koefisien (Perkalian) - dulu Satuan 1 ke-auto-isi dari satuan Komponen yang
-// dipilih, tapi itu sering keliru (satuan Komponen belum tentu sama kayak satuan yang dipake
-// buat ngitung Volume). Sekarang user milih sendiri dari master Satuan, sama kayak field Satuan
-// biasa - berlaku juga buat baris 2/3/4, gak cuma baris pertama.
 function _epMakeKoefSatCombo(inputId) {
   return _epMakeLocalCombobox({
     inputId,
@@ -2776,14 +2662,6 @@ function epSearchKoefSat2() { _epKoefSat2Combo.search(); }
 function epSearchKoefSat3() { _epKoefSat3Combo.search(); }
 function epSearchKoefSat4() { _epKoefSat4Combo.search(); }
 
-// Keterangan sekarang combobox: bukan daftar baku/hardcode, murni dari keterangan yang udah
-// pernah diketik user sendiri buat kegiatan ini - biar bebas nyesuaiin sama kegiatannya masing-masing.
-// Opsi digabung dari 3 sumber: _epKeteranganRiwayat (riwayat lintas usulan/tahun anggaran buat
-// kegiatan/sub_kegiatan yang sama, dari server - lihat _epLoadRincianRiwayat), rincian di usulan
-// yang lagi dibuka sekarang, dan _epKeteranganCustom (baru diketik lewat modal, belum tersimpan).
-// Tetap boleh ketik bebas (link "+ Tambah Keterangan" cuma fokus & bersihin input biar jelas
-// kalau lagi nulis keterangan baru - bukan master data terpisah). Dropdown-nya udah searchable
-// dari sono - ngetik di field-nya langsung nge-filter opsi (lihat oninput di app.html).
 let _epKeteranganCustom = [];
 const _epKeteranganCombo = _epMakeLocalCombobox({
   inputId: 'epRincKeterangan',
@@ -2795,9 +2673,6 @@ const _epKeteranganCombo = _epMakeLocalCombobox({
   matchText: x => x.nama,
   renderOption: x => esc(x.nama),
   onPick: (input, x) => { input.value = x.nama; },
-  // Cuma boleh dihapus kalau: (a) sumbernya custom/riwayat, DAN (b) lagi gak dipake di
-  // rincian manapun di usulan ini sekarang. Kalau masih dipake (dariRincian), sengaja
-  // gak dikasih tombol hapus - biar gak ilang dari list padahal masih nempel di suatu baris.
   canDelete: x => (_epKeteranganCustom.includes(x.nama) || _epKeteranganRiwayat.includes(x.nama))
     && !(_epRincianList || []).some(r => r.keterangan === x.nama),
   onDelete: (x) => {
@@ -2810,7 +2685,7 @@ const _epKeteranganCombo = _epMakeLocalCombobox({
 function epSearchKeterangan() { _epKeteranganCombo.search(); }
 function epFocusKeteranganBaru(e) {
   e.preventDefault();
-  e.stopPropagation(); // biar klik-nya gak ke-anggep "klik di luar" sama listener combobox document, yang langsung nutup lagi panel yang baru kebuka
+  e.stopPropagation();
   _epKeteranganCombo.close();
   document.getElementById('epKeteranganBaru').value = '';
   openModal('modalEpKeterangan');
@@ -2832,16 +2707,8 @@ function epSimpanKeteranganBaru() {
   }
   if (!_epKeteranganCustom.includes(nilai)) _epKeteranganCustom.push(nilai);
   closeModal('modalEpKeterangan');
-  // Sengaja gak auto-focus/buka dropdown-nya - biar user yang klik sendiri field-nya kalau mau
-  // lihat/pilih dari daftar (field-nya juga punya onfocus yang otomatis buka dropdown, jadi
-  // manggil focus() di sini bakal ikut buka dropdown juga walau gak diinginkan).
 }
 
-// Uraian Pengelompokan Belanja/Paket Pekerjaan: istilah standar SIPD-RI - field "Pengelompokan
-// Belanja/Paket Pekerjaan" pilih jenis (Pemaketan Belanja / Pengelompokan Belanja) lewat <select>,
-// lalu "Uraian"-nya combobox bebas ketik, pola persis sama kayak Keterangan di atas: opsi diambil
-// dari uraian yang udah pernah dipakai di usulan ini + yang baru ditambahkan lewat tombol
-// "+ Tambah Paket Belanja" (bukan master data terpisah).
 let _epUraianPaketCustom = [];
 const _epUraianPaketCombo = _epMakeLocalCombobox({
   inputId: 'epRincUraianPaket',
@@ -2853,8 +2720,6 @@ const _epUraianPaketCombo = _epMakeLocalCombobox({
   matchText: x => x.nama,
   renderOption: x => esc(x.nama),
   onPick: (input, x) => { input.value = x.nama; },
-  // Sama kayak Keterangan: cuma boleh dihapus kalau custom/riwayat DAN lagi gak dipake
-  // di rincian manapun di usulan ini sekarang.
   canDelete: x => (_epUraianPaketCustom.includes(x.nama) || _epUraianPaketRiwayat.includes(x.nama))
     && !(_epRincianList || []).some(r => r.uraian_paket === x.nama),
   onDelete: (x) => {
@@ -2867,7 +2732,7 @@ const _epUraianPaketCombo = _epMakeLocalCombobox({
 function epSearchUraianPaket() { _epUraianPaketCombo.search(); }
 function epFocusUraianPaketBaru(e) {
   e.preventDefault();
-  e.stopPropagation(); // biar klik-nya gak ke-anggep "klik di luar" sama listener combobox document
+  e.stopPropagation();
   _epUraianPaketCombo.close();
   document.getElementById('epUraianPaketBaru').value = '';
   openModal('modalEpUraianPaket');
@@ -2889,13 +2754,8 @@ function epSimpanUraianPaketBaru() {
   }
   if (!_epUraianPaketCustom.includes(nilai)) _epUraianPaketCustom.push(nilai);
   closeModal('modalEpUraianPaket');
-  // Sengaja gak auto-focus/buka dropdown-nya - biar user yang klik sendiri field-nya kalau mau
-  // lihat/pilih dari daftar (field-nya juga punya onfocus yang otomatis buka dropdown, jadi
-  // manggil focus() di sini bakal ikut buka dropdown juga walau gak diinginkan).
 }
 
-// Koefisien (Perkalian): sampe 4 pasang Volume x Satuan yang hasil kalinya jadi Volume final -
-// niru pola SIPD. Baris ke-2/3/4 baru kebuka begitu baris sebelumnya udah lengkap diisi.
 function epUpdateKoefisien() {
   const rows = [1, 2, 3, 4].map(n => ({
     volEl: document.getElementById(`epRincKoefVol${n}`),
@@ -2933,8 +2793,6 @@ function _epKoefisienDetailFromRows() {
   }
   return rows;
 }
-// Tombol "Simpan" di modal Tambah/Edit Rincian cuma aktif kalau semua field wajib udah
-// keisi - dicek pake syarat yang sama kayak validasi di saveRincianItem().
 function _epUpdateSaveRincianBtn() {
   const btn = document.getElementById('btnSimpanRincian');
   if (!btn) return;
@@ -2949,12 +2807,7 @@ function _epUpdateSaveRincianBtn() {
   const jenisPaket = document.getElementById('epRincJenisPaket').value;
   const uraianPaket = document.getElementById('epRincUraianPaket').value.trim();
   const koefisienOk = _epKoefisienDetailFromRows().length > 0;
-  // Rekening/Akun cuma wajib buat kategori selain Manual (Survei Harga) - Manual justru
-  // dipakai buat barang yang standar harganya belum ada di rekening manapun, jadi Simpan gak
-  // boleh ke-lock cuma gara-gara Rekening/Akun kosong pas kategorinya Manual.
   const kodeOk = kategori === 'MANUAL' || !!kode;
-  // Pengelompokan Belanja/Paket Pekerjaan juga gak relevan buat Objek Belanja "Manual (Survei
-  // Harga)" - berasal dari struktur rekening/DPA yang emang gak dipakai jalur Manual ini.
   const pengelompokanOk = isManualHarga || (jenisPaket && uraianPaket);
   btn.disabled = !(objek && kodeOk && sumberDana && kategori && komponen && pengelompokanOk && koefisienOk);
 }
@@ -2984,8 +2837,6 @@ const _epKoefisienComboNew = _epMakeLocalCombobox({
   onPick: (input, x) => { input.value = x.kode ? `${x.kode} - ${x.nama}` : x.nama; },
 });
 
-// Mirror dari mapping di backend (netlify/functions/eplanning.js: resolveObjekBelanja) — dipakai buat
-// auto-isi field "Objek Belanja" di UI secara live. Sumber kebenaran tetap di backend pas simpan.
 const EP_OBJEK_BELANJA_PREFIX_MAP = [
   ['5.1.05.02', 'Belanja Hibah (Barang/Jasa)'],
   ['5.1.05.01', 'Belanja Hibah (Uang)'],
@@ -3015,9 +2866,6 @@ const EP_OBJEK_BELANJA_LIST = [
   'Belanja Bantuan Keuangan Khusus', 'Belanja Tidak Terduga (BTT)', 'Dana BOS (BOS Pusat)',
   'Belanja Operasional (BLUD)', 'Pembebasan Tanah/Lahan', 'Manual (Survei Harga)',
 ];
-// Munculin blok "Kode/Nama Rekening" begitu Objek Belanja udah dipilih, dan blok field
-// sisanya (Komponen, Spesifikasi, dst) begitu Kode Rekening juga udah dipilih — niru alur
-// SIPD: Objek Belanja -> Rekening/Akun -> baru field lain kebuka satu-satu.
 function _epRevealRekeningWrap() {
   const el = document.getElementById('epRincRekeningWrap');
   if (el) el.style.display = '';
@@ -3026,8 +2874,6 @@ function _epRevealRincRestFields() {
   const el = document.getElementById('epRincRestFields');
   if (el) el.style.display = '';
 }
-// Kategori yang gak ditentuin dari prefix Kode Rekening (soal Sumber Dana/manual) - selalu
-// ditampilin di dropdown, gak ikut disaring sama _epObjekBelanjaTersedia.
 const EP_OBJEK_BELANJA_TANPA_PREFIX = ['Dana BOS (BOS Pusat)', 'Belanja Operasional (BLUD)', 'Pembebasan Tanah/Lahan', 'Manual (Survei Harga)'];
 const _epObjekBelanjaCombo = _epMakeLocalCombobox({
   inputId: 'epRincObjekBelanja',
@@ -3039,10 +2885,6 @@ const _epObjekBelanjaCombo = _epMakeLocalCombobox({
   onPick: (input, x) => {
     input.value = x.nama;
     input.dataset.manual = '1';
-    // Objek Belanja "Manual (Survei Harga)" dipilih langsung sebagai jalan pintas: barang yang
-    // belum ada standar harganya di rekening manapun, jadi Rekening/Akun dan Pengelompokan
-    // Belanja/Paket Pekerjaan (yang berasal dari struktur rekening/DPA) gak relevan buat dipilih -
-    // langsung skip ke Jenis Standar Harga = MANUAL dan buka modal Survei Harga-nya.
     const isManualHarga = x.nama === 'Manual (Survei Harga)';
     input.dataset.manualHarga = isManualHarga ? '1' : '';
     if (!isManualHarga) _epLepasKategoriManual();
@@ -3059,17 +2901,7 @@ const _epObjekBelanjaCombo = _epMakeLocalCombobox({
       _epRevealRekeningWrap();
       if (pengelompokanWrap) pengelompokanWrap.style.display = '';
     }
-    // Field sisanya (Pengelompokan Belanja, Sumber Dana, Jenis Standar Harga, Komponen, dst)
-    // dibuka bareng Rekening/Akun di sini - TIDAK nunggu Rekening/Akun beneran dipilih.
-    // Sebelumnya blok ini ditutup ulang tiap ganti Objek Belanja dan cuma kebuka lagi setelah
-    // Rekening/Akun dipilih, artinya user wajib milih Rekening/Akun dulu baru bisa milih Jenis
-    // Standar Harga. Itu keliru khusus buat kategori Manual (Survei Harga): Manual dipakai
-    // justru buat barang yang standar harganya belum ada di sistem/rekening manapun, jadi gak
-    // boleh dipaksa nunggu Rekening/Akun dulu.
     _epRevealRincRestFields();
-    // Ganti Objek Belanja -> kode rekening yang udah dipilih sebelumnya (kalau ada) mungkin
-    // udah gak nyambung sama kategori baru, jadi dikosongin biar user milih ulang dari daftar
-    // yang udah disaring.
     const rekInput = document.getElementById('epRincKodeRekening');
     if (rekInput) { rekInput.value = ''; delete rekInput.dataset.kode; }
     _epRincKodeRekeningActive = '';
@@ -3082,8 +2914,6 @@ const _epObjekBelanjaCombo = _epMakeLocalCombobox({
   },
 });
 function epSearchObjekBelanja() { _epObjekBelanjaCombo.search(); }
-// Dipanggil tiap Kode Rekening atau Sumber Dana di modal Tambah Rincian berubah. Gak nimpa pilihan
-// kalau usernya udah pernah ganti manual (dataset.manual === '1').
 function _epAutoFillObjekBelanja() {
   const input = document.getElementById('epRincObjekBelanja');
   if (!input || input.dataset.manual === '1') return;
@@ -3094,7 +2924,7 @@ function _epAutoFillObjekBelanja() {
 }
 
 async function saveRincianItem() {
-  if (_epRincReadonly) return; // jaga-jaga: modal lagi mode Lihat, gak boleh nyimpen apapun
+  if (_epRincReadonly) return;
   const id = document.getElementById('epRincianId').value || null;
   const objekBelanjaInput = document.getElementById('epRincObjekBelanja');
   const objek_belanja = objekBelanjaInput.value.trim();
@@ -3112,8 +2942,6 @@ async function saveRincianItem() {
   if (!isManualHarga && !jenis_paket) { toast('Pengelompokan Belanja/Paket Pekerjaan wajib dipilih', 'error'); return; }
   const uraian_paket = document.getElementById('epRincUraianPaket').value.trim();
   if (!isManualHarga && !uraian_paket) { toast('Uraian Pengelompokan Belanja/Paket Pekerjaan wajib diisi', 'error'); return; }
-  // Nilai Keterangan/Uraian Paket yang diketik bebas (bukan lewat modal "+ Tambah") langsung
-  // kepush ke daftar custom, biar langsung kepilih/nongol lagi tanpa nunggu reload data server.
   const keterangan = document.getElementById('epRincKeterangan').value.trim();
   if (keterangan && !_epKeteranganCustom.includes(keterangan)) _epKeteranganCustom.push(keterangan);
   if (uraian_paket && !_epUraianPaketCustom.includes(uraian_paket)) _epUraianPaketCustom.push(uraian_paket);
@@ -3136,8 +2964,6 @@ async function saveRincianItem() {
     koefisien_detail: koefisienDetail,
     volume: document.getElementById('epRincVolume').value,
     harga_satuan: document.getElementById('epRincHarga').dataset.raw || '',
-    // Cuma dikirim eksplisit kalau user ganti manual; kalau enggak, biar backend yang derive
-    // dari kode_rekening/sumber_dana (lihat resolveObjekBelanja di eplanning.js).
     objek_belanja: objekBelanjaInput.dataset.manual === '1' ? objek_belanja : '',
   };
   try {
@@ -3989,8 +3815,6 @@ function _epMakeStandarHargaCombobox(inputId, kategoriSelectId, opts = {}) {
     if (opts.onTyping) opts.onTyping();
     if (q.length === 1) { renderState('Ketik minimal 2 huruf…'); return; }
     renderState(q.length === 0 ? '<span class="btn-spin" style="width:11px;height:11px;vertical-align:-1px;margin-right:6px"></span>Memuat komponen…' : '<span class="btn-spin" style="width:11px;height:11px;vertical-align:-1px;margin-right:6px"></span>Mencari…');
-    // Kode Rekening yang lagi kepilih di form (kalau ada) dikirim biar komponen yang relevan
-    // sama rekening itu diprioritasin naik ke atas hasil pencarian.
     const kodeRekening = _epRincKodeRekeningActive || document.getElementById('epRincKodeRekening')?.dataset.kode || '';
     try {
       const qs = new URLSearchParams({ q, kategori, ...(tahun ? { tahun } : {}), ...(kodeRekening ? { kode_rekening: kodeRekening } : {}) });
@@ -4004,8 +3828,6 @@ function _epMakeStandarHargaCombobox(inputId, kategoriSelectId, opts = {}) {
   return { search, close };
 }
 
-// Fungsi bersama buat nerapin komponen terpilih ke form Rincian Belanja -
-// dipakai baik dari combobox ketik-cari maupun dari modal picker (search icon).
 function _epApplyStandarHargaPick(x) {
   _epPickedStandarHarga = x;
   _epRincStandarHargaId = x.kategori === 'MANUAL' ? (x.id || null) : null;
@@ -4045,53 +3867,30 @@ function _epResetKomponenPick() {
   document.getElementById('epRincTkdn').value = '';
 }
 
-// Tombol search Komponen cuma boleh diklik kalau Jenis Standar Harga udah dipilih spesifik
-// (bukan "Semua"/kosong) - soalnya endpoint standarharga butuh kategori yang jelas buat nyaring.
 function _epUpdateKompSearchBtn() {
   const kategori = document.getElementById('epRincKategoriStandar').value;
   document.getElementById('btnKompSearch').disabled = !kategori;
-  // Tombol "+ Buat Standar Harga Manual" cuma relevan kalau kategorinya MANUAL - pengganti
-  // cari-di-daftar (yang tetep bisa dipakai buat milih ulang entri MANUAL yang udah pernah dibuat).
   const btnManual = document.getElementById('btnBuatStandarHargaManual');
-  // Mode Lihat (readonly) gak boleh bikin Standar Harga baru - tombolnya tetap disembunyikan.
   if (btnManual) btnManual.style.display = (kategori === 'MANUAL' && !_epRincReadonly) ? '' : 'none';
 }
 
-// Manual (Survei Harga) dipakai justru buat barang yang belum ada standar harganya di
-// rekening manapun - beda dari SSH/HSPK/ASB/SBU yang butuh Rekening/Akun buat nyaring daftar
-// Komponen yang tersedia di rekening itu (alur SIPD: Rekening/Akun -> Komponen). Karena itu
-// Rekening/Akun gak relevan/gak wajib dipilih pas Jenis Standar Harga = Manual, jadi field-nya
-// disembunyikan begitu Manual dipilih (dan dikosongin biar gak ada nilai lama yang kebawa) -
-// dimunculin lagi kalau usernya ganti balik ke kategori selain Manual.
 function _epUpdateRekeningWrapVisibility(kategoriStandar) {
   const rekWrap = document.getElementById('epRincRekeningWrap');
   if (!rekWrap) return;
   if (kategoriStandar === 'MANUAL') {
     rekWrap.style.display = 'none';
   } else if (document.getElementById('epRincObjekBelanja').value.trim()) {
-    // Cuma dimunculin lagi kalau Objek Belanja emang udah dipilih (kalau belum, biarin
-    // ngikutin state default modal yang masih ketutup dari awal).
     _epRevealRekeningWrap();
   }
 }
 
-// Dipanggil dari onchange select Jenis Standar Harga (lihat _epRincKategoriStandarChanged di bawah).
-// <select> Pengelompokan Belanja / Paket Pekerjaan juga dibungkus custom select - sama kayak Jenis
-// Standar Harga, tampilannya gak ikut berubah kalau value-nya di-set lewat kode (mis. buka Edit,
-// reset form), jadi harus disinkronkan manual (dulu tetap "Pilih jenis..." padahal udah keisi).
 function _epSyncJenisPaketUi() {
   if (typeof syncCustomSelect === 'function') syncCustomSelect('epRincJenisPaket');
 }
-// <select> Jenis Standar Harga dibungkus custom select (.select-wrap) - tampilan tombolnya cuma
-// ke-update otomatis kalau user milih lewat dropdown. Kalau value di-set lewat kode (mis. Objek
-// Belanja "Manual (Survei Harga)" atau buka data Edit), harus dipanggil ini biar teks yang
-// tampil ikut berubah (dulu tetap "Semua" walau nilainya udah MANUAL).
 function _epSyncKategoriStandarUi() {
   const sel = document.getElementById('epRincKategoriStandar');
   if (!sel) return;
   if (sel.selectedIndex < 0) {
-    // Belum ada yang dipilih (habis reset) -> tampilkan teks opsi pertama ("Semua") sbg placeholder
-    // & lepas tanda terpilih di daftar opsinya, bukan tanda "-" bawaan syncCustomSelect.
     const wrap = sel.closest('.select-wrap');
     const textEl = wrap?.querySelector('.csel-trigger .csel-trigger-text');
     if (textEl) { textEl.textContent = sel.options[0]?.text || '-'; textEl.classList.add('placeholder'); }
@@ -4100,10 +3899,6 @@ function _epSyncKategoriStandarUi() {
   }
   if (typeof syncCustomSelect === 'function') syncCustomSelect('epRincKategoriStandar');
 }
-// Opsi "Manual (Survei Harga)" di dropdown Jenis Standar Harga HANYA boleh ada kalau Objek Belanja-nya
-// "Manual (Survei Harga)" - pintu masuk Manual itu lewat Objek Belanja, bukan lewat dropdown ini.
-// Opsinya dicabut/dipasang lagi dari <select> (bukan cuma disembunyiin) karena daftar custom select
-// dirender dari sel.options tiap dibuka.
 let _epKatManualOpt = null;
 function _epSyncKategoriManualOption(paksaTampil) {
   const sel = document.getElementById('epRincKategoriStandar');
@@ -4116,15 +3911,11 @@ function _epSyncKategoriManualOption(paksaTampil) {
   const idxSebelum = sel.selectedIndex;
   if (tampil) sel.appendChild(_epKatManualOpt || new Option('Manual (Survei Harga)', 'MANUAL'));
   else ada.remove();
-  // Ubah opsi bikin browser otomatis milih opsi pertama kalau sebelumnya belum ada yang kepilih
-  // (selectedIndex -1) & MutationObserver custom select nimpa teks trigger jadi "-" -> balikin.
   if (idxSebelum < 0) {
     sel.selectedIndex = -1;
     queueMicrotask(_epSyncKategoriStandarUi);
   }
 }
-// Objek Belanja diganti dari Manual ke yang lain: pilihan Jenis Standar Harga = Manual beserta
-// komponen hasil pilihannya (data Manual) ikut dilepas, biar gak nyangkut di kategori non-Manual.
 function _epLepasKategoriManual() {
   const sel = document.getElementById('epRincKategoriStandar');
   if (!sel || sel.value !== 'MANUAL') return;
@@ -4151,9 +3942,6 @@ function _epRincKategoriStandarChanged() {
     _epRincKodeRekeningActive = '';
   }
   _epUpdateSaveRincianBtn();
-  // Modal Standar Harga Manual (Survei 3 Toko) TIDAK lagi kebuka otomatis pas Manual dipilih -
-  // user harus bisa milih dulu dari daftar Manual yang udah pernah diinput (ikon search di
-  // sebelah Komponen). Kalau mau bikin baru, klik tombol "+ Buat Standar Harga Manual".
 }
 
 const _epStandarHargaCombo = _epMakeStandarHargaCombobox('epRincKomponen', 'epRincKategoriStandar', {
@@ -4161,13 +3949,12 @@ const _epStandarHargaCombo = _epMakeStandarHargaCombobox('epRincKomponen', 'epRi
   onTyping: () => _epResetKomponenPick(),
 });
 
-// --- Modal picker "Komponen" (klik icon Search di sebelah field Komponen) ---
 let _epKompPickPage = 1;
 const _epKompPickPageSize = 8;
 let _epKompPickRows = [];
 
 function epOpenKomponenPicker() {
-  if (!document.getElementById('epRincKategoriStandar').value) return; // jaga-jaga kalau ke-trigger walau tombol lagi disabled
+  if (!document.getElementById('epRincKategoriStandar').value) return;
   document.getElementById('epKompPickSearch').value = '';
   openModal('modalEpKomponenPicker');
   epLoadKomponenPicker(1);
@@ -4190,12 +3977,8 @@ async function epLoadKomponenPicker(page) {
     const rows = d.standarharga || [];
     _epKompPickRows = rows;
     if (!rows.length) {
-      // Kalau ada Kode Rekening aktif tapi hasilnya kosong, itu artinya emang belum ada
-      // satupun komponen yang ditag ke rekening itu (bukan bug, tapi data belum lengkap).
       tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;color:var(--text-secondary,#64748b)">${kodeRekening ? 'Belum ada komponen yang ditag ke Kode Rekening ini' : 'Tidak ditemukan'}</td></tr>`;
     } else {
-      // Backend udah nyaring cuma yang kode_rekening-nya cocok sama Kode Rekening yang
-      // lagi aktif di form (kalau ada), jadi semua baris di sini emang relevan.
       tbody.innerHTML = rows.map((x, i) => `
         <tr class="csel-row" style="cursor:pointer" onclick="epPickKomponenFromModal(${i})">
           <td>${esc(x.uraian_barang || '')}</td>
@@ -4592,7 +4375,6 @@ async function epLoadStandarHarga(page = 1) {
         </tr>`;
       }).join('') : `<tr class="empty-row"><td colspan="9">${search ? 'Tidak ada komponen yang cocok' : 'Belum ada data - impor dari Excel dulu'}</td></tr>`;
     }
-    // Pagination Standar Harga custom (tidak lewat renderPagination) -> ingat/pulihkan halaman manual.
     const _shPages = Math.ceil((d.total || 0) / _epShPageSize);
     const _shRestore = (page === 1 && _shPages > 1 && typeof _pgTakeRestore === 'function') ? _pgTakeRestore('epStandarHargaPg', _shPages) : 0;
     if (_shRestore > 1) { epLoadStandarHarga(_shRestore); return; }
@@ -4612,24 +4394,12 @@ async function epLoadStandarHarga(page = 1) {
   if (btnPengaturan) btnPengaturan.style.display = isAdminNow ? '' : 'none';
 }
 
-// ---- Kalkulator "Hitung dari Survei Harga (3 Toko)" di modal Tambah/Edit Standar Harga ----
-// Parameter (% pajak, % inflasi) dulu di-hardcode, lalu sempet jadi 1
-// angka global (untung/pajak) + inflasi per-tahun terpisah - sekarang SEMUANYA per Tahun
-// Anggaran dalam 1 daftar {tahun, persen_pajak, persen_inflasi}, biar
-// perubahan setting buat TA baru (mis. 2027) gak ikut ngubah TA yang udah jalan (mis. 2026).
-// Tahun yang gak ada barisnya di sini = "belum diatur admin" (dipakein fallback darurat di
-// bawah + label peringatan, sama kayak pola lama buat Indeks Inflasi).
 const _EP_PERSEN_PAJAK_FALLBACK = 12.5;
 let _epPengaturanTahunan = [];
 let _epPengaturanTahunanLoaded = false;
 function _epCariPengaturanTahun(tahun) {
   return _epPengaturanTahunan.find(r => parseInt(r.tahun, 10) === tahun) || null;
 }
-// Bukti harga per toko sekarang bisa lebih dari 1 file (dulu cuma 1 - lihat epUploadBuktiToko
-// di bawah), niru pola _dukungState di Kinerja: array of {url, name, _loading}. Disimpen ke
-// backend sbg JSON string di kolom bukti_url yang sama (reuse kolom, gak perlu migrasi DB) -
-// kalau isinya cuma 1 string URL biasa (data lama sebelum fitur ini ada), itu ke-detect di
-// _epMuatBuktiToko sbg fallback single-file.
 let _epBuktiToko = { 1: [], 2: [], 3: [] };
 function _epEscHtml(s) {
   return String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -4640,11 +4410,10 @@ async function epLoadPengaturanTahunan(force = false) {
     const r = await fetch('/api/eplanning/pengaturantahunan', { headers: authHeaders() });
     const d = await r.json();
     if (r.ok && Array.isArray(d.pengaturan)) { _epPengaturanTahunan = d.pengaturan; _epPengaturanTahunanLoaded = true; }
-  } catch { /* noop - biarin fallback (kosong = tiap tahun dianggap belum diatur) kepake */ }
+  } catch {  }
   return _epPengaturanTahunan;
 }
 
-// Nama dipertahankan (dipanggil di banyak titik) - sekarang cuma 1 sumber yang perlu dimuat.
 async function _epLoadKalkulatorSemua(force = false) {
   await epLoadPengaturanTahunan(force);
 }
@@ -4660,9 +4429,6 @@ function _epRupiah(n) {
   return 'Rp' + Math.round(n || 0).toLocaleString('id-ID');
 }
 
-// Format live "Rp 100.000" pas user ngetik di field harga (Toko 1/2/3, Ongkos Kirim, Harga
-// Satuan). Disimpen apa adanya di value input-nya (termasuk prefix "Rp "/titik ribuan) -
-// makanya baca ulang nilainya harus lewat _epParseRupiah(), bukan parseFloat/Number langsung.
 function _epFormatRupiahLive(el) {
   const raw = (el.value || '').replace(/[^\d]/g, '');
   el.value = raw ? 'Rp ' + Number(raw).toLocaleString('id-ID') : '';
@@ -4677,12 +4443,6 @@ function _epSetRupiah(id, angka) {
 }
 
 const _EP_PERSEN_UNTUNG_MIN = 5, _EP_PERSEN_UNTUNG_MAX = 15;
-// Keuntungan + Overhead diisi PER BARANG (beda-beda tiap item di Analisa Survei Harga manual,
-// mis. 5%, 7%, 12.3%, 15%) dan SEPENUHNYA ditentukan user - gak ada default dari Pengaturan
-// Kalkulator (field-nya kosong, cuma ada placeholder rentang 5%-15%). Dibatasi ke rentang
-// 5%-15% - server pakai batas & rumus yang sama. Kalau masih kosong, dihitung 0% (belum diisi)
-// dan simpan/pakai hasil ditolak lewat _epValidasiPersenUntung(). Field-nya sendiri baru dikoreksi
-// pas blur lewat _epClampPersenUntung() biar gak ganggu user pas lagi ngetik.
 function _epPersenUntungShKalkulator() {
   const v = parseFloat(document.getElementById('epShPersenUntung').value);
   if (!isFinite(v)) return 0;
@@ -4695,8 +4455,6 @@ function _epClampPersenUntung() {
   else el.value = '';
   epHitungShKalkulator();
 }
-// Link toko (opsional) harus URL http/https yang valid (ada domain bertitik) - biar gak asal
-// ketik (mis. "sdfsfs"). Kosong dianggap lolos. Aturan yang sama dicek ulang di server.
 function _epLinkTokoValid(v) {
   v = (v || '').trim();
   if (!v) return true;
@@ -4711,13 +4469,11 @@ function _epBersihkanErrorLink(el) {
   const err = el.parentElement.querySelector('.field-error');
   if (err) err.remove();
 }
-// Dipanggil pas blur: kasih tanda merah + pesan di bawah field kalau link-nya gak valid.
 function _epCekLinkToko(el) {
   _epBersihkanErrorLink(el);
   if (_epLinkTokoValid(el.value)) return true;
   el.classList.add('input-invalid');
   el.insertAdjacentHTML('afterend', '<div class="field-error">Link tidak valid. Awali dengan https:// (contoh: https://katalog.inaproc.id/...)</div>');
-  // Tanda error cukup tampil 2 detik, habis itu hilang sendiri.
   el._errTimer = setTimeout(() => _epBersihkanErrorLink(el), 2000);
   return false;
 }
@@ -4734,7 +4490,6 @@ function _epValidasiLinkSemuaToko() {
   }
   return true;
 }
-// Survei harga WAJIB 3 toko: nama, harga, dan minimal 1 bukti tiap toko harus terisi (link opsional).
 function _epValidasiTigaToko() {
   for (let i = 1; i <= 3; i++) {
     const nama = (document.getElementById(`epShT${i}Nama`).value || '').trim();
@@ -4749,7 +4504,6 @@ function _epValidasiTigaToko() {
       document.getElementById(`epShT${i}Harga`).focus();
       return false;
     }
-    // Link toko opsional (bisa toko offline) - validasi format ada di _epValidasiLinkSemuaToko
     const files = _epBuktiToko[i] || [];
     if (files.some(x => x._loading)) {
       toast(`Bukti Harga Toko ${i} masih diupload, tunggu sampai selesai`, 'error');
@@ -4778,9 +4532,6 @@ function epHitungShKalkulator() {
   const t2 = _epParseRupiah('epShT2Harga');
   const t3 = _epParseRupiah('epShT3Harga');
   const ongkir = _epParseRupiah('epShOngkir');
-  // PPN+PPh & Indeks Inflasi dicari dari daftar per-tahun anggaran (_epPengaturanTahunan) - tahun
-  // yang gak ada barisnya dianggap "belum diatur admin buat TA itu" (pakai fallback darurat +
-  // label peringatan, PPN+PPh gak dianggap 0% biar hasil kalkulator gak keliru jauh).
   const tahunItem = parseInt(document.getElementById('epShTahun').value, 10) || 0;
   const pengaturanTahun = _epCariPengaturanTahun(tahunItem);
   const tahunBerlaku = !!pengaturanTahun;
@@ -4793,7 +4544,7 @@ function epHitungShKalkulator() {
   const totalReal = rata2 + ongkir;
   const untung = totalReal * (persenUntung / 100);
   const jumlah = totalReal + untung;
-  const ppn = jumlah * (persenPajak / 100); // PPN + PPh efektif - diatur di Pengaturan Kalkulator per TA
+  const ppn = jumlah * (persenPajak / 100);
   const inflasi = jumlah * (persenInflasi / 100);
   const totalHarga = jumlah + ppn + inflasi;
   const bulat = Math.round(totalHarga / 1000) * 1000;
@@ -4815,8 +4566,6 @@ function epHitungShKalkulator() {
   return bulat;
 }
 
-// Ringkasan toko/harga yang dipakai buat ngitung - disimpen ke catatan_survei pas hasilnya
-// disimpan sebagai Standar Harga MANUAL, biar superadmin bisa lihat dasar hitungannya.
 function _epRingkasanSurveiKalkulator() {
   const baris = [];
   [1, 2, 3].forEach(i => {
@@ -4833,9 +4582,6 @@ function _epRingkasanSurveiKalkulator() {
   return `Hasil kalkulator survei 3 toko - ${baris.join(', ')}.`;
 }
 
-// Data terstruktur (link + bukti per toko, dipakai buat cross-check pas pemeriksaan supaya
-// harga yang diusulkan bisa dicocokin lagi ke sumbernya, bukan cuma teks ringkasan) - disimpen
-// terpisah dari catatan_survei (yang tetep dipertahankan buat ringkasan cepat dibaca).
 function _epSurveiTokoData() {
   const toko = [1, 2, 3].map(i => {
     const files = (_epBuktiToko[i] || []).filter(f => f.url && !f._loading);
@@ -4843,8 +4589,6 @@ function _epSurveiTokoData() {
       nama: (document.getElementById(`epShT${i}Nama`).value || '').trim(),
       harga: _epParseRupiah(`epShT${i}Harga`),
       link: (document.getElementById(`epShT${i}Link`).value || '').trim(),
-      // Array {url, name}, bisa lebih dari 1 - disimpen sbg JSON string ke kolom bukti_url yang
-      // sama (reuse, bukan bikin kolom baru), niru pola data_dukung_url di Kinerja.
       bukti_url: files.length ? JSON.stringify(files.map(f => ({ url: f.url, name: f.name }))) : '',
     };
   }).filter(t => t.nama || t.harga || t.link || t.bukti_url);
@@ -4855,33 +4599,22 @@ function _epSurveiTokoData() {
   };
 }
 
-// Baca bukti_url tersimpan jadi array {url,name} buat toko ke-n - handle 3 bentuk: array JSON
-// (format baru, bisa banyak file), string URL polos + bukti_name (format transisi, 1 file dari
-// fix ekstensi sebelum ini), atau string URL polos doang (data paling lama, sebelum nama file
-// asli ikut disimpen - ekstensinya kemungkinan gak kebaca pas preview, gak bisa diperbaiki lagi
-// dari sisi frontend karena nama aslinya emang udah gak pernah tersimpan).
 function _epMuatBuktiToko(t) {
   if (!t || !t.bukti_url) return [];
   try {
     const parsed = JSON.parse(t.bukti_url);
     if (Array.isArray(parsed)) return parsed.filter(f => f && f.url);
-  } catch { /* bukan JSON - lanjut ke fallback di bawah */ }
+  } catch {  }
   return [{ url: t.bukti_url, name: t.bukti_name || 'Dokumen' }];
 }
 
-// Upload file bukti harga (struk/screenshot) per toko lewat endpoint upload umum yang udah
-// dipake buat foto profil/tanda tangan - biar harga yang diinput ada buktinya pas dicek ulang
-// waktu verifikasi/pemeriksaan, gak cuma andalan ingatan/kejujuran penginput. Sekarang bisa
-// pilih/drop lebih dari 1 file sekaligus (lihat atribut "multiple" di app.html).
-let _epBuktiTokoProgress = { 1: null, 2: null, 3: null }; // {current,total} pas lagi upload batch - null kalau idle
+let _epBuktiTokoProgress = { 1: null, 2: null, 3: null };
 async function epUploadBuktiToko(input, n) {
   const files = Array.from(input.files || []).filter(f => {
     if (f.size > 2 * 1024 * 1024) { toast(`${f.name}: file terlalu besar (maks. 2 MB)`, 'error'); return false; }
     return true;
   });
   if (!files.length) { input.value = ''; return; }
-  // Progress "Mengupload… current/total" niru gaya renderProgress di Lembur, bukan lagi hitung
-  // loadingCount doang.
   _epBuktiTokoProgress[n] = { current: 0, total: files.length };
   _epRenderBuktiTokoUi(n);
   let okCount = 0;
@@ -4899,9 +4632,6 @@ async function epUploadBuktiToko(input, n) {
       });
       const d = await r.json().catch(() => ({}));
       if (!r.ok) throw new Error(d.error || 'Gagal upload');
-      // File PDF/Word/Excel diupload sbg resource_type "raw" di Cloudinary - urlnya GAK ada
-      // ekstensi (beda sama gambar). Makanya nama file ASLI (yg ada ekstensinya) yg disimpen
-      // di sini, biar viewer preview bisa nebak format dari sini, bukan dari URL.
       _epBuktiToko[n][idx] = { url: d.url, name: d.name || file.name };
       okCount++;
     } catch (err) {
@@ -4914,18 +4644,11 @@ async function epUploadBuktiToko(input, n) {
   _epBuktiTokoProgress[n] = null;
   _epRenderBuktiTokoUi(n);
   input.value = '';
-  // Toast hasil akhir - sama pola kayak upload data dukung di Kinerja (okCount > 1 dikasih
-  // angka, 1 file cukup teks polos; gabungan sukses+gagal dikasih ringkasan keduanya).
   if (failMsgs.length && okCount) toast(`${okCount} file berhasil diupload, ${failMsgs.length} gagal (${failMsgs[0]})`, 'error');
   else if (failMsgs.length) toast(failMsgs.length > 1 ? `${failMsgs.length} file gagal diupload (${failMsgs[0]})` : failMsgs[0], 'error');
   else toast(okCount > 1 ? `${okCount} file berhasil diupload` : 'File berhasil diupload');
 }
 
-// Hapus semua bukti toko ini sekaligus - tombol Hapus di baris badge (persis pola tombol Hapus
-// di _renderDukungBtn Kinerja: deleteDukungAll, bukan hapus satu-satu). Filenya juga kehapus
-// beneran dari Cloudinary (bukan cuma dari daftar lokal) - reuse deleteCloudinaryFile di
-// surat.js, sama endpoint sign-url yang udah dipake modul lain. Hapus per-file masih bisa dari
-// dalam panel preview (lihat onDelete di epLihatBuktiToko).
 async function epHapusSemuaBuktiToko(n) {
   const ok = await showConfirm({ title: 'Hapus Bukti', msg: 'Hapus semua bukti harga toko ini? File juga akan dihapus permanen dari server.', okText: 'Ya, Hapus', icon: 'trash', type: 'danger' });
   if (!ok) return;
@@ -4943,17 +4666,10 @@ function _epRenderBuktiTokoUi(n) {
 
   const btn = document.getElementById(`epShT${n}BuktiBtn`);
   btn.disabled = !!prog;
-  // Tombol upload cuma buat pengisian awal - begitu udah ada bukti tersimpan, tombolnya
-  // disembunyikan sepenuhnya (gak ada lagi "+ Tambah Bukti"). Mau tambah lagi ya hapus dulu
-  // lewat tombol Hapus di baris badge, balik ke kosong, baru tombol upload muncul lagi.
   const hideBtn = !!(doneFiles.length && !prog);
   btn.style.display = hideBtn ? 'none' : '';
-  // Div pembungkusnya (`min-height:38px` di app.html) masih makan tempat pas tombolnya
-  // disembunyikan, bikin ada gap kosong sebelum badge - collapse-in dari sini.
   if (btn.parentElement) btn.parentElement.style.minHeight = hideBtn ? '0' : '';
   if (prog) {
-    // Pill "Mengupload… current/total" niru persis renderProgress di Lembur (ring 1 file,
-    // spinner buat multi file) - warna amber, bukan teks doang kayak sebelumnya.
     btn.style.background = '#fef3c7';
     btn.style.color = '#92400e';
     btn.style.borderColor = 'transparent';
@@ -4964,24 +4680,15 @@ function _epRenderBuktiTokoUi(n) {
           transform="rotate(-90 18 18)"></circle>
       </svg>` : `<span class="btn-spin" style="width:12px;height:12px;margin-right:5px"></span>`}<span class="bukti-btn-label">Mengupload…${prog.total > 1 ? ` ${prog.current}/${prog.total}` : ''}</span>`;
   } else {
-    // Cuma kepake pas kosong (tombolnya disembunyikan begitu ada bukti - lihat display di atas).
     btn.style.background = '#fee2e2';
     btn.style.color = '#991b1b';
     btn.style.borderColor = '#fca5a5';
-    // Balikin markup asli tombol (icon upload + label) - kepake pas keluar dari state progress.
-    // Spasi icon-teks dipaksa lewat margin-right di svg (bukan cuma andelin flex gap doang -
-    // di device tertentu gap-nya kadang gak kerender, bikin icon numplek sama teksnya).
     btn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" style="margin-right:5px"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg><span class="bukti-btn-label">Upload</span>`;
   }
 
   const listEl = document.getElementById(`epShT${n}BuktiList`);
   if (!listEl) return;
-  // Badge-nya baru muncul kalau BENERAN udah selesai semua (gak lagi progress) - persis kayak
-  // di Kinerja, bukan nongol duluan pas masih ada yang lagi upload.
   if (!doneFiles.length || prog) { listEl.innerHTML = ''; return; }
-  // Pola badge "✓ Uploaded (N)" + mata preview + hapus, sama persis _renderDukungBtn di modul
-  // Kinerja (IKU/IKK/SPM) - hapus di sini bersihin semua bukti toko ini sekaligus (kayak
-  // deleteDukungAll), hapus satu-satu tetep bisa dari dalam panel preview (lihat epLihatBuktiToko).
   const labelTxt = doneFiles.length > 1 ? `Uploaded (${doneFiles.length})` : 'Uploaded';
   listEl.innerHTML = `
     <span style="display:inline-flex;align-items:center;gap:3px;margin-top:6px">
@@ -4999,10 +4706,6 @@ function _epRenderBuktiTokoUi(n) {
     </span>`;
 }
 
-// Preview bukti harga toko lewat panel viewer bawaan app (sama kayak preview data dukung di
-// Kinerja) - bukan <a target="_blank"> biasa, soalnya itu bikin browser langsung ngedownload/
-// buka file mentah alih-alih preview di dalam app. Hapus per-file sekarang dari dalam panel
-// (onDelete), persis pola onDelete di Lembur - bukan tombol Hapus terpisah di list lagi.
 function epLihatBuktiToko(n, idx = 0) {
   const open = (startIdx) => {
     const files = (_epBuktiToko[n] || []).filter(f => f.url && !f._loading);
@@ -5046,18 +4749,11 @@ function _epResetShKalkulator() {
   });
   _epSetRupiah('epShOngkir', 0);
   document.getElementById('epShKalkulatorBox').style.display = 'none';
-  // Keuntungan+Overhead dikosongin lagi (diisi sendiri per barang, placeholder 5%-15%).
   document.getElementById('epShPersenUntung').value = '';
   _epLoadKalkulatorSemua().then(() => epHitungShKalkulator());
 }
 
-// ---- Modal "Pengaturan Kalkulator" (admin) - daftar setting per Tahun Anggaran (
-// PPN+PPh, Indeks Inflasi sekaligus per baris tahun), biar ubah setting TA baru gak
-// ikut ngubah TA yang udah jalan. ----
 let _epPengaturanTahunanSeq = 0;
-// Paginasi tabel Pengaturan Kalkulator - 5 baris per halaman. Semua baris tetap ada di DOM
-// (biar _epPengaturanTahunanCollect() tetep ngumpulin baris di semua halaman, termasuk yang
-// lagi mode edit), halaman yang gak aktif cuma disembunyiin (display:none).
 const _epPengaturanTahunanPageSize = 5;
 let _epPengaturanTahunanPage = 1;
 function _epPengaturanTahunanApplyPage() {
@@ -5072,9 +4768,6 @@ function _epPengaturanTahunanApplyPage() {
   renderPagination('epPengaturanTahunanPagination', rows.length, _epPengaturanTahunanPage, _epPengaturanTahunanPageSize, 'goEpPengaturanTahunanPage');
 }
 window.goEpPengaturanTahunanPage = (p) => { _epPengaturanTahunanPage = p; _epPengaturanTahunanApplyPage(); };
-// Baris yang udah tersimpan tampil sebagai teks biasa (senada sama tabel lain di app ini) +
-// tombol Edit/Hapus. Baru masuk mode input (kayak sebelumnya) pas tombol Edit diklik, atau
-// pas baris itu baru ditambahin lewat "+ Tambah Tahun" (kan emang belum ada isinya).
 function _epPengaturanTahunanViewRowHtml(tahun, pajak, inflasi, rowId) {
   return `<tr class="ep-pengaturan-tahun-row" data-row-id="${rowId}" data-mode="view"
     data-tahun="${esc(tahun ?? '')}" data-pajak="${esc(pajak ?? '')}" data-inflasi="${esc(inflasi ?? '')}">
@@ -5104,8 +4797,6 @@ function _epPengaturanTahunanAddRow(tahun = '', pajak = '', inflasi = '', mode =
     ? _epPengaturanTahunanViewRowHtml(tahun, pajak, inflasi, id)
     : _epPengaturanTahunanEditRowHtml(tahun, pajak, inflasi, id);
   document.getElementById('epPengaturanTahunanList').insertAdjacentHTML('beforeend', html);
-  // Baris baru dari tombol "+ Tambah Tahun" -> lompat ke halaman terakhir biar baris barunya
-  // langsung keliatan. Pas render massal dari data (goToRow=false) paginasi diatur sekali di akhir.
   if (goToRow) {
     const total = document.querySelectorAll('#epPengaturanTahunanList .ep-pengaturan-tahun-row').length;
     _epPengaturanTahunanPage = Math.ceil(total / _epPengaturanTahunanPageSize);
@@ -5123,11 +4814,6 @@ function _epPengaturanTahunanEditRow(rowId) {
   const { tahun, pajak, inflasi } = el.dataset;
   el.outerHTML = _epPengaturanTahunanEditRowHtml(tahun, pajak, inflasi, rowId);
 }
-// Simpan satu baris doang (ditekan pas mode edit) - beneran nge-PUT ke server saat itu juga,
-// bukan cuma balik ke tampilan teks. Dulu cuma ada 1 tombol Simpan di footer buat semua baris
-// sekaligus, jadi ambigu klik Simpan itu nyimpen baris yg lagi diedit apa nggak. Sekarang tiap
-// baris yang lagi diedit punya tombol Simpan sendiri yang jelas langsung nyimpen baris itu
-// (baris lain yang gak lagi diedit tetep ikut kekirim apa adanya, gak keubah nilainya).
 async function _epPengaturanTahunanSaveRow(rowId) {
   const rowEl = document.querySelector(`.ep-pengaturan-tahun-row[data-row-id="${rowId}"]`);
   if (!rowEl) return;
@@ -5205,24 +4891,14 @@ async function epSavePengaturanKalkulator() {
   finally { btn.disabled = false; btn.innerHTML = _btnOrigHtml; }
 }
 
-// Dipakai waktu user (bukan cuma admin) input harga manual dari form Rincian Belanja - lihat
-// epOpenStandarHargaManualFromRincian(). Kalau true, epSaveStandarHarga() bakal nerapin hasilnya
-// balik ke form Rincian (bukan cuma nutup modal & refresh tabel admin) dan Kategori dikunci ke MANUAL.
 let _epRincManualMode = false;
 
-// Kode Kelompok Barang/Uraian Kelompok Barang/Kode Komponen/ID Standar Harga cuma relevan
-// buat data SSH/HSPK/ASB/SBU yang diimpor dari export SIPD (buat pengelompokan & sinkronisasi
-// ulang pas re-impor). TKDN juga cuma ada di data resmi SSH dkk, hasil survei manual user
-// gak ada acuan TKDN-nya. Disembunyikan otomatis kalau Kategori = MANUAL.
 function _epUpdateShFieldVisibility() {
   const isManual = document.getElementById('epShKategori').value === 'MANUAL';
   const metaBlock = document.getElementById('epShMetaSipdBlock');
   const tkdnField = document.getElementById('epShTkdnField');
   if (metaBlock) metaBlock.style.display = isManual ? 'none' : '';
   if (tkdnField) tkdnField.style.display = isManual ? 'none' : '';
-  // Kode Rekening Terkait gak relevan buat kategori MANUAL - item survei manual sengaja
-  // dibiarkan lepas dari rekening manapun (lihat komentar di epOpenStandarHargaManualFromRincian
-  // & fallback backend: item tanpa kode_rekening tetap muncul di Komponen picker akun manapun).
   const rekField = document.getElementById('epShKodeRekeningField');
   if (rekField) {
     rekField.style.display = isManual ? 'none' : '';
@@ -5231,8 +4907,6 @@ function _epUpdateShFieldVisibility() {
       document.getElementById('epShKodeRekeningInput').value = '';
     }
   }
-  // Harga Satuan buat kategori MANUAL wajib hasil hitungan kalkulator survei 3 toko, bukan
-  // ketikan bebas - dikunci readonly, cuma bisa keisi lewat tombol "Pakai Harga Ini".
   const hargaEl = document.getElementById('epShHarga');
   if (hargaEl) {
     hargaEl.readOnly = isManual;
@@ -5280,9 +4954,6 @@ function openStandarHargaModal(id = null) {
       document.getElementById('epShTkdn').value = x.tkdn != null ? x.tkdn : '';
       _epShRekeningMulti.setValue(x.kode_rekening || '');
       document.getElementById('epShAktif').value = x.aktif ? '1' : '0';
-      // Data survei 3 toko (link + bukti per toko) dari entri MANUAL yang udah pernah disimpan -
-      // ditampilin lagi biar pas pemeriksaan bisa langsung dicek ulang ke sumbernya, gak cuma
-      // ngandelin angka Harga Satuan doang.
       if (x.kategori === 'MANUAL' && x.survei_toko) {
         let survei = null;
         try { survei = JSON.parse(x.survei_toko); } catch { survei = null; }
@@ -5308,9 +4979,6 @@ function openStandarHargaModal(id = null) {
   openModal('modalStandarHarga');
 }
 
-// Dipanggil dari tombol "+ Buat Standar Harga Manual" di form Rincian Belanja (cuma muncul
-// kalau Jenis Standar Harga = MANUAL). Buka modal Standar Harga yang sama, tapi Kategori
-// dikunci ke MANUAL, prefill dari isian yang udah ada, dan langsung buka kalkulator survei.
 function epOpenStandarHargaManualFromRincian() {
   openStandarHargaModal(null);
   _epRincManualMode = true;
@@ -5318,15 +4986,9 @@ function epOpenStandarHargaManualFromRincian() {
   document.getElementById('epShKategori').value = 'MANUAL';
   document.getElementById('epShKategori').disabled = true;
   _epUpdateShFieldVisibility();
-  // Tahun ngikutin tahun anggaran usulan yang lagi dikerjain - dikunci (gak boleh diketik
-  // manual) biar gak kepeleset ganti tahun sendiri di tengah ngisi rincian usulan ini.
   document.getElementById('epShTahun').value = (typeof _epCurrentUsulan !== 'undefined' && _epCurrentUsulan?.tahun_anggaran) || _epTahunAktif || new Date().getFullYear() + 1;
   document.getElementById('epShTahun').disabled = true;
   document.getElementById('epShUraian').value = document.getElementById('epRincKomponen').value || '';
-  // Standar Harga Manual sengaja gak di-tag ke Rekening/Akun tertentu - Rincian/Usulannya
-  // sendiri belum diusulkan (masih draft, akun masih bisa berubah), jadi item survei manual
-  // dibiarkan lepas dari rekening manapun (lihat juga fallback di backend: item tanpa
-  // kode_rekening tetap muncul di Komponen picker akun manapun).
   document.getElementById('epShKalkulatorBox').style.display = 'block';
   _epLoadKalkulatorSemua().then(() => epHitungShKalkulator());
 }
@@ -5354,8 +5016,6 @@ async function epSaveStandarHarga() {
     if (!_epValidasiPersenUntung()) return;
     body.catatan_survei = _epRingkasanSurveiKalkulator();
     body.survei_toko = JSON.stringify(_epSurveiTokoData());
-    // Harga selalu ngikutin hasil kalkulator terbaru (server tetap hitung ulang sendiri), jadi user
-    // gak wajib klik "Pakai hasil" dulu - penting pas ngubah survei yang udah ada.
     const hasilKalkulator = epHitungShKalkulator();
     if (hasilKalkulator) body.harga_satuan = hasilKalkulator;
   }
@@ -5372,19 +5032,15 @@ async function epSaveStandarHarga() {
     const d = await r.json();
     if (!r.ok) throw new Error(d.error || 'Gagal menyimpan');
     if (_epRincManualMode) {
-      // Balik ke form Rincian Belanja: terapkan item yang baru disimpan persis kayak milih
-      // dari daftar Standar Harga biasa (isi Komponen/Spesifikasi/Satuan/Harga/TKDN otomatis).
       _epRincManualMode = false;
       closeModal('modalStandarHarga');
       _epApplyStandarHargaPick(d.standarharga);
       _epMuatSurveiRincian({ komponen: d.standarharga.uraian_barang, harga_satuan: d.standarharga.harga_satuan, standar_harga_id: d.standarharga.id });
       if (id) {
-        // Server ngembaliin jumlah rincian (usulan DRAFT/DITOLAK) yang harganya ikut diperbarui.
         const jml = Number(d.rincian_diperbarui) || 0;
         toast(jml > 0
           ? `Survei harga diperbarui & dipakai di rincian ini. ${jml} rincian yang memakai survei ini ikut diperbarui harganya.`
           : 'Survei harga diperbarui & dipakai di rincian ini', 'success');
-        // Daftar rincian di belakang modal bisa udah basi (harga rincian lain ikut berubah di DB).
         if (jml > 0 && typeof _epCurrentUsulan !== 'undefined' && _epCurrentUsulan?.id) loadRincian(_epCurrentUsulan.id);
       } else {
         toast('Standar Harga Manual disimpan & dipakai di rincian ini', 'success');
@@ -5576,14 +5232,10 @@ async function epSubmitImporStandarHarga() {
   }
 }
 
-/* ================= Dokumen Usulan: Surat Usulan / TOR / RAB (form + preview + PDF) ================= */
-
 let _epDokUsulan = null;
 let _epDokRincian = [];
 let _epDokTab = 'surat';
 let _epDokUnlocked = { surat: false, tor: false, rab: false };
-// Paginasi tabel RAB (dalam modal Kelola Dokumen) - dipisah dari _epPage dkk yang punya module lain,
-// direset ke halaman 1 tiap kali modal dokumen dibuka ulang biar gak "nyangkut" di halaman terakhir.
 let _epRabPage = 1;
 const _epRabPageSize = 10;
 
@@ -5647,13 +5299,6 @@ async function epOpenDokumen(isNew = false) {
     epSwitchDokTab('surat');
     _epUpdateDokIndikator();
     openModal('modalEpDokumen');
-    // Matikan backdrop-filter khusus overlay ini - blur bikin browser buka compositing layer
-    // (GPU) baru buat seluruh subtree overlay, termasuk isi modal di dalamnya, jadi teks
-    // dirender lewat layer ter-composite (beda rendering path dari window.open() biasa yang
-    // dipake _bukaPreviewPDF) - efeknya kehilangan LCD subpixel anti-aliasing (fallback ke
-    // grayscale AA / kadang ada shifting warna pas di-blend), jadi hasil Preview/Download PDF
-    // (yang buka window baru, gak kena overlay ini) selalu beda sama tampilan modal. Cuma matiin
-    // di overlay ini, bukan global, biar modal lain yang emang butuh blur-nya gak kepengaruh.
     const _epDokOverlayEl = document.getElementById('modalEpDokumen');
     if (_epDokOverlayEl) {
       _epDokOverlayEl.style.backdropFilter = 'none';
@@ -5677,8 +5322,6 @@ function _epUpdateDokIndikator() {
   _epRenderDokTabColors();
 }
 
-// Warna tombol tab (Surat Usulan/TOR/RAB) berdasarkan status: hijau kalau sudah tersimpan,
-// kuning/amber kalau belum - biar user langsung kelihatan mana yang belum diisi tanpa harus buka tab-nya.
 function _epDokTabColorStyle(tipe, active) {
   const ok = _epDokOk(tipe);
   if (ok) {
@@ -5709,7 +5352,6 @@ function _epDokEditable(tipe) {
   return false;
 }
 
-// Sudah ada isinya (tersimpan) atau belum, per tipe dokumen.
 function _epDokOk(tipe) {
   const u = _epDokUsulan;
   if (!u) return false;
@@ -5718,11 +5360,6 @@ function _epDokOk(tipe) {
   return _epDokRincian.length > 0;
 }
 
-// Editable "efektif" buat render form: izin status HARUS ok, DAN (belum pernah tersimpan ATAU user sudah klik Edit).
-// RAB dikecualikan dari kunci "tersimpan -> harus klik Edit" ini: beda dari Surat/TOR yang
-// satu form besar dan baru ke-save begitu tombol Simpan diklik, tiap baris RAB udah auto-save
-// sendiri-sendiri lewat modal Tambah/Edit Rincian - jadi begitu izin status ngebolehin, RAB
-// tetap kebuka buat nambah baris lagi tanpa perlu klik Edit dulu tiap abis nambah satu baris.
 function _epDokEffEditable(tipe) {
   if (tipe === 'rab') return _epDokEditable(tipe);
   return _epDokEditable(tipe) && (!_epDokOk(tipe) || !!_epDokUnlocked[tipe]);
@@ -5733,8 +5370,6 @@ function epDokUnlock(tipe) {
   epSwitchDokTab(tipe);
 }
 
-// Bungkus field rich-text (Dasar Hukum/Gambaran Umum) dengan collapse kalau lagi dikunci (readonly)
-// dan isinya panjang - biar gak makan tempat, mirip pola "Selengkapnya" di Kinerja.
 const EP_COLLAPSE_LIMIT = 260;
 function _epCollapseWrap(wrapId, innerHtml, rawText, forceOpen) {
   const needsCollapse = !forceOpen && (rawText || '').length > EP_COLLAPSE_LIMIT;
@@ -5765,10 +5400,6 @@ document.addEventListener('click', function(e) {
   }
 });
 
-// Toggle modal "Kelola Dokumen Usulan" ke fullscreen (dibatasi sidebar+topbar, lihat
-// .modal-overlay-main/.modal-fullmain di styles.css - infra-nya udah ada, cuma belum ada yang
-// makein) - kepake terutama pas RAB (landscape) biar gak sempit. Reset ke normal tiap modal
-// dibuka lagi (lihat epOpenDokumen), gak keinget dari sesi sebelumnya.
 let _epDokFullscreen = false;
 const EP_ICON_MAXIMIZE = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></svg>`;
 const EP_ICON_MINIMIZE = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3v3a2 2 0 0 1-2 2H4M21 8h-3a2 2 0 0 1-2-2V3m0 18v-3a2 2 0 0 1 2-2h3M3 16h3a2 2 0 0 1 2 2v3"/></svg>`;
@@ -5793,42 +5424,22 @@ function _epDokSetFullscreen(on) {
 }
 function epDokToggleFullscreen() { _epDokSetFullscreen(!_epDokFullscreen); }
 
-// Nutup modal "Kelola Dokumen Usulan" - selalu lewat sini (bukan closeModal langsung), soalnya
-// kalau lagi fullscreen, closeModal biasa cuma nyembunyiin overlay-nya doang tapi kelas
-// sidebar--locked/topbar--locked di sidebar & topbar gak ke-reset, jadinya nyangkut blur
-// selama-lamanya sampe modal ini dibuka lagi.
 function epCloseDokModal() {
   _epDokSetFullscreen(false);
   closeModal('modalEpDokumen');
 }
 
-// Zoom in/out + Download PDF buat tab Preview Dokumen (Surat/TOR/RAB) - dipasang nempel di
-// konten (bukan lewat _epDokActionsBar) biar tetap muncul buat verifikator juga, soalnya
-// _epDokActionsBar() sengaja return kosong pas usulan lagi terkunci/tahap verifikasi (lihat
-// komentarnya), padahal itu justru pas verifikator lagi baca dokumennya. Satu wrap id dipakai
-// bareng ketiga tab karena cuma satu yang keteampil di DOM dalam satu waktu (innerHTML diganti
-// pas ganti tab), tapi level zoom-nya diinget per tab (_epDokZoom) biar gak kebawa pas pindah tab.
 let _epDokZoom = { surat: 100, tor: 100, rab: 100 };
 function _epDokApplyZoom(tab) {
   const wrap = document.getElementById('epDokZoomWrap');
   const label = document.getElementById('epDokZoomLabel');
   const pct = _epDokZoom[tab];
-  // 100% -> lepas property zoom sepenuhnya (bukan set ke 1) - elemen yang dikasih zoom (walau
-  // nilainya 1) tetap bikin browser buka compositing layer baru, yang di beberapa layar/skala
-  // OS malah bikin teks kena color fringing (pinggirnya kelihatan biru/oranye, lihat histori
-  // chat). Baru pas user beneran ubah persentase (bukan 100%) property zoom-nya dipasang.
   if (wrap) { if (pct === 100) wrap.style.removeProperty('zoom'); else wrap.style.zoom = pct / 100; }
   if (label) label.textContent = pct + '%';
 }
 function epDokZoomIn(tab) { _epDokZoom[tab] = Math.min(200, _epDokZoom[tab] + 10); _epDokApplyZoom(tab); }
 function epDokZoomOut(tab) { _epDokZoom[tab] = Math.max(50, _epDokZoom[tab] - 10); _epDokApplyZoom(tab); }
 function epDokZoomReset(tab) { _epDokZoom[tab] = 100; _epDokApplyZoom(tab); }
-// Toolbar zoom/download di atas tiap tab Preview Dokumen (Surat/TOR/RAB). Wrapper #epDokZoomWrap
-// SENGAJA gak dikasih property "zoom" pas lagi 100% (default) - elemen manapun yang dikasih zoom,
-// walau nilainya cuma 1 (no-op secara angka), tetap dipaksa browser buka compositing layer baru,
-// dan di sebagian kombinasi layar/skala OS itu bikin teks kena color fringing (pinggir huruf
-// kelihatan belang biru/oranye dibanding versi PDF-nya yang gak lewat zoom sama sekali).
-// property zoom baru dipasang pas usernya beneran ubah persentase (lihat _epDokApplyZoom).
 function _epDokZoomToolbar(tab, downloadFnCall) {
   return `
     <div style="display:flex;align-items:center;gap:6px;margin-bottom:10px;flex-wrap:nowrap;overflow-x:auto">
@@ -5844,19 +5455,6 @@ function _epDokZoomToolbar(tab, downloadFnCall) {
 }
 const _epDokZoomToolbarEnd = `</div></div>`;
 
-// Bungkus konten preview dokumen (dipakai pas dokumen terkunci/tahap verifikasi).
-//
-// GANTI TOTAL (sebelumnya div biasa yang di-styling manual biar "mirip" _bukaPreviewPDF -
-// selalu ketinggalan/beda dikit soalnya td/th/table polos punya app (styles.css) tetap bisa
-// "bocor" masuk lewat cascade, dan .modal-body overflow-y:auto bikin browser compositing
-// subtree ini beda jalur render font-nya dibanding _bukaPreviewPDF yang bukanya di
-// window/document baru). Sekarang dipakein <iframe srcdoc="..."> isi HTML+CSS PERSIS SAMA
-// (disalin dari _bukaPreviewPDF di laporan.js) di dalam document terpisah, jadi:
-//  - CSS app (styles.css) gak bisa "bocor" ke dalamnya sama sekali (document lain)
-//  - .modal-body overflow-y:auto gak ngaruh ke rendering font di dalam iframe (font di-render
-//    oleh document iframe sendiri, sama kayak tab window.open)
-// Hasilnya dijamin identik pixel-for-pixel sama hasil tombol Preview/Download PDF, bukan cuma
-// "mirip". Tinggi iframe di-set otomatis pas kontennya kelar dimuat (onload).
 function _epDokPreviewIframeDoc(innerHtml, orientation) {
   const ori = orientation || 'portrait';
   return `<!DOCTYPE html>
@@ -5918,10 +5516,6 @@ function _epDokPreviewIframeDoc(innerHtml, orientation) {
 
 function _epDokPreviewWrap(innerHtml, orientation) {
   const fullHtml = _epDokPreviewIframeDoc(innerHtml, orientation);
-  // srcdoc dibungkus pakai single-quote di attribute - satu-satunya karakter yang perlu
-  // di-escape cuma tanda kutip satu literal yang mungkin ada di isi dokumen (mis. "Jama'ah
-  // Haji" di RAB), diubah ke entity HTML &#39; biar gak nutup attribute lebih awal - tampilan
-  // akhirnya tetap sama persis (browser render &#39; jadi tanda kutip satu biasa).
   const srcdocEscaped = fullHtml.replace(/'/g, '&#39;');
   return `
     <div style="background:#f1f5f9;border-radius:10px;overflow:hidden">
@@ -5958,9 +5552,6 @@ function _epDokRincianTotal() {
   return _epDokRincian.reduce((s, r) => s + (Number(r.sub_total) || 0), 0);
 }
 
-// Status bar di atas tiap tab (Surat/TOR/RAB): dulu juga nampilin pesan "Tersimpan" biasa,
-// tapi itu sekarang udah kewakilan tombol Tersimpan/Edit. Sisanya (ditolak verifikator, terkunci)
-// tetap ditampilkan karena informasinya nggak ada di tempat lain.
 function _epDokStatusBar(tipe) {
   const u = _epDokUsulan;
   const editable = _epDokEditable(tipe);
@@ -5969,7 +5560,6 @@ function _epDokStatusBar(tipe) {
   if (u.status === 'DRAFT') {
     return '';
   } else if (editable) {
-    // status usulan PRA USULAN, komponen ini MENUNGGU/DITOLAK -> masih bisa diedit
     if (komp === 'DITOLAK') {
       text = '✗ Ditolak verifikator - silakan revisi lalu simpan ulang';
       style = 'color:#991b1b;background:#fee2e2';
@@ -5977,24 +5567,13 @@ function _epDokStatusBar(tipe) {
       return '';
     }
   } else {
-    // terkunci karena udah lewat tahap Pra Usulan (ditolak/disetujui/dsb) - sengaja gak dikasih
-    // badge apa-apa lagi.
     return '';
   }
   return `<div style="display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:6px;font-size:.76rem;font-weight:600;margin-bottom:12px;${style}">${text}</div>`;
 }
 
-// Bar aksi bawah tiap tab (Surat/TOR/RAB) - dulu tombolnya nempel di akhir
-// konten yang scroll, jadi ilang dari layar pas form-nya panjang & discroll.
-// Sekarang digabung 1 baris sticky (nempel di bawah modal, lihat CSS
-// .ep-dok-actions-bar) + "Isi Nanti" ikut disini biar cuma 1 footer, bukan
-// 2 bar sticky numpuk. "Tersimpan" juga diubah dari tombol (disabled tapi
-// keliatan kayak bisa diklik) jadi badge status polos (.ep-dok-badge-saved).
 function _epDokActionsBar(tipe, editableHtml, previewFn) {
   const permEditable = _epDokEditable(tipe);
-  // Terkunci (lagi tahap verifikasi/sudah SELESAI) -> gak ada aksi sama sekali di sini.
-  // Preview/Download PDF & Isi Nanti itu punya pengusul; verifikator liat lewat tampilan
-  // pratinjau dokumen yang udah otomatis ditampilkan di tab (lihat epSwitchDokTab).
   if (!permEditable) return '';
   const editable = _epDokEffEditable(tipe);
   const leftHtml = permEditable ? (editable
@@ -6012,7 +5591,6 @@ function _epDokActionsBar(tipe, editableHtml, previewFn) {
     </div>`;
 }
 
-/* ---------- Surat Usulan ---------- */
 function _epDefaultIsiSurat(u) {
   const tahun = u.tahun_anggaran || (new Date().getFullYear() + 1);
   return `Dalam rangka penyusunan Rancangan APBD Tahun Anggaran ${tahun}, kami kirimkan usulan kegiatan pada tahun ${tahun} sebagaimana terlampir. Adapun usulan telah disusun berdasarkan prinsip efektivitas, efisiensi, dan sesuai dengan program prioritas nasional dan arah kebijakan pemerintah daerah Kabupaten Banggai Laut pada tahun ${tahun}. Bersama ini kami lampirkan:\n\n1. Kerangka Acuan Kerja/ TOR;\n2. Rencana Anggaran Biaya (RAB);\n3. Usulan standar harga satuan (jika ada).\n\nBesar harapan kami kiranya Bapak dapat menyetujui usulan kegiatan ini pada Rancangan APBD Tahun Anggaran ${tahun}.\n\nDemikian kami sampaikan, atas pertimbangan Bapak diucapkan terimakasih.`;
@@ -6054,8 +5632,6 @@ function _epRenderSuratForm() {
     ${_epDokActionsBar('surat', `<button type="button" class="btn btn-primary btn-sm" id="btnSimpanSurat" onclick="epSaveDokumen('surat')">${EP_ICON_CHECK} ${suratOk ? 'Simpan Perubahan' : 'Simpan'}</button>`, 'epPreviewSurat()')}`;
 }
 
-// Tombol Simpan Surat Usulan cuma aktif kalau semua field wajib (sama kayak yang dicek di
-// epSaveDokumen) udah keisi - biar user gak perlu klik dulu baru tau ada yang kurang.
 function _epUpdateSuratSaveBtn() {
   const btn = document.getElementById('btnSimpanSurat');
   if (!btn) return;
@@ -6069,12 +5645,6 @@ function epResetIsiSurat() {
   if (el) el.value = _epDefaultIsiSurat(_epDokUsulan);
 }
 
-// Ambil data Surat buat dirender ke preview (dipakai bareng sama tombol Preview/Download PDF
-// pas form editable maupun tab Preview Dokumen pas terkunci - lihat _epRenderSuratPreviewOnly).
-// Kalau form-nya lagi ada di DOM (mode editable) -> ambil data LIVE dari input, biar preview
-// ngikutin apa yang baru diketik walau belum disimpan. Kalau form-nya gak dirender (tab lagi
-// preview-only karena status usulan udah terkunci) -> jatuh balik ke data tersimpan terakhir
-// (u.data_surat), sama kayak pola RAB yang selalu baca dari _epDokRincian.
 function epCollectSuratData() {
   if (!document.getElementById('epSrTempatTanggal')) return _epDokUsulan?.data_surat || {};
   const val = id => document.getElementById(id).value.trim();
@@ -6088,11 +5658,6 @@ function epCollectSuratData() {
   };
 }
 
-// Field narasi (Dasar Hukum, Gambaran Umum, Tahapan Pelaksanaan, dll) bisa
-// berisi blok [IMG]url[/IMG] & [TABLE]...[/TABLE] yang disisipkan lewat tombol
-// Sisipkan Gambar/Tabel di editor (lihat kinerja.js _rteRenderImageBlock/
-// _rteRenderTableBlock). Blok [TABLE] dipisah dulu (bisa multi-baris) sebelum
-// sisanya diproses per-baris seperti biasa (paragraf/daftar bernomor).
 function _epRenderNarasiHtml(text, indentFirstLine) {
   const segments = String(text || '').split(/\[TABLE\]\n?([\s\S]*?)\n?\[\/TABLE\]/g);
   return segments.map((seg, i) => (i % 2 === 1) ? _epRenderNarasiTable(seg) : _epRenderNarasiTextBlock(seg, indentFirstLine)).join('');
@@ -6113,30 +5678,14 @@ function _epRenderNarasiTable(body) {
 function _epRenderNarasiTextBlock(text, indentFirstLine) {
   const rawLines = String(text || '').split('\n');
   let html = '';
-  let group = null; // { type:'num'|'alpha', lines:[] } atau { type:'p', lines:[] }
+  let group = null;
 
-  // Deteksi list per-baris (bukan per-paragraf lagi), supaya baris "1. .../
-  // a. ..." langsung dikenali sebagai daftar bernomor walau nempel langsung
-  // sama kalimat biasa di baris berikutnya (gak wajib dikasih baris kosong
-  // dulu baru kebaca sebagai list). Baris kosong tetap menutup paragraf teks
-  // biasa (biar tetap bisa multi-paragraf), tapi TIDAK memutus list - list
-  // yang cuma kepisah baris kosong otomatis nyambung, biar penomoran gak
-  // restart ke "a."/"1." lagi.
   const flush = () => {
     if (!group) return;
     if (group.type === 'p') {
-      // Kalau SEMUA baris di paragraf ini center/kanan (misal caption "Gambar 1.1. ...."
-      // di bawah gambar yang di-center), kompensasi geser -32px/-32px yang sama kayak
-      // blok [IMG align=center] di atas -- biar caption-nya kebawa ke center HALAMAN
-      // yang sebenarnya, bukan cuma center relatif ke kotak yang udah kegeser 32px.
       const allCenterOrRight = group.lines.every(l => l.align === 'center' || l.align === 'right');
       const wrapCompensate = indentFirstLine && allCenterOrRight;
       const pStyle = `text-align:justify;margin:0 0 10px${indentFirstLine && !wrapCompensate ? ';text-indent:19px' : ''}`;
-      // PENTING: baris normal (align 'left' default) JANGAN dikasih text-align:left
-      // inline di span-nya -- kalau dikasih, dia nimpa text-align:justify punya <p>
-      // di atas (inline style menang), jadi paragraf gak pernah kelihatan rata kiri-
-      // kanan walau <p>-nya udah di-set justify. Cuma baris yang eksplisit ditandai
-      // [C]/[R] yang perlu override; baris biasa dibiarkan warisan 'justify' dari <p>.
       const pHtml = `<p style="${pStyle}">${group.lines.map(l => `<span style="display:block${l.align === 'left' ? '' : `;text-align:${l.align}`}">${esc(l.text)}</span>`).join('')}</p>`;
       html += wrapCompensate ? `<div style="margin-left:-32px;margin-right:-32px">${pHtml}</div>` : pHtml;
     } else {
@@ -6155,13 +5704,6 @@ function _epRenderNarasiTextBlock(text, indentFirstLine) {
       const w = parseInt(imgM[1], 10);
       const align = imgM[2] || 'left';
       const widthStyle = Number.isFinite(w) && w > 0 ? `width:${w}px;` : 'max-width:100%;';
-      // Container pembungkus baris ini (dipanggil dari epPreviewTor) cuma dikasih
-      // margin-left:32px tanpa margin-right (biar nomor "1./2./3."-nya nempel rata
-      // kiri) -- kalau gambar di-center/rata-kanan relatif ke kotak yg udah geser
-      // 32px ke kanan itu, hasilnya ikut geser dari center halaman yg sebenarnya.
-      // indentFirstLine cuma true di caller yg emang punya margin-left:32px itu,
-      // jadi dipakai buat nyeimbangin balik geser 32px-nya, khusus baris gambar
-      // yang center/kanan (gambar rata-kiri gak kena masalah ini, biarin apa adanya).
       if (indentFirstLine && (align === 'center' || align === 'right')) {
         html += `<div style="margin-left:-32px;margin-right:-32px;text-align:${align}"><img src="${esc(imgM[3])}" style="${widthStyle}max-height:320px;display:inline-block"></div>`;
       } else {
@@ -6171,8 +5713,8 @@ function _epRenderNarasiTextBlock(text, indentFirstLine) {
       return;
     }
     if (!line) {
-      if (group && group.type === 'p') flush(); // baris kosong menutup paragraf teks biasa
-      return; // tapi list yang lagi jalan dibiarkan nyambung
+      if (group && group.type === 'p') flush();
+      return;
     }
     let align = 'left';
     const alignM = line.match(/^\[(C|R)\](.*)$/);
@@ -6193,10 +5735,6 @@ function _epFmtVerifDT(iso) {
   return new Date(iso).toLocaleString('id-ID', { day:'2-digit', month:'long', year:'numeric', hour:'2-digit', minute:'2-digit', timeZone: 'Asia/Makassar' }).replace(' pukul','').replace('.', ':') + ' WITA';
 }
 
-// Satu blok tanda tangan generik (dipakai buat semua pihak: pengusul, kabid/kapus/kasubag,
-// sekretaris dinas, verifikator/admin). Hanya dipanggil untuk pihak yang SUDAH benar-benar
-// memverifikasi/menandatangani usulan - lihat _epFullSignRowHtml yang nyaring pihak yang
-// belum verifikasi supaya blok-nya nggak ditampilkan sama sekali (bukan cuma disamarkan).
 function _epSignBlockHtml(jabatan, nama, nip, ttdRaw, approvedAt) {
   const ttd = ttdRaw || '';
   const ttdValid = ttd && (ttd.startsWith('data:image') || ttd.startsWith('http'));
@@ -6217,10 +5755,6 @@ function _epSignBlockHtml(jabatan, nama, nip, ttdRaw, approvedAt) {
     </div>`;
 }
 
-// Baris rantai verifikasi usulan: Pengusul -> Kepala Bidang/Puskesmas/Sub Bagian ->
-// (Sekretaris Dinas, khusus jalur Sub Bagian) -> Verifikator (Kepala Dinas). Dipakai di
-// Surat Usulan & TOR. Pihak yang belum verifikasi TIDAK ditampilkan sama sekali - baru
-// muncul begitu pihak itu benar-benar menandatangani/memverifikasi usulan ini.
 function _epFullSignRowHtml(u, bidangLabel) {
   const candidates = [
     ['Pengusul', !!u.diajukan_at, u.pembuat_nama, u.pembuat_nip, u.link_ttd_pengusul, u.diajukan_at],
@@ -6273,7 +5807,6 @@ function _epRenderSuratPreviewOnly() {
   return `${_epDokStatusBar('surat')}${_epDokZoomToolbar('surat', 'epPreviewSurat()')}${_epDokPreviewWrap(_epBuildSuratPreviewHtml(d, u))}${_epDokZoomToolbarEnd}`;
 }
 
-/* ---------- TOR ---------- */
 let _epTorRows = { iku: [], ikk: [], penerima_manfaat: [], strategi: [] };
 let _epKinerjaIndikatorList = [];
 let _epKinerjaIndikatorLoaded = false;
@@ -6287,7 +5820,7 @@ async function _epLoadKinerjaIndikator() {
     const r = await fetch('/api/kinerja/indikator', { headers: authHeaders() });
     const d = await r.json();
     if (r.ok) { _epKinerjaIndikatorList = (d.indikator || []).filter(x => x.aktif !== false); _epKinerjaIndikatorLoaded = true; }
-  } catch { /* noop */ }
+  } catch {  }
 }
 
 async function _epLoadKinerjaTarget() {
@@ -6299,17 +5832,14 @@ async function _epLoadKinerjaTarget() {
       _epKinerjaTargetMap = {};
       for (const t of (d.target || [])) {
         if (!_epKinerjaTargetMap[t.indikator_id]) _epKinerjaTargetMap[t.indikator_id] = {};
-        // Target per triwulan: untuk TOR dipakai target TW tertinggi yang terisi (TW IV = target akhir tahun)
         const _ex = _epKinerjaTargetMap[t.indikator_id][t.tahun];
         if (!_ex || (t.triwulan || 4) >= (_ex.triwulan || 4)) _epKinerjaTargetMap[t.indikator_id][t.tahun] = t;
       }
       _epKinerjaTargetLoaded = true;
     }
-  } catch { /* noop */ }
+  } catch {  }
 }
 
-// Ambil target indikator utk tahun tertentu langsung dari data Kelola Target
-// (bukan input manual) - dipakai di form TOR utk baris IKU/IKK.
 function _epAutoTargetFor(namaIndikator, tahun) {
   const ind = _epKinerjaIndikatorList.find(x => x.indikator_kinerja === namaIndikator);
   if (!ind || !tahun) return '';
@@ -6336,8 +5866,6 @@ function _epRenderTorForm() {
   const editable = _epDokEffEditable('tor');
   const dasarHukumHtml = `<div class="ps-rte" id="epTrDasarHukum" contenteditable="${editable ? 'true' : 'false'}" spellcheck="false" data-placeholder="Berisi dasar hukum pelaksanaan kegiatan" style="${editable ? 'max-height:220px;overflow-y:auto' : 'cursor:not-allowed'}">${_mdToRteHtml(d.dasar_hukum || '')}</div>`;
   const gambaranUmumHtml = `<div class="ps-rte" id="epTrGambaranUmum" contenteditable="${editable ? 'true' : 'false'}" spellcheck="false" data-placeholder="Berisi gambaran umum terkait kondisi kesehatan di daerah, dalam bentuk data-data kesehatan, yang terkait dengan rincian menu yang diangkat, upaya-upaya yang selama ini sudah dilaksanakan, alasan yang menguatkan mengapa rincian menu tersebut diusulkan, dll" style="${editable ? 'max-height:220px;overflow-y:auto' : 'cursor:not-allowed'}">${_mdToRteHtml(d.gambaran_umum || '')}</div>`;
-  // Fallback ke waktu_mulai_bulan/waktu_selesai_bulan lama (kolom usulan) kalau dokumen ini
-  // belum pernah diisi manual - field itu sendiri udah gak ada inputnya di form Edit Kegiatan.
   const kurunMulai = d.kurun_waktu_mulai ?? u.waktu_mulai_bulan ?? '';
   const kurunSelesai = d.kurun_waktu_selesai ?? u.waktu_selesai_bulan ?? '';
   const bulanOpts = (selected) => EP_BULAN.map((b, i) => i === 0 ? '' : `<option value="${i}" ${Number(selected) === i ? 'selected' : ''}>${b}</option>`).join('');
@@ -6388,10 +5916,6 @@ function _epRenderTorForm() {
     ${_epDokActionsBar('tor', `<button type="button" class="btn btn-primary btn-sm" id="btnSimpanTor" onclick="epSaveDokumen('tor')">${EP_ICON_CHECK} ${torOk ? 'Simpan Perubahan' : 'Simpan'}</button>`, 'epPreviewTor()')}`;
 }
 
-// Tombol Simpan TOR cuma aktif kalau field wajib udah keisi: Dasar Hukum, Gambaran Umum,
-// Kurun Waktu Mulai & Selesai, DAN minimal 1 baris terisi di tiap bagian IKU/IKK/Penerima
-// Manfaat/Strategi (baris dihitung "terisi" kalau ada isinya di salah satu kolom selain
-// nama_kegiatan, yang emang otomatis - lihat hasIsi di epCollectTorData).
 function _epUpdateTorSaveBtn() {
   const btn = document.getElementById('btnSimpanTor');
   if (!btn) return;
@@ -6404,9 +5928,6 @@ function _epUpdateTorSaveBtn() {
     && listOk('iku') && listOk('ikk') && listOk('penerima_manfaat') && listOk('strategi');
   btn.disabled = !ok;
 }
-// Field Dasar Hukum/Gambaran Umum itu contenteditable (bukan <input>), gak bisa dikasih
-// oninput inline kayak field biasa (isinya di-render ulang lewat shim .ps-rte punya kinerja.js) -
-// makanya update tombol lewat delegasi 'input' di document, dicek scope tab TOR lagi aktif.
 document.addEventListener('input', () => {
   if (_epDokTab === 'tor' && document.getElementById('btnSimpanTor')) _epUpdateTorSaveBtn();
 });
@@ -6437,13 +5958,6 @@ function _epRenderTorRows() {
       const jenis = key === 'iku' ? 'IKU' : 'IKK';
       const indikatorOpts = _epKinerjaIndikatorList
         .filter(ind => (jenis === 'IKU' ? ind.jenis_monev : ind.jenis_ikk))
-        // Khusus IKK: batasin cuma indikator yang penanggung_jawab-nya sama dengan bidang/sub
-        // bagian/puskesmas pemilik usulan ini - biar user gak keliatan punya bidang lain semua.
-        // IKK yang penanggung_jawab-nya kosong (belum di-set) sengaja tetep ditampilin ke semua,
-        // daripada ilang gak kepilih siapa-siapa.
-        // Puskesmas dikecualikan dari filter ini - IKK biasanya cuma di-assign ke level
-        // Bidang/Sub Bagian, jarang ada yang penanggung_jawab-nya nama puskesmas spesifik,
-        // jadi puskesmas tetep liat semua IKK biar gak keliatan kosong.
         .filter(ind => jenis === 'IKU' || _epDokUsulan.bidang_tipe === 'puskesmas' || !ind.penanggung_jawab || ind.penanggung_jawab === _epDokUsulan.bidang_nama)
         .map(ind => ({ value: ind.indikator_kinerja, label: ind.indikator_kinerja }));
       wrap.innerHTML = _epTorRows[key].map((row, i) => {
@@ -6451,8 +5965,6 @@ function _epRenderTorRows() {
         const currentIndikator = row.indikator || '';
         const adaDiList = indikatorOpts.some(o => o.value === currentIndikator);
         const tahun = _epDokUsulan.tahun_anggaran;
-        // Target selalu diambil otomatis dari Kelola Target (indikator + tahun anggaran usulan ini),
-        // bukan diketik manual.
         row.target = currentIndikator ? _epAutoTargetFor(currentIndikator, tahun) : '';
         return `
         <div style="display:flex;gap:6px;margin-bottom:6px;align-items:flex-start;min-width:0">
@@ -6512,9 +6024,6 @@ function _epRenderTorRows() {
   if (typeof window.initCustomSelects === 'function') window.initCustomSelects();
 }
 
-// Baca isi terkini tiap kotak ps-rte Tahapan Pelaksanaan dari DOM balik ke _epTorRows.strategi,
-// dipanggil sebelum wrap.innerHTML strategi di-render ulang (mis. pas tambah/hapus baris) supaya
-// teks yg lagi diketik di baris lain nggak ke-reset.
 function _epSyncStrategiTahapanFromDom() {
   _epTorRows.strategi.forEach((row, i) => {
     const el = document.getElementById(`epTrTahapan_${i}`);
@@ -6535,9 +6044,6 @@ function epTorRemoveRow(key, i) {
   _epUpdateTorSaveBtn();
 }
 
-// Sama kayak epCollectSuratData(): dipakai bareng tombol Preview/Download PDF (mode editable,
-// baca live dari form+_epTorRows) maupun tab Preview Dokumen (mode terkunci, form gak ada di
-// DOM -> jatuh balik ke data tersimpan u.data_tor).
 function epCollectTorData() {
   if (!document.getElementById('epTrDasarHukum')) {
     const raw = _epDokUsulan?.data_tor || {};
@@ -6564,9 +6070,6 @@ function epCollectTorData() {
 
 const EP_BULAN = ['', 'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
 
-// Label "Bidang X" / "Sub Bagian X" / "Puskesmas X" buat kop surat/RAB/TOR. Nama bidang di
-// database kadang udah nyimpen prefix-nya sendiri (mis. "Bidang Pencegahan dan Pengendalian
-// Penyakit"), jadi dicek dulu biar prefix-nya gak ke-dobel jadi "Bidang Bidang ...".
 function _epBidangLabel(u, fallback) {
   const nama = (u.bidang_nama || fallback || '').trim();
   const prefix = u.bidang_tipe === 'puskesmas' ? 'Puskesmas'
@@ -6585,11 +6088,6 @@ function _epBuildTorPreviewHtml(d, u) {
     ? (Number(kwMulai) === Number(kwSelesai) ? `Bulan ${EP_BULAN[kwMulai]} ${u.tahun_anggaran || ''}` : `Bulan ${EP_BULAN[kwMulai]} - ${EP_BULAN[kwSelesai]} ${u.tahun_anggaran || ''}`)
     : 'Bulan ……..';
   const thStyle = 'border:1px solid #0f766e;background:#0d9488;color:#fff;padding:4px 6px;text-align:center;font-size:11px;text-transform:uppercase';
-  // font-size di-set eksplisit 11px (nyamain ukuran paragraf body dokumen) karena stylesheet
-  // bawaan _bukaPreviewPDF (laporan.js) nge-set "th,td{font-size:10px}" global buat semua jenis
-  // dokumen (Surat/RAB/Laporan dll) -- tanpa override ini isi tabel TOR kelihatan lebih kecil
-  // dibanding teks di luar tabel (yang ikut ukuran body 11px). Cuma disentuh di sini biar
-  // dokumen lain yang pakai _bukaPreviewPDF gak ikut kena.
   const tdStyle = 'border:1px solid #cbd5e1;padding:4px 6px;vertical-align:top;font-size:11px';
   const tdStyleNo = tdStyle + ';text-align:center';
   const EP_TOR_CENTER_FIELDS = new Set(['jumlah', 'penerima', 'satuan', 'volume', 'metode']);
@@ -6601,18 +6099,9 @@ function _epBuildTorPreviewHtml(d, u) {
   const rowsHtml = (rows, cols) => rows.length
     ? rows.map((r, i) => `<tr><td style="${tdStyleNo}">${i + 1}</td>${cols.map(([f]) => `<td style="${cellStyle(f)}">${cellHtml(r, f)}</td>`).join('')}</tr>`).join('')
     : `<tr><td colspan="${cols.length + 1}" style="${tdStyle}text-align:center;color:#94a3b8">-</td></tr>`;
-  // No & Nama Kegiatan dapat baris sendiri (gak numpuk ke indikator manapun, jadi gak maksa tinggi baris lain).
-  // Baris Indikator & Target masing-masing pakai <td> tabel ASLI (bukan div/CSS-table) supaya garis vertikalnya
-  // otomatis dari border tabel itu sendiri — nyambung rapi, gak perlu trik garis manual lagi.
   const tdStyleV = 'border-left:1px solid #cbd5e1;border-right:1px solid #cbd5e1;padding:4px 6px;vertical-align:top;font-size:11px';
-  // Indikator & Target dirender sebagai TABEL NESTED di dalam satu <td> (bukan rowspan lintas <tr> outer),
-  // supaya tinggi baris No/Nama Kegiatan yang wrap panjang gak "maksa melar" baris-baris item lain.
-  // Label "IKU :"/"IKK :" dikasih <tr> sendiri (colspan 2, gak ada target) — supaya baris item indikator
-  // isinya CUMA teks indikator, jadi vertical-align:top-nya sejajar tepat sama target di baris yang sama.
   const rowsHtmlIkuIkk = (ikuRows, ikkRows) => {
     const namaKegiatan = esc((ikuRows[0] || ikkRows[0] || {}).nama_kegiatan || '');
-    // Baris pertama tabel nested pakai padding-top 4px (samain dgn tdStyleV punya Nama Kegiatan) biar sejajar persis;
-    // baris-baris berikutnya 2px aja biar rapat/gak ada spasi antar indikator.
     const padTop = (isFirst) => isFirst ? '4px' : '2px';
     const EP_IKU_IKK_LABEL = { IKU: 'IKU (Indikator Kinerja Utama)', IKK: 'IKK (Indikator Kinerja Kunci)' };
     const labelTr = (label, isFirst) => `<tr>
@@ -6684,13 +6173,6 @@ function _epRenderTorPreviewOnly() {
   return `${_epDokStatusBar('tor')}${_epDokZoomToolbar('tor', 'epPreviewTor()')}${_epDokPreviewWrap(_epBuildTorPreviewHtml(d, u))}${_epDokZoomToolbarEnd}`;
 }
 
-/* ---------- RAB (reuse eplanning_rincian yang sudah ada) ---------- */
-// Tab Preview Dokumen -> RAB nampilin list ringkas rincian (dikelompokin per kode rekening,
-// bisa diklik ikon mata buat lihat detail) - BUKAN tabel bergaris ala dokumen resmi. Tabel
-// bergaris itu (_epBuildRabTable) cuma dipake pas user beneran klik tombol "Preview/Download
-// PDF" (epPreviewRab), biar gak dobel nongolin bentuk PDF sebelum diminta.
-// Edit/hapus rincian tetap lewat halaman Rincian Anggaran (openRincianPage/renderRincianTable)
-// yang emang udah ada terpisah - tombol mata di sini cuma buka mode lihat (readonly).
 function _epRenderRabTab() {
   const totalRows = _epDokRincian.length;
   const totalPages = Math.max(1, Math.ceil(totalRows / _epRabPageSize));
@@ -6707,8 +6189,6 @@ function _epRenderRabTab() {
     pageRows.forEach(r => {
       const uraianPaket = r.uraian_paket || '-';
       if (uraianPaket !== lastUraianPaket) {
-        // Rincian Manual (Survei Harga) memang gak punya Uraian Pengelompokan Belanja/Paket
-        // Pekerjaan - baris judul "[#] -" gak perlu ditampilkan, tapi state grupnya tetap direset.
         if (r.uraian_paket) rowsHtml += `<tr><td></td><td colspan="4" style="font-weight:700">[#] ${esc(uraianPaket)}</td></tr>`;
         lastUraianPaket = uraianPaket;
         lastKeterangan = null;
@@ -6781,12 +6261,12 @@ async function _epDokRefreshRincian() {
     const r = await fetch(`/api/eplanning/rincian?usulan_id=${_epDokUsulan.id}`, { headers: authHeaders() });
     const d = await r.json();
     _epDokRincian = d.rincian || [];
-  } catch { /* noop */ }
+  } catch {  }
   try {
     const ru = await fetch(`/api/eplanning/usulan/${_epDokUsulan.id}`, { headers: authHeaders() });
     const du = await ru.json();
     if (ru.ok) _epDokUsulan = du.usulan;
-  } catch { /* noop */ }
+  } catch {  }
   if (_epDokTab === 'rab') {
     const el = document.getElementById('epDokContent');
     if (el) { el.innerHTML = _epRenderRabTab(); _epRabPaginationRender(); }
@@ -6794,8 +6274,6 @@ async function _epDokRefreshRincian() {
   _epUpdateDokIndikator();
 }
 
-// Parse teks Koefisien bebas (mis. "30 Orang x 2 Kali x 1 Hari") jadi segmen {num, unit}
-// per "x" - dipakai buat mecah kolom di bawah header RINCIAN VOLUME jadi beberapa kolom kayak format SIPD.
 function _epParseKoefisienSegments(koefisien) {
   const raw = String(koefisien || '').trim();
   if (!raw) return [];
@@ -6805,17 +6283,11 @@ function _epParseKoefisienSegments(koefisien) {
   }).filter(s => s.num || s.unit);
 }
 
-// Builder tabel RAB dipake bareng oleh epPreviewRab() (tombol Preview/Download PDF) dan
-// _epRenderRabTab() (tab Preview Dokumen) - satu sumber tampilan yang sama, gak dobel logic.
-// aksiCellFn optional: kalau dikasih, ditambahin 1 kolom Aksi paling kiri (buat edit/hapus di tab
-// Preview Dokumen) - epPreviewRab() manggil tanpa ini soalnya PDF-nya read-only.
 function _epBuildRabTable(u, rincian, aksiCellFn) {
   const total = _epDokRincianTotal();
   const target = _epParseTarget(u.target);
   const N = Math.max(1, rincian.length);
 
-  // Lebar kolom di bawah header RINCIAN VOLUME ditentuin dari jumlah segmen "x" terbanyak
-  // di antara semua baris rincian, biar semua baris konsisten jumlah kolomnya.
   const allSegs = rincian.map(r => _epParseKoefisienSegments(r.koefisien));
   const maxSeg = Math.max(1, ...allSegs.map(s => s.length), 0);
   const volCols = maxSeg * 2 + Math.max(0, maxSeg - 1);
@@ -6828,11 +6300,6 @@ function _epBuildRabTable(u, rincian, aksiCellFn) {
   const th = 'style="border:1px solid #333;padding:3px 4px;font-size:7px;font-weight:700;text-align:center;text-transform:uppercase;background:#0f766e;color:#fff"';
   const thW = (w) => `style="border:1px solid #333;padding:3px 4px;font-size:7px;font-weight:700;text-align:center;text-transform:uppercase;background:#0f766e;color:#fff;width:${w}"`;
 
-  // Header "RINCIAN VOLUME" digabung rowspan=2 (nyambung ke baris header ke-2 langsung),
-  // jadi 1 sel utuh - gak perlu sel filler lagi di baris ke-2.
-
-  // Kode Rekening/Detail digabung (rowspan) kalau baris-baris berurutan punya kode+nama rekening
-  // yang sama, biar gak berulang tiap baris rincian.
   const rekKeyOf = (r) => r.kategori_standar === 'MANUAL' ? 'MANUAL' : `${r.kode_rekening || ''}||${r.nama_rekening || ''}`;
   const kodeSpan = rincian.map((r, i) => {
     if (i > 0 && rekKeyOf(r) === rekKeyOf(rincian[i - 1])) return 0;
@@ -6918,7 +6385,6 @@ function epPreviewRab() {
   _bukaPreviewPDF(html, `RAB - ${u.nama_kegiatan || u.sub_kegiatan || ''}`, 'landscape');
 }
 
-/* ---------- Simpan dokumen ---------- */
 async function epSaveDokumen(tipe) {
   const id = _epDokUsulan.id;
   const data = tipe === 'surat' ? epCollectSuratData() : epCollectTorData();
@@ -6956,8 +6422,6 @@ async function epSaveDokumen(tipe) {
   } catch (err) { toast(err.message, 'error'); }
 }
 
-/* ================= Halaman Pra Usulan (verifikasi per-komponen) ================= */
-
 let _epPraList = [];
 let _epPraPage = 1;
 const _epPraPageSize = 10;
@@ -6975,15 +6439,13 @@ function setEpPraTahunAktif(val) {
   if (page && page.classList.contains('active')) loadEplanningPraUsulan();
 }
 
-// Verifikator = siapa aja yang bisa memverifikasi usulan (Kepala Bidang/Sub Bagian/Puskesmas,
-// Sekretaris Dinas, Admin) - beda sama Operator (si pengusul sendiri) yang gak perlu liat kolom ini.
 function _epPraIsVerifikator(role) { return role.isAdmin || role.isKabid || role.isSekretaris; }
 
 function _epPraColCount() {
   const role = epRole();
-  let n = 5; // No, Kegiatan, Total Anggaran, Status, Aksi
-  if (role.isAdmin) n++; // + Unit Kerja
-  if (_epPraIsVerifikator(role)) n++; // + Pengusul
+  let n = 5;
+  if (role.isAdmin) n++;
+  if (_epPraIsVerifikator(role)) n++;
   return n;
 }
 
@@ -7050,12 +6512,9 @@ const EP_DITOLAK_OLEH_LABEL = {
   KEPALA_SUB_BAGIAN: 'Ditolak Kepala Sub Bagian',
   SEKRETARIS: 'Ditolak Sekretaris Dinas',
   ADMIN: 'Ditolak Verifikator',
-  KEPALA: 'Ditolak Kepala', // data lama sebelum dipecah per tipe unit kerja
+  KEPALA: 'Ditolak Kepala',
 };
 
-// Modal read-only nampilin catatan alasan penolakan (dipanggil dari ikon kecil
-// di sebelah badge status "Ditolak" - dipisah dari badge-nya sendiri biar kolom
-// Status gak melebar walau catatannya panjang).
 function epShowCatatanTolak(id) {
   const u = _epPraList.find(x => x.id === id) || _epUsulanList.find(x => x.id === id);
   if (!u || !u.catatan_koreksi) return;
@@ -7159,20 +6618,14 @@ function _epKomponenBadge(status) {
 
 function goEpPraPage(p) { _epPraPage = p; renderEplanningPraTable(); }
 
-// Syarat wajib tanda tangan (pengusul & verifikator) sebelum bisa mengajukan/memverifikasi usulan.
-// Super Admin dikecualikan - dia gak perlu tanda tangan sendiri buat approve/ajukan usulan siapapun.
 function _epHasTtd() { return !!(_user && (_user.is_admin || _user.tanda_tangan)); }
 
-// Apakah user ini termasuk yang wajib punya tanda tangan buat eplanning (Super Admin dikecualikan).
 function _epButuhTtd() {
   if (!_user || _user.is_admin) return false;
   const role = epRole();
   return role.isAdmin || role.isKabid || role.isOperator || role.isSekretaris;
 }
 
-// Refresh tampilan/aktif-nonaktif tombol "+ Tambah" di halaman Pra Usulan sesuai status
-// periode & tanda tangan user - dipanggil pas halaman dimuat DAN begitu tanda tangan
-// baru aja disimpan (biar tombol langsung kebuka tanpa perlu pindah halaman/reload).
 function _epRefreshBtnTambah() {
   const btnTambah = document.getElementById('btnTambahEpPraUsulan');
   if (!btnTambah) return;
@@ -7185,8 +6638,6 @@ function _epRefreshBtnTambah() {
   else btnTambah.setAttribute('data-tip', 'Upload tanda tangan Anda dulu di Profil');
 }
 
-// Popup pengingat tanda tangan pas login - biar user langsung sadar tanda tangannya
-// belum ada, sebelum kejegal pas mau ajukan/verifikasi usulan e-Planning.
 function _cekTtdLoginPopup() {
   try {
     if (document.getElementById('ttdLoginPopup')) return;
@@ -7262,9 +6713,6 @@ function renderEplanningPraTable() {
     const canEdit = ['DRAFT', 'DITOLAK'].includes(u.status) &&
       (role.isAdmin || (role.isOperator && u.pembuat_user_id === _user.id));
     const canDelete = _user.is_admin || canEdit;
-    // Ajukan/Submit sengaja BUKAN aksi admin - ini tindakan formal si pemilik usulan
-    // ("saya mengajukan usulan ini"), jadi admin (termasuk superadmin) gak ikut dikasih
-    // tombol ini meski dia bisa edit/hapus/verifikasi usulan siapa aja.
     const canSubmitRole = ['DRAFT', 'DITOLAK'].includes(u.status) &&
       role.isOperator && u.pembuat_user_id === _user.id;
     const dokStatus = _epDokLengkap(u);
@@ -7273,9 +6721,6 @@ function renderEplanningPraTable() {
     const canVerifikasi = isEpMenungguKepala(u.status) && (role.isAdmin || (role.isKabid && role.bidangId === u.bidang_id));
     const canApproveSekretaris = u.status === 'MENUNGGU SEKRETARIS' && (role.isAdmin || role.isSekretaris);
     const canApproveAdmin = u.status === 'MENUNGGU ADMIN' && role.isAdmin;
-    // Sebelum diajukan (masih DRAFT/DITOLAK) dokumennya masih bisa diisi/diedit bebas -> "Kelola
-    // Dokumen". Begitu udah diajukan (status apapun selain itu), dokumen udah masuk alur verifikasi
-    // jadi tombolnya jadi "Preview Dokumen" (modalnya sendiri otomatis kebuka readonly).
     const dokBelumDiajukan = ['DRAFT', 'DITOLAK'].includes(u.status);
     const dokTip = dokBelumDiajukan ? 'Kelola Dokumen' : 'Preview Dokumen';
     const dokIcon = dokBelumDiajukan ? EP_ICON_LIST : EP_ICON_EYE;
@@ -7363,7 +6808,6 @@ async function epKirimBalikPra(id) {
   } catch (err) { toast(err.message, 'error'); }
 }
 
-/* ---------- Riwayat Aktivitas (baca dari audit_log lewat GET usulan/:id/log) ---------- */
 const EP_LOG_AKSI_CONFIG = {
   eplanning_create_usulan:     { color: '#0d9488', label: 'Kegiatan Dibuat' },
   eplanning_save_dokumen:      { color: '#0284c7', label: 'Dokumen Disimpan' },
@@ -7425,7 +6869,6 @@ async function epOpenRiwayat(id) {
   }
 }
 
-/* ---------- Modal verifikasi per-komponen ---------- */
 let _epVerifUsulanId = null;
 
 

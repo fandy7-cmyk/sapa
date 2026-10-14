@@ -1,15 +1,10 @@
 'use strict';
-/* Info Popup: halaman admin, popup untuk user, dan lonceng di topbar. (PRD "Sistem Notifikasi Info Popup SAPA")
-   Semua markup baru memakai event delegation (data-action), tanpa inline handler.
-   Global yang dipakai dari app.js: authHeaders, toast, esc, openModal, closeModal, showConfirm, renderPagination,
-   debounceInput, MENUS, navigateTo, loadDashboard, hasAccess, _user. */
 (function () {
 
-/* ══ Util ════════════════════════════════════════════════════════════════ */
-const TZ = 'Asia/Makassar';   // WITA, tanpa DST
-const MAX_POPUP_PER_KEJADIAN = 5;                 // B4
-const POLL_MS = 5 * 60 * 1000;                    // D1
-const FETCH_TIMEOUT_MS = 8000;                    // D3
+const TZ = 'Asia/Makassar';
+const MAX_POPUP_PER_KEJADIAN = 5;
+const POLL_MS = 5 * 60 * 1000;
+const FETCH_TIMEOUT_MS = 8000;
 const SVG = (inner, w = 14) => `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${w}" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${inner}</svg>`;
 const IC = {
   info:       (w) => SVG('<path d="M18 8a3 3 0 0 1 0 6"/><path d="M10 8v11a1 1 0 0 1-1 1H8a1 1 0 0 1-1-1v-5"/><path d="M12 8h0l4.524-3.77a.9.9 0 0 1 1.476.692v12.156a.9.9 0 0 1-1.476.692L12 14H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1h8"/>', w),
@@ -28,7 +23,6 @@ const IC = {
   arrow:      (w) => SVG('<path d="M5 12h14M13 6l6 6-6 6"/>', w),
   mail:       (w) => SVG('<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 7l9 6 9-6"/>', w),
 };
-// Ikon tombol (13px, stroke 2.5, di kiri teks) - pola yang sama dengan tombol lain di app.html.
 const BI = (inner) => `<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="margin-right:5px;vertical-align:-2px" aria-hidden="true">${inner}</svg>`;
 const BIC = {
   ok:    BI('<path d="M5 13l4 4L19 7"/>'),
@@ -50,7 +44,6 @@ const fmtWaktu = (iso) => {
   return t.replace(/\./g, ':') + ' WITA';
 };
 const fmtTgl = (iso) => iso ? new Date(iso).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric', timeZone: TZ }) : '-';
-// <input type="datetime-local"> <-> ISO. Nilai input selalu dibaca sebagai WITA.
 function isoKeInput(iso) {
   if (!iso) return '';
   const d = new Date(iso);
@@ -63,9 +56,6 @@ function inputKeIso(v) {
   const d = new Date(v + ':00+08:00');
   return isNaN(d) ? null : d.toISOString();
 }
-// Picker tanggal + jam custom (DatePicker/TimePicker dari app.js) menggantikan <input type="datetime-local">.
-// Nilai gabungannya tetap ditulis ke input hidden #ipFormMulai / #ipFormBerakhir dalam format "YYYY-MM-DDTHH:MM",
-// jadi isoKeInput/inputKeIso, bacaForm, dan validasiForm tidak berubah.
 let _pickerWaktuSiap = false;
 function sinkronWaktu(id) {
   const tgl = dpGetValue(id + 'Tgl');
@@ -90,8 +80,6 @@ function isiWaktu(id, iso, jamDefault) {
 const stripHtml = (html) => { const t = document.createElement('div'); t.innerHTML = html || ''; return (t.textContent || '').replace(/\s+/g, ' ').trim(); };
 const $ = (id) => document.getElementById(id);
 
-// Sanitasi sisi klien (pertahanan berlapis; server sudah menyanitasi isi). Dipakai untuk semua isi popup,
-// termasuk Pratinjau yang berasal dari editor lokal admin.
 const OK_TAG = new Set(['P', 'BR', 'STRONG', 'B', 'EM', 'I', 'U', 'OL', 'UL', 'LI', 'A', 'H3', 'H4']);
 const DROP_TAG = new Set(['SCRIPT', 'STYLE', 'IFRAME', 'OBJECT', 'EMBED', 'SVG', 'MATH', 'TEMPLATE', 'NOSCRIPT', 'LINK', 'META']);
 function bersihkanHtml(html) {
@@ -113,16 +101,14 @@ function bersihkanHtml(html) {
   return doc.body.innerHTML;
 }
 
-// Pemanggilan API admin (error dilempar agar bisa ditampilkan lewat toast).
 async function api(path, { method = 'GET', body } = {}) {
   const r = await fetch('/api/info-popup' + path, { method, headers: authHeaders(), body: body ? JSON.stringify(body) : undefined });
   let data = {};
-  try { data = await r.json(); } catch { /* respons kosong */ }
+  try { data = await r.json(); } catch {  }
   if (!r.ok) throw new Error(data.error || ('Gagal (' + r.status + ')'));
   return data;
 }
 
-/* ══ Daftar modul & halaman (dari MENUS, sama dengan kunci navigateTo) ═════ */
 function daftarModul() {
   const out = [{ id: 'semua', label: 'Semua modul' }, { id: 'dashboard', label: 'Dashboard' }];
   (typeof MENUS !== 'undefined' ? MENUS : []).forEach((g) => out.push({ id: g.id, label: g.label }));
@@ -153,7 +139,6 @@ function bukaHalaman(id) {
   return false;
 }
 
-/* ══ ADMIN: daftar ═══════════════════════════════════════════════════════ */
 let _all = [];
 let _page = 1;
 const PER_PAGE = 15;
@@ -243,7 +228,6 @@ async function hapusInfo(id) {
   } catch (e) { toast(e.message || 'Gagal menghapus', 'error'); }
 }
 
-/* ══ ADMIN: detail penerima (A12) ═════════════════════════════════════════ */
 let _penerima = [];
 async function bukaDetail(id) {
   const body = $('ipDetailBody');
@@ -273,10 +257,9 @@ function renderDetail(filter) {
     </tbody></table></div>`;
 }
 
-/* ══ ADMIN: form tambah/ubah ══════════════════════════════════════════════ */
 let _quill = null;
 let _aksi = [];
-let _ref = null;                       // { bidang: [], users: [] } dimuat sekali saat form pertama dibuka
+let _ref = null;
 const _sel = { bidang: new Set(), user: new Set() };
 
 function initQuill() {
@@ -328,7 +311,6 @@ function renderPicker() {
 function renderAksi() {
   const wrap = $('ipAksiList');
   const halaman = daftarHalaman();
-  // Panel dropdown custom di-append ke <body>; buang yang lama biar gak numpuk tiap render ulang.
   wrap.querySelectorAll('.select-wrap').forEach((w) => { if (w._cselPanel) w._cselPanel.remove(); });
   wrap.innerHTML = _aksi.length ? _aksi.map((a, i) => `
     <div class="ip-aksi-row">
@@ -434,15 +416,14 @@ function pratinjau() {
   }], { mode: 'pratinjau' });
 }
 
-/* ══ USER: state & pengambilan data ═══════════════════════════════════════ */
-let _data = { lonceng: [], popup_ids: [], notif: [], dimute: [] };   // notif = notifikasi modul (tabel notifikasi, /api/notifikasi); dimute = modul yang dinonaktifkan user
+let _data = { lonceng: [], popup_ids: [], notif: [], dimute: [] };
 let _modul = 'dashboard';
 let _fetching = false;
 let _recheck = false;
-let _kejadianCount = 0;               // popup otomatis yang sudah ditampilkan pada kejadian ini (B4)
-const _handled = new Set();           // "id:revisi" yang sudah ditutup di sesi halaman ini
-let _queue = [];                      // antrean popup otomatis
-let _tampil = null;                   // { items, idx, mode }
+let _kejadianCount = 0;
+const _handled = new Set();
+let _queue = [];
+let _tampil = null;
 let _retryTimer = null;
 let _debounceTimer = null;
 let _pollTimer = null;
@@ -457,11 +438,10 @@ async function ambilData() {
     const r = await fetch('/api/info-popup/saya?modul=' + encodeURIComponent(_modul), { headers: authHeaders(), signal: ctl.signal });
     if (!r.ok) return null;
     return await r.json();
-  } catch { return null; }          // gagal diam-diam (D3)
+  } catch { return null; }
   finally { clearTimeout(t); }
 }
 
-// Notifikasi modul (surat masuk, dst.) - sumbernya tabel `notifikasi`, terpisah dari Info Popup.
 async function ambilNotif() {
   const ctl = new AbortController();
   const t = setTimeout(() => ctl.abort(), FETCH_TIMEOUT_MS);
@@ -469,7 +449,7 @@ async function ambilNotif() {
     const r = await fetch('/api/notifikasi/saya', { headers: authHeaders(), signal: ctl.signal });
     if (!r.ok) return null;
     return await r.json();
-  } catch { return null; }          // gagal diam-diam (D3)
+  } catch { return null; }
   finally { clearTimeout(t); }
 }
 
@@ -481,17 +461,16 @@ async function infoPopupCheck(reason = 'poll') {
     const [d, nf] = await Promise.all([ambilData(), ambilNotif()]);
     if (!d && !nf) return;
     if (nf) { _data.notif = nf.notifikasi || []; _data.dimute = nf.dimute || []; }
-    if (!d) { renderBell(); umumkanPeringatan(); return; }    // Info Popup gagal diambil: tetap tampilkan notifikasi modul
+    if (!d) { renderBell(); umumkanPeringatan(); return; }
     _data = { lonceng: d.lonceng || [], popup_ids: d.popup_ids || [], notif: _data.notif, dimute: _data.dimute };
     renderBell();
     umumkanPeringatan();
-    // Susun antrean: yang berhak tampil, belum ditutup di sesi ini, belum ada di antrean/layar.
     const sedangTampil = new Set((_tampil ? _tampil.items : []).map(kunci));
     const antre = new Set(_queue.map(kunci));
     for (const id of _data.popup_ids) {
       const it = _data.lonceng.find((x) => x.id === id);
       if (!it || _handled.has(kunci(it)) || sedangTampil.has(kunci(it)) || antre.has(kunci(it))) continue;
-      if (_kejadianCount + _queue.length >= MAX_POPUP_PER_KEJADIAN) break;   // sisanya hanya di lonceng
+      if (_kejadianCount + _queue.length >= MAX_POPUP_PER_KEJADIAN) break;
       _queue.push(it);
     }
     cobaTampil();
@@ -501,7 +480,6 @@ async function infoPopupCheck(reason = 'poll') {
   }
 }
 
-// B5: tahan sampai tidak ada modal/form lain yang terbuka. Cek ulang tiap detik.
 function adaModalTerbuka() {
   return !!document.querySelector('.modal-overlay.open, .modal-overlay-main.open, #confirmOverlay.open');
 }
@@ -518,7 +496,7 @@ function infoPopupOnNavigate(modul) {
   const baru = modul || 'dashboard';
   const berubah = baru !== _modul;
   _modul = baru;
-  _kejadianCount = 0;                // pergantian modul = kejadian baru (B4)
+  _kejadianCount = 0;
   if (!berubah && _tampil) return;
   clearTimeout(_debounceTimer);
   _debounceTimer = setTimeout(() => infoPopupCheck('navigate'), 350);
@@ -528,13 +506,12 @@ function infoPopupInit() {
   if (infoPopupInit._done) return;
   infoPopupInit._done = true;
   pasangGayaNotif();
-  _kejadianCount = 0;                // login/muat aplikasi = kejadian baru
+  _kejadianCount = 0;
   setTimeout(() => infoPopupCheck('boot'), 700);
   document.addEventListener('visibilitychange', () => { if (!document.hidden) infoPopupCheck('visible'); });
   _pollTimer = setInterval(() => { if (!document.hidden) infoPopupCheck('poll'); }, POLL_MS);
 }
 
-/* ══ USER: popup ══════════════════════════════════════════════════════════ */
 function pecahkanFokus(dialog, e) {
   const fokusable = [...dialog.querySelectorAll('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])')].filter((el) => !el.disabled && el.offsetParent !== null);
   if (!fokusable.length) { e.preventDefault(); dialog.focus(); return; }
@@ -549,13 +526,12 @@ function tampilkanDialog(items, { mode }) {
   if (!ov) return;
   if (!_tampil) _lastFocus = document.activeElement;
   _tampil = { items, idx: 0, mode };
-  ov.hidden = false;                 // harus tampil dulu, kalau tidak focus() ke tombol Oke diabaikan browser
+  ov.hidden = false;
   renderDialog();
   document.body.classList.add('ip-open');
   requestAnimationFrame(() => ov.classList.add('show'));
 }
 
-// Perilaku tombol/penutup untuk item yang sedang tampil.
 function konteks() {
   const { items, idx, mode } = _tampil;
   const it = items[idx];
@@ -564,7 +540,6 @@ function konteks() {
   const berakhir = !pratinjau && it.berakhir;
   return {
     it, pratinjau, disembunyikan, berakhir,
-    // Esc & klik luar = "Oke" (kecuali Wajib dibaca). Info berakhir/tersembunyi dari lonceng cukup ditutup.
     bisaDitutupLuar: !it.wajib_dibaca,
     perluRespons: !pratinjau && !disembunyikan && !berakhir,
     tombolSembunyi: !it.wajib_dibaca && !disembunyikan && !berakhir,
@@ -598,7 +573,6 @@ function renderDialog() {
     <h2 class="ip-title" id="ipTitle">${esc(it.judul)}</h2>
     <div class="ip-body" id="ipBody">${bersihkanHtml(it.isi)}</div>
     <div class="ip-foot">${aksi ? `<div class="ip-aksi">${aksi}</div>` : ''}<div class="ip-main">${utama}</div></div>`;
-  // Tautan di dalam isi selalu membuka tab baru.
   dlg.querySelectorAll('.ip-body a').forEach((a) => { a.target = '_blank'; a.rel = 'noopener noreferrer'; });
   dlg.setAttribute('aria-labelledby', 'ipTitle');
   dlg.scrollTop = 0;
@@ -607,8 +581,8 @@ function renderDialog() {
 }
 
 async function kirimRespons(it, jenis) {
-  if (!it.id) return;                // pratinjau
-  try { await fetch(`/api/info-popup/${it.id}/${jenis}`, { method: 'POST', headers: authHeaders() }); } catch { /* diam-diam */ }
+  if (!it.id) return;
+  try { await fetch(`/api/info-popup/${it.id}/${jenis}`, { method: 'POST', headers: authHeaders() }); } catch {  }
 }
 function setStatusLokal(it, status) {
   const src = _data.lonceng.find((x) => x.id === it.id && x.revisi === it.revisi);
@@ -630,11 +604,10 @@ function lanjutAtauTutup() {
   document.body.classList.remove('ip-open');
   setTimeout(() => { ov.hidden = true; }, 160);
   _tampil = null;
-  try { _lastFocus && _lastFocus.focus && _lastFocus.focus(); } catch { /* elemen sudah hilang */ }
-  cobaTampil();                      // mungkin ada yang antre
+  try { _lastFocus && _lastFocus.focus && _lastFocus.focus(); } catch {  }
+  cobaTampil();
 }
 
-// jenis: 'oke' | 'sembunyi' | 'tampilkan-lagi' | 'tutup'
 function tutupSatu(jenis) {
   if (!_tampil) return;
   const k = konteks();
@@ -660,7 +633,6 @@ function tutupSatu(jenis) {
   }
   lanjutAtauTutup();
 }
-// Esc / klik di luar: sama dengan Oke, kecuali info Wajib dibaca.
 function tutupLuar() {
   if (!_tampil) return;
   const k = konteks();
@@ -674,7 +646,7 @@ function jalankanAksi(i) {
   if (!a) return;
   if (k.pratinjau) { toast('Tombol aksi tidak dijalankan pada pratinjau', 'info'); return; }
   const tujuanLink = a.tipe === 'link';
-  tutupSatu(k.perluRespons ? 'oke' : 'tutup');   // klik aksi dihitung sebagai Oke (A7)
+  tutupSatu(k.perluRespons ? 'oke' : 'tutup');
   if (tujuanLink) {
     if (/^https?:\/\//i.test(a.tujuan)) window.open(a.tujuan, '_blank', 'noopener,noreferrer');
   } else if (!bukaHalaman(a.tujuan)) {
@@ -682,13 +654,11 @@ function jalankanAksi(i) {
   }
 }
 
-/* ══ USER: lonceng ════════════════════════════════════════════════════════ */
 function belumDibaca() { return _data.lonceng.filter((x) => x.status === 'baru' && !x.berakhir).length; }
 const notifBelum = () => _data.notif.filter((x) => !x.dibaca_at).length;
-let _filter = 'semua';   // 'semua' | 'belum' | kunci modul ('surat-masuk', 'lembur', ..., 'info')
+let _filter = 'semua';
 const MODUL_LABEL = { 'surat-masuk': 'Surat Masuk', lembur: 'Lembur', perjadin: 'Perjadin', periode: 'Periode', kinerja: 'Kinerja', absensi: 'Absensi', sistem: 'Sistem', keamanan: 'Keamanan' };
 
-// Gaya tambahan untuk tombol "Tandai semua dibaca" (disuntik dari sini, pola yang sama dengan monitoring_frontend.js).
 function pasangGayaNotif() {
   if (document.getElementById('ipNotifStyle')) return;
   const st = document.createElement('style');
@@ -720,7 +690,7 @@ function pasangTombolBacaSemua() {
 function renderBell() {
   const btn = $('btnInfoBell');
   if (!btn) return;
-  const n = belumDibaca() + notifBelum();   // info belum dibaca + notifikasi modul belum dibaca
+  const n = belumDibaca() + notifBelum();
   const badge = $('ipBellBadge');
   btn.classList.toggle('has-unread', n > 0);
   badge.hidden = n === 0;
@@ -728,7 +698,7 @@ function renderBell() {
   btn.setAttribute('aria-label', n ? `Notifikasi, ${n} perlu diperhatikan` : 'Notifikasi');
   if (!$('ipPanel').hidden) renderPanel();
 }
-const MIN_ITEM_FILTER = 4;   // filter baru tampil bila item cukup banyak (atau saat filter sedang aktif)
+const MIN_ITEM_FILTER = 4;
 
 function lolosFilter(kunci, belum) {
   return _filter === 'semua' || (_filter === 'belum' && belum) || _filter === kunci;
@@ -745,7 +715,7 @@ function pasangFilter(total) {
   const unreadInfo = (it) => it.status === 'baru' && !it.berakhir;
   const modul = [...new Set(_data.notif.map((n) => n.modul))];
   if (_data.lonceng.length) modul.push('info');
-  if (_filter !== 'semua' && _filter !== 'belum' && !modul.includes(_filter)) _filter = 'semua';   // modulnya sudah tidak ada
+  if (_filter !== 'semua' && _filter !== 'belum' && !modul.includes(_filter)) _filter = 'semua';
   bar.hidden = total < MIN_ITEM_FILTER && _filter === 'semua';
   if (bar.hidden) return;
   const jml = (kunci) => _data.notif.filter((n) => n.modul === kunci).length + (kunci === 'info' ? _data.lonceng.length : 0);
@@ -798,8 +768,6 @@ function bukaDariPanel(id, rev) {
   tampilkanDialog([{ ...it }], { mode: 'lonceng' });
 }
 
-// Peringatan baru (prioritas tertinggi) diumumkan sekali per sesi lewat toast, tanpa membuka panel. Satu toast per
-// pengecekan (ringkasan bila lebih dari satu). Kunci = id + tingkat, jadi kenaikan tingkat diumumkan lagi.
 function umumkanPeringatan() {
   const panel = $('ipPanel');
   if (panel && !panel.hidden) return;
@@ -810,11 +778,10 @@ function umumkanPeringatan() {
   const kunci = (n) => `${n.id}:${n.tingkat || ''}`;
   const belum = baru.filter((n) => !sudah.includes(kunci(n)));
   if (!belum.length) return;
-  try { sessionStorage.setItem('ipNotifDiumumkan', JSON.stringify([...sudah, ...belum.map(kunci)].slice(-200))); } catch { /* storage penuh/dimatikan */ }
+  try { sessionStorage.setItem('ipNotifDiumumkan', JSON.stringify([...sudah, ...belum.map(kunci)].slice(-200))); } catch {  }
   toast(belum.length === 1 ? belum[0].judul : `${belum.length} peringatan baru di Notifikasi`, 'warning', 'notif-peringatan');
 }
 
-// Ambang eskalasi surat terlambat: diatur admin di Master Data > Info Popup (kunci settings notif_surat_eskalasi_hari).
 let _ambang = null;
 async function muatAmbang() {
   const el = $('ipAmbang');
@@ -825,7 +792,7 @@ async function muatAmbang() {
     const v = parseInt(((await r.json()).settings || {}).notif_surat_eskalasi_hari, 10);
     _ambang = Number.isInteger(v) && v >= 1 && v <= 60 ? v : 3;
     el.value = _ambang;
-  } catch { /* abaikan: kolom tetap berisi default */ }
+  } catch {  }
 }
 
 async function simpanAmbang() {
@@ -843,7 +810,6 @@ async function simpanAmbang() {
 }
 
 
-// Notifikasi modul: tandai dibaca (optimistis, POST di belakang layar) lalu buka halaman tujuannya.
 function notifApi(path) { return fetch('/api/notifikasi' + path, { method: 'POST', headers: authHeaders() }).catch(() => {}); }
 function bukaNotif(id) {
   const n = _data.notif.find((x) => x.id === id);
@@ -851,7 +817,6 @@ function bukaNotif(id) {
   togglePanel(false);
   if (!n.dibaca_at) { n.dibaca_at = new Date().toISOString(); renderBell(); notifApi(`/${id}/baca`); }
   const tujuan = n.tautan && n.tautan.halaman;
-  // Tautan dengan filter (ringkasan "surat terlambat"): setel filter halaman tujuan sebelum membukanya.
   if (tujuan === 'surat-masuk' && n.tautan.filter && typeof setSMFilter === 'function') setSMFilter(n.tautan.filter);
   if (tujuan && !bukaHalaman(tujuan)) toast('Halaman tujuan tidak tersedia untuk akun Anda', 'error');
 }
@@ -863,11 +828,8 @@ function bacaSemuaNotif() {
   notifApi('/baca-semua');
 }
 
-/* ══ Event delegation ═════════════════════════════════════════════════════ */
 document.addEventListener('click', (e) => {
-  // Klik di luar popup (pada overlay) = Oke / tutup.
   if (e.target === $('ipOverlay')) { tutupLuar(); return; }
-  // Klik di luar panel lonceng menutup panel.
   const panel = $('ipPanel');
   if (panel && !panel.hidden && !e.target.closest('#ipPanel') && !e.target.closest('#btnInfoBell')) togglePanel(false);
 
@@ -886,7 +848,6 @@ document.addEventListener('click', (e) => {
     case 'ip-tampilkan-lagi':  tutupSatu('tampilkan-lagi'); break;
     case 'ip-tutup':           tutupSatu('tutup'); break;
     case 'ip-aksi':            jalankanAksi(parseInt(el.dataset.i, 10)); break;
-    // admin
     case 'ip-tambah':          bukaForm(); break;
     case 'ip-edit':            bukaForm(id); break;
     case 'ip-toggle':          toggleAktif(id); break;

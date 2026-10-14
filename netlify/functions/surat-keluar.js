@@ -7,7 +7,6 @@ let _skMigrated = false;
 async function ensureSchema(sql) {
   if (_skMigrated) return;
   await sql`ALTER TABLE surat_keluar ADD COLUMN IF NOT EXISTS pegawai_list JSONB NOT NULL DEFAULT '[]'::jsonb`;
-  // Backfill dari kolom pegawai (single nama) lama ke pegawai_list (array nama)
   await sql`UPDATE surat_keluar SET pegawai_list = jsonb_build_array(pegawai) WHERE pegawai IS NOT NULL AND pegawai <> '' AND pegawai_list = '[]'::jsonb`;
   _skMigrated = true;
 }

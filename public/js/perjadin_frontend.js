@@ -1,20 +1,9 @@
-// ═══════════════════════════════════════════════════════════════════════════
-// PERJADIN (Perjalanan Dinas)
-//  1. Halaman rekap Perjadin (admin): filter, KPI, tabel, verifikasi, tambah/edit/duplikat/hapus
-//  2. Form Perjalanan Dinas yang dipakai dua tempat dengan generator yang sama:
-//       - modal admin (#modalPerjadin, prefix 'pjA')
-//       - bagian di modal pengajuan Tugas Luar di menu Absensi (#pengPerjadinForm, prefix 'pjU')
-//       - bagian di modal Tambah/Edit Absensi (admin) saat status Tugas Luar (#absPerjadinForm, prefix 'pjE')
-// Semua nama global di file ini berawalan pj / _pj / PJ_ supaya tidak bentrok dengan modul lain.
-// ═══════════════════════════════════════════════════════════════════════════
-
 const PJ_JENIS = ['Dalam Kota', 'Luar Kota Dalam Provinsi', 'Luar Provinsi'];
 const PJ_KENDARAAN = ['Dinas', 'Pribadi', 'Sewa', 'Travel'];
 const PJ_BULAN = ['', 'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
 const PJ_STATUS_LABEL = { menunggu: 'Menunggu Persetujuan', terverifikasi: 'Disetujui', ditolak: 'Ditolak' };
 const PJ_STATUS_BADGE = { menunggu: 'badge-warning', terverifikasi: 'badge-hijau', ditolak: 'badge-merah' };
 
-// Kunci field rincian biaya. Harus sama dengan DETAIL_* di netlify/functions/_perjadin.js.
 const PJ_D_RP = ['udara_pergi_rp', 'udara_pulang_rp', 'darat_pergi_rp', 'darat_pulang_rp', 'laut_pergi_rp', 'laut_pulang_rp',
   'taksi_pergi_rp', 'taksi_pulang_rp', 'uang_harian_rp', 'uang_representasi_rp', 'penginapan_rp', 'penginapan_30_rp', 'lain_rp'];
 const PJ_D_DATE = ['penginapan_checkin', 'penginapan_checkout'];
@@ -37,8 +26,6 @@ const PJ_ICON = {
   kpiOk: '<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="m9 11 3 3L22 4"/></svg>',
 };
 
-// ── Util ──────────────────────────────────────────────────────────────────
-// Admin Penuh Perjadin: Super Admin atau permission 'perjadin.full'. Permission 'perjadin' (dasar) = lihat data sendiri saja.
 function pjIsAdmin() { return !!(_user && (_user.is_admin || hasAccess('perjadin.full'))); }
 function pjCanView() { return !!(_user && (_user.is_admin || hasAccess('perjadin.full') || hasAccess('perjadin'))); }
 function pjFmtRp(n) { return 'Rp ' + (Number(n) || 0).toLocaleString('id-ID'); }
@@ -47,7 +34,6 @@ function pjFmtTgl(s) {
   return m ? `${m[3]} ${PJ_BULAN[+m[2]].slice(0, 3)} ${m[1]}` : '-';
 }
 function pjFmtNum(n) { const v = Number(n) || 0; return v ? v.toLocaleString('id-ID') : '-'; }
-// Pecahan biaya satu baris (sama dengan pengelompokan di backend hitungTotal & laporan)
 function _pjBiaya(r) {
   const d = _pjDetailOf(r);
   const n = (k) => Number(d[k]) || 0;
@@ -64,7 +50,6 @@ function _pjThisYear() {
   catch { return String(new Date().getFullYear()); }
 }
 
-// ── Input Rupiah (ribuan otomatis) ────────────────────────────────────────
 function pjRpInput(el) {
   const d = el.value.replace(/\D/g, '');
   el.value = d ? Number(d).toLocaleString('id-ID') : '';
@@ -73,7 +58,6 @@ function pjRpInput(el) {
 function _pjRpVal(id) { const v = (_pjById(id)?.value || '').replace(/\D/g, ''); return v ? parseInt(v, 10) : 0; }
 function _pjSetRp(id, n) { const el = _pjById(id); if (el) el.value = Number(n) ? Number(n).toLocaleString('id-ID') : ''; }
 
-// ── Generator field form ──────────────────────────────────────────────────
 function _pjReq(req) { return req ? ' <span style="color:var(--merah)">*</span>' : ''; }
 function _pjIn(p, k, label, { ph = '', req = false, max = 300, upper = false } = {}) {
   return `<div class="field"><label for="${p}_${k}">${label}${_pjReq(req)}</label>
@@ -111,8 +95,6 @@ function _pjUdara(p, dir, title) {
     ${leg('asal', 'Asal')}${leg('transit', 'Transit')}${leg('tujuan', 'Tujuan')}`;
 }
 
-// admin=true menambah field khusus admin (SKPD/SP2D, pelaksana, tanggal, uang harian, dst).
-// Pada form user, pelaksana & tanggal pelaksanaan diambil server dari akun & tanggal pengajuan.
 function pjFormHTML(p, admin) {
   const surat = `
     ${admin ? `<div class="pj-grid2">${_pjIn(p, 'nama_skpd', 'Nama SKPD')}${p === 'pjA'
@@ -160,8 +142,6 @@ function pjFormHTML(p, admin) {
     <div class="pj-grid2">${_pjRp(p, 'lain_rp', 'Biaya Lain-Lain (Rp)')}${_pjIn(p, 'lain_keterangan', 'Keterangan Biaya Lain-Lain')}</div>
     ${admin ? '' : '<div class="field-hint">Uang harian, uang representasi, dan biaya 30% penginapan diisi admin.</div>'}`);
 
-  // Di modal Absensi (pjE): surat tugas & kegiatan wajib diisi dulu, baru ditanya apakah perlu dipertanggungjawabkan
-  // (Ya -> bagian anggaran muncul, Tidak -> langsung simpan).
   const tanya = (p === 'pjU') ? `
     <div class="field" style="margin-top:14px">
       <label>Perjalanan dinas ini perlu dipertanggungjawabkan?</label>
@@ -177,8 +157,6 @@ function pjFormHTML(p, admin) {
     <div class="pj-total" id="${p}_total"></div></div>`;
 }
 
-// Jawaban "perlu dipertanggungjawabkan?" per form: pjA (menu Perjadin), pjE (modal Absensi), pjU (modal pengajuan user).
-// Ya -> No./Tanggal SP2D + rincian anggaran tampil. Tidak -> disembunyikan, langsung simpan.
 const _pjYN = { pjA: 'ya', pjE: 'tidak', pjU: 'tidak' };
 function pjSetYN(p, v) {
   _pjYN[p] = v === 'ya' ? 'ya' : 'tidak';
@@ -190,11 +168,10 @@ function pjSetYN(p, v) {
   pjYNSync(p);
 }
 function pjYNSync(p) {
-  const show = (p !== 'pjU' || _pjYN[p] === 'ya') ? '' : 'none';   // form admin (pjA, pjE): selalu tampil; toggle Ya/Tidak hanya di form pengajuan user (pjU)
+  const show = (p !== 'pjU' || _pjYN[p] === 'ya') ? '' : 'none';
   const ang = _pjById(`${p}_anggaran`); if (ang) ang.style.display = show;
   const sp2d = _pjById(`${p}_sp2d`); if (sp2d) sp2d.style.display = show;
 }
-// Buka otomatis section rincian biaya (Udara, Darat & Laut, Taksi, Penginapan) yang sudah ada isinya, supaya langsung kelihatan saat Edit.
 function pjOpenFilledSections(p) {
   _pjById(`${p}_anggaran`)?.querySelectorAll('details.pj-sec').forEach((d) => {
     const filled = [...d.querySelectorAll('input:not([type=hidden]), select, textarea')].some((el) => {
@@ -203,7 +180,6 @@ function pjOpenFilledSections(p) {
     if (filled) d.open = true;
   });
 }
-// `detail` normalnya object, tapi kalau tersimpan/terkirim sebagai string JSON (bahkan dobel) form edit jadi kosong. Selalu dinormalkan ke object.
 function _pjDetailOf(row) {
   let d = row?.detail;
   for (let i = 0; i < 3 && typeof d === 'string'; i++) { try { d = JSON.parse(d); } catch { d = {}; } }
@@ -220,7 +196,6 @@ function pjUpdateTotal(p) {
   t.innerHTML = `<span>${p === 'pjU' ? 'Perkiraan Total Biaya' : 'Jumlah Biaya'}</span><b>${pjFmtRp(sum)}</b>`;
 }
 
-// Pasang date picker (cdtp) & custom select pada form yang baru dirender.
 function _pjMountWidgets(p) {
   if (typeof initCdtp === 'function') initCdtp();
   if (typeof initCustomSelects === 'function') initCustomSelects();
@@ -243,7 +218,6 @@ function pjUpdateHari(p) {
   el.textContent = `Jumlah hari: ${d} hari`;
 }
 
-// Isi form dari satu baris data (untuk edit/duplikat).
 function pjFillForm(p, row, admin) {
   const set = (k, v) => { const el = _pjById(`${p}_${k}`); if (el) el.value = v ?? ''; };
   ['no_surat_tugas', 'rincian_kegiatan', 'jenis_perjadin', 'kota_asal', 'kota_tujuan'].forEach((k) => set(k, row?.[k]));
@@ -264,7 +238,6 @@ function pjFillForm(p, row, admin) {
   pjUpdateTotal(p);
 }
 
-// Baca isi form -> objek yang dikirim ke API.
 function pjCollect(p, admin) {
   _pjCommitDates(p);
   const val = (k) => (_pjById(`${p}_${k}`)?.value || '').trim();
@@ -287,7 +260,6 @@ function pjCollect(p, admin) {
   return out;
 }
 
-// Validasi sisi client (server tetap memvalidasi ulang). Return pesan error atau ''.
 function pjValidate(d, admin) {
   if (admin) {
     if (!d.pelaksana_nama) return 'Nama pelaksana wajib diisi';
@@ -303,16 +275,13 @@ function pjValidate(d, admin) {
   return '';
 }
 
-// ═══════════════════════════════════════════════════════════════════════════
-// 1. HALAMAN REKAP PERJADIN (admin)
-// ═══════════════════════════════════════════════════════════════════════════
 const PJ_PAGE_SIZE = 10;
 let _pjPage = 1;
 let _pjRows = [];
 let _pjReady = false;
 let _pjSubAsli = null;
 let _pjTahunInit = false;
-let _pjPelaksana = null;      // cache daftar pegawai untuk dropdown
+let _pjPelaksana = null;
 let _pjSkpdDefault = '';
 const _pjF = { q: '', tahun: '', bulan: '', jenis: '', status: '' };
 
@@ -324,8 +293,6 @@ function _pjFillSelect(id, html, value) {
   syncCustomSelect?.(id);
 }
 
-// Isi dropdown filter hanya dengan nilai yang ada datanya (dari /api/perjadin/opsi).
-// Nilai filter yang sudah tidak ada datanya otomatis dilepas.
 async function _pjBuildFilters() {
   let o = { tahun: [], bulan: [], jenis: [], status: [] };
   for (let i = 0; i < 3; i++) {
@@ -338,7 +305,6 @@ async function _pjBuildFilters() {
     } catch (err) { console.error('[pjBuildFilters]', err); }
     let changed = false;
     if (!_pjTahunInit) {
-      // Pertama kali: tahun berjalan kalau ada datanya, kalau tidak tahun terbaru yang ada datanya.
       const y = parseInt(_pjThisYear(), 10);
       _pjF.tahun = o.tahun.includes(y) ? String(y) : (o.tahun[0] ? String(o.tahun[0]) : '');
       _pjTahunInit = true; changed = true;
@@ -355,7 +321,6 @@ async function _pjBuildFilters() {
   _pjFillSelect('pjFilterStatus', '<option value="">Semua Status</option>' + ['menunggu', 'terverifikasi', 'ditolak'].filter((s) => o.status.includes(s)).map((s) => `<option value="${s}">${PJ_STATUS_LABEL[s]}</option>`).join(''), _pjF.status);
 }
 
-// Mode lihat-saja untuk user dengan akses dasar: sembunyikan Tambah & kolom Aksi, ubah subjudul.
 function _pjApplyMode() {
   const page = _pjById('page-perjadin');
   if (!page) return;
@@ -367,22 +332,17 @@ function _pjApplyMode() {
     if (_pjSubAsli === null) _pjSubAsli = sub.innerHTML;
     sub.innerHTML = admin ? _pjSubAsli : 'Data perjalanan dinas Anda';
   }
-  // User akses dasar tidak bisa tambah langsung; pengajuannya lewat form Tugas Luar di menu Absensi (modal yang sama).
   const btnAjukan = _pjById('pjBtnAjukan');
   if (btnAjukan) btnAjukan.style.display = admin ? 'none' : '';
-  // Tombol Persetujuan Pengajuan: pakai izin yang sama dengan endpoint approve/reject (admin absensi penuh).
   const btnSetuju = _pjById('pjBtnPersetujuan');
   const bolehSetuju = typeof isAbsensiFull === 'function' && isAbsensiFull();
   if (btnSetuju) btnSetuju.style.display = bolehSetuju ? '' : 'none';
   if (bolehSetuju && typeof refreshPengajuanPendingBadge === 'function') refreshPengajuanPendingBadge();
 }
 
-// Tombol "Ajukan Perjalanan Dinas" (user akses dasar): buka modal pengajuan Tugas Luar milik menu Absensi.
-// Pengajuan yang tersimpan langsung membuat baris Perjadin "menunggu", jadi tabel di-refresh begitu modal ditutup.
 function pjAjukanDariMenu() {
   if (typeof openPengajuanModal !== 'function') { toast('Form pengajuan belum siap, muat ulang halaman', 'error'); return; }
   openPengajuanModal();
-  // Dari menu Perjadin jenisnya pasti Tugas Luar: sembunyikan pilihan Jenis (tidak ada Cuti) dan ganti judul.
   const st = _pjById('pengStatus');
   if (st) st.value = 'tugas_luar';
   if (typeof syncCustomSelect === 'function') syncCustomSelect('pengStatus');
@@ -399,7 +359,6 @@ function pjAjukanDariMenu() {
   hooks.modalPengajuanAbsen = wrapped;
 }
 
-// Dipanggil dari approvePengajuan / submitTolakPengajuan (absensi_frontend.js) supaya tabel Perjadin ikut ter-update.
 async function pjRefreshSetelahPengajuan() {
   if (!_pjReady) return;
   try { await _pjBuildFilters(); await pjLoadTable(_pjPage || 1); } catch (e) { console.error('[pj refresh]', e); }
@@ -419,7 +378,6 @@ async function pjSetFilter() {
   _pjF.bulan = _pjById('pjFilterBulan')?.value || '';
   _pjF.jenis = _pjById('pjFilterJenis')?.value || '';
   _pjF.status = _pjById('pjFilterStatus')?.value || '';
-  // Tahun/bulan berubah -> opsi bulan, jenis, status ikut menyesuaikan data.
   if (_pjF.tahun !== prev.tahun || _pjF.bulan !== prev.bulan) await _pjBuildFilters();
   pjLoadTable(1);
 }
@@ -512,7 +470,6 @@ async function pjVerifikasi(id, status, catatan = '') {
   } catch { toast('Gagal memperbarui status', 'error'); return false; }
 }
 
-// Icon tombol submit modal Verifikasi (teks tombolnya ganti Setujui/Tolak, jadi icon ikut diganti lewat innerHTML).
 const PJ_BTN_ICON_CHECK = '<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>';
 const PJ_BTN_ICON_X = '<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>';
 let _pjVerifPilih = 'setuju';
@@ -565,13 +522,11 @@ async function pjDelete(id) {
     const d = await r.json();
     if (!r.ok) { toast(d.error || 'Gagal menghapus', 'error'); return; }
     toast('Data perjalanan dinas dihapus', 'success');
-    // Kalau yang dihapus satu-satunya baris di halaman ini, mundur satu halaman.
     await _pjBuildFilters();
     await pjLoadTable(_pjRows.length === 1 && _pjPage > 1 ? _pjPage - 1 : _pjPage);
   } catch { toast('Gagal menghapus', 'error'); }
 }
 
-// ── Modal tambah/edit/duplikat (admin) ──
 async function _pjEnsurePelaksana() {
   if (_pjPelaksana) return;
   try {
@@ -582,7 +537,6 @@ async function _pjEnsurePelaksana() {
   } catch { _pjPelaksana = []; }
 }
 
-// Daftar Sumber Dana (master Sumber Dana e-Planning) untuk dropdown Sumber Dana. Nilai yang disimpan = label ("kode - nama").
 let _pjSumberDanaOpts = [];
 let _pjSumberDanaLoaded = false;
 async function _pjEnsureSumberDana() {
@@ -594,7 +548,6 @@ async function _pjEnsureSumberDana() {
     _pjSumberDanaLoaded = r.ok;
   } catch { _pjSumberDanaOpts = []; }
 }
-// Isi ulang opsi select Sumber Dana di form `p`; nilai lama yang sudah tidak ada di master tetap ikut tampil.
 function _pjRenderSumberDana(p, current) {
   const sel = _pjById(`${p}_sumber_dana`);
   if (!sel) return;
@@ -606,10 +559,8 @@ function _pjRenderSumberDana(p, current) {
   syncCustomSelect?.(`${p}_sumber_dana`);
 }
 
-// Daftar unit kerja (nama bidang) untuk dropdown Sub Unit SKPD.
 let _pjBidang = null;
 let _pjSubUnitOpts = [];
-// Menu Perjadin hanya untuk unit ini: dropdown Sub Unit SKPD cuma berisi unit ini, dropdown pegawai cuma pegawai unit ini.
 const PJ_UNIT_UTAMA = 'Sub Bagian Perencanaan';
 function _pjUnitUtama() {
   const l = (x) => String(x || '').trim().toLowerCase();
@@ -634,7 +585,7 @@ async function openPerjadinModal(id = null, duplicate = false) {
   await _pjEnsureBidang();
   await _pjEnsureSumberDana();
   _pjSubUnitOpts = [_pjUnitUtama()];
-  if (src?.sub_unit && !_pjSubUnitOpts.includes(src.sub_unit)) _pjSubUnitOpts.push(src.sub_unit);   // nilai lama tidak hilang
+  if (src?.sub_unit && !_pjSubUnitOpts.includes(src.sub_unit)) _pjSubUnitOpts.push(src.sub_unit);
   _pjById('modalPerjadinTitle').textContent = _pjEditId ? 'Edit Perjalanan Dinas' : (duplicate ? 'Duplikat Perjalanan Dinas' : 'Tambah Perjalanan Dinas');
   _pjById('pjFormBody').innerHTML = pjFormHTML('pjA', true);
 
@@ -644,7 +595,6 @@ async function openPerjadinModal(id = null, duplicate = false) {
 
   let row = src;
   if (duplicate && src) {
-    // Salinan: identitas pelaksana, SP2D, dan nomor tiket dikosongkan; sisanya dibawa.
     row = { ...src, user_id: null, pelaksana_nama: '', pelaksana_nip: '', no_sp2d: '', tgl_sp2d: '', detail: { ..._pjDetailOf(src) } };
     Object.keys(row.detail).forEach((k) => { if (k.endsWith('_tiket')) delete row.detail[k]; });
   }
@@ -652,21 +602,17 @@ async function openPerjadinModal(id = null, duplicate = false) {
   _pjMountWidgets('pjA');
   pjFillForm('pjA', row, true);
   _pjRenderSumberDana('pjA', row?.sumber_dana || '');
-  // Nama SKPD hanya baca (selalu nama dinas).
   const skpd = _pjById('pjA_nama_skpd');
   skpd.value = _pjSkpdDefault || skpd.value;
   skpd.readOnly = true; skpd.style.background = 'var(--abu-1)'; skpd.style.cursor = 'default';
   sel.value = row?.user_id ? String(row.user_id) : '';
-  // Data baru: Sub Unit langsung terisi unit utama supaya daftar pegawainya langsung muncul.
   const suEl = _pjById('pjA_sub_unit');
   if (suEl && !suEl.value) { suEl.value = _pjSubUnitOpts[0]; syncCustomSelect?.('pjA_sub_unit'); }
-  _pjRenderPelaksanaOpts();   // saring daftar pegawai sesuai Sub Unit yang terpilih
+  _pjRenderPelaksanaOpts();
   pjUpdateTotal('pjA');
   pjOpenFilledSections('pjA');
 }
 
-// Dropdown "Pilih Pegawai" hanya berisi pegawai dari Sub Unit SKPD (unit kerja) yang sedang dipilih.
-// Unit belum dipilih -> daftar pegawai kosong (isi manual tetap bisa). Pegawai yang sudah terpilih selalu ikut tampil.
 function _pjRenderPelaksanaOpts() {
   const sel = _pjById('pjA_user_id');
   if (!sel) return;
@@ -679,7 +625,6 @@ function _pjRenderPelaksanaOpts() {
   syncCustomSelect?.('pjA_user_id');
 }
 
-// Ganti unit kerja -> pegawai yang tidak berasal dari unit itu dilepas, daftar pegawai ikut menyesuaikan.
 function pjOnSubUnitChange() {
   const sel = _pjById('pjA_user_id');
   const unit = _pjById('pjA_sub_unit')?.value || '';
@@ -725,50 +670,36 @@ async function savePerjadin() {
   finally { btn.disabled = false; }
 }
 
-// ═══════════════════════════════════════════════════════════════════════════
-// 2. INTEGRASI MENU ABSENSI: form Perjalanan Dinas di modal pengajuan Tugas Luar
-// ═══════════════════════════════════════════════════════════════════════════
-// Dipanggil dari openPengajuanModal() / savePengajuan() di absensi_frontend.js.
 function pjPengInit() {
   const box = _pjById('pengPerjadinForm');
   if (!box) return;
-  // Selalu mulai dari bentuk lengkap (Tugas Luar / Cuti); pjAjukanDariMenu() menyempitkannya setelah modal dibuka.
   const jw = _pjById('pengJenisWrap');
   if (jw) jw.style.display = '';
   box.innerHTML = pjFormHTML('pjU', false);
   _pjMountWidgets('pjU');
   pjUpdateTotal('pjU');
-  pjSetYN('pjU', 'tidak');   // default Tidak; user pilih Ya kalau perlu mengisi rincian anggaran
+  pjSetYN('pjU', 'tidak');
   pjPengSync();
 }
 
-// Tugas Luar selalu perjalanan dinas: form Perjalanan Dinas tampil kalau jenis pengajuan = Tugas Luar.
 function pjPengSync() {
   const wrap = _pjById('pengPerjadinWrap');
   if (!wrap) return;
   const tl = _pjById('pengStatus')?.value === 'tugas_luar';
   wrap.style.display = tl ? '' : 'none';
-  // Tugas Luar: Keterangan diganti Rincian Kegiatan (sama seperti form edit Tugas Luar). Cuti tetap pakai Keterangan.
   const ket = _pjById('pengKeteranganWrap');
   if (ket) ket.style.display = tl ? 'none' : '';
 }
 
-// Return objek perjadin untuk dikirim bersama pengajuan Tugas Luar, null kalau bukan Tugas Luar,
-// atau { error } kalau isian belum lengkap.
 function pjPengCollect() {
   if (_pjById('pengStatus')?.value !== 'tugas_luar') return null;
   const data = pjCollect('pjU', false);
   const err = pjValidate(data, false);
   if (err) return { error: err };
-  // Tidak perlu dipertanggungjawabkan -> rincian anggaran tidak dikirim.
   if (_pjYN.pjU !== 'ya') delete data.detail;
   return data;
 }
 
-// ═══════════════════════════════════════════════════════════════════════════
-// 3. INTEGRASI MODAL TAMBAH/EDIT ABSENSI (admin): form Perjalanan Dinas saat status = Tugas Luar
-// ═══════════════════════════════════════════════════════════════════════════
-// Pelaksana & tanggal selalu diambil server dari absensi yang disimpan, jadi bagian "Pelaksana & Waktu" disembunyikan.
 async function pjAbsInit(pjRow, userId = null) {
   const box = _pjById('absPerjadinForm');
   if (!box) return;
@@ -779,9 +710,8 @@ async function pjAbsInit(pjRow, userId = null) {
   });
   if (pjRow) pjFillForm('pjE', pjRow, true);
   else { pjUpdateTotal('pjE'); }
-  _pjRenderSumberDana('pjE', pjRow?.sumber_dana || '');   // opsi master dimuat di bawah, nilai lama dijaga
+  _pjRenderSumberDana('pjE', pjRow?.sumber_dana || '');
   pjOpenFilledSections('pjE');
-  // Nama SKPD hanya baca; Sub Unit SKPD otomatis dari unit kerja pegawai.
   ['nama_skpd', 'sub_unit'].forEach((k) => {
     const el = _pjById(`pjE_${k}`);
     if (el) { el.readOnly = true; el.style.background = 'var(--abu-1)'; el.style.cursor = 'default'; }
@@ -794,7 +724,6 @@ async function pjAbsInit(pjRow, userId = null) {
   pjAbsSetPegawai(userId);
 }
 
-// Dipanggil saat pegawai di modal absensi dipilih/diganti (mode tambah) dan saat modal edit dibuka.
 function pjAbsSetPegawai(userId) {
   const el = _pjById('pjE_sub_unit');
   if (!el) return;
@@ -814,8 +743,6 @@ function pjAbsSync() {
   }
 }
 
-// null = bukan Tugas Luar / form belum siap, { error } = isian belum lengkap, selain itu objek perjadin.
-// Surat Tugas & Kegiatan wajib untuk semua Tugas Luar; rincian anggaran hanya dikirim kalau jawabannya Ya.
 function pjAbsCollect() {
   if (_pjById('absStatus')?.value !== 'tugas_luar' || !_pjById('pjE_rincian_kegiatan')) return null;
   const data = pjCollect('pjE', true);

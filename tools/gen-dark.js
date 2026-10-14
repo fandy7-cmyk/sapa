@@ -1,15 +1,3 @@
-#!/usr/bin/env node
-/*
- * gen-dark.js - generator css/dark.css (dark mode SAPA)
- *
- * Baca css/styles.css (+ inline style di app.html & js/*.js) -> hasilkan aturan
- * override `html[data-theme="dark"] ...` yang cuma mengubah properti warna.
- * Jalankan ulang tiap selesai ngubah styles.css / warna inline:
- *
- *     cd tools && npm i && node gen-dark.js
- *
- * Output: public/css/dark.css  (jangan diedit tangan; edit tools/dark-manual-*.css)
- */
 const fs = require('fs');
 const path = require('path');
 const postcss = require('postcss');
@@ -17,9 +5,8 @@ const postcss = require('postcss');
 const ROOT = path.join(__dirname, '..');
 const PUB = path.join(ROOT, 'public');
 const SCOPE = 'html[data-theme="dark"]';
-const SURF = [17, 24, 39]; // #111827 permukaan kartu
+const SURF = [17, 24, 39];
 
-// ───────────────────────── util warna ─────────────────────────
 function parseHex(h) {
   h = h.slice(1);
   if (h.length === 3 || h.length === 4) h = h.split('').map(c => c + c).join('');
@@ -49,7 +36,6 @@ const hx = v => Math.round(Math.max(0, Math.min(255, v))).toString(16).padStart(
 const toHex = (r, g, b) => '#' + hx(r) + hx(g) + hx(b);
 const mix = (base, t) => toHex(SURF[0] * (1 - t) + base[0] * t, SURF[1] * (1 - t) + base[1] * t, SURF[2] * (1 - t) + base[2] * t);
 
-// netral = abu murni, atau abu-kebiruan khas Tailwind slate (kroma kecil, hue biru)
 function isNeutral(c) {
   const C = (Math.max(c.r, c.g, c.b) - Math.min(c.r, c.g, c.b)) / 255;
   if (C < 0.04) return true;
@@ -67,7 +53,6 @@ function family(h) {
 const FAM_BASE = { red: [239, 68, 68], amber: [245, 158, 11], green: [34, 197, 94], teal: [45, 212, 191], blue: [96, 165, 250], purple: [168, 85, 247] };
 const FAM_TEXT = { red: '#fca5a5', amber: '#fcd34d', green: '#6ee7b7', teal: '#2dd4bf', blue: '#93c5fd', purple: '#d8b4fe' };
 
-// ───────────────────────── mapper per peran ─────────────────────────
 function bgMap(c) {
   if (c.a < 1) {
     if (c.r >= 250 && c.g >= 250 && c.b >= 250 && c.a >= 0.6) return `rgba(${SURF.join(',')},${+c.a.toFixed(2)})`;
@@ -82,7 +67,7 @@ function bgMap(c) {
     if (Y > 0.5) return '#334155';
     return null;
   }
-  if (Y <= 0.6 || l < 0.75) return null; // aksen cerah (5eead4, 4ade80) dibiarkan
+  if (Y <= 0.6 || l < 0.75) return null;
   const t = l > 0.93 ? 0.1 : l > 0.88 ? 0.16 : 0.22;
   return mix(FAM_BASE[family(h)], t);
 }
@@ -116,7 +101,7 @@ function borderMap(c) {
 }
 function fillMap(c) {
   if (c.a < 1) return null;
-  if (c.r > 250 && c.g > 250 && c.b > 250) return null; // putih tetap (ikon di atas warna)
+  if (c.r > 250 && c.g > 250 && c.b > 250) return null;
   if (isNeutral(c) && lum(c) > 0.5) return borderMap(c);
   return textMap(c);
 }
@@ -141,7 +126,7 @@ function withRoleVars(extra) {
 
 function roleOf(prop) {
   prop = prop.toLowerCase();
-  if (/^--[\w-]*bg/.test(prop)) return 'bg'; // custom property latar, mis. --kc-bg, --tone-bg, --iku-col-bg
+  if (/^--[\w-]*bg/.test(prop)) return 'bg';
   if (prop === 'background' || prop === 'background-color' || prop === 'background-image') return 'bg';
   if (prop === 'color' || prop === 'caret-color' || prop === 'text-decoration-color' || prop === '-webkit-text-fill-color') return 'text';
   if (prop === 'fill' || prop === 'stroke' || prop === 'stop-color') return 'fill';
@@ -178,12 +163,10 @@ function mapToken(tok, role) {
 function mapValue(prop, value) {
   const role = roleOf(prop);
   if (!role) return value;
-  // url(...) jangan disentuh
   const parts = value.split(/(url\([^)]*\))/);
   return parts.map(p => (p.startsWith('url(') ? p : p.replace(COLOR_RE, m => mapToken(m, role)))).join('');
 }
 
-// ───────────────────────── CSS -> CSS gelap ─────────────────────────
 const SKIP_AT = /^(keyframes|-webkit-keyframes|font-face|page|counter-style|property)$/i;
 
 function scopeSel(sel) {
@@ -193,7 +176,6 @@ function scopeSel(sel) {
   return `${SCOPE} ${sel}`;
 }
 function splitSelectors(sel) {
-  // pecah by koma tingkat-atas (abaikan koma di dalam () / [])
   const out = []; let d = 0, cur = '';
   for (const ch of sel) {
     if (ch === '(' || ch === '[') d++;
@@ -208,7 +190,7 @@ function genFromCss(cssText, from, extraRV) {
   ACTIVE_RV = withRoleVars(extraRV);
   const root = postcss.parse(cssText, { from });
   DEFINED_VARS = new Set((cssText.match(/--[\w-]+(?=\s*:)/g) || []));
-  const roleChanged = new Set(); // peran warna yg sudah pernah dipetakan
+  const roleChanged = new Set();
   let out = '';
 
   function walk(container, ctx) {
@@ -220,8 +202,6 @@ function genFromCss(cssText, from, extraRV) {
         const decls = [];
         if (sels.every(s => SKIP_SEL.test(s))) return;
         const isDecoPseudo = sels.every(s => /::?(before|after)\s*$|::-webkit-slider-thumb|::-moz-range-thumb/.test(s.trim()));
-        // pasangan bg-teks: kalau bg-nya warna cerah yg TIDAK dipetakan (mis. #4ade80),
-        // teks gelapnya dibiarkan supaya kontras tetap terjaga.
         let keepText = false;
         node.each(d => {
           if (d.type === 'decl' && /^background(-color)?$/i.test(d.prop) && /^#[0-9a-fA-F]{3,8}$/.test(d.value.trim())) {
@@ -237,12 +217,7 @@ function genFromCss(cssText, from, extraRV) {
           const orig = d.value;
           if (/radial-gradient/i.test(orig)) return;
           let nv = mapValue(prop, orig);
-          // bulatan putih (knob/dot) tetap putih
           if (isDecoPseudo && roleOf(prop) === 'bg' && /^(#fff|#ffffff|white)$/i.test(orig.trim())) nv = orig;
-          // Jaga urutan cascade: semua deklarasi warna ikut diberi awalan yang sama.
-          // Begitu satu deklarasi peran ini (bg/teks/border/fill) pernah dipetakan, deklarasi
-          // peran sama yang TIDAK berubah (mis. background:var(--hijau) yang menimpa
-          // background:#fff dari aturan sebelumnya) ditegaskan ulang apa adanya.
           const role = roleOf(prop);
           if (nv !== orig) {
             decls.push(`${prop}:${nv}${d.important ? '!important' : ''}`);
@@ -256,7 +231,7 @@ function genFromCss(cssText, from, extraRV) {
         buf += `${sel}{${decls.join(';')}}\n`;
       } else if (node.type === 'atrule') {
         if (SKIP_AT.test(node.name)) return;
-        if (node.name === 'media' && /\bprint\b/.test(node.params) && !/not\s+print/.test(node.params)) return; // cetak tetap terang
+        if (node.name === 'media' && /\bprint\b/.test(node.params) && !/not\s+print/.test(node.params)) return;
         if (!node.nodes) return;
         const inner = walk(node, ctx + '@' + node.name + node.params);
         if (inner) buf += `@${node.name} ${node.params}{\n${inner}}\n`;
@@ -268,7 +243,6 @@ function genFromCss(cssText, from, extraRV) {
   return out;
 }
 
-// ───────────────────────── inline style scanner ─────────────────────────
 const INLINE_RE = /(?<![\w-])((?:background(?:-color)?|color|border(?:-(?:top|right|bottom|left))?(?:-color)?|outline|fill|stroke|stop-color))\s*:\s*([^;"'`{}\\]+)/g;
 function genInline(files, extraRV) {
   ACTIVE_RV = withRoleVars(extraRV);
@@ -289,7 +263,6 @@ function genInline(files, extraRV) {
       if (needle.includes('"')) continue;
       rules.set(needle, `${prop}:${nv}!important`);
     }
-    // atribut SVG: fill="#xxx" stroke='#xxx'
     const ATTR = /\b(fill|stroke|stop-color)=["'](#[0-9a-fA-F]{3,8})["']/g;
     while ((m = ATTR.exec(txt))) {
       const nv = mapValue(m[1], m[2]);
@@ -311,10 +284,7 @@ function genInline(files, extraRV) {
 
 module.exports = { genFromCss, genInline, SCOPE };
 
-// ───────────────────────── CSS yang tertanam di file JS ─────────────────────────
-// Banyak modul menyuntik <style> sendiri dari string/template literal (dashboard.js,
-// monitoring_frontend.js, kinerja.js, laporan.js, ...). Blok-blok itu diambil di sini.
-const JS_CSS_SKIP = [/lap-md-list/, /xl-tbl/]; // dokumen cetak / ekspor: berdiri sendiri, tetap terang
+const JS_CSS_SKIP = [/lap-md-list/, /xl-tbl/];
 function jsCssBlocks(file) {
   const t = fs.readFileSync(file, 'utf8');
   const re = /`((?:\\[\s\S]|[^`\\])*)`/g;
@@ -333,14 +303,13 @@ function jsCssBlocks(file) {
   return out;
 }
 
-// ───────────────────────── main ─────────────────────────
 function styleBlocks(htmlPath) {
   const txt = fs.readFileSync(htmlPath, 'utf8');
   const out = [];
   const re = /<style[^>]*>([\s\S]*?)<\/style>/g;
   let m;
   while ((m = re.exec(txt))) {
-    if (/data-theme="dark"/.test(m[1])) continue; // style anti-kedip buatan sendiri
+    if (/data-theme="dark"/.test(m[1])) continue;
     out.push(m[1]);
   }
   return out.join('\n');
@@ -352,7 +321,6 @@ if (require.main === module) {
   const wrap = body => HEADER + '@media screen {\n' + body + '\n}\n';
   const jsFiles = fs.readdirSync(path.join(PUB, 'js')).filter(f => f.endsWith('.js') && f !== 'theme-engine.js' && f !== 'dark-mode.js').map(f => path.join(PUB, 'js', f));
 
-  // 1) dark.css : styles.css + <style> app.html + inline (app.html & js)
   const stylesPath = path.join(PUB, 'css/styles.css');
   const appPath = path.join(PUB, 'app.html');
   const jsCss = jsFiles.map(f => jsCssBlocks(f).join('\n')).join('\n');
@@ -362,7 +330,6 @@ if (require.main === module) {
   fs.writeFileSync(path.join(PUB, 'css/dark.css'), wrap(read('dark-manual-base.css') + '\n' + main + inl.css + read('dark-manual-after.css')));
   console.log('dark.css', (fs.statSync(path.join(PUB, 'css/dark.css')).size / 1024).toFixed(0) + ' KB; inline rules:', inl.count);
 
-  // 2) halaman lain: <style> + inline milik halaman itu sendiri
   const LANDING_RV = {
     bg: { '--white': '#111827', '--slate-50': '#0e1624', '--slate-100': '#1a2335', '--slate-300': '#334155', '--teal-50': '#0f2a2a', '--teal-100': '#123a38', '--teal-200': '#164e4a' },
     border: { '--white': '#111827', '--slate-50': '#1e293b', '--slate-100': '#1e293b', '--slate-300': '#334155', '--teal-50': '#164e4a', '--teal-100': '#1b5a5c', '--teal-200': '#1b5a5c' },

@@ -5,7 +5,6 @@ import { cleanupReplacedFile } from './_cloudinary.js';
 import { ensurePerjadinSchema, getPelaksana, buildPerjadin, insertPerjadin, updatePerjadin, SKPD_DEFAULT, syncPerjadinDariAbsensi, bersihkanKerangkaPerjadin } from './_perjadin.js';
 import { sinkronAbsensi, notifAbsensiPengajuanHasil } from './_notif_modul.js';
 
-// Notifikasi lonceng bersifat best-effort: kegagalannya tidak boleh menggagalkan aksi utamanya.
 async function notifSafe(fn) {
   try { await fn(); } catch (e) { console.error('[notif]', e); }
 }
@@ -22,8 +21,6 @@ async function hasFullAccess(sql, auth) {
 }
 
 
-// ── Perjalanan Dinas dari modal Tambah/Edit Absensi (admin) ──
-// Cari baris Perjadin yang menaungi absensi Tugas Luar: lewat pengajuan_id, atau rentang tanggal pegawai yang sama.
 async function cariPerjadinAbsensi(sql, { user_id, tanggal, pengajuan_id = null }) {
   await ensurePerjadinSchema(sql);
   const rows = await sql`
@@ -40,8 +37,6 @@ async function cariPerjadinAbsensi(sql, { user_id, tanggal, pengajuan_id = null 
   return rows[0] || null;
 }
 
-// Validasi + susun baris perjadin dari form di modal absensi. Pelaksana & tanggal SELALU dari absensi (server).
-// Return { error } atau { row, id } (id = baris perjadin yang diupdate, null kalau baru).
 async function siapkanPerjadinAbsensi(sql, perjadin, { user_id, tgl_mulai, tgl_selesai, pengajuan_id = null }) {
   const cur = await cariPerjadinAbsensi(sql, { user_id, tanggal: tgl_mulai, pengajuan_id });
   const pel = await getPelaksana(sql, user_id);
@@ -57,7 +52,6 @@ async function siapkanPerjadinAbsensi(sql, perjadin, { user_id, tgl_mulai, tgl_s
   ['user_id', 'pelaksana_nama', 'pelaksana_nip', 'pelaksana_gol', 'pelaksana_jabatan', 'tgl_mulai', 'tgl_selesai'].forEach(k => delete clean[k]);
   const built = buildPerjadin(clean, { admin: true, base });
   if (built.error) return { error: built.error };
-  // Nama SKPD tetap (read-only), Sub Unit SKPD selalu dari unit kerja pegawai - bukan dari input client.
   built.row.nama_skpd = SKPD_DEFAULT;
   if (pel?.sub_unit) built.row.sub_unit = pel.sub_unit;
   if (!built.row.no_surat_tugas) return { error: 'No. Surat Tugas wajib diisi' };
@@ -95,8 +89,6 @@ function _menitDariJam(jamStr) {
   return h * 60 + m;
 }
 
-// Cari periode Ramadhan (dari tabel riwayat ramadhan_periods) yang mencakup tanggalStr.
-// `periods` adalah array baris ramadhan_periods (tanggal_mulai/tanggal_selesai sebagai string YYYY-MM-DD).
 function cariPeriodeRamadhan(tanggalStr, periods) {
   if (!Array.isArray(periods) || !periods.length) return null;
   return periods.find((p) => {
@@ -107,9 +99,6 @@ function cariPeriodeRamadhan(tanggalStr, periods) {
   }) || null;
 }
 
-// Pilih jam kerja Ramadhan (kalau tanggalStr jatuh di salah satu periode riwayat) atau jam kerja normal.
-// `settings` = baris absensi_settings (jam kerja normal). `periods` = seluruh baris ramadhan_periods,
-// dicocokkan per-tanggal supaya data & rekap tahun lalu tidak ikut berubah saat periode tahun berjalan diedit.
 function settingsEfektif(tanggalStr, settings, periods) {
   const periode = cariPeriodeRamadhan(tanggalStr, periods);
   if (!periode) return settings;
@@ -485,7 +474,6 @@ export const handler = async (event) => {
   }
 
   if (isPengajuan) {
-    // Detail satu pengajuan (+ data Perjalanan Dinas-nya) untuk mengisi form Edit / Ajukan Ulang.
     if (event.httpMethod === 'GET' && pengajuanId && !pengajuanAction) {
       try {
         const rows = await sql`
@@ -519,9 +507,6 @@ export const handler = async (event) => {
       const targetUserId = full ? (user_id ? parseInt(user_id) : null) : auth.id;
       if (!full && user_id && parseInt(user_id) !== auth.id) return errorResponse('Unauthorized', 401);
       try {
-        // Ringkasan Perjalanan Dinas (kalau pengajuan ini membawa form Perjadin) ikut dikirim supaya
-        // admin bisa melihatnya di daftar persetujuan. Kalau tabel perjadin gagal disiapkan, daftar
-        // pengajuan tetap dimuat tanpa ringkasan itu.
         let rows;
         try {
           await ensurePerjadinSchema(sql);
@@ -563,9 +548,6 @@ export const handler = async (event) => {
       if (!data_dukung_url) return errorResponse('Data dukung wajib diisi', 400);
 
       try {
-        // Form Perjalanan Dinas (opsional, hanya untuk Tugas Luar). Divalidasi dulu sebelum pengajuan disimpan.
-        // Nama/NIP/golongan/jabatan pelaksana & tanggal pelaksanaan SELALU diambil server (akun user + pengajuan),
-        // bukan dari input client.
         let perjadinRow = null;
         if (status === 'tugas_luar' && perjadin && typeof perjadin === 'object') {
           await ensurePerjadinSchema(sql);
@@ -606,7 +588,6 @@ export const handler = async (event) => {
           try {
             await insertPerjadin(sql, perjadinRow, { sumber: 'absensi', pengajuan_id: rows[0].id, input_by: auth.id, disetujui: !!full });
           } catch (e) {
-            // Batalkan pengajuan supaya tidak ada pengajuan "tanpa" data perjadin yang sudah diisi user.
             await sql`DELETE FROM absensi_pengajuan WHERE id = ${rows[0].id}`.catch(() => {});
             throw e;
           }
@@ -624,8 +605,6 @@ export const handler = async (event) => {
       }
     }
 
-    // Edit pengajuan yang masih pending, atau Ajukan Ulang pengajuan yang ditolak (status kembali pending).
-    // Hanya pemilik pengajuan; yang sudah disetujui tidak bisa diubah dari sini.
     if (event.httpMethod === 'PUT' && pengajuanId && !pengajuanAction) {
       const { tanggal, tanggal_selesai, status, keterangan, data_dukung_url, data_dukung_nama, perjadin } = parseBody(event);
       if (!tanggal || !tanggal_selesai || !status) return errorResponse('Tanggal dan jenis pengajuan wajib diisi', 400);
@@ -643,12 +622,10 @@ export const handler = async (event) => {
         }
         const ajukanUlang = lama.status_persetujuan === 'ditolak';
 
-        // Validasi form Perjalanan Dinas dulu (sama seperti saat membuat pengajuan baru).
         let perjadinRow = null;
         if (status === 'tugas_luar' && perjadin && typeof perjadin === 'object') {
           await ensurePerjadinSchema(sql);
           const pel = await getPelaksana(sql, auth.id);
-          // Bawa field yang hanya diisi admin (SP2D, uang harian, dll.) supaya tidak ter-reset saat user edit.
           const [pjLama] = await sql`SELECT no_sp2d, tgl_sp2d::text AS tgl_sp2d, detail FROM perjadin WHERE pengajuan_id = ${pengajuanId} ORDER BY id LIMIT 1`;
           const built = buildPerjadin(perjadin, {
             admin: false,
@@ -695,7 +672,6 @@ export const handler = async (event) => {
               RETURNING *, tanggal::text AS tanggal, tanggal_selesai::text AS tanggal_selesai
             `;
 
-        // Sinkronkan data Perjalanan Dinas yang menempel di pengajuan ini.
         await ensurePerjadinSchema(sql);
         if (perjadinRow) {
           const pjAda = await sql`SELECT id FROM perjadin WHERE pengajuan_id = ${pengajuanId} ORDER BY id LIMIT 1`;
@@ -708,7 +684,6 @@ export const handler = async (event) => {
           await sql`DELETE FROM perjadin WHERE pengajuan_id = ${pengajuanId}`;
         }
 
-        // Data dukung diganti -> file lama dibuang dari Cloudinary (kecuali masih dipakai record lain).
         await cleanupReplacedFile(sql, lama.data_dukung_url, data_dukung_url);
         await logAudit(sql, event, {
           user_id: auth.id, nama: auth.nama, email: auth.email,
@@ -717,7 +692,7 @@ export const handler = async (event) => {
           detail: { tanggal, tanggal_selesai, status, perjalanan_dinas: !!perjadinRow },
         });
         await notifSafe(async () => {
-          await notifAbsensiPengajuanHasil(sql, pengajuanId, auth.id);   // diajukan ulang -> menutup hasil lama
+          await notifAbsensiPengajuanHasil(sql, pengajuanId, auth.id);
           await sinkronAbsensi(sql);
         });
         return jsonResponse({ pengajuan: rows[0], ajukan_ulang: ajukanUlang });
@@ -768,8 +743,6 @@ export const handler = async (event) => {
             user_id: peng.user_id, tgl_mulai: tanggalStr, tgl_selesai: selesaiStr,
             keterangan: peng.keterangan, pengajuan_id: peng.id, input_by: auth.id,
           }).catch(e => console.error('[sync perjadin approve]', e));
-          // Data Perjalanan Dinas yang dibawa pengajuan ini ikut Disetujui (kebalikan dari sinkron saat ditolak).
-          // Baris kerangka (belum ada jenis/biaya) dibiarkan 'menunggu' karena masih perlu dilengkapi admin.
           try {
             await ensurePerjadinSchema(sql);
             await sql`
@@ -802,7 +775,6 @@ export const handler = async (event) => {
           WHERE id = ${pengajuanId}
           RETURNING *
         `;
-        // Data Perjalanan Dinas yang dibawa pengajuan ini ikut ditandai ditolak (tidak masuk rekap default).
         try {
           await ensurePerjadinSchema(sql);
           await sql`
@@ -857,7 +829,7 @@ export const handler = async (event) => {
     try {
       const tanggal = todayStr();
       let body = {};
-      try { body = JSON.parse(event.body || '{}'); } catch { /* noop */ }
+      try { body = JSON.parse(event.body || '{}'); } catch {  }
       const jamInput = typeof body.jam === 'string' ? body.jam.trim() : '';
       if (jamInput && !/^([01]\d|2[0-3]):[0-5]\d$/.test(jamInput)) return errorResponse('Format jam tidak valid (HH:MM)', 400);
       const jam = jamInput || nowTimeStr();
@@ -916,7 +888,7 @@ export const handler = async (event) => {
     try {
       const tanggal = todayStr();
       let body = {};
-      try { body = JSON.parse(event.body || '{}'); } catch { /* noop */ }
+      try { body = JSON.parse(event.body || '{}'); } catch {  }
       const jamInput = typeof body.jam === 'string' ? body.jam.trim() : '';
       if (jamInput && !/^([01]\d|2[0-3]):[0-5]\d$/.test(jamInput)) return errorResponse('Format jam tidak valid (HH:MM)', 400);
       const jam = jamInput || nowTimeStr();
@@ -1082,7 +1054,6 @@ export const handler = async (event) => {
         `;
         ranking_terlambat = rankRows;
 
-        // Peringkat tambahan buat dashboard: paling sering alpa & absensi tidak lengkap bulan ini
         try {
           ranking_alpa = await sql`
             SELECT a.user_id, u.nama AS user_nama, COUNT(*)::int AS jumlah
@@ -1438,7 +1409,6 @@ export const handler = async (event) => {
     const { user_id, tanggal, tanggal_selesai, jam_masuk, jam_keluar, status, keterangan, data_dukung_url, data_dukung_nama, perjadin } = parseBody(event);
     if (!user_id || !tanggal) return errorResponse('Pegawai dan tanggal wajib diisi', 400);
     if (status && !STATUS_VALID.includes(status)) return errorResponse('Status tidak valid', 400);
-    // Tugas Luar / Cuti boleh dicatat untuk tanggal ke depan (rencana); status lain hanya untuk tanggal yang sudah terjadi.
     const bolehTanggalMasaDepan = status === 'tugas_luar' || status === 'cuti';
     if (!bolehTanggalMasaDepan) {
       if (tanggal > todayStr()) return errorResponse('Tanggal belum bisa dipilih - absensi cuma bisa dicatat untuk tanggal yang sudah terjadi', 400);
@@ -1515,7 +1485,6 @@ export const handler = async (event) => {
     }
 
     const dowInput = new Date(`${tanggal}T00:00:00`).getDay();
-    // Akhir pekan: hanya Tugas Luar/Cuti yang boleh dicatat (baik tanggal lewat maupun belum terjadi); status lain ditolak.
     if ((dowInput === 0 || dowInput === 6) && !bolehTanggalMasaDepan) {
       return errorResponse('Tanggal tersebut akhir pekan, absensi tidak diperlukan', 400);
     }
@@ -1665,10 +1634,9 @@ export const handler = async (event) => {
         const sisa = await sql`SELECT id FROM absensi WHERE pengajuan_id = ${existing[0].pengajuan_id} LIMIT 1`;
         if (!sisa.length) {
           await sql`DELETE FROM absensi_pengajuan WHERE id = ${existing[0].pengajuan_id}`;
-          await notifSafe(() => sinkronAbsensi(sql));   // pengajuan ikut terhapus -> ringkasan & hasilnya menyesuaikan
+          await notifSafe(() => sinkronAbsensi(sql));
         }
       }
-      // File dukung dipakai bersama semua tanggal dalam satu pengajuan: hapus dari Cloudinary hanya kalau sudah tidak dipakai record mana pun.
       await cleanupReplacedFile(sql, existing[0].data_dukung_url, null);
       await logAudit(sql, event, {
         user_id: auth.id, nama: auth.nama, email: auth.email,

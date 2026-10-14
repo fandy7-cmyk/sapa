@@ -2,13 +2,10 @@ import { getDb, jsonResponse, errorResponse } from './_db.js';
 import { ensureMonSchema, heartbeat, jalankanHealth, kirimTelegram } from './_monitoring.js';
 import { sinkronSistem } from './_notif_modul.js';
 
-// Notifikasi lonceng bersifat best-effort: kegagalannya tidak boleh menggagalkan aksi utamanya.
 async function notifSafe(fn) {
   try { await fn(); } catch (e) { console.error('[notif]', e); }
 }
 
-// Dijadwalkan via netlify.toml (lihat catatan), disarankan tiap 15 menit.
-// Tugas: cek health, kirim notifikasi Telegram saat status BERUBAH, bersih-bersih data lama.
 export const handler = async () => {
   const sql = getDb();
   try {
@@ -22,7 +19,6 @@ export const handler = async () => {
       ON CONFLICT (key) DO UPDATE SET value = ${h.status}, updated_at = NOW()
     `;
 
-    // Notifikasi hanya saat berubah (hindari spam tiap 15 menit).
     if (statusLama !== h.status && !(statusLama === null && h.status === 'ok')) {
       const bermasalah = h.checks.filter(c => c.status === 'down' || c.status === 'warn');
       if (h.status === 'ok') {
@@ -36,10 +32,8 @@ export const handler = async () => {
       }
     }
 
-    // Sinkronkan notifikasi lonceng admin (error baru / kesehatan) - tiap 15 menit, mengikuti status terbaru di atas.
     await notifSafe(() => sinkronSistem(sql));
 
-    // Retensi data
     await sql`DELETE FROM sys_perf_log WHERE created_at < NOW() - INTERVAL '7 days'`;
     await sql`DELETE FROM sys_error_log WHERE status = 'selesai' AND last_seen < NOW() - INTERVAL '30 days'`;
 

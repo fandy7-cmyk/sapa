@@ -64,9 +64,6 @@ export const handler = async (event) => {
   if (event.httpMethod === 'PUT' && id) {
     const { nama, nip, jabatan, golongan, urutan, foto_url, aktif, parent_id } = parseBody(event);
     try {
-      // Field yang tidak dikirim dipertahankan nilainya. Digabung di JS (bukan pakai fragmen sql`kolom`
-      // di dalam query) karena driver Neon HTTP tidak mendukung fragmen bersarang: fragmennya dikirim
-      // sebagai JSON {"parameterizedQuery":...} dan bikin error "invalid input syntax for type integer".
       const curRows = await sql`SELECT * FROM pegawai WHERE id = ${id}`;
       if (!curRows.length) return errorResponse('Pegawai tidak ditemukan', 404);
       const cur = curRows[0];

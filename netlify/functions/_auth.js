@@ -35,8 +35,6 @@ export function requireAdmin(event) {
   return user;
 }
 
-// Admin Kinerja: admin penuh ATAU user yang punya permission 'kinerja.full'.
-// Dipakai untuk endpoint kelola indikator/target/jenis/laporan/monitoring/periode.
 export async function requireKinerjaAdmin(event, sql) {
   const user = requireAuth(event);
   if (!user) return null;

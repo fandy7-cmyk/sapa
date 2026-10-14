@@ -74,10 +74,6 @@ export async function deleteFromCloudinary(rawUrl) {
 }
 
 
-// ── Cleanup file lama saat diganti ────────────────────────────────────────────
-// Dipanggil SETELAH UPDATE ke database berhasil. Tidak menghapus kalau URL lama
-// sama dengan yang baru, atau masih dipakai baris/kolom lain (mis. file data dukung
-// absensi yang dipakai bersama beberapa tanggal). Gagal hapus tidak pernah menggagalkan request.
 export async function isFileStillReferenced(sql, url) {
   if (!url) return false;
   const checks = [
@@ -90,7 +86,7 @@ export async function isFileStillReferenced(sql, url) {
     () => sql`SELECT 1 FROM absensi_pengajuan WHERE data_dukung_url = ${url} LIMIT 1`,
   ];
   for (const run of checks) {
-    try { if ((await run()).length) return true; } catch { /* tabel/kolom belum ada -> abaikan */ }
+    try { if ((await run()).length) return true; } catch {  }
   }
   return false;
 }

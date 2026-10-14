@@ -1,4 +1,3 @@
-/* ── Token dasar mode gelap (manual) ── */
 html[data-theme="dark"]{
   color-scheme:dark;
   --teks:#e5e7eb;

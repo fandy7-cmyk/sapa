@@ -303,7 +303,6 @@ async function loadAbsRamadhanPeriods() {
   }
 }
 
-// Cari periode Ramadhan (dari riwayat) yang mencakup tanggalYMD - cermin dari cariPeriodeRamadhan() di backend
 function _absCariPeriodeRamadhan(tanggalYMD) {
   return _absRamadhanPeriods.find(p => {
     const mulai = p.tanggal_mulai?.slice(0, 10);
@@ -311,9 +310,6 @@ function _absCariPeriodeRamadhan(tanggalYMD) {
     return mulai && selesai && tanggalYMD >= mulai && tanggalYMD <= selesai;
   }) || null;
 }
-// Jam kerja Ramadhan (kalau tanggal jatuh di salah satu periode riwayat) menggantikan jam normal
-// - cermin dari settingsEfektif() di backend. Dicocokkan per-tanggal supaya rekap tahun lalu
-// tetap konsisten walau periode tahun berjalan diedit/ditambah.
 function _absSettingsEfektif(tanggalYMD) {
   if (!_absSettings) return null;
   const p = _absCariPeriodeRamadhan(tanggalYMD);
@@ -621,9 +617,6 @@ function _startAbsHariIniTicker() {
   _absHariIniTickerInterval = setInterval(_tick, 1000);
 }
 
-// Warna progress bar disamain persis ke skala progress ring kinerja
-// (_monRenderPJCards di kinerja.js) — threshold (91/76/66/51) & arahnya
-// sama persis, gak dibalik.
 function _absProgressColor(pct) {
   if (pct >= 91) return '#16a34a';
   if (pct >= 76) return '#65a30d';
@@ -696,21 +689,18 @@ async function doAbsCheckout() {
 }
 
 let _absReminderPollInterval = null;
-// Cek sekali langsung, lalu polling berkala - biar tetep kecek meski user
-// diem aja di aplikasi tanpa reload/pindah menu pas jendela absen kebuka.
 function _startAbsensiReminderPoll() {
   if (_absReminderPollInterval) clearInterval(_absReminderPollInterval);
   if (typeof _cekAbsensiReminder === 'function') _cekAbsensiReminder();
   _absReminderPollInterval = setInterval(() => {
     if (typeof _cekAbsensiReminder === 'function') _cekAbsensiReminder();
-  }, 60000); // tiap 1 menit
+  }, 60000);
 }
 
 async function _cekAbsensiReminder() {
   if (!_user) return;
   if (_user.is_admin) return; 
   if (!hasAccess('absensi') && !hasAccess('absensi.full')) return; 
-  // Jangan cek ulang / timpa modal kalau lagi kebuka (misal user lagi ngisi jam)
   const _modalEl = document.getElementById('modalAbsReminder');
   if (_modalEl && _modalEl.classList.contains('open')) return;
   try {
@@ -718,8 +708,6 @@ async function _cekAbsensiReminder() {
     if (w.day === 0 || w.day === 6) return; 
     const isJumat = w.day === 5;
 
-    // Ketiga request ini independen satu sama lain, jadi dijalanin paralel
-    // (bukan berurutan) biar modal reminder nggak lambat muncul pas baru login.
     const [, liburRes, absensiRes] = await Promise.all([
       loadAbsSettings(),
       fetch(`/api/absensi/libur?tahun=${w.year}&bulan=${w.month}`, { headers: authHeaders() }).catch(() => null),
@@ -1016,8 +1004,6 @@ function onAbsStatusChange() {
   const isCutiOrTugas = status === 'tugas_luar' || status === 'cuti';
   const isRentang = isCutiOrTugas && !_absEditingId;
 
-  // Tugas Luar / Cuti biasanya diajukan/dicatat buat tanggal ke depan (rencana),
-  // jadi batas "max hari ini" di datepicker dilepas khusus 2 status ini.
   document.getElementById('cdtp_absTanggal')?._cdtp?.setMaxToday?.(!isCutiOrTugas);
   document.getElementById('cdtp_absTanggalSelesai')?._cdtp?.setMaxToday?.(!isCutiOrTugas);
 
@@ -1026,7 +1012,6 @@ function onAbsStatusChange() {
   
   
   document.getElementById('absDukungWrap').style.display = isCutiOrTugas ? '' : 'none';
-  // Tugas Luar: keterangan diganti Rincian Kegiatan (form Perjalanan Dinas), jadi kolom Keterangan disembunyikan.
   const ketWrap = document.getElementById('absKeteranganWrap');
   if (ketWrap) ketWrap.style.display = status === 'tugas_luar' ? 'none' : '';
   pjAbsSync?.();
@@ -1052,8 +1037,6 @@ function _absUpdateSaveBtnState() {
   btn.disabled = !!(sedangUpload || wajibTapiKosong);
 }
 
-// File yang baru diupload di modal ini (belum tersimpan di DB) dibuang dari Cloudinary kalau dihapus/diganti/modal ditutup.
-// File yang sudah tersimpan (dimuat dari record) tidak disentuh di sini; backend yang membersihkannya saat disimpan.
 function _absBuangDukungBaru() {
   const f = _absDukung;
   if (f?._baru && f.url) { hapusUploadYatim(f.url); f._baru = false; }
@@ -1147,7 +1130,7 @@ function _absUploadFileWithProgress(file, onProgress) {
 async function _processAbsDukungFile(file) {
   if (file.size > 2 * 1024 * 1024) { toast(`${file.name}: terlalu besar (maks. 2 MB)`, 'error'); return; }
 
-  _absBuangDukungBaru();   // diganti file baru -> file upload sebelumnya yang belum tersimpan dibuang
+  _absBuangDukungBaru();
   _absDukung = { url: null, name: file.name, _loading: true };
   _renderAbsDukungPreview();
   _absUpdateSaveBtnState();
@@ -1301,7 +1284,7 @@ async function saveAbs() {
     const d = await r.json();
     if (!r.ok) { toast(d.error || 'Gagal menyimpan absensi', 'error'); return; }
     toast('Absensi berhasil disimpan', 'success');
-    _absDukung = null;   // sudah tersimpan: jangan dibuang oleh hook tutup modal
+    _absDukung = null;
     closeModal('modalAbs');
     await rebuildAbsFilterTahun();
     await rebuildAbsFilterBulan();
@@ -1389,7 +1372,6 @@ async function saveAbsSettings() {
   } catch { toast('Gagal menyimpan pengaturan', 'error'); }
 }
 
-// ---- Periode Ramadhan (riwayat per tahun, gak nimpa data tahun lalu) ----
 const ABS_RMD_FIELD_IDS = [
   'absRmdMasukAwalSK', 'absRmdMasukAwalJumat',
   'absRmdMasukSK', 'absRmdMasukJumat',
@@ -1815,7 +1797,6 @@ const PENG_STATUS_ICON = {
 
 let _pengDukung = null;
 
-// Mode modal pengajuan: null = pengajuan baru, 'edit' = ubah pengajuan pending, 'ulang' = ajukan ulang yang ditolak.
 let _pengEditId = null;
 let _pengEditMode = null;
 
@@ -1832,7 +1813,6 @@ function _pengAdaAnggaran(pj) {
   return Number(pj?.jumlah_biaya) > 0 || Object.values(det).some((v) => typeof v === 'number' && v > 0);
 }
 
-// Buka modal terisi data pengajuan lama: mode 'edit' (pending) atau 'ulang' (ditolak).
 async function bukaEditPengajuan(id, mode) {
   let d;
   try {
@@ -1842,7 +1822,7 @@ async function bukaEditPengajuan(id, mode) {
   } catch { toast('Gagal memuat pengajuan', 'error'); return; }
   const p = d.pengajuan, pj = d.perjadin;
 
-  openPengajuanModal();                 // reset form + render form Perjalanan Dinas
+  openPengajuanModal();
   _pengEditId = id;
   _setPengModalMode(mode === 'ulang' ? 'ulang' : 'edit');
 
@@ -1857,12 +1837,11 @@ async function bukaEditPengajuan(id, mode) {
     pjFillForm('pjU', pj, false);
     pjSetYN('pjU', _pengAdaAnggaran(pj) ? 'ya' : 'tidak');
   } else if (p.status === 'tugas_luar') {
-    const rk = document.getElementById('pjU_rincian_kegiatan');   // pengajuan lama tanpa data perjadin
+    const rk = document.getElementById('pjU_rincian_kegiatan');
     if (rk) rk.value = p.keterangan || '';
   }
   if (typeof pjPengSync === 'function') pjPengSync();
 
-  // Tanggal diisi setelah openPengajuanModal() selesai mengosongkan date picker (timeout 30 ms).
   setTimeout(() => {
     [['pengTanggal', p.tanggal], ['pengTanggalSelesai', p.tanggal_selesai]].forEach(([k, v]) => {
       const el = document.getElementById(k); if (el) el.value = v || '';
@@ -1880,7 +1859,7 @@ function openPengajuanModal() {
   document.getElementById('pengKeterangan').value = '';
   _resetPengDukung();
   syncCustomSelect?.('pengStatus');
-  if (typeof pjPengInit === 'function') pjPengInit();   // form Perjalanan Dinas (muncul saat Tugas Luar)
+  if (typeof pjPengInit === 'function') pjPengInit();
   openModal('modalPengajuanAbsen');
 
   setTimeout(() => {
@@ -2003,7 +1982,7 @@ function handlePengDukungDrop(e) {
 async function _processPengDukungFile(file) {
   if (file.size > 2 * 1024 * 1024) { toast(`${file.name}: terlalu besar (maks. 2 MB)`, 'error'); return; }
 
-  _pengBuangDukungBaru();   // diganti file baru -> file upload sebelumnya yang belum tersimpan dibuang
+  _pengBuangDukungBaru();
   _pengDukung = { url: null, name: file.name, _loading: true };
   _renderPengDukungPreview();
   _updatePengAjukanBtnState();
@@ -2048,12 +2027,10 @@ async function savePengajuan() {
     return;
   }
 
-  // Perjalanan Dinas: Tugas Luar selalu perjalanan dinas, jadi ikut terkirim bersama pengajuan (null kalau Cuti).
   let perjadin = null;
   if (status === 'tugas_luar' && typeof pjPengCollect === 'function') {
     perjadin = pjPengCollect();
     if (perjadin?.error) { toast(perjadin.error, 'error'); return; }
-    // Keterangan pengajuan = Rincian Kegiatan (kolom Keterangan disembunyikan untuk Tugas Luar).
     if (perjadin) keterangan = perjadin.rincian_kegiatan || keterangan;
   }
 
@@ -2073,7 +2050,7 @@ async function savePengajuan() {
     toast(_pengEditMode === 'edit' ? 'Perubahan pengajuan disimpan'
       : _pengEditMode === 'ulang' ? 'Pengajuan diajukan ulang, menunggu persetujuan admin'
       : 'Pengajuan berhasil dikirim, menunggu persetujuan admin', 'success');
-    _pengDukung = null;   // sudah tersimpan: jangan dibuang oleh hook tutup modal
+    _pengDukung = null;
     closeModal('modalPengajuanAbsen');
     await loadPengajuanSaya();
     if (typeof renderAbsHariIni === 'function') renderAbsHariIni();
@@ -2091,7 +2068,6 @@ async function loadPengajuanSaya() {
     const rows = (d.pengajuan || []).slice(0, 5);
     if (!rows.length) { box.style.display = 'none'; return; }
     box.style.display = '';
-    // Judul mengikuti isi daftar: semua Tugas Luar / semua Cuti / campuran.
     const jenisSet = new Set(rows.map(p => p.status));
     const judulEl = document.getElementById('absPengajuanSayaTitle');
     if (judulEl) judulEl.textContent = 'Pengajuan ' + (jenisSet.size === 1 ? (_PERSETUJUAN_JENIS_LABEL[[...jenisSet][0]] || 'Tugas Luar / Cuti') : 'Tugas Luar / Cuti') + ' Saya';
@@ -2157,7 +2133,6 @@ function fmtTglSingkat(s) {
 }
 
 async function refreshPengajuanPendingBadge() {
-  // Badge Absensi = semua pengajuan pending; badge Perjadin = hanya Tugas Luar (cuti tidak relevan di sana).
   const abs = document.getElementById('absPengajuanPendingBadge');
   const pj = document.getElementById('pjPengajuanPendingBadge');
   if (!abs && !pj) return;
@@ -2183,8 +2158,6 @@ async function _cekPengajuanPendingReminder() {
   } catch {  }
 }
 
-// jenis: 'tugas_luar' | 'cuti' = daftar difilter ke jenis itu (mis. dari halaman Perjadin);
-// kosong = semua jenis (menu Absensi / popup login), judul menyesuaikan isi daftar.
 let _persetujuanJenis = null;
 const _PERSETUJUAN_JENIS_LABEL = { tugas_luar: 'Tugas Luar', cuti: 'Cuti' };
 
@@ -2297,14 +2270,3 @@ async function submitTolakPengajuan() {
     if (typeof pjRefreshSetelahPengajuan === 'function') await pjRefreshSetelahPengajuan();
   } catch { toast('Gagal menolak pengajuan', 'error'); }
 }
-/* ── Tinggi card "Hari Ini" (kiri) vs kolom KPI+Jam Kerja (kanan) ──
-   SUDAH ditangani murni via CSS (.abs-hariini-flex-wrap align-items:stretch
-   + .dash-kpi-row grid-template-rows: ...min-content 1fr, lihat styles.css).
-   Card kanan yang ngikutin tinggi kiri secara deterministic lewat grid,
-   BUKAN sebaliknya. Sengaja TIDAK pakai ResizeObserver dua-arah di sini -
-   pattern lama (kiri di-set ngikutin offsetHeight kanan) balikin arah
-   dependency CSS-nya & bikin feedback loop (kanan berubah → JS ubah kiri →
-   CSS stretch ubah kanan lagi → observer ke-trigger lagi), hasilnya goyah/
-   nondeterministic terutama abis browser zoom. Kalau ada kasus CSS-only
-   ini meleset lagi, jangan tambah balik ResizeObserver 2 arah - benerin di
-   grid-template-rows/breakpoint container query-nya. */

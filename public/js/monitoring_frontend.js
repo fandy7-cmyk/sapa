@@ -1,11 +1,4 @@
 'use strict';
-/* ============================================================================
-   Pemantauan Sistem (monitoring / observability)
-   1) Instrumentasi: bungkus fetch (ukur durasi /api/*, laporkan 5xx), tangkap error JS & promise.
-   2) Halaman admin "Pemantauan Sistem" (Ringkasan, Error Log, Performa, Kesehatan, Penggunaan, Keamanan).
-   3) Badge jumlah error baru di sidebar.
-   Muat file ini SEBELUM js/app.js supaya semua fetch ikut terukur.
-   ============================================================================ */
 (function () {
   if (window.__sapaMon) return;
   window.__sapaMon = true;
@@ -35,7 +28,6 @@
     } catch (e) { return null; }
   }
 
-  /* ───────────── 1. Instrumentasi ───────────── */
   const perfBuf = [];
   let laporanSesi = 0;
   const sudahDilapor = new Set();
@@ -62,9 +54,9 @@
   function laporError(p) {
     try {
       if (!p || !p.message) return;
-      if (laporanSesi >= 20) return;                      // batas per sesi halaman
+      if (laporanSesi >= 20) return;
       const kunci = p.source + '|' + String(p.message).slice(0, 120);
-      if (sudahDilapor.has(kunci)) return;                // sudah dikirim di sesi ini
+      if (sudahDilapor.has(kunci)) return;
       sudahDilapor.add(kunci); laporanSesi++;
       _of(MON + '/error', {
         method: 'POST', headers: monHeaders(), keepalive: true,
@@ -106,10 +98,10 @@
   };
 
   window.addEventListener('error', (e) => {
-    if (e.target && e.target !== window) return;          // gagal muat gambar/script: abaikan
+    if (e.target && e.target !== window) return;
     const msg = e.message || '';
     if (!msg || /ResizeObserver loop|^Script error\.?$/i.test(msg)) return;
-    if (e.filename && !e.filename.startsWith(location.origin)) return;   // ekstensi browser / pihak ketiga
+    if (e.filename && !e.filename.startsWith(location.origin)) return;
     laporError({ source: 'client', message: msg, stack: e.error && e.error.stack });
   }, true);
 
@@ -117,17 +109,15 @@
     const r = e.reason;
     const msg = (r && r.message) || (typeof r === 'string' ? r : '');
     if (!msg || (r && r.name === 'AbortError')) return;
-    if (/^Transition was (aborted|skipped)/i.test(msg)) return;   // View Transition dibatalkan browser (tab tersembunyi): bukan error aplikasi
-    if (/Failed to fetch|NetworkError|Load failed|network error/i.test(msg)) return;   // sudah dicatat wrapper fetch
+    if (/^Transition was (aborted|skipped)/i.test(msg)) return;
+    if (/Failed to fetch|NetworkError|Load failed|network error/i.test(msg)) return;
     laporError({ source: 'promise', message: msg, stack: r && r.stack });
   });
 
-  /* ───────────── 2. Halaman admin ───────────── */
   const CSS = `
   #page-pemantauan-sistem .card-title-sm{font-size:.95rem;font-weight:700}
   #page-pemantauan-sistem .card-header{margin-bottom:var(--sp-3)}
   #page-pemantauan-sistem .card{margin-bottom:var(--sp-4)}
-  /* Semua tabel di Pemantauan Sistem: judul kolom & isi sel rata tengah */
   #page-pemantauan-sistem .freeze-table th,#page-pemantauan-sistem .freeze-table td{text-align:center;vertical-align:middle}
   #page-pemantauan-sistem .freeze-table .mon-cellbar{justify-content:center}
   #page-pemantauan-sistem .freeze-table .mon-pre{text-align:left}
@@ -276,12 +266,10 @@
     return d;
   }
 
-  /* ── Format & helper ── */
   const PAL = { ok: '#16a34a', warn: '#d97706', bad: '#dc2626', info: '#2563eb', teal: '#047D78', ungu: '#7c3aed', abu: '#64748b' };
   const SRC = { client: 'Browser', promise: 'Promise', api: 'API 5xx', network: 'Jaringan' };
   const SRC_COL = { client: PAL.info, promise: PAL.ungu, api: PAL.bad, network: PAL.abu };
   const nf = (n) => Number(n || 0).toLocaleString('id-ID');
-  // Tanggal + jam 24 jam WITA, mis. "04 Okt 2026, 14:30 WITA"
   const _fmtWaktuDtf = new Intl.DateTimeFormat('id-ID', { timeZone: TZ, day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' });
   const fmtWaktu = (ts) => {
     if (!ts) return '-';
@@ -369,7 +357,6 @@
 
   const body$ = () => document.getElementById('monBody');
 
-  /* ── Komponen visual ── */
   const ECG = '<svg class="mon-ecg" viewBox="0 0 400 60" preserveAspectRatio="none" aria-hidden="true"><polyline points="0,30 90,30 110,30 125,8 140,52 155,30 250,30 270,30 285,14 298,44 310,30 400,30"/></svg>';
   const hero = ({ tone, title, text, pills }) => `
     <div class="mon-hero t-${tone}"><span class="mon-pulse"></span>
@@ -476,7 +463,6 @@
   }
   const lblHari = (s) => new Date(s + 'T12:00:00').toLocaleDateString('id-ID', { day: '2-digit', month: 'short' });
 
-  // Teks sumbu dijaga ukurannya di layar (SVG ikut melebar mengikuti kartu, teks tidak boleh ikut).
   function monFixText() {
     document.querySelectorAll('#monBody svg.mon-chart').forEach(svg => {
       const vb = svg.viewBox && svg.viewBox.baseVal, w = svg.getBoundingClientRect().width;
@@ -502,7 +488,6 @@
   const monPagedHb = (items, bodyId, pagId, kosong) => monPaged(items, i => hbars([i]), bodyId, pagId, `<div class="mon-empty">${kosong}</div>`);
   const secAmbil = (sec, a) => (sec && sec.ringkasan && sec.ringkasan.find(r => r.aksi === a)) || { h24: 0, h7: 0 };
 
-  /* ── Ringkasan ── */
   async function tabRingkasan() {
     try {
       const [sum, hl, perf, use, errs, sec] = await Promise.all([
@@ -558,7 +543,6 @@
     } catch (e) { if (body$()) body$().innerHTML = gagal(e); }
   }
 
-  /* ── Error Log ── */
   function renderErrStats(s) {
     const el = document.getElementById('monErrStats'); if (!el || !s) return;
     const sj = fillSeries(s.per_jam, 24, 3600);
@@ -670,7 +654,6 @@
     } catch (e) { if (typeof toast === 'function') toast('Gagal: ' + e.message, 'error'); }
   };
 
-  /* ── Performa ── */
   async function tabPerforma(jam) {
     jam = jam || 24;
     try {
@@ -728,7 +711,6 @@
   }
   window.monGantiJam = (v) => tabPerforma(parseInt(v));
 
-  /* ── Kesehatan ── */
   function rowCek(c) {
     return `<div class="mon-row"><div><div style="font-weight:600">${monEsc(c.nama)}</div><div class="mon-row-sub">${monEsc(c.info || '')}${c.ms != null ? ' · ' + c.ms + ' ms' : ''}${c.last_run ? ' · ' + fmtWaktu(c.last_run) : ''}</div></div>${badgeStatusCek(c.status)}</div>`;
   }
@@ -782,7 +764,6 @@
     catch (e) { if (typeof toast === 'function') toast('Gagal kirim: ' + e.message, 'error'); }
   };
 
-  /* ── Penggunaan ── */
   const MODUL_COL = [PAL.teal, PAL.info, PAL.ungu, PAL.warn, '#0891b2', '#db2777', '#65a30d', PAL.abu];
   async function tabPenggunaan(hari) {
     hari = hari || 7;
@@ -835,7 +816,6 @@
   }
   window.monGantiHari = (v) => tabPenggunaan(parseInt(v));
 
-  /* ── Keamanan ── */
   async function tabKeamanan() {
     try {
       const d = await monGet(MON + '/security');
@@ -886,7 +866,6 @@
     } catch (e) { if (body$()) body$().innerHTML = gagal(e); }
   }
 
-  /* ───────────── 3. Badge sidebar ───────────── */
   let badgeState = { baru: 0, health: null };
 
   function terapkanBadge() {
@@ -920,7 +899,7 @@
   function init() {
     ensurePage();
     const nav = document.getElementById('sidebarNav');
-    if (nav) new MutationObserver(() => { terapkanBadge(); }).observe(nav, { childList: true });   // sidebar dibangun ulang -> pasang badge lagi
+    if (nav) new MutationObserver(() => { terapkanBadge(); }).observe(nav, { childList: true });
     setTimeout(monRefreshBadge, 3000);
     setInterval(monRefreshBadge, 60000);
   }

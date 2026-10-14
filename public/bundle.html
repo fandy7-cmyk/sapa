@@ -3,14 +3,11 @@
 <head>
   <meta charset="UTF-8" />
   <script>
-  // Dark mode: pasang data-theme SEBELUM CSS dimuat supaya tidak ada kedip putih.
-  // Pilihan user ada di localStorage 'sapa_theme' (auto | light | dark | system); default auto (gelap 18:00-06:00 WITA).
-  // Logika lengkap (toggle, sinkron tab, tema sistem) ada di js/dark-mode.js.
   (function () {
     try {
       var p = localStorage.getItem('sapa_theme');
       if (p !== 'dark' && p !== 'light' && p !== 'system') p = 'auto';
-      var wh = new Date(Date.now() + 8 * 3600 * 1000).getUTCHours(); // jam WITA (UTC+8)
+      var wh = new Date(Date.now() + 8 * 3600 * 1000).getUTCHours();
       var d = p === 'dark' || (p === 'auto' && (wh >= 18 || wh < 6)) || (p === 'system' && window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches);
       var h = document.documentElement;
       h.setAttribute('data-theme', d ? 'dark' : 'light');
@@ -20,21 +17,13 @@
   </script>
   <style>html[data-theme="dark"]{background:#0b1220;color-scheme:dark}</style>
   <script>
-  // Bundle page cuma mau efek partikel tema di header (kayak topbar di
-  // landing/app), bukan pill/banner mengambang atau background penuh -
-  // theme-engine.js cek flag ini duluan sebelum render pill/banner.
   window.SAPA_TEMA_PARTIKEL_ONLY = true;
   </script>
   <script>
-  // Prefetch tema musiman sedini mungkin - lihat komentar sama di
-  // landing.html/login.html soal cache localStorage.
   (function () {
     var CACHE_KEY = 'sapa_tema_cache_v1';
-    var CACHE_TTL = 6 * 60 * 60 * 1000; // 6 jam
+    var CACHE_TTL = 6 * 60 * 60 * 1000;
 
-    // NOTE: bundle.html cuma pakai partikel tema (SAPA_TEMA_PARTIKEL_ONLY =
-    // true di atas), gambar gak pernah dirender di sini, jadi gambar_url gak
-    // di-preload biar gak muncul warning "preloaded but not used" di console.
     function preloadGambar(theme) {}
 
     function bacaCache() {
@@ -63,26 +52,16 @@
         return { theme: null };
       });
 
-    // Cache localStorage cuma dipakai buat preload gambar lebih awal
-    // (biar gak ada jeda render). Tema yang BENERAN diterapkan selalu
-    // nunggu freshPromise (fetch tanpa cache) - biar status Aktif/
-    // Nonaktif/Terjadwal selalu akurat sesuai tanggal & toggle terbaru
-    // tiap kali halaman di-refresh, sama kayak di topbar app.html.
     var cached = bacaCache();
     if (cached) preloadGambar(cached.theme);
-    // Diekspos biar theme-engine.js bisa render tema cache ini SINKRON
-    // (instan, gak nunggu network) sambil tetep reconcile ke data fresh
-    // begitu freshPromise selesai - lihat init() di theme-engine.js.
     window.__sapaTemaCache = cached;
     window.__sapaTemaPromise = freshPromise;
   })();
   </script>
-  <!-- Preload file theme-engine.js juga, paralel dari awal - jangan
-       nunggu parser sampe ke <script> di akhir body baru mulai narik. -->
-  <link rel="preload" as="script" href="js/theme-engine.js?v=1.2.18" />
+  <link rel="preload" as="script" href="js/theme-engine.js?v=1.2.19" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>SAPA Perencanaan</title>
-  <meta name="app-version" content="1.2.18" />
+  <meta name="app-version" content="1.2.19" />
 
   
   <meta property="og:type"         content="website" />
@@ -101,10 +80,10 @@
   <link rel="apple-touch-icon" href="/favicon.png" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="css/styles.css?v=1.2.18" />
-  <link rel="stylesheet" href="css/dark.css?v=1.2.18" />
-  <link rel="stylesheet" href="css/dark-bundle.css?v=1.2.18" />
-  <link rel="stylesheet" href="css/theme-fab.css?v=1.2.18" />
+  <link rel="stylesheet" href="css/styles.css?v=1.2.19" />
+  <link rel="stylesheet" href="css/dark.css?v=1.2.19" />
+  <link rel="stylesheet" href="css/dark-bundle.css?v=1.2.19" />
+  <link rel="stylesheet" href="css/theme-fab.css?v=1.2.19" />
   <style>
     
     .item-icon svg, .state-icon svg, .item-arrow svg {
@@ -365,10 +344,8 @@ async function loadBundle(slug, pw) {
     }
     const { bundle, items } = await r.json();
 
-    // Update page title
     document.title = `SAPA Perencanaan`;
 
-    // Render header
     document.getElementById('headerContent').innerHTML = `
       <div class="bundle-brand-name">${esc(bundle.judul)}</div>
       ${bundle.deskripsi ? `<div class="bundle-brand-sub">${esc(bundle.deskripsi)}</div>` : ''}`;
@@ -421,8 +398,6 @@ async function loadBundle(slug, pw) {
   var CHECK_INTERVAL_MS = 5 * 60 * 1000; 
   var banner = null;
 
-  // Modal wajib (tampilan sama seperti modal di aplikasi): tidak bisa ditutup, tanpa tombol X,
-  // klik di luar / Esc tidak menutup, dan seluruh isi halaman dikunci sampai "Muat ulang" ditekan.
   function showUpdateBanner() {
     if (banner) return;
     var iconTpl = '<svg xmlns="http://www.w3.org/2000/svg" width="SZ" height="SZ" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"/><path stroke-linecap="round" stroke-linejoin="round" d="M21 3v5h-5"/></svg>';
@@ -489,7 +464,7 @@ async function loadBundle(slug, pw) {
   <svg class="ic-moon" xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>
   <svg class="ic-sun" xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/></svg>
 </button>
-<script src="js/theme-engine.js?v=1.2.18"></script>
-<script src="js/dark-mode.js?v=1.2.18"></script>
+<script src="js/theme-engine.js?v=1.2.19"></script>
+<script src="js/dark-mode.js?v=1.2.19"></script>
 </body>
 </html>

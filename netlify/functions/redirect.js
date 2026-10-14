@@ -14,14 +14,11 @@ function getBundleHtml() {
 <head>
   <meta charset="UTF-8" />
   <script>
-  // Dark mode: pasang data-theme SEBELUM CSS dimuat supaya tidak ada kedip putih.
-  // Pilihan user ada di localStorage 'sapa_theme' (auto | light | dark | system); default auto (gelap 18:00-06:00 WITA).
-  // Logika lengkap (toggle, sinkron tab, tema sistem) ada di js/dark-mode.js.
   (function () {
     try {
       var p = localStorage.getItem('sapa_theme');
       if (p !== 'dark' && p !== 'light' && p !== 'system') p = 'auto';
-      var wh = new Date(Date.now() + 8 * 3600 * 1000).getUTCHours(); // jam WITA (UTC+8)
+      var wh = new Date(Date.now() + 8 * 3600 * 1000).getUTCHours();
       var d = p === 'dark' || (p === 'auto' && (wh >= 18 || wh < 6)) || (p === 'system' && window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches);
       var h = document.documentElement;
       h.setAttribute('data-theme', d ? 'dark' : 'light');
@@ -31,17 +28,12 @@ function getBundleHtml() {
   </script>
   <style>html[data-theme="dark"]{background:#0b1220;color-scheme:dark}</style>
   <script>
-  // Sama kayak bundle.html - halaman ini cuma mau efek partikel tema di
-  // header, bukan pill/banner mengambang atau background penuh.
   window.SAPA_TEMA_PARTIKEL_ONLY = true;
   </script>
   <script>
-  // Prefetch tema musiman sedini mungkin - lihat komentar sama di
-  // bundle.html/login.html soal cache localStorage (biar gak ada jeda
-  // "halaman polos dulu baru tema muncul" akibat cold-start function/DB).
   (function () {
     var CACHE_KEY = 'sapa_tema_cache_v1';
-    var CACHE_TTL = 6 * 60 * 60 * 1000; // 6 jam
+    var CACHE_TTL = 6 * 60 * 60 * 1000;
 
     function preloadGambar(theme) {
       if (theme && theme.gambar_url) {
@@ -79,26 +71,15 @@ function getBundleHtml() {
         return { theme: null };
       });
 
-    // Cache localStorage cuma dipakai buat preload gambar lebih awal
-    // (biar gak ada jeda render). Tema yang BENERAN diterapkan selalu
-    // nunggu freshPromise (fetch tanpa cache) - biar status Aktif/
-    // Nonaktif/Terjadwal selalu akurat sesuai tanggal & toggle terbaru
-    // tiap kali halaman di-refresh, sama kayak di topbar app.html.
     var cached = bacaCache();
     if (cached) preloadGambar(cached.theme);
-    // Diekspos biar theme-engine.js bisa render tema cache ini SINKRON
-    // (instan, gak nunggu network) sambil tetep reconcile ke data fresh
-    // begitu freshPromise selesai - lihat init() di theme-engine.js.
     window.__sapaTemaCache = cached;
     window.__sapaTemaPromise = freshPromise;
   })();
   </script>
-  <!-- Preload file theme-engine.js juga, paralel dari awal - jangan
-       nunggu parser sampe ke <script> di akhir body baru mulai narik. -->
   <link rel="preload" as="script" href="/js/theme-engine.js?v=1.5.0" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>SAPA Perencanaan</title>
-  <!-- Open Graph / WhatsApp Preview -->
   <meta property="og:type"         content="website" />
   <meta property="og:site_name"    content="SAPA Perencanaan" />
   <meta property="og:title"        content="SAPA Perencanaan" />
@@ -107,7 +88,6 @@ function getBundleHtml() {
   <meta property="og:image:width"  content="512" />
   <meta property="og:image:height" content="512" />
   <meta property="og:url"          content="https://sapa-dinkesp2kb.netlify.app" />
-  <!-- Twitter Card -->
   <meta name="twitter:card"        content="summary" />
   <meta name="twitter:title"       content="SAPA Perencanaan" />
   <meta name="twitter:image"       content="https://sapa-dinkesp2kb.netlify.app/favicon.png" />
@@ -120,10 +100,6 @@ function getBundleHtml() {
   <link rel="stylesheet" href="/css/dark-bundle.css" />
   <link rel="stylesheet" href="/css/theme-fab.css" />
   <style>
-    /* ── Logo brand-footer: animasi sama persis kayak .topbar-icon-wrap di
-       landing.html (ring spin conic-gradient + partikel orbit berkedip +
-       loop fade-in/scale/glow tiap 6 detik) - di-prefix "bf-" biar gak
-       nabrak style lain yang mungkin dipakai css/styles.css. ── */
     .bf-icon-wrap {
       position: relative;
       display: inline-flex; align-items: center; justify-content: center;
@@ -176,8 +152,6 @@ function getBundleHtml() {
       92%  { opacity: 0; transform: scale(0.75); }
       100% { opacity: 0; transform: scale(0.6); }
     }
-    /* Icon link default di item-card: paksa ikut warna tema app (teal), bukan
-       warna ungu/lavender yang kebawa dari style lain. */
     .item-card .item-icon { color: var(--hijau, #0f766e); }
     .item-card .item-icon svg { color: var(--hijau, #0f766e); stroke: currentColor; }
   </style>
@@ -185,7 +159,6 @@ function getBundleHtml() {
 <body class="bundle-page">
 <div class="page-wrap">
 
-  <!-- HEADER -->
   <div class="bundle-header" id="topbar">
     <div class="logo-partner-row">
       <img src="/logokemenkes.png" alt="Kemenkes RI" />
@@ -200,7 +173,6 @@ function getBundleHtml() {
     </div>
   </div>
 
-  <!-- ITEMS -->
   <div id="itemsContainer">
     <div class="items-list">
       <div style="display:flex;align-items:center;gap:14px;background:var(--putih);border-radius:var(--radius);padding:14px 18px;box-shadow:var(--shadow-sm)">
@@ -222,7 +194,6 @@ function getBundleHtml() {
 
 <div id="toastContainer"></div>
 
-<!-- BRAND FOOTER -->
 <div class="brand-footer">
   <span class="bf-icon-wrap">
     <span class="bf-ring-spin"></span>
@@ -390,14 +361,11 @@ function getStatusHtml({ icon, title, message }) {
 <head>
   <meta charset="UTF-8" />
   <script>
-  // Dark mode: pasang data-theme SEBELUM CSS dimuat supaya tidak ada kedip putih.
-  // Pilihan user ada di localStorage 'sapa_theme' (auto | light | dark | system); default auto (gelap 18:00-06:00 WITA).
-  // Logika lengkap (toggle, sinkron tab, tema sistem) ada di js/dark-mode.js.
   (function () {
     try {
       var p = localStorage.getItem('sapa_theme');
       if (p !== 'dark' && p !== 'light' && p !== 'system') p = 'auto';
-      var wh = new Date(Date.now() + 8 * 3600 * 1000).getUTCHours(); // jam WITA (UTC+8)
+      var wh = new Date(Date.now() + 8 * 3600 * 1000).getUTCHours();
       var d = p === 'dark' || (p === 'auto' && (wh >= 18 || wh < 6)) || (p === 'system' && window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches);
       var h = document.documentElement;
       h.setAttribute('data-theme', d ? 'dark' : 'light');
@@ -415,7 +383,6 @@ function getStatusHtml({ icon, title, message }) {
   <link rel="stylesheet" href="/css/dark.css" />
   <link rel="stylesheet" href="/css/theme-fab.css" />
   <style>
-    /* Mode gelap halaman status/password (kelas di sini tidak tercakup dark.css) */
     html[data-theme="dark"] body { background-image: none; }
     html[data-theme="dark"] h2 { color: #e5e7eb; }
     html[data-theme="dark"] p { color: #94a3b8; }
@@ -435,10 +402,6 @@ function getStatusHtml({ icon, title, message }) {
     .logo-row img { height: 36px; object-fit: contain; }
     .logo-divider { width: 1px; height: 28px; background: #e2e8f0; }
     .brand-footer { margin-top: 40px; display: flex; flex-direction: column; align-items: center; gap: 3px; font-size: .72rem; color: #94a3b8; text-align: center; }
-    /* Logo brand-footer: animasi sama persis kayak di halaman bundle aktif
-       (ring spin conic-gradient + partikel orbit berkedip + loop
-       fade-in/scale/glow tiap 6 detik), biar konsisten di semua halaman
-       publik -- sebelumnya cuma statis di sini. */
     .bf-icon-wrap {
       position: relative;
       display: inline-flex; align-items: center; justify-content: center;
@@ -544,14 +507,11 @@ function getPasswordPromptHtml({ slug, error, viaQr }) {
 <head>
   <meta charset="UTF-8" />
   <script>
-  // Dark mode: pasang data-theme SEBELUM CSS dimuat supaya tidak ada kedip putih.
-  // Pilihan user ada di localStorage 'sapa_theme' (auto | light | dark | system); default auto (gelap 18:00-06:00 WITA).
-  // Logika lengkap (toggle, sinkron tab, tema sistem) ada di js/dark-mode.js.
   (function () {
     try {
       var p = localStorage.getItem('sapa_theme');
       if (p !== 'dark' && p !== 'light' && p !== 'system') p = 'auto';
-      var wh = new Date(Date.now() + 8 * 3600 * 1000).getUTCHours(); // jam WITA (UTC+8)
+      var wh = new Date(Date.now() + 8 * 3600 * 1000).getUTCHours();
       var d = p === 'dark' || (p === 'auto' && (wh >= 18 || wh < 6)) || (p === 'system' && window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches);
       var h = document.documentElement;
       h.setAttribute('data-theme', d ? 'dark' : 'light');
@@ -569,7 +529,6 @@ function getPasswordPromptHtml({ slug, error, viaQr }) {
   <link rel="stylesheet" href="/css/dark.css" />
   <link rel="stylesheet" href="/css/theme-fab.css" />
   <style>
-    /* Mode gelap halaman password (kelas di sini tidak tercakup dark.css) */
     html[data-theme="dark"] body { background-image: none; }
     html[data-theme="dark"] h2 { color: #e5e7eb; }
     html[data-theme="dark"] p { color: #94a3b8; }

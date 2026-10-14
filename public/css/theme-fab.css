@@ -1,5 +1,3 @@
-/* Tombol ganti tema melayang - dipakai login.html, landing.html, bundle.html
-   (app.html punya tombol sendiri di topbar). Ditulis manual, bukan hasil generator. */
 .theme-fab {
   position: fixed; left: 16px; bottom: 16px; z-index: 10000;
   width: 40px; height: 40px; border-radius: 50%; cursor: pointer; padding: 0;
@@ -17,12 +15,9 @@ html[data-theme="dark"] .theme-fab .ic-moon { display: none; }
 html[data-theme="dark"] .theme-fab .ic-sun { display: inline; }
 html.theme-switching, html.theme-switching * { transition: background-color .25s ease, color .25s ease, border-color .25s ease !important; }
 @media (prefers-reduced-motion: reduce) { html.theme-switching, html.theme-switching * { transition: none !important; } }
-/* crossfade tema via View Transitions API (dipakai dark-mode.js bila browser mendukung) */
 ::view-transition-old(root), ::view-transition-new(root) { animation-duration: .2s; animation-timing-function: ease-out; }
 @media print { .theme-fab { display: none !important; } }
 
-/* Tooltip custom (pengganti title bawaan browser) untuk halaman tanpa app.js.
-   Tampilannya disamakan dengan .qtip-box di styles.css. */
 .fab-tip {
   position: fixed; z-index: 100000; max-width: 230px;
   padding: 3px 8px; border-radius: 8px; text-align: center;

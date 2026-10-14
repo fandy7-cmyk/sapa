@@ -1,13 +1,8 @@
 
-// ═══ Kinerja = PER TRIWULAN ═══
-// Kolom `bulan` di DB berisi bulan akhir TW: TW I=3, II=6, III=9, IV=12.
-// Nama diawali _dTw supaya gak bentrok dengan helper di kinerja.js (sama-sama global).
 const _DTW_BULAN = [3, 6, 9, 12];
 const _DTW_ROM   = ['', 'I', 'II', 'III', 'IV'];
 function _dTwSekarang() { return Math.ceil((new Date().getMonth() + 1) / 3) * 3; }
 
-// Periode default dashboard kinerja = TW terakhir yang sudah dibuka/ada (bukan TW berdasarkan tanggal hari ini).
-// Dipakai hanya kalau tidak ada periode aktif dari getPeriodeAktif().
 let _dTwTerakhir = null, _dTwTerakhirP = null;
 function _dEnsureTwTerakhir(force) {
   if (force) _dTwTerakhirP = null;
@@ -47,10 +42,6 @@ function _dSnapTw(r) {
   return { ...r, bulan: b, key: `${r.tahun}-${String(b).padStart(2, '0')}` };
 }
 
-// Dedupe GET identik yang lagi in-flight. Beberapa widget dashboard (IKU grid, chart IKU,
-// Pantau Indikator) manggil endpoint yang sama hampir bersamaan - sekarang cuma 1 request
-// jaringan, sisanya dapat clone response-nya. Entry dihapus begitu selesai, jadi tidak ada
-// data basi (bukan cache).
 const _dashInflight = new Map();
 function _dashFetchOnce(url) {
   let p = _dashInflight.get(url);
@@ -72,8 +63,6 @@ async function loadDashboard() {
   const showSuratM  = isAdmin || hasAccess('surat.masuk');
   const showSuratK  = isAdmin || hasAccess('surat.keluar');
   const showSurat   = showSuratM || showSuratK;
-  // Dashboard utama sengaja menampilkan ringkasan Kinerja ke semua user (read-only, dikecualikan dari
-  // pembatasan akses modul); dashboard modul Kinerja yang dibatasi sesuai akses.
   const showKinerja = true;
 
   
@@ -248,11 +237,6 @@ function _dashModuleHeader(icon, title, subtitle) {
     <div class="page-subtitle">${esc(subtitle)}</div>`;
 }
 
-// ═══════════════════════════════════════════════════════════════════════════
-// KIT DASHBOARD MODUL - gaya "Pemantauan Sistem" (hero ringkasan, KPI + sparkline,
-// grafik area/bar, donut, daftar bar, insight). Dipakai Dashboard Superlink, Surat,
-// Absensi, Lembur & Kinerja. Prefix _dm / .dm- supaya gak bentrok dengan modul lain.
-// ═══════════════════════════════════════════════════════════════════════════
 const _DM_PAL = { ok: '#16a34a', warn: '#d97706', bad: '#dc2626', info: '#2563eb', teal: '#047D78', ungu: '#7c3aed', abu: '#64748b', pink: '#a21caf', sky: '#0ea5e9' };
 const _DM_BLN = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];
 const _dmNf  = (n) => Number(n || 0).toLocaleString('id-ID');
@@ -404,7 +388,6 @@ const _dmIc = (k, c, s) => `<svg xmlns="http://www.w3.org/2000/svg" width="${s |
 const _DM_ECG = '<div class="dm-dots" aria-hidden="true"></div>';
 function _dmHeroLegacy({ tone, title, text, pills, reload }) {
   const jam = new Date().toLocaleTimeString('id-ID', { timeZone: 'Asia/Makassar', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).replace(/\./g, ':');
-  // text boleh string atau array kalimat pendek (satu baris per kalimat, yang kosong dilewati)
   const lines = (Array.isArray(text) ? text : [text]).filter(Boolean);
   const icKey = { ok: 'check', warn: 'warn', bad: 'alert' }[tone] || 'info';
   return `<div class="dm-hero t-${tone}">
@@ -416,10 +399,6 @@ function _dmHeroLegacy({ tone, title, text, pills, reload }) {
     <div class="dm-hero-aside">${reload ? `<button class="btn btn-sm btn-outline-hijau" onclick="${reload}"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>Muat ulang</button>` : ''}<div class="dm-sub">Diperbarui ${jam} WITA</div></div>
   </div>`;
 }
-// Hero v2: ring (A), bar segmen (B), angka + tren (C), garis detak + "Langsung" (D).
-// ring  = { pct, label, color?, tip? }
-// seg   = [{ label, val, color, bar? }]  (bar:false = cuma tampil di legenda, gak masuk bar)
-// trend = { label, val, d, unit, vs, vals, invert?, neutral?, note? }
 function _dmRing(r) {
   const p = Math.max(0, Math.min(100, Math.round(Number(r.pct) || 0)));
   const col = r.color || 'var(--tone)';
@@ -431,7 +410,6 @@ function _dmSegBar(seg) {
   return `<div class="dm-seg" role="img" aria-label="${esc(seg.map(s => `${s.label} ${s.val}`).join(', '))}">${bars.map(s => `<i style="flex:${s.val} 1 0;background:${s.color}" data-tip="${esc(`${s.label}: ${_dmNf(s.val)} (${Math.round(s.val * 100 / tot)}%)`)}"></i>`).join('')}</div>`;
 }
 const _dmSegLg = (seg) => `<div class="dm-seg-lg">${seg.map(s => `<span><i style="background:${s.color}"></i>${s.label} <b>${_dmNf(s.val)}</b></span>`).join('')}</div>`;
-// garis tren kecil, skala min-max supaya naik-turunnya kelihatan
 function _dmTrendLine(vals, color, w, h) {
   vals = (vals || []).filter(v => v != null && isFinite(v)).map(Number);
   if (vals.length < 2) return '';
@@ -472,10 +450,7 @@ function _dmHero(o) {
 }
 const _dmPill = (label, val, color) => `<span class="dm-pill"><i style="background:${color}"></i>${label}${val != null ? ` <b>${val}</b>` : ''}</span>`;
 const _dmIns = (tone, html) => `<div class="dm-ins t-${tone}"><i></i><span>${html}</span></div>`;
-// Kartu yang isinya HANYA placeholder kosong (belum ada data, atau "Semua ... sudah" / "Tidak ada ...") tidak ditampilkan.
-// Pengecualian: pesan error/info yang dipanggil dengan _dmEmpty(teks, true) tetap tampil.
 const _dmIsNoData = (h) => typeof h === 'string' && h.trim().startsWith('<div class="dm-empty dm-nodata">') && (h.match(/<div/g) || []).length === 1;
-// Icon card: dipilih otomatis dari judul (pakai set _DM_IC yang sama dgn KPI). Bisa dioverride lewat parameter ke-5.
 const _DM_CARD_IC = [
   [/skala|capaian|rata-rata|progres|kelengkapan/i, 'target'], [/klik|kunjungan|perangkat|cara masuk|terpopuler/i, 'click'],
   [/link|bundle/i, 'link'], [/surat|pengirim|tujuan/i, 'mail'], [/jam|sisa waktu|sesi|lembur|terlambat|menunggu/i, 'clock'],
@@ -486,7 +461,7 @@ const _dmCardIc = (title) => { const t = String(title).replace(/<[^>]*>/g, ''); 
 const _dmCardIcon = (title, ic) => `<span class="dm-card-ic">${_dmIc(ic || _dmCardIc(title), _DM_PAL.teal, 16)}</span>`;
 const _dmCard = (title, sub, inner, head, ic) => _dmIsNoData(inner) ? '' : `<div class="dm-card"><div class="dm-card-h"><div class="dm-card-hl">${_dmCardIcon(title, ic)}<div><div class="dm-card-t">${title}</div>${sub ? `<div class="dm-sub">${sub}</div>` : ''}</div></div>${head || ''}</div>${inner}</div>`;
 const _dmCols = (arr, wide) => {
-  const a = arr.filter(Boolean);   // buang kartu yang tidak dirender (belum ada data)
+  const a = arr.filter(Boolean);
   return a.length ? `<div class="dm-cols${wide && a.length > 1 ? (wide === 'r' ? ' wide-r' : ' wide') : ''}">${a.join('')}</div>` : '';
 };
 const _dmEmpty = (t, keep) => `<div class="dm-empty${keep ? '' : ' dm-nodata'}">${t}</div>`;
@@ -548,9 +523,6 @@ function _dmBar({ labels, values, color, h, hi, unit }) {
   });
   return `<svg class="dm-chart" viewBox="0 0 ${W} ${H}" role="img">${g}${bars}</svg>`;
 }
-// Bar chart yang tingginya mengikuti tinggi card (opt-in). Dipakai kalau card ini sebaris sama
-// card yang lebih tinggi, biar gak ada ruang kosong di bawah chart. Tinggi viewBox dihitung ulang
-// dari tinggi wrapper, jadi teks & bar gak ikut melar.
 let _dmFillList = [];
 function _dmBarFill(opts) {
   const id = 'dmfill' + (++_dmSeq);
@@ -587,7 +559,6 @@ function _dmDonut(items, centerVal, centerLbl, compact) {
     <text x="60" y="58" text-anchor="middle" style="font-size:19px;font-weight:800;fill:var(--teks)">${centerVal}</text><text x="60" y="73" text-anchor="middle" class="dm-ax">${centerLbl || ''}</text></svg>
     <div class="dm-dl">${items.map(i => `<div><i style="background:${i.color}"></i><span>${esc(i.label)}</span><b>${_dmNf(i.value)}</b><em>${_dmPct(i.value, tot)}%</em></div>`).join('')}</div></div>`;
 }
-// Pagination daftar di card: 5 item per halaman. Daftar <= 5 item ditampilkan langsung.
 const _DM_PER = 5;
 let _dmSeq = 0;
 let _dmQueue = [];
@@ -613,7 +584,6 @@ function _dmHb(items, kosong) {
   if (!items.length) return _dmEmpty(kosong || 'Belum ada data');
   return _dmPageBox(items.map(i => `<div class="dm-hb"><div class="dm-hb-top"><span class="dm-hb-l${i.full ? ' full' : ''}" data-tip="${esc(i.label)}">${esc(i.label)}</span><span class="dm-hb-r">${i.right || ''}</span></div><div class="dm-hb-track"><i style="width:${Math.max(2, Math.round(i.value * 100 / (i.max || 1)))}%;background:${i.color || _DM_PAL.teal}"></i></div>${i.sub ? `<div class="dm-sub">${i.sub}</div>` : ''}</div>`));
 }
-// daftar bar dengan skala otomatis (max = nilai terbesar)
 function _dmHbAuto(rows, kosong) {
   const max = Math.max(1, ...rows.map(r => r.value));
   return _dmHb(rows.map(r => ({ ...r, max: r.max || max, right: r.right != null ? r.right : `<b style="color:${r.color || _DM_PAL.teal}">${_dmNf(r.value)}${r.suffix || ''}</b>` })), kosong);
@@ -632,7 +602,6 @@ function _dmFixText(root) {
     svg.querySelectorAll('.dm-ax').forEach(t => { t.style.fontSize = fs; });
   });
 }
-// Pasang HTML ke wrapper + rapikan ukuran teks grafik
 function _dmMount(wrap, html) {
   wrap.classList.add('dm');
   wrap.innerHTML = html;
@@ -640,7 +609,6 @@ function _dmMount(wrap, html) {
   requestAnimationFrame(() => { _dmFixText(wrap); _dmFitFill(wrap); });
 }
 window.addEventListener('resize', () => document.querySelectorAll('.dm').forEach(r => { _dmFixText(r); _dmFitFill(r); }));
-// Daftar N bulan terakhir (termasuk bulan ini) -> [{key:'YYYY-MM', label}]
 function _dmBulanTerakhir(n) {
   const now = new Date(), out = [];
   for (let i = n - 1; i >= 0; i--) {
@@ -789,7 +757,6 @@ async function loadDashboardSuperlink() {
   _dmMount(wrap, html);
 }
 
-// Grafik tren klik 7 hari terakhir - dari stats.klik_7hari [{tanggal, jumlah}]
 function _klikTrendPanel(data) {
   const HARI = ['Min','Sen','Sel','Rab','Kam','Jum','Sab'];
   const pad2 = n => String(n).padStart(2, '0');
@@ -822,7 +789,6 @@ function _klikTrendPanel(data) {
   </div>`;
 }
 
-// ── Perjadin ─────────────────────────────────────────────────────────────────
 const _pjdRp = (n) => 'Rp ' + _dmNf(Math.round(Number(n) || 0));
 function _pjdRpS(n) {
   n = Number(n) || 0;
@@ -859,7 +825,6 @@ async function loadDashboardPerjadin() {
   const icon = `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor" style="flex-shrink:0;opacity:.85"><path fill-rule="evenodd" d="M3 5H8V3C8 2.44772 8.44772 2 9 2H15C15.5523 2 16 2.44772 16 3V5H21C21.5523 5 22 5.44772 22 6V20C22 20.5523 21.5523 21 21 21H3C2.44772 21 2 20.5523 2 20V6C2 5.44772 2.44772 5 3 5ZM10 4V5H14V4H10ZM4 7V19H20V7H4ZM4 11H20V13H4V11Z"/></svg>`;
   let html = _dashModuleHeader(icon, 'Dashboard', full ? 'Ringkasan perjalanan dinas seluruh pegawai' : 'Ringkasan perjalanan dinas Anda');
 
-  // Tren 6 bulan
   const bln = _dmBulanTerakhir(6);
   const mJml = new Map(bln.map(b => [b.key, 0])), mBiaya = new Map(bln.map(b => [b.key, 0]));
   (d.bulan || []).forEach(b => { if (mJml.has(b.ym)) { mJml.set(b.ym, b.jumlah); mBiaya.set(b.ym, b.biaya); } });
@@ -908,7 +873,6 @@ async function loadDashboardPerjadin() {
       : _dmEmpty('Belum ada data biaya')),
   ], true);
 
-  // Jenis & komposisi biaya
   const jenisItems = (d.jenis || []).map((j, i) => ({
     label: j.jenis || 'Belum dilengkapi', value: j.jumlah,
     color: j.jenis ? [_DM_PAL.teal, _DM_PAL.info, _DM_PAL.ungu][i % 3] : _DM_PAL.abu,
@@ -922,14 +886,12 @@ async function loadDashboardPerjadin() {
     _dmCard('Komposisi biaya', 'Urut biaya terbesar', _dmHbAuto(komposisi.map(([n, v, c]) => ({ label: n, value: Math.round(v), color: c, right: `<b style="color:${c}">${_pjdRpS(v)}</b>`, sub: `${_dmPct(v, k.total_biaya)}% dari total` })), 'Belum ada data biaya')),
   ]);
 
-  // Tujuan & pelaksana teratas
   const cards3 = [
     _dmCard('Tujuan terbanyak', 'Kota tujuan perjalanan dinas', _dmHbAuto((d.tujuan || []).map(t => ({ label: t.nama, value: t.jumlah, suffix: 'x', color: _DM_PAL.teal, sub: _pjdRpS(t.biaya) })), 'Belum ada data')),
   ];
   if (full) cards3.push(_dmCard('Pegawai paling sering dinas', 'Urut jumlah perjalanan', _dmHbAuto((d.pelaksana || []).map(p => ({ label: p.nama, full: true, value: p.jumlah, suffix: 'x', color: _DM_PAL.warn, sub: `${p.hari} hari · ${_pjdRpS(p.biaya)}` })), 'Belum ada data')));
   html += _dmCols(cards3);
 
-  // Terbaru
   const fmtTgl = (s) => (typeof pjFmtTgl === 'function' ? pjFmtTgl(s) : s);
   const terbaru = (d.terbaru || []).map(r => {
     const st = _PJD_STATUS[r.status_verifikasi] || [r.status_verifikasi, 'badge-abu'];
@@ -952,7 +914,6 @@ async function loadDashboardPerjadin() {
   _dmMount(wrap, html);
 }
 
-// ── Lembur ───────────────────────────────────────────────────────────────────
 async function _fetchLemburDashData() {
   try {
     const rk = await fetch('/api/lembur/kegiatan', { headers: authHeaders() });
@@ -971,18 +932,17 @@ async function _fetchLemburDashData() {
   }
 }
 
-// Hitung durasi jam lembur satu sesi dari jam_mulai/jam_selesai (HH:MM:SS)
 function _lemburJamSesi(s) {
   if (!s.jam_mulai || !s.jam_selesai) return 0;
   const [h1, m1] = s.jam_mulai.split(':').map(Number);
   const [h2, m2] = s.jam_selesai.split(':').map(Number);
   let menit = (h2 * 60 + m2) - (h1 * 60 + m1);
-  if (menit < 0) menit += 24 * 60; // lewat tengah malam
+  if (menit < 0) menit += 24 * 60;
   return menit / 60;
 }
 
-let _lemburKalOffset = 0; // 0 = jendela 3 bulan terbaru (berakhir di bulan ini); makin besar makin mundur
-let _lemburDashCache = null; // { kegiatanList, sesiRelevant } - dipakai ulang pas navigasi kalender tanpa refetch
+let _lemburKalOffset = 0;
+let _lemburDashCache = null;
 
 async function loadDashboardLembur() {
   const wrap = document.getElementById('dashLemburStats');
@@ -1018,7 +978,6 @@ async function loadDashboardLembur() {
   const tanpaDok = sesiLewat.filter(s => !(s.jumlah_dokumentasi > 0));
   const sesiAkan = sesiRelevant.filter(s => tglKey(s) > todayKey).sort((a, b) => tglKey(a).localeCompare(tglKey(b)));
 
-  // Tren 6 bulan
   const bln = _dmBulanTerakhir(6);
   const cSesi = new Map(bln.map(b => [b.key, 0])), cJam = new Map(bln.map(b => [b.key, 0]));
   sesiRelevant.forEach(s => { const k = tglKey(s).slice(0, 7); if (cSesi.has(k)) { cSesi.set(k, cSesi.get(k) + 1); cJam.set(k, cJam.get(k) + jamS(s)); } });
@@ -1066,13 +1025,11 @@ async function loadDashboardLembur() {
     ], _dmNf(sesiLewat.length), 'sesi')),
   ], true);
 
-  // Sebaran hari dalam seminggu
   const HARI = ['Min', 'Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab'];
   const perHari = Array(7).fill(0);
   sesiRelevant.forEach(s => { const k = tglKey(s); if (k) perHari[new Date(k + 'T12:00:00').getDay()]++; });
   const akhirPekan = perHari[0] + perHari[6];
 
-  // Kegiatan teratas
   const perKeg = new Map();
   sesiRelevant.forEach(s => { const e = perKeg.get(s.kegiatan_id) || { nama: s.kegiatan_nama, sesi: 0, jam: 0 }; e.sesi++; e.jam += jamS(s); perKeg.set(s.kegiatan_id, e); });
   const topKeg = [...perKeg.values()].sort((a, b) => b.jam - a.jam);
@@ -1082,7 +1039,6 @@ async function loadDashboardLembur() {
     _dmCard('Kegiatan dengan jam terbanyak', 'Urut jam terbanyak', _dmHbAuto(topKeg.map(k => ({ label: k.nama, value: Math.round(k.jam), suffix: ' jam', color: _DM_PAL.teal, sub: `${k.sesi} sesi` })), 'Belum ada data')),
   ]);
 
-  // Pegawai teratas (hanya akses penuh)
   const cards3 = [];
   if (full) {
     const perPeg = new Map();
@@ -1097,7 +1053,6 @@ async function loadDashboardLembur() {
   cards3.push(_dmCard('Sesi belum berdokumentasi', `${tanpaDok.length} sesi`, _dmFeed([...tanpaDok].sort((a, b) => tglKey(b).localeCompare(tglKey(a))).map(s => ({ title: s.kegiatan_nama || '-', sub: fmtDate(tglKey(s)).split(',')[0] })), 'Semua sesi sudah punya dokumentasi')));
   html += _dmCols(cards3);
 
-  // Kalender lembur (3 bulan)
   if (typeof _lemburKalenderPanel === 'function') {
     if (typeof _lemburSiapkanWarna === 'function') _lemburSiapkanWarna(kegiatanList);
     html += await _lemburKalenderSectionHtml();
@@ -1113,8 +1068,6 @@ async function loadDashboardLembur() {
   _dmMount(wrap, html);
 }
 
-// Bagian "Kalender Lembur" (3 bulan) - dipisah dari loadDashboardLembur biar tombol navigasi
-// bulan cuma perlu render ulang bagian ini aja (pake data yg udah kepanggil, gak refetch kegiatan/sesi).
 async function _lemburKalenderSectionHtml() {
   if (!_lemburDashCache) return '';
   const { sesiRelevant } = _lemburDashCache;
@@ -1126,8 +1079,6 @@ async function _lemburKalenderSectionHtml() {
     return { bulan: d.getMonth() + 1, tahun: d.getFullYear() };
   });
 
-  // Ambil hari libur nasional (disamain sama Kalender Kehadiran di dashboard Absensi) -
-  // bisa lintas 2 tahun kalau rentang 3 bulan ini nyebrang Desember-Januari.
   let liburSet = new Set();
   let liburMap = new Map();
   let ketBulan = new Map(), ketPrev = new Map();
@@ -1166,9 +1117,6 @@ async function _lemburKalNav(delta) {
   el.outerHTML = html;
 }
 
-// Tombol navigasi geser jendela bulan kalender (dipakai bareng di Dashboard Lembur & Absensi).
-// delta -1 = maju (mundur ke bulan yg lebih baru), +1 = mundur (bulan yg lebih lama).
-// offset 0 = jendela paling baru -> tombol "maju" disable karena gak bisa lebih baru dari sekarang.
 function _dashKalenderNavHtml(offset, fnName) {
   const iconPrev = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>`;
   const iconNext = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>`;
@@ -1178,7 +1126,6 @@ function _dashKalenderNavHtml(offset, fnName) {
   </div>`;
 }
 
-// Grafik tren jumlah sesi lembur 6 bulan terakhir
 function _lemburTrendPanel(sesiList, full) {
   const BULAN = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];
   const now = new Date();
@@ -1209,7 +1156,6 @@ function _lemburTrendPanel(sesiList, full) {
   </div>`;
 }
 
-// ── Surat ────────────────────────────────────────────────────────────────────
 async function loadDashboardSurat() {
   const wrap = document.getElementById('dashSuratStats');
   if (!wrap) return;
@@ -1242,7 +1188,6 @@ async function loadDashboardSurat() {
   const sw = ss.sisa_waktu || null;
   const tigaHari = sw ? sw.tiga_hari : (ss.due_soon_list || []).length;
 
-  // Tren 6 bulan
   const bln = _dmBulanTerakhir(6);
   const mapM = new Map((ss.tren_masuk  || []).map(r => [r.bulan, r.jumlah]));
   const mapK = new Map((ss.tren_keluar || []).map(r => [r.bulan, r.jumlah]));
@@ -1330,7 +1275,6 @@ async function loadDashboardSurat() {
 
   _dmMount(wrap, html);
 }
-// Panel "Perlu Perhatian" - surat masuk yang belum diproses & lewat batas waktu
 function _overdueSuratPanel(list) {
   const rows = list.slice(0, 5).map(s => `
     <tr><td>
@@ -1343,14 +1287,6 @@ function _overdueSuratPanel(list) {
   </div>`;
 }
 
-// ── Absensi ──────────────────────────────────────────────────────────────────
-
-// Ambil ringkasan absensi sebulan lewat endpoint agregat (1 request, dihitung
-// di sisi DB via GROUP BY) - dipakai buat tren harian, ranking keterlambatan,
-// status "sudah absensi hari ini", dan kalender heatmap. Gantiin skema lama yg
-// nembus paginasi backend sampe 20x tiap load dashboard (rentan kena rate limit
-// & bikin request lain ikut ke-block). userId kosong = semua pegawai (admin/full),
-// diisi = punya sendiri (non-admin).
 async function _fetchRingkasanBulan(bulan, tahun, userId) {
   const kosong = { harian: [], ranking_terlambat: [], sudah_absen_user_ids: [] };
   try {
@@ -1363,9 +1299,6 @@ async function _fetchRingkasanBulan(bulan, tahun, userId) {
   } catch (err) { console.error('[_fetchRingkasanBulan]', err); return kosong; }
 }
 
-// Ambil keterangan cuti & tugas luar sebulan buat tooltip Kalender Kehadiran.
-// Endpoint ringkasan-bulan cuma ngasih angka agregat, jadi baris detailnya diambil terpisah
-// (difilter status, jadi jumlahnya kecil). Hasil: Map 'YYYY-MM-DD' -> [{ status, nama, keterangan }].
 async function _fetchKeteranganKalenderBulan(bulan, tahun, userId) {
   const hasil = new Map();
   try {
@@ -1389,7 +1322,6 @@ async function _fetchKeteranganKalenderBulan(bulan, tahun, userId) {
   return hasil;
 }
 
-// Susun teks tooltip keterangan cuti/tugas luar satu hari. full=true nampilin nama pegawai.
 function _absKetTipHari(list, full) {
   if (!list || !list.length) return '';
   const potong = t => t.length > 60 ? t.slice(0, 57) + '...' : t;
@@ -1402,7 +1334,6 @@ function _absKetTipHari(list, full) {
     if (!items.length) return '';
     const tampil = items.slice(0, 3).map(fmt).join('; ');
     const sisa = items.length > 3 ? ` +${items.length - 3} lainnya` : '';
-    // Non-admin: label status sudah ada di depan tooltip ("Tgl 12: Tugas Luar"), jadi cukup keterangannya.
     return full ? `${lbl}: ${tampil}${sisa}` : `${tampil}${sisa}`;
   }).filter(Boolean);
   return grup.join(' • ');
@@ -1419,8 +1350,8 @@ async function _fetchPengajuanPendingDash(full, userId) {
   } catch { return []; }
 }
 
-let _absKalOffset = 0; // 0 = bulan ini + bulan lalu (jendela terbaru); makin besar makin mundur
-let _absDashCtx = null; // { full, userId } - dipakai ulang pas navigasi kalender tanpa perlu argumen ekstra
+let _absKalOffset = 0;
+let _absDashCtx = null;
 
 async function loadDashboardAbsensi() {
   const wrap = document.getElementById('dashAbsensiStats');
@@ -1440,15 +1371,12 @@ async function loadDashboardAbsensi() {
   let jamKerja = null;
   let absSettings = null;
   let liburSet = new Set();
-  let liburMap = new Map(); // YMD -> keterangan, buat notice "hari ini libur"
+  let liburMap = new Map();
   try {
     const [r1, ring, pengPending, rJamKerja, rSettings, rLibur] = await Promise.all([
       fetch(`/api/absensi/rekap?user_id=${userId}&bulan=${bulan}&tahun=${tahun}`, { headers: authHeaders() }),
       _fetchRingkasanBulan(bulan, tahun, userId),
       _fetchPengajuanPendingDash(full, _user.id),
-      // Jam Kerja: buat non-full ini metrik personal (jam kerja diri sendiri),
-      // buat full/admin ini total agregat semua pegawai (lihat backend
-      // /api/absensi/jam-kerja: agregat aktif kalau gak ada user_id spesifik).
       fetch(`/api/absensi/jam-kerja?bulan=${bulan}&tahun=${tahun}`, { headers: authHeaders() }),
       fetch(`/api/absensi/settings`, { headers: authHeaders() }),
       fetch(`/api/absensi/libur?tahun=${tahun}`, { headers: authHeaders() }),
@@ -1490,7 +1418,7 @@ async function loadDashboardAbsensi() {
     const pm = bulan === 1 ? 12 : bulan - 1, pt = bulan === 1 ? tahun - 1 : tahun;
     const rp = await fetch(`/api/absensi/rekap?user_id=${userId}&bulan=${pm}&tahun=${pt}`, { headers: authHeaders() });
     if (rp.ok) rkPrev = (await rp.json()).rekap || null;
-  } catch { /* bulan lalu opsional */ }
+  } catch {  }
 
   const rk = d.rekap || { hadir: 0, tugas_luar: 0, cuti: 0, alpa: 0, terlambat: 0, tidak_lengkap: 0, total_menit_terlambat: 0 };
   const tot = (r) => (r.hadir || 0) + (r.terlambat || 0) + (r.tidak_lengkap || 0) + (r.tugas_luar || 0) + (r.cuti || 0) + (r.alpa || 0);
@@ -1503,7 +1431,6 @@ async function loadDashboardAbsensi() {
   const dRate = ratePrev !== null ? rate - ratePrev : null;
   const rateSub = dRate !== null ? `${dRate >= 0 ? '▲' : '▼'} ${Math.abs(dRate)} poin vs bulan lalu` : `${hadirEfektif} dari ${totalCatat} catatan`;
 
-  // Status hari ini
   const wNowDash = typeof _witaNow === 'function' ? _witaNow() : null;
   const isJumatDash = wNowDash ? wNowDash.day === 5 : (new Date().getDay() === 5);
   const masukAwalHariIni = absSettings
@@ -1526,13 +1453,11 @@ async function loadDashboardAbsensi() {
     belumList = pegawaiList.filter(u => !sudahIds.has(u.id));
   }
 
-  // Tone & teks hero
   const tone = totalCatat === 0 ? 'abu' : rate >= 90 ? 'ok' : rate >= 75 ? 'warn' : 'bad';
   let teksHariIni = '';
   if (bukanHariKerja) teksHariIni = `Hari ini <b>${esc(labelHariLibur)}</b>, tidak ada jadwal absensi.`;
   else if (full && d.hari_ini) teksHariIni = jendelaBelumBuka ? `Absensi masuk baru dibuka pukul <b>${esc(masukAwalHariIni)}</b> WITA.` : `Hari ini <b>${d.hari_ini.sudah_absen}</b> dari <b>${d.hari_ini.total_pegawai}</b> pegawai sudah absensi.`;
   else if (!full) teksHariIni = hariIniRow ? 'Absensi Anda hari ini sudah tercatat.' : (jendelaBelumBuka ? `Absensi masuk baru dibuka pukul <b>${esc(masukAwalHariIni)}</b> WITA.` : 'Anda belum absensi hari ini.');
-  // Ketepatan waktu = tepat waktu / (tepat waktu + terlambat), dibanding bulan lalu; garis tren = per hari bulan ini
   const _tepat = (r) => (r && (r.hadir || 0) + (r.terlambat || 0) > 0) ? Math.round((r.hadir || 0) * 100 / ((r.hadir || 0) + (r.terlambat || 0))) : null;
   const tepatNow = _tepat(rk), tepatPrev = _tepat(rkPrev);
   const tepatHarian = harian.filter(h => (h.hadir + h.terlambat) > 0).map(h => Math.round(h.hadir * 100 / (h.hadir + h.terlambat)));
@@ -1564,7 +1489,6 @@ async function loadDashboardAbsensi() {
     reload: 'loadDashboardAbsensi()',
   });
 
-  // Data harian
   const daysInMonth = new Date(tahun, bulan, 0).getDate();
   const lastDay = (_todayHariIni.getFullYear() === tahun && _todayHariIni.getMonth() + 1 === bulan) ? _todayHariIni.getDate() : daysInMonth;
   const byDay = new Map(harian.map(h => [h.tanggal, h]));
@@ -1594,7 +1518,6 @@ async function loadDashboardAbsensi() {
     ], `${rate}%`, 'hadir')),
   ], true);
 
-  // Baris status hari ini, jam kerja, belum absensi
   const kartuHariIni = [];
   if (bukanHariKerja) {
     kartuHariIni.push(_dmCard('Status hari ini', '', `<div class="dm-big"><b>${esc(labelHariLibur)}</b></div><div class="dm-sub">Tidak ada jadwal absensi</div>`));
@@ -1620,7 +1543,6 @@ async function loadDashboardAbsensi() {
   }
   html += _dmCols(kartuHariIni);
 
-  // Peringkat (admin/full)
   if (full) {
     const rankRows = (arr, warna, satuan) => (arr || []).map(r => ({ label: r.user_nama, full: true, value: r.jumlah, suffix: satuan, color: warna }));
     html += _dmCols([
@@ -1630,7 +1552,6 @@ async function loadDashboardAbsensi() {
     ]);
   }
 
-  // Pengajuan menunggu persetujuan
   if (pengajuanPending.length) {
     const jenisLabel = { tugas_luar: 'Tugas Luar', cuti: 'Cuti' };
     const baris = pengajuanPending.map(p => ({
@@ -1653,15 +1574,11 @@ async function loadDashboardAbsensi() {
   if (!ins.length) ins.push(_dmIns('ok', 'Tidak ada catatan khusus untuk kehadiran bulan ini.'));
   html += `<div class="dm-card" style="margin-bottom:var(--sp-4)"><div class="dm-card-h"><div class="dm-card-hl">${_dmCardIcon('Catatan')}<div class="dm-card-t">Catatan</div></div></div>${ins.join('')}</div>`;
 
-  // Kalender kehadiran (2 bulan) tetap seperti sebelumnya
   html += await _absensiKalenderSectionHtml();
 
   _dmMount(wrap, html);
 }
 
-// Bagian "Perbandingan Kehadiran Bulanan" + "Kalender Kehadiran" (2 bulan) - dipisah dari
-// loadDashboardAbsensi biar tombol navigasi bulan cuma perlu render ulang bagian ini aja,
-// tanpa reload seluruh dashboard (KPI/status hari ini/jam kerja tetap milik bulan berjalan).
 async function _absensiKalenderSectionHtml() {
   if (!_absDashCtx) return '';
   const { full, userId } = _absDashCtx;
@@ -1676,7 +1593,7 @@ async function _absensiKalenderSectionHtml() {
   let liburSet = new Set();
   let liburMap = new Map();
   try {
-    const tahunLiburSet = new Set([tahun, prevTahun]); // bisa beda kalau lintas Desember-Januari
+    const tahunLiburSet = new Set([tahun, prevTahun]);
     const [r1, r2, ring, ringPrev, kB, kP, ...rLiburList] = await Promise.all([
       fetch(`/api/absensi/rekap?user_id=${userId}&bulan=${bulan}&tahun=${tahun}`, { headers: authHeaders() }),
       fetch(`/api/absensi/rekap?user_id=${userId}&bulan=${prevBulan}&tahun=${prevTahun}`, { headers: authHeaders() }),
@@ -1787,16 +1704,6 @@ function _absensiBelumPanel(list, totalPegawai, sudahAbsen, jendelaBelumBuka = f
   </div>`;
 }
 
-// Skala warna kartu Jam Kerja disamain persis sama Skala Nilai Peringkat Kinerja
-// (Permendagri No. 86/2017) yang dipakai di modul Kinerja - lihat _kwCapaianColor
-// di bawah (91-100 Sangat Tinggi, 76-90 Tinggi, 66-75 Sedang, 51-65 Rendah, ≤50
-// Sangat Rendah), biar user gak bingung liat 2 skala warna beda arti di app yg sama.
-// (Dulu pakai skala PermenPANRB sendiri di sini - diganti biar konsisten.)
-
-// Panel "Jam Kerja Bulan Ini" - akumulasi jam kerja vs target (dari /api/absensi/jam-kerja).
-// Non-full: metrik personal milik sendiri, dipasangkan 1 baris dengan Tren Kehadiran Harian.
-// Full/admin: total agregat semua pegawai (backend otomatis agregat kalau gak ada user_id
-// spesifik), dipasangkan 1 kolom bareng panel "Belum Absensi Hari Ini" (lihat loadDashboardAbsensi).
 function _absensiJamKerjaPanel(d, full = false) {
   const iconJam = `<svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="10" x2="14" y1="2" y2="2"/><line x1="12" x2="15" y1="14" y2="11"/><circle cx="12" cy="14" r="8"/></svg>`;
   const fmt = (menit) => {
@@ -1920,22 +1827,19 @@ function _absensiTrendPanel(harian, bulan, tahun, full, spanFull = true) {
   </div>`;
 }
 
-// Kalender heatmap kehadiran - admin/full: warna berdasar rate kehadiran tim per hari;
-// non-admin: warna berdasar status pribadi hari itu.
 function _absensiHeatmapPanel(harian, bulan, tahun, full, spanFull = true, liburSet = new Set(), liburMap = new Map(), ketMap = new Map()) {
   const daysInMonth = new Date(tahun, bulan, 0).getDate();
   const today = new Date();
   const todayKey = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
   const pad2 = n => String(n).padStart(2, '0');
 
-  // harian sudah teragregasi dari backend (GROUP BY per tanggal) - tinggal dipetakan
   const byDay = new Map();
   (harian || []).forEach(h => {
     const total = h.hadir + h.terlambat + (h.tidak_lengkap || 0) + h.tugas_luar + h.cuti + h.alpa;
     byDay.set(h.tanggal, { hadir: h.hadir, terlambat: h.terlambat, tidak_lengkap: h.tidak_lengkap || 0, tugas_luar: h.tugas_luar, cuti: h.cuti, alpa: h.alpa, total });
   });
 
-  const firstDow = new Date(tahun, bulan - 1, 1).getDay(); // 0=Minggu
+  const firstDow = new Date(tahun, bulan - 1, 1).getDay();
   const cells = [];
   for (let i = 0; i < firstDow; i++) cells.push(`<div class="dash-heatmap-cell is-empty"></div>`);
 
@@ -1943,14 +1847,11 @@ function _absensiHeatmapPanel(harian, bulan, tahun, full, spanFull = true, libur
     const key = `${tahun}-${pad2(bulan)}-${pad2(day)}`;
     const dow = new Date(tahun, bulan - 1, day).getDay();
     const isWeekend = dow === 0 || dow === 6;
-    const isLiburTanggal = liburSet.has(key); // hari libur nasional/lokal yg diatur admin, termasuk yg jatuh di hari kerja
+    const isLiburTanggal = liburSet.has(key);
     const isFuture = key > todayKey;
     const c = byDay.get(key);
 
     let label = String(day), tip = '';
-    // Weekend/hari libur ditandai duluan, gak peduli udah lewat atau belum -
-    // biar tanggal libur ke depan (mis. cuti bersama bulan depan) langsung
-    // keliatan di kalender, gak nunggu tanggalnya lewat dulu.
     if (isWeekend || isLiburTanggal) {
       if (isWeekend && !isLiburTanggal) {
         cells.push(`<div class="dash-heatmap-cell is-libur" data-tip="Akhir Pekan">${label}</div>`);
@@ -2001,18 +1902,12 @@ function _absensiHeatmapPanel(harian, bulan, tahun, full, spanFull = true, libur
   </div>`;
 }
 
-// Sub Kegiatan tidak punya kolom jenis_* sendiri: ditandai lewat jenis_custom yang memuat 'subkeg'
-// (jenis_custom bisa datang sebagai array atau string JSON).
 function _kinIsSubkeg(x) {
   let jc = x && x.jenis_custom;
   if (typeof jc === 'string') { try { jc = JSON.parse(jc); } catch { jc = []; } }
   return Array.isArray(jc) && jc.includes('subkeg');
 }
 
-// Dashboard modul Kinerja: TANPA scope=semua, jadi backend membatasi non-admin ke indikator yang
-// di-assign / unit pantau miliknya (admin & kinerja.full tetap lihat semua). Dashboard utama yang pakai scope=semua.
-// Jenis indikator yang boleh tampil di dashboard Kinerja = jenis yang menunya tampil di sidebar
-// (admin kinerja: semua; lainnya: punya indikator jenis itu DAN (permission kinerja.<jenis> ATAU akun pantau)).
 function _kinJenisDashAkses() {
   if (_isKinerjaAdmin()) return ['monev', 'ikk', 'spm', 'subkeg'];
   const pantau = _isPantauKinerja();
@@ -2037,9 +1932,6 @@ async function _fetchKinerjaRekapForDash(bulanOpt, tahunOpt) {
         .then(r => r.ok ? r.json() : { rekap: [] })
         .catch(() => ({ rekap: [] }))
     ));
-    // Endpoint rekap gak ngirim kolom jenis_custom, jadi _kinIsSubkeg() gak bisa mendeteksi
-    // Sub Kegiatan dari datanya. Karena tiap jenis difetch terpisah, kita tandai sendiri di sini:
-    // baris yg datang dari respons jenis=subkeg diberi jenis_custom ['subkeg'].
     const merged = new Map();
     const subkegIds = new Set();
     results.forEach((d, i) => (d.rekap || []).forEach(row => {
@@ -2061,16 +1953,12 @@ async function loadDashboardKinerja() {
     <div class="skeleton" style="height:200px;border-radius:16px"></div>`;
 
   await _dEnsureTwTerakhir(true);
-  // Periode sebelumnya (2 triwulan ke belakang) buat angka tren di hero. Opsional: kalau gagal/kosong, tren disembunyikan.
   const _paDash = _dPa();
   const _bDash = _paDash?.bulan || _dTwSekarang(), _tDash = _paDash?.tahun || new Date().getFullYear();
   const _prevPer = [2, 1].map(k => { let bb = _bDash - 3 * k, tt = _tDash; while (bb <= 0) { bb += 12; tt--; } return { bulan: bb, tahun: tt }; });
   const [ks, rekapRaw, , ...prevRaw] = await Promise.all([_fetchKinerjaStats(), _fetchKinerjaRekapForDash(), _kinLoadJenisWarna(), ..._prevPer.map(pp => _fetchKinerjaRekapForDash(pp.bulan, pp.tahun))]);
 
   if (!_isKinerjaAdmin() && typeof _ensureUserIndikatorIds === 'function') await _ensureUserIndikatorIds();
-  // Akun pantau: backend sudah membatasi ke indikator assign + unit pantaunya, jadi jangan difilter lagi ke
-  // indikator assign saja (bikin dashboard kosong). User biasa: hanya indikator yang di-assign ke dirinya
-  // (IKU dikirim penuh oleh backend untuk non-pantau, sama seperti halaman IKU).
   const _filtRekap = (arr) => (_isKinerjaAdmin() || _isPantauKinerja())
     ? arr
     : arr.filter(x => _userIndikatorIds && _userIndikatorIds.has(Number(x.id)));
@@ -2088,9 +1976,6 @@ async function loadDashboardKinerja() {
   const bulanP = pa?.bulan || _dTwSekarang(), tahunP = pa?.tahun || new Date().getFullYear();
   const labelTw = `Triwulan ${_DTW_ROM[Math.ceil(bulanP / 3)]} ${tahunP}`;
 
-  // Admin kinerja: angka dari /kinerja/stats (semua indikator). Non-admin: dihitung dari rekap yang sudah
-  // dibatasi ke jenis yang boleh diakses, supaya KPI & daftar belum diisi tidak memuat indikator jenis lain
-  // (stats backend menghitung semua indikator assign tanpa melihat permission per jenis).
   const _adm = _isKinerjaAdmin();
   const _idsRekap = new Set(rekap.map(x => Number(x.id)));
   const _sudahRekap = rekap.filter(x => x.realisasi != null).length;
@@ -2118,10 +2003,8 @@ async function loadDashboardKinerja() {
   const jenisMap = { IKU: 0, IKK: 0, SPM: 0, 'Sub Kegiatan': 0 };
   rekap.forEach(x => { if (x.jenis_monev === true) jenisMap.IKU++; if (x.jenis_ikk === true) jenisMap.IKK++; if (x.jenis_spm === true) jenisMap.SPM++; if (_kinIsSubkeg(x)) jenisMap['Sub Kegiatan']++; });
   const jenisColors = Object.fromEntries(Object.keys(_KIN_JENIS_KODE).map(j => [j, _kinJenisWarna(j).teks]));
-  // Batang grafik jenis pakai campuran warna_bg + warna_teks; angka di sisi kanan tetap pakai warna teks supaya terbaca.
   const jenisBarColors = Object.fromEntries(Object.keys(_KIN_JENIS_KODE).map(j => [j, _kinWarnaBar(j)]));
 
-  // Per jenis: satu indikator dihitung di tiap jenis yang dimilikinya (IKU/IKK/SPM/Sub Kegiatan).
   const grp = new Map();
   rekap.forEach(x => {
     const jenisX = [x.jenis_monev === true && 'IKU', x.jenis_ikk === true && 'IKK', x.jenis_spm === true && 'SPM', _kinIsSubkeg(x) && 'Sub Kegiatan'].filter(Boolean);
@@ -2165,7 +2048,6 @@ async function loadDashboardKinerja() {
     reload: 'loadDashboardKinerja()',
   });
 
-  // Status verifikasi isian periode berjalan (disetujui / menunggu / ditolak / draft)
   const _vn = { disetujui: 0, menunggu: 0, perbaikan: 0, draft: 0, kosong: 0 };
   rekap.forEach(x => { _vn[typeof _verifKelompok === 'function' ? _verifKelompok(x) : (x.realisasi != null ? 'disetujui' : 'kosong')]++; });
 
@@ -2544,7 +2426,6 @@ function _renderIkuGrid(bulan, tahun, pa) {
           </div>`;
       }).join('');
 
-  // Summary strip
   const summaryHtml = total > 0 ? `
     <div class="iku-summary-strip">
       <div class="iku-sum-item">
@@ -2558,7 +2439,6 @@ function _renderIkuGrid(bulan, tahun, pa) {
       </div>
     </div>` : '';
 
-  // ── Filter bar IKU - persis seperti Pantau Indikator ──────────────────────
   const _ikuTahunUnik = (_ikuTahunList.length ? _ikuTahunList : [tahun]);
   const _ikuFromKey   = _ikuRangeFrom?.key || `${tahun}-03`;
   const _ikuToKey     = _ikuRangeTo?.key   || `${tahun}-12`;
@@ -2643,7 +2523,6 @@ function _ikuRenderChartSection() {
 
   if (!_ikuGridData.length) { sec.innerHTML = ''; return; }
 
-  // Prioritaskan tahun dari filter IKU, fallback ke _ikuLastTahun
   const tahun      = _ikuRangeTo?.tahun || _ikuLastTahun || _dPa()?.tahun || new Date().getFullYear();
   const rekapTahun = (typeof _kwAllRekap !== 'undefined' && _kwAllRekap[tahun]) ? _kwAllRekap[tahun] : null;
 
@@ -2729,13 +2608,7 @@ function _ikuRenderChartSection() {
       const b   = (i + 1) * 3;
       const rec = rekapTahun ? (rekapTahun['b' + b] || []).find(r => r.id === indId) : null;
       const real = rec && rec.realisasi !== null && rec.realisasi !== '' ? parseFloat(rec.realisasi) : null;
-      // Pakai capaian_persen yang udah dihitung backend (SQL CASE per tipe_perhitungan:
-      // kumulatif = akumulasi Jan..bulan ini, rata_rata = rata-rata Jan..bulan ini,
-      // non_kumulatif = apa adanya bulan itu). Jangan hitung ulang dari realisasi
-      // mentah / target di sini - itu yang bikin kumulatif keitung non-kumulatif.
       const cap  = (rec && rec.capaian_persen != null) ? Number(rec.capaian_persen) : null;
-      // isInRange: dalam rentang filter Dari–Sampai (jika ada)
-      // Bulan masa depan tanpa data otomatis abu karena capaian === null
       const fromKey = _ikuRangeFrom ? _ikuRangeFrom.tahun * 100 + _ikuRangeFrom.bulan : 0;
       const toKey   = _ikuRangeTo   ? _ikuRangeTo.tahun   * 100 + _ikuRangeTo.bulan   : 999999;
       const inFilter = (tahun * 100 + b) >= fromKey && (tahun * 100 + b) <= toKey;
@@ -2743,8 +2616,6 @@ function _ikuRenderChartSection() {
     });
   }
 
-  // Helper: build chart data PER TAHUN (untuk mode filter "Tahun")
-  // 1 entri per tahun dalam rentang Dari–Sampai, ambil realisasi bulan terakhir yang terisi
   function _buildYearlyChartData(indId, targetTahun, bermaknaNeg) {
     return _ikuYearsNeeded.map(thn => {
       const rekapThn = (typeof _kwAllRekap !== 'undefined' && _kwAllRekap[thn]) ? _kwAllRekap[thn] : null;
@@ -2757,15 +2628,11 @@ function _ikuRenderChartSection() {
         }
       }
       const real = latestRec ? parseFloat(latestRec.realisasi) : null;
-      // Sama kayak di atas - pakai capaian_persen dari backend (udah kumulatif/
-      // rata-rata sesuai tipe_perhitungan-nya), bukan recompute real/target polos.
       const cap  = (latestRec && latestRec.capaian_persen != null) ? Number(latestRec.capaian_persen) : null;
       return { bulan: thn, tahun: thn, label: String(thn), realisasi: real, realisasi_display: latestRec?.realisasi_display ?? null, capaian: cap, isInRange: true };
     });
   }
 
-  // Chart type dropdown - 1 dropdown berlaku untuk semua 4 chart
-  // Radar tersedia kalau setidaknya ada 1 indikator dengan >= 3 data dalam range
   const _ikuRadarAvail = _ikuGridData.some(row => {
     if (_ikuYearMode) {
       const d = _buildYearlyChartData(row.id, row.target_tahun ?? null, row.bermakna_negatif ?? false);
@@ -2833,7 +2700,6 @@ function _ikuRenderChartSection() {
 
     return `
       <div class="iku-mini-chart-panel">
-        <!-- Panel header -->
         <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;margin-bottom:8px">
           <div style="min-width:0;flex:1">
             <div style="font-size:.72rem;font-weight:700;color:#0f172a;line-height:1.35;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical">${esc(indNama)}${_polarIcon(berneg, 13)}</div>
@@ -2847,7 +2713,6 @@ function _ikuRenderChartSection() {
             <div style="font-size:.6rem;font-weight:600;color:${col}">${capLbl}</div>
           </div>
         </div>
-        <!-- KPI mini row -->
         <div style="display:flex;gap:6px;margin-bottom:8px">
           <div style="flex:1;padding:4px 8px;background:${col}0f;border-radius:6px;border-left:2px solid ${col}">
             <div style="font-size:.58rem;color:#94a3b8;font-weight:700;text-transform:uppercase">Realisasi</div>
@@ -2862,7 +2727,6 @@ function _ikuRenderChartSection() {
             <div style="font-size:.88rem;font-weight:800;color:#8b5cf6">${hasData.length}<span style="font-size:.7rem;color:#94a3b8">/${totalSlots}</span></div>
           </div>
         </div>
-        <!-- Chart -->
         <div class="iku-mini-chart-svg" style="overflow-x:auto">
           ${chartSvg || '<div style="height:120px;display:flex;align-items:center;justify-content:center;color:#94a3b8;font-size:.78rem">Belum ada data</div>'}
         </div>
@@ -2874,7 +2738,6 @@ function _ikuRenderChartSection() {
 
   sec.innerHTML = `
     <div class="iku-chart-section">
-      <!-- Top bar: judul + dropdown -->
       <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:12px">
         <div style="display:flex;align-items:center;gap:7px">
           <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="#0d9488" stroke-width="2"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg>
@@ -2885,7 +2748,6 @@ function _ikuRenderChartSection() {
           ${switcherHtml}
         </div>
       </div>
-      <!-- 4 chart panels -->
       <div class="iku-charts-grid">
         ${chartPanels}
       </div>
@@ -2901,8 +2763,6 @@ const _MOD_COLORS = {
 
 const _DONUT_MAX_SEG = 3;
 
-
-// ── Panel helpers ─────────────────────────────────────────────────────────────
 
 function _recentSuratPanel(list, jenis) {
   const title = jenis === 'masuk' ? 'Surat Masuk Terbaru' : 'Surat Keluar Terbaru';
@@ -2931,8 +2791,6 @@ let _kbList = [];
 let _kbPage = 1;
 const _KB_PAGE_SIZE = 5;
 
-// Warna jenis indikator mengikuti menu Kinerja: sumbernya tabel kinerja_jenis (warna_bg / warna_teks) lewat
-// /api/kinerja/jenis-kinerja, sama dengan _renderJenisBadges di kinerja.js. Fallback = nilai bawaan tabel itu.
 const _KIN_JENIS_KODE = { IKU: 'iku', IKK: 'ikk', SPM: 'spm', 'Sub Kegiatan': 'subkeg' };
 const _KIN_JENIS_DEFAULT = {
   iku:    { bg: '#dbeafe', teks: '#1e40af' },
@@ -2940,7 +2798,7 @@ const _KIN_JENIS_DEFAULT = {
   spm:    { bg: '#fef3c7', teks: '#b45309' },
   subkeg: { bg: '#ede9fe', teks: '#6d28d9' },
 };
-let _kinJenisWarnaCache = null; // { kode: { bg, teks } }
+let _kinJenisWarnaCache = null;
 async function _kinLoadJenisWarna() {
   if (_kinJenisWarnaCache) return _kinJenisWarnaCache;
   const peta = { ..._KIN_JENIS_DEFAULT };
@@ -2958,7 +2816,6 @@ function _kinJenisWarna(label) {
   const peta = _kinJenisWarnaCache || _KIN_JENIS_DEFAULT;
   return peta[_KIN_JENIS_KODE[label]] || _KIN_JENIS_DEFAULT[_KIN_JENIS_KODE[label]] || { bg: '#e2e8f0', teks: '#334155' };
 }
-// Warna batang grafik jenis: campuran warna_bg dan warna_teks (50:50), tengah-tengah antara pastel dan pekat.
 function _kinWarnaBar(label) {
   const c = _kinJenisWarna(label);
   const hex = (h) => { const m = /^#?([0-9a-f]{6})$/i.exec(String(h || '').trim()); return m ? [0, 2, 4].map(i => parseInt(m[1].substr(i, 2), 16)) : null; };
@@ -2990,7 +2847,6 @@ function _kbBuildRows(pageItems) {
     </td><td style="text-align:right;vertical-align:top;padding-top:12px"><span class="badge badge-warning">Belum diisi</span></td></tr>`).join('');
 }
 
-// Render ulang pagination pakai komponen baku situs (renderPagination → .pagination/.page-btn)
 function _kbRenderPagination() {
   if (document.getElementById('kbAlertPagination')) {
     renderPagination('kbAlertPagination', _kbList.length, _kbPage, _KB_PAGE_SIZE, '_kbSetPage');
@@ -3041,11 +2897,9 @@ const _KPI_COLORS = {
   fuchsia: { bg: '#fae8ff', text: '#a21caf' },
 };
 
-// Skeleton statcard (dipakai semua modul): n kotak .skeleton setinggi kartu selagi data dimuat
 function _statSkeleton(n, h = 98) {
   return Array(n).fill(0).map(() => `<div class="skeleton" style="height:${h}px;border-radius:14px"></div>`).join('');
 }
-// Skeleton untuk grid .mon-kpi-grid (n kartu + 1 kartu progress selebar penuh)
 function _monKpiSkeleton(n) {
   return `<div class="mon-kpi-grid">${_statSkeleton(n)}<div class="skeleton mon-kpi-progress" style="height:98px;border-radius:14px"></div></div>`;
 }
@@ -3065,7 +2919,6 @@ function _kpiCard({ icon, label, value, sub = null, subUp = null, color = 'teal'
     </div>`;
 }
 
-// Panel daftar dengan bar proporsional - dipakai utk top list, distribusi, perbandingan
 function _barListPanel({ icon, title, rows, emptyText = 'Belum ada data', badge = null, panelClass = '', badgeClass = 'badge-abu' }) {
   if (!rows || !rows.length) {
     return `<div class="dash-panel${panelClass ? ` ${panelClass}` : ''}">
@@ -3094,7 +2947,6 @@ function _barListPanel({ icon, title, rows, emptyText = 'Belum ada data', badge 
   </div>`;
 }
 
-// Panel donut mini dengan legenda - dipakai utk status/proporsi (aktif/nonaktif, selesai/proses, dst)
 function _miniDonutPanel({ icon, title, segments, centerVal, centerLbl }) {
   const total = segments.reduce((a, s) => a + (Number(s.value) || 0), 0);
   const cx = 40, cy = 40, R = 30, strokeW = 10;
@@ -3137,11 +2989,6 @@ function _miniDonutPanel({ icon, title, segments, centerVal, centerLbl }) {
   </div>`;
 }
 
-// ═══════════════════════════════════════════════════════════════════════════
-// WIDGET: PANTAU INDIKATOR KINERJA (per bulan/TW/semester/tahun)
-// ═══════════════════════════════════════════════════════════════════════════
-
-// Label bulan untuk widget pantau
 const _KW_BULAN_LABEL = ['', ...Array.from({length: 12}, (_, i) => `TW ${_DTW_ROM[Math.ceil((i + 1) / 3)]}`)];
 const _KW_BULAN_FULL  = ['', ...Array.from({length: 12}, (_, i) => `Triwulan ${_DTW_ROM[Math.ceil((i + 1) / 3)]}`)];
 
@@ -3185,13 +3032,10 @@ function _kwGetPeriodeAdaData(indId) {
   return hasil;
 }
 
-// ── Helper: label periode bulan-tahun ─────────────────────────────────────
 function _kwPeriodePillLabel(p) {
   return `${_KW_BULAN_FULL[p.bulan]} ${p.tahun}`;
 }
 
-// ── Helper: bulanList cross-tahun dari range ───────────────────────────────
-// Mengembalikan array [{bulan, tahun}]
 function _kwGetRangePairs(from, to) {
   if (!from || !to) return [];
   const pairs = [];
@@ -3201,17 +3045,11 @@ function _kwGetRangePairs(from, to) {
     if (_DTW_BULAN.includes(bln)) pairs.push({ bulan: bln, tahun: thn });
     bln++;
     if (bln > 12) { bln = 1; thn++; }
-    if (thn > to.tahun + 1) break; // safety
+    if (thn > to.tahun + 1) break;
   }
   return pairs;
 }
 
-// ── Helper hitung capaian sesuai jenis indikator ────────────────────────
-// Predikat SAKIP - sinkron dengan PREDIKAT_LEVELS di kinerja.js. Dipakai untuk
-// indikator bertipe_nilai 'predikat' (realisasi/target berupa huruf, bukan angka
-// bebas) supaya dashboard bisa: (1) rekonstruksi target numerik dari target_display
-// kalau target_tahun kosong/NaN (data lama), dan (2) tampilkan realisasi sebagai
-// huruf, bukan angka tier mentah.
 const _KW_PREDIKAT_LEVELS = [
   { label: 'D',  tier: 1 },
   { label: 'C',  tier: 2 },
@@ -3227,12 +3065,6 @@ function _kwPredikatLabelForTier(tier) {
   const found = _KW_PREDIKAT_LEVELS.find(p => p.tier === t);
   return found ? found.label : null;
 }
-// Format nilai realisasi untuk ditampilkan - SELALU utamakan realisasi_display
-// (string persis seperti yang diketik user di IKU/IKK/SPM: "8.3" tetap "8.3",
-// "95.50" tetap "95.50"), bukan angka numerik yang diformat ulang (yang bisa
-// menghilangkan atau menambah angka nol di belakang koma). Fallback ke angka
-// mentah (tanpa paksa 2 desimal) hanya untuk data lama yang belum punya
-// realisasi_display tersimpan.
 function _kwFmtReal(v, disp, isPredikat) {
   if (v === null || v === undefined || v === '') return '-';
   if (isPredikat) return _kwPredikatLabelForTier(v) ?? '-';
@@ -3240,14 +3072,6 @@ function _kwFmtReal(v, disp, isPredikat) {
   const n = parseFloat(v);
   return isNaN(n) ? '-' : String(n);
 }
-// Target numerik efektif untuk indikator - sama seperti _targetNumForRow di
-// kinerja.js: kalau target_tahun (kolom numerik) kosong/NaN dan indikatornya
-// predikat, coba rekonstruksi tier dari label huruf (target_display).
-// Target numerik/display efektif untuk 1 indikator PADA TAHUN TERTENTU.
-// _kwAllIndikator (dari /api/kinerja/indikator) TIDAK di-JOIN ke kinerja_target,
-// jadi ind.target_tahun/target_display di sana tidak year-aware (bisa null/stale).
-// Sumber yang benar adalah _kwAllRekap[tahun], yang berasal dari /api/kinerja/rekap
-// dan sudah di-JOIN ke kinerja_target untuk tahun yang diminta.
 function _kwTargetFromRekap(indId, tahun) {
   const rekapTahun = (typeof _kwAllRekap !== 'undefined') ? _kwAllRekap[tahun] : null;
   if (!rekapTahun) return null;
@@ -3269,12 +3093,6 @@ function _kwTargetNumForInd(ind) {
   return t;
 }
 
-// ── Skala Nilai Peringkat Kinerja (Lampiran Permendagri No. 86 Tahun 2017) ──
-// Skala resmi yang sama dipakai di badge capaian tabel IKU/IKK/SPM (kinerja.js,
-// class .capaian-badge.st/.ti/.sd/.rd/.sr). Dipakai di sini juga (widget Pantau
-// Indikator & IKU dashboard) supaya warna & label capaian konsisten di semua modul,
-// bukan cuma ambang 100%/75% biner spt sebelumnya.
-//   91–100  Sangat Tinggi | 76–90  Tinggi | 66–75  Sedang | 51–65  Rendah | ≤50 Sangat Rendah
 function _kwCapaianColor(cap) {
   if (cap === null || cap === undefined || isNaN(cap)) return '#94a3b8';
   const c = Number(cap);
@@ -3303,10 +3121,6 @@ function _kwCapaianLabel(cap) {
   return 'Sangat Rendah';
 }
 
-// Legend "Skala Nilai Peringkat Kinerja" - markup & warnanya sama persis dgn
-// .skala-badge yg sudah ada di app.html (halaman Kelola Kinerja/tabel IKU-IKK-SPM),
-// dipakai jg di sini (widget IKU & Pantau Indikator Dashboard Utama) supaya user
-// tahu sumber warna tiap capaian konsisten di semua tempat.
 function _kwSkalaLegendHtml() {
   const badge = (bg, border, text, label) =>
     `<span class="skala-badge" style="display:flex;align-items:center;gap:5px;padding:4px 10px;border-radius:20px;background:${bg};border:1px solid ${border};font-size:.65rem;font-weight:700;color:${text};white-space:nowrap"><span style="width:8px;height:8px;border-radius:50%;background:currentColor;opacity:.5;display:inline-block;flex-shrink:0"></span>${label}</span>`;
@@ -3331,14 +3145,10 @@ function _kwHitungCapaian(realisasi, target_tahun, bermakna_negatif) {
     : (real / target * 100);
 }
 
-// ── Agregasi cross-tahun (extend _kwAggregate) ────────────────────────────
 function _kwAggregateRange(indId, pairs) {
   const recs = pairs
     .map(p => {
       const r = (_kwAllRekap[p.tahun]?.['b' + p.bulan] || []).find(r => r.id === indId);
-      // Record dari _kwAllRekap[tahun]['bN'] tidak membawa field tahun/bulan sendiri
-      // (posisinya cuma tersirat dari key objek) - tempelkan di sini supaya sort
-      // "latest" & lookup target per-tahun (_kwTargetFromRekap) di bawah bisa akurat.
       return r ? { ...r, tahun: p.tahun, bulan: p.bulan } : null;
     })
     .filter(Boolean);
@@ -3347,14 +3157,12 @@ function _kwAggregateRange(indId, pairs) {
 
   const withReal = recs.filter(r => r.realisasi !== null && r.realisasi !== undefined && r.realisasi !== '');
 
-  // Akumulasi: pakai nilai bulan terakhir, bukan rata-rata
   const latest = [...withReal].sort((a, b) => {
     const ta = (a.tahun||0)*100+(a.bulan||0), tb = (b.tahun||0)*100+(b.bulan||0);
     return tb - ta;
   })[0];
 
   const realisasi = latest ? parseFloat(latest.realisasi) : null;
-  // Hitung ulang capaian dari realisasi terakhir / target_tahun (bukan ambil dari DB per bulan)
   const ind      = _kwAllIndikator.find(x => x.id === indId);
   const _tgtInfo = latest ? _kwTargetFromRekap(indId, latest.tahun) : null;
   const _effInd  = _tgtInfo ? { ...ind, ...(_tgtInfo) } : ind;
@@ -3370,13 +3178,11 @@ function _kwAggregateRange(indId, pairs) {
   };
 }
 
-// ── Set handler untuk range from/to ──────────────────────────────────────
 function _kwSetRangeFrom(key) {
   const [y, m] = key.split('-').map(Number);
   _kwRangeFrom = { bulan: m, tahun: y, key };
   _kwModePerTahun = false;
   _kwFilterMode   = 'bulan';
-  // Kalau from > to, geser to ke from
   if (_kwRangeTo) {
     const toKey = _kwRangeTo.tahun * 100 + _kwRangeTo.bulan;
     if (y * 100 + m > toKey) _kwRangeTo = { ..._kwRangeFrom };
@@ -3389,7 +3195,6 @@ function _kwSetRangeTo(key) {
   _kwRangeTo = { bulan: m, tahun: y, key };
   _kwModePerTahun = false;
   _kwFilterMode   = 'bulan';
-  // Kalau to < from, geser from ke to
   if (_kwRangeFrom) {
     const fromKey = _kwRangeFrom.tahun * 100 + _kwRangeFrom.bulan;
     if (y * 100 + m < fromKey) _kwRangeFrom = { ..._kwRangeTo };
@@ -3398,7 +3203,6 @@ function _kwSetRangeTo(key) {
   _renderKinerjaWatch();
 }
 
-// ── Handler dropdown filter tahun ────────────────────────────────────────
 function _kwSetTahunDd(val) {
   if (val === 'all') {
     _kwModePerTahun = true;
@@ -3409,12 +3213,10 @@ function _kwSetTahunDd(val) {
   }
 }
 
-// ── Handler toggle mode filter utama: 'tahun' | 'bulan' ─────────────────
 function _kwSetFilterMode(mode) {
   _kwFilterMode = mode;
   if (mode === 'tahun') {
     _kwModePerTahun = true;
-    // Default: dari tahun pertama sampai tahun terakhir di list
     if (_kwTahunDari   === null) _kwTahunDari   = _kwTahunList[0] || _kwTahunPilih;
     if (_kwTahunSampai === null) _kwTahunSampai = _kwTahunList[_kwTahunList.length - 1] || _kwTahunPilih;
     _kwRangeFrom = { bulan: 3,  tahun: _kwTahunDari,  key: `${_kwTahunDari}-03` };
@@ -3485,7 +3287,6 @@ function _kwAggregate(indId, bulanList, tahun) {
   const latest = [...withReal].sort((a, b) => (b.bulan || 0) - (a.bulan || 0))[0];
 
   const realisasi = latest ? parseFloat(latest.realisasi) : null;
-  // Hitung ulang capaian dari realisasi terakhir / target_tahun (bukan ambil dari DB per bulan)
   const ind      = _kwAllIndikator.find(x => x.id === indId);
   const _tgtInfo = _kwTargetFromRekap(indId, tahun);
   const _effInd  = _tgtInfo ? { ...ind, ...(_tgtInfo) } : ind;
@@ -3502,7 +3303,6 @@ function _kwAggregate(indId, bulanList, tahun) {
   };
 }
 
-// ── Init widget ───────────────────────────────────────────────────────────
 async function _initKinerjaWatch() {
   const el = document.getElementById('kinerjaWatchWidget');
   if (!el) return;
@@ -3615,10 +3415,8 @@ async function _initKinerjaWatch() {
 }
 
 const _KW_JENIS_LIST = ['monev', 'ikk', 'spm', 'subkeg'];
-const _KW_MAX_CONCURRENT = 2;   // 4 -> 2: tiap request /rekap/tahun membawa ratusan KB-MB dari Neon; jangan tumpuk di koneksi yang lambat
+const _KW_MAX_CONCURRENT = 2;
 
-// Batasi request /rekap/tahun yang jalan bersamaan. Sebelumnya tiap tahun x 3 jenis ditembak sekaligus
-// (semua tahun di periode + rentang grafik), sehingga banyak query berat menumpuk di Neon.
 let _kwActive = 0;
 const _kwQueue = [];
 function _kwLimit(fn) {
@@ -3634,14 +3432,10 @@ function _kwLimit(fn) {
     if (_kwActive < _KW_MAX_CONCURRENT) run(); else _kwQueue.push(run);
   });
 }
-// Hasil yang ada jenis-nya gagal diambil: tetap dipakai untuk tampilan, tapi TIDAK disimpan ke cache 24 jam.
 const _kwPartial = new WeakSet();
 
 const KW_REKAP_CACHE_KEY = (tahun) => `kw_rekap3_${_user?.id || 'guest'}_${tahun}`;
 const KW_REKAP_CACHE_TTL = 24 * 3600 * 1000; 
-// Cache yang umurnya di bawah ini dipakai apa adanya TANPA refresh latar belakang. Sebelumnya tiap kali dashboard dibuka
-// selalu menembak ulang tahun x 3 jenis request berat walau cache baru berumur beberapa detik.
-// (Simpan/ubah data dari browser ini tetap langsung membersihkan cache lewat _invalidate*.)
 const KW_REKAP_REFRESH_MIN_MS = 5 * 60 * 1000;
 const _kwBgRefreshing = new Set(); 
 
@@ -3665,11 +3459,6 @@ function _kwClearRekapCache(tahun) {
   try { localStorage.removeItem(KW_REKAP_CACHE_KEY(tahun)); } catch {}
 }
 
-// Dipanggil pas edit Indikator (ganti tipe_perhitungan/bermakna_negatif/dll) -
-// beda sama simpan realisasi biasa (yang cuma pengaruh 1 tahun), ganti tipe
-// perhitungan ngaruh ke capaian_persen SEMUA tahun buat indikator itu, jadi
-// bersihin cache di memori + localStorage utk semua tahun yg pernah ke-cache,
-// lalu rerender widget dashboard yang lagi kebuka (kalau ada).
 function _invalidateAllKinerjaDashboardCache() {
   if (typeof _kwAllRekap === 'undefined') return;
   if (typeof _kwTahunInflight !== 'undefined') _kwTahunInflight.clear();
@@ -3719,8 +3508,6 @@ function _kwRerenderAfterBgRefresh() {
   if (document.getElementById('ikuChartSection') && typeof _ikuRenderChartSection === 'function') _ikuRenderChartSection();
 }
 
-// In-flight dedupe per tahun: tanpa ini, tiap widget yang manggil _kwFetchTahun(2026) barengan
-// nembak 4 request (monev/ikk/spm/subkeg) sendiri-sendiri.
 const _kwTahunInflight = new Map();
 async function _kwFetchTahun(tahun) {
   if (_kwAllRekap[tahun]) return;
@@ -3743,7 +3530,7 @@ async function _kwFetchTahunImpl(tahun) {
     if ((Date.now() - cached.ts) >= KW_REKAP_REFRESH_MIN_MS && !_kwBgRefreshing.has(tahun)) {
       _kwBgRefreshing.add(tahun);
       _kwFetchTahunFresh(tahun).then(fresh => {
-        if (_kwPartial.has(fresh)) { _kwBgRefreshing.delete(tahun); return; }   // refresh gagal: pertahankan data cache lama
+        if (_kwPartial.has(fresh)) { _kwBgRefreshing.delete(tahun); return; }
         _kwAllRekap[tahun] = fresh;
         _kwWriteRekapCache(tahun, fresh);
         _kwBgRefreshing.delete(tahun);
@@ -3766,11 +3553,8 @@ function _invalidateKinerjaDashboardCache(tahun) {
 }
 
 
-// ── Chart SVG capaian per tahun ───────────────────────────────────────────
-
 function _kwSaveFilter() {
   try {
-    // Tahun tidak disimpan - selalu ikut periode aktif saat init
     localStorage.setItem(KW_FILTER_KEY(), JSON.stringify({
       mode: _kwViewMode, bulan: _kwBulanPilih, tw: _kwTWPilih, sem: _kwSemPilih,
       rangeFrom: _kwRangeFrom, rangeTo: _kwRangeTo,
@@ -3786,7 +3570,6 @@ function _kwSave() {
   try { localStorage.setItem(KW_STORAGE_KEY(), _kwWatchedId || ''); } catch {}
 }
 
-// ── Toggle accordion item permasalahan & solusi ───────────────────────────────
 function _kwToggleAcc(btn) {
   const item = btn.closest('.kw-ps-acc-item');
   const body = btn.nextElementSibling;
@@ -3827,13 +3610,6 @@ function _kwBuildDdItems(list) {
     </div>`).join('');
 }
 
-// ── Helper: custom dropdown filter (mengganti <select> bawaan browser) ────
-// _kwCdd(id, items, activeVal, onPickFn, opts)
-//   items   : [{val, label}]
-//   activeVal: nilai aktif saat ini
-//   onPickFn : string nama fungsi JS, dipanggil dengan (val)
-//   opts.disabled : boolean
-//   opts.minW     : min-width string, default '120px'
 function _kwCdd(id, items, activeVal, onPickFn, opts = {}) {
   if (opts.disabled) {
     const lbl = items[0]?.label || '-';
@@ -3866,8 +3642,6 @@ function _kwCddToggle(id) {
   }
 }
 
-// Kolom cari di dalam panel .kw-cdd (berlaku untuk semua dropdown filter dashboard, termasuk yang
-// markup-nya ditulis manual). Dibuat sekali saat panel pertama dibuka; filter di-reset tiap dibuka.
 function _kwCddEnsureSearch(el) {
   const panel = el.querySelector('.kw-cdd-panel');
   if (!panel) return;
@@ -3973,7 +3747,7 @@ function _kwMpRenderPanel(el) {
   const onPickFn    = data.onPickFn || '';
   const tahunList   = data.tahunList || [];
   const activeVal   = data.activeVal || '';
-  const availKeys   = data.availKeys || null;  // Set atau null
+  const availKeys   = data.availKeys || null;
   const viewYear    = data.viewYear || tahunList[tahunList.length-1] || new Date().getFullYear();
   const activeY     = activeVal ? parseInt(activeVal.split('-')[0]) : 0;
   const activeM     = activeVal ? parseInt(activeVal.split('-')[1]) : 0;
@@ -3985,7 +3759,6 @@ function _kwMpRenderPanel(el) {
     const key = `${viewYear}-${String(m).padStart(2,'0')}`;
     const isActive    = (viewYear === activeY && m === activeM);
     const isAvail     = !availKeys || availKeys.has(key);
-    // Bulan tanpa data: tetap bisa diklik tapi tampil dim (bukan disabled)
     const cls = isActive ? 'kw-mp-cell active' : 'kw-mp-cell' + (isAvail ? '' : ' kw-mp-cell--nodata');
     grid += `<div class="${cls}" onclick="event.stopPropagation();_kwMpPick('${id}','${key}')">${_BL[m]}</div>`;
   }
@@ -4031,15 +3804,12 @@ function _kwMpPick(id, key) {
   el.classList.remove('open');
   const data = window._kwMpData?.[id];
   if (!data) return;
-  // Update activeVal di registry
   data.activeVal = key;
   data.viewYear  = parseInt(key.split('-')[0]);
-  // Update label di trigger
   const _BL = ['','Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];
   const [y, m] = key.split('-').map(Number);
   const labelEl = el.querySelector('.kw-mp-label');
   if (labelEl) labelEl.textContent = `${_BL[m]} ${y}`;
-  // Panggil handler
   const fnRef = window[data.onPickFn];
   if (typeof fnRef === 'function') fnRef(key);
 }
@@ -4067,11 +3837,9 @@ function _kwFilterDd(q) {
 }
 
 function _kwPickItem(id) {
-  // Reset range saat ganti indikator agar default ulang ke first/latest
   if (id !== _kwWatchedId) {
     _kwRangeFrom    = null;
     _kwRangeTo      = null;
-    // Ikuti filterMode yang aktif, jangan paksa reset
     _kwModePerTahun = (_kwFilterMode === 'tahun');
   }
   _kwWatchedId = id; _kwSave();
@@ -4093,23 +3861,16 @@ document.addEventListener('click', function(e) {
   }
 });
 
-// ─────────────────────────────────────────────────────────────────────────────
-// RENDER UTAMA WIDGET
-// ─────────────────────────────────────────────────────────────────────────────
 function _renderKinerjaWatch() {
   const el = document.getElementById('kinerjaWatchWidget');
   if (!el) return;
 
-  // Label indikator terpilih
   const selectedInd   = _kwWatchedId ? _kwAllIndikator.find(x => x.id === _kwWatchedId) : null;
   const selectedLabel = selectedInd
     ? `${esc(selectedInd.indikator_kinerja)}${selectedInd.satuan ? ' <span class="kw-dd-sel-satuan">('+esc(selectedInd.satuan)+')</span>' : ''}`
     : '<span class="kw-dd-placeholder">- Pilih indikator -</span>';
 
-  // ── Filter bar (RANGE MODE) ────────────────────────────────────────────────
-  // Kumpulkan semua periode yg ada data untuk indikator ini
   const periodeAdaData = _kwWatchedId ? _kwGetPeriodeAdaData(_kwWatchedId) : (() => {
-    // Fallback: bangun dari _kwTahunList (sudah include semua tahun dari DB)
     const hasil = [];
     const tahunSrc = _kwTahunList.length ? _kwTahunList : [];
     for (const thn of tahunSrc) {
@@ -4221,7 +3982,7 @@ function _renderKinerjaWatch() {
     ? `<span style="font-size:0.75rem;color:#94a3b8;padding:4px 8px">Belum ada data periode</span>`
     : `<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
 
-        ${/* Dropdown mode utama: Tahun | Bulan - inline onclick agar pasti terpanggil */''}
+        ${ ''}
         <div class="kw-cdd" id="kwFilterModeDd" style="min-width:90px" onclick="event.stopPropagation();_kwCddToggle('kwFilterModeDd')">
           <span class="kw-cdd-label">${_kwFilterMode === 'tahun' ? 'Tahun' : 'Triwulan'}</span>
           <svg class="kw-cdd-caret" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
@@ -4234,7 +3995,6 @@ function _renderKinerjaWatch() {
         <div style="width:1px;height:16px;background:#e2e8f0;flex-shrink:0"></div>
 
         ${_kwFilterMode === 'tahun' ? (() => {
-          // Pastikan state dari/sampai ada
           const tDari   = _kwTahunDari   || tahunUnik[0] || _kwTahunPilih;
           const tSampai = _kwTahunSampai || tahunUnik[tahunUnik.length-1] || _kwTahunPilih;
           const dariItems   = tahunUnik.map(t => ({ val: t, label: String(t) }));
@@ -4305,7 +4065,6 @@ function _renderKinerjaWatch() {
       </div>
       ${_kwSkalaLegendHtml()}
 
-      <!-- Filter bar - tampil di bawah header, hanya saat indikator dipilih -->
       ${_kwWatchedId ? `
       <div class="kw-filter-row">
         <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="opacity:.4;flex-shrink:0"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
@@ -4313,7 +4072,6 @@ function _renderKinerjaWatch() {
         ${rangeFilterHtml}
       </div>` : ''}
 
-      <!-- Indicator selector bar (full width) -->
       <div class="kw-custom-dd kw-custom-dd--bar" id="kwCustomDd">
         ${indBarHtml}
         <div class="kw-dd-panel" id="kwDdPanel" style="display:none">
@@ -4378,9 +4136,6 @@ function _renderKinerjaWatch() {
   const colBg = _kwCapaianBg(_capVal);
   const label = _kwCapaianLabel(_capVal);
 
-  // Gap mengikuti polaritas indikator: normal (makin tinggi makin baik) -> gap = target - real,
-  // bermakna_negatif (makin rendah makin baik, mis. AKB) -> gap = real - target.
-  // gap > 0 selalu berarti "belum memenuhi target".
   const _isNeg = !!ind.bermakna_negatif;
   const gap    = (real !== null && target !== null) ? (_isNeg ? (real - target) : (target - real)) : null;
   const gapStr = gap !== null
@@ -4422,7 +4177,6 @@ function _renderKinerjaWatch() {
         };
       });
     }
-    // Normal: per bulan dari rangePairs
     return rangePairs.map(p => {
       const rec = (_kwAllRekap[p.tahun]?.['b' + p.bulan] || []).find(r => r.id === ind.id);
       const _rc = v => (v !== null && v !== undefined && v !== '') ? parseFloat(v) : null;
@@ -4443,7 +4197,6 @@ function _renderKinerjaWatch() {
       };
     });
   })();
-  // Untuk sparkline & proyeksi - pakai semua 12 bulan dari tahun akhir range
   const bulanChartDataFull = Array.from({length:4}, (_, i) => {
     const b   = (i + 1) * 3;
     const rec = (_kwAllRekap[tahun]?.['b' + b] || []).find(r => r.id === ind.id);
@@ -4459,16 +4212,12 @@ function _renderKinerjaWatch() {
     };
   });
 
-  // Data diisi count dalam range
   const dataCount = bulanChartData.filter(d => d.realisasi !== null).length;
 
-  // ── Gauge ──────────────────────────────────────────────────────────────────
   const gauge = _kwGauge(cap, col, colBg);
 
-  // ── Bar chart per bulan (pakai data range yg mungkin lintas tahun) ────────
   const barChart = _kwBarChart(bulanChartData, bulanList, target);
 
-  // ── Tabel per periode ──────────────────────────────────────────────────────
   const nowBulan = _dTwSekarang();
   const nowTahun = new Date().getFullYear();
   const tableRows = bulanChartData
@@ -4493,7 +4242,6 @@ function _renderKinerjaWatch() {
         </div>`;
     }).join('');
 
-  // ── KPI Strip: 4 kartu horizontal ──────────────────────────────────────────
   const periodShortLabel = (() => {
     if (!_kwRangeFrom || !_kwRangeTo) return '-';
     if (_kwRangeFrom.key === _kwRangeTo.key) return `${_KW_BULAN_LABEL[_kwRangeFrom.bulan]} ${_kwRangeFrom.tahun}`;
@@ -4518,17 +4266,14 @@ function _renderKinerjaWatch() {
     return `<svg viewBox="0 0 ${W2} ${H2}" width="${W2}" height="${H2}" style="display:inline-block;vertical-align:middle;margin-left:6px"><path d="${d}" fill="none" stroke="${col}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" opacity=".7"/><circle cx="${pts[pts.length-1].x.toFixed(1)}" cy="${pts[pts.length-1].y.toFixed(1)}" r="2.5" fill="${col}"/></svg>`;
   })();
 
-  // ── Proyeksi rata-rata dari data range ────────────────────────────────────
   const filledData = bulanChartData.filter(d => d.capaian !== null);
   const lastFilledBulan = filledData.length ? filledData[filledData.length - 1].bulan : null;
   const avgCapaian = filledData.length ? filledData.reduce((s, d) => s + d.capaian, 0) / filledData.length : null;
   const proyeksiColor = _kwCapaianColor(avgCapaian);
 
-  // ── Combo chart: bar realisasi + line capaian (semua mode, termasuk per tahun) ──
   _activeChartFs = _KW_CHART_FS;
   const comboChart = _kwComboChart(bulanChartData, bulanList, target, targetDisplay, ind.satuan, isPredikatInd);
 
-  // ── KPI strip: 4 kartu baru ────────────────────────────────────────────────
   const summaryCards = `
     <div class="kw-kpi-grid-v2">
       <div class="kw-kpi-card kw-kpi-card--hero" style="--kc:${col};--kc-bg:${colBg}">
@@ -4588,16 +4333,13 @@ function _renderKinerjaWatch() {
       </div>
     </div>`;
 
-  // ── Build full body ────────────────────────────────────────────────────────
   html += summaryCards;
 
   html += `
     <div class="kw-body-redesign">
 
-      <!-- Kiri: Gauge besar + stat row + tabel bulan -->
       <div class="kw-col-left">
 
-        <!-- Gauge card -->
         <div class="kw-card-panel">
           <div class="kw-panel-title">
             <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
@@ -4616,7 +4358,6 @@ function _renderKinerjaWatch() {
             </div>
           </div>
 
-          <!-- Progress bar styled -->
           <div style="margin-top:12px">
             <div style="display:flex;justify-content:space-between;font-size:0.85rem;font-weight:600;color:#475569;margin-bottom:6px">
               <span>Progress ke Target</span>
@@ -4637,7 +4378,6 @@ function _renderKinerjaWatch() {
           </div>` : ''}
         </div>
 
-        <!-- Tabel bulan -->
         ${bulanChartData.length ? `
         <div class="kw-card-panel" style="padding:0;overflow:hidden">
           <div style="padding:10px 14px 8px;border-bottom:1px solid #f1f5f9">
@@ -4693,10 +4433,8 @@ function _renderKinerjaWatch() {
 
       </div>
 
-      <!-- Kanan: combo chart + permasalahan + solusi -->
       <div class="kw-col-right">
 
-        <!-- Combo chart card -->
         <div class="kw-card-panel" style="padding-bottom:8px">
           <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:6px">
             <div class="kw-panel-title" style="margin-bottom:0">
@@ -4704,7 +4442,6 @@ function _renderKinerjaWatch() {
               Tren Realisasi & Capaian ${_kwModePerTahun ? '(Semua Tahun)' : tahun}
             </div>
             <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
-              <!-- Chart type dropdown -->
               ${(() => {
                 const _radarDataCount = bulanChartData.filter(d => d.isInRange).length;
                 const _radarAvail = _radarDataCount >= 3;
@@ -4721,7 +4458,6 @@ function _renderKinerjaWatch() {
                   ${_kwCdd('kwChartTypeDd', chartItems, _kwChartType, '_kwSetChartType', {minW:'90px'})}
                 </div>`;
               })()}
-              <!-- Legend -->
               ${(() => {
                 const tVal = target !== null ? parseFloat(target) : null;
                 const t75  = tVal !== null ? (tVal * 0.75).toFixed(1).replace(/\.0$/,'') : null;
@@ -4759,7 +4495,6 @@ function _renderKinerjaWatch() {
           ${comboChart}
         </div>
 
-        <!-- Permasalahan & Solusi per Triwulan -->
         ${(() => {
           
           
@@ -4826,7 +4561,7 @@ function _renderKinerjaWatch() {
             <div class="kw-ps-wrap" id="${accId}" style="border:none;border-radius:0;margin:0">
             ${psItems.map((item, idx) => {
               const itemId = accId + '_' + idx;
-              const openByDefault = idx === psItems.length - 1; // buka bulan terakhir secara default
+              const openByDefault = idx === psItems.length - 1;
               return `
             <div class="kw-ps-acc-item${openByDefault ? ' kw-ps-acc-open' : ''}">
               <button type="button" class="kw-ps-acc-header" onclick="_kwToggleAcc(this)" aria-expanded="${openByDefault}" aria-controls="${itemId}">
@@ -4868,7 +4603,6 @@ function _renderKinerjaWatch() {
   el.innerHTML = html;
 }
 
-// ── Donut chart SVG ────────────────────────────────────────────────────────────
 function _kwGauge(pct, col, colBg) {
   const cx = 110, cy = 110, R = 82, strokeW = 13;
   const safePct = pct !== null ? Math.min(Math.max(pct, 0), 100) : 0;
@@ -4877,7 +4611,7 @@ function _kwGauge(pct, col, colBg) {
   const empty  = circ - filled;
   const trackCol = colBg || (pct === null ? '#f1f5f9' : '#fee2e2');
   const toRad = d => d * Math.PI / 180;
-  const segments = ''; // garis pemisah dihilangkan
+  const segments = '';
   const endA = toRad(-90 + 360 * safePct / 100);
   const dotX = (cx + R * Math.cos(endA)).toFixed(1);
   const dotY = (cy + R * Math.sin(endA)).toFixed(1);
@@ -4891,9 +4625,7 @@ function _kwGauge(pct, col, colBg) {
       <text x="${cx}" y="${cy + 16}" text-anchor="middle" font-size="${11*_activeChartFs}" fill="#b0bec5" letter-spacing="2" style="text-transform:uppercase;font-family:inherit">CAPAIAN</text>
     </svg>`;
 }
-// ── (legacy stub, replaced above) ─────────────────────────────────────────────
 
-// ── Bar chart per bulan (baru, menggantikan line chart TW) ────────────────────
 function _kwBarChart(data, activeRange, target) {
   const W = 660, H = 365, PL = 46, PR = 18, PT = 26, PB = 46;
   const iW = W - PL - PR, iH = H - PT - PB;
@@ -4909,17 +4641,14 @@ function _kwBarChart(data, activeRange, target) {
   const xOf   = i => PL + (i + 0.5) * (iW / n);
   const yOf   = v => PT + iH - (v / maxV) * iH;
 
-  // Grid Y
   const y0 = yOf(0);
   let grid = '<line x1="' + PL + '" y1="' + y0.toFixed(1) + '" x2="' + (W-PR) + '" y2="' + y0.toFixed(1) + '" stroke="#e2e8f0" stroke-width=".6"/>';
 
-  // Garis target pada nilai absolut target
   if (tgtF !== null) {
     const yTgt = yOf(Math.min(tgtF, maxV)).toFixed(1);
     grid += '<line x1="' + PL + '" y1="' + yTgt + '" x2="' + (W - PR) + '" y2="' + yTgt + '" stroke="#6366f1" stroke-width="1.2" stroke-dasharray="5,3" opacity=".85"/>';
   }
 
-  // Bars
   let bars = '', xlbls = '';
   data.forEach((d, i) => {
     const x       = xOf(i);
@@ -5008,60 +4737,46 @@ function _kwChartBullet(data, activeRange, target, targetDisplay, satuan, isPred
     }
   });
 
-  // Target marker line (vertical dashed red)
   if (tgt !== null) {
     const xT = toX(tgt).toFixed(1);
     grid += `<line x1="${xT}" y1="${PT}" x2="${xT}" y2="${H - PB}" stroke="#6366f1" stroke-width="1.5" stroke-dasharray="4,3" opacity=".8"/>`;
     grid += `<text x="${xT}" y="${PT - 4}" text-anchor="middle" font-size="${9*_activeChartFs}" fill="#6366f1" font-weight="700">Target</text>`;
   }
 
-  // Rows
   let rowsEl = '';
   rows.forEach((d, i) => {
     const cy = PT + i * (ROW_H + ROW_GAP) + ROW_H / 2;
     const zoneY = cy - zoneH / 2;
     const barY  = cy - barH / 2;
 
-    // Capaian color - skala 5-tier Permendagri (samakan dgn IKU/IKK/SPM),
-    // bukan capaian% dibandingkan ke nilai target absolut (bug lama)
     const col = _kwCapaianColor(d.capaian);
 
-    // Zona background 3 segmen (merah → kuning → hijau)
     if (tgt !== null) {
       const x75  = toX(tgt * 0.75);
       const x100 = toX(tgt);
       const xMax = toX(maxVal);
-      // Zona merah: 0 → 75% target
       rowsEl += `<rect x="${PL}" y="${zoneY.toFixed(1)}" width="${(x75 - PL).toFixed(1)}" height="${zoneH}" rx="0" fill="#fef2f2"/>`;
-      // Zona kuning: 75% → 100% target
       rowsEl += `<rect x="${x75.toFixed(1)}" y="${zoneY.toFixed(1)}" width="${(x100 - x75).toFixed(1)}" height="${zoneH}" fill="#fffbeb"/>`;
-      // Zona hijau: 100% target → max
       rowsEl += `<rect x="${x100.toFixed(1)}" y="${zoneY.toFixed(1)}" width="${(xMax - x100).toFixed(1)}" height="${zoneH}" rx="0" fill="#f0fdf4"/>`;
-      // Border zona
       rowsEl += `<rect x="${PL}" y="${zoneY.toFixed(1)}" width="${iW}" height="${zoneH}" rx="3" fill="none" stroke="#f1f5f9" stroke-width="1"/>`;
     } else {
       rowsEl += `<rect x="${PL}" y="${zoneY.toFixed(1)}" width="${iW}" height="${zoneH}" rx="3" fill="#f8fafc"/>`;
     }
 
-    // Bar realisasi
     if (d.realisasi !== null) {
       const realVal = Math.min(Number(d.realisasi), maxVal);
       const barW2 = Math.max(toX(realVal) - PL, 2);
       rowsEl += `<rect x="${PL}" y="${barY.toFixed(1)}" width="${barW2.toFixed(1)}" height="${barH}" rx="3" fill="${col}" opacity=".85"/>`;
-      // Highlight top
       rowsEl += `<rect x="${PL}" y="${barY.toFixed(1)}" width="${barW2.toFixed(1)}" height="${Math.min(barH * 0.35, 6)}" rx="3" fill="white" opacity=".2"/>`;
     }
 
-    // Target marker (thick vertical line)
     if (tgt !== null) {
       const xT = toX(tgt);
       rowsEl += `<rect x="${(xT - 2).toFixed(1)}" y="${(zoneY - 2).toFixed(1)}" width="4" height="${zoneH + 4}" rx="2" fill="#ef4444" opacity=".9"/>`;
     }
 
-    // Label kiri: nama bulan
     rowsEl += `<text x="${(PL - 6).toFixed(1)}" y="${cy.toFixed(1)}" text-anchor="end" font-size="${11*_activeChartFs}" font-weight="700" fill="#475569" dominant-baseline="middle">${d.label}</text>`;
 
-    // Label kanan: capaian% + realisasi
     const capStr = d.capaian !== null ? parseFloat(d.capaian).toFixed(1) + '%' : '-';
     const realStr = d.realisasi !== null
       ? (isPredikat ? (_kwPredikatLabelForTier(d.realisasi) ?? '-') : _kwFmtReal(d.realisasi, d.realisasi_display, false) + (satuan ? ' ' + satuan : ''))
@@ -5075,12 +4790,6 @@ function _kwChartBullet(data, activeRange, target, targetDisplay, satuan, isPred
   </svg>`;
 }
 
-// ── CHART: Bar only (capaian % saja) ─────────────────────────────────────
-// Tick Y-axis chart bar/line/area. Untuk indikator biasa: 4 pembagian linear
-// dari 0..maxV seperti sebelumnya. Untuk indikator predikat (Peringkat, nilai
-// realisasi/target berupa tier 1-7): jangan bagi rata maxV/4 (hasilnya angka
-// pecahan aneh macam 1.44/2.88 yang gak match label predikat manapun) - pakai
-// tier aslinya (1,2,3...) yang muat di bawah maxV, dilabeli hurufnya langsung.
 function _kwYAxisTicks(maxV, isPredikat) {
   if (isPredikat) {
     const ticks = _KW_PREDIKAT_LEVELS
@@ -5115,7 +4824,6 @@ function _kwChartBar(data, activeRange, target, targetDisplay, satuan, isPredika
     if (tk.label !== null) grid += `<text x="${(PL-5).toFixed(1)}" y="${y}" text-anchor="end" font-size="${10*_activeChartFs}" fill="#94a3b8" dominant-baseline="middle">${tk.label}</text>`;
   });
 
-  // Garis target pada nilai absolut
   if (tgtF !== null) {
     const yTgt = yOf(Math.min(tgtF, maxV)).toFixed(1);
     grid += `<line x1="${PL}" y1="${yTgt}" x2="${W-PR}" y2="${yTgt}" stroke="#6366f1" stroke-width="1.4" stroke-dasharray="5,3" opacity=".75"/>`;
@@ -5157,7 +4865,6 @@ function _kwChartBar(data, activeRange, target, targetDisplay, satuan, isPredika
   return `<svg viewBox="0 0 ${W} ${H}" width="100%" height="400" style="overflow:visible;display:block">${grid}${bars}${connLineB}${connDotsB}${xlbls}</svg>`;
 }
 
-// ── CHART: Line (capaian % saja) ──────────────────────────────────────────
 function _kwChartLine(data, activeRange, target, targetDisplay, satuan, isPredikat = false) {
   const W = 700, H = 380, PL = 46, PR = 24, PT = 36, PB = 48;
   const iW = W - PL - PR, iH = H - PT - PB;
@@ -5176,7 +4883,6 @@ function _kwChartLine(data, activeRange, target, targetDisplay, satuan, isPredik
     if (tk.label !== null) grid += `<text x="${(PL-5).toFixed(1)}" y="${y}" text-anchor="end" font-size="${10*_activeChartFs}" fill="#94a3b8" dominant-baseline="middle">${tk.label}</text>`;
   });
 
-  // Garis target pada nilai absolut
   if (tgtF !== null) {
     const yTgt = yOf(Math.min(tgtF, maxV)).toFixed(1);
     grid += `<line x1="${PL}" y1="${yTgt}" x2="${W-PR}" y2="${yTgt}" stroke="#6366f1" stroke-width="1.4" stroke-dasharray="5,3" opacity=".75"/>`;
@@ -5186,7 +4892,6 @@ function _kwChartLine(data, activeRange, target, targetDisplay, satuan, isPredik
   const validPts = pts.filter(p => p.y !== null);
 
   let lineEl = '', xlbls = '';
-  // Smooth line using simple polyline
   if (validPts.length >= 2) {
     const pathD = validPts.map((p, j) => `${j===0?'M':'L'}${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' ');
     lineEl += `<path d="${pathD}" fill="none" stroke="#0d9488" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"/>`;
@@ -5207,7 +4912,6 @@ function _kwChartLine(data, activeRange, target, targetDisplay, satuan, isPredik
   return `<svg viewBox="0 0 ${W} ${H}" width="100%" height="380" style="overflow:visible;display:block">${grid}${lineEl}${xlbls}</svg>`;
 }
 
-// ── CHART: Area (capaian % dengan fill di bawah) ──────────────────────────
 function _kwChartArea(data, activeRange, target, targetDisplay, satuan, isPredikat = false) {
   const W = 700, H = 380, PL = 46, PR = 24, PT = 36, PB = 48;
   const iW = W - PL - PR, iH = H - PT - PB;
@@ -5227,13 +4931,11 @@ function _kwChartArea(data, activeRange, target, targetDisplay, satuan, isPredik
     if (tk.label !== null) grid += `<text x="${(PL-5).toFixed(1)}" y="${y}" text-anchor="end" font-size="${10*_activeChartFs}" fill="#94a3b8" dominant-baseline="middle">${tk.label}</text>`;
   });
 
-  // Garis target pada nilai absolut
   if (tgtF !== null) {
     const yTgt = yOf(Math.min(tgtF, maxV)).toFixed(1);
     grid += `<line x1="${PL}" y1="${yTgt}" x2="${W-PR}" y2="${yTgt}" stroke="#6366f1" stroke-width="1.4" stroke-dasharray="5,3" opacity=".75"/>`;
   }
 
-  // Gradient def
   const gradId = 'kw_area_grad_' + Date.now();
   const defs = `<defs><linearGradient id="${gradId}" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#0d9488" stop-opacity=".35"/><stop offset="100%" stop-color="#0d9488" stop-opacity=".03"/></linearGradient></defs>`;
 
@@ -5287,12 +4989,10 @@ function _kwChartRadar(data, activeRange, target, targetDisplay, satuan, isPredi
     grid += `<text x="${CX+2}" y="${(CY - rr - 4).toFixed(1)}" font-size="${11*_activeChartFs}" fill="#94a3b8" text-anchor="middle">${pct}%</text>`;
   });
 
-  // Spokes
   Array.from({length: n}, (_, i) => {
     grid += `<line x1="${CX}" y1="${CY}" x2="${px(i,R)}" y2="${py(i,R)}" stroke="#e2e8f0" stroke-width=".8"/>`;
   });
 
-  // Data polygon
   const dPts = pts.map((d, i) => {
     const v = d.capaian !== null ? Math.min(d.capaian, maxV) : 0;
     const r = R * (v / maxV);
@@ -5303,12 +5003,10 @@ function _kwChartRadar(data, activeRange, target, targetDisplay, satuan, isPredi
   let dataEl = '';
   dataEl += `<polygon points="${polyPts}" fill="#0d9488" fill-opacity=".15" stroke="#0d9488" stroke-width="2.2" stroke-linejoin="round"/>`;
 
-  // Dots & labels
   dPts.forEach((p, i) => {
     const col = _kwCapaianColor(p.v);
     dataEl += `<circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="6" fill="${col}" stroke="white" stroke-width="2"/>`;
 
-    // Label bulan
     const lx = parseFloat(px(i, R + 22));
     const ly = parseFloat(py(i, R + 22));
     const anchor = lx < CX - 5 ? 'end' : lx > CX + 5 ? 'start' : 'middle';
@@ -5327,17 +5025,7 @@ function _kwChartRadar(data, activeRange, target, targetDisplay, satuan, isPredi
 }
 
 const DASH_STYLE_CSS = `
-/* ═══════════════════════════════════════════════════════════════════════════
-   DASHBOARD & PANTAU INDIKATOR - Unified Styles
-   Font Scale (konsisten, satu sumber):
-     --kw-fs-val:   1.25rem / 800   ← angka utama (KPI, stat)
-     --kw-fs-body:  0.84rem / 400   ← teks isi (permasalahan, solusi)
-     --kw-fs-label: 0.72rem / 600   ← label biasa (progress, chart header)
-     --kw-fs-micro: 0.63rem / 700   ← uppercase micro (th tabel, stat lbl)
-     --kw-fs-pill:  0.72rem / 700   ← pill/badge/capaian
-   ═══════════════════════════════════════════════════════════════════════════ */
 
-/* ── Welcome banner ── */
 .dash-welcome {
   background: linear-gradient(135deg, #f0fdfa 0%, #ffffff 60%) !important;
   border-radius: 14px !important;
@@ -5373,8 +5061,6 @@ const DASH_STYLE_CSS = `
   color: #0f766e !important;
   text-decoration: none !important;
 }
-/* Ikon sapaan (sunrise/sun/sunset/moon) - animasi lambai halus, pause dulu
-   pas awal biar gak "gerak sendiri" pas mata baru fokus ke card. */
 .dash-greet-icon {
   display: inline-block;
   transform-origin: 70% 70%;
@@ -5394,9 +5080,6 @@ const DASH_STYLE_CSS = `
 @media (prefers-reduced-motion: reduce) {
   .dash-greet-icon { animation: none; }
 }
-/* Kutipan harian di tengah card - di-absolute-in biar bener-bener center
-   dari CARD (bukan cuma center di ruang sisa antara kiri/kanan, yang suka
-   geser kalau lebar teks kiri-kanan beda). */
 .dash-welcome-mid {
   position: absolute; left: 50%; top: 50%;
   transform: translate(-50%, -50%);
@@ -5424,10 +5107,6 @@ const DASH_STYLE_CSS = `
 @media (max-width: 860px) {
   .dash-welcome-mid { display: none !important; }
 }
-/* Dua kolom (kiri: sapaan+nama, kanan: tanggal+jam) - tiap baris tingginya
-   DIKUNCI sama (--dw-row) dan isinya di-center vertikal, jadi baris 1 kiri=kanan
-   dan baris 2 kiri=kanan selalu sejajar, gak peduli beda font-size / line-height
-   warisan / metrik font / ikon SVG. */
 .dash-welcome-col { display: flex; flex-direction: column; gap: 3px; --dw-row: 1.4rem; }
 .dash-welcome-col--right { align-items: flex-end; text-align: right; }
 .dash-welcome-row {
@@ -5458,7 +5137,6 @@ const DASH_STYLE_CSS = `
   .dash-live-dot { animation: none; }
 }
 
-/* ── Module grid & cards ── */
 .dash-module-grid {
   display: grid !important;
   grid-template-columns: repeat(auto-fit, minmax(200px, 380px)) !important;
@@ -5489,7 +5167,6 @@ const DASH_STYLE_CSS = `
 .dash-mod-header  { display: flex !important; align-items: center !important; gap: 10px !important; margin-bottom: 16px !important; }
 .dash-mod-icon    { display: flex !important; align-items: center !important; justify-content: center !important; flex-shrink: 0 !important; width: 38px !important; height: 38px !important; border-radius: 11px !important; }
 .dash-mod-title   { font-size: 0.92rem !important; font-weight: 700 !important; letter-spacing: -.01em; }
-/* ── Donut body layout ── */
 .dash-mod-body {
   display: flex !important;
   align-items: center !important;
@@ -5564,14 +5241,10 @@ const DASH_STYLE_CSS = `
   .dash-welcome-sub { font-size: 0.78rem !important; }
 }
 
-/* ── Panel bawah (dashboard) ── */
 .dash-panels      { display: grid !important; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)) !important; gap: 14px !important; margin-bottom: 20px !important; }
 @media (max-width: 600px) {
   .dash-panels { grid-template-columns: 1fr !important; }
 }
-/* Varian fix 2 kolom - dipakai utk panel yg butuh lebar lebih (mis. Surat Masuk/Keluar
-   Terbaru), supaya gak ikut auto-fit nyempit jadi 3-4 kolom dan bikin tabelnya
-   overflow-scroll horizontal sendiri. */
 .dash-panels--2col { grid-template-columns: repeat(2, 1fr) !important; }
 @media (max-width: 900px) {
   .dash-panels--2col { grid-template-columns: 1fr !important; }
@@ -5583,15 +5256,10 @@ const DASH_STYLE_CSS = `
 .dash-panel-table tr:hover td { background: #f0fdfa !important; }
 .dash-panel-table { min-width: 400px; }
 
-/* ── Skeleton ── */
 .skeleton {
   background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%) !important;
   background-size: 200% 100% !important;
 }
-
-/* ══════════════════════════════════════════════
-   IKU GRID - iku-* Components
-   ══════════════════════════════════════════════ */
 
 .iku-grid-wrap {
   background: #ffffff !important;
@@ -5675,7 +5343,6 @@ const DASH_STYLE_CSS = `
   box-shadow: 0 0 0 3px rgba(13,148,136,.15), 0 4px 14px rgba(13,148,136,.1) !important;
   transform: translateY(-1px) !important;
 }
-/* Chart section yang muncul di bawah cards */
 .iku-chart-section {
   background: #ffffff !important;
   border: 1.5px solid #e2e8f0 !important;
@@ -5688,7 +5355,6 @@ const DASH_STYLE_CSS = `
   from { opacity: 0; transform: translateY(8px); }
   to   { opacity: 1; transform: translateY(0); }
 }
-/* Grid 4 chart (2×2 atau 4 kolom tergantung lebar) */
 .iku-charts-grid {
   display: grid !important;
   grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
@@ -5700,7 +5366,6 @@ const DASH_STYLE_CSS = `
 @media (max-width: 700px) {
   .iku-charts-grid { grid-template-columns: 1fr !important; }
 }
-/* Panel per indikator dalam grid chart */
 .iku-mini-chart-panel {
   background: #f8fafc !important;
   border: 1.5px solid #f1f5f9 !important;
@@ -5708,7 +5373,6 @@ const DASH_STYLE_CSS = `
   padding: 12px 14px !important;
   min-width: 0 !important;
 }
-/* SVG chart di dalam panel - skala kecil */
 .iku-mini-chart-svg svg {
   max-height: 200px !important;
   height: 200px !important;
@@ -5751,11 +5415,6 @@ const DASH_STYLE_CSS = `
   .iku-cards-grid { grid-template-columns: 1fr 1fr !important; }
 }
 
-/* ══════════════════════════════════════════════
-   PANTAU INDIKATOR - kw-* Components
-   ══════════════════════════════════════════════ */
-
-/* Wrapper */
 .kw-wrap,
 div.kw-wrap {
   background: #ffffff !important;
@@ -5769,7 +5428,6 @@ div.kw-wrap {
   color: #0f172a !important;
 }
 
-/* Header row */
 .kw-header-v2 {
   display: flex !important;
   align-items: center !important;
@@ -5792,7 +5450,6 @@ div.kw-wrap {
   border-radius: 99px !important;
 }
 
-/* KPI Cards (4 kartu atas) */
 .kw-kpi-grid-v2 {
   display: grid !important;
   grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
@@ -5831,7 +5488,6 @@ div.kw-kpi-card {
 .kw-kpi-lbl    { font-size: 0.88rem !important; color: #64748b !important; font-weight: 600 !important; margin-top: 2px !important; white-space: nowrap !important; }
 .kw-kpi-sub    { font-size: 0.78rem !important; color: #94a3b8 !important; line-height: 1.35 !important; white-space: nowrap !important; overflow: hidden !important; text-overflow: ellipsis !important; }
 
-/* Selector bar indikator */
 .kw-custom-dd--bar   { position: relative !important; margin-bottom: 10px !important; }
 .kw-ind-selector-bar {
   display: flex !important;
@@ -5854,7 +5510,6 @@ div.kw-kpi-card {
 .kw-ind-selector-reset  { display: flex !important; align-items: center !important; justify-content: center !important; width: 30px !important; height: 30px !important; border-radius: 8px !important; border: 1.5px solid #fecaca !important; background: #fff5f5 !important; color: #ef4444 !important; cursor: pointer !important; flex-shrink: 0 !important; }
 .kw-ind-selector-reset:hover { background: #fee2e2 !important; }
 
-/* Dropdown panel */
 .kw-dd-panel        { position: absolute !important; top: calc(100% + 6px) !important; left: 0 !important; right: 0 !important; background: #ffffff !important; border: 1.5px solid #e2e8f0 !important; border-radius: 14px !important; box-shadow: 0 10px 30px rgba(0,0,0,.12) !important; z-index: 900 !important; overflow: hidden !important; }
 .kw-dd-search-wrap  { position: relative !important; padding: 10px 12px !important; border-bottom: 1px solid #f1f5f9 !important; }
 .kw-dd-search-icon  { position: absolute !important; left: 22px !important; top: 50% !important; transform: translateY(-50%) !important; color: #94a3b8 !important; pointer-events: none !important; }
@@ -5867,7 +5522,6 @@ div.kw-kpi-card {
 .kw-dd-item-name    { font-weight: 500 !important; flex: 1 !important; min-width: 0 !important; }
 .kw-dd-item.active .kw-dd-item-name { color: #0f766e !important; font-weight: 700 !important; }
 
-/* Custom dropdown (filter Bulan/TW/dll) */
 .kw-cdd {
   position: relative !important;
   display: inline-flex !important;
@@ -5904,11 +5558,9 @@ div.kw-kpi-card {
 .kw-cdd-opt:hover  { background: #f0fdfa !important; color: #0d9488 !important; }
 .kw-cdd-opt.active { background: #ccfbf1 !important; color: #0f766e !important; font-weight: 700 !important; }
 
-/* Filter bar */
 .kw-filter-bar-v2 { margin-bottom: 0 !important; margin-left: auto !important; padding: 0 !important; background: transparent !important; border-radius: 0 !important; border: none !important; }
 .kw-filter-row { display:flex; align-items:center; gap:8px; flex-wrap:wrap; padding:8px 14px; background:#f8fafc; border:1px solid #e2e8f0; border-radius:10px; margin-bottom:8px; }
 
-/* Month-picker */
 .kw-mp { position:relative; display:inline-flex; align-items:center; gap:5px; padding:4px 9px; border:1.5px solid #e2e8f0; border-radius:8px; background:#fff; cursor:pointer; font-size:0.75rem; font-weight:600; color:#0f172a; user-select:none; transition:border-color .15s,box-shadow .15s; min-width:100px; }
 .kw-mp:hover { border-color:#0d9488; }
 .kw-mp.open  { border-color:#0d9488; box-shadow:0 0 0 3px rgba(13,148,136,.10); }
@@ -5929,7 +5581,6 @@ div.kw-kpi-card {
 .kw-mp-cell--nodata { color:#cbd5e1; font-weight:400; }
 .kw-mp-cell--nodata:hover { background:#fef9ee; color:#b45309; }
 
-/* Layout 2 kolom */
 .kw-body,
 div.kw-body {
   display: grid !important;
@@ -5948,18 +5599,15 @@ div.kw-body {
 .kw-left  { display: flex !important; flex-direction: column !important; min-width: 0 !important; }
 .kw-right { display: flex !important; flex-direction: column !important; min-width: 0 !important; }
 
-/* Nama & meta indikator */
 .kw-ind-name     { font-size: 0.93rem !important; font-weight: 700 !important; color: #0f172a !important; line-height: 1.4 !important; margin-bottom: 6px !important; }
 .kw-ind-meta-row { display: flex !important; flex-wrap: wrap !important; gap: 5px !important; margin-bottom: 10px !important; }
 .kw-ind-group    { display: inline-flex !important; align-items: center !important; gap: 4px !important; font-size: 0.63rem !important; font-weight: 600 !important; background: #f1f5f9 !important; color: #475569 !important; border-radius: 99px !important; padding: 3px 10px !important; }
 .kw-ind-pj       { display: inline-flex !important; align-items: center !important; gap: 4px !important; font-size: 0.63rem !important; font-weight: 600 !important; background: #eff6ff !important; color: #1d4ed8 !important; border-radius: 99px !important; padding: 3px 10px !important; }
 
-/* Gauge */
 .kw-gauge-wrap  { display: flex !important; flex-direction: column !important; align-items: center !important; padding: 4px 0 8px !important; }
 .kw-gauge-wrap svg { width: 100% !important; max-width: 180px !important; height: auto !important; }
 .kw-gauge-label { font-size: 0.75rem !important; font-weight: 700 !important; border-radius: 99px !important; padding: 4px 16px !important; display: inline-flex !important; align-items: center !important; gap: 4px !important; margin-top: 6px !important; }
 
-/* Stat row (Realisasi / Target / Capaian) */
 .kw-stat-row,
 div.kw-stat-row {
   display: grid !important;
@@ -5976,17 +5624,14 @@ div.kw-stat-row {
 .kw-stat-val               { font-size: 1.25rem !important; font-weight: 800 !important; color: #0f172a !important; line-height: 1.15 !important; }
 .kw-stat-lbl               { font-size: 0.63rem !important; color: #94a3b8 !important; margin-top: 3px !important; text-transform: uppercase !important; letter-spacing: .06em !important; }
 
-/* Progress bar */
 .kw-prog-header-v2     { display: flex !important; justify-content: space-between !important; align-items: center !important; font-size: 0.72rem !important; font-weight: 600 !important; color: #475569 !important; margin-bottom: 5px !important; }
 .kw-prog-bar-outer-v2  { height: 8px !important; background: #e2e8f0 !important; background-color: #e2e8f0 !important; border-radius: 99px !important; overflow: visible !important; position: relative !important; }
 .kw-prog-bar-inner-v2  { height: 100% !important; border-radius: 99px !important; transition: width .5s ease !important; min-width: 3px !important; }
 .kw-prog-milestone-v2  { position: absolute !important; top: -3px !important; bottom: -3px !important; width: 2px !important; background: #f59e0b !important; border-radius: 2px !important; }
 .kw-prog-ticks         { display: flex !important; justify-content: space-between !important; font-size: 0.63rem !important; color: #cbd5e1 !important; margin-top: 3px !important; }
 
-/* Gap info */
 .kw-gap-info { display: flex !important; align-items: center !important; gap: 6px !important; padding: 8px 12px !important; border-radius: 10px !important; font-size: 0.75rem !important; font-weight: 600 !important; margin-top: 8px !important; margin-bottom: 12px !important; }
 
-/* Tabel bulan */
 .kw-month-table-v2 { width: 100% !important; border-collapse: collapse !important; font-size: 0.78rem !important; margin-top: 6px !important; }
 .kw-month-table-v2 th { font-size: 0.63rem !important; text-transform: uppercase !important; letter-spacing: .06em !important; color: #94a3b8 !important; font-weight: 700 !important; padding: 6px 8px !important; border-bottom: 1.5px solid #f1f5f9 !important; text-align: left !important; }
 .kw-month-table-v2 td { padding: 8px 8px !important; border-bottom: 1px solid #f8fafc !important; font-size: 0.78rem !important; color: #334155 !important; vertical-align: middle !important; text-align: left !important; }
@@ -5997,7 +5642,6 @@ div.kw-stat-row {
 .kw-tw-row--future    { opacity: .45 !important; }
 .kw-future-tag        { color: #cbd5e1 !important; }
 
-/* Chart card */
 .kw-chart-card,
 div.kw-chart-card {
   background: #ffffff !important;
@@ -6020,7 +5664,6 @@ div.kw-chart-card {
   letter-spacing: .05em !important;
   margin-bottom: 12px !important;
 }
-/* Ikon di chart header tetap kecil */
 .kw-chart-card-header svg,
 .kw-chart-card span svg {
   width: 12px !important; height: 12px !important;
@@ -6029,7 +5672,6 @@ div.kw-chart-card {
 }
 .kw-chart-card > svg { width: 100% !important; height: auto !important; display: block !important; }
 
-/* Insight grid */
 .kw-insight-grid-v2 {
   display: grid !important;
   grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
@@ -6058,7 +5700,6 @@ div.kw-insight-card-v2 {
 .kw-insight-val-v2   { font-size: 1.2rem !important; font-weight: 800 !important; color: #0f172a !important; line-height: 1.2 !important; }
 .kw-insight-sub-v2   { font-size: 0.63rem !important; color: #94a3b8 !important; margin-top: 2px !important; }
 
-/* Detail row (Permasalahan & Solusi) */
 .kw-detail-row-v2 {
   display: grid !important;
   grid-template-columns: 1fr 1fr !important;
@@ -6081,7 +5722,6 @@ div.kw-insight-card-v2 {
   border-left: 3px solid #f97316 !important;
   border-radius: 0 12px 12px 0 !important;
 }
-/* Accordion permasalahan & solusi */
 .kw-ps-wrap { display:flex; flex-direction:column; gap:0; margin-top:0; border:1px solid #e2e8f0; border-radius:12px; overflow:hidden; }
 .kw-ps-divider { border:none; border-top:1px solid #f1f5f9; margin:0; }
 
@@ -6108,7 +5748,6 @@ div.kw-insight-card-v2 {
 .kw-ps-acc-body { padding:8px 10px 10px; display:flex; flex-direction:column; gap:4px; }
 .kw-ps-acc-body[hidden] { display:none; }
 
-/* legacy - tidak dipakai lagi tapi jaga kompatibilitas */
 .kw-ps-item { display:flex; gap:0; align-items:stretch; }
 .kw-ps-month-badge { flex-shrink:0; width:52px; background:#f0fdfa; border-right:1px solid #e2e8f0; display:flex; align-items:center; justify-content:center; font-size:0.7rem; font-weight:800; color:#0d9488; writing-mode:vertical-rl; text-orientation:mixed; padding:10px 6px; letter-spacing:.04em; }
 .kw-ps-body { flex:1; padding:8px 10px; display:flex; flex-direction:column; gap:4px; }
@@ -6151,7 +5790,6 @@ div.kw-insight-card-v2 {
   color: #334155 !important;
 }
 
-/* Empty state */
 .kw-empty {
   display: flex !important;
   flex-direction: column !important;
@@ -6164,10 +5802,8 @@ div.kw-insight-card-v2 {
   gap: 12px !important;
 }
 
-/* Spinner */
 @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
 
-/* ── Redesign layout: 2 kolom baru ── */
 .kw-body-redesign {
   display: grid !important;
   grid-template-columns: minmax(300px, 38%) 1fr !important;
@@ -6229,9 +5865,6 @@ div.kw-insight-card-v2 {
   document.head.appendChild(el);
 })();
 
-// ═══ DASHBOARD (Walidata) ═══════════════════════════════════════════════════
-// Memakai kit dashboard modul (_dm*, di dashboard.js). Data dari GET /dashboard?tahun=
-// Admin: seluruh indikator & unit kerja. User biasa: isian unit kerjanya untuk indikator yang di-assign ke akunnya.
 const _wdd = { tahun: new Date().getFullYear(), data: null };
 const _wdFmtWita = iso => iso
   ? new Date(iso).toLocaleString('id-ID', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', hourCycle: 'h23', timeZone: 'Asia/Makassar' })
@@ -6262,7 +5895,6 @@ async function loadDashboardWalidata() {
   let d;
   try {
     d = await _wdFetch('/dashboard?tahun=' + _wdd.tahun);
-    // Tahun terpilih tidak punya data/periode: pindah ke tahun terbaru yang ada (sama dengan Data SSD).
     const dt = (d.daftar_tahun || []).map(Number);
     if (dt.length && !dt.includes(_wdd.tahun)) {
       _wdd.tahun = Math.max(...dt);
@@ -6285,7 +5917,6 @@ async function loadDashboardWalidata() {
   const tone = !k.isian ? 'abu' : pct >= 80 ? 'ok' : pct >= 40 ? 'warn' : 'bad';
   const toneCol = p => p >= 80 ? _DM_PAL.ok : p >= 40 ? _DM_PAL.warn : _DM_PAL.bad;
 
-  // selisih terhadap tahun sebelumnya (dari tren isian terinput per tahun)
   const idx = tren.findIndex(t => t.tahun === d.tahun);
   const prev = idx > 0 ? tren[idx - 1] : null;
   const serTren = tren.map(t => t.terisi);
@@ -6327,7 +5958,6 @@ async function loadDashboardWalidata() {
     ${_dmKpi({ label: 'Periode Input', val: WD_PERIODE_LABEL[pd.status] || '-', sub: pd.status === 'terbuka' ? `s.d. ${_wdFmtWita(pd.close_at)}` : `Tahun ${d.tahun}`, color: pd.status === 'terbuka' ? _DM_PAL.ok : _DM_PAL.abu, icon: 'cal' })}
   </div>`;
 
-  // Progres per unit kerja + komposisi status indikator
   const unitRows = (d.unit || []).map(u => {
     const p = _dmPct(u.terisi, u.total), c = toneCol(p);
     return { label: u.unit, full: true, value: u.terisi, max: u.total, color: c, right: `<b style="color:${c}">${p}%</b>`, sub: `${_dmNf(u.terisi)} dari ${_dmNf(u.total)} isian terinput` };
@@ -6342,7 +5972,6 @@ async function loadDashboardWalidata() {
     _dmCard('Status indikator', `Tahun ${d.tahun}`, _dmDonut(statusItems, _dmNf(k.indikator), 'indikator')),
   ], true);
 
-  // Tren per tahun + daftar yang belum diisi
   const trenHtml = tren.length
     ? _dmBarFill({ labels: tren.map(t => String(t.tahun)), values: tren.map(t => t.terisi), color: _DM_PAL.teal, hi: idx, h: 140, unit: 'isian' })
     : _dmEmpty('Belum ada data realisasi');
@@ -6357,7 +5986,6 @@ async function loadDashboardWalidata() {
     _dmCard('Belum diinput', jBelum > (d.belum_diisi || []).length ? `${_dmNf(jBelum)} isian (100 teratas)` : `${_dmNf(jBelum)} isian`, _dmFeed(belumRows, 'Semua isian sudah terinput')),
   ], true);
 
-  // Aktivitas terbaru
   const terbaru = (d.terbaru || []).map(r => {
     const a = WD_AKSI_LOG[r.aksi] || [r.aksi, 'badge-abu'];
     return {
@@ -6368,7 +5996,6 @@ async function loadDashboardWalidata() {
   });
   html += _dmCols([_dmCard('Aktivitas terbaru', 'Input, perubahan, dan import realisasi', _dmFeed(terbaru, 'Belum ada aktivitas'))]);
 
-  // Catatan
   const ins = [];
   if (k.belum_isi) ins.push(_dmIns('warn', `<b>${_dmNf(k.belum_isi)}</b> isian tahun ${d.tahun} belum diinput.`));
   if (k.sebagian) ins.push(_dmIns('info', `<b>${_dmNf(k.sebagian)}</b> indikator baru terisi sebagian (sebagian unit pengampu belum menginput).`));

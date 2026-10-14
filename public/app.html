@@ -3,14 +3,11 @@
 <head>
   <meta charset="UTF-8" />
   <script>
-  // Dark mode: pasang data-theme SEBELUM CSS dimuat supaya tidak ada kedip putih.
-  // Pilihan user ada di localStorage 'sapa_theme' (auto | light | dark | system); default auto (gelap 18:00-06:00 WITA).
-  // Logika lengkap (toggle, sinkron tab, tema sistem) ada di js/dark-mode.js.
   (function () {
     try {
       var p = localStorage.getItem('sapa_theme');
       if (p !== 'dark' && p !== 'light' && p !== 'system') p = 'auto';
-      var wh = new Date(Date.now() + 8 * 3600 * 1000).getUTCHours(); // jam WITA (UTC+8)
+      var wh = new Date(Date.now() + 8 * 3600 * 1000).getUTCHours();
       var d = p === 'dark' || (p === 'auto' && (wh >= 18 || wh < 6)) || (p === 'system' && window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches);
       var h = document.documentElement;
       h.setAttribute('data-theme', d ? 'dark' : 'light');
@@ -20,18 +17,11 @@
   </script>
   <style>html[data-theme="dark"]{background:#0b1220;color-scheme:dark}</style>
   <script>
-  // Prefetch tema musiman sedini mungkin - lihat komentar sama di
-  // landing.html/login.html soal cache localStorage (biar gak ada jeda
-  // "halaman polos dulu baru tema muncul" akibat cold-start function/DB).
   (function () {
     var CACHE_KEY = 'sapa_tema_cache_v1';
-    var CACHE_TTL = 6 * 60 * 60 * 1000; // 6 jam
+    var CACHE_TTL = 6 * 60 * 60 * 1000;
 
     function preloadGambar(theme) {
-      // posisi 'panel-login-saja' cuma dirender di panelLeft (halaman
-      // login/landing) -- di app.html gak ada panelLeft sama sekali, jadi
-      // preload gambar itu di sini gak akan pernah kepake (browser warning
-      // "preloaded but not used"). Skip preload utk kasus itu di app.html.
       if (theme && theme.gambar_url && theme.posisi !== 'panel-login-saja') {
         var link = document.createElement('link');
         link.rel = 'preload';
@@ -67,27 +57,17 @@
         return { theme: null };
       });
 
-    // Cache localStorage cuma dipakai buat preload gambar lebih awal
-    // (biar gak ada jeda render). Tema yang BENERAN diterapkan selalu
-    // nunggu freshPromise (fetch tanpa cache) - biar status Aktif/
-    // Nonaktif/Terjadwal selalu akurat sesuai tanggal & toggle terbaru
-    // tiap kali halaman di-refresh, sama kayak di topbar app.html.
     var cached = bacaCache();
     if (cached) preloadGambar(cached.theme);
-    // Diekspos biar theme-engine.js bisa render tema cache ini SINKRON
-    // (instan, gak nunggu network) sambil tetep reconcile ke data fresh
-    // begitu freshPromise selesai - lihat init() di theme-engine.js.
     window.__sapaTemaCache = cached;
     window.__sapaTemaPromise = freshPromise;
   })();
   </script>
-  <!-- Preload file theme-engine.js juga, paralel dari awal - jangan
-       nunggu parser sampe ke <script> di akhir body baru mulai narik. -->
-  <link rel="preload" as="script" href="js/theme-engine.js?v=1.2.18" />
+  <link rel="preload" as="script" href="js/theme-engine.js?v=1.2.19" />
   <script>history.replaceState(null, '', location.origin);</script>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>SAPA Perencanaan</title>
-  <meta name="app-version" content="1.2.18" />
+  <meta name="app-version" content="1.2.19" />
   <link rel="icon" type="image/png" href="/favicon.png" />
   <link rel="manifest" href="/manifest.json" />
   <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
@@ -98,7 +78,7 @@
   <meta name="apple-mobile-web-app-title" content="SAPA" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="css/styles.css?v=1.2.18" />
+  <link rel="stylesheet" href="css/styles.css?v=1.2.19" />
   <style>
     
     .filter-bar {
@@ -191,7 +171,7 @@
 </style>
   
   <link href="https://cdnjs.cloudflare.com/ajax/libs/quill/1.3.7/quill.snow.min.css" rel="stylesheet">
-  <link rel="stylesheet" href="css/dark.css?v=1.2.18" />
+  <link rel="stylesheet" href="css/dark.css?v=1.2.19" />
   <style>
     
     #pengumumanEditorWrap .ql-toolbar {
@@ -232,11 +212,6 @@
 <body>
 
 <script>
-// Guard: app.html cuma boleh diakses kalau ada sesi valid. Dicek sedini
-// mungkin (sebelum appShell/modal dirender / sebelum app.js 184KB+ ke-load)
-// biar yang belum login gak perlu download seluruh app-shell.
-// Boot penuh (initAuth -> buildSidebar -> loadDashboard) tetap dilakukan
-// oleh app.js di bagian bawah - guard ini cuma nyegat yang jelas2 gak punya token.
 (function() {
   try {
     var token = sessionStorage.getItem('sapa_token');
@@ -311,7 +286,7 @@
       <div class="topbar-constellation" id="topbarConstellation" aria-hidden="true">
         <canvas id="topbarConstellationCanvas"></canvas>
       </div>
-      <script src="js/topbar_constellation.js?v=1.2.18"></script>
+      <script src="js/topbar_constellation.js?v=1.2.19"></script>
 
       <div class="topbar-profile">
         <div class="topbar-user-info">
@@ -1193,10 +1168,8 @@
 
         <div class="card" style="padding:0;overflow:auto;-webkit-overflow-scrolling:touch;max-height:70vh">
           <style>
-            /* Header 2 baris: matikan sudut membulat (.card table th:first/last-child) & garis abu bawah th, biar tidak ada celah putih antar header */
             #pjTable thead th { border-radius: 0; border-bottom: none; }
 
-            /* Freeze kolom No & Pelaksana saat tabel di-scroll ke kanan (layar lebar saja; di HP dilepas supaya tidak makan layar) */
             @media (min-width: 641px) {
               #pjTable thead tr:first-child th:nth-child(-n+2),
             #pjTable tbody td:nth-child(-n+2):not([colspan]) { position: sticky !important; left: 0; z-index: 1; background: #fff; }
@@ -1277,10 +1250,8 @@
 
         <div class="card" style="padding:0;overflow:auto;-webkit-overflow-scrolling:touch;max-height:70vh">
           <style>
-            /* Header 2 baris: matikan sudut membulat (.card table th:first/last-child) & garis abu bawah th, biar tidak ada celah putih antar header */
             #lapPjTable thead th { border-radius: 0; border-bottom: none; }
 
-            /* Freeze kolom No & Pelaksana saat tabel di-scroll ke kanan (layar lebar saja; di HP dilepas supaya tidak makan layar) */
             @media (min-width: 641px) {
               #lapPjTable thead tr:first-child th:nth-child(-n+2),
             #lapPjTable tbody td:nth-child(-n+2):not([colspan]) { position: sticky !important; left: 0; z-index: 1; background: #fff; }
@@ -5636,7 +5607,7 @@
 </div>
 
 
-<script src="js/periode_frontend.js?v=1.2.18"></script>
+<script src="js/periode_frontend.js?v=1.2.19"></script>
 <script>
 (function() {
   'use strict';
@@ -5696,7 +5667,6 @@
     panel.style.top      = '';
     panel.style.bottom   = '';
     panel.style.minWidth = '';
-    // Kembalikan ke posisi asli
     if (info.next) {
       info.parent.insertBefore(panel, info.next);
     } else {
@@ -5705,7 +5675,6 @@
     teleported.delete(panel);
   }
 
-  // Event delegation: tangkap semua klik pada .cdtp-trigger
   document.addEventListener('click', function(e) {
     var trigger = e.target.closest('.cdtp-trigger');
     if (!trigger) return;
@@ -5779,29 +5748,29 @@
 })();
 </script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/quill/1.3.7/quill.min.js"></script>
-  <script src="js/monitoring_frontend.js?v=1.2.18"></script>
-  <script src="js/app.js?v=1.2.18"></script>
-<script src="js/dark-mode.js?v=1.2.18"></script>
-<script src="js/dashboard.js?v=1.2.18"></script>
+  <script src="js/monitoring_frontend.js?v=1.2.19"></script>
+  <script src="js/app.js?v=1.2.19"></script>
+<script src="js/dark-mode.js?v=1.2.19"></script>
+<script src="js/dashboard.js?v=1.2.19"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
-<script src="js/superlink.js?v=1.2.18"></script>
-<script src="js/pengumuman_frontend.js?v=1.2.18"></script>
-<script src="js/info_popup_frontend.js?v=1.2.18"></script>
-<script src="js/surat.js?v=1.2.18"></script>
-<script src="js/eplanning_frontend.js?v=1.2.18"></script>
-<script src="js/absensi_frontend.js?v=1.2.18"></script>
-<script src="js/perjadin_frontend.js?v=1.2.18"></script>
-<script src="js/lembur_frontend.js?v=1.2.18"></script>
-<script src="js/users_frontend.js?v=1.2.18"></script>
-<script src="js/kinerja.js?v=1.2.18"></script>
-<script src="js/walidata_frontend.js?v=1.2.18"></script>
-<script src="js/laporan.js?v=1.2.18"></script>
-<script src="js/struktur_frontend.js?v=1.2.18"></script>
-<script src="js/audit_frontend.js?v=1.2.18"></script>
-<script src="js/dokumen_publik_frontend.js?v=1.2.18"></script>
-<script src="js/profil_frontend.js?v=1.2.18"></script>
-<script src="js/tema_musiman_frontend.js?v=1.2.18"></script>
-<script src="js/theme-engine.js?v=1.2.18"></script>
+<script src="js/superlink.js?v=1.2.19"></script>
+<script src="js/pengumuman_frontend.js?v=1.2.19"></script>
+<script src="js/info_popup_frontend.js?v=1.2.19"></script>
+<script src="js/surat.js?v=1.2.19"></script>
+<script src="js/eplanning_frontend.js?v=1.2.19"></script>
+<script src="js/absensi_frontend.js?v=1.2.19"></script>
+<script src="js/perjadin_frontend.js?v=1.2.19"></script>
+<script src="js/lembur_frontend.js?v=1.2.19"></script>
+<script src="js/users_frontend.js?v=1.2.19"></script>
+<script src="js/kinerja.js?v=1.2.19"></script>
+<script src="js/walidata_frontend.js?v=1.2.19"></script>
+<script src="js/laporan.js?v=1.2.19"></script>
+<script src="js/struktur_frontend.js?v=1.2.19"></script>
+<script src="js/audit_frontend.js?v=1.2.19"></script>
+<script src="js/dokumen_publik_frontend.js?v=1.2.19"></script>
+<script src="js/profil_frontend.js?v=1.2.19"></script>
+<script src="js/tema_musiman_frontend.js?v=1.2.19"></script>
+<script src="js/theme-engine.js?v=1.2.19"></script>
 
 <script>
 (function () {
@@ -5815,7 +5784,6 @@
     const sel = wrap.querySelector('select');
     if (!sel || wrap.querySelector('.csel-trigger')) return; 
 
-    // Semua dropdown searchable secara default; matikan per-select dengan data-searchable="0".
     const searchable = sel.dataset.searchable !== '0';
 
     
@@ -5871,7 +5839,7 @@
 
     function renderOptions() {
       optsContainer.innerHTML = '';
-      let lastGroup; // undefined = belum ada grup diproses; null = opsi terakhir di luar optgroup
+      let lastGroup;
       Array.from(sel.options).forEach((opt, i) => {
         const groupLabel = opt.parentElement && opt.parentElement.tagName === 'OPTGROUP'
           ? opt.parentElement.label : null;
@@ -5883,12 +5851,6 @@
           optsContainer.appendChild(gh);
           lastGroup = groupLabel;
         }
-        // Kalau data-placeholder masih aktif (user belum PERNAH interaksi sama
-        // dropdown ini), jangan tandai opsi manapun sebagai "selected" - termasuk
-        // opsi "-" yang kebetulan ada di selectedIndex 0 secara default bawaan
-        // <select> native. Checkmark cuma boleh nongol setelah user benar-benar
-        // klik salah satu opsi (lihat listener klik di bawah yang hapus
-        // sel.dataset.placeholder).
         const isSelected = sel.selectedIndex === i && !sel.dataset.placeholder;
         const isPlaceholder = opt.value === '';
         const div = document.createElement('div');
@@ -5921,9 +5883,6 @@
       const opt = sel.options[sel.selectedIndex];
       const textEl = trigger.querySelector('.csel-trigger-text');
       if (!opt || opt.value === '') {
-        // Belum pernah diisi (data-placeholder masih ada) → tampilkan placeholder
-        // netral (mis. "Pilih Peringkat"), BUKAN teks opsi kosong ("-"), supaya gak
-        // kesan "-" itu udah otomatis kepilih padahal user belum pernah interaksi.
         textEl.textContent = (opt && opt.value === '' && sel.dataset.placeholder) ? sel.dataset.placeholder : (opt ? opt.text : '-');
         textEl.classList.add('placeholder');
       } else {
@@ -5963,10 +5922,6 @@
       if (_openPanel && _openPanel !== panel) closePanel(_openPanel);
       if (searchInput) searchInput.value = '';
       renderOptions();
-      // Panel dirender di document.body (di luar .select-wrap), jadi selector
-      // scoped semacam .bulan-select-wrap .csel-trigger { font-size:.72rem }
-      // gak pernah nyampe ke panel/option-nya. Samain font-size trigger → panel
-      // di sini biar gak keliatan "beda font" antara teks selected & list opsi.
       panel.style.fontSize = getComputedStyle(trigger).fontSize;
       panel.style.visibility = 'hidden';
       panel.style.display = 'block';
@@ -6024,13 +5979,11 @@
     return (opt && opt.value === '') ? opt.text : (opt ? opt.text : '- Pilih -');
   }
 
-  // ── Filter opsi berdasarkan teks pencarian - dipakai select searchable ──
-  // Opsi placeholder (mis. "Semua User") selalu ditampilkan biar gampang di-reset.
   function _filterOptions(optsContainer, query) {
     const q = (query || '').trim().toLowerCase();
     let anyMatch = false;
     let curGroup = null, curGroupHasMatch = false;
-    const flushGroup = () => { if (curGroup && curGroup.textContent) curGroup.style.display = curGroupHasMatch ? '' : 'none'; };  // label kosong (opsi tanpa optgroup) tetap tersembunyi
+    const flushGroup = () => { if (curGroup && curGroup.textContent) curGroup.style.display = curGroupHasMatch ? '' : 'none'; };
     Array.from(optsContainer.children).forEach(el => {
       if (el.classList.contains('csel-group-label')) {
         flushGroup();
@@ -6101,8 +6054,6 @@
   
   window.initCustomSelects = initAll;
 
-  // Jaring pengaman: setiap .select-wrap baru yang muncul di DOM (render dinamis) otomatis dijadikan
-  // dropdown searchable, tanpa perlu memanggil initCustomSelects() manual di tiap modul.
   (function () {
     let t = null;
     const need = (n) => n.nodeType === 1 && ((n.matches && n.matches('.select-wrap:not(.csel-ready)')) || (n.querySelector && n.querySelector('.select-wrap:not(.csel-ready)')));
@@ -6336,9 +6287,6 @@
   var CHECK_INTERVAL_MS = 5 * 60 * 1000; 
   var banner = null;
 
-  // Modal wajib (tampilan sama seperti modal absensi): tidak bisa ditutup, tidak ada tombol X,
-  // klik di luar / Esc tidak menutup, dan seluruh isi halaman di belakangnya dikunci
-  // (tidak bisa diklik maupun difokus lewat keyboard) sampai tombol "Muat ulang" ditekan.
   function showUpdateBanner() {
     if (banner) return;
     banner = document.createElement('div');
@@ -6375,13 +6323,11 @@
     banner.querySelector('#btnUpdateAppReload').addEventListener('click', function () {
       window.location.reload();
     });
-    // Kunci semua konten lain (klik + keyboard) selama modal tampil
     Array.prototype.forEach.call(document.body.children, function (el) {
       if (el === banner || el.tagName === 'SCRIPT') return;
       try { el.setAttribute('inert', ''); } catch (e) {}
     });
     document.body.appendChild(banner);
-    // Esc & klik di luar tidak menutup; fokus langsung ke tombol
     document.addEventListener('keydown', function (e) {
       if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); }
     }, true);

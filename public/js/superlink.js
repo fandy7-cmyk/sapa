@@ -18,10 +18,6 @@ function _buildStatusOptions(data, getAktif = d => d.aktif, getExpired = () => f
   return opts || `<option value="">Semua Status</option>`;
 }
 
-/* ── Statcard Shortlink & Bundle ──
-   Gaya sama dengan Monitoring Kinerja (.stat-card + garis aksen kiri).
-   Grid dibuat lewat JS (disisipkan di atas toolbar) dan dihitung dari seluruh data,
-   bukan dari hasil filter/pencarian. */
 const _SL_STAT_ICON = {
   link:  '<path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>',
   box:   '<path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="M3.29 7 12 12l8.71-5"/><line x1="12" y1="22" x2="12" y2="12"/>',
@@ -57,7 +53,6 @@ function _slEnsureStatGrid(pageId, gridId) {
   return el;
 }
 
-// Ringkasan status + 1 angka tambahan (klik untuk shortlink, item untuk bundle)
 function _slRenderStats(pageId, gridId, data, isExpired, cfg) {
   const el = _slEnsureStatGrid(pageId, gridId);
   if (!el) return;
@@ -390,8 +385,6 @@ function renderShortlinks() {
   renderPagination('slPagination', _slFiltered.length, _slPage, _slPageSize, 'goSlPage');
 }
 
-// Salin teks ke clipboard. Clipboard API bisa ditolak (tab tidak fokus, izin ditolak, bukan HTTPS):
-// jatuh ke execCommand('copy') dan tidak pernah membiarkan promise reject tanpa penanganan.
 function _salinTeks(teks, pesanOk) {
   const ok = () => toast(pesanOk || ('URL disalin: ' + teks));
   const fallback = () => {
@@ -1043,7 +1036,6 @@ function _ldDateOnly(v) {
   return new Date(d.getTime() + 8 * 3600000).toISOString().slice(0, 10);
 }
 
-// Ganti label tombol tanpa menghapus ikon svg di dalamnya (textContent = ... akan membuang ikonnya)
 function _ldSetBtnText(btn, text) {
   if (!btn) return;
   Array.from(btn.childNodes).forEach(n => { if (n.nodeType === 3) n.remove(); });

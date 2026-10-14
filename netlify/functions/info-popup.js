@@ -1,18 +1,3 @@
-// Info Popup: informasi dari admin yang tampil sebagai popup di dalam aplikasi (app.html) + daftar di lonceng topbar.
-// Lihat PRD "Sistem Notifikasi Info Popup SAPA".
-//
-// Endpoint user (semua pengguna terautentikasi):
-//   GET  /api/info-popup/saya?modul=<kunci-modul>
-//   POST /api/info-popup/:id/dimengerti
-//   POST /api/info-popup/:id/sembunyikan
-//   POST /api/info-popup/:id/tampilkan-lagi
-// Endpoint admin (is_admin):
-//   GET    /api/info-popup                 daftar + statistik respons
-//   GET    /api/info-popup/:id/penerima    daftar penerima + status
-//   POST   /api/info-popup
-//   PUT    /api/info-popup/:id
-//   DELETE /api/info-popup/:id             soft delete (deleted_at)
-
 import { getDb, jsonResponse, errorResponse, parseBody, runOnce, setRequestDeadline } from './_db.js';
 import { requireAuth } from './_auth.js';
 import { logAudit } from './_audit.js';
@@ -20,12 +5,9 @@ import { logAudit } from './_audit.js';
 const TIPE_VALID     = ['info', 'penting', 'peringatan'];
 const PENERIMA_VALID = ['semua', 'bidang', 'user'];
 const MAX_AKSI       = 2;
-// Info yang sudah berakhir masih tampil di lonceng selama 30 hari (lihat query GET /saya).
 const LONCENG_MAX    = 100;
 const URUTAN_TIPE    = { peringatan: 0, penting: 1, info: 2 };
 
-/* ── Skema ──────────────────────────────────────────────────────────────── */
-// Sama dengan db/2026-10-12_info_popup.sql. Dijalankan sekali per instance function yang warm.
 function ensureSchema(sql) {
   return runOnce('info_popup.schema', async () => {
     await sql`
@@ -64,10 +46,6 @@ function ensureSchema(sql) {
   });
 }
 
-/* ── Sanitasi HTML isi info ─────────────────────────────────────────────────
-   Allowlist tag: paragraf, tebal, miring, garis bawah, daftar, tautan, judul kecil.
-   Aman secara konstruksi: semua "<" di output hanya berasal dari tag yang kita tulis sendiri;
-   tag/atribut lain dibuang dan sisa teks di-escape. Skrip & atribut event hilang. */
 const ALLOWED_TAGS = new Set(['p', 'br', 'strong', 'b', 'em', 'i', 'u', 'ol', 'ul', 'li', 'a', 'h3', 'h4']);
 const BLOCK_DROP   = 'script|style|iframe|object|embed|svg|math|template|noscript';
 
@@ -89,7 +67,6 @@ function getAttr(attrStr, name) {
   const m = re.exec(attrStr || '');
   return m ? (m[1] ?? m[2] ?? m[3] ?? '') : null;
 }
-// Hanya https, http, mailto. Karakter kontrol/spasi dibuang dulu supaya "java\tscript:" tidak lolos.
 export function isSafeUrl(url) {
   const bersih = decodeEntities(url).replace(/[\u0000-\u0020\u007f-\u009f]/g, '');
   return /^(https?:|mailto:)/i.test(bersih);
@@ -127,7 +104,6 @@ export function sanitizeHtml(input) {
 }
 const teksPolos = (html) => decodeEntities(String(html || '').replace(/<[^>]*>/g, ' ')).replace(/\s+/g, ' ').trim();
 
-/* ── Validasi payload admin ─────────────────────────────────────────────── */
 function bersihkanAksi(arr) {
   if (!Array.isArray(arr)) return { aksi: [] };
   const aksi = [];
@@ -145,7 +121,6 @@ function bersihkanAksi(arr) {
 }
 const parseTanggal = (v) => { const d = new Date(v); return isNaN(d.getTime()) ? null : d; };
 
-// cur = baris lama (PUT) atau null (POST). Field yang tidak dikirim memakai nilai lama / default.
 function validasi(b, cur) {
   const ada = (k) => Object.prototype.hasOwnProperty.call(b, k);
 
@@ -207,7 +182,6 @@ function validasi(b, cur) {
   };
 }
 
-/* ── Util status ────────────────────────────────────────────────────────── */
 function statusJadwal(row) {
   const now = Date.now();
   if (!row.aktif) return 'nonaktif';
@@ -215,14 +189,12 @@ function statusJadwal(row) {
   if (row.berakhir_at && new Date(row.berakhir_at).getTime() <= now) return 'berakhir';
   return 'berlangsung';
 }
-// Status user untuk revisi saat ini. Status dengan revisi lama dianggap reset.
 function statusUser(row) {
   if (row.st_revisi !== row.revisi || !row.st_status) return 'baru';
   if (row.st_status === 'disembunyikan' && row.wajib_dibaca) return 'baru';
   return row.st_status;
 }
 
-/* ── Handler ────────────────────────────────────────────────────────────── */
 export const handler = async (event) => {
   if (event.httpMethod === 'OPTIONS') return jsonResponse({});
   setRequestDeadline();
@@ -241,7 +213,6 @@ export const handler = async (event) => {
   try {
     await ensureSchema(sql);
 
-    /* ───── User: daftar info untuk popup + lonceng ───── */
     if (method === 'GET' && first === 'saya') {
       const modul = String(event.queryStringParameters?.modul || '').trim().toLowerCase().slice(0, 60);
       const me = (await sql`SELECT bidang_id, last_login, NOW() AS now FROM users WHERE id = ${auth.id} LIMIT 1`)[0];
@@ -257,7 +228,7 @@ export const handler = async (event) => {
         FROM info_popup i
         LEFT JOIN info_popup_status s ON s.info_id = i.id AND s.user_id = ${auth.id}
         WHERE i.deleted_at IS NULL AND i.aktif = TRUE AND i.mulai_at <= NOW()
-          AND (i.berakhir_at IS NULL OR i.berakhir_at > NOW() - INTERVAL '30 days')   -- LONCENG_HARI
+          AND (i.berakhir_at IS NULL OR i.berakhir_at > NOW() - INTERVAL '30 days')
           AND (   i.penerima_tipe = 'semua'
                OR (i.penerima_tipe = 'bidang' AND i.penerima_ids @> to_jsonb(${bidangId}::int))
                OR (i.penerima_tipe = 'user'   AND i.penerima_ids @> to_jsonb(${auth.id}::int)))
@@ -279,7 +250,6 @@ export const handler = async (event) => {
         if (item.berakhir) continue;
         if (stat === 'baru') belumDibaca++;
 
-        // Berhak tampil otomatis di modul ini?
         if (r.modul_target !== 'semua' && r.modul_target !== modul) continue;
         if (stat === 'disembunyikan') continue;
         if (stat === 'dimengerti' && r.dimengerti_at && new Date(r.dimengerti_at).getTime() > lastLogin) continue;
@@ -294,11 +264,9 @@ export const handler = async (event) => {
       });
     }
 
-    /* ───── User: catat respons atas nama sendiri (ID dari token) ───── */
     if (method === 'POST' && id && ['dimengerti', 'sembunyikan', 'tampilkan-lagi'].includes(sub)) {
       const info = (await sql`
         SELECT id, revisi, wajib_dibaca FROM info_popup WHERE id = ${id} AND deleted_at IS NULL LIMIT 1`)[0];
-      // Info sudah dihapus: abaikan dengan tenang supaya popup yang masih terbuka tidak memunculkan error.
       if (!info) return jsonResponse({ ok: true, diabaikan: true });
 
       if (sub === 'sembunyikan' && info.wajib_dibaca) {
@@ -313,8 +281,6 @@ export const handler = async (event) => {
                                       THEN COALESCE(info_popup_status.pertama_dilihat_at, NOW()) ELSE NOW() END,
             revisi = EXCLUDED.revisi, status = 'disembunyikan', disembunyikan_at = NOW()`;
       } else {
-        // "Dimengerti" dan "Tampilkan lagi": keduanya menjadikan status normal (tidak disembunyikan).
-        // Info baru muncul lagi sebagai popup pada login berikutnya (dimengerti_at < last_login).
         await sql`
           INSERT INTO info_popup_status (info_id, user_id, revisi, status, dimengerti_at, pertama_dilihat_at)
           VALUES (${id}, ${auth.id}, ${info.revisi}, 'dimengerti', NOW(), NOW())
@@ -326,10 +292,8 @@ export const handler = async (event) => {
       return jsonResponse({ ok: true });
     }
 
-    /* ───── Admin ───── */
     if (!auth.is_admin) return errorResponse('Akses ditolak - hanya admin', 403);
 
-    // Daftar + statistik respons
     if (method === 'GET' && !first) {
       const rows = await sql`
         SELECT i.id, i.judul, i.isi, i.tipe, i.modul_target, i.penerima_tipe, i.penerima_ids, i.wajib_dibaca, i.aksi,
@@ -360,7 +324,6 @@ export const handler = async (event) => {
       return jsonResponse({ info });
     }
 
-    // Detail penerima + status
     if (method === 'GET' && id && sub === 'penerima') {
       const cur = (await sql`
         SELECT id, judul, revisi, penerima_tipe, penerima_ids FROM info_popup WHERE id = ${id} AND deleted_at IS NULL LIMIT 1`)[0];
@@ -389,7 +352,6 @@ export const handler = async (event) => {
       return jsonResponse({ info: { id: cur.id, judul: cur.judul, revisi: cur.revisi }, penerima });
     }
 
-    // Buat
     if (method === 'POST' && !first) {
       const body = parseBody(event);
       const v = validasi(body, null);
@@ -410,7 +372,6 @@ export const handler = async (event) => {
       return jsonResponse({ info: rows[0] }, 201);
     }
 
-    // Ubah (juga dipakai toggle aktif)
     if (method === 'PUT' && id && !sub) {
       const cur = (await sql`SELECT * FROM info_popup WHERE id = ${id} AND deleted_at IS NULL LIMIT 1`)[0];
       if (!cur) return errorResponse('Info tidak ditemukan', 404);
@@ -418,7 +379,7 @@ export const handler = async (event) => {
       const v = validasi(body, cur);
       if (v.error) return errorResponse(v.error, 400);
       const x = v.vals;
-      const naikRevisi = body.tampilkan_ulang === true ? 1 : 0;   // A10: status user dengan revisi lama dianggap reset
+      const naikRevisi = body.tampilkan_ulang === true ? 1 : 0;
       const rows = await sql`
         UPDATE info_popup SET
           judul = ${x.judul}, isi = ${x.isi}, tipe = ${x.tipe}, modul_target = ${x.modul_target},
@@ -440,7 +401,6 @@ export const handler = async (event) => {
       return jsonResponse({ info: rows[0] });
     }
 
-    // Hapus (soft delete)
     if (method === 'DELETE' && id && !sub) {
       const rows = await sql`
         UPDATE info_popup SET deleted_at = NOW() WHERE id = ${id} AND deleted_at IS NULL RETURNING id, judul`;

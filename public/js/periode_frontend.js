@@ -7,10 +7,9 @@ let _periodePage     = 1;
 const _periodePageSize = 10;
 const _periodeCardPageSize = 6; 
 let _periodeSearch   = '';
-let _periodeFilterStatus = '';   // '' | 'aktif' | 'ditutup' | 'belum'
-let _periodeFilterTahun  = '';   // '' | '2026' | '2027' dst
+let _periodeFilterStatus = '';
+let _periodeFilterTahun  = '';
 
-// Periode kinerja = per triwulan; kolom `bulan` berisi bulan akhir TW (3/6/9/12)
 const _TW_ROM_P = ['', 'I', 'II', 'III', 'IV'];
 const BULAN_FULL_P = (() => { const a = ['']; for (let b = 1; b <= 12; b++) a.push(`Triwulan ${_TW_ROM_P[Math.ceil(b / 3)]}`); return a; })();
 const BULAN_SHORT_P = ['','Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];
@@ -22,7 +21,6 @@ async function loadPeriodeAktif() {
     const d = await r.json();
     
     const list = d.periode || [];
-    // periode Walidata berdiri sendiri: tidak boleh jadi "periode aktif" modul Kinerja
     const listKinerja = list.filter(p => p.jenis !== 'walidata');
     _periodeAktif = listKinerja.length ? listKinerja[0] : null;
     
@@ -79,7 +77,6 @@ async function loadPeriodePage({ keepFilter = false } = {}) {
       const statusEl = document.getElementById('periodeFilterStatus');
       if (statusEl) statusEl.value = '';
     }
-    // Populate tahun options
     _populatePeriodeTahunFilter();
     const tahunEl = document.getElementById('periodeFilterTahun');
     if (tahunEl) tahunEl.value = keepFilter ? (_periodeFilterTahun || '') : '';
@@ -105,7 +102,6 @@ function filterPeriode() {
   renderPeriodeCards();
 }
 
-// Timer countdown per row (key = periode id) - supaya bisa di-clear pas re-render
 const _periodeCardTimers = {};
 
 function _clearPeriodeCardTimers() {
@@ -113,7 +109,6 @@ function _clearPeriodeCardTimers() {
   for (const k in _periodeCardTimers) delete _periodeCardTimers[k];
 }
 
-// Format sisa/menuju waktu → "2 Hari 03:14:07 lagi" (mirip gaya di halaman input kinerja)
 function _fmtSisaWaktu(diffMs) {
   const hari  = Math.floor(diffMs / 86400000);
   const jam   = Math.floor((diffMs % 86400000) / 3600000);
@@ -135,13 +130,10 @@ function _jenisMeta(jenis) {
   return { label: '-', bg: '#f1f5f9', fg: '#94a3b8' };
 }
 
-// Jenis kinerja yang dijadikan 1 periode (1 baris) kalau jendela waktunya sama
 const _JENIS_KINERJA = ['monev', 'ikk', 'spm', 'subkeg'];
 const _JENIS_KINERJA_ORDER = { monev: 0, ikk: 1, spm: 2, subkeg: 3 };
-// repId -> [semua id periode dalam 1 baris gabungan]
 let _periodeGroupIds = {};
 
-// Gabungkan periode kinerja (IKU/IKK/SPM/Sub Kegiatan) dengan tahun, triwulan & jendela waktu sama jadi 1 baris
 function _mergePeriodeRows(items) {
   const rows = [];
   const buckets = {};
@@ -254,7 +246,6 @@ function renderPeriodeCards() {
   
   const groups = {};
   filtered.forEach(p => {
-    // Walidata punya card sendiri (beda menu dengan e-Planning), jadi tidak digabung ke card tahunan lain
     const bulanKey = p.jenis === 'walidata' ? 'W' : (p.bulan == null ? 'Y' : p.bulan);
     const key = `${p.tahun}-${bulanKey}`;
     if (!groups[key]) groups[key] = { tahun: p.tahun, bulan: p.bulan, tipe: p.jenis === 'walidata' ? 'walidata' : null, items: [] };
@@ -333,7 +324,6 @@ function renderPeriodeCards() {
       </div>`;
   }).join('');
 
-  // Pasang timer live per baris jenis yang punya window
   slice.forEach(g => g.items.forEach(p => {
     if (!p.open_at && !p.close_at) return;
     _tickPeriodeJenisRow(p);
@@ -390,7 +380,6 @@ function _isoToLocal(iso) {
       : `${s.y}-${PAD(s.mo+1)}-${PAD(s.d)}T${PAD(s.h)}:${PAD(s.mi)}`;
   }
 
-  // Format tampilan di trigger button
   function _fmtDisplay(s, dateOnly) {
     if (!s) return null;
     return dateOnly
@@ -399,19 +388,11 @@ function _isoToLocal(iso) {
   }
 
   function buildPicker(mountEl, hiddenEl, label) {
-    // data-cdtp-date="1" pada mount = mode tanggal saja (tanpa jam/menit)
     const dateOnly = mountEl.dataset.cdtpDate === '1';
     
     
     const showLibur = mountEl.dataset.cdtpLibur === '1';
-    // data-cdtp-max-today="1" = tanggal setelah hari ini gak bisa dipilih (dipakai buat
-    // input tanggal lembur - lembur cuma boleh dicatat buat tanggal yang sudah terjadi).
-    // Nilai awal dari attribute, tapi bisa di-toggle runtime lewat _cdtp.setMaxToday()
-    // (dipakai di Tambah Absensi: status Tugas Luar/Cuti butuh tanggal masa depan aktif).
     let maxToday = mountEl.dataset.cdtpMaxToday === '1';
-    // data-cdtp-terpakai="1" = cek tanggal yg udah ada lembur-nya (endpoint /api/lembur/tanggal-terpakai)
-    // dan langsung disable tanggal itu di kalender - biar user gak perlu coba "+Tambah" dulu
-    // baru ketauan tanggalnya bentrok.
     const showTerpakai = mountEl.dataset.cdtpTerpakai === '1';
     
     let sel   = _parseHidden(hiddenEl); 
@@ -422,10 +403,7 @@ function _isoToLocal(iso) {
     let liburKey = null;      
     let terpakaiMap = new Map();
     let terpakaiKey = null;
-    let isDisabled = false; // lihat _cdtp.disable()/.enable() - dipakai buat sembunyiin tombol clear pas readonly
-    // Ready-flag terpisah dari *Key - dipakai renderCal() buat tau apakah data bulan yg lagi
-    // ditampilin ini udah beneran nyampe atau masih nunggu fetch, biar pas masih nunggu kalendernya
-    // ditampilin "meredup" dulu (bukan keliatan normal/hitam dulu baru abu2 pas datanya nyampe).
+    let isDisabled = false;
     let liburReady    = !showLibur;
     let terpakaiReady = !showTerpakai;
 
@@ -516,9 +494,6 @@ function _isoToLocal(iso) {
     function renderCal() {
       _loadLiburBulan();
       _loadTerpakaiBulan();
-      // Kalau data libur/terpakai bulan ini belum nyampe (masih fetching), tampilin tanggalnya
-      // meredup & gak bisa diklik dulu - drpd nampilin normal (kesannya available) yg tau2
-      // langsung ganti abu2 pas datanya baru nyampe (kedip hitam->abu2 yg bikin bingung).
       const dataLoading = !liburReady || !terpakaiReady;
       const today = new Date();
       const todayYmd = _cdtpLocalYMD(today);
@@ -527,15 +502,13 @@ function _isoToLocal(iso) {
       const daysInPrev  = new Date(view.y, view.mo, 0).getDate();
 
       let cells = '';
-      // cells sebelumnya
       for (let i = firstDay - 1; i >= 0; i--) {
         cells += `<button class="cdtp-day cdtp-day-other" disabled>${daysInPrev - i}</button>`;
       }
-      // cells bulan ini
       for (let d = 1; d <= daysInMonth; d++) {
         const isToday    = (d === today.getDate() && view.mo === today.getMonth() && view.y === today.getFullYear());
         const isSelected = sel && (d === sel.d && view.mo === sel.mo && view.y === sel.y);
-        const dow         = new Date(view.y, view.mo, d).getDay(); // 0=Min, 6=Sab
+        const dow         = new Date(view.y, view.mo, d).getDay();
         const isWeekend   = dow === 0 || dow === 6;
         const ymd          = `${view.y}-${PAD(view.mo + 1)}-${PAD(d)}`;
         const isLibur     = showLibur && liburSet.has(ymd);
@@ -790,9 +763,6 @@ function _isoToLocal(iso) {
       
       sel  = _parseHidden(hiddenEl);
       if (sel) view = { y: sel.y, mo: sel.mo };
-      // Data "terpakai" (mis. tanggal yg udah ada lembur) sifatnya transaksional dan bisa berubah
-      // kapan aja (ditambah/dihapus dari tempat lain) selagi panel ini ketutup - jadi cache-nya
-      // direset tiap dibuka lagi biar gak nampilin data basi (beda sama libur yg jarang berubah).
       terpakaiKey = null;
       render();
       panel.style.display = 'block';
@@ -816,11 +786,6 @@ function _isoToLocal(iso) {
       set(v) {
         if (!v) { sel = null; updateTrigger(); return; }
 
-        // "YYYY-MM-DD" MURNI (persis 10 karakter, gak ada embel2 jam/timezone) - aman di-slice
-        // langsung. String lain (mis. ISO datetime dari kolom DATE Postgres yang keserialize
-        // jadi UTC midnight, "2026-09-08T16:00:00.000Z" utk tanggal kalender 9 Sept WITA) harus
-        // lewat new Date() + komponen tanggal LOKAL, kalau nggak tanggalnya bisa geser mundur/maju
-        // sehari pas parse-nya asal slice 10 karakter depan.
         if (dateOnly && typeof v === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(v)) {
           const [y, mo, d] = v.split('-').map(Number);
           sel = { y, mo: mo - 1, d, h: 0, mi: 0 };
@@ -850,18 +815,18 @@ function _isoToLocal(iso) {
         hiddenEl.disabled = true;
         trigger.disabled = true;
         trigger.classList.add('cdtp-disabled');
-        updateTrigger(); // sembunyiin tombol clear selama readonly
+        updateTrigger();
       },
       enable() {
         isDisabled = false;
         hiddenEl.disabled = false;
         trigger.disabled = false;
         trigger.classList.remove('cdtp-disabled');
-        updateTrigger(); // munculin lagi tombol clear kalau ada tanggal terisi
+        updateTrigger();
       },
       setMaxToday(v) {
         maxToday = !!v;
-        if (mode === 'cal') render(); // re-render biar tanggal masa depan langsung ke-enable/disable
+        if (mode === 'cal') render();
       }
     };
 
@@ -898,7 +863,7 @@ function onPeriodeJenisChange() {
     : 'Satu periode berlaku untuk IKU, IKK, SPM, dan Sub Kegiatan sekaligus.';
 }
 
-let _periodeEditIds = [];   // diisi kalau yang diedit baris gabungan (banyak id)
+let _periodeEditIds = [];
 
 function openPeriodeModal(id) {
   const p = id ? _periodeList.find(x => x.id === id) : null;
@@ -914,10 +879,9 @@ function openPeriodeModal(id) {
   
   const _jenisEl = document.getElementById('periodeJenis');
   const _groupIds = p ? (_periodeGroupIds[p.id] || [p.id]) : [];
-  // Periode kinerja (satu atau gabungan) diedit lewat pilihan "Kinerja"
   _periodeEditIds = (p && _JENIS_KINERJA.includes(p.jenis)) ? _groupIds : [];
   _jenisEl.value = _periodeEditIds.length ? 'all' : (p?.jenis || 'all');
-  _jenisEl.disabled = _periodeEditIds.length > 0;   // baris gabungan: jenis dikunci
+  _jenisEl.disabled = _periodeEditIds.length > 0;
   if (typeof syncCustomSelect === 'function') syncCustomSelect('periodeJenis');
   onPeriodeJenisChange();
   if (_periodeEditIds.length) {
@@ -969,7 +933,6 @@ async function savePeriode() {
 
   
   
-  // Edit baris gabungan: update semua periode kinerja di dalamnya sekaligus
   if (id && _periodeEditIds.length > 0) {
     try {
       for (const gid of _periodeEditIds) {
@@ -989,7 +952,6 @@ async function savePeriode() {
   }
 
   let jenisList = (jenis === 'all' && !id) ? ['monev', 'ikk', 'spm', 'subkeg'] : [jenis === 'all' ? 'monev' : jenis];
-  // Lewati jenis yang periodenya (tahun + triwulan sama) sudah ada, biar gak gagal separuh jalan
   let dilewati = [];
   if (!id && jenisList.length > 1) {
     const sudahAda = jenisList.filter(j => _periodeList.some(x => x.tahun === tahun && x.bulan === bulan && x.jenis === j));
@@ -1076,8 +1038,6 @@ async function deletePeriode(id) {
     const UP_ICON   = '<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M5 15l7-7 7 7"/></svg>';
     const DOWN_ICON = '<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>';
 
-    // Semua langsung tampil inline di satu kotak - gak ada lagi trigger + panel
-    // popup terpisah, jadi gak keliatan kayak "2 input" pas mau isi jam.
     mountEl.innerHTML = `
       <div class="ctp-inline">
         <svg class="ctp-inline-icon" xmlns="http://www.w3.org/2000/svg" width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>

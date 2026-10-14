@@ -52,8 +52,6 @@ function _handleSessionExpired() {
   _pgClearAll();
   try { sessionStorage.removeItem('sapa_lembur_state'); } catch(e) {}
 
-  // login.html udah gak nempel di app.html lagi - lempar balik kesana,
-  // pesannya dititip lewat sessionStorage biar bisa ditampilkan di sana.
   try { sessionStorage.setItem('sapa_login_msg', 'Sesi Anda telah berakhir. Silakan login kembali.'); } catch(e) {}
   window.location.replace('/login.html');
 }
@@ -253,28 +251,20 @@ function hasAccess(key) {
   return Array.isArray(_user.permissions) && _user.permissions.includes(key);
 }
 
-// Admin Kinerja: Super Admin ATAU user dengan permission 'kinerja.full' (setara admin di modul kinerja).
 function _isKinerjaAdmin() {
   return !!(_user && (_user.is_admin || (Array.isArray(_user.permissions) && _user.permissions.includes('kinerja.full'))));
 }
 
-// Sinkronkan class role di <body> (dipakai CSS, mis. sembunyikan tombol khusus admin kinerja).
-// Dipanggil saat auth awal DAN setiap kali permissions berubah setelah sync dari server.
 function _syncRoleBodyClasses() {
   if (!_user) return;
   document.body.classList.toggle('is-admin', !!_user.is_admin);
   document.body.classList.toggle('is-kinerja-admin', _isKinerjaAdmin());
 }
 
-// Akun pimpinan hanya-lihat: pantau unit kerja sendiri (kinerja.pantau) atau semua unit (kinerja.pantau.semua).
 function _isPantauKinerja() {
   return hasAccess('kinerja.pantau') || hasAccess('kinerja.pantau.semua');
 }
 
-// ── Warna jenis indikator (IKU/IKK/SPM/Sub Kegiatan) ─────────────────────────────────────────────
-// Satu sumber untuk semua badge jenis di aplikasi: tabel kinerja_jenis (warna_bg / warna_teks) yang diatur di
-// menu Kinerja. Nilai awal = default bawaan tabel itu, lalu ditimpa begitu data dari API termuat
-// (_muatWarnaJenisKinerja saat boot, atau setWarnaJenisKinerja dari halaman Kinerja).
 const _JENIS_WARNA_DEFAULT = {
   monev:  { bg: '#dbeafe', teks: '#1e40af' },
   ikk:    { bg: '#d1fae5', teks: '#065f46' },
@@ -300,7 +290,6 @@ async function _muatWarnaJenisKinerja() {
     if (r.ok) setWarnaJenisKinerja((await r.json()).jenis);
   } catch {}
 }
-// jenis: 'monev' | 'ikk' | 'spm' | 'subkeg'; css = gaya ukuran khusus tiap tempat.
 function jenisBadgeHtml(jenis, label, css = 'border-radius:4px;padding:1px 5px;font-size:.63rem;font-weight:700') {
   const c = jenisWarna(jenis);
   return `<span style="background:${c.bg};color:${c.teks};${css}">${label}</span>`;
@@ -312,13 +301,9 @@ let _hasMonevIndikator = false;
 let _hasIkkIndikator   = false;
 let _hasSpmIndikator   = false;
 let _hasSubkegIndikator = false;
-// Akun yang ditetapkan Superadmin sebagai verifikator kinerja (menu Verifikasi Kinerja).
 let _isVerifikatorKinerja = false;
-// ID indikator yang di-assign langsung ke user ini (dipakai akun pantau: hanya baris ini yang boleh diedit).
 let _myIndikatorIds = new Set();
 
-// Akun pantau (Kabid dsb.): menu jenis tampil kalau UNIT-nya punya indikator jenis itu, bukan hanya kalau
-// indikator tsb di-assign ke dirinya. Backend sudah membatasi /api/kinerja/rekap ke indikator unit untuk akun pantau.
 async function _cekKinerjaIndikator() {
   await _cekVerifikator();
   await _cekKinerjaIndikatorDasar();
@@ -344,7 +329,6 @@ async function _cekKinerjaIndikatorDasar() {
     const dAssign = (rAssign && rAssign.ok) ? await rAssign.json() : {};
     _myIndikatorIds = new Set((dAssign.indikator_ids || []).map(Number));
 
-    // Jalur cepat: backend sudah ngirim flag jenis -> gak perlu narik seluruh /api/kinerja/indikator (payload besar).
     if (dAssign.jenis) {
       _hasMonevIndikator = !!dAssign.jenis.monev;
       _hasIkkIndikator   = !!dAssign.jenis.ikk;
@@ -353,7 +337,6 @@ async function _cekKinerjaIndikatorDasar() {
       return;
     }
 
-    // Fallback (backend lama yang belum ngirim flag jenis)
     const rAll = await fetch('/api/kinerja/indikator', { headers: authHeaders() }).catch(() => null);
     const dAll = (rAll && rAll.ok) ? await rAll.json() : {};
 
@@ -371,8 +354,6 @@ async function _cekKinerjaIndikatorDasar() {
   }
 }
 
-// Dashboard & Laporan Kinerja: tampil kalau admin kinerja, atau minimal ada 1 jenis
-// yang memenuhi dua syarat sekaligus (punya akses menu + punya indikator ter-assign).
 function _punyaMenuKinerja() {
   if (_isKinerjaAdmin()) return true;
   const _pantau = _isPantauKinerja();
@@ -382,8 +363,6 @@ function _punyaMenuKinerja() {
       || (_hasSubkegIndikator  && (hasAccess('kinerja.subkeg') || _pantau));
 }
 
-// Buang file hasil upload yang tidak jadi dipakai (belum tersimpan di DB). Server hanya menghapus kalau file itu
-// diupload user ini sendiri dan tidak dipakai record lain, jadi aman dipanggil tanpa menunggu hasilnya.
 function hapusUploadYatim(url) {
   if (!url || !String(url).includes('cloudinary.com')) return;
   fetch('/api/upload', {
@@ -393,8 +372,8 @@ function hapusUploadYatim(url) {
   }).catch(() => {});
 }
 
-let _avatarBaruUrl = null;   // hasil upload di modal Foto Profil yang belum disimpan
-let _ttdBaruUrl = null;      // hasil upload di modal Tanda Tangan yang belum disimpan
+let _avatarBaruUrl = null;
+let _ttdBaruUrl = null;
 window._modalCloseHooks = window._modalCloseHooks || {};
 window._modalCloseHooks.modalAvatarUpload = () => { if (_avatarBaruUrl) { hapusUploadYatim(_avatarBaruUrl); _avatarBaruUrl = null; } };
 window._modalCloseHooks.modalTandaTangan  = () => { if (_ttdBaruUrl) { hapusUploadYatim(_ttdBaruUrl); _ttdBaruUrl = null; } };
@@ -489,7 +468,7 @@ async function saveAvatarUpload() {
     sessionStorage.setItem(`sapa_user_foto_${_user.id}`, _user.foto_url || '');
     if (typeof _applyTopbarAvatar === 'function') _applyTopbarAvatar(_user.foto_url);
     toast('Foto profil berhasil disimpan', 'success');
-    _avatarBaruUrl = null;   // sudah tersimpan
+    _avatarBaruUrl = null;
     closeModal('modalAvatarUpload');
   } catch (err) {
     toast('Gagal: ' + err.message, 'error');
@@ -583,7 +562,7 @@ async function saveTandaTanganUpload() {
     _user.tanda_tangan = ttdUrl || null;
     sessionStorage.setItem('sapa_user', JSON.stringify(_user));
     toast('Tanda tangan berhasil disimpan', 'success');
-    _ttdBaruUrl = null;   // sudah tersimpan
+    _ttdBaruUrl = null;
     closeModal('modalTandaTangan');
     if (typeof renderEplanningPraTable === 'function') renderEplanningPraTable();
     if (typeof _epRefreshBtnTambah === 'function') _epRefreshBtnTambah();
@@ -757,11 +736,9 @@ function _startPeriodeTimer() {
   _periodeTimerInterval = setInterval(_tick, 1000);
 }
 
-// Ikon menu Walidata
 const _WD_ICON_LINE = '<svg class="ic-line" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 5a2 2 0 1 0 4 0a2 2 0 1 0 -4 0"/><path d="M6 12a2 2 0 1 0 4 0a2 2 0 1 0 -4 0"/><path d="M10 19a2 2 0 1 0 4 0a2 2 0 1 0 -4 0"/><path d="M18 19a2 2 0 1 0 4 0a2 2 0 1 0 -4 0"/><path d="M2 19a2 2 0 1 0 4 0a2 2 0 1 0 -4 0"/><path d="M14 12a2 2 0 1 0 4 0a2 2 0 1 0 -4 0"/><path d="M5 17l2 -3"/><path d="M9 10l2 -3"/><path d="M13 7l2 3"/><path d="M17 14l2 3"/><path d="M15 14l-2 3"/><path d="M9 14l2 3"/></svg>';
 const _WD_ICON_FILL = '<svg class="ic-fill" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M10 5a2 2 0 1 0 4 0a2 2 0 1 0 -4 0"/><path d="M6 12a2 2 0 1 0 4 0a2 2 0 1 0 -4 0"/><path d="M10 19a2 2 0 1 0 4 0a2 2 0 1 0 -4 0"/><path d="M18 19a2 2 0 1 0 4 0a2 2 0 1 0 -4 0"/><path d="M2 19a2 2 0 1 0 4 0a2 2 0 1 0 -4 0"/><path d="M14 12a2 2 0 1 0 4 0a2 2 0 1 0 -4 0"/><path d="M5 17l2 -3"/><path d="M9 10l2 -3"/><path d="M13 7l2 3"/><path d="M17 14l2 3"/><path d="M15 14l-2 3"/><path d="M9 14l2 3"/></svg>';
 const _WD_ICON = _WD_ICON_LINE + _WD_ICON_FILL;
-// Ikon sub-menu (beda dari ikon grup Walidata)
 const _WD_ICON_SSD = '<svg class="ic-line" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M9 2.4578V4.58152C6.06817 5.76829 4 8.64262 4 12C4 16.4183 7.58172 20 12 20C15.3574 20 18.2317 17.9318 19.4185 15H21.5422C20.2679 19.0571 16.4776 22 12 22C6.47715 22 2 17.5228 2 12C2 7.52236 4.94289 3.73207 9 2.4578ZM12 2C17.5228 2 22 6.47715 22 12C22 12.3375 21.9833 12.6711 21.9506 13H11V2.04938C11.3289 2.01672 11.6625 2 12 2ZM13 4.06189V11H19.9381C19.4869 7.38128 16.6187 4.51314 13 4.06189Z"/></svg><svg class="ic-fill" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M11 2.04938V13H21.9506C21.4489 18.0533 17.1853 22 12 22C6.47715 22 2 17.5229 2 12C2 6.81465 5.94668 2.5511 11 2.04938ZM13 2.04938C17.7244 2.51845 21.4816 6.27559 21.9506 11H13V2.04938Z"/></svg>';
 const _WD_ICON_IND = '<svg class="ic-line" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M6.17071 18C6.58254 16.8348 7.69378 16 9 16C10.3062 16 11.4175 16.8348 11.8293 18H22V20H11.8293C11.4175 21.1652 10.3062 22 9 22C7.69378 22 6.58254 21.1652 6.17071 20H2V18H6.17071ZM12.1707 11C12.5825 9.83481 13.6938 9 15 9C16.3062 9 17.4175 9.83481 17.8293 11H22V13H17.8293C17.4175 14.1652 16.3062 15 15 15C13.6938 15 12.5825 14.1652 12.1707 13H2V11H12.1707ZM6.17071 4C6.58254 2.83481 7.69378 2 9 2C10.3062 2 11.4175 2.83481 11.8293 4H22V6H11.8293C11.4175 7.16519 10.3062 8 9 8C7.69378 8 6.58254 7.16519 6.17071 6H2V4H6.17071ZM9 6C9.55228 6 10 5.55228 10 5C10 4.44772 9.55228 4 9 4C8.44772 4 8 4.44772 8 5C8 5.55228 8.44772 6 9 6ZM15 13C15.5523 13 16 12.5523 16 12C16 11.4477 15.5523 11 15 11C14.4477 11 14 11.4477 14 12C14 12.5523 14.4477 13 15 13ZM9 20C9.55228 20 10 19.5523 10 19C10 18.4477 9.55228 18 9 18C8.44772 18 8 18.4477 8 19C8 19.5523 8.44772 20 9 20Z"/></svg><svg class="ic-fill" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M6.17071 18C6.58254 16.8348 7.69378 16 9 16C10.3062 16 11.4175 16.8348 11.8293 18H22V20H11.8293C11.4175 21.1652 10.3062 22 9 22C7.69378 22 6.58254 21.1652 6.17071 20H2V18H6.17071ZM12.1707 11C12.5825 9.83481 13.6938 9 15 9C16.3062 9 17.4175 9.83481 17.8293 11H22V13H17.8293C17.4175 14.1652 16.3062 15 15 15C13.6938 15 12.5825 14.1652 12.1707 13H2V11H12.1707ZM6.17071 4C6.58254 2.83481 7.69378 2 9 2C10.3062 2 11.4175 2.83481 11.8293 4H22V6H11.8293C11.4175 7.16519 10.3062 8 9 8C7.69378 8 6.58254 7.16519 6.17071 6H2V4H6.17071Z"/></svg>';
 const _WD_ICON_DASH = `<svg class="ic-line" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M14 21C13.4477 21 13 20.5523 13 20V12C13 11.4477 13.4477 11 14 11H20C20.5523 11 21 11.4477 21 12V20C21 20.5523 20.5523 21 20 21H14ZM4 13C3.44772 13 3 12.5523 3 12V4C3 3.44772 3.44772 3 4 3H10C10.5523 3 11 3.44772 11 4V12C11 12.5523 10.5523 13 10 13H4ZM9 11V5H5V11H9ZM4 21C3.44772 21 3 20.5523 3 20V16C3 15.4477 3.44772 15 4 15H10C10.5523 15 11 15.4477 11 16V20C11 20.5523 10.5523 21 10 21H4ZM5 19H9V17H5V19ZM15 19H19V13H15V19ZM13 4C13 3.44772 13.4477 3 14 3H20C20.5523 3 21 3.44772 21 4V8C21 8.55228 20.5523 9 20 9H14C13.4477 9 13 8.55228 13 8V4ZM15 5V7H19V5H15Z"/></svg><svg class="ic-fill" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M3 12C3 12.5523 3.44772 13 4 13H10C10.5523 13 11 12.5523 11 12V4C11 3.44772 10.5523 3 10 3H4C3.44772 3 3 3.44772 3 4V12ZM3 20C3 20.5523 3.44772 21 4 21H10C10.5523 21 11 20.5523 11 20V16C11 15.4477 10.5523 15 10 15H4C3.44772 15 3 15.4477 3 16V20ZM13 20C13 20.5523 13.4477 21 14 21H20C20.5523 21 21 20.5523 21 20V12C21 11.4477 20.5523 11 20 11H14C13.4477 11 13 11.4477 13 12V20ZM14 3C13.4477 3 13 3.44772 13 4V8C13 8.55228 13.4477 9 14 9H20C20.5523 9 21 8.55228 21 8V4C21 3.44772 20.5523 3 20 3H14Z"/></svg>`;
@@ -862,14 +839,11 @@ const MENUS = [
         { id: 'pemantauan-sistem', key: null, adminOnly: true, label: 'Pemantauan Sistem', page: 'page-pemantauan-sistem', loader: () => loadPemantauanSistem(), icon: `<svg class="ic-line" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 12 7 12 10 5 14 19 17 12 21 12"/></svg><svg class="ic-fill" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 12 7 12 10 5 14 19 17 12 21 12"/></svg>` },
       ] },
       { id: 'master-superlink', label: 'Superlink', icon: `<svg class="ic-line" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M13.0607 8.11097L14.4749 9.52518C17.2086 12.2589 17.2086 16.691 14.4749 19.4247L14.1214 19.7782C11.3877 22.5119 6.95555 22.5119 4.22188 19.7782C1.48821 17.0446 1.48821 12.6124 4.22188 9.87874L5.6361 11.293C3.68348 13.2456 3.68348 16.4114 5.6361 18.364C7.58872 20.3166 10.7545 20.3166 12.7072 18.364L13.0607 18.0105C15.0133 16.0578 15.0133 12.892 13.0607 10.9394L11.6465 9.52518L13.0607 8.11097ZM19.7782 14.1214L18.364 12.7072C20.3166 10.7545 20.3166 7.58872 18.364 5.6361C16.4114 3.68348 13.2456 3.68348 11.293 5.6361L10.9394 5.98965C8.98678 7.94227 8.98678 11.1081 10.9394 13.0607L12.3536 14.4749L10.9394 15.8891L9.52518 14.4749C6.79151 11.7413 6.79151 7.30911 9.52518 4.57544L9.87874 4.22188C12.6124 1.48821 17.0446 1.48821 19.7782 4.22188C22.5119 6.95555 22.5119 11.3877 19.7782 14.1214Z"/></svg><svg class="ic-fill" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M13.0607 8.11097L14.4749 9.52518C17.2086 12.2589 17.2086 16.691 14.4749 19.4247L14.1214 19.7782C11.3877 22.5119 6.95555 22.5119 4.22188 19.7782C1.48821 17.0446 1.48821 12.6124 4.22188 9.87874L5.6361 11.293C3.68348 13.2456 3.68348 16.4114 5.6361 18.364C7.58872 20.3166 10.7545 20.3166 12.7072 18.364L13.0607 18.0105C15.0133 16.0578 15.0133 12.892 13.0607 10.9394L11.6465 9.52518L13.0607 8.11097ZM19.7782 14.1214L18.364 12.7072C20.3166 10.7545 20.3166 7.58872 18.364 5.6361C16.4114 3.68348 13.2456 3.68348 11.293 5.6361L10.9394 5.98965C8.98678 7.94227 8.98678 11.1081 10.9394 13.0607L12.3536 14.4749L10.9394 15.8891L9.52518 14.4749C6.79151 11.7413 6.79151 7.30911 9.52518 4.57544L9.87874 4.22188C12.6124 1.48821 17.0446 1.48821 19.7782 4.22188C22.5119 6.95555 22.5119 11.3877 19.7782 14.1214Z"/></svg>`, children: [
-        // belum ada master data khusus Superlink
       ] },
       { id: 'master-surat', label: 'Surat', icon: `<svg class="ic-line" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M3 3H21C21.5523 3 22 3.44772 22 4V20C22 20.5523 21.5523 21 21 21H3C2.44772 21 2 20.5523 2 20V4C2 3.44772 2.44772 3 3 3ZM20 7.23792L12.0718 14.338L4 7.21594V19H20V7.23792ZM4.51146 5L12.0619 11.662L19.501 5H4.51146Z"/></svg><svg class="ic-fill" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M3 3H21C21.5523 3 22 3.44772 22 4V20C22 20.5523 21.5523 21 21 21H3C2.44772 21 2 20.5523 2 20V4C2 3.44772 2.44772 3 3 3ZM12.0606 11.6829L5.64722 6.2377L4.35278 7.7623L12.0731 14.3171L19.6544 7.75616L18.3456 6.24384L12.0606 11.6829Z"/></svg>`, children: [
-        // belum ada master data khusus Surat
       ] },
       { id: 'master-absensi', label: 'Absenku', icon: `<svg class="ic-line" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M9 1V3H15V1H17V3H21C21.5523 3 22 3.44772 22 4V20C22 20.5523 21.5523 21 21 21H3C2.44772 21 2 20.5523 2 20V4C2 3.44772 2.44772 3 3 3H7V1H9ZM20 10H4V19H20V10ZM15.0355 11.136L16.4497 12.5503L11.5 17.5L7.96447 13.9645L9.37868 12.5503L11.5 14.6716L15.0355 11.136ZM7 5H4V8H20V5H17V6H15V5H9V6H7V5Z"/></svg><svg class="ic-fill" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M9 1V3H15V1H17V3H21C21.5523 3 22 3.44772 22 4V20C22 20.5523 21.5523 21 21 21H3C2.44772 21 2 20.5523 2 20V4C2 3.44772 2.44772 3 3 3H7V1H9ZM20 8H4V19H20V8ZM15.0355 10.136L16.4497 11.5503L11.5 16.5L7.96447 12.9645L9.37868 11.5503L11.5 13.6716L15.0355 10.136Z"/></svg>`, children: [
         { id: 'absensi-pengaturan', key: null, showIf: () => _user.is_admin || hasAccess('absensi.full'), label: 'Pengaturan', page: 'page-absensi-pengaturan', loader: () => loadAbsPengaturan(), icon: `<svg class="ic-line" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M3.33946 17.0002C2.90721 16.2515 2.58277 15.4702 2.36133 14.6741C3.3338 14.1779 3.99972 13.1668 3.99972 12.0002C3.99972 10.8345 3.3348 9.824 2.36353 9.32741C2.81025 7.71651 3.65857 6.21627 4.86474 4.99001C5.7807 5.58416 6.98935 5.65534 7.99972 5.072C9.01009 4.48866 9.55277 3.40635 9.4962 2.31604C11.1613 1.8846 12.8847 1.90004 14.5031 2.31862C14.4475 3.40806 14.9901 4.48912 15.9997 5.072C17.0101 5.65532 18.2187 5.58416 19.1346 4.99007C19.7133 5.57986 20.2277 6.25151 20.66 7.00021C21.0922 7.7489 21.4167 8.53025 21.6381 9.32628C20.6656 9.82247 19.9997 10.8336 19.9997 12.0002C19.9997 13.166 20.6646 14.1764 21.6359 14.673C21.1892 16.2839 20.3409 17.7841 19.1347 19.0104C18.2187 18.4163 17.0101 18.3451 15.9997 18.9284C14.9893 19.5117 14.4467 20.5941 14.5032 21.6844C12.8382 22.1158 11.1148 22.1004 9.49633 21.6818C9.55191 20.5923 9.00929 19.5113 7.99972 18.9284C6.98938 18.3451 5.78079 18.4162 4.86484 19.0103C4.28617 18.4205 3.77172 17.7489 3.33946 17.0002ZM8.99972 17.1964C10.0911 17.8265 10.8749 18.8227 11.2503 19.9659C11.7486 20.0133 12.2502 20.014 12.7486 19.9675C13.1238 18.8237 13.9078 17.8268 14.9997 17.1964C16.0916 16.5659 17.347 16.3855 18.5252 16.6324C18.8146 16.224 19.0648 15.7892 19.2729 15.334C18.4706 14.4373 17.9997 13.2604 17.9997 12.0002C17.9997 10.74 18.4706 9.5632 19.2729 8.6665C19.1688 8.4405 19.0538 8.21822 18.9279 8.00021C18.802 7.78219 18.667 7.57148 18.5233 7.36842C17.3457 7.61476 16.0911 7.43414 14.9997 6.80405C13.9083 6.17395 13.1246 5.17768 12.7491 4.03455C12.2509 3.98714 11.7492 3.98646 11.2509 4.03292C10.8756 5.17671 10.0916 6.17364 8.99972 6.80405C7.9078 7.43447 6.65245 7.61494 5.47428 7.36803C5.18485 7.77641 4.93463 8.21117 4.72656 8.66637C5.52881 9.56311 5.99972 10.74 5.99972 12.0002C5.99972 13.2604 5.52883 14.4372 4.72656 15.3339C4.83067 15.5599 4.94564 15.7822 5.07152 16.0002C5.19739 16.2182 5.3324 16.4289 5.47612 16.632C6.65377 16.3857 7.90838 16.5663 8.99972 17.1964ZM11.9997 15.0002C10.3429 15.0002 8.99972 13.6571 8.99972 12.0002C8.99972 10.3434 10.3429 9.00021 11.9997 9.00021C13.6566 9.00021 14.9997 10.3434 14.9997 12.0002C14.9997 13.6571 13.6566 15.0002 11.9997 15.0002ZM11.9997 13.0002C12.552 13.0002 12.9997 12.5525 12.9997 12.0002C12.9997 11.4479 12.552 11.0002 11.9997 11.0002C11.4474 11.0002 10.9997 11.4479 10.9997 12.0002C10.9997 12.5525 11.4474 13.0002 11.9997 13.0002Z"/></svg><svg class="ic-fill" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M9.95401 2.2106C11.2876 1.93144 12.6807 1.92263 14.0449 2.20785C14.2219 3.3674 14.9048 4.43892 15.9997 5.07103C17.0945 5.70313 18.364 5.75884 19.4566 5.3323C20.3858 6.37118 21.0747 7.58203 21.4997 8.87652C20.5852 9.60958 19.9997 10.736 19.9997 11.9992C19.9997 13.2632 20.5859 14.3902 21.5013 15.1232C21.29 15.7636 21.0104 16.3922 20.6599 16.9992C20.3094 17.6063 19.9049 18.1627 19.4559 18.6659C18.3634 18.2396 17.0943 18.2955 15.9997 18.9274C14.9057 19.559 14.223 20.6294 14.0453 21.7879C12.7118 22.067 11.3187 22.0758 9.95443 21.7906C9.77748 20.6311 9.09451 19.5595 7.99967 18.9274C6.90484 18.2953 5.63539 18.2396 4.54272 18.6662C3.61357 17.6273 2.92466 16.4164 2.49964 15.1219C3.41412 14.3889 3.99968 13.2624 3.99968 11.9992C3.99968 10.7353 3.41344 9.60827 2.49805 8.87524C2.70933 8.23482 2.98894 7.60629 3.33942 6.99923C3.68991 6.39217 4.09443 5.83576 4.54341 5.33257C5.63593 5.75881 6.90507 5.703 7.99967 5.07103C9.09364 4.43942 9.7764 3.3691 9.95401 2.2106ZM11.9997 14.9992C13.6565 14.9992 14.9997 13.6561 14.9997 11.9992C14.9997 10.3424 13.6565 8.99923 11.9997 8.99923C10.3428 8.99923 8.99967 10.3424 8.99967 11.9992C8.99967 13.6561 10.3428 14.9992 11.9997 14.9992Z"/></svg>` },
-        // belum ada master data khusus Absenku
       ] },
       { id: 'master-kinerja', label: 'Kinerja', icon: `<svg class="ic-line" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M5 3V19H21V21H3V3H5ZM20.2929 6.29289L21.7071 7.70711L16 13.4142L13 10.415L8.70711 14.7071L7.29289 13.2929L13 7.58579L16 10.585L20.2929 6.29289Z"/></svg><svg class="ic-fill" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M5 3V19H21V21H3V3H5ZM19.9393 5.93934L22.0607 8.06066L16 14.1213L13 11.121L9.06066 15.0607L6.93934 12.9393L13 6.87868L16 9.879L19.9393 5.93934Z"/></svg>`, children: [
         { id: 'kelola-indikator', key: null, adminOnly: true, label: 'Kelola Indikator', page: 'page-kinerja-admin', loader: () => loadIndikatorAdmin(), icon: `<svg class="ic-line" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M6.17071 18C6.58254 16.8348 7.69378 16 9 16C10.3062 16 11.4175 16.8348 11.8293 18H22V20H11.8293C11.4175 21.1652 10.3062 22 9 22C7.69378 22 6.58254 21.1652 6.17071 20H2V18H6.17071ZM12.1707 11C12.5825 9.83481 13.6938 9 15 9C16.3062 9 17.4175 9.83481 17.8293 11H22V13H17.8293C17.4175 14.1652 16.3062 15 15 15C13.6938 15 12.5825 14.1652 12.1707 13H2V11H12.1707ZM6.17071 4C6.58254 2.83481 7.69378 2 9 2C10.3062 2 11.4175 2.83481 11.8293 4H22V6H11.8293C11.4175 7.16519 10.3062 8 9 8C7.69378 8 6.58254 7.16519 6.17071 6H2V4H6.17071ZM9 6C9.55228 6 10 5.55228 10 5C10 4.44772 9.55228 4 9 4C8.44772 4 8 4.44772 8 5C8 5.55228 8.44772 6 9 6ZM15 13C15.5523 13 16 12.5523 16 12C16 11.4477 15.5523 11 15 11C14.4477 11 14 11.4477 14 12C14 12.5523 14.4477 13 15 13ZM9 20C9.55228 20 10 19.5523 10 19C10 18.4477 9.55228 18 9 18C8.44772 18 8 18.4477 8 19C8 19.5523 8.44772 20 9 20Z"/></svg><svg class="ic-fill" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M6.17071 18C6.58254 16.8348 7.69378 16 9 16C10.3062 16 11.4175 16.8348 11.8293 18H22V20H11.8293C11.4175 21.1652 10.3062 22 9 22C7.69378 22 6.58254 21.1652 6.17071 20H2V18H6.17071ZM12.1707 11C12.5825 9.83481 13.6938 9 15 9C16.3062 9 17.4175 9.83481 17.8293 11H22V13H17.8293C17.4175 14.1652 16.3062 15 15 15C13.6938 15 12.5825 14.1652 12.1707 13H2V11H12.1707ZM6.17071 4C6.58254 2.83481 7.69378 2 9 2C10.3062 2 11.4175 2.83481 11.8293 4H22V6H11.8293C11.4175 7.16519 10.3062 8 9 8C7.69378 8 6.58254 7.16519 6.17071 6H2V4H6.17071Z"/></svg>` },
@@ -895,8 +869,6 @@ const MENUS = [
 ];
 
 let _activeSubId = null;
-// Menu Admin Kinerja (permission 'kinerja.full'): user non-admin melihat menu kelola
-// (Indikator, Target, Jenis, Laporan) + Periode di grup Kinerja. Admin tetap lewat Master Data.
 (function _addKinerjaFullMenus() {
   const master = MENUS.find(g => g.id === 'master');
   const kin    = MENUS.find(g => g.id === 'kinerja');
@@ -905,13 +877,12 @@ let _activeSubId = null;
   if (!kin || !mk?.children) return;
   const show = () => !_user.is_admin && hasAccess('kinerja.full');
   for (const c of [...mk.children, ...(per ? [per] : [])]) {
-    if (c.superOnly) continue;   // Kelola Verifikator: khusus Superadmin
+    if (c.superOnly) continue;
     const { adminOnly, ...rest } = c;
     kin.children.push({ ...rest, id: c.id + '-kf', showIf: show });
   }
 })();
 
-// Admin Penuh Walidata (permission 'walidata.full'): user non-admin melihat Kelola Indikator di grup Walidata.
 (function _addWalidataFullMenus() {
   const wd = MENUS.find(g => g.id === 'walidata');
   const mw = MENUS.find(g => g.id === 'master')?.children.find(c => c.id === 'master-walidata');
@@ -994,8 +965,6 @@ function buildSidebar() {
     };
     const _closeHover = () => {
       if (_sidebarCollapsed) return;
-      // Kalau grup ini sedang di-pin terbuka (diklik), jangan auto-close
-      // walau mouse sempat keluar dan belum ada sub-item yang aktif.
       if (_openGroups[group.id]) return;
       _hoverTimer = setTimeout(() => {
         sub.classList.remove('open');
@@ -1044,8 +1013,6 @@ function buildSidebar() {
         };
         const _closeHoverSub = () => {
           if (_sidebarCollapsed) return;
-          // Sama seperti grup induk: kalau branch ini sedang di-pin (diklik),
-          // jangan auto-close duluan sebelum user sempat pilih sub-sub item.
           if (_openGroups[child.id]) return;
           _hoverTimerSub = setTimeout(() => {
             subsub.classList.remove('open');
@@ -1135,7 +1102,7 @@ function toggleSubGroup(id) {
 let _currentLoader = null;
 
 function navigateTo(subId, label, loader, groupId, pageId, subGroupId) {
-  _pgRestoreActive = _pgBootRestoring;   // hanya navigasi hasil restore reload yang boleh pulihkan halaman
+  _pgRestoreActive = _pgBootRestoring;
   _activeSubId = subId;
   if (groupId) { _openGroups = {}; _openGroups[groupId] = true; }
   if (subGroupId) { _openGroups[subGroupId] = true; }
@@ -1159,7 +1126,6 @@ function navigateTo(subId, label, loader, groupId, pageId, subGroupId) {
 
   if (loader) { _currentLoader = loader; loader(); }
 
-  // Info Popup: pergantian modul memicu pengecekan info (modul = grup menu, atau 'dashboard').
   if (typeof infoPopupOnNavigate === 'function') infoPopupOnNavigate(groupId || 'dashboard');
 }
 
@@ -1309,8 +1275,6 @@ function _qtipShow(target) {
   _qtipTarget = target;
   _qtipPosition(target);
 }
-// Browser mobile nembakin event mouse "palsu" (mouseover/mousedown/click) setelah tap;
-// event itu diabaikan supaya gak bentrok sama logika touchstart di bawah.
 function _qtipIsTouch() { return Date.now() - _qtipLastTouch < 800; }
 function _bindQtips() {
   if (document.body._qtipBound) return;
@@ -1329,15 +1293,10 @@ function _bindQtips() {
   });
   document.body.addEventListener('scroll', _qtipHide, true);
 
-  // Tombol ditekan -> tooltip langsung hilang (sebelum modal/aksi apa pun muncul).
-  // Tanpa ini, tooltip nyangkut kalau tombol tertutup modal atau di-render ulang,
-  // karena mouseout gak pernah kepicu di elemen yang ketutup/hilang.
   document.body.addEventListener('mousedown', () => {
     if (!_qtipIsTouch()) _qtipHide();
   }, true);
 
-  // Pengaman: kalau elemen sumber sudah hilang dari DOM, atau kursor sudah gak di atas
-  // elemen ber-tooltip manapun, tooltip disembunyikan begitu mouse bergerak.
   document.body.addEventListener('mousemove', (e) => {
     if (!_qtipTarget || _qtipIsTouch()) return;
     if (!_qtipTarget.isConnected || !e.target.closest('[data-tip]')) _qtipHide();
@@ -1346,8 +1305,6 @@ function _bindQtips() {
   document.addEventListener('keydown', (e) => { if (e.key === 'Escape') _qtipHide(); });
   window.addEventListener('blur', _qtipHide);
 
-  // Mobile: gak ada hover, jadi tap pertama nampilin tooltip, tap lagi di tempat
-  // yang sama nyembunyiin, tap di luar (handler click di bawah) juga nyembunyiin.
   document.body.addEventListener('touchstart', (e) => {
     _qtipLastTouch = Date.now();
     const target = e.target.closest('[data-tip]');
@@ -1361,8 +1318,6 @@ function _bindQtips() {
   document.body.addEventListener('click', (e) => {
     const t = e.target.closest('[data-tip]');
     if (!t) { _qtipHide(); return; }
-    // Tombol/link: aksinya jalan (buka modal, dll), jadi tooltip sudah gak relevan -> sembunyikan.
-    // Elemen non-interaktif di mobile dibiarkan tampil (tap = toggle tooltip).
     const interactive = t.closest('button, a, [onclick], [role="button"]');
     if (!_qtipIsTouch() || interactive) _qtipHide();
   }, true);
@@ -1378,11 +1333,6 @@ const TOAST_ICONS = {
 const TOAST_TITLES = { success: 'Berhasil', error: 'Gagal', info: 'Info', warning: 'Perhatian' };
 function toast(msg, type = 'success', key = null) {
   const c = document.getElementById('toastContainer');
-  // key dipakai buat notif yang bisa "numpuk gantian" (dedup) - kalau toast dengan key yang
-  // sama masih kepampang, jangan bikin elemen baru (numpuk), cukup update teksnya & reset
-  // timer ilangnya. Dipakai misalnya buat auto-save per-field (lihat lembur_frontend.js) yang
-  // bisa kepicu beruntun cepet - tanpa ini tiap save nambah satu toast baru dan penuhin layar.
-  // Panggilan toast() lama (tanpa key) gak kepengaruh sama sekali, tetep numpuk kayak biasa.
   if (key) {
     const existing = c.querySelector(`.toast[data-toast-key="${key}"]`);
     if (existing) {
@@ -1393,7 +1343,7 @@ function toast(msg, type = 'success', key = null) {
         existing.style.transition = 'opacity .3s, transform .3s';
         existing.style.opacity = '0'; existing.style.transform = 'translateX(20px)';
         setTimeout(() => existing.remove(), 300);
-      }, 1500); // lebih pendek dari toast biasa (3500ms) - ini notif auto-save yang sering kepicu
+      }, 1500);
       return;
     }
   }
@@ -1462,8 +1412,6 @@ function renderPagination(containerId, total, page, limit, onPageChange) {
   if (!c) return;
   if (total <= 0) { c.innerHTML = ''; return; }
 
-  // Ingat halaman terakhir per tabel supaya reload tidak melempar balik ke halaman 1.
-  // Cek restore DULU sebelum simpan, kalau tidak nilai tersimpan tertimpa render awal (page=1).
   const _restore = (page === 1 && pages > 1) ? _pgTakeRestore(containerId, pages) : 0;
   if (_restore <= 1) _pgSave(containerId, page);
 
@@ -1474,7 +1422,6 @@ function renderPagination(containerId, total, page, limit, onPageChange) {
   if (pages <= 1) { c.innerHTML = ''; return; }
   const cb = typeof onPageChange === 'function' ? onPageChange : (p => { window[onPageChange] && window[onPageChange](p); });
   if (typeof onPageChange === 'function') _pgRegister(containerId, cb);
-  // Render pertama setelah reload: kalau sebelumnya ada di halaman > 1, loncat ke sana.
   if (_restore > 1) { cb(_restore); return; }
   const btn = (disabled, onclick, svg) =>
     `<button class="page-btn" ${disabled ? 'disabled' : ''} onclick="${onclick}">${svg}</button>`;
@@ -1499,12 +1446,10 @@ function renderPagination(containerId, total, page, limit, onPageChange) {
   c.innerHTML = `<div class="pagination-wrap">${info}${html}</div>`;
 }
 
-// ── Ingat halaman pagination lintas reload (sessionStorage, per tab & per user) ──
-// Container yang berupa modal/picker/widget sengaja tidak diingat.
 const _PG_SKIP = /^(epKompPick|epTampilRek|kbAlert)/;
-let _pgBootRestoring = false;   // true hanya selama restore menu setelah reload
-let _pgRestoreActive = false;   // true sampai user pindah menu secara manual
-const _pgRestored = {};         // container yang sudah dipulihkan (sekali per load)
+let _pgBootRestoring = false;
+let _pgRestoreActive = false;
+const _pgRestored = {};
 function _pgKey(containerId) {
   const uid = (typeof _user !== 'undefined' && _user && _user.id) ? _user.id : 'x';
   return `sapa_pg_${uid}_${containerId}`;
@@ -1564,8 +1509,6 @@ async function _bootRefreshFoto() {
   } catch {}
 }
 
-// Refresh tanda tangan user dari server (bisa beda dari yang tersimpan di token/login lama)
-// - dipakai buat syarat wajib tanda tangan sebelum submit/verifikasi usulan e-Planning.
 async function _bootRefreshTandaTangan() {
   try {
     const r = await fetch(`/api/users/${_user.id}/tanda-tangan`, { headers: authHeaders() });
@@ -1587,7 +1530,6 @@ async function _bootRefreshTandaTangan() {
   
   const _ddRoleEl = document.getElementById('ddRole');
   if (_ddRoleEl) { _ddRoleEl.textContent = 'Super Admin'; _ddRoleEl.style.display = _user.is_admin ? '' : 'none'; }
-  // Teks di bawah nama (topbar + dropdown profil): Super Admin / Jabatan, kalau Jabatan kosong -> Unit Kerja.
   function _renderProfilSubtitle() {
     const sub = _user.is_admin ? 'Super Admin' : (_user.jabatan || _user.bidang_nama || '');
     const trEl = document.getElementById('topbarRole');
@@ -1604,8 +1546,6 @@ async function _bootRefreshTandaTangan() {
 
   _activeSubId = '';
 
-  // Sinkronkan unit kerja + jabatan dari server tiap halaman dibuka, supaya perubahan dari menu Pengguna
-  // (mis. admin baru mengisi Jabatan) langsung tampil tanpa harus login ulang.
   const _bootRefreshUser = async () => {
     if (!_user || _user.is_admin) return;
     try {
@@ -1616,8 +1556,6 @@ async function _bootRefreshTandaTangan() {
           const jabatanBaru = d.user.jabatan || null;
           const bidangBaru  = d.user.bidang_nama || null;
           const berubah = (_user.jabatan || null) !== jabatanBaru || (_user.bidang_nama || null) !== bidangBaru;
-          // Hak akses (permissions) juga disinkronkan dari server tiap halaman dibuka, supaya perubahan dari menu
-          // Pengguna (mis. kinerja.full dicabut) langsung berlaku di sidebar tanpa harus login ulang.
           const _permLama = JSON.stringify([...(_user.permissions || [])].sort());
           const _permBaru = JSON.stringify([...(d.user.permissions || [])].sort());
           if (_permLama !== _permBaru) {
@@ -1638,30 +1576,22 @@ async function _bootRefreshTandaTangan() {
     } catch {}
   };
 
-  // Dijalanin langsung, paralel sama chain init di bawah - gak perlu nunggu
-  // loadPeriodeAktif/bootRefresh/cekKinerja kelar dulu biar modal reminder
-  // absensi nggak lambat muncul pas baru login.
   if (typeof _startAbsensiReminderPoll === 'function') _startAbsensiReminderPoll();
 
-  // Semua request boot saling independen -> jalan paralel (dulu berantai: periode -> user/foto/ttd -> cek indikator).
-  // Foto tidak ditunggu: avatar dari cache sessionStorage sudah dipasang di awal _bootRefreshFoto().
   _bootRefreshFoto();
-  // _cekKinerjaIndikator bergantung pada permissions (kinerja.full / pantau), jadi dijalankan SETELAH sinkron user.
   Promise.allSettled([loadPeriodeAktif(), _bootRefreshUser().then(() => _cekKinerjaIndikator()), _bootRefreshTandaTangan(), _muatWarnaJenisKinerja()])
     .then(() => {
       buildSidebar();
       _applySidebarCollapse();
       _startPeriodeTimer();
-      if (typeof infoPopupInit === 'function') infoPopupInit();   // lonceng + popup Info Popup
+      if (typeof infoPopupInit === 'function') infoPopupInit();
 
-      // Menu "Tanda Tangan Saya" cuma relevan buat user yang butuh ttd di e-Planning (Super Admin dikecualikan).
       const btnTandaTanganDD = document.getElementById('btnTandaTanganDD');
       if (btnTandaTanganDD) btnTandaTanganDD.style.display = (typeof _epButuhTtd === 'function' && _epButuhTtd()) ? '' : 'none';
 
       
       if (typeof _cekPengajuanPendingReminder === 'function') _cekPengajuanPendingReminder();
 
-      // Popup pengingat tanda tangan - kasih jeda dikit biar gak numpuk sama modal reminder lain pas baru login.
       setTimeout(() => { if (typeof _cekTtdLoginPopup === 'function') _cekTtdLoginPopup(); }, 1200);
 
       
@@ -1786,13 +1716,6 @@ async function _bootRefreshTandaTangan() {
     });
 });
 
-// Klik-di-luar-modal buat auto-close DIMATIKAN (2026-08) - modal cuma boleh nutup lewat tombol
-// X/Batal eksplisit, biar user gak kehilangan progress isian gara-gara klik meleset ke backdrop
-// (terutama modal yang isinya form panjang kayak Kelola Dokumen Usulan).
-// document.querySelectorAll('.modal-overlay, .modal-overlay-main').forEach(overlay => {
-//   overlay.addEventListener('click', e => { if (e.target === overlay) overlay.classList.remove('open'); });
-// });
-
 function toggleProfileDD() {
   document.getElementById('topbarDropdown').classList.toggle('open');
 }
@@ -1858,9 +1781,6 @@ class DatePicker {
     this.viewMonth = vm;
     this._loadLiburBulan();
 
-    // Animasi fade-in cuma sekali pas popup baru dibuka - re-render berikutnya (nav
-    // bulan/tahun, ganti mode, atau data libur yang baru selesai di-fetch) gak perlu
-    // animasi ulang, soalnya popup-nya emang gak pernah hilang dari layar.
     this._popupAnimCls = this._popupAnimated ? ' dp-popup-noanim' : '';
     this._popupAnimated = true;
 
@@ -1869,8 +1789,6 @@ class DatePicker {
     return this._renderDayPicker(vy, vm, now);
   }
 
-  // Ambil daftar hari libur nasional buat bulan yang lagi ditampilin (disamain sama cdtp yang
-  // dipakai Absensi/Lembur) - di-cache per bulan biar gak fetch ulang tiap render/navigasi kecil.
   async _loadLiburBulan() {
     if (!this.showLibur) return;
     const key = `${this.viewYear}-${this.viewMonth}`;
@@ -1901,7 +1819,7 @@ class DatePicker {
       const dateStr = `${vy}-${String(vm+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
       const isToday    = d === now.getDate() && vm === now.getMonth() && vy === now.getFullYear();
       const isSelected = dateStr === this.value;
-      const isWeekend  = new Date(vy, vm, d).getDay() % 6 === 0; // 0=Minggu, 6=Sabtu
+      const isWeekend  = new Date(vy, vm, d).getDay() % 6 === 0;
       const isLibur    = this.showLibur && this.liburSet.has(dateStr);
       const isFutureBlocked = this.maxToday && dateStr > todayYmd;
       const cls = `dp-day${isToday ? ' today' : ''}${isSelected ? ' selected' : ''}${isWeekend ? ' weekend' : ''}${isLibur ? ' libur' : ''}${isFutureBlocked ? ' disabled' : ''}`;
@@ -2074,7 +1992,6 @@ document.addEventListener('click', () => {
   Object.values(_datepickers).forEach(dp => { if (dp._open) dp._close(); });
 });
 
-/* ── CTP inline: jam-only spinner, tanpa popup (lihat .ctp-inline di styles.css) ── */
 class TimePicker {
   constructor(containerId, { value = null } = {}) {
     this.containerId = containerId;
@@ -2210,7 +2127,6 @@ const _PDFJS_WORKER = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pd
 const _MAMMOTH_CDN  = 'https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js';
 const _SHEETJS_CDN  = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
 
-// Loader SheetJS (lazy) - idempotent, dan benar-benar nunggu sampai script selesai dimuat.
 let _xlsxPromise = null;
 function _loadXlsx() {
   if (window.XLSX) return Promise.resolve();
@@ -2905,7 +2821,6 @@ function _renderCascade() {
   _lapDrawConnectors();
 }
 
-// ── Garis penghubung antar card (item terpilih -> semua item anak di kolom sebelah) ──
 let _lapConnRaf = null, _lapConnObs = null;
 function _lapObserveConnectors(wrap) {
   if (_lapConnObs) _lapConnObs.disconnect();
@@ -2934,17 +2849,15 @@ function _lapDrawConnectorsNow() {
     if (!src || !list || !nList) continue;
     const color = LAP_JENIS_COLOR[LAP_CASCADE_LEVELS[l]].hdr;
     const sr = src.getBoundingClientRect(), lr = list.getBoundingClientRect();
-    const sy = Math.min(Math.max(sr.top + sr.height / 2, lr.top + 6), lr.bottom - 6) - wr.top;   // tetap nempel walau card tergulir keluar
+    const sy = Math.min(Math.max(sr.top + sr.height / 2, lr.top + 6), lr.bottom - 6) - wr.top;
     const sx = sr.right - wr.left;
     defs += `<marker id="lapArr_${l}" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" markerUnits="userSpaceOnUse" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="${color}"/></marker>`;
     const nr = nList.getBoundingClientRect();
     nList.querySelectorAll('.lap-col-item').forEach(ch => {
       const cr = ch.getBoundingClientRect();
       const cyRaw = cr.top + cr.height / 2;
-      if (cyRaw < nr.top - 4 || cyRaw > nr.bottom + 4) return;   // anak yang tergulir keluar: garis disembunyikan
+      if (cyRaw < nr.top - 4 || cyRaw > nr.bottom + 4) return;
       const ex = cr.left - wr.left - 1, ey = cyRaw - wr.top;
-      // Jalur siku (elbow) dengan sudut membulat: keluar horizontal -> batang vertikal bersama (tx) -> masuk horizontal
-      // ke card anak, jadi semua anak panah selalu lurus horizontal & rapi walau anaknya banyak.
       const tx = sx + (ex - sx) * 0.45;
       const dy = ey - sy, d = dy >= 0 ? 1 : -1;
       const r  = Math.min(8, Math.abs(dy) / 2);
@@ -3092,7 +3005,6 @@ function _buildLapParentCsel(wrapperId, opts, selectedVal, placeholder, jenisLab
   panel.className = 'csel-panel csel-panel-fixed csel-panel-searchable';
   panel.style.display = 'none';
 
-  // Kotak cari (sama seperti dropdown searchable lain di sistem)
   const searchWrap = document.createElement('div');
   searchWrap.className = 'csel-search-wrap';
   searchWrap.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-4.35-4.35"/></svg><input type="text" class="csel-search-input" placeholder="Cari…" autocomplete="off" />`;
@@ -3228,7 +3140,6 @@ function openLapTemplateModal(id = null, jenis = null, parentId = null, parentNa
     parentDisplay.style.display = '';
     const parentJenis = LAP_CASCADE_LEVELS[level - 1];
     _buildLapParentCsel('lapTemplateParentWrap', [], parentId, '- Memuat Induk -', LAP_JENIS_LABEL[parentJenis]);
-    // Batasi pilihan induk hanya pada anak dari item yang sedang dipilih di board
     const grandParentId = level >= 2 ? _lapCascadeSel[level - 2] : null;
     const parentQs = grandParentId
       ? `jenis=${parentJenis}&parent_id=${grandParentId}`
@@ -3346,7 +3257,7 @@ async function openLapTemplateIndikatorModal(templateId, templateNama, templateJ
   document.getElementById('modalLapTemplateIndSub').textContent = 'Template ' + (LAP_JENIS_LABEL[templateJenis] || templateJenis);
   document.getElementById('lapTplIndSearch').value = '';
   document.getElementById('lapTplIndFilterJenis').value = '';
-  { const _info = document.getElementById('lapTplIndSelectedInfo'); if (_info) _info.textContent = ''; }  // buang sisa hitungan modal sebelumnya
+  { const _info = document.getElementById('lapTplIndSelectedInfo'); if (_info) _info.textContent = ''; }
   document.getElementById('lapTplIndList').innerHTML = '<div style="text-align:center;padding:20px;color:#94a3b8"><span class="btn-spin" style="width:11px;height:11px;vertical-align:-1px;margin-right:6px"></span>Memuat data...</div>';
   openModal('modalLapTemplateIndikator');
 
@@ -3375,9 +3286,6 @@ function _filterLapTplIndList() {
   if (jenis === 'spm')  list = list.filter(r => r.jenis_spm);
   if (jenis === 'subkeg') list = list.filter(r => Array.isArray(r.jenis_custom) && r.jenis_custom.includes('subkeg'));
 
-  // Indikator yang sudah terpilih ditaruh paling atas (urutan asal tetap dijaga di tiap grup).
-  // Diurutkan hanya saat render ulang (buka modal, cari, filter, pilih/hapus semua),
-  // bukan saat centang satu item, supaya baris tidak loncat sendiri ketika diklik.
   list = list.slice().sort((a, b) => (_lapTplSelectedIds.has(b.id) ? 1 : 0) - (_lapTplSelectedIds.has(a.id) ? 1 : 0));
 
   const container = document.getElementById('lapTplIndList');

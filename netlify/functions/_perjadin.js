@@ -1,15 +1,9 @@
 import { runOnce } from './_db.js';
 
-// Helper bersama untuk modul Perjadin (Perjalanan Dinas). Dipakai oleh perjadin.js (input/rekap admin)
-// dan absensi.js (form Perjalanan Dinas yang ikut terkirim saat user mengajukan Tugas Luar).
-
 export const SKPD_DEFAULT = 'Dinas Kesehatan, Pengendalian Penduduk dan Keluarga Berencana';
 export const JENIS_PERJADIN = ['Dalam Kota', 'Luar Kota Dalam Provinsi', 'Luar Provinsi'];
 export const STATUS_VERIFIKASI = ['menunggu', 'terverifikasi', 'ditolak'];
 
-// Rincian biaya/transportasi/penginapan disimpan di kolom JSONB `detail`. Kuncinya 1:1 dengan kolom di
-// "Form Rekapitulasi Perjalanan Dinas" (Lampiran 6). Dipisah dari kolom biasa karena driver Neon HTTP
-// tidak mendukung query dinamis, jadi ~50 kolom flat berarti INSERT/UPDATE yang sangat panjang.
 const _tiket = (p) => [
   `${p}_asal`, `${p}_asal_maskapai`, `${p}_asal_tiket`,
   `${p}_transit`, `${p}_transit_maskapai`, `${p}_transit_tiket`,
@@ -28,9 +22,7 @@ export const DETAIL_RP = [
   'penginapan_rp', 'penginapan_30_rp', 'lain_rp',
 ];
 export const DETAIL_DATE = ['penginapan_checkin', 'penginapan_checkout'];
-// Diisi/dihitung admin (bendahara), bukan user yang mengajukan.
 export const DETAIL_ADMIN_ONLY = ['uang_harian_rp', 'uang_representasi_rp', 'penginapan_30_rp'];
-// Kode bandara selalu huruf besar (LUW, UPG, CGK, ...).
 const KODE_BANDARA = new Set(
   ['udara_pergi', 'udara_pulang'].flatMap((p) => [`${p}_asal`, `${p}_transit`, `${p}_tujuan`])
 );
@@ -75,7 +67,6 @@ export function ensurePerjadinSchema(sql) {
         updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
       )
     `;
-    // Sumber Dana (label dari master Sumber Dana e-Planning, mis. "1.1 - DAK Fisik")
     await sql`ALTER TABLE perjadin ADD COLUMN IF NOT EXISTS sumber_dana TEXT`;
     await sql`CREATE INDEX IF NOT EXISTS idx_perjadin_tgl_mulai ON perjadin (tgl_mulai)`;
     await sql`CREATE INDEX IF NOT EXISTS idx_perjadin_pengajuan ON perjadin (pengajuan_id)`;
@@ -83,7 +74,6 @@ export function ensurePerjadinSchema(sql) {
   });
 }
 
-// Data pelaksana (nama, NIP, sub unit) dari akun user + tabel pegawai (dicocokkan lewat NIP).
 export async function getPelaksana(sql, userId) {
   const rows = await sql`
     SELECT u.id, u.nama, u.nip, b.nama AS sub_unit
@@ -128,11 +118,6 @@ export function hitungTotal(detail) {
   return { jumlah_transport, jumlah_taksi, jumlah_biaya };
 }
 
-// Validasi + normalisasi input form Perjalanan Dinas -> baris siap simpan.
-//  admin=true : semua field dari `input` dipakai (field yang tidak dikirim dipertahankan dari `base`).
-//  admin=false: hanya field yang boleh diisi user yang dipakai; pelaksana & tanggal selalu dari `base`
-//               (diambil server dari akun user & data pengajuan), field khusus admin dari `base`.
-// Return { error } atau { row }.
 export function buildPerjadin(input = {}, { admin = false, base = {} } = {}) {
   const src = input || {};
   const has = (k) => Object.prototype.hasOwnProperty.call(src, k) && src[k] !== undefined;
@@ -168,7 +153,6 @@ export function buildPerjadin(input = {}, { admin = false, base = {} } = {}) {
     kota_tujuan: pick('kota_tujuan', 100),
   };
 
-  // Pelaksana & tanggal pelaksanaan: admin boleh mengisi/ubah, user selalu dari server.
   if (admin) {
     const uid = has('user_id') ? parseInt(src.user_id) : base.user_id;
     row.user_id = Number.isInteger(uid) && uid > 0 ? uid : null;
@@ -194,7 +178,6 @@ export function buildPerjadin(input = {}, { admin = false, base = {} } = {}) {
   if (!row.kota_tujuan) return { error: 'Kota tujuan wajib diisi' };
   row.jumlah_hari = hitungHari(row.tgl_mulai, row.tgl_selesai);
 
-  // Rincian biaya (JSONB). Hanya field yang terisi yang disimpan.
   const dSrc = (src.detail && typeof src.detail === 'object') ? src.detail : {};
   const dBase = (base.detail && typeof base.detail === 'object') ? base.detail : {};
   const detail = {};
@@ -226,8 +209,6 @@ export function buildPerjadin(input = {}, { admin = false, base = {} } = {}) {
   return { row };
 }
 
-// disetujui=true: input oleh admin / user akses penuh -> langsung 'terverifikasi' (Disetujui), tanpa menunggu.
-// Input user biasa (pengajuan) tetap 'menunggu' sampai admin menyetujui.
 export async function insertPerjadin(sql, row, { sumber = 'admin', pengajuan_id = null, input_by = null, disetujui = false } = {}) {
   const stat = disetujui ? 'terverifikasi' : 'menunggu';
   const vBy = disetujui ? input_by : null;
@@ -274,11 +255,6 @@ export async function updatePerjadin(sql, id, row) {
   return rows[0] || null;
 }
 
-// ── Sinkron Absensi (Tugas Luar) → Perjadin ──
-// Setiap Tugas Luar di absensi harus punya baris di rekap Perjadin. Kalau user sudah mengisi form Perjalanan
-// Dinas (lewat pengajuan), baris itu dipakai apa adanya. Kalau belum (input manual admin, pengajuan tanpa form,
-// ubah status jadi Tugas Luar), dibuat baris "kerangka": jenis/kota/biaya kosong, status verifikasi 'menunggu',
-// supaya admin tinggal melengkapinya dari menu Perjadin.
 export async function syncPerjadinDariAbsensi(sql, { user_id, tgl_mulai, tgl_selesai, keterangan = null, pengajuan_id = null, input_by = null, disetujui = false }) {
   if (!user_id || !_isYMD(tgl_mulai) || !_isYMD(tgl_selesai)) return null;
   await ensurePerjadinSchema(sql);
@@ -308,8 +284,6 @@ export async function syncPerjadinDariAbsensi(sql, { user_id, tgl_mulai, tgl_sel
   return insertPerjadin(sql, row, { sumber: 'absensi', pengajuan_id, input_by, disetujui });
 }
 
-// Absensi Tugas Luar dihapus → buang baris kerangka Perjadin yang belum dilengkapi, kalau sudah tidak ada
-// absensi Tugas Luar lain di rentangnya. Baris yang sudah diisi (jenis/biaya/verifikasi) tidak disentuh.
 export async function bersihkanKerangkaPerjadin(sql, { user_id, tanggal }) {
   if (!user_id || !tanggal) return;
   await ensurePerjadinSchema(sql);
@@ -328,8 +302,6 @@ export async function bersihkanKerangkaPerjadin(sql, { user_id, tanggal }) {
   }
 }
 
-// Sekali jalan per database: Tugas Luar lama di absensi yang belum ada di Perjadin dibuatkan baris kerangka.
-// Dikelompokkan per pengajuan, atau per rentang tanggal berurutan untuk input manual.
 export function backfillPerjadinDariAbsensi(sql) {
   return runOnce('perjadin.backfill_absensi', async () => {
     await ensurePerjadinSchema(sql);

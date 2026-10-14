@@ -1,12 +1,3 @@
-// API notifikasi user (lonceng "Notifikasi"). Dipanggil lewat /api/notifikasi/* (rule /api/* di netlify.toml).
-//   GET  /api/notifikasi/saya         daftar notifikasi aktif milik user login, jumlah belum dibaca, dan modul yang dimute
-//   GET  /api/notifikasi/ringkasan    hanya jumlah belum dibaca (ringan, untuk polling)
-//   POST /api/notifikasi/:id/baca     tandai satu notifikasi dibaca
-//   POST /api/notifikasi/baca-semua   tandai semua notifikasi yang tampil dibaca
-//   PUT  /api/notifikasi/preferensi   { modul, nonaktif } nonaktifkan / aktifkan notifikasi satu modul
-// Pembuatan notifikasi hanya dari backend (endpoint modul dan notif-cron.js), tidak ada endpoint tulis notifikasi untuk klien.
-// Modul yang dimute menyembunyikan notifikasinya, KECUALI yang berprioritas 'peringatan' (tetap tampil dan tetap dihitung).
-// Notifikasinya sendiri tetap tersimpan, jadi mengaktifkan lagi modulnya memunculkan kembali yang masih berlaku.
 import { getDb, jsonResponse, errorResponse, parseBody } from './_db.js';
 import { requireAuth } from './_auth.js';
 import { ensureNotifSchema, MODUL_NOTIF } from './_notif.js';

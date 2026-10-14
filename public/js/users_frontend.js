@@ -196,7 +196,6 @@ function filterUsers() {
   renderUsersTable();
 }
 
-// Daftar pengguna sesuai pencarian + filter unit kerja yang sedang aktif (dipakai tabel & download)
 function _getVisibleUsers() {
   return _users
     .filter(u => !u.is_admin)
@@ -224,10 +223,10 @@ async function downloadUsersExcel() {
     const rows = list.map((u, i) => [
       i + 1,
       u.nama || '',
-      String(u.nip || ''),   // teks supaya NIP 18 digit tidak berubah jadi notasi ilmiah
+      String(u.nip || ''),
       u.email || '',
       u.jabatan || '',
-      (_bidang.find(x => x.id === u.bidang_id)?.nama) || '',   // nama mentah (getBidangNama sudah di-escape HTML)
+      (_bidang.find(x => x.id === u.bidang_id)?.nama) || '',
       u.is_active === false ? 'Nonaktif' : 'Aktif',
       u.last_login ? fmtDate(u.last_login) : '',
     ]);
@@ -497,10 +496,9 @@ async function saveUser() {
     nama:     document.getElementById('userNama').value.trim(),
     nip:      document.getElementById('userNip').value.trim(),
     email:    document.getElementById('userEmail').value.trim(),
-    jabatan:  document.getElementById('userJabatan').value.trim(),   // kosong = hapus jabatan (profil jatuh ke Unit Kerja)
+    jabatan:  document.getElementById('userJabatan').value.trim(),
     bidang_id: bidangVal ? parseInt(bidangVal) : null,
   };
-  // Email opsional: kosong atau "-" dianggap tidak diisi.
   if (body.email === '-') body.email = '';
   if (!body.nama || !body.nip) { toast('Nama dan NIP wajib diisi', 'error'); return; }
   try {
@@ -610,9 +608,6 @@ async function resetUserPassword(id, nama) {
   } catch { toast('Gagal mereset password', 'error'); }
 }
 
-// Hierarki hak akses: Menu (grup) › Sub-menu. Key permission TIDAK berubah (kompatibel dgn backend).
-// base   = izin utama menu itu sendiri (kalau ada); items = sub-menu / tingkat akses di bawahnya.
-// admin  = true → tingkat "Admin Penuh" (tidak ikut "Pilih semua", harus dicentang manual).
 const PERM_GROUPS = [
   { id: 'dashboard', name: 'Dashboard', icon: 'M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z',
     base: { key: 'dashboard', desc: 'Lihat halaman dashboard' }, items: [] },
@@ -665,18 +660,15 @@ const PERM_GROUPS = [
       { key: 'eplanning.admin',      name: 'Admin Verifikator', admin: true, desc: 'Verifikasi lintas-bidang, sahkan final, kelola master data & pengaturan (setara admin)' },
     ] },
 ];
-// Daftar datar (dipertahankan kalau ada kode lain yang butuh)
 const PERM_DEFS = PERM_GROUPS.flatMap(g => [g.base && { key: g.base.key, name: g.name, desc: g.base.desc }, ...g.items].filter(Boolean));
 
 let _editingPermsUserId = null;
 let _selectedPerms = new Set();
 let _permsOpenGroups = new Set();
 
-// Verifikator Kinerja: penugasan disimpan di tabel kinerja_verifikator (bukan user_permissions).
-// Key 'kinerja.verifikator' & 'kinerja.verifikator.unit.<id>' hanya state UI, dibuang sebelum simpan hak akses.
-let _vfAvail = false;      // true kalau user login boleh mengelola verifikator (Superadmin)
-let _vfBidangOpts = [];    // daftar unit kerja aktif
-let _vfRows = [];          // penugasan milik user yang sedang diedit
+let _vfAvail = false;
+let _vfBidangOpts = [];
+let _vfRows = [];
 const _VF_KEY = 'kinerja.verifikator';
 const _VF_UNIT = 'kinerja.verifikator.unit.';
 function _permGroupKeys(g) { return [g.base?.key, ...g.items.filter(i => !(i.verif && !_vfAvail)).map(i => i.key)].filter(Boolean); }
@@ -694,7 +686,6 @@ async function openPermsModal(userId) {
     _selectedPerms = new Set(d.permissions || []);
   } catch { _selectedPerms = new Set(); }
 
-  // Penugasan verifikator user ini (hanya Superadmin yang bisa memuat)
   _vfAvail = false; _vfBidangOpts = []; _vfRows = [];
   try {
     const rv = await fetch('/api/kinerja/verifikator', { headers: authHeaders() });
@@ -711,7 +702,6 @@ async function openPermsModal(userId) {
     }
   } catch { _vfAvail = false; }
 
-  // Grup yang sudah punya akses dibuka otomatis; sisanya tertutup
   _permsOpenGroups = new Set(PERM_GROUPS.filter(g => _permGroupKeys(g).some(k => _selectedPerms.has(k))).map(g => g.id));
   renderPermsGrid();
   openModal('modalPerms');
@@ -743,7 +733,6 @@ function renderPermsGrid() {
     const hasKids = g.items.length > 0;
     const open = hasKids && _permsOpenGroups.has(g.id);
 
-    // State checkbox header
     let state;
     if (g.base) state = _selectedPerms.has(g.base.key) ? 'on' : 'off';
     else {
@@ -786,14 +775,11 @@ function renderPermsGrid() {
   if (scroller) scroller.scrollTop = top;
 }
 
-// Daftar unit kerja yang boleh dipantau (muncul saat "Pantau Beberapa Unit Kerja" dicentang).
-// Disimpan sebagai permission 'kinerja.pantau.unit.<bidang_id>'.
 function _permUnitPickerHtml(g) {
   if (g.id !== 'kinerja') return '';
   return _permPantauPickerHtml() + _permVerifPickerHtml();
 }
 
-// Unit kerja yang ditugaskan ke verifikator (muncul saat "Verifikator Kinerja" dicentang).
 function _permVerifPickerHtml() {
   if (!_vfAvail || !_selectedPerms.has(_VF_KEY)) return '';
   const rows = _vfBidangOpts.map(b => {
@@ -842,12 +828,10 @@ function permsClearAll() {
   renderPermsGrid();
 }
 
-// Checkbox di header grup
 function permsToggleGroup(id) {
   const g = PERM_GROUPS.find(x => x.id === id);
   if (!g) return;
   if (g.base) {
-    // Menu dengan izin utama: centang = beri akses; cabut = ikut cabut sub-tingkat (Admin Penuh)
     if (_selectedPerms.has(g.base.key)) _permGroupKeys(g).forEach(k => _selectedPerms.delete(k));
     else { _selectedPerms.add(g.base.key); _permsOpenGroups.add(g.id); }
   } else {
@@ -872,7 +856,6 @@ function togglePerm(key) {
   } else {
     _selectedPerms.add(key);
     if (key === 'superlink.shortlink' || key === 'superlink.bundle') _permSyncSuperlink();
-    // Admin Penuh otomatis butuh izin dasar menunya
     if (key === 'surat.masuk.full')  _selectedPerms.add('surat.masuk');
     if (key === 'surat.keluar.full') _selectedPerms.add('surat.keluar');
     if (key === 'absensi.full')      _selectedPerms.add('absensi');
@@ -904,8 +887,6 @@ async function savePerms() {
   } catch { toast('Gagal menyimpan', 'error'); }
 }
 
-// Samakan penugasan verifikator user dengan pilihan di modal: unit baru/nonaktif -> POST (aktifkan),
-// unit aktif yang dilepas -> DELETE (cabut penugasan; riwayat verifikasi tetap tersimpan).
 async function _syncVerifikator(userId, wantUnits) {
   const want = new Set(wantUnits.map(Number));
   const aktifNow = new Set(_vfRows.filter(x => x.aktif).map(x => Number(x.bidang_id)));
@@ -1043,15 +1024,12 @@ let _assignIndikatorUserId = null;
 let _assignIndikatorList   = [];   
 let _assignSelectedIds     = new Set();
 let _assignSearch          = '';
-// Id yang ditaruh di atas daftar. Di-snapshot dari _assignSelectedIds hanya saat modal dibuka
-// atau saat cari/filter berubah, BUKAN saat centang satu item, supaya baris tidak loncat ketika diklik.
 let _assignPinnedIds       = new Set();
 
-// Daftar seluruh indikator cukup berat, jadi di-cache sebentar (per tab). Data assignment per user selalu diambil baru.
 let _assignAllCache = { at: 0, data: null };
 const _ASSIGN_CACHE_MS = 2 * 60 * 1000;
 let _assignLoaded  = false;
-let _assignOpenSeq = 0;   // cegah race kalau modal dibuka berulang cepat
+let _assignOpenSeq = 0;
 
 async function _assignGetAllIndikator() {
   if (_assignAllCache.data && Date.now() - _assignAllCache.at < _ASSIGN_CACHE_MS) return _assignAllCache.data;
@@ -1091,7 +1069,6 @@ async function openAssignIndikatorModal(userId) {
   const searchEl = document.getElementById('assignIndikatorSearch');
   if (searchEl) searchEl.value = '';
 
-  // Buka modal langsung, data menyusul (tidak perlu nunggu fetch selesai dulu).
   _assignSetLoading(true);
   openModal('modalAssignIndikator');
 
@@ -1102,7 +1079,7 @@ async function openAssignIndikatorModal(userId) {
     ]);
     if (!ra.ok) throw new Error('assign');
     const da = await ra.json();
-    if (seq !== _assignOpenSeq) return;   // modal sudah dibuka untuk user lain
+    if (seq !== _assignOpenSeq) return;
 
     const userBidang = _bidang.find(b => b.id === u?.bidang_id);
     const userBidangNama = userBidang?.nama?.trim() || null;
@@ -1113,7 +1090,6 @@ async function openAssignIndikatorModal(userId) {
     _assignLoaded = true;
   } catch {
     if (seq !== _assignOpenSeq) return;
-    // Gagal muat: Simpan dikunci supaya assignment lama tidak tertimpa daftar kosong.
     _assignSetLoading(false, 'Gagal memuat indikator. Tutup lalu coba lagi.');
     return;
   }
@@ -1143,8 +1119,6 @@ function _renderAssignIndikatorList(resetScroll = false) {
     return;
   }
 
-  // Indikator yang sudah terpilih (snapshot _assignPinnedIds) tampil paling atas di tiap grup;
-  // urutan asal tetap dijaga di dalam masing-masing kelompok (sort stabil).
   const ordered = filtered.slice().sort((a, b) =>
     (_assignPinnedIds.has(b.id) ? 1 : 0) - (_assignPinnedIds.has(a.id) ? 1 : 0));
 

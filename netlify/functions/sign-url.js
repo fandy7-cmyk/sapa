@@ -207,8 +207,6 @@ export const handler = async (event) => {
     const targetUrl = body.url || qs.url || '';
     if (!targetUrl) return { statusCode: 400, headers: CORS, body: JSON.stringify({ error: 'URL diperlukan' }) };
 
-    // Hanya admin, atau user yang mengupload file itu sendiri, yang boleh menghapus.
-    // upload.js menamai file `${timestamp}_${userId}_${nama}`, jadi pemilik bisa dibaca dari nama file.
     if (!user.is_admin) {
       let fname = '';
       try { fname = decodeURIComponent(new URL(targetUrl).pathname.split('/').pop() || ''); } catch {}

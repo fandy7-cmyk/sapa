@@ -1,5 +1,3 @@
-/* DIHASILKAN OTOMATIS oleh tools/gen-dark.js - jangan diedit tangan.
-   Edit tools/dark-manual-*.css lalu jalankan ulang generator. */
 @media screen {
 html[data-theme="dark"] .item-card .item-icon{color:#2dd4bf}
 html[data-theme="dark"] .item-card .item-icon svg{color:#2dd4bf}

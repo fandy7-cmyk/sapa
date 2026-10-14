@@ -6,13 +6,10 @@ import { sinkronLembur, notifLemburDicatat, notifLemburJadwal, notifLemburEntri 
 
 const TZ = 'Asia/Makassar';
 
-// Notifikasi lonceng bersifat best-effort: kegagalannya tidak boleh menggagalkan aksi utamanya.
 async function notifSafe(fn) {
   try { await fn(); } catch (e) { console.error('[notif]', e); }
 }
 
-// "Hari ini" versi WITA, bukan timezone server (Netlify function jalan di UTC) - biar konsisten
-// sama batas tanggal yang dicek di frontend (_lemburIsTanggalFuture / data-cdtp-max-today).
 function hariIniStr() {
   return new Intl.DateTimeFormat('en-CA', { timeZone: TZ, year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
 }
@@ -43,18 +40,12 @@ async function hasFull(auth, sql) {
   return rows.length > 0;
 }
 
-// Kolom "catatan" (catatan kasubag terkait redaksi uraian tugas tiap peserta) -
-// ditambahin belakangan, jadi di-migrate sendiri di sini (pola sama kayak
-// ensureSchema di eplanning.js) biar gak perlu migration manual di DB produksi.
-// Kolom jam_mulai/jam_selesai per peserta - opsional, override jam sesi buat peserta
-// tertentu (misal masuk/pulang lembur beda dari peserta lain). NULL = ikut jam sesi.
 let _lemburSchemaReady = false;
 async function ensureLemburSchema(sql) {
   if (_lemburSchemaReady) return;
   await sql`ALTER TABLE lembur_entries ADD COLUMN IF NOT EXISTS catatan TEXT`;
   await sql`ALTER TABLE lembur_entries ADD COLUMN IF NOT EXISTS jam_mulai TIME`;
   await sql`ALTER TABLE lembur_entries ADD COLUMN IF NOT EXISTS jam_selesai TIME`;
-  // Batas hari lembur per orang per kegiatan - cuma reminder di UI, gak divalidasi. NULL = gak ada batas.
   await sql`ALTER TABLE lembur_kegiatan ADD COLUMN IF NOT EXISTS maks_hari INT`;
   _lemburSchemaReady = true;
 }
@@ -74,14 +65,13 @@ export const handler = async (event) => {
 
   const rawPath = event.path.replace(/.*\/lembur/, '') || '/';
   const segments = rawPath.split('/').filter(Boolean);
-  const resource = segments[0] || null; // kegiatan | sesi | entries | dokumentasi
+  const resource = segments[0] || null;
   const seg1 = segments[1] || null;
   const seg2 = segments[2] || null;
   const seg3 = segments[3] || null;
   const id1 = seg1 && !isNaN(seg1) ? parseInt(seg1) : null;
   const q = event.queryStringParameters || {};
 
-  // ---------------------------------------------------------------- KEGIATAN
   if (resource === 'kegiatan') {
     if (event.httpMethod === 'GET' && !id1) {
       try {
@@ -170,7 +160,6 @@ export const handler = async (event) => {
     }
   }
 
-  // ----------------------------------------------------------- CEK TANGGAL
   if (resource === 'cek-tanggal' && event.httpMethod === 'GET') {
     const tanggal = q.tanggal || null;
     if (!tanggal) return errorResponse('tanggal wajib diisi', 400);
@@ -191,10 +180,6 @@ export const handler = async (event) => {
     } catch (err) { return errorResponse('Gagal mengecek tanggal: ' + err.message); }
   }
 
-  // ------------------------------------------------------- TANGGAL TERPAKAI
-  // Daftar tanggal dlm sebulan yg udah ada lembur - dipakai date picker "Tanggal Lembur"
-  // buat nge-disable tanggal itu langsung di kalender (disamain sama pola data-cdtp-libur),
-  // biar user gak perlu coba klik "+Tambah" dulu baru ketauan tanggalnya udah kepake.
   if (resource === 'tanggal-terpakai' && event.httpMethod === 'GET') {
     const { tahun, bulan } = q;
     if (!tahun || !bulan) return errorResponse('tahun dan bulan wajib diisi', 400);
@@ -218,9 +203,7 @@ export const handler = async (event) => {
     } catch (err) { return errorResponse('Gagal mengambil tanggal terpakai: ' + err.message); }
   }
 
-  // -------------------------------------------------------------------- SESI
   if (resource === 'sesi') {
-    // POST /sesi/:id/peserta  -> tambah peserta
     if (event.httpMethod === 'POST' && id1 && seg2 === 'peserta') {
       if (!full) return errorResponse('Akses ditolak', 403);
       const { user_ids } = parseBody(event);
@@ -248,7 +231,6 @@ export const handler = async (event) => {
       } catch (err) { return errorResponse('Gagal menambah peserta: ' + err.message); }
     }
 
-    // DELETE /sesi/:id/peserta/:userId -> hapus peserta
     if (event.httpMethod === 'DELETE' && id1 && seg2 === 'peserta' && seg3) {
       if (!full) return errorResponse('Akses ditolak', 403);
       try {
@@ -326,9 +308,6 @@ export const handler = async (event) => {
           if (dup.length) return errorResponse('Sudah ada sesi lembur pada tanggal ini (di kegiatan lain)', 409);
         }
         const sebelum = await sql`SELECT tanggal::text AS t, to_char(jam_mulai, 'HH24:MI') AS jm, to_char(jam_selesai, 'HH24:MI') AS js FROM lembur_sesi WHERE id = ${id1} LIMIT 1`;
-        // COALESCE(param, kolom) - bukan nested sql`kolom` tag - driver Neon (`neon()` HTTP,
-        // tanpa session) gak bisa compose sql tag bersarang; kalau field gak dikirim (undefined),
-        // COALESCE bikin kolom itu tetep ikut nilai lama tanpa perlu fragment sql bersarang.
         const rows = await sql`
           UPDATE lembur_sesi SET
             tanggal = COALESCE(${tanggal ?? null}, tanggal),
@@ -362,7 +341,6 @@ export const handler = async (event) => {
     }
   }
 
-  // ---------------------------------------------------------------- ENTRIES
   if (resource === 'entries') {
     if (event.httpMethod === 'GET' && !id1) {
       const sesiId = q.sesi_id ? parseInt(q.sesi_id) : null;
@@ -389,22 +367,6 @@ export const handler = async (event) => {
         const owner = await sql`SELECT user_id, jam_mulai, jam_selesai FROM lembur_entries WHERE id = ${id1} LIMIT 1`;
         if (!owner.length) return errorResponse('Entri tidak ditemukan', 404);
 
-        // Jam per peserta (override jam sesi) - sama kayak Catatan, cuma admin/kasubag (full)
-        // yang boleh ubah. Kirim string kosong/null buat balikin ke jam sesi (default).
-        //
-        // PENTING: jangan pernah UPDATE dua kolom (jam_mulai & jam_selesai) sekaligus di sini
-        // pakai nilai salah satunya hasil SELECT "owner" di atas (snapshot SEBELUM update ini
-        // jalan). Frontend kadang kirim 2 PUT bersamaan buat entri yg sama (jam_mulai & jam_selesai
-        // kepicu sekaligus dari 1 aksi user - lihat _lemburJamPartCommit di lembur_frontend.js).
-        // Kalau field yg "gak dikirim" itu ditulis ulang pakai snapshot lama, request yg SELECT
-        // duluan bisa nimpa balik kolom yg BARUSAN disimpen sama request satunya -> race condition,
-        // hasil auto-adjust jam_selesai ilang lagi ketimpa nilai lama.
-        // sql`kolom` (nested fragment) buat "biarin kolom apa adanya" JUGA gak bisa dipakai -
-        // driver Neon (`neon()` dari @neondatabase/serverless, mode HTTP tanpa session) gak
-        // bisa compose sql tag bersarang, hasilnya malah ke-stringify jadi teks aneh & gagal
-        // di-cast ke tipe TIME (contoh: "invalid input syntax for type time: {parameterizedQuery...}").
-        // Makanya fix-nya: UPDATE cuma nyentuh kolom yang BENERAN dikirim di body - dipisah per
-        // kombinasi field lewat query terpisah, bukan digabung jadi satu UPDATE dua kolom.
         if (isiJam) {
           if (!full) return errorResponse('Akses ditolak', 403);
           const punyaJamMulai = Object.prototype.hasOwnProperty.call(body, 'jam_mulai');
@@ -438,8 +400,6 @@ export const handler = async (event) => {
           return jsonResponse({ entry: rows[0] });
         }
 
-        // Catatan cuma boleh diisi/diubah sama kasubag/admin (full) - dipisah dari update
-        // uraian_tugas biar gak ketimpa null pas cuma satu field yg disimpan (blur salah satu kotak).
         if (isiCatatan) {
           if (!full) return errorResponse('Akses ditolak', 403);
           const rows = await sql`
@@ -479,7 +439,6 @@ export const handler = async (event) => {
     }
   }
 
-  // ----------------------------------------------------------- DOKUMENTASI
   if (resource === 'dokumentasi') {
     if (event.httpMethod === 'GET' && !id1) {
       const sesiId = q.sesi_id ? parseInt(q.sesi_id) : null;
@@ -515,7 +474,6 @@ export const handler = async (event) => {
     }
   }
 
-  // -------------------------------------------------------- PEGAWAI (roster)
   if (resource === 'pegawai' && event.httpMethod === 'GET') {
     if (!full) return errorResponse('Akses ditolak', 403);
     try {

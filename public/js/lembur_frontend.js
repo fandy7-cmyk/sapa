@@ -1,14 +1,10 @@
-// ============================================================
-// LEMBUR — Kegiatan Lembur, Uraian Tugas, Dokumentasi
-// ============================================================
-
 let _lemburFull = false;
 let _lemburKegiatanList = [];
 let _lemburKegiatanPage = 1;
 const _lemburKegiatanLimit = 10;
 let _lemburKegiatanEditId = null;
 let _lemburKegiatanEditSesiId = null;
-let _lemburView = 'kegiatan'; // 'kegiatan' | 'sesi'
+let _lemburView = 'kegiatan';
 let _lemburActiveKegiatan = null;
 let _lemburSesiList = [];
 let _lemburActiveSesi = null;
@@ -21,10 +17,6 @@ let _lemburKegiatanTanggalList = [];
 
 function _lemburHasFull() { return !!(_user?.is_admin || hasAccess('lembur.full')); }
 
-// Simpan posisi drill-down (kegiatan/sesi yang lagi dibuka) ke sessionStorage biar kalau
-// halaman di-reload/refresh, tampilan balik ke posisi terakhir - bukan ke daftar awal
-// Kegiatan Lembur. Dipanggil tiap kali buka kegiatan/sesi; dibersihin pas klik "Kembali"
-// ke daftar atau pas logout (lihat removeItem('sapa_nav') di app.js).
 function _lemburSaveState() {
   try {
     if (_lemburActiveKegiatan) {
@@ -59,9 +51,6 @@ function _lemburKembaliDaftar() {
   loadLemburKegiatan(false);
 }
 
-// Lembur cuma boleh dicatat buat tanggal yang sudah terjadi (hari ini atau sebelumnya) -
-// gak boleh nyatet lembur buat tanggal yang belum kejadian (dipakai di semua tempat yang
-// nerima input tanggal lembur: tambah kegiatan baru, tambah hari, ubah tanggal hari).
 function _lemburTodayKey() {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -70,8 +59,6 @@ function _lemburIsTanggalFuture(tgl) {
   return _lemburDateKey(tgl) > _lemburTodayKey();
 }
 
-// Urutkan berdasarkan urutan_laporan yg diatur di "Kelola Pengguna" (sama kayak Laporan
-// Absensi) - yg belum diatur (null) ditaruh di belakang, urut nama sbg fallback.
 function _lemburSortByUrutanLaporan(arr) {
   return [...arr].sort((a, b) => {
     const ua = a.urutan_laporan, ub = b.urutan_laporan;
@@ -82,11 +69,6 @@ function _lemburSortByUrutanLaporan(arr) {
   });
 }
 
-// Ekstrak tanggal kalender LOKAL "YYYY-MM-DD" dari nilai tanggal apapun: string tanggal murni,
-// atau ISO datetime yang mungkin keserialize jadi UTC midnight dari kolom DATE Postgres (mis.
-// "2026-09-08T16:00:00.000Z" utk tanggal kalender 9 Sept WITA). Naive slice(0,10) di titik-titik
-// ini dulu yang bikin tanggal sesi kepeleset mundur sehari (data absensi ikut kebawa salah tanggal,
-// bukan cuma tampilan date picker-nya - lihat juga fix serupa di initCdtp._cdtp.set()).
 function _lemburDateKey(tgl) {
   if (!tgl) return null;
   const s = String(tgl);
@@ -96,11 +78,6 @@ function _lemburDateKey(tgl) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
-// ---------------------------------------------------------------- WARNA KEGIATAN
-// Tiap kegiatan lembur dapat warna sendiri yang konsisten dipakai di kalender & legenda.
-// Urutan warna ngikutin urutan kegiatan dibuat (created_at/id ascending) biar stabil
-// antar render & antar kalender bulan yg beda-beda (lihat _lemburSiapkanWarna, dipanggil
-// sekali dari dashboard.js sebelum kalender-kalender bulan dirender).
 const LEMBUR_PALET_WARNA = ['#10b981', '#3b82f6', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#14b8a6', '#f97316', '#6366f1', '#84cc16', '#06b6d4', '#a855f7'];
 const _lemburWarnaMap = new Map();
 function _lemburSiapkanWarna(kegiatanList) {
@@ -128,13 +105,9 @@ async function loadLemburKegiatan(autoRestore = true) {
     <div id="lemburBody"></div>
   `;
   await _lemburRenderKegiatanList();
-  // Kalau ada posisi drill-down tersimpan (mis. abis reload halaman), balik lagi ke situ.
-  // Loader yang mau nentuin tujuan sendiri (kalender, dsb) panggil dgn autoRestore=false.
   if (autoRestore) await _lemburRestoreState();
 }
 
-// Kalender lembur: hijau kalau ada hari lembur tercatat di tanggal itu, abu2 kalau tidak.
-// Klik tanggal yg ada lembur -> langsung buka detail hari lembur itu.
 function _lemburKalenderPanel(sesiList, bulan, tahun, liburSet = new Set(), liburMap = new Map()) {
   const daysInMonth = new Date(tahun, bulan, 0).getDate();
   const today = new Date();
@@ -157,9 +130,6 @@ function _lemburKalenderPanel(sesiList, bulan, tahun, liburSet = new Set(), libu
     const isFuture = key > todayKey;
     const s = byDay.get(key);
 
-    // Weekend/hari libur ditandai duluan (disamain sama Kalender Kehadiran Absensi) -
-    // walau ada sesi lembur tercatat di tanggal itu, tetep gak masalah karena
-    // klik masih jalan lewat data-tip kalau memang ada s (jarang, tapi jaga-jaga).
     if (isWeekend || isLiburTanggal) {
       const namaLibur = liburMap.get(key) || 'hari libur';
       const liburTip = isWeekend && isLiburTanggal ? `akhir pekan & ${namaLibur}` : isWeekend ? 'Akhir Pekan' : namaLibur;
@@ -213,8 +183,6 @@ async function _lemburBukaDariKalender(kegiatanId, sesiId) {
   await _lemburOpenSesi(sesiId);
 }
 
-// Dipanggil dari kalender lembur di halaman manapun (Dashboard/Kegiatan Lembur) -
-// pindah dulu ke halaman Kegiatan Lembur baru buka detail hari itu.
 function _lemburKalenderKlikTanggal(kegiatanId, sesiId) {
   navigateTo('lembur-kegiatan', 'Kegiatan Lembur', () => {
     loadLemburKegiatan(false).then(() => _lemburBukaDariKalender(kegiatanId, sesiId));
@@ -230,11 +198,6 @@ async function _lemburFetchKegiatan() {
   } catch { toast('Gagal mengambil kegiatan lembur', 'error'); }
 }
 
-/* ── Statcard Kegiatan Lembur ──
-   Gaya sama dengan Monitoring Kinerja (.stat-card + garis aksen kiri). Ada di 3 tingkat:
-   daftar kegiatan, daftar hari lembur (sesi), dan detail peserta per hari. Semua dihitung dari
-   data yang sudah dimuat untuk tabel itu (bukan per halaman). Untuk user tanpa akses penuh,
-   angkanya hanya mencakup data milik user itu sendiri (sesuai data yang dikirim API). */
 const _LEMBUR_STAT_ICON = {
   clip:  '<path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1"/><path d="M9 12h6"/><path d="M9 16h6"/>',
   cal:   '<rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4"/><path d="M8 2v4"/><path d="M3 10h18"/><path d="M8 14h.01"/><path d="M12 14h.01"/><path d="M16 14h.01"/><path d="M8 18h.01"/><path d="M12 18h.01"/>',
@@ -248,7 +211,6 @@ const _LEMBUR_STAT_ICON = {
   clock: '<circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>'
 };
 
-// cards: [[nilai, label, warna, bg, ikon], ...]; nilai angka diformat id-ID, string dipakai apa adanya
 function _lemburStatCardsHtml(cards) {
   const fmt = n => Number(n).toLocaleString('id-ID');
   return `
@@ -276,10 +238,8 @@ const _LEMBUR_STAT_C = {
 };
 const _lemburKartu = (k, v, label, icon) => [v, label, ..._LEMBUR_STAT_C[k], icon];
 
-// Tingkat 1: daftar kegiatan
 function _lemburStatsHtml(list) {
   const totalHari = list.reduce((a, k) => a + (Number(k.jumlah_sesi) || 0), 0);
-  // Berdasarkan tanggal hari lembur (sesi) di bulan berjalan; dihitung di server (zona WITA)
   const hariBulanIni     = list.reduce((a, k) => a + (Number(k.sesi_bulan_ini) || 0), 0);
   const kegiatanBulanIni = list.filter(k => (Number(k.sesi_bulan_ini) || 0) > 0).length;
   return _lemburStatCardsHtml([
@@ -290,7 +250,6 @@ function _lemburStatsHtml(list) {
   ]);
 }
 
-// Tingkat 2: daftar hari lembur dalam satu kegiatan
 function _lemburSesiStatsHtml(list) {
   const n = list.length;
   const totalPeserta = list.reduce((a, s) => a + (Number(s.jumlah_peserta) || 0), 0);
@@ -305,8 +264,6 @@ function _lemburSesiStatsHtml(list) {
   ]);
 }
 
-// Tingkat 3: detail peserta satu hari lembur. Hanya untuk akses penuh (user biasa cuma melihat
-// 1 baris miliknya sendiri, jadi ringkasan tidak ada artinya).
 function _lemburEntryStatsHtml() {
   if (!_lemburFull) return '';
   const s = _lemburActiveSesi || {};
@@ -317,7 +274,7 @@ function _lemburEntryStatsHtml() {
     const jm = e.jam_mulai || s.jam_mulai, js = e.jam_selesai || s.jam_selesai;
     if (!jm || !js) return;
     const d = toMin(js) - toMin(jm);
-    if (!isNaN(d)) menit += (d + 1440) % 1440;   // jam selesai lewat tengah malam tetap benar
+    if (!isNaN(d)) menit += (d + 1440) % 1440;
   });
   const jam = (menit / 60).toLocaleString('id-ID', { maximumFractionDigits: 1 }) + ' jam';
   const terisi = list.filter(e => String(e.uraian_tugas || '').trim()).length;
@@ -329,8 +286,6 @@ function _lemburEntryStatsHtml() {
   ]);
 }
 
-// Dipanggil setelah uraian disimpan, supaya kartu ikut berubah tanpa render ulang tabel
-// (render ulang akan mengganggu pengetikan di kolom uraian/catatan).
 function _lemburRefreshEntryStats() {
   const el = document.getElementById('lemburEntryStats');
   if (el) el.innerHTML = _lemburEntryStatsHtml();
@@ -408,18 +363,10 @@ async function _lemburOpenTambahKegiatan() {
   document.getElementById('lemburKegiatanPesertaGrid').innerHTML = '';
   { const _q = document.getElementById('lemburKegiatanPesertaSearch'); if (_q) _q.value = ''; }
   openModal('modalLemburKegiatan');
-  // Belum ada tanggal dipilih pas modal baru dibuka - jangan langsung nge-load & nyalain
-  // semua pegawai buat dipilih, soalnya status absensi (cuti/alpa/tugas luar) yang nentuin
-  // siapa boleh/gak dipilih itu tergantung tanggalnya. Grid diisi pas tanggal beneran
-  // dipilih di date picker (lihat _lemburOnKegiatanTanggalChange).
   _lemburPegawai = [];
   _lemburRenderKegiatanPesertaGrid();
 }
 
-// Nama Kegiatan sekarang combobox: opsi diambil dari nama kegiatan yang udah pernah dipakai
-// (bukan master data terpisah), biar penamaan kegiatan yang berulang (mis. "Rapat Koordinasi
-// Bulanan") konsisten - sekalian bikin warnanya di kalender konsisten juga. Pola combobox-nya
-// sama persis kayak "Keterangan" di e-Planning (pake _epMakeLocalCombobox yang sama).
 let _lemburNamaCustom = [];
 const _lemburNamaCombo = (typeof _epMakeLocalCombobox === 'function') ? _epMakeLocalCombobox({
   inputId: 'lemburKegiatanNama',
@@ -435,19 +382,14 @@ const _lemburNamaCombo = (typeof _epMakeLocalCombobox === 'function') ? _epMakeL
   onDelete: (x) => { const i = _lemburNamaCustom.indexOf(x.nama); if (i !== -1) _lemburNamaCustom.splice(i, 1); },
 }) : null;
 function lemburSearchNamaKegiatan() { _lemburNamaCombo?.search(); }
-// Dipanggil juga tiap kali Nama Kegiatan diketik manual (bukan cuma dipilih dari combobox),
-// biar visibilitas Dokumentasi ikut update real-time.
 document.addEventListener('input', (e) => {
   if (e.target.id === 'lemburKegiatanNama') _lemburUpdateKegiatanDokVisibility();
 });
 function lemburFocusNamaKegiatanBaru(e) {
   e.preventDefault();
-  e.stopPropagation(); // biar klik-nya gak ke-anggep "klik di luar" sama listener combobox yang langsung nutup lagi panel yang baru kebuka
+  e.stopPropagation();
   _lemburNamaCombo?.close();
   document.getElementById('lemburNamaKegiatanBaru').value = '';
-  // Modal "Kegiatan Lembur Baru" disembunyikan dulu (bukan di-closeModal beneran, jadi isian
-  // tanggal/jam/peserta yg udah diisi gak ilang) - biar gak numpuk 2 modal-overlay blur bareng,
-  // soalnya itu yang bikin ngetik di modal ini kerasa lag (browser ngerender 2 backdrop-blur sekaligus).
   document.getElementById('modalLemburKegiatan')?.classList.remove('open');
   openModal('modalLemburNamaKegiatan');
   setTimeout(() => document.getElementById('lemburNamaKegiatanBaru').focus(), 50);
@@ -463,8 +405,6 @@ function lemburSimpanNamaKegiatanBaru() {
   const sudahAda = [..._lemburNamaCustom, ...dariKegiatan].some(x => x.trim().toLowerCase() === nilai.toLowerCase());
   if (sudahAda) { toast('Nama kegiatan tersebut sudah ada di daftar', 'error'); document.getElementById('lemburNamaKegiatanBaru').focus(); return; }
   if (!_lemburNamaCustom.includes(nilai)) _lemburNamaCustom.push(nilai);
-  // Beda sama pola Keterangan di e-Planning: di sini field Nama Kegiatan cuma satu-satunya &
-  // wajib diisi buat lanjut, jadi langsung diisiin ke field-nya biar gak perlu buka dropdown lagi.
   document.getElementById('lemburKegiatanNama').value = nilai;
   _lemburUpdateKegiatanDokVisibility();
   _lemburTutupNamaKegiatanBaru();
@@ -479,9 +419,6 @@ function _lemburRenderTanggalChips() {
       <span class="chip-multi-remove" onclick="_lemburRemoveTanggalChip('${tgl}')">&times;</span>
     </span>
   `).join('');
-  // Peserta cuma relevan buat dipilih di modal ini kalau kegiatannya 1 hari - begitu tanggalnya
-  // lebih dari 1, tiap hari bakal disetel pesertanya sendiri-sendiri belakangan, jadi section ini
-  // disembunyikan biar user gak ngira nyetel di sini langsung berlaku sama rata buat semua tanggal.
   const lebihDariSatuHari = _lemburKegiatanTanggalList.length > 1;
   const pesertaWrap = document.getElementById('lemburKegiatanPesertaWrap');
   if (pesertaWrap) {
@@ -491,9 +428,6 @@ function _lemburRenderTanggalChips() {
   _lemburUpdateKegiatanDokVisibility();
 }
 
-// Dokumentasi cuma muncul kalau Nama Kegiatan udah diisi, tanggalnya persis 1 (lebih dari itu
-// diatur belakangan per hari, lihat blok di atas), dan minimal 1 peserta udah dicentang - biar
-// user gak ngira upload dokumentasi di sini bisa dilakuin duluan sebelum data lain lengkap.
 function _lemburUpdateKegiatanDokVisibility() {
   const dokWrap = document.getElementById('lemburKegiatanDokWrap');
   if (!dokWrap) return;
@@ -513,10 +447,6 @@ function _lemburAddTanggalChip() {
   if (!tgl) { toast('Pilih tanggal terlebih dahulu', 'error'); return; }
   if (_lemburIsTanggalFuture(tgl)) { toast('Tanggal belum bisa dipilih - lembur cuma bisa dicatat untuk tanggal yang sudah terjadi', 'error'); return; }
   if (_lemburKegiatanTanggalList.includes(tgl)) { toast('Tanggal itu sudah ditambahkan', 'error'); return; }
-  // Gak perlu fetch cek-tanggal lagi di sini - date picker-nya (data-cdtp-terpakai) udah
-  // nge-disable tanggal yang kepake langsung di kalender, jadi tanggal yang bisa nyampe sini
-  // udah pasti aman. Validasi ulang tetap jalan pas Simpan (_lemburSubmitTambahKegiatan) buat
-  // jaga-jaga kalau ada benturan pas-pasan (mis. baru ditambahin user lain).
   _lemburKegiatanTanggalList.push(tgl);
   _lemburKegiatanTanggalList.sort();
   _lemburRenderTanggalChips();
@@ -549,8 +479,6 @@ async function _lemburSubmitTambahKegiatan() {
   if (maksRaw !== '' && (!/^\d+$/.test(maksRaw) || +maksRaw < 1 || +maksRaw > 365)) { toast('Maksimal hari harus angka bulat 1-365, atau kosongkan', 'error'); return; }
   const maks_hari = maksRaw === '' ? null : +maksRaw;
 
-  // Nama kegiatan harus unik - kalau mau nambah hari lembur ke kegiatan yang udah ada dengan
-  // nama yang sama, pakai "+ Tambah Hari Lembur" di kegiatan itu, bukan bikin kegiatan baru lagi.
   const sudahAda = (_lemburKegiatanList || []).some(k =>
     k.nama_kegiatan.trim().toLowerCase() === nama.toLowerCase() && k.id !== _lemburKegiatanEditId
   );
@@ -566,7 +494,6 @@ async function _lemburSubmitTambahKegiatan() {
   }
 
   const tanggalPicker = document.getElementById('lemburKegiatanTanggal').value;
-  // pakai daftar chip tanggal jika ada; kalau kosong, pakai tanggal yang sedang dipilih di picker
   let tanggalList = [..._lemburKegiatanTanggalList];
   if (!tanggalList.length && tanggalPicker) tanggalList = [tanggalPicker];
   if (!tanggalList.length) { toast('Tanggal lembur wajib diisi', 'error'); return; }
@@ -577,9 +504,6 @@ async function _lemburSubmitTambahKegiatan() {
     return;
   }
 
-  // Cek benturan tanggal DULU buat semua tanggal sebelum nyimpen apapun - kalau ada yang bentrok,
-  // modal tetap dibuka & belum ada yang disimpan sama sekali, biar user tinggal ganti/hapus chip
-  // tanggal yang bentrok itu tanpa kehilangan isian lain (nama, jam, peserta, tanggal lain yang oke).
   const btn = document.getElementById('btnSaveLemburKegiatan');
   const _btnOrigHtml = btn ? btn.innerHTML : null;
   if (btn) { btn.disabled = true; btn.innerHTML = `<span class="btn-spin" style="width:11px;height:11px"></span> Mengecek...`; }
@@ -589,7 +513,7 @@ async function _lemburSubmitTambahKegiatan() {
         const r = await fetch(`/api/lembur/cek-tanggal?tanggal=${tanggal}`, { headers: authHeaders() });
         const d = await r.json();
         return { tanggal, terpakai: !!(r.ok && d.terpakai), nama_kegiatan: d.nama_kegiatan || null };
-      } catch { return { tanggal, terpakai: false, nama_kegiatan: null }; } // gagal cek, biar tetap lanjut & divalidasi ulang saat submit
+      } catch { return { tanggal, terpakai: false, nama_kegiatan: null }; }
     }));
     const bentrok = hasilCek.filter(h => h.terpakai);
     if (bentrok.length) {
@@ -667,7 +591,6 @@ async function _lemburCreateKegiatanMulti(nama_kegiatan, tanggalList, jam_mulai,
       }
     }
 
-    // dokumentasi hanya dilampirkan ke hari lembur pertama yang berhasil dibuat
     if (firstSesi) {
       for (const f of dokFiles) { await _lemburUploadOneDokTo(firstSesi.id, f); }
     }
@@ -677,14 +600,11 @@ async function _lemburCreateKegiatanMulti(nama_kegiatan, tanggalList, jam_mulai,
       ? `${sukses} hari lembur ditambahkan. Gagal: ${gagalDetail.join(', ')}`
       : 'Kegiatan lembur ditambahkan', gagal ? 'error' : 'success');
 
-    // Tetap di list "Kegiatan Lembur" (cuma refresh list-nya) - jangan lsg lompat ke detail
-    // sesi, biar user yang milih mau buka kegiatan mana.
     _lemburView = 'kegiatan';
     await _lemburRenderKegiatanList();
   } catch { toast('Gagal menyimpan kegiatan', 'error'); }
 }
 
-// Pencarian peserta (nama / NIP) di daftar centang; tiap kata harus cocok, urutan bebas.
 function _lemburFilterPegawai(list, inputId) {
   const q = (document.getElementById(inputId)?.value || '').toLowerCase().trim();
   if (!q) return list;
@@ -972,7 +892,6 @@ async function _lemburFetchPegawai(tanggal) {
   } catch {}
 }
 
-// Status absensi yang bikin pegawai tidak bisa ditambahkan sbg peserta lembur pd tanggal itu
 function _lemburStatusAbsensi(status) {
   if (status === 'cuti') return { label: 'Cuti', badge: 'badge-fuchsia' };
   if (status === 'alpa') return { label: 'Alpa', badge: 'badge-merah' };
@@ -984,8 +903,6 @@ async function _lemburOnKegiatanTanggalChange() {
   if (!_lemburFull) return;
   const tgl = document.getElementById('lemburKegiatanTanggal').value;
   if (!tgl) {
-    // Tanggal di-clear (klik x di date picker) - reset daftar & pilihan peserta biar gak nyangkut
-    // dari tanggal sebelumnya, balik ke placeholder "pilih tanggal dulu".
     _lemburPegawai = [];
     _lemburKegiatanPesertaSelected = new Set();
     _lemburRenderKegiatanPesertaGrid();
@@ -1047,16 +964,10 @@ function _lemburRenderSesiDetail() {
 
   const tanggalCell = `${new Date(s.tanggal).toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}`;
 
-  // User non-admin cuma boleh lihat baris dirinya sendiri di sini - punya orang lain gak usah
-  // ditampilin sama sekali (bukan cuma dikunci). Dokumen cetak/PDF tetap pakai _lemburEntries
-  // yang utuh, karena daftar hadir resmi emang harus nampilin semua peserta buat tanda tangan.
   const pesertaTampil = _lemburFull ? _lemburEntries : _lemburEntries.filter(e => e.user_id === _user.id);
 
   const pesertaRows = pesertaTampil.map((e, i) => {
     const bisaEdit = _lemburFull || e.user_id === _user.id;
-    // Jam per peserta - default ikut jam sesi, tapi admin/kasubag (full) bisa override per orang
-    // (misal ada yang masuk/pulang lembur beda jam). Input HH/MM manual (bukan <input type=time>)
-    // biar formatnya konsisten 24 jam di semua device, gak ketuker format AM/PM bawaan browser.
     const jamCellHtml = _lemburFull
       ? `<div style="display:flex;align-items:center;justify-content:center;gap:4px">
             ${_lemburJamPairHtml(e.id, 'jam_mulai', e.jam_mulai, s.jam_mulai)}
@@ -1123,8 +1034,6 @@ async function _lemburSaveUraian(entryId, uraian_tugas) {
   } catch { toast('Gagal menyimpan uraian tugas', 'error'); }
 }
 
-// Catatan kasubag terkait redaksi uraian tugas - cuma kolom di tampilan layar (tabel Kegiatan
-// Lembur), gak ikut ke dokumen Daftar Hadir yang di-download/cetak (lihat _lemburHalamanSesiHtml).
 async function _lemburSaveCatatan(entryId, catatan) {
   try {
     const r = await fetch(`/api/lembur/entries/${entryId}`, { method: 'PUT', headers: { ...authHeaders(), 'Content-Type': 'application/json' }, body: JSON.stringify({ catatan }) });
@@ -1134,9 +1043,6 @@ async function _lemburSaveCatatan(entryId, catatan) {
   } catch { toast('Gagal menyimpan catatan', 'error'); }
 }
 
-// Durasi lembur maksimal 3 jam. Kalau selisih jam_mulai ke jam_selesai lebih dari itu,
-// balikin jam_selesai baru = jam_mulai + 3 jam (wrap lewat tengah malam kalau perlu).
-// Kalau masih dalam batas (atau salah satu jam kosong), jam_selesai dibalikin apa adanya.
 function _lemburJamSelesaiMax3(jamMulai, jamSelesai) {
   if (!jamMulai || !jamSelesai) return jamSelesai;
   const [h1, m1] = jamMulai.split(':').map(Number);
@@ -1148,18 +1054,6 @@ function _lemburJamSelesaiMax3(jamMulai, jamSelesai) {
   return `${String(Math.floor(total / 60)).padStart(2, '0')}:${String(total % 60).padStart(2, '0')}`;
 }
 
-// Validasi durasi begitu Jam Mulai/Jam Selesai di modal Kegiatan/Sesi berubah, gak nunggu klik
-// simpan - hidden input timepicker nembak event 'change' (bubbles) tiap kali di-commit, dan ini
-// kejadian di TIAP KETUKAN DIGIT (bukan cuma pas selesai ngetik/pindah field, lihat TimePicker._bind
-// di app.js: listener 'input' langsung _commit() tiap keystroke). Makanya validasinya di-debounce -
-// dicek 700ms setelah ketukan/klik TERAKHIR, bukan langsung di tiap event - biar gak ke-trigger
-// pakai kombinasi jam yang masih setengah diketik (mis. baru ganti Jam Mulai tapi Jam Selesai-nya
-// masih nilai lama), yang bikin kerasa "dipaksa balik ke 3 jam" padahal user belum selesai ngatur.
-// Didelegasikan lewat document biar tetap kepasang walau elemennya baru dibikin belakangan sama
-// initTimePicker (yang jalan di DOMContentLoaded, setelah file ini di-load).
-// _lemburSuppressJamChange dipasang true pas modal lagi di-isi nilai default/existing (2x
-// tpSetValue berurutan buat Jam Mulai lalu Jam Selesai) - biar gak kebaca "durasi lewat 3 jam"
-// gara-gara sempet nyangkut nilai lama sebelum pasangannya ikut ke-set.
 let _lemburSuppressJamChange = false;
 let _lemburJamValidasiTimer = null;
 document.addEventListener('change', (e) => {
@@ -1183,30 +1077,19 @@ document.addEventListener('change', (e) => {
   }, 700);
 });
 
-// Pasang Jam Mulai + Jam Selesai sekaligus tanpa memicu validasi live di atas (dipakai pas modal
-// dibuka/diisi ulang, bukan pas user ngetik) - listener 'change' cuma jalan buat perubahan manual.
 function _lemburSetJamPairSilent(mulaiId, selesaiId, jamMulai, jamSelesai) {
-  clearTimeout(_lemburJamValidasiTimer); // batalin validasi debounce yang mungkin masih ngambang dari modal/sesi sebelumnya
+  clearTimeout(_lemburJamValidasiTimer);
   _lemburSuppressJamChange = true;
   tpSetValue(mulaiId, jamMulai);
   tpSetValue(selesaiId, jamSelesai);
   _lemburSuppressJamChange = false;
 }
 
-// Input jam custom per peserta - 2 kotak angka (HH & MM) manual, bukan <input type="time">,
-// biar formatnya selalu 24 jam gak peduli locale/OS device (native time input suka nampilin
-// AM/PM di sebagian browser/HP). data-tampil nyimpen nilai yang lagi ditampilin (custom kalo ada,
-// kalo enggak ikut jam sesi) - dibandingin pas blur, kalo gak berubah gak usah kirim request simpan.
 function _lemburJamPairHtml(entryId, field, rawValue, sesiValue) {
   const tampil = rawValue || sesiValue || '';
   const hh = tampil ? tampil.slice(0, 2) : '';
   const mm = tampil ? tampil.slice(3, 5) : '';
   const inputStyle = 'width:26px;font-size:.75rem;padding:3px 2px;border:1px solid var(--border);border-radius:5px;font-family:inherit;text-align:center';
-  // onfocusout dipasang di span pembungkus (bukan onblur di tiap kotak H/M) - kalau
-  // langsung onblur per kotak, pindah dari H ke M (tab/klik) udah nembak commit duluan
-  // dengan nilai M yang LAMA (belum sempat diketik), lalu render ulang tabel motong fokus
-  // di tengah pengetikan - makanya user ngerasa harus ngetik dua kali. Dengan onfocusout +
-  // cek relatedTarget, commit cuma jalan sekali pas user BENERAN keluar dari pasangan H+M ini.
   return `<span class="lembur-jam-pair" data-tampil="${tampil}" data-tip="Jam khusus peserta ini - kosongkan untuk ikut jam sesi" onfocusout="_lemburJamPairFocusOut(event, ${entryId}, '${field}')">
     <input type="text" inputmode="numeric" maxlength="2" placeholder="00" value="${hh}" style="${inputStyle}"
       id="lemburJamH_${entryId}_${field}">
@@ -1218,12 +1101,6 @@ function _lemburJamPairHtml(entryId, field, rawValue, sesiValue) {
 
 function _lemburJamPairFocusOut(e, entryId, field) {
   const wrap = e.currentTarget;
-  // e.relatedTarget kadang gak konsisten antar browser (khususnya di HP/mobile Safari) pas
-  // fokus pindah lewat tap/klik - kadang kebaca null padahal fokus sebenarnya pindah ke kotak
-  // pasangannya (H<->M) dalam pair yang sama. Kalau relatedTarget salah kebaca null, komit
-  // kepicu prematur sebelum kotak satunya sempat diketik/dikosongin - hasilnya field kesimpen
-  // setengah jalan (mis. jam gak bisa beneran kekosongin). Makanya dicek ulang sesaat kemudian
-  // (setTimeout 0) ke document.activeElement yang sebenarnya, bukan cuma percaya relatedTarget.
   setTimeout(() => {
     if (wrap.contains(document.activeElement)) return;
     _lemburJamPartCommit(entryId, field);
@@ -1240,7 +1117,7 @@ function _lemburJamPartCommit(entryId, field) {
   const mv = m.value.trim();
 
   if (hv === '' && mv === '') {
-    if (tampilAwal === '') return; // udah kosong dari awal, gak ada yang berubah
+    if (tampilAwal === '') return;
     wrap.dataset.tampil = '';
     _lemburSaveJamPeserta(entryId, field, '');
     return;
@@ -1252,7 +1129,6 @@ function _lemburJamPartCommit(entryId, field) {
   mn = Math.min(59, Math.max(0, mn));
   let hasil = `${String(hn).padStart(2, '0')}:${String(mn).padStart(2, '0')}`;
 
-  // Cek durasi maksimal 3 jam terhadap jam pasangannya (jam custom entry ini kalau ada, kalau enggak ikut jam sesi).
   const entry = _lemburEntries.find(e => e.id === entryId) || {};
   const s = _lemburActiveSesi || {};
   const otherField = field === 'jam_mulai' ? 'jam_selesai' : 'jam_mulai';
@@ -1269,18 +1145,11 @@ function _lemburJamPartCommit(entryId, field) {
         h.value = jamSelesaiMax.slice(0, 2);
         m.value = jamSelesaiMax.slice(3, 5);
       } else {
-        // jam_mulai yang baru diubah bikin durasi lewat 3 jam - sesuaikan jam_selesai-nya juga
         const hSel = document.getElementById(`lemburJamH_${entryId}_jam_selesai`);
         const mSel = document.getElementById(`lemburJamM_${entryId}_jam_selesai`);
         const wrapSel = hSel ? hSel.closest('.lembur-jam-pair') : null;
         if (hSel && mSel) { hSel.value = jamSelesaiMax.slice(0, 2); mSel.value = jamSelesaiMax.slice(3, 5); }
         if (wrapSel) wrapSel.dataset.tampil = jamSelesaiMax;
-        // Tulis juga ke data lokal (_lemburEntries), bukan DOM doang - request simpan jam_selesai
-        // ini jalan BARENGAN sama request simpan jam_mulai di bawah (dua PUT beda field, hampir
-        // bersamaan). Kalau cuma DOM yg diupdate, pas request jam_mulai selesai duluan dan
-        // trigger render ulang tabel (_lemburRenderSesiDetailJagaFokus), render itu ambil data
-        // dari _lemburEntries yang jam_selesai-nya MASIH nilai lama -> sempat kelihatan balik
-        // ke jam lama sebelum request jam_selesai ini beneran kelar & render ulang lagi.
         entry.jam_selesai = jamSelesaiMax;
         _lemburSaveJamPeserta(entryId, 'jam_selesai', jamSelesaiMax);
       }
@@ -1290,44 +1159,24 @@ function _lemburJamPartCommit(entryId, field) {
   h.value = hasil.slice(0, 2);
   m.value = hasil.slice(3, 5);
 
-  if (hasil === tampilAwal) return; // sama kayak yang lagi ditampilin (belum diubah), gak usah simpan
+  if (hasil === tampilAwal) return;
   wrap.dataset.tampil = hasil;
-  entry[field] = hasil; // update data lokal juga, sinkron sama alasan yg sama di atas
+  entry[field] = hasil;
   _lemburSaveJamPeserta(entryId, field, hasil);
 }
 
-// Jam per peserta - override jam sesi buat satu orang (misal masuk/pulang beda dari yang lain).
-// Kosongkan input = kirim null = balikin ke jam sesi (efektif tetep dihitung pake jam sesi
-// pas ditampilin, lihat _lemburRenderSesiDetail).
 async function _lemburSaveJamPeserta(entryId, field, value) {
   try {
     const r = await fetch(`/api/lembur/entries/${entryId}`, { method: 'PUT', headers: { ...authHeaders(), 'Content-Type': 'application/json' }, body: JSON.stringify({ [field]: value || null }) });
     const d = await r.json();
     if (!r.ok) { toast(d.error || 'Gagal menyimpan jam', 'error'); return; }
-    // Respons UPDATE cuma balikin kolom tabel lembur_entries (gak ada nama/nip/foto_url -
-    // itu hasil JOIN pas GET list awal). Jangan nimpa objek entry-nya utuh, cukup timpa
-    // kolom jam-nya aja, biar nama/foto peserta gak ilang dari tampilan.
-    //
-    // Cuma timpa kolom `field` yang lagi disimpan REQUEST INI - jangan timpa dua-duanya
-    // (jam_mulai & jam_selesai) dari respons ini. Kalau jam_mulai & jam_selesai disimpan lewat
-    // 2 request terpisah yang jalan bersamaan (lihat _lemburJamPartCommit di atas), request yang
-    // duluan selesai bisa balikin snapshot server SEBELUM request satunya kelar nulis ke DB -
-    // jadi field yang lagi ditangani request LAIN itu masih kebaca versi lama di sini, dan kalau
-    // ikut ditimpa, data lokal yang tadi udah bener (dari update optimis di _lemburJamPartCommit)
-    // malah balik rusak jadi nilai lama.
     const idx = _lemburEntries.findIndex(e => e.id === entryId);
     if (idx > -1) _lemburEntries[idx] = { ..._lemburEntries[idx], [field]: d.entry[field], updated_at: d.entry.updated_at };
     _lemburRenderSesiDetailJagaFokus();
-    // Toast sukses pakai key biar numpuk gantian (lihat toast() di app.js) - kalau ngedit
-    // banyak kotak jam beruntun cepet, cuma satu toast yang kepampang & diperpanjang, gak
-    // numpuk penuh layar kayak sebelumnya.
     toast('Jam tersimpan', 'success', 'lembur-jam-tersimpan');
   } catch { toast('Gagal menyimpan jam', 'error'); }
 }
 
-// Render ulang tabel tapi jaga fokus kalau user udah keburu pindah ngetik ke kotak jam
-// peserta lain (mis. tab ke baris berikutnya) sebelum request simpan kelar - tanpa ini,
-// render ulang bikin elemen lama diganti baru dan fokus ilang di tengah pengetikan.
 function _lemburRenderSesiDetailJagaFokus() {
   const activeEl = document.activeElement;
   const activeId = activeEl && activeEl.id;
@@ -1448,7 +1297,6 @@ async function _lemburHapusSesiIni(id) {
   } catch { toast('Gagal menghapus hari lembur', 'error'); }
 }
 
-// Upload 1 file ke /api/upload dengan callback progress (persen). Sama polanya dengan _absUploadFileWithProgress.
 function _uploadFileWithProgress(file, kategori, onProgress) {
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
@@ -1472,9 +1320,6 @@ function _uploadFileWithProgress(file, kategori, onProgress) {
   });
 }
 
-// Upload dokumentasi langsung dari baris tabel Hari Lembur (tanpa buka detail sesi dulu),
-// dengan progress bar niru gaya upload data-dukung di modul Kinerja (ring persen buat 1 file,
-// spinner + counter "current/total" buat multi file).
 async function _lemburUploadDokToList(sesiId, files) {
   if (!files || !files.length) return;
   const list = [...files];
@@ -1543,9 +1388,6 @@ async function _lemburUploadOneDokTo(sesiId, file, refresh = false) {
   } catch { toast('Gagal upload foto', 'error'); }
 }
 
-// Preview dokumentasi langsung dari baris tabel Hari Lembur, pakai lightbox global
-// (sama kayak preview data dukung di Kinerja/Surat). Admin/full-access bisa hapus foto
-// langsung dari dalam lightbox lewat tombol hapus bawaan panelnya.
 async function _lemburPreviewDokRow(sesiId) {
   try {
     const r = await fetch(`/api/lembur/dokumentasi?sesi_id=${sesiId}`, { headers: authHeaders() });
@@ -1581,8 +1423,6 @@ async function _lemburPreviewDokRow(sesiId) {
   } catch { toast('Gagal mengambil dokumentasi', 'error'); }
 }
 
-// Cari otomatis Kepala Sub Bagian Perencanaan dari data Struktur/Pegawai,
-// supaya penandatangan laporan lembur selalu ikut update kalau ada pergantian.
 async function _lemburGetPenandatangan() {
   try {
     const r = await fetch('/api/pegawai', { headers: authHeaders() });
@@ -1608,7 +1448,6 @@ async function _lemburPromptPenandatangan() {
   return { nama: namaTtd.trim(), nip: nipTtd.trim() };
 }
 
-// Download laporan per hari lembur langsung dari baris tabel Hari Lembur
 async function _lemburDownloadSesi(id) {
   const s = _lemburSesiList.find(x => x.id === id);
   if (!s) return;
@@ -1628,14 +1467,6 @@ async function _lemburDownloadSesi(id) {
   }
 }
 
-// ---------------------------------------------------------------- CETAK
-
-// Foto dokumentasi biasanya langsung dari kamera HP (bisa beberapa MB per file) - preview
-// PDF (_bukaPreviewPDF di laporan.js) baru manggil window.print() setelah event 'load' window,
-// yang nunggu SEMUA <img> selesai di-download dulu. Kalau dokumentasinya banyak, ini bikin
-// "Loading preview..." di dialog print jadi lama banget. Diringkas dulu lewat parameter
-// transformasi Cloudinary (resize + kompresi otomatis) sebelum disisipkan ke <img> laporan -
-// ukurannya di grid cuma ~1/2 halaman, jadi lebar 1000px udah lebih dari cukup buat kualitas cetak.
 function _lemburDokUrlCetak(url) {
   if (!url || !url.includes('/upload/')) return url;
   return url.replace('/upload/', '/upload/f_auto,q_auto,w_1000,c_limit/');
@@ -1644,7 +1475,6 @@ function _lemburDokUrlCetak(url) {
 function _lemburHalamanSesiHtml(s, entries, dok, namaTtd, nipTtd, pageBreak) {
   const tgl = new Date(s.tanggal).toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
   const tglTtd = new Date(s.tanggal).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
-  // Jam per peserta - pake jam kustom kalo ada (di-set admin/kasubag), kalo enggak ikut jam sesi.
   const rowsHtml = entries.map((e, i) => {
     const jm = e.jam_mulai || s.jam_mulai;
     const js = e.jam_selesai || s.jam_selesai;
@@ -1715,7 +1545,6 @@ function _lemburDoCetak(namaTtd, nipTtd) {
   _bukaPreviewPDF(bodyHtml, 'Daftar Hadir Lembur', 'portrait');
 }
 
-// Download rekap seluruh hari lembur dalam satu kegiatan (dari tabel Kegiatan Lembur)
 async function _lemburDownloadKegiatan(id) {
   const k = _lemburKegiatanList.find(x => x.id === id);
   if (!k) return;
@@ -1733,12 +1562,6 @@ async function _lemburDownloadKegiatan(id) {
     const prevKegiatan = _lemburActiveKegiatan;
     _lemburActiveKegiatan = k;
     try {
-      // Sebelumnya sesi di-fetch satu-satu (for loop sequential) - sesi ke-3 baru mulai
-      // fetch setelah sesi ke-1 & ke-2 kelar. Sekarang paralel semua sekaligus, dan begitu
-      // data dokumentasi satu sesi sampai, foto-fotonya langsung dipreload (new Image()) di
-      // background sambil sesi lain masih di-fetch. Jadi pas _bukaPreviewPDF buka window
-      // print dan nunggu semua <img> ke-load, sebagian besar udah ke-cache browser duluan -
-      // "Loading preview..." di dialog print jadi jauh lebih cepat.
       const dataSesi = await Promise.all(sesiList.map(async (s) => {
         const [rEntries, rDok] = await Promise.all([
           fetch(`/api/lembur/entries?sesi_id=${s.id}`, { headers: authHeaders() }),

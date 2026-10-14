@@ -1,8 +1,6 @@
 import crypto from 'crypto';
 import { runOnce } from './_db.js';
 
-// ───────── Skema ─────────
-// Dipanggil sekali per instance function yang warm (lihat runOnce di _db.js).
 export function ensureMonSchema(sql) {
   return runOnce('monitoring_schema', async () => {
     await sql`
@@ -52,7 +50,6 @@ export function ensureMonSchema(sql) {
   });
 }
 
-// ───────── Heartbeat (dipakai cron) ─────────
 export async function heartbeat(sql, name, ok = true, info = null) {
   try {
     await ensureMonSchema(sql);
@@ -64,14 +61,13 @@ export async function heartbeat(sql, name, ok = true, info = null) {
   } catch (e) { console.error('[heartbeat]', e); }
 }
 
-// ───────── Normalisasi & fingerprint ─────────
 export function normalisasiEndpoint(p) {
   if (!p || typeof p !== 'string') return null;
   let s = p.split('?')[0].split('#')[0];
   if (!s.startsWith('/api/')) return null;
-  s = s.replace(/\/[0-9a-f]{8}-[0-9a-f-]{27}/gi, '/:id')   // uuid
-       .replace(/\/\d+(?=\/|$)/g, '/:id')                   // angka
-       .replace(/\/[0-9a-f]{20,}(?=\/|$)/gi, '/:id');       // hash panjang
+  s = s.replace(/\/[0-9a-f]{8}-[0-9a-f-]{27}/gi, '/:id')
+       .replace(/\/\d+(?=\/|$)/g, '/:id')
+       .replace(/\/[0-9a-f]{20,}(?=\/|$)/gi, '/:id');
   return s.slice(0, 120);
 }
 
@@ -102,7 +98,6 @@ export function bikinFingerprint({ source, message, endpoint, http_status, stack
   return crypto.createHash('sha1').update(dasar).digest('hex');
 }
 
-// ───────── Telegram ─────────
 export function telegramAktif() {
   return !!(process.env.TELEGRAM_BOT_TOKEN && process.env.TELEGRAM_CHAT_ID);
 }
@@ -127,8 +122,6 @@ export async function kirimTelegram(teks) {
   }
 }
 
-// ───────── Health check ─────────
-// status tiap cek: 'ok' | 'warn' | 'down' | 'unknown'
 async function cekDatabase(sql) {
   const t0 = Date.now();
   try {
@@ -158,8 +151,6 @@ async function cekCloudinary() {
 }
 
 async function cekCron(sql) {
-  // Cron absensi jalan tiap hari (heartbeat ditulis juga saat dilewati akhir pekan/libur),
-  // jadi 30 jam = telat sekitar 6 jam dari jadwal sudah dianggap macet.
   const batasJam = Number(process.env.CRON_ALPA_MAX_JAM) || 30;
   try {
     const rows = await sql`

@@ -2,8 +2,6 @@ import { getDb, jsonResponse, errorResponse, parseBody, runOnce, setRequestDeadl
 import { requireAuth as _baseRequireAuth, requireAdmin, requireKinerjaAdmin } from './_auth.js';
 import { logAudit } from './_audit.js';
 
-// Admin Kinerja (permission 'kinerja.full') diperlakukan setara Super Admin di seluruh modul kinerja:
-// melihat semua indikator & mengisi/mengubah/menghapus capaian. Flag di-set sekali per request di handler.
 function requireAuth(event) {
   const u = _baseRequireAuth(event);
   if (u && !u.is_admin && event.__kinerjaAdmin) return { ...u, is_admin: true, kinerja_admin: true };
@@ -13,7 +11,6 @@ import { deleteFromCloudinary } from './_cloudinary.js';
 import { cekLinkDishare } from './_cekLink.js';
 import { sinkronKinerjaVerifikasi, notifKinerjaHasil } from './_notif_modul.js';
 
-// Notifikasi lonceng bersifat best-effort: kegagalannya tidak boleh menggagalkan aksi utamanya.
 async function notifSafe(fn) {
   try { await fn(); } catch (e) { console.error('[notif]', e); }
 }
@@ -22,7 +19,6 @@ function parseDukungUrls(raw) {
   if (!raw) return [];
   try {
     const p = JSON.parse(raw);
-    // entri `link: true` = link eksternal (bukan file di Cloudinary) -> jangan ikut dihapus
     if (Array.isArray(p)) return p.filter(f => f && f.url && !f.link).map(f => f.url);
     return [raw];
   } catch { return [raw]; }
@@ -30,7 +26,6 @@ function parseDukungUrls(raw) {
 
 const DUKUNG_HOST_RE = /^([a-z0-9]([a-z0-9-]*[a-z0-9])?\.)+[a-z]{2,}$/i;
 
-// Data dukung harus berupa link http(s) yang valid (bukan teks biasa). Return pesan error atau null.
 function validateDukungLinks(raw) {
   const MSG = 'Data dukung harus berupa link (http/https) yang valid';
   let arr;
@@ -68,9 +63,6 @@ function canInput(user, jenis) {
   if (!user) return false;
   if (user.is_admin) return true;
   const perms = user.permissions || [];
-  // Akun pantau (Kabid dsb.): boleh MENGISI/EDIT indikator yang di-assign langsung ke dirinya (tabel user_indikator),
-  // tanpa butuh permission jenis. Pembatasan ke indikator miliknya dicek di POST /kinerja/realisasi;
-  // indikator unit lain tetap hanya-lihat.
   if (perms.includes('kinerja.pantau') || perms.includes('kinerja.pantau.semua')) return true;
   if (jenis === 'monev') return perms.includes('kinerja.monev');
   if (jenis === 'ikk')   return perms.includes('kinerja.ikk');
@@ -79,15 +71,8 @@ function canInput(user, jenis) {
   return perms.includes('kinerja.monev') || perms.includes('kinerja.ikk') || perms.includes('kinerja.spm') || perms.includes('kinerja.subkeg');
 }
 
-// Akun pimpinan (Kepala Bidang / Kepala Sub Bagian / Sekretaris Dinas) biasanya tidak punya indikator
-// ter-assign. Hanya-lihat (input tetap butuh permission kinerja.monev/ikk/spm/subkeg):
-//  - 'kinerja.pantau'       -> semua indikator aktif di unit kerjanya (penanggung_jawab = nama bidang user)
-//  - 'kinerja.pantau.semua' -> indikator aktif di unit kerja PILIHAN (Sekretaris Dinas); unit dipilih lewat
-//                              permission 'kinerja.pantau.unit.<bidang_id>' (satu per unit). Tanpa unit terpilih = tidak ada.
 async function getAssignedIndikatorIds(sql, userId) {
   const rows = await sql`SELECT indikator_id FROM user_indikator WHERE user_id = ${userId}`;
-  // Indikator yang di-assign langsung TIDAK lagi menggugurkan hak pantau: akun Kabid yang punya indikator
-  // sendiri + permission pantau harus melihat gabungan keduanya (indikator sendiri + seluruh indikator unitnya).
   const ids = new Set(rows.map(r => r.indikator_id));
   const perm = await sql`
     SELECT menu_key FROM user_permissions
@@ -122,8 +107,6 @@ async function getAssignedIndikatorIds(sql, userId) {
   return [...ids];
 }
 
-// Akun pantau? (kinerja.pantau / kinerja.pantau.semua) - dipakai agar IKU juga dibatasi di backend untuk akun pantau,
-// sama seperti IKK / SPM / Sub Kegiatan (sebelumnya IKU dikirim penuh lalu disaring di frontend).
 async function isPantauUser(sql, userId) {
   const r = await sql`
     SELECT 1 FROM user_permissions
@@ -133,10 +116,6 @@ async function isPantauUser(sql, userId) {
   return r.length > 0;
 }
 
-// Migrasi inti (kolom tipe_perhitungan, target per triwulan, index realisasi) sudah terpasang?
-// Dicek dengan SELECT biasa (tanpa lock) dan hasilnya diingat selama instance hidup. Sebelumnya tiap
-// cold start menjalankan belasan perintah ALTER/UPDATE/CREATE INDEX berurutan: lambat, dan ALTER TABLE
-// minta lock eksklusif sehingga bisa antre di belakang query berat lalu menahan semua request lain.
 let _kinerjaSkemaOk = false;
 async function kinerjaSkemaStatus(sql) {
   if (_kinerjaSkemaOk) return { tipe: true, target: true, idx: true };
@@ -154,16 +133,10 @@ async function kinerjaSkemaStatus(sql) {
     if (st.tipe && st.target && st.idx) _kinerjaSkemaOk = true;
     return st;
   } catch (e) {
-    return { tipe: false, target: false, idx: false };   // gagal cek -> jalankan migrasi seperti biasa
+    return { tipe: false, target: false, idx: false };
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// VERIFIKASI KINERJA (PRD SAPA Perencanaan)
-// Status: draft -> menunggu -> (perlu_perbaikan -> diajukan_kembali)* -> disetujui
-// Verifikator ditetapkan Superadmin per Unit Kerja (kinerja_verifikator); indikator dipetakan lewat
-// kinerja_indikator.penanggung_jawab = bidang.nama (pola yang sama dengan akun pantau).
-// ─────────────────────────────────────────────────────────────────────────────
 const VERIF_LOCKED = ['menunggu', 'diajukan_kembali', 'disetujui'];
 const VERIF_PENDING = ['menunggu', 'diajukan_kembali'];
 const VERIF_JENIS_LABEL = { monev: 'IKU', ikk: 'IKK', spm: 'SPM', subkeg: 'Sub Kegiatan' };
@@ -180,7 +153,7 @@ async function ensureVerifSchema(sql) {
         to_regclass('kinerja_verifikasi_log') IS NOT NULL AS t_log
     `;
     if (r.kolom && r.t_ver && r.t_log) { _verifSkemaOk = true; return; }
-  } catch { /* gagal cek -> jalankan migrasi */ }
+  } catch {  }
   await runOnce('kinerja.verifikasi_v1', async () => {
     await sql`ALTER TABLE kinerja_realisasi ADD COLUMN IF NOT EXISTS status_verifikasi TEXT`;
     await sql`ALTER TABLE kinerja_realisasi ADD COLUMN IF NOT EXISTS submitted_at TIMESTAMPTZ`;
@@ -219,7 +192,6 @@ async function ensureVerifSchema(sql) {
       CREATE INDEX IF NOT EXISTS kinerja_verifikasi_log_ind_idx
         ON kinerja_verifikasi_log (indikator_id, tahun, bulan, created_at DESC)
     `;
-    // Data realisasi yang sudah ada sebelum fitur ini dianggap sudah final (disetujui), supaya laporan lama tidak berubah.
     await sql`UPDATE kinerja_realisasi SET status_verifikasi = 'disetujui' WHERE status_verifikasi IS NULL`;
   });
   _verifSkemaOk = true;
@@ -236,7 +208,6 @@ function verifJenisList(ind) {
   return list;
 }
 
-// Verifikator aktif untuk satu indikator (berdasarkan unit kerja penanggung jawab).
 async function verifikatorUntukIndikator(sql, indikatorId) {
   return sql`
     SELECT kv.user_id, u.nama, b.nama AS unit
@@ -271,7 +242,6 @@ async function verifLog(sql, { realisasi_id, indikator_id, bulan, tahun, aksi, s
   `;
 }
 
-// Cek window periode input (sama dengan aturan POST /realisasi). Return pesan error atau null.
 async function verifCekPeriode(sql, jenisList, bulan, tahun) {
   if (!jenisList.length) return null;
   const aktif = await sql`
@@ -306,8 +276,6 @@ export const handler = async (event) => {
     console.error('[migrate tipe_perhitungan]', migErr);
   }
 
-  // Target per triwulan: 1 baris per (indikator, tahun, triwulan).
-  // Baris lama (target tahunan) dijadikan target TW IV (target akhir tahun).
   try {
     if (!_skema.target) await runOnce('kinerja.target_triwulan', async () => {
       await sql`ALTER TABLE kinerja_target ADD COLUMN IF NOT EXISTS triwulan SMALLINT`;
@@ -349,7 +317,6 @@ export const handler = async (event) => {
     console.error('[migrate target_triwulan]', migErr);
   }
 
-  // Index untuk subquery SUM/AVG realisasi di /rekap (dipanggil berkali-kali per indikator).
   try {
     if (!_skema.idx) await runOnce('kinerja.idx_realisasi', () => sql`
       CREATE INDEX IF NOT EXISTS kinerja_realisasi_ind_thn_bln_idx
@@ -359,10 +326,8 @@ export const handler = async (event) => {
     console.error('[migrate idx_realisasi]', migErr);
   }
 
-  // Skema verifikasi kinerja (kolom status di kinerja_realisasi + tabel verifikator & log).
   try { await ensureVerifSchema(sql); } catch (migErr) { console.error('[migrate verifikasi]', migErr); }
 
-  // Tentukan sekali apakah user ini Admin Kinerja (kinerja.full); dipakai oleh requireAuth lokal di atas.
   try {
     const _u0 = _baseRequireAuth(event);
     if (_u0 && !_u0.is_admin && event.__kinerjaAdmin === undefined) {
@@ -370,9 +335,6 @@ export const handler = async (event) => {
     }
   } catch { event.__kinerjaAdmin = false; }
 
-  // GET /rekap-batch?tahun=2026&bulan=3,6,9,12&jenis=monev,ikk,spm,subkeg&scope=bidang
-  // Satu request menggantikan jenis x triwulan request /rekap. Tiap kombinasi tetap memakai
-  // logika /rekap yang sama (dipanggil di dalam invocation yang sama, jadi tanpa cold start berulang).
   if (sub === 'rekap-batch' && event.httpMethod === 'GET') {
     const auth = requireAuth(event);
     if (!auth) return errorResponse('Unauthorized', 401);
@@ -614,8 +576,6 @@ export const handler = async (event) => {
   }
 
   if (sub === 'indikator') {
-    // GET/PUT /api/kinerja/indikator/:id/users - assign user per indikator (tabel user_indikator,
-    // sama dengan "Assign Indikator" di halaman Pengguna). Harus di atas handler GET list / PUT umum.
     if (id && segments[2] === 'users') {
       const adminU = await requireKinerjaAdmin(event, sql);
       if (!adminU) return errorResponse('Unauthorized', 401);
@@ -628,8 +588,6 @@ export const handler = async (event) => {
           const pj = (ind[0].penanggung_jawab || '').trim();
           const assigned = await sql`SELECT user_id FROM user_indikator WHERE indikator_id = ${id}`;
           const userIds = assigned.map(r => Number(r.user_id));
-          // Kandidat = user non-admin dari unit kerja yg sama dgn PJ indikator (sama dgn aturan di
-          // halaman Pengguna). Yang sudah ter-assign tetap ditampilkan supaya bisa dilepas.
           const users = await sql`
             SELECT u.id, u.nama, u.nip, b.nama AS bidang_nama, u.is_active
             FROM users u
@@ -706,11 +664,6 @@ export const handler = async (event) => {
     const admin = await requireKinerjaAdmin(event, sql);
     if (!admin) return errorResponse('Unauthorized', 401);
 
-    // POST /api/kinerja/indikator/import - impor banyak indikator sekaligus (frontend kirim per batch).
-    // Sekalian bisa isi target TW I-IV untuk 1 tahun (body.tahun). Dicocokkan ke indikator lama
-    // lewat nama indikator + unit kerja: mode 'lewati' (default) = skip, 'perbarui' = update datanya.
-    // Semua operasi DB dibuat BULK (unnest) - jumlah query per batch tetap, gak tergantung jumlah baris,
-    // biar gak kena timeout function Netlify.
     if (event.httpMethod === 'POST' && segments[1] === 'import') {
       const body = parseBody(event);
       const rows = Array.isArray(body.rows) ? body.rows : [];
@@ -730,7 +683,6 @@ export const handler = async (event) => {
         const existing = await sql`SELECT id, indikator_kinerja, penanggung_jawab FROM kinerja_indikator`;
         const byKey = new Map(existing.map(e => [keyOf(e.indikator_kinerja, e.penanggung_jawab), e.id]));
 
-        // 1) Klasifikasi baris di memori: baru / update / lewati
         const seen = new Set();
         const toInsert = [], toUpdate = [];
         let skipped = 0;
@@ -740,7 +692,7 @@ export const handler = async (event) => {
           if (!nama || !satuan) { skipped++; continue; }
           const pj = String(r.penanggung_jawab || '').trim() || null;
           const k = keyOf(nama, pj);
-          if (seen.has(k)) { skipped++; continue; } // baris kembar di batch yang sama
+          if (seen.has(k)) { skipped++; continue; }
           seen.add(k);
 
           const jenisGiven = r.jenis_given === true;
@@ -769,7 +721,6 @@ export const handler = async (event) => {
           }
         }
 
-        // 2) Insert baru - 1 query
         const idByKey = new Map();
         if (toInsert.length) {
           const maxRow = await sql`SELECT COALESCE(MAX(urutan), 0) AS m FROM kinerja_indikator`;
@@ -800,7 +751,6 @@ export const handler = async (event) => {
           for (const r of ins) idByKey.set(keyOf(r.indikator_kinerja, r.penanggung_jawab), r.id);
         }
 
-        // 3) Update yang sudah ada (mode perbarui) - 1 query
         if (toUpdate.length) {
           await sql`
             UPDATE kinerja_indikator ki SET
@@ -834,7 +784,6 @@ export const handler = async (event) => {
           for (const i of toUpdate) idByKey.set(i.k, i.id);
         }
 
-        // 4) Target TW I-IV - 1 query upsert
         const tList = [];
         if (tahun) {
           for (const i of [...toInsert, ...toUpdate]) {
@@ -964,7 +913,6 @@ export const handler = async (event) => {
 
       if (qs.all === '1') {
         try {
-          // ?tahun=2026 (opsional) -> hanya target tahun itu; tanpa tahun = semua tahun (perilaku lama).
           const thAll = parseInt(qs.tahun);
           const rows = (thAll >= 2000 && thAll <= 2100)
             ? await sql`
@@ -975,7 +923,6 @@ export const handler = async (event) => {
                 SELECT * FROM kinerja_target ORDER BY indikator_id ASC, tahun ASC, triwulan ASC
               `;
           const _fmt = r => ({ ...r, target: r.target != null ? parseFloat(r.target) : null });
-          // triwulan = 0 → target tahunan (dipisah supaya tidak tercampur dengan target TW I-IV)
           return jsonResponse({
             target:  rows.filter(r => r.triwulan >= 1 && r.triwulan <= 4).map(_fmt),
             tahunan: rows.filter(r => r.triwulan === 0).map(_fmt),
@@ -1007,11 +954,10 @@ export const handler = async (event) => {
     if (event.httpMethod === 'POST') {
       const _bodyT = parseBody(event);
 
-      // Batch: { indikator_id, tahun, items: [{ triwulan, target, target_display }, ...] } -> 1 request, 1 query.
       if (Array.isArray(_bodyT.items)) {
         const indB = parseInt(_bodyT.indikator_id), thB = parseInt(_bodyT.tahun);
         if (!indB || !thB) return errorResponse('indikator_id dan tahun wajib', 400);
-        const byTw = new Map();   // satu baris per triwulan (yang terakhir menang), supaya ON CONFLICT tidak bentrok
+        const byTw = new Map();
         for (const it of _bodyT.items.slice(0, 20)) {
           const twB = parseInt(it?.triwulan);
           if (!(twB >= 0 && twB <= 4)) return errorResponse('triwulan wajib (0 = tahunan, 1-4)', 400);
@@ -1084,8 +1030,6 @@ export const handler = async (event) => {
       }
     }
 
-    // Hapus SEMUA target (TW I-IV + tahunan) pada satu tahun, untuk semua indikator sekaligus.
-    // DELETE /api/kinerja/target?tahun=2030  -> hanya menghapus kinerja_target, realisasi tidak disentuh.
     if (event.httpMethod === 'DELETE' && !id && qs.tahun) {
       const th = parseInt(qs.tahun);
       if (!(th >= 2000 && th <= 2100)) return errorResponse('Tahun tidak valid', 400);
@@ -1109,7 +1053,6 @@ export const handler = async (event) => {
     return errorResponse('Not found', 404);
   }
 
-  // Cek apakah link Data Dukung sudah di-share (bisa dibuka tanpa login). Dipakai tombol Simpan di frontend.
   if (sub === 'cek-link') {
     const auth = requireAuth(event);
     if (!auth) return errorResponse('Unauthorized', 401);
@@ -1125,12 +1068,6 @@ export const handler = async (event) => {
     }
   }
 
-  // ───────────────────────── VERIFIKASI KINERJA ─────────────────────────
-  // GET    /verifikator            (Superadmin) daftar penugasan + master user & unit kerja
-  // POST   /verifikator            (Superadmin) { user_id, bidang_ids: [] }
-  // PUT    /verifikator/:id        (Superadmin) { aktif }
-  // DELETE /verifikator/:id        (Superadmin) cabut penugasan (riwayat verifikasi tetap tersimpan)
-  // GET    /verifikator/info       semua user login: verifikator aktif per unit kerja (tampil di tiap indikator)
   if (sub === 'verifikator') {
     const base = _baseRequireAuth(event);
     if (!base) return errorResponse('Unauthorized', 401);
@@ -1227,11 +1164,6 @@ export const handler = async (event) => {
     return errorResponse('Not found', 404);
   }
 
-  // GET  /verifikasi/saya                  status verifikator user login (+ jumlah menunggu)
-  // GET  /verifikasi?tahun&bulan&jenis&status&bidang_id&q   daftar pengajuan (sesuai cakupan penugasan)
-  // GET  /verifikasi/riwayat?indikator_id&bulan&tahun
-  // POST /verifikasi/submit   { indikator_id, bulan, tahun }          ajukan / ajukan ulang
-  // POST /verifikasi/aksi     { realisasi_id, aksi: setujui|tolak, alasan }
   if (sub === 'verifikasi') {
     const auth = requireAuth(event);
     if (!auth) return errorResponse('Unauthorized', 401);
@@ -1280,22 +1212,23 @@ export const handler = async (event) => {
       const bidangId = qs.bidang_id ? parseInt(qs.bidang_id) : null;
       const q = qs.q ? `%${String(qs.q).trim()}%` : null;
       try {
-        const units = await verifUnitSaya(sql, auth.id);
-        if (!auth.is_admin && !units.length) return errorResponse('Anda tidak ditetapkan sebagai verifikator', 403);  // admin tanpa penugasan: daftar kosong
+        const isAdm = !!base?.is_admin;
+        const units = isAdm
+          ? await sql`SELECT id AS bidang_id, nama FROM bidang WHERE deleted_at IS NULL ORDER BY nama ASC`
+          : await verifUnitSaya(sql, auth.id);
+        if (!auth.is_admin && !units.length) return errorResponse('Anda tidak ditetapkan sebagai verifikator', 403);
         const rowsQ = sql`
           SELECT kr.id AS realisasi_id, kr.indikator_id, kr.bulan, kr.tahun, kr.realisasi, kr.realisasi_display,
                  kr.f_penghambat, kr.solusi, kr.f_pendukung, kr.rencana_tl, kr.data_dukung_url, kr.data_dukung_nama,
                  kr.status_verifikasi, kr.submitted_at, kr.verified_at, kr.alasan_tolak,
                  ki.indikator_kinerja, ki.satuan, ki.penanggung_jawab, ki.tipe_nilai,
                  ki.jenis_monev, ki.jenis_ikk, ki.jenis_spm, ki.jenis_custom, ki.bermakna_negatif, ki.formula,
-                 -- Target tahunan (triwulan = 0) = pembagi realisasi tiap TW; kalau belum diisi, pakai target TW (sama seperti rekap)
                  (SELECT COALESCE(t.target_display, t.target::text) FROM kinerja_target t
                    WHERE t.indikator_id = kr.indikator_id AND t.tahun = kr.tahun
                      AND t.triwulan IN (0, LEAST(4, CEIL(kr.bulan / 3.0)::int))
                    ORDER BY (t.triwulan = 0) DESC
                    LIMIT 1) AS target_label,
                  us.nama AS penginput, vf.nama AS verifikator_nama,
-                 -- Capaian (%): rumus sama dengan rekap IKU/IKK (tipe perhitungan, bermakna negatif, target tahunan > target TW)
                  CASE
                    WHEN nv.v IS NULL OR kt.target IS NULL OR kt.target = 0 THEN NULL
                    WHEN ki.bermakna_negatif = TRUE
@@ -1345,15 +1278,14 @@ export const handler = async (event) => {
                  OR (${jenis}::text = 'ikk'     AND ki.jenis_ikk = TRUE)
                  OR (${jenis}::text = 'spm'     AND ki.jenis_spm = TRUE)
                  OR (${jenis}::text = 'subkeg'  AND ki.jenis_custom @> '["subkeg"]'::jsonb))
-            AND (TRIM(ki.penanggung_jawab) IN (
+            AND (${isAdm}::boolean OR TRIM(ki.penanggung_jawab) IN (
                   SELECT TRIM(b.nama) FROM kinerja_verifikator kv JOIN bidang b ON b.id = kv.bidang_id
                   WHERE kv.user_id = ${auth.id} AND kv.aktif = TRUE))
           ORDER BY (CASE WHEN kr.status_verifikasi = ANY(${VERIF_PENDING}) THEN 0 ELSE 1 END),
                    kr.submitted_at DESC NULLS LAST, kr.id DESC
           LIMIT 1000
         `;
-        const bidangQ = Promise.resolve(units);  // dropdown unit kerja = unit tanggung jawab user (admin juga)
-        // Jumlah indikator aktif per unit kerja (untuk card "Total Indikator"), dibatasi cakupan verifikator.
+        const bidangQ = Promise.resolve(units);
         const indikatorQ = sql`
           SELECT TRIM(ki.penanggung_jawab) AS unit,
                  COUNT(*)::int AS total,
@@ -1365,12 +1297,11 @@ export const handler = async (event) => {
           WHERE ki.aktif = TRUE
             AND (ki.jenis_monev = TRUE OR ki.jenis_ikk = TRUE OR ki.jenis_spm = TRUE
                  OR ki.jenis_custom @> '["subkeg"]'::jsonb)
-            AND (TRIM(ki.penanggung_jawab) IN (
+            AND (${isAdm}::boolean OR TRIM(ki.penanggung_jawab) IN (
                   SELECT TRIM(b.nama) FROM kinerja_verifikator kv JOIN bidang b ON b.id = kv.bidang_id
                   WHERE kv.user_id = ${auth.id} AND kv.aktif = TRUE))
           GROUP BY TRIM(ki.penanggung_jawab)
         `;
-        // Tiga query di atas saling independen -> jalan paralel (sebelumnya berurutan, latensi DB ditumpuk 3x).
         const [rows, bidangRows, indikatorUnit] = await Promise.all([rowsQ, bidangQ, indikatorQ]);
         return jsonResponse({
           pengajuan: rows.map(r => {
@@ -1548,8 +1479,6 @@ export const handler = async (event) => {
         if (errDukung) return errorResponse(errDukung, 400);
       }
 
-      // Akun pantau (Kabid dsb.) boleh MELIHAT seluruh indikator unitnya, tapi hanya boleh MENGISI indikator
-      // yang di-assign langsung ke dirinya (tabel user_indikator).
       if (!auth.is_admin) {
         const _permsPantau = user.permissions || [];
         if (_permsPantau.includes('kinerja.pantau') || _permsPantau.includes('kinerja.pantau.semua')) {
@@ -1620,7 +1549,6 @@ export const handler = async (event) => {
           console.warn('[kinerja/realisasi] Gagal cek window periode:', err.message);
         }
       }
-      // Verifikasi: pengajuan yang sedang diverifikasi / sudah disetujui tidak bisa diubah user (Admin tetap bisa).
       if (!auth.is_admin) {
         try {
           const _st = await sql`
@@ -1709,7 +1637,6 @@ export const handler = async (event) => {
     }
 
     if (event.httpMethod === 'DELETE' && id) {
-      // Reset realisasi khusus Super Admin; Admin Kinerja (kinerja.full) yang di-elevasi ke is_admin tidak boleh.
       if (!auth.is_admin || auth.kinerja_admin) return errorResponse('Reset realisasi hanya untuk Super Admin', 403);
       const before = await sql`SELECT data_dukung_url FROM kinerja_realisasi WHERE id = ${id} LIMIT 1`;
       await sql`DELETE FROM kinerja_realisasi WHERE id = ${id}`;
@@ -1741,7 +1668,6 @@ export const handler = async (event) => {
     const tahun = parseInt(qs.tahun || new Date().getFullYear());
     const jenis = qs.jenis || 'monev';
     const scope = qs.scope === 'bidang' ? 'bidang' : 'mine';
-    // scope=semua: dipakai dashboard utama (read-only) -> tampilkan seluruh indikator, bukan cuma yang di-assign/unit user.
     const _lihatSemua = auth.is_admin || qs.scope === 'semua';
 
     let bidangNama = null;
@@ -1868,7 +1794,6 @@ export const handler = async (event) => {
             FROM kinerja_indikator ki
             CROSS JOIN generate_series(1,12) AS gs(bulan)
             LEFT JOIN (
-              -- Akumulasi realisasi TW s/d tiap bulan: dihitung SEKALI per indikator (bukan subquery per baris/kolom).
               SELECT krc.indikator_id, q.bulan,
                      SUM(krc.realisasi)   AS sum_kum,
                      AVG(krc.realisasi)   AS avg_kum,
@@ -1884,9 +1809,7 @@ export const handler = async (event) => {
              AND kr.bulan  = gs.bulan
              AND kr.tahun  = ${tahun}
             LEFT JOIN (
-            -- Target tahunan (triwulan = 0) jadi pembagi realisasi tiap TW; kalau kosong, pakai target TW.
             SELECT tw.id, ti.indikator_id, ti.tahun, gs.n AS triwulan,
-                   -- teks target ikut target tahunan kalau ada, supaya tampilan = pembagi
                    CASE WHEN ta.indikator_id IS NOT NULL THEN ta.target_display ELSE tw.target_display END AS target_display,
                    COALESCE(ta.target_num, tw.target_num) AS target
             FROM (SELECT DISTINCT indikator_id, tahun FROM kinerja_target WHERE tahun = ${tahun}) ti
@@ -1999,7 +1922,6 @@ export const handler = async (event) => {
             FROM kinerja_indikator ki
             CROSS JOIN generate_series(1,12) AS gs(bulan)
             LEFT JOIN (
-              -- Akumulasi realisasi TW s/d tiap bulan: dihitung SEKALI per indikator (bukan subquery per baris/kolom).
               SELECT krc.indikator_id, q.bulan,
                      SUM(krc.realisasi)   AS sum_kum,
                      AVG(krc.realisasi)   AS avg_kum,
@@ -2015,9 +1937,7 @@ export const handler = async (event) => {
              AND kr.bulan  = gs.bulan
              AND kr.tahun  = ${tahun}
             LEFT JOIN (
-            -- Target tahunan (triwulan = 0) jadi pembagi realisasi tiap TW; kalau kosong, pakai target TW.
             SELECT tw.id, ti.indikator_id, ti.tahun, gs.n AS triwulan,
-                   -- teks target ikut target tahunan kalau ada, supaya tampilan = pembagi
                    CASE WHEN ta.indikator_id IS NOT NULL THEN ta.target_display ELSE tw.target_display END AS target_display,
                    COALESCE(ta.target_num, tw.target_num) AS target
             FROM (SELECT DISTINCT indikator_id, tahun FROM kinerja_target WHERE tahun = ${tahun}) ti
@@ -2130,7 +2050,6 @@ export const handler = async (event) => {
             FROM kinerja_indikator ki
             CROSS JOIN generate_series(1,12) AS gs(bulan)
             LEFT JOIN (
-              -- Akumulasi realisasi TW s/d tiap bulan: dihitung SEKALI per indikator (bukan subquery per baris/kolom).
               SELECT krc.indikator_id, q.bulan,
                      SUM(krc.realisasi)   AS sum_kum,
                      AVG(krc.realisasi)   AS avg_kum,
@@ -2146,9 +2065,7 @@ export const handler = async (event) => {
              AND kr.bulan  = gs.bulan
              AND kr.tahun  = ${tahun}
             LEFT JOIN (
-            -- Target tahunan (triwulan = 0) jadi pembagi realisasi tiap TW; kalau kosong, pakai target TW.
             SELECT tw.id, ti.indikator_id, ti.tahun, gs.n AS triwulan,
-                   -- teks target ikut target tahunan kalau ada, supaya tampilan = pembagi
                    CASE WHEN ta.indikator_id IS NOT NULL THEN ta.target_display ELSE tw.target_display END AS target_display,
                    COALESCE(ta.target_num, tw.target_num) AS target
             FROM (SELECT DISTINCT indikator_id, tahun FROM kinerja_target WHERE tahun = ${tahun}) ti
@@ -2263,7 +2180,6 @@ export const handler = async (event) => {
             FROM kinerja_indikator ki
             CROSS JOIN generate_series(1,12) AS gs(bulan)
             LEFT JOIN (
-              -- Akumulasi realisasi TW s/d tiap bulan: dihitung SEKALI per indikator (bukan subquery per baris/kolom).
               SELECT krc.indikator_id, q.bulan,
                      SUM(krc.realisasi)   AS sum_kum,
                      AVG(krc.realisasi)   AS avg_kum,
@@ -2279,9 +2195,7 @@ export const handler = async (event) => {
              AND kr.bulan  = gs.bulan
              AND kr.tahun  = ${tahun}
             LEFT JOIN (
-            -- Target tahunan (triwulan = 0) jadi pembagi realisasi tiap TW; kalau kosong, pakai target TW.
             SELECT tw.id, ti.indikator_id, ti.tahun, gs.n AS triwulan,
-                   -- teks target ikut target tahunan kalau ada, supaya tampilan = pembagi
                    CASE WHEN ta.indikator_id IS NOT NULL THEN ta.target_display ELSE tw.target_display END AS target_display,
                    COALESCE(ta.target_num, tw.target_num) AS target
             FROM (SELECT DISTINCT indikator_id, tahun FROM kinerja_target WHERE tahun = ${tahun}) ti
@@ -2394,7 +2308,6 @@ export const handler = async (event) => {
             FROM kinerja_indikator ki
             CROSS JOIN generate_series(1,12) AS gs(bulan)
             LEFT JOIN (
-              -- Akumulasi realisasi TW s/d tiap bulan: dihitung SEKALI per indikator (bukan subquery per baris/kolom).
               SELECT krc.indikator_id, q.bulan,
                      SUM(krc.realisasi)   AS sum_kum,
                      AVG(krc.realisasi)   AS avg_kum,
@@ -2410,9 +2323,7 @@ export const handler = async (event) => {
              AND kr.bulan  = gs.bulan
              AND kr.tahun  = ${tahun}
             LEFT JOIN (
-            -- Target tahunan (triwulan = 0) jadi pembagi realisasi tiap TW; kalau kosong, pakai target TW.
             SELECT tw.id, ti.indikator_id, ti.tahun, gs.n AS triwulan,
-                   -- teks target ikut target tahunan kalau ada, supaya tampilan = pembagi
                    CASE WHEN ta.indikator_id IS NOT NULL THEN ta.target_display ELSE tw.target_display END AS target_display,
                    COALESCE(ta.target_num, tw.target_num) AS target
             FROM (SELECT DISTINCT indikator_id, tahun FROM kinerja_target WHERE tahun = ${tahun}) ti
@@ -2525,7 +2436,6 @@ export const handler = async (event) => {
             FROM kinerja_indikator ki
             CROSS JOIN generate_series(1,12) AS gs(bulan)
             LEFT JOIN (
-              -- Akumulasi realisasi TW s/d tiap bulan: dihitung SEKALI per indikator (bukan subquery per baris/kolom).
               SELECT krc.indikator_id, q.bulan,
                      SUM(krc.realisasi)   AS sum_kum,
                      AVG(krc.realisasi)   AS avg_kum,
@@ -2541,9 +2451,7 @@ export const handler = async (event) => {
              AND kr.bulan  = gs.bulan
              AND kr.tahun  = ${tahun}
             LEFT JOIN (
-            -- Target tahunan (triwulan = 0) jadi pembagi realisasi tiap TW; kalau kosong, pakai target TW.
             SELECT tw.id, ti.indikator_id, ti.tahun, gs.n AS triwulan,
-                   -- teks target ikut target tahunan kalau ada, supaya tampilan = pembagi
                    CASE WHEN ta.indikator_id IS NOT NULL THEN ta.target_display ELSE tw.target_display END AS target_display,
                    COALESCE(ta.target_num, tw.target_num) AS target
             FROM (SELECT DISTINCT indikator_id, tahun FROM kinerja_target WHERE tahun = ${tahun}) ti
@@ -2658,7 +2566,6 @@ export const handler = async (event) => {
             FROM kinerja_indikator ki
             CROSS JOIN generate_series(1,12) AS gs(bulan)
             LEFT JOIN (
-              -- Akumulasi realisasi TW s/d tiap bulan: dihitung SEKALI per indikator (bukan subquery per baris/kolom).
               SELECT krc.indikator_id, q.bulan,
                      SUM(krc.realisasi)   AS sum_kum,
                      AVG(krc.realisasi)   AS avg_kum,
@@ -2674,9 +2581,7 @@ export const handler = async (event) => {
              AND kr.bulan  = gs.bulan
              AND kr.tahun  = ${tahun}
             LEFT JOIN (
-            -- Target tahunan (triwulan = 0) jadi pembagi realisasi tiap TW; kalau kosong, pakai target TW.
             SELECT tw.id, ti.indikator_id, ti.tahun, gs.n AS triwulan,
-                   -- teks target ikut target tahunan kalau ada, supaya tampilan = pembagi
                    CASE WHEN ta.indikator_id IS NOT NULL THEN ta.target_display ELSE tw.target_display END AS target_display,
                    COALESCE(ta.target_num, tw.target_num) AS target
             FROM (SELECT DISTINCT indikator_id, tahun FROM kinerja_target WHERE tahun = ${tahun}) ti
@@ -2789,7 +2694,6 @@ export const handler = async (event) => {
             FROM kinerja_indikator ki
             CROSS JOIN generate_series(1,12) AS gs(bulan)
             LEFT JOIN (
-              -- Akumulasi realisasi TW s/d tiap bulan: dihitung SEKALI per indikator (bukan subquery per baris/kolom).
               SELECT krc.indikator_id, q.bulan,
                      SUM(krc.realisasi)   AS sum_kum,
                      AVG(krc.realisasi)   AS avg_kum,
@@ -2805,9 +2709,7 @@ export const handler = async (event) => {
              AND kr.bulan  = gs.bulan
              AND kr.tahun  = ${tahun}
             LEFT JOIN (
-            -- Target tahunan (triwulan = 0) jadi pembagi realisasi tiap TW; kalau kosong, pakai target TW.
             SELECT tw.id, ti.indikator_id, ti.tahun, gs.n AS triwulan,
-                   -- teks target ikut target tahunan kalau ada, supaya tampilan = pembagi
                    CASE WHEN ta.indikator_id IS NOT NULL THEN ta.target_display ELSE tw.target_display END AS target_display,
                    COALESCE(ta.target_num, tw.target_num) AS target
             FROM (SELECT DISTINCT indikator_id, tahun FROM kinerja_target WHERE tahun = ${tahun}) ti
@@ -2920,7 +2822,6 @@ export const handler = async (event) => {
             FROM kinerja_indikator ki
             CROSS JOIN generate_series(1,12) AS gs(bulan)
             LEFT JOIN (
-              -- Akumulasi realisasi TW s/d tiap bulan: dihitung SEKALI per indikator (bukan subquery per baris/kolom).
               SELECT krc.indikator_id, q.bulan,
                      SUM(krc.realisasi)   AS sum_kum,
                      AVG(krc.realisasi)   AS avg_kum,
@@ -2936,9 +2837,7 @@ export const handler = async (event) => {
              AND kr.bulan  = gs.bulan
              AND kr.tahun  = ${tahun}
             LEFT JOIN (
-            -- Target tahunan (triwulan = 0) jadi pembagi realisasi tiap TW; kalau kosong, pakai target TW.
             SELECT tw.id, ti.indikator_id, ti.tahun, gs.n AS triwulan,
-                   -- teks target ikut target tahunan kalau ada, supaya tampilan = pembagi
                    CASE WHEN ta.indikator_id IS NOT NULL THEN ta.target_display ELSE tw.target_display END AS target_display,
                    COALESCE(ta.target_num, tw.target_num) AS target
             FROM (SELECT DISTINCT indikator_id, tahun FROM kinerja_target WHERE tahun = ${tahun}) ti
@@ -3052,7 +2951,6 @@ export const handler = async (event) => {
             FROM kinerja_indikator ki
             CROSS JOIN generate_series(1,12) AS gs(bulan)
             LEFT JOIN (
-              -- Akumulasi realisasi TW s/d tiap bulan: dihitung SEKALI per indikator (bukan subquery per baris/kolom).
               SELECT krc.indikator_id, q.bulan,
                      SUM(krc.realisasi)   AS sum_kum,
                      AVG(krc.realisasi)   AS avg_kum,
@@ -3068,9 +2966,7 @@ export const handler = async (event) => {
              AND kr.bulan  = gs.bulan
              AND kr.tahun  = ${tahun}
             LEFT JOIN (
-            -- Target tahunan (triwulan = 0) jadi pembagi realisasi tiap TW; kalau kosong, pakai target TW.
             SELECT tw.id, ti.indikator_id, ti.tahun, gs.n AS triwulan,
-                   -- teks target ikut target tahunan kalau ada, supaya tampilan = pembagi
                    CASE WHEN ta.indikator_id IS NOT NULL THEN ta.target_display ELSE tw.target_display END AS target_display,
                    COALESCE(ta.target_num, tw.target_num) AS target
             FROM (SELECT DISTINCT indikator_id, tahun FROM kinerja_target WHERE tahun = ${tahun}) ti
@@ -3183,7 +3079,6 @@ export const handler = async (event) => {
             FROM kinerja_indikator ki
             CROSS JOIN generate_series(1,12) AS gs(bulan)
             LEFT JOIN (
-              -- Akumulasi realisasi TW s/d tiap bulan: dihitung SEKALI per indikator (bukan subquery per baris/kolom).
               SELECT krc.indikator_id, q.bulan,
                      SUM(krc.realisasi)   AS sum_kum,
                      AVG(krc.realisasi)   AS avg_kum,
@@ -3199,9 +3094,7 @@ export const handler = async (event) => {
              AND kr.bulan  = gs.bulan
              AND kr.tahun  = ${tahun}
             LEFT JOIN (
-            -- Target tahunan (triwulan = 0) jadi pembagi realisasi tiap TW; kalau kosong, pakai target TW.
             SELECT tw.id, ti.indikator_id, ti.tahun, gs.n AS triwulan,
-                   -- teks target ikut target tahunan kalau ada, supaya tampilan = pembagi
                    CASE WHEN ta.indikator_id IS NOT NULL THEN ta.target_display ELSE tw.target_display END AS target_display,
                    COALESCE(ta.target_num, tw.target_num) AS target
             FROM (SELECT DISTINCT indikator_id, tahun FROM kinerja_target WHERE tahun = ${tahun}) ti
@@ -3314,7 +3207,6 @@ export const handler = async (event) => {
             FROM kinerja_indikator ki
             CROSS JOIN generate_series(1,12) AS gs(bulan)
             LEFT JOIN (
-              -- Akumulasi realisasi TW s/d tiap bulan: dihitung SEKALI per indikator (bukan subquery per baris/kolom).
               SELECT krc.indikator_id, q.bulan,
                      SUM(krc.realisasi)   AS sum_kum,
                      AVG(krc.realisasi)   AS avg_kum,
@@ -3330,9 +3222,7 @@ export const handler = async (event) => {
              AND kr.bulan  = gs.bulan
              AND kr.tahun  = ${tahun}
             LEFT JOIN (
-            -- Target tahunan (triwulan = 0) jadi pembagi realisasi tiap TW; kalau kosong, pakai target TW.
             SELECT tw.id, ti.indikator_id, ti.tahun, gs.n AS triwulan,
-                   -- teks target ikut target tahunan kalau ada, supaya tampilan = pembagi
                    CASE WHEN ta.indikator_id IS NOT NULL THEN ta.target_display ELSE tw.target_display END AS target_display,
                    COALESCE(ta.target_num, tw.target_num) AS target
             FROM (SELECT DISTINCT indikator_id, tahun FROM kinerja_target WHERE tahun = ${tahun}) ti
@@ -3367,9 +3257,6 @@ export const handler = async (event) => {
               AND ki.jenis_monev = TRUE
             ORDER BY gs.bulan ASC, kg.urutan ASC NULLS LAST, ki.urutan ASC, ki.id ASC
           `;
-      // Kolom teks level-indikator (sasaran, indikator, formula, satuan, PJ, grup) hanya dikirim Neon pada
-      // bulan 1 (CASE WHEN gs.bulan = 1 di query) supaya payload DB->function tidak membawa salinan 12x.
-      // Di sini diisi balik ke bulan 2..12 -> bentuk respons ke frontend TIDAK berubah.
       const _META = ['sasaran', 'indikator_kinerja', 'satuan', 'penanggung_jawab', 'formula', 'group_nama', 'group_jenis'];
       const _meta1 = new Map();
       for (const r of rows) if (r.bulan === 1) _meta1.set(r.id, r);
@@ -3394,7 +3281,6 @@ export const handler = async (event) => {
     const tahun = parseInt(qs.tahun || new Date().getFullYear());
     const jenis = qs.jenis || 'monev';
     const scope = qs.scope === 'bidang' ? 'bidang' : 'mine';
-    // scope=semua: dipakai dashboard utama (read-only) -> tampilkan seluruh indikator, bukan cuma yang di-assign/unit user.
     const _lihatSemua = auth.is_admin || qs.scope === 'semua';
 
     let bidangNama = null;
@@ -3518,7 +3404,6 @@ export const handler = async (event) => {
                   )
               END AS capaian_persen
             FROM kinerja_indikator ki
-            -- Akumulasi realisasi TW s/d bulan terpilih: dihitung SEKALI per indikator (bukan subquery per kolom).
             LEFT JOIN (
               SELECT krc.indikator_id,
                      SUM(krc.realisasi)   AS sum_kum,
@@ -3535,9 +3420,7 @@ export const handler = async (event) => {
              AND kr.bulan  = ${bulan}
              AND kr.tahun  = ${tahun}
             LEFT JOIN (
-            -- Target tahunan (triwulan = 0) jadi pembagi realisasi tiap TW; kalau kosong, pakai target TW.
             SELECT tw.id, ti.indikator_id, ti.tahun, gs.n AS triwulan,
-                   -- teks target ikut target tahunan kalau ada, supaya tampilan = pembagi
                    CASE WHEN ta.indikator_id IS NOT NULL THEN ta.target_display ELSE tw.target_display END AS target_display,
                    COALESCE(ta.target_num, tw.target_num) AS target
             FROM (SELECT DISTINCT indikator_id, tahun FROM kinerja_target WHERE tahun = ${tahun}) ti
@@ -3647,7 +3530,6 @@ export const handler = async (event) => {
                   )
               END AS capaian_persen
             FROM kinerja_indikator ki
-            -- Akumulasi realisasi TW s/d bulan terpilih: dihitung SEKALI per indikator (bukan subquery per kolom).
             LEFT JOIN (
               SELECT krc.indikator_id,
                      SUM(krc.realisasi)   AS sum_kum,
@@ -3664,9 +3546,7 @@ export const handler = async (event) => {
              AND kr.bulan  = ${bulan}
              AND kr.tahun  = ${tahun}
             LEFT JOIN (
-            -- Target tahunan (triwulan = 0) jadi pembagi realisasi tiap TW; kalau kosong, pakai target TW.
             SELECT tw.id, ti.indikator_id, ti.tahun, gs.n AS triwulan,
-                   -- teks target ikut target tahunan kalau ada, supaya tampilan = pembagi
                    CASE WHEN ta.indikator_id IS NOT NULL THEN ta.target_display ELSE tw.target_display END AS target_display,
                    COALESCE(ta.target_num, tw.target_num) AS target
             FROM (SELECT DISTINCT indikator_id, tahun FROM kinerja_target WHERE tahun = ${tahun}) ti
@@ -3776,7 +3656,6 @@ export const handler = async (event) => {
                   )
               END AS capaian_persen
             FROM kinerja_indikator ki
-            -- Akumulasi realisasi TW s/d bulan terpilih: dihitung SEKALI per indikator (bukan subquery per kolom).
             LEFT JOIN (
               SELECT krc.indikator_id,
                      SUM(krc.realisasi)   AS sum_kum,
@@ -3793,9 +3672,7 @@ export const handler = async (event) => {
              AND kr.bulan  = ${bulan}
              AND kr.tahun  = ${tahun}
             LEFT JOIN (
-            -- Target tahunan (triwulan = 0) jadi pembagi realisasi tiap TW; kalau kosong, pakai target TW.
             SELECT tw.id, ti.indikator_id, ti.tahun, gs.n AS triwulan,
-                   -- teks target ikut target tahunan kalau ada, supaya tampilan = pembagi
                    CASE WHEN ta.indikator_id IS NOT NULL THEN ta.target_display ELSE tw.target_display END AS target_display,
                    COALESCE(ta.target_num, tw.target_num) AS target
             FROM (SELECT DISTINCT indikator_id, tahun FROM kinerja_target WHERE tahun = ${tahun}) ti
@@ -3907,7 +3784,6 @@ export const handler = async (event) => {
                   )
               END AS capaian_persen
             FROM kinerja_indikator ki
-            -- Akumulasi realisasi TW s/d bulan terpilih: dihitung SEKALI per indikator (bukan subquery per kolom).
             LEFT JOIN (
               SELECT krc.indikator_id,
                      SUM(krc.realisasi)   AS sum_kum,
@@ -3924,9 +3800,7 @@ export const handler = async (event) => {
              AND kr.bulan  = ${bulan}
              AND kr.tahun  = ${tahun}
             LEFT JOIN (
-            -- Target tahunan (triwulan = 0) jadi pembagi realisasi tiap TW; kalau kosong, pakai target TW.
             SELECT tw.id, ti.indikator_id, ti.tahun, gs.n AS triwulan,
-                   -- teks target ikut target tahunan kalau ada, supaya tampilan = pembagi
                    CASE WHEN ta.indikator_id IS NOT NULL THEN ta.target_display ELSE tw.target_display END AS target_display,
                    COALESCE(ta.target_num, tw.target_num) AS target
             FROM (SELECT DISTINCT indikator_id, tahun FROM kinerja_target WHERE tahun = ${tahun}) ti
@@ -4036,7 +3910,6 @@ export const handler = async (event) => {
                   )
               END AS capaian_persen
             FROM kinerja_indikator ki
-            -- Akumulasi realisasi TW s/d bulan terpilih: dihitung SEKALI per indikator (bukan subquery per kolom).
             LEFT JOIN (
               SELECT krc.indikator_id,
                      SUM(krc.realisasi)   AS sum_kum,
@@ -4053,9 +3926,7 @@ export const handler = async (event) => {
              AND kr.bulan  = ${bulan}
              AND kr.tahun  = ${tahun}
             LEFT JOIN (
-            -- Target tahunan (triwulan = 0) jadi pembagi realisasi tiap TW; kalau kosong, pakai target TW.
             SELECT tw.id, ti.indikator_id, ti.tahun, gs.n AS triwulan,
-                   -- teks target ikut target tahunan kalau ada, supaya tampilan = pembagi
                    CASE WHEN ta.indikator_id IS NOT NULL THEN ta.target_display ELSE tw.target_display END AS target_display,
                    COALESCE(ta.target_num, tw.target_num) AS target
             FROM (SELECT DISTINCT indikator_id, tahun FROM kinerja_target WHERE tahun = ${tahun}) ti
@@ -4165,7 +4036,6 @@ export const handler = async (event) => {
                   )
               END AS capaian_persen
             FROM kinerja_indikator ki
-            -- Akumulasi realisasi TW s/d bulan terpilih: dihitung SEKALI per indikator (bukan subquery per kolom).
             LEFT JOIN (
               SELECT krc.indikator_id,
                      SUM(krc.realisasi)   AS sum_kum,
@@ -4182,9 +4052,7 @@ export const handler = async (event) => {
              AND kr.bulan  = ${bulan}
              AND kr.tahun  = ${tahun}
             LEFT JOIN (
-            -- Target tahunan (triwulan = 0) jadi pembagi realisasi tiap TW; kalau kosong, pakai target TW.
             SELECT tw.id, ti.indikator_id, ti.tahun, gs.n AS triwulan,
-                   -- teks target ikut target tahunan kalau ada, supaya tampilan = pembagi
                    CASE WHEN ta.indikator_id IS NOT NULL THEN ta.target_display ELSE tw.target_display END AS target_display,
                    COALESCE(ta.target_num, tw.target_num) AS target
             FROM (SELECT DISTINCT indikator_id, tahun FROM kinerja_target WHERE tahun = ${tahun}) ti
@@ -4296,7 +4164,6 @@ export const handler = async (event) => {
                   )
               END AS capaian_persen
             FROM kinerja_indikator ki
-            -- Akumulasi realisasi TW s/d bulan terpilih: dihitung SEKALI per indikator (bukan subquery per kolom).
             LEFT JOIN (
               SELECT krc.indikator_id,
                      SUM(krc.realisasi)   AS sum_kum,
@@ -4313,9 +4180,7 @@ export const handler = async (event) => {
              AND kr.bulan  = ${bulan}
              AND kr.tahun  = ${tahun}
             LEFT JOIN (
-            -- Target tahunan (triwulan = 0) jadi pembagi realisasi tiap TW; kalau kosong, pakai target TW.
             SELECT tw.id, ti.indikator_id, ti.tahun, gs.n AS triwulan,
-                   -- teks target ikut target tahunan kalau ada, supaya tampilan = pembagi
                    CASE WHEN ta.indikator_id IS NOT NULL THEN ta.target_display ELSE tw.target_display END AS target_display,
                    COALESCE(ta.target_num, tw.target_num) AS target
             FROM (SELECT DISTINCT indikator_id, tahun FROM kinerja_target WHERE tahun = ${tahun}) ti
@@ -4425,7 +4290,6 @@ export const handler = async (event) => {
                   )
               END AS capaian_persen
             FROM kinerja_indikator ki
-            -- Akumulasi realisasi TW s/d bulan terpilih: dihitung SEKALI per indikator (bukan subquery per kolom).
             LEFT JOIN (
               SELECT krc.indikator_id,
                      SUM(krc.realisasi)   AS sum_kum,
@@ -4442,9 +4306,7 @@ export const handler = async (event) => {
              AND kr.bulan  = ${bulan}
              AND kr.tahun  = ${tahun}
             LEFT JOIN (
-            -- Target tahunan (triwulan = 0) jadi pembagi realisasi tiap TW; kalau kosong, pakai target TW.
             SELECT tw.id, ti.indikator_id, ti.tahun, gs.n AS triwulan,
-                   -- teks target ikut target tahunan kalau ada, supaya tampilan = pembagi
                    CASE WHEN ta.indikator_id IS NOT NULL THEN ta.target_display ELSE tw.target_display END AS target_display,
                    COALESCE(ta.target_num, tw.target_num) AS target
             FROM (SELECT DISTINCT indikator_id, tahun FROM kinerja_target WHERE tahun = ${tahun}) ti
@@ -4554,7 +4416,6 @@ export const handler = async (event) => {
                   )
               END AS capaian_persen
             FROM kinerja_indikator ki
-            -- Akumulasi realisasi TW s/d bulan terpilih: dihitung SEKALI per indikator (bukan subquery per kolom).
             LEFT JOIN (
               SELECT krc.indikator_id,
                      SUM(krc.realisasi)   AS sum_kum,
@@ -4571,9 +4432,7 @@ export const handler = async (event) => {
              AND kr.bulan  = ${bulan}
              AND kr.tahun  = ${tahun}
             LEFT JOIN (
-            -- Target tahunan (triwulan = 0) jadi pembagi realisasi tiap TW; kalau kosong, pakai target TW.
             SELECT tw.id, ti.indikator_id, ti.tahun, gs.n AS triwulan,
-                   -- teks target ikut target tahunan kalau ada, supaya tampilan = pembagi
                    CASE WHEN ta.indikator_id IS NOT NULL THEN ta.target_display ELSE tw.target_display END AS target_display,
                    COALESCE(ta.target_num, tw.target_num) AS target
             FROM (SELECT DISTINCT indikator_id, tahun FROM kinerja_target WHERE tahun = ${tahun}) ti
@@ -4684,7 +4543,6 @@ export const handler = async (event) => {
                   )
               END AS capaian_persen
             FROM kinerja_indikator ki
-            -- Akumulasi realisasi TW s/d bulan terpilih: dihitung SEKALI per indikator (bukan subquery per kolom).
             LEFT JOIN (
               SELECT krc.indikator_id,
                      SUM(krc.realisasi)   AS sum_kum,
@@ -4701,9 +4559,7 @@ export const handler = async (event) => {
              AND kr.bulan  = ${bulan}
              AND kr.tahun  = ${tahun}
             LEFT JOIN (
-            -- Target tahunan (triwulan = 0) jadi pembagi realisasi tiap TW; kalau kosong, pakai target TW.
             SELECT tw.id, ti.indikator_id, ti.tahun, gs.n AS triwulan,
-                   -- teks target ikut target tahunan kalau ada, supaya tampilan = pembagi
                    CASE WHEN ta.indikator_id IS NOT NULL THEN ta.target_display ELSE tw.target_display END AS target_display,
                    COALESCE(ta.target_num, tw.target_num) AS target
             FROM (SELECT DISTINCT indikator_id, tahun FROM kinerja_target WHERE tahun = ${tahun}) ti
@@ -4813,7 +4669,6 @@ export const handler = async (event) => {
                   )
               END AS capaian_persen
             FROM kinerja_indikator ki
-            -- Akumulasi realisasi TW s/d bulan terpilih: dihitung SEKALI per indikator (bukan subquery per kolom).
             LEFT JOIN (
               SELECT krc.indikator_id,
                      SUM(krc.realisasi)   AS sum_kum,
@@ -4830,9 +4685,7 @@ export const handler = async (event) => {
              AND kr.bulan  = ${bulan}
              AND kr.tahun  = ${tahun}
             LEFT JOIN (
-            -- Target tahunan (triwulan = 0) jadi pembagi realisasi tiap TW; kalau kosong, pakai target TW.
             SELECT tw.id, ti.indikator_id, ti.tahun, gs.n AS triwulan,
-                   -- teks target ikut target tahunan kalau ada, supaya tampilan = pembagi
                    CASE WHEN ta.indikator_id IS NOT NULL THEN ta.target_display ELSE tw.target_display END AS target_display,
                    COALESCE(ta.target_num, tw.target_num) AS target
             FROM (SELECT DISTINCT indikator_id, tahun FROM kinerja_target WHERE tahun = ${tahun}) ti
@@ -4942,7 +4795,6 @@ export const handler = async (event) => {
                   )
               END AS capaian_persen
             FROM kinerja_indikator ki
-            -- Akumulasi realisasi TW s/d bulan terpilih: dihitung SEKALI per indikator (bukan subquery per kolom).
             LEFT JOIN (
               SELECT krc.indikator_id,
                      SUM(krc.realisasi)   AS sum_kum,
@@ -4959,9 +4811,7 @@ export const handler = async (event) => {
              AND kr.bulan  = ${bulan}
              AND kr.tahun  = ${tahun}
             LEFT JOIN (
-            -- Target tahunan (triwulan = 0) jadi pembagi realisasi tiap TW; kalau kosong, pakai target TW.
             SELECT tw.id, ti.indikator_id, ti.tahun, gs.n AS triwulan,
-                   -- teks target ikut target tahunan kalau ada, supaya tampilan = pembagi
                    CASE WHEN ta.indikator_id IS NOT NULL THEN ta.target_display ELSE tw.target_display END AS target_display,
                    COALESCE(ta.target_num, tw.target_num) AS target
             FROM (SELECT DISTINCT indikator_id, tahun FROM kinerja_target WHERE tahun = ${tahun}) ti
@@ -5171,9 +5021,7 @@ export const handler = async (event) => {
           LEFT JOIN kinerja_group kg ON kg.id = ki.group_id
           LEFT JOIN kinerja_realisasi kr ON kr.indikator_id = ki.id AND kr.bulan = ${bulan} AND kr.tahun = ${tahun}
           LEFT JOIN (
-            -- Target tahunan (triwulan = 0) jadi pembagi realisasi tiap TW; kalau kosong, pakai target TW.
             SELECT tw.id, ti.indikator_id, ti.tahun, gs.n AS triwulan,
-                   -- teks target ikut target tahunan kalau ada, supaya tampilan = pembagi
                    CASE WHEN ta.indikator_id IS NOT NULL THEN ta.target_display ELSE tw.target_display END AS target_display,
                    COALESCE(ta.target_num, tw.target_num) AS target
             FROM (SELECT DISTINCT indikator_id, tahun FROM kinerja_target) ti
@@ -5275,9 +5123,7 @@ export const handler = async (event) => {
           LEFT JOIN kinerja_group kg ON kg.id = ki.group_id
           LEFT JOIN kinerja_realisasi kr ON kr.indikator_id = ki.id AND kr.bulan = ${bulan}
           LEFT JOIN (
-            -- Target tahunan (triwulan = 0) jadi pembagi realisasi tiap TW; kalau kosong, pakai target TW.
             SELECT tw.id, ti.indikator_id, ti.tahun, gs.n AS triwulan,
-                   -- teks target ikut target tahunan kalau ada, supaya tampilan = pembagi
                    CASE WHEN ta.indikator_id IS NOT NULL THEN ta.target_display ELSE tw.target_display END AS target_display,
                    COALESCE(ta.target_num, tw.target_num) AS target
             FROM (SELECT DISTINCT indikator_id, tahun FROM kinerja_target) ti
@@ -5380,9 +5226,7 @@ export const handler = async (event) => {
           LEFT JOIN kinerja_group kg ON kg.id = ki.group_id
           LEFT JOIN kinerja_realisasi kr ON kr.indikator_id = ki.id AND kr.tahun = ${tahun}
           LEFT JOIN (
-            -- Target tahunan (triwulan = 0) jadi pembagi realisasi tiap TW; kalau kosong, pakai target TW.
             SELECT tw.id, ti.indikator_id, ti.tahun, gs.n AS triwulan,
-                   -- teks target ikut target tahunan kalau ada, supaya tampilan = pembagi
                    CASE WHEN ta.indikator_id IS NOT NULL THEN ta.target_display ELSE tw.target_display END AS target_display,
                    COALESCE(ta.target_num, tw.target_num) AS target
             FROM (SELECT DISTINCT indikator_id, tahun FROM kinerja_target) ti
@@ -5484,9 +5328,7 @@ export const handler = async (event) => {
           LEFT JOIN kinerja_group kg ON kg.id = ki.group_id
           LEFT JOIN kinerja_realisasi kr ON kr.indikator_id = ki.id
           LEFT JOIN (
-            -- Target tahunan (triwulan = 0) jadi pembagi realisasi tiap TW; kalau kosong, pakai target TW.
             SELECT tw.id, ti.indikator_id, ti.tahun, gs.n AS triwulan,
-                   -- teks target ikut target tahunan kalau ada, supaya tampilan = pembagi
                    CASE WHEN ta.indikator_id IS NOT NULL THEN ta.target_display ELSE tw.target_display END AS target_display,
                    COALESCE(ta.target_num, tw.target_num) AS target
             FROM (SELECT DISTINCT indikator_id, tahun FROM kinerja_target) ti
@@ -5540,7 +5382,6 @@ export const handler = async (event) => {
         if (r.status === 'terisi') pjMap[pj].terisi++;
         else pjMap[pj].belum++;
       }
-      // Urutan: Belum Input terbanyak di atas, kalau sama urut abjad; "- Tanpa PJ -" selalu paling bawah
       const summary_pj = Object.values(pjMap).sort((a, b) =>
         ((a.penanggung_jawab === '- Tanpa PJ -') - (b.penanggung_jawab === '- Tanpa PJ -')) ||
         (b.belum - a.belum) ||
@@ -5577,7 +5418,7 @@ export const handler = async (event) => {
         UNIQUE(template_id, indikator_id))`;
       await sql`ALTER TABLE laporan_template ADD COLUMN IF NOT EXISTS parent_id INT REFERENCES laporan_template(id) ON DELETE CASCADE`;
       });
-    } catch(_e) { /* tabel sudah ada, lanjut */ }
+    } catch(_e) {  }
 
     const templateId = segments[1] ? parseInt(segments[1]) : null;
     const subAction  = segments[2] || null;

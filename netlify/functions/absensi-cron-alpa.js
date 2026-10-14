@@ -2,7 +2,6 @@ import { getDb, jsonResponse, errorResponse } from './_db.js';
 import { heartbeat } from './_monitoring.js';
 import { notifAbsensiAlpa } from './_notif_modul.js';
 
-// Notifikasi lonceng bersifat best-effort: kegagalannya tidak boleh menggagalkan aksi utamanya.
 async function notifSafe(fn) {
   try { await fn(); } catch (e) { console.error('[notif]', e); }
 }
@@ -56,8 +55,6 @@ async function jalankan(event) {
   }
 }
 
-// Bungkus: catat denyut (heartbeat) tiap kali cron jalan, termasuk saat dilewati (akhir pekan/libur),
-// supaya halaman Pemantauan Sistem tahu cron ini masih hidup.
 export const handler = async (event) => {
   const res = await jalankan(event);
   await heartbeat(getDb(), 'absensi-cron-alpa', res.statusCode < 400, `HTTP ${res.statusCode}`);

@@ -1,21 +1,13 @@
-/* DIHASILKAN OTOMATIS oleh tools/gen-dark.js - jangan diedit tangan.
-   Edit tools/dark-manual-*.css lalu jalankan ulang generator. */
 @media screen {
-/* ── Token dasar mode gelap untuk landing.html (manual) ── */
 html[data-theme="dark"]{color-scheme:dark}
 html[data-theme="dark"] body{background:#0b1220;color:#e5e7eb}
 html[data-theme="dark"] input::placeholder,
 html[data-theme="dark"] textarea::placeholder{color:#64748b}
 
-/* Garis putih di bawah topbar: nav.topbar punya `box-shadow: 0 1px 0 var(--slate-100)` (warna terang).
-   Saat .scrolled shadow-nya sudah beda, jadi cukup state default. */
 html[data-theme="dark"] nav.topbar:not(.scrolled){box-shadow:0 1px 0 #1e293b}
 
-/* Ilustrasi hero (SVG .hero-illustration): warna di-hardcode lewat atribut fill/stroke,
-   jadi generator tidak menangkapnya. CSS menang atas atribut presentasi SVG. */
 html[data-theme="dark"] .hero-illustration ellipse[fill="#e2f0ee"]{fill:#0f2a2a}
 html[data-theme="dark"] .hero-illustration ellipse[fill="#c7e8e4"]{fill:#0f2a2a}
-/* kartu & jendela browser */
 html[data-theme="dark"] .hero-illustration rect[fill="#ffffff"]{fill:#111827}
 html[data-theme="dark"] .hero-illustration [stroke="#e2e8f0"]{stroke:#1e293b}
 html[data-theme="dark"] .hero-illustration rect[fill="#f8fafc"]{fill:#0e1624}
@@ -24,24 +16,18 @@ html[data-theme="dark"] .hero-illustration [stroke="#f1f5f9"]{stroke:#1a2335}
 html[data-theme="dark"] .hero-illustration rect[fill="#e2e8f0"]{fill:#243044}
 html[data-theme="dark"] .hero-illustration rect[fill="#cbd5e1"]{fill:#334155}
 html[data-theme="dark"] .hero-illustration line[stroke="#cbd5e1"]{stroke:#334155}
-/* panel chart / kartu statistik (teal) */
 html[data-theme="dark"] .hero-illustration rect[fill="#f0fdfa"]{fill:#0f2a2a}
 html[data-theme="dark"] .hero-illustration [stroke="#ccfbf1"]{stroke:#1b5a5c}
 html[data-theme="dark"] .hero-illustration rect[fill="#ccfbf1"]{fill:#123a38}
-/* kartu statistik (oranye) */
 html[data-theme="dark"] .hero-illustration rect[fill="#fff7ed"]{fill:#2a2018}
 html[data-theme="dark"] .hero-illustration [stroke="#fed7aa"]{stroke:#5a3a1f}
-/* teks */
 html[data-theme="dark"] .hero-illustration text[fill="#64748b"]{fill:#94a3b8}
 html[data-theme="dark"] .hero-illustration text[fill="#0f172a"]{fill:#e5e7eb}
 html[data-theme="dark"] .hero-illustration text[fill="#0f7a63"]{fill:#2dd4bf}
 html[data-theme="dark"] .hero-illustration text[fill="#c2410c"]{fill:#fb923c}
-/* tokoh: kaki, sepatu, & bingkai laptop yang gelap supaya tidak lenyap di latar gelap */
 html[data-theme="dark"] .hero-illustration rect[fill="#1e293b"][rx="8"]{fill:#475569}
 html[data-theme="dark"] .hero-illustration rect[fill="#0f172a"]{fill:#334155}
 html[data-theme="dark"] .hero-illustration rect[fill="#1e293b"][rx="6"]{fill:#475569}
-/* wajah tokoh: rambut tetap terang (uban) tapi mata & mulut harus gelap, kalau tidak ikut dipetakan
-   [fill="#1e293b"] -> #e5e7eb oleh aturan generik dan lenyap di kulit terang */
 html[data-theme="dark"] .hero-illustration circle[r="3.5"][fill="#1e293b"]{fill:#1e293b;opacity:.9}
 html[data-theme="dark"] .hero-illustration path[stroke="#1e293b"][stroke-width="2"]{stroke:#1e293b}
 
@@ -219,6 +205,10 @@ html[data-theme="dark"] .kontak-val{color:#cbd5e1}
 html[data-theme="dark"] .kontak-val a{color:#2dd4bf}
 html[data-theme="dark"] .kontak-map{border:2px solid #1b5a5c;background:#0f2a2a}
 html[data-theme="dark"] .leaflet-popup-content-wrapper{border:1.5px solid #1b5a5c!important}
+html[data-theme="dark"] .leaflet-popup-content-wrapper{background:#111827!important;color:#e5e7eb}
+html[data-theme="dark"] .leaflet-container a.leaflet-popup-close-button{color:#94a3b8}
+html[data-theme="dark"] .leaflet-container a.leaflet-popup-close-button:hover,
+html[data-theme="dark"] .leaflet-container a.leaflet-popup-close-button:focus{color:#e5e7eb}
 html[data-theme="dark"] .leaflet-popup-tip{background:#111827!important}
 html[data-theme="dark"] .map-popup-title{color:#e5e7eb}
 html[data-theme="dark"] .map-popup-addr{color:#94a3b8}

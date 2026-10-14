@@ -1,18 +1,3 @@
-// Walidata (Data SSD) - pencatatan realisasi indikator sektoral per Kode SSD, unit kerja, dan tahun.
-// Endpoint (relatif terhadap /.netlify/functions/walidata):
-//   GET    /data-rentang?tahun=2022,2023,...  rekap beberapa tahun sekaligus (maks 8) untuk download Laporan
-//   GET    /data?tahun=YYYY          rekap Data SSD (admin: semua; user: indikator unit kerjanya)
-//   PUT    /realisasi                simpan/kosongkan realisasi {indikator_id,bidang_id,tahun,nilai}
-//   DELETE /realisasi/reset?indikator_id=&tahun=   reset semua realisasi satu indikator pada satu tahun (Super Admin)
-//   GET    /indikator                master indikator (admin)
-//   POST   /indikator                tambah indikator (admin)
-//   PUT    /indikator/:id            ubah indikator (admin)
-//   DELETE /indikator/:id            arsipkan indikator (admin) - realisasi tetap tersimpan
-//   GET    /monitoring?tahun=YYYY    monitoring pengisian per indikator x unit kerja (admin)
-//   GET    /dashboard?tahun=YYYY     ringkasan pengisian untuk Dashboard (admin: semua; user: indikator yang di-assign ke akunnya)
-//   GET/PUT /indikator/:id/users     assign user (penanggung jawab) per indikator (admin) - sama dengan Kinerja
-//   (periode penginputan memakai tabel `periode` jenis 'walidata' - diatur di Master Data → Periode)
-//   POST   /import                   {mode:'validate'|'commit', rows, overwrite}  (admin)
 import { getDb, jsonResponse, errorResponse, parseBody, runOnce, setRequestDeadline } from './_db.js';
 import { requireAuth } from './_auth.js';
 
@@ -42,13 +27,11 @@ async function ensureSchema(sql) {
       bidang_id    INTEGER NOT NULL,
       PRIMARY KEY (indikator_id, bidang_id)
     )`;
-    // Assign user per indikator (padanan user_indikator di Kinerja). Tanpa baris = tidak ada user biasa yang melihat indikator (sama dengan Kinerja).
     await sql`CREATE TABLE IF NOT EXISTS walidata_indikator_user (
       indikator_id INTEGER NOT NULL REFERENCES walidata_indikator(id) ON DELETE CASCADE,
       user_id      INTEGER NOT NULL,
       PRIMARY KEY (indikator_id, user_id)
     )`;
-    // Satu baris = satu nilai yang SUDAH diinput. Tidak ada baris = belum diinput (beda dengan nol).
     await sql`CREATE TABLE IF NOT EXISTS walidata_realisasi (
       id           SERIAL PRIMARY KEY,
       indikator_id INTEGER NOT NULL REFERENCES walidata_indikator(id),
@@ -74,7 +57,6 @@ async function ensureSchema(sql) {
   });
 }
 
-// ── Konteks user: admin / permission / unit kerja ──────────────────────────
 async function getCtx(event, sql) {
   const u = requireAuth(event);
   if (!u) return null;
@@ -84,7 +66,7 @@ async function getCtx(event, sql) {
   return {
     id: u.id,
     admin,
-    superAdmin: !!u.is_admin,   // Super Admin saja (bukan sekadar walidata.full) - dipakai untuk Reset realisasi
+    superAdmin: !!u.is_admin,
     bidang_id: urow?.bidang_id ?? null,
     canView: admin || perms.includes(PERM_VIEW) || perms.includes(PERM_INPUT),
     canInput: admin || perms.includes(PERM_INPUT),
@@ -127,7 +109,6 @@ async function catatLog(sql, { indikator_id, bidang_id, tahun, lama, baru, aksi,
             VALUES (${indikator_id}, ${bidang_id}, ${tahun}, ${lama}, ${baru}, ${aksi}, ${user_id})`;
 }
 
-// ── Handler ────────────────────────────────────────────────────────────────
 export const handler = async (event) => {
   if (event.httpMethod === 'OPTIONS') return jsonResponse({});
   setRequestDeadline();
@@ -159,9 +140,6 @@ export const handler = async (event) => {
   }
 };
 
-// ── GET /data-rentang?tahun=2022,2023 ─────────────────────────────────────
-// Sama dengan /data tapi untuk beberapa tahun dalam satu kali query realisasi (dipakai download Laporan per rentang tahun).
-// Aturan akses & perhitungan total identik dengan getData; nilai dan total dikembalikan per tahun: { "2022": 10, ... }.
 async function getDataRentang(event, sql, ctx) {
   const tahunList = [...new Set(String(event.queryStringParameters?.tahun || '').split(',')
     .map(x => parseInt(x, 10)).filter(x => x >= 1990 && x <= 2100))].sort((a, b) => a - b);
@@ -199,7 +177,6 @@ async function getDataRentang(event, sql, ctx) {
     for (const r of realBy.get(i.id) || []) {
       let d = byBid.get(r.bidang_id);
       if (!d) {
-        // unit riwayat (bukan pengampu lagi) / bidang_id 0 = import tanpa unit, sama seperti getData
         d = { bidang_id: r.bidang_id, nama: r.nama, singkatan: r.singkatan, pengampu: false, tanpa_unit: r.bidang_id === 0, nilai: {} };
         byBid.set(r.bidang_id, d); detail.push(d);
       }
@@ -218,7 +195,6 @@ async function getDataRentang(event, sql, ctx) {
   return jsonResponse({ tahun_list: tahunList, rows, me: { admin: ctx.admin, bidang_id: ctx.bidang_id } });
 }
 
-// ── GET /data ──────────────────────────────────────────────────────────────
 async function getData(event, sql, ctx) {
   const tahun = parseInt(event.queryStringParameters?.tahun, 10) || new Date().getFullYear();
 
@@ -245,8 +221,6 @@ async function getData(event, sql, ctx) {
     : [];
   const periode = (await sql`SELECT * FROM periode WHERE jenis = 'walidata' AND bulan IS NULL AND tahun = ${tahun} LIMIT 1`)[0] || null;
   const status = periodeStatus(periode);
-  // Admin: semua tahun yang punya realisasi/periode. User biasa: hanya tahun realisasi indikator yang di-assign ke dia
-  // (unit kerjanya sendiri) + tahun yang periodenya sedang dibuka. Tanpa indikator ter-assign -> kosong (frontend pakai tahun berjalan).
   const tahunRows = ctx.admin
     ? await sql`SELECT DISTINCT tahun FROM (
         SELECT tahun FROM walidata_realisasi UNION SELECT tahun FROM periode WHERE jenis = 'walidata') t ORDER BY tahun DESC`
@@ -267,8 +241,6 @@ async function getData(event, sql, ctx) {
       return { bidang_id: u.bidang_id, nama: u.nama, singkatan: u.singkatan, pengampu: true,
                nilai: r ? Number(r.nilai) : null, updated_at: r?.updated_at ?? null };
     });
-    // bidang_id 0 = realisasi hasil import yang unit kerjanya belum ditetapkan: ikut total, bisa dipindahkan admin.
-    // Unit yang pernah mengisi tapi sudah bukan pengampu: tampil sebagai riwayat, tidak masuk total.
     for (const r of rIni) {
       if (!aktifIds.has(r.bidang_id)) {
         detail.push({ bidang_id: r.bidang_id, nama: r.nama, singkatan: r.singkatan, pengampu: false,
@@ -281,7 +253,6 @@ async function getData(event, sql, ctx) {
       id: i.id, kode_ssd: i.kode_ssd, uraian: i.uraian, definisi: i.definisi, satuan: i.satuan, agregasi: i.agregasi,
       total: hitungTotal(i.agregasi, terisi.map(d => d.nilai)),
       jumlah_pengampu: pengampu.length, jumlah_terisi: terisiPengampu.length,
-      // user biasa hanya melihat baris unit kerjanya sendiri
       detail: ctx.admin ? detail : detail.filter(d => d.bidang_id === ctx.bidang_id),
     };
   });
@@ -295,8 +266,6 @@ async function getData(event, sql, ctx) {
   });
 }
 
-// ── GET /monitoring ────────────────────────────────────────────────────────
-// Satu baris = satu indikator x unit kerja pengampu (tiap unit menginput sendiri). Status "terisi" bila ada realisasi tahun tsb.
 async function getMonitoring(event, sql, ctx) {
   if (!ctx.admin) return errorResponse('Hanya admin yang dapat melihat monitoring', 403);
   const tahun = parseInt(event.queryStringParameters?.tahun, 10) || new Date().getFullYear();
@@ -337,7 +306,6 @@ async function getMonitoring(event, sql, ctx) {
     p.total++; if (r.status === 'terisi') p.terisi++;
     pjMap.set(r.unit, p);
   }
-  // kartu per unit: yang paling banyak belum input di depan (sama dengan Kinerja)
   const summary_unit = [...pjMap.values()].sort((a, b) =>
     ((a.unit === NO_UNIT) - (b.unit === NO_UNIT)) || ((a.terisi / a.total) - (b.terisi / b.total)) || a.unit.localeCompare(b.unit, 'id'));
   const tahunRows = await sql`SELECT DISTINCT tahun FROM (
@@ -350,10 +318,6 @@ async function getMonitoring(event, sql, ctx) {
   });
 }
 
-// ── GET /dashboard ─────────────────────────────────────────────────────────
-// Satu "isian" = satu indikator x unit kerja pengampu pada tahun terpilih (sama dengan baris Monitoring Pengisian).
-// Admin melihat semua indikator & unit kerja; user biasa hanya isian unit kerjanya untuk indikator yang di-assign ke akunnya
-// (aturan yang sama dengan GET /data).
 async function getDashboard(event, sql, ctx) {
   const tahun = parseInt(event.queryStringParameters?.tahun, 10) || new Date().getFullYear();
   const adm = ctx.admin, bid = ctx.bidang_id ?? -1, uid = ctx.id;
@@ -371,13 +335,11 @@ async function getDashboard(event, sql, ctx) {
           AND (${adm}::boolean OR (u.bidang_id = ${bid}::int
                AND EXISTS (SELECT 1 FROM walidata_indikator_user x WHERE x.indikator_id = i.id AND x.user_id = ${uid}::int)))
         ORDER BY i.urutan, i.kode_ssd, b.urutan, b.nama`,
-    // jumlah isian yang sudah terinput per tahun (8 tahun terakhir yang punya data)
     sql`SELECT r.tahun, COUNT(*)::int AS terisi
         FROM walidata_realisasi r JOIN walidata_indikator i ON i.id = r.indikator_id AND i.deleted_at IS NULL
         WHERE ${adm}::boolean OR (r.bidang_id = ${bid}::int
               AND EXISTS (SELECT 1 FROM walidata_indikator_user x WHERE x.indikator_id = r.indikator_id AND x.user_id = ${uid}::int))
         GROUP BY r.tahun ORDER BY r.tahun DESC LIMIT 8`,
-    // aktivitas input/ubah/hapus/import terbaru dari log
     sql`SELECT l.aksi, l.tahun, l.nilai_baru, l.created_at, i.kode_ssd, i.uraian,
                COALESCE(b.nama, 'Belum ditetapkan unit') AS unit, us.nama AS oleh
         FROM walidata_realisasi_log l
@@ -396,14 +358,12 @@ async function getDashboard(event, sql, ctx) {
           SELECT tahun FROM periode WHERE jenis = 'walidata' AND bulan IS NULL AND (${adm}::boolean OR NOW() BETWEEN open_at AND close_at)
         ) t ORDER BY tahun DESC`,
     sql`SELECT * FROM periode WHERE jenis = 'walidata' AND bulan IS NULL AND tahun = ${tahun} LIMIT 1`,
-    // indikator yang belum punya unit kerja pengampu (hanya relevan untuk admin)
     sql`SELECT COUNT(*)::int AS n FROM walidata_indikator i
         WHERE ${adm}::boolean AND i.deleted_at IS NULL AND NOT EXISTS (SELECT 1 FROM walidata_indikator_unit u WHERE u.indikator_id = i.id)`,
   ]);
 
   const periode = periodeRows[0] || null;
 
-  // per indikator: lengkap (semua unit pengampu terisi) / sebagian / belum
   const indMap = new Map();
   for (const p of pairs) {
     const x = indMap.get(p.indikator_id) || { total: 0, terisi: 0 };
@@ -413,7 +373,6 @@ async function getDashboard(event, sql, ctx) {
   let lengkap = 0, sebagian = 0, belum = 0;
   for (const x of indMap.values()) { if (x.terisi === x.total) lengkap++; else if (x.terisi > 0) sebagian++; else belum++; }
 
-  // per unit kerja: yang paling rendah progresnya di depan
   const unitMap = new Map();
   for (const p of pairs) {
     const u = unitMap.get(p.bidang_id) || { bidang_id: p.bidang_id, unit: p.unit, singkatan: p.singkatan, total: 0, terisi: 0 };
@@ -439,7 +398,6 @@ async function getDashboard(event, sql, ctx) {
   });
 }
 
-// ── PUT /realisasi ─────────────────────────────────────────────────────────
 async function putRealisasi(event, sql, ctx) {
   if (!ctx.canInput) return errorResponse('Anda tidak memiliki akses menginput data', 403);
   const { indikator_id, bidang_id, tahun, nilai } = parseBody(event);
@@ -455,7 +413,6 @@ async function putRealisasi(event, sql, ctx) {
                              WHERE u.indikator_id = ${iid} AND u.bidang_id = ${bid} AND i.deleted_at IS NULL`;
   if (!pengampu.length) return errorResponse('Unit kerja bukan pengampu indikator ini', 400);
   if (!ctx.admin) {
-    // Sama seperti Kinerja: user biasa hanya boleh menginput indikator yang di-assign langsung ke akunnya.
     const ass = await sql`SELECT 1 FROM walidata_indikator_user WHERE indikator_id = ${iid} AND user_id = ${ctx.id}`;
     if (!ass.length) return errorResponse('Indikator ini tidak di-assign ke akun Anda', 403);
   }
@@ -464,7 +421,7 @@ async function putRealisasi(event, sql, ctx) {
   if (Number.isNaN(baru)) return errorResponse('Jumlah harus berupa angka', 400);
 
   const lama = (await sql`SELECT nilai FROM walidata_realisasi WHERE indikator_id = ${iid} AND bidang_id = ${bid} AND tahun = ${thn}`)[0];
-  if (baru === null) {   // kosongkan = kembali ke "belum diinput"
+  if (baru === null) {
     if (lama) {
       await sql`DELETE FROM walidata_realisasi WHERE indikator_id = ${iid} AND bidang_id = ${bid} AND tahun = ${thn}`;
       await catatLog(sql, { indikator_id: iid, bidang_id: bid, tahun: thn, lama: lama.nilai, baru: null, aksi: 'hapus', user_id: ctx.id });
@@ -479,9 +436,6 @@ async function putRealisasi(event, sql, ctx) {
   return jsonResponse({ ok: true, nilai: baru });
 }
 
-// ── DELETE /realisasi/reset?indikator_id=&tahun= ───────────────────────────
-// Khusus Super Admin (padanan Reset realisasi di Kinerja): hapus semua realisasi indikator pada tahun tsb
-// (semua unit kerja, termasuk riwayat) sehingga baris kembali "belum diinput". Setiap nilai yang dihapus dicatat di log.
 async function resetRealisasi(event, sql, ctx) {
   if (!ctx.superAdmin) return errorResponse('Reset data hanya untuk Super Admin', 403);
   const qs = event.queryStringParameters || {};
@@ -496,7 +450,6 @@ async function resetRealisasi(event, sql, ctx) {
   return jsonResponse({ ok: true, dihapus: lama.length });
 }
 
-// Pindahkan realisasi "belum ditetapkan unit" (bidang_id 0) ke satu unit pengampu. Nilai yang bentrok dengan data unit tsb dilewati.
 async function pindahTanpaUnit(sql, indikatorId, bidangId, userId) {
   const bentrok = await sql`SELECT COUNT(*)::int AS n FROM walidata_realisasi r WHERE r.indikator_id = ${indikatorId} AND r.bidang_id = 0
       AND EXISTS (SELECT 1 FROM walidata_realisasi x WHERE x.indikator_id = r.indikator_id AND x.bidang_id = ${bidangId} AND x.tahun = r.tahun)`;
@@ -520,7 +473,6 @@ async function pindahRealisasi(event, sql, ctx) {
   return jsonResponse({ ok: true, ...(await pindahTanpaUnit(sql, iid, bid, ctx.id)) });
 }
 
-// ── Indikator (master) ─────────────────────────────────────────────────────
 async function simpanUnit(sql, indikatorId, unitIds) {
   const ids = [...new Set((unitIds || []).map(Number).filter(Boolean))];
   await sql`DELETE FROM walidata_indikator_unit WHERE indikator_id = ${indikatorId}`;
@@ -533,7 +485,6 @@ async function simpanUnit(sql, indikatorId, unitIds) {
 async function handleIndikator(event, sql, ctx, m, id, sub) {
   if (!ctx.admin) return errorResponse('Hanya admin yang dapat mengelola indikator', 403);
 
-  // GET/PUT /indikator/:id/users - assign user per indikator (padanan /api/kinerja/indikator/:id/users)
   if (id && sub === 'users') {
     const ind = (await sql`SELECT id FROM walidata_indikator WHERE id = ${id} AND deleted_at IS NULL LIMIT 1`)[0];
     if (!ind) return errorResponse('Indikator tidak ditemukan', 404);
@@ -541,8 +492,6 @@ async function handleIndikator(event, sql, ctx, m, id, sub) {
       await runOnce('users.is_active', () => sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS is_active BOOLEAN NOT NULL DEFAULT TRUE`);
       const userIds = (await sql`SELECT user_id FROM walidata_indikator_user WHERE indikator_id = ${id}`).map(r => Number(r.user_id));
       const unitIds = (await sql`SELECT bidang_id FROM walidata_indikator_unit WHERE indikator_id = ${id}`).map(r => Number(r.bidang_id));
-      // Kandidat = user non-admin dari unit kerja pengampu (semua user bila unit belum ditetapkan).
-      // Yang sudah ter-assign tetap ditampilkan supaya bisa dilepas.
       const noUnit = unitIds.length === 0;
       const users = await sql`
         SELECT u.id, u.nama, u.nip, b.nama AS bidang_nama, u.is_active
@@ -579,7 +528,7 @@ async function handleIndikator(event, sql, ctx, m, id, sub) {
   }
 
   if (m === 'DELETE' && id) {
-    await sql`UPDATE walidata_indikator SET deleted_at = NOW() WHERE id = ${id}`;   // realisasi tetap tersimpan
+    await sql`UPDATE walidata_indikator SET deleted_at = NOW() WHERE id = ${id}`;
     return jsonResponse({ ok: true });
   }
 
@@ -592,14 +541,13 @@ async function handleIndikator(event, sql, ctx, m, id, sub) {
     const agregasi = b.agregasi || 'jumlah';
     if (!AGREGASI.includes(agregasi)) return errorResponse('Metode agregasi tidak valid', 400);
     if (b.unit_ids !== undefined && !Array.isArray(b.unit_ids)) return errorResponse('Format unit kerja tidak valid', 400);
-    const unitIds = b.unit_ids || [];   // boleh kosong: admin menetapkan pengampu belakangan
+    const unitIds = b.unit_ids || [];
 
     const dup = await sql`SELECT id FROM walidata_indikator WHERE LOWER(kode_ssd) = LOWER(${kode}) AND deleted_at IS NULL
                           AND id <> ${id || 0} LIMIT 1`;
     if (dup.length) return errorResponse('Kode SSD ' + kode + ' sudah digunakan', 409);
 
     if (m === 'POST') {
-      // Kode yang pernah diarsipkan dipulihkan, supaya riwayat realisasinya tersambung kembali.
       const arsip = await sql`SELECT id FROM walidata_indikator WHERE LOWER(kode_ssd) = LOWER(${kode}) AND deleted_at IS NOT NULL
                               ORDER BY deleted_at DESC LIMIT 1`;
       let row;
@@ -620,8 +568,7 @@ async function handleIndikator(event, sql, ctx, m, id, sub) {
                            satuan = ${b.satuan || null}, agregasi = ${agregasi}, updated_at = NOW()
                            WHERE id = ${id} AND deleted_at IS NULL RETURNING *`)[0];
     if (!row) return errorResponse('Indikator tidak ditemukan', 404);
-    await simpanUnit(sql, id, unitIds);   // realisasi unit yang dilepas tidak dihapus (jadi riwayat)
-    // Pengampu tunggal: realisasi "belum ditetapkan unit" otomatis dialihkan ke unit itu
+    await simpanUnit(sql, id, unitIds);
     let pindah = null;
     if (unitIds.length === 1) pindah = await pindahTanpaUnit(sql, id, Number(unitIds[0]), ctx.id);
     return jsonResponse({ indikator: row, pindah });
@@ -629,9 +576,6 @@ async function handleIndikator(event, sql, ctx, m, id, sub) {
   return errorResponse('Metode tidak didukung', 405);
 }
 
-// ── Import Excel ───────────────────────────────────────────────────────────
-// Satu baris = satu (Kode SSD, Unit Kerja, Tahun). Jika Realisasi kosong, baris hanya mendaftarkan
-// master/pengampu (Unit Kerja boleh lebih dari satu, dipisah ";").
 function splitUnit(s) { return String(s || '').split(/[;\n|]/).map(x => x.trim()).filter(Boolean); }
 
 async function handleImport(event, sql, ctx) {
@@ -653,8 +597,6 @@ async function handleImport(event, sql, ctx) {
   const existing = await sql`SELECT indikator_id, bidang_id, tahun, nilai FROM walidata_realisasi`;
   const existKey = new Map(existing.map(r => [`${r.indikator_id}|${r.bidang_id}|${r.tahun}`, Number(r.nilai)]));
 
-  // Baris format lebar hanya membawa uraian/definisi/satuan pada kemunculan pertama tiap Kode SSD
-  // (supaya payload kecil); baris berikutnya memakai data master dari baris pertama itu.
   const fileMaster = new Map();
   for (const r of rows) {
     const k = String(r.kode_ssd ?? '').trim().toLowerCase();
@@ -686,7 +628,7 @@ async function handleImport(event, sql, ctx) {
       if (!bid) err(`Unit Kerja "${n}" tidak ditemukan`); else out.unit_ids.push(bid);
     }
 
-    out.unit0 = out.unit_ids[0] ?? 0;   // 0 = unit belum ditetapkan (diset admin belakangan)
+    out.unit0 = out.unit_ids[0] ?? 0;
     const nilai = parseNum(r.realisasi);
     if (Number.isNaN(nilai)) err('Jumlah bukan angka');
     else out.nilai = nilai;
@@ -722,19 +664,17 @@ async function handleImport(event, sql, ctx) {
 
   const ringkas = hasil.reduce((a, h) => { a[h.status] = (a[h.status] || 0) + 1; return a; }, {});
   if (mode !== 'commit') {
-    // Respons ringan: uraian/definisi tidak dikirim balik (bisa ribuan baris)
     return jsonResponse({
       hasil: hasil.map(h => ({ baris: h.baris, status: h.status, pesan: h.pesan, kode_ssd: h.kode_ssd, uraian: h.uraian.slice(0, 80),
                                unit_nama: h.unit_nama, tahun: h.tahun, nilai: h.nilai, master_baru: h.master_baru })),
       ringkas });
   }
 
-  // ── commit: hanya baris tanpa error; konflik hanya jika overwrite dikonfirmasi ──
   const layak = hasil.filter(h => h.status !== 'error' && h.status !== 'sama' && (h.status !== 'konflik' || overwrite));
   let masterBaru = 0;
-  const diproses = new Set();      // kode yang master-nya sudah ditangani pada request ini
-  const unitPair = new Map();      // `${iid}|${bid}` -> [iid,bid]
-  const batch = [];                // realisasi yang akan di-upsert
+  const diproses = new Set();
+  const unitPair = new Map();
+  const batch = [];
 
   for (const h of layak) {
     const kodeKey = h.kode_ssd.toLowerCase();
@@ -742,7 +682,7 @@ async function handleImport(event, sql, ctx) {
     if (!diproses.has(kodeKey)) {
       diproses.add(kodeKey);
       const arsip = arsipByKode.get(kodeKey);
-      if (!ind && arsip) {   // pulihkan indikator yang pernah diarsipkan
+      if (!ind && arsip) {
         ind = (await sql`UPDATE walidata_indikator SET deleted_at = NULL, updated_at = NOW() WHERE id = ${arsip.id} RETURNING *`)[0];
         indByKode.set(kodeKey, ind);
       }
@@ -757,7 +697,6 @@ async function handleImport(event, sql, ctx) {
                   updated_at = NOW() WHERE id = ${ind.id}`;
       }
     }
-    // pengampu: hanya menambah, tidak pernah melepas unit yang sudah ada
     for (const bid of h.unit_ids) unitPair.set(`${ind.id}|${bid}`, [ind.id, bid]);
     if (h.nilai !== null) {
       const k = `${ind.id}|${h.unit0}|${h.tahun}`;
@@ -784,7 +723,6 @@ async function handleImport(event, sql, ctx) {
               SELECT a, b, c, NULLIF(e, '')::numeric, d::numeric, 'import', ${ctx.id}
               FROM unnest(${iids}::int[], ${bids}::int[], ${thns}::int[], ${nils}::text[], ${lamas}::text[]) AS t(a, b, c, d, e)`;
   }
-  // Total tidak disimpan sebagai kolom: dihitung ulang dari realisasi setiap kali Data SSD dibuka.
   return jsonResponse({ ok: true, ringkas: { master_baru: masterBaru, realisasi_disimpan: batch.length, ditimpa,
                          dilewati: hasil.length - layak.length } });
 }

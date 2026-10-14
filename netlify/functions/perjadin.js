@@ -8,15 +8,10 @@ import {
 } from './_perjadin.js';
 import { sinkronPerjadin, notifPerjadinHasil } from './_notif_modul.js';
 
-// Notifikasi lonceng bersifat best-effort: kegagalannya tidak boleh menggagalkan aksi utamanya.
 async function notifSafe(fn) {
   try { await fn(); } catch (e) { console.error('[notif]', e); }
 }
 
-// Hak akses Perjadin (diatur admin di menu Hak Akses, sama seperti Absensi/Surat):
-//  - admin, atau permission 'perjadin.full' (Admin Penuh): lihat semua data, input, edit, hapus & verifikasi.
-//  - permission 'perjadin' (dasar): hanya melihat data perjalanan dinas milik sendiri (read-only).
-// Data perjalanan dinas user biasa tetap masuk lewat form di menu Absensi (POST /api/absensi/pengajuan).
 async function getAccess(sql, auth) {
   if (auth.is_admin) return { full: true, base: true };
   const rows = await sql`
@@ -56,7 +51,6 @@ export const handler = async (event) => {
     return errorResponse('Gagal menyiapkan data perjalanan dinas');
   }
 
-  // Akses dasar: hanya baca data milik sendiri (daftar, opsi filter, satu data). Selebihnya khusus Admin Penuh.
   if (!access.full && !(event.httpMethod === 'GET' && !isPelaksana && !isSumberDana)) return errorResponse('Unauthorized', 401);
   const ownerId = access.full ? null : _int(auth.id);
 
@@ -64,7 +58,6 @@ export const handler = async (event) => {
     user_id: auth.id, nama: auth.nama, email: auth.email, aksi, entitas: 'perjadin', entitas_id, detail,
   });
 
-  // ── Daftar pegawai (untuk dropdown Pelaksana + auto-isi NIP) ──
   if (isPelaksana && event.httpMethod === 'GET') {
     try {
       const rows = await sql`
@@ -81,8 +74,6 @@ export const handler = async (event) => {
     }
   }
 
-  // ── Master Sumber Dana (tabel yang sama dengan master Sumber Dana e-Planning) → dropdown Sumber Dana ──
-  // Dibaca langsung dari tabel, supaya admin Perjadin tidak perlu punya akses modul e-Planning.
   if (isSumberDana && event.httpMethod === 'GET') {
     try {
       const rows = await sql`SELECT id, nama, kode FROM eplanning_sumberdana WHERE aktif IS NOT FALSE ORDER BY nama ASC`;
@@ -91,13 +82,10 @@ export const handler = async (event) => {
       });
     } catch (err) {
       console.error('[GET /api/perjadin/sumberdana]', err);
-      return jsonResponse({ sumberdana: [] });   // tabel e-Planning belum ada / belum diinisialisasi
+      return jsonResponse({ sumberdana: [] });
     }
   }
 
-  // ── Opsi dropdown filter: hanya nilai yang benar-benar ada di data ──
-  // tahun: semua tahun yang punya data; bulan: bulan yang punya data pada tahun terpilih;
-  // jenis & status: yang ada pada tahun/bulan terpilih.
   if (segments[0] === 'opsi' && event.httpMethod === 'GET') {
     const qs = event.queryStringParameters || {};
     const tahun = _int(qs.tahun);
@@ -138,11 +126,10 @@ export const handler = async (event) => {
     }
   }
 
-  // ── Dashboard (ringkasan agregat; akses dasar hanya melihat data milik sendiri) ──
   if (segments[0] === 'dashboard' && event.httpMethod === 'GET') {
     const uid = ownerId;
     try {
-      const today = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Makassar' });   // YYYY-MM-DD
+      const today = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Makassar' });
       const [ty, tm] = today.split('-').map(Number);
       const ym = today.slice(0, 7);
       const d6 = new Date(Date.UTC(ty, tm - 1 - 5, 1));
@@ -214,14 +201,12 @@ export const handler = async (event) => {
     }
   }
 
-  // ── Laporan (semua baris sesuai filter, tanpa paginasi — dipakai tabel laporan & cetak PDF) ──
   if (segments[0] === 'laporan' && event.httpMethod === 'GET') {
     const qs = event.queryStringParameters || {};
     const tahun = _int(qs.tahun);
     const bulan = _int(qs.bulan);
     const jenis = JENIS_PERJADIN.includes(qs.jenis) ? qs.jenis : null;
     const status = STATUS_VERIFIKASI.includes(qs.status) ? qs.status : null;
-    // Dipertanggungjawabkan = ada rincian anggaran (detail) atau No./Tgl SP2D (sama dengan _pjAdaAnggaran di frontend).
     const pjf = ['ya', 'tidak'].includes(qs.pj) ? qs.pj : null;
     const userId = access.full ? _int(qs.user_id) : ownerId;
     try {
@@ -249,7 +234,6 @@ export const handler = async (event) => {
     }
   }
 
-  // ── Daftar / rekap ──
   if (event.httpMethod === 'GET' && !id) {
     const qs = event.queryStringParameters || {};
     const tahun = _int(qs.tahun);
@@ -264,7 +248,6 @@ export const handler = async (event) => {
     const offset = (page - 1) * limit;
 
     try {
-      // Baris "ditolak" (mis. dari pengajuan Tugas Luar yang ditolak) disembunyikan kecuali difilter eksplisit.
       const rows = await sql`
         SELECT pj.*, pj.tgl_mulai::text AS tgl_mulai, pj.tgl_selesai::text AS tgl_selesai,
                pj.tgl_sp2d::text AS tgl_sp2d, pj.tgl_surat_tugas::text AS tgl_surat_tugas,
@@ -317,7 +300,6 @@ export const handler = async (event) => {
     }
   }
 
-  // ── Satu data ──
   if (event.httpMethod === 'GET' && id && !action) {
     try {
       const rows = await sql`
@@ -335,12 +317,11 @@ export const handler = async (event) => {
     }
   }
 
-  // ── Input langsung oleh admin ──
   if (event.httpMethod === 'POST' && !id) {
     const body = parseBody(event);
     const { row, error } = buildPerjadin(body, { admin: true, base: { nama_skpd: SKPD_DEFAULT } });
     if (error) return errorResponse(error, 400);
-    row.nama_skpd = SKPD_DEFAULT;   // Nama SKPD read-only
+    row.nama_skpd = SKPD_DEFAULT;
     try {
       const saved = await insertPerjadin(sql, row, { sumber: 'admin', input_by: auth.id, disetujui: true });
       await audit('create_perjadin', saved.id, {
@@ -354,7 +335,6 @@ export const handler = async (event) => {
     }
   }
 
-  // ── Verifikasi ──
   if (event.httpMethod === 'PUT' && id && action === 'verifikasi') {
     const { status, catatan } = parseBody(event);
     if (!STATUS_VERIFIKASI.includes(status)) return errorResponse('Status verifikasi tidak valid', 400);
@@ -382,7 +362,6 @@ export const handler = async (event) => {
     }
   }
 
-  // ── Edit oleh admin ──
   if (event.httpMethod === 'PUT' && id && !action) {
     try {
       const cur = await sql`
@@ -393,7 +372,7 @@ export const handler = async (event) => {
       if (!cur.length) return errorResponse('Data perjalanan dinas tidak ditemukan', 404);
       const { row, error } = buildPerjadin(parseBody(event), { admin: true, base: cur[0] });
       if (error) return errorResponse(error, 400);
-      row.nama_skpd = SKPD_DEFAULT;   // Nama SKPD read-only
+      row.nama_skpd = SKPD_DEFAULT;
       const saved = await updatePerjadin(sql, id, row);
       await audit('update_perjadin', id, { pelaksana: row.pelaksana_nama, tujuan: row.kota_tujuan });
       return jsonResponse({ perjadin: saved });
@@ -403,7 +382,6 @@ export const handler = async (event) => {
     }
   }
 
-  // ── Hapus ──
   if (event.httpMethod === 'DELETE' && id) {
     try {
       const cur = await sql`
@@ -413,9 +391,6 @@ export const handler = async (event) => {
       if (!cur.length) return errorResponse('Data perjalanan dinas tidak ditemukan', 404);
       const pj = cur[0];
 
-      // Tugas Luar di Absensi yang menaungi perjalanan dinas ini ikut dihapus (sama seperti hapus dari menu Absensi):
-      // lewat pengajuan_id kalau ada, kalau tidak lewat rentang tanggal pegawai yang sama (absensi tanpa pengajuan).
-      // Absensi dihapus duluan supaya kalau gagal di tengah, baris Perjadin masih ada dan bisa dicoba hapus lagi.
       let absensiHapus = [];
       if (pj.pengajuan_id) {
         absensiHapus = await sql`
@@ -434,7 +409,6 @@ export const handler = async (event) => {
       const rows = await sql`DELETE FROM perjadin WHERE id = ${id} RETURNING id, pelaksana_nama, kota_tujuan`;
       if (!rows.length) return errorResponse('Data perjalanan dinas tidak ditemukan', 404);
 
-      // Pengajuan Tugas Luar yang sudah tidak punya absensi ikut dihapus (aturan yang sama dengan hapus absensi).
       const fileDukung = new Set(absensiHapus.map((r) => r.data_dukung_url).filter(Boolean));
       if (pj.pengajuan_id) {
         const sisa = await sql`SELECT 1 FROM absensi WHERE pengajuan_id = ${pj.pengajuan_id} LIMIT 1`;

@@ -3,14 +3,11 @@
 <head>
   <meta charset="UTF-8" />
   <script>
-  // Dark mode: pasang data-theme SEBELUM CSS dimuat supaya tidak ada kedip putih.
-  // Pilihan user ada di localStorage 'sapa_theme' (auto | light | dark | system); default auto (gelap 18:00-06:00 WITA).
-  // Logika lengkap (toggle, sinkron tab, tema sistem) ada di js/dark-mode.js.
   (function () {
     try {
       var p = localStorage.getItem('sapa_theme');
       if (p !== 'dark' && p !== 'light' && p !== 'system') p = 'auto';
-      var wh = new Date(Date.now() + 8 * 3600 * 1000).getUTCHours(); // jam WITA (UTC+8)
+      var wh = new Date(Date.now() + 8 * 3600 * 1000).getUTCHours();
       var d = p === 'dark' || (p === 'auto' && (wh >= 18 || wh < 6)) || (p === 'system' && window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches);
       var h = document.documentElement;
       h.setAttribute('data-theme', d ? 'dark' : 'light');
@@ -20,11 +17,7 @@
   </script>
   <style>html[data-theme="dark"]{background:#0b1220;color-scheme:dark}</style>
   <script>
-  // Cek paling awal, sebelum body sempet di-render: kalau sesi masih
-  // valid, langsung lempar ke app.html tanpa nge-flash form login dulu.
   (function() {
-    // Bersihin sisa token versi lama yang dulu sempet disimpan di
-    // localStorage (sekarang sepenuhnya pakai sessionStorage).
     localStorage.removeItem('sapa_token');
     localStorage.removeItem('sapa_user');
     try {
@@ -45,18 +38,9 @@
   </script>
   <script>history.replaceState(null, '', '/login');</script>
   <script>
-  // Prefetch tema musiman SEDINI MUNGKIN (paling atas <head>), jalan
-  // paralel sambil browser masih parsing sisa HTML/CSS/JS di bawah.
-  // Ditambah cache di localStorage: fetch ke /api/landing/tema-aktif
-  // manggil Netlify Function yang query DB, jadi bisa kena cold-start
-  // beberapa ratus ms - selama nunggu itu, halaman kelanjur ke-render
-  // polos dulu baru tema muncul. Kalau ada cache fresh (<=6 jam),
-  // dipakai LANGSUNG (instan, sinkron) buat render pertama tanpa nunggu
-  // network sama sekali; fetch asli tetap jalan di background buat
-  // nyegerin cache-nya buat load berikutnya.
   (function () {
     var CACHE_KEY = 'sapa_tema_cache_v1';
-    var CACHE_TTL = 6 * 60 * 60 * 1000; // 6 jam
+    var CACHE_TTL = 6 * 60 * 60 * 1000;
 
     function preloadGambar(theme) {
       if (theme && theme.gambar_url) {
@@ -94,27 +78,16 @@
         return { theme: null };
       });
 
-    // Cache localStorage cuma dipakai buat preload gambar lebih awal
-    // (biar gak ada jeda render). Tema yang BENERAN diterapkan selalu
-    // nunggu freshPromise (fetch tanpa cache) - biar status Aktif/
-    // Nonaktif/Terjadwal selalu akurat sesuai tanggal & toggle terbaru
-    // tiap kali halaman di-refresh, sama kayak di topbar app.html.
     var cached = bacaCache();
     if (cached) preloadGambar(cached.theme);
-    // Diekspos biar theme-engine.js bisa render tema cache ini SINKRON
-    // (instan, gak nunggu network) sambil tetep reconcile ke data fresh
-    // begitu freshPromise selesai - lihat init() di theme-engine.js.
     window.__sapaTemaCache = cached;
     window.__sapaTemaPromise = freshPromise;
   })();
   </script>
-  <!-- Preload file theme-engine.js juga, biar downloadnya paralel dari
-       awal - bukan nunggu parser sampe ke <script> di akhir body baru
-       mulai narik filenya. Ini yang bikin tema kerasa lambat muncul. -->
-  <link rel="preload" as="script" href="js/theme-engine.js?v=1.2.18" />
+  <link rel="preload" as="script" href="js/theme-engine.js?v=1.2.19" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>SAPA Perencanaan</title>
-  <meta name="app-version" content="1.2.18" />
+  <meta name="app-version" content="1.2.19" />
   <link rel="icon" type="image/png" href="/favicon.png" />
   <link rel="manifest" href="/manifest.json" />
   <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
@@ -125,10 +98,10 @@
   <meta name="apple-mobile-web-app-title" content="SAPA" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="css/styles.css?v=1.2.18" />
-  <link rel="stylesheet" href="css/dark.css?v=1.2.18" />
-  <link rel="stylesheet" href="css/dark-login.css?v=1.2.18" />
-  <link rel="stylesheet" href="css/theme-fab.css?v=1.2.18" />
+  <link rel="stylesheet" href="css/styles.css?v=1.2.19" />
+  <link rel="stylesheet" href="css/dark.css?v=1.2.19" />
+  <link rel="stylesheet" href="css/dark-login.css?v=1.2.19" />
+  <link rel="stylesheet" href="css/theme-fab.css?v=1.2.19" />
   <style>
     
     #loginOverlay {
@@ -174,40 +147,25 @@
       background-position: center !important;
     }
     #loginOverlay .panel-left.has-tema-bg::before {
-      /* redupkan gambar tema biar teks putih tetap kebaca */
       background:
         linear-gradient(180deg, rgba(4,15,14,.32) 0%, rgba(4,15,14,.45) 55%, rgba(4,15,14,.6) 100%);
     }
-    /* tagline (moto) ditampilkan tegas di depan gambar tema, gaya senada
-       dengan "Satu Pintu Akses" (brand-sub) tapi opacity dinaikkan biar
-       gak kalah sama gambar tema di belakangnya */
     #loginOverlay .panel-left.has-tema-bg .moto-watermark-text::before {
       display: none;
     }
-    /* moto-watermark bawaan (ghost tagline "Dari Data Menuju Kebijakan...")
-       disembunyikan total pas tema aktif, biar gak numpuk sama teks yang
-       udah ada di gambar tema itu sendiri (mis. kutipan ayat, dsb) */
     #loginOverlay .panel-left.has-tema-bg .moto-watermark {
       display: none;
     }
-    /* pas tema aktif: sembunyiin logo & branding SAPA di panel kiri biar
-       gambar tema tampil bersih tanpa numpuk teks. Cuma footer (Sub
-       Bagian Perencanaan dkk) yang tetap ditampilkan. */
     #loginOverlay .panel-left.has-tema-bg .left-logos,
     #loginOverlay .panel-left.has-tema-bg .left-brand {
       display: none;
     }
-    /* left-brand yang di-hide di atas itu biasanya jadi "spacer" (flex:1)
-       yang dorong footer ke bawah—tanpa dia, footer bakal naik ke atas.
-       margin-top:auto di sini yang gantiin peran spacer itu. */
     #loginOverlay .panel-left.has-tema-bg .left-footer {
       margin-top: auto;
     }
     #loginOverlay .panel-right { background: #f8fafa !important; }
     #loginOverlay .forgot-row  { margin-bottom: 20px !important; }
     #loginOverlay .btn-login   { margin-top: 4px; }
-    /* Tombol disabled (terkunci/loading) harus kelihatan mati. !important dipakai karena animasi
-       lpFadeUp (fill-mode both) memaksa opacity:1 dan menimpa opacity dari :disabled. */
     .btn-login:disabled,
     #loginOverlay .btn-login:disabled { opacity: .45 !important; cursor: not-allowed !important; filter: grayscale(.6); box-shadow: none !important; transform: none !important; }
     #loginOverlay .info-banner { margin-top: 14px; }
@@ -229,8 +187,6 @@
         padding: 36px 28px 32px !important;
       }
 
-      /* pas tema musiman aktif di mobile: background jadi gambar,
-         jadi teks & field ikut disesuaikan biar tetap kontras/kebaca. */
       #loginOverlay .panel-right.has-tema-bg-mobile {
         position: relative;
         isolation: isolate;
@@ -372,8 +328,6 @@
 
 <script>
 
-// Kalau kesini gara-gara sesi kadaluarsa (dilempar dari app.html), tampilkan
-// pesannya sekali lalu bersihkan flag-nya.
 (function() {
   try {
     var _msg = sessionStorage.getItem('sapa_login_msg');
@@ -399,7 +353,6 @@ function _getLoginLock() {
   } catch { return null; }
 }
 
-// ms -> "HH:MM:SS" (hitung mundur per detik)
 function _fmtTunggu(ms) {
   const t = Math.max(1, Math.ceil(ms / 1000));
   const p2 = n => String(n).padStart(2, '0');
@@ -414,8 +367,6 @@ function _clearLoginLock() {
   try { sessionStorage.removeItem(LOGIN_LOCK_KEY); } catch {}
 }
 
-// Kunci di sessionStorage cuma cache buat hitung mundur. Sumber kebenaran = server, jadi selama
-// terkunci kita tanya server tiap beberapa detik: kalau admin sudah buka kunci, kunci lokal dibuang.
 let _lockCheckAt = 0, _lockChecking = false;
 async function _verifyLockWithServer(nip) {
   if (_lockChecking) return;
@@ -454,7 +405,6 @@ function _syncLoginLockUI() {
     if (Date.now() - _lockCheckAt > 5000) { _lockCheckAt = Date.now(); _verifyLockWithServer(curNip); }
   } else {
     btn.disabled = false;
-    // Kunci sudah lepas (habis waktu / dibuka admin): hapus pesan kunci + tanda merah di input
     const errEl = document.getElementById('loginErrMsg');
     if (errEl && errEl.innerHTML.includes('Terlalu banyak percobaan login')) {
       errEl.innerHTML = '';
@@ -483,7 +433,6 @@ function _checkNipLen() {
   nipEl.classList.remove('nip-warn', 'nip-ok');
   if (!val) return;
 
-  // Username = NIP, harus tepat 18 karakter.
   if (val.length === NIP_LEN) {
     nipEl.classList.add('nip-ok');
   } else {
@@ -496,10 +445,6 @@ document.addEventListener('DOMContentLoaded', () => {
     ['input', 'blur', 'animationstart'].forEach(ev => _nipEl2.addEventListener(ev, _checkNipLen));
   }
 });
-
-// showLoginOverlay/hideLoginOverlay lama gak dipakai lagi di sini -
-// login.html sekarang HALAMAN TERSENDIRI, bukan overlay di atas app-shell
-// (app-shell udah pindah total ke app.html, lihat pemisahan login/app).
 
 function loginToggleInfo() {
   const b = document.getElementById('loginInfoBanner');
@@ -525,16 +470,10 @@ function _labelWilayah(raw, label, fullWord) {
   return `${label} ${raw}`;
 }
 
-// Susun 3 level administratif: Kec → Kab/Kota → Provinsi.
-// Level Desa/Kelurahan sengaja tidak dipakai - di daerah yang datanya minim
-// di OSM (mis. luar Jawa), Nominatim sering nempelin nama dusun/kampung
-// terdekat yang belum tentu akurat, jadi berpotensi menyesatkan.
-// Level yang tidak ada di data OSM otomatis dilewati, bukan dipaksa kosong.
 function _formatAlamatNominatim(addr) {
   if (!addr) return null;
   const parts = [];
 
-  // Kecamatan
   const kecamatan = addr.city_district || addr.subdistrict || addr.district || addr.borough || addr.town || addr.municipality;
   if (kecamatan) {
     parts.push(_labelWilayah(kecamatan, 'Kecamatan', 'kecamatan'));
@@ -638,7 +577,6 @@ async function doLogin() {
     const data = await r.json();
     if (!r.ok) {
       if (r.status === 429) {
-        // Lama kunci ditentukan server (bertingkat), fallback 1 jam kalau field-nya gak ada
         const _lockUntil = Date.now() + (Number(data.retry_after_detik) > 0 ? Number(data.retry_after_detik) * 1000 : 60 * 60 * 1000);
         _setLoginLock(nip, _lockUntil);
         _syncLoginLockUI();
@@ -662,9 +600,6 @@ async function doLogin() {
     sessionStorage.setItem('sapa_refresh_token', data.refresh_token);
     sessionStorage.setItem('sapa_user', JSON.stringify(data.user));
 
-    // Login page ini gak lagi nyimpen markup app-shell/modal/menu -
-    // full navigation ke app.html, biar boot sequence (initAuth ->
-    // buildSidebar -> loadDashboard, lihat app.js) yang ngurus sisanya.
     window.location.href = '/app';
   } catch {
     _loginShowErr('Terjadi kesalahan koneksi. Coba lagi.');
@@ -697,9 +632,6 @@ function _loginShowErr(msg, type = 'warn') {
   }
 }
 
-// Tagline watermark di panel kiri diambil dari kolom Visi (Profil Instansi,
-// diatur admin lewat menu Profil) - supaya bisa diubah tanpa perlu edit kode.
-// Fallback ke teks default kalau visi belum diisi / endpoint gagal.
 (async function _loadMotoTagline() {
   const el = document.getElementById('motoMain');
   if (!el) return;
@@ -722,7 +654,7 @@ function _loginShowErr(msg, type = 'warn') {
   <svg class="ic-moon" xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>
   <svg class="ic-sun" xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/></svg>
 </button>
-<script src="js/theme-engine.js?v=1.2.18"></script>
-<script src="js/dark-mode.js?v=1.2.18"></script>
+<script src="js/theme-engine.js?v=1.2.19"></script>
+<script src="js/dark-mode.js?v=1.2.19"></script>
 </body>
 </html>

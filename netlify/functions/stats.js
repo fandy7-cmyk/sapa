@@ -11,7 +11,6 @@ export const handler = async (event) => {
   try {
     const isAdmin = !!auth.is_admin;
 
-    // Semua query independen -> jalankan paralel (dulu berurutan = 6x round trip ke Neon).
     const [
       [{ total_klik }],
       [{ klik_hari_ini }],
@@ -60,7 +59,6 @@ export const handler = async (event) => {
             GROUP BY l.id ORDER BY total_klik DESC LIMIT 25
           `,
 
-      // Batasi scan ke 8 hari terakhir (superset dari 7 hari WITA) - dulu GROUP BY seluruh klik_log.
       isAdmin
         ? sql`
             SELECT gs::DATE::TEXT AS tanggal, COALESCE(c.jumlah, 0)::INT AS jumlah
@@ -95,8 +93,6 @@ export const handler = async (event) => {
           `,
     ]);
 
-    // Data tambahan buat dashboard Superlink (tren 30 hari, jam ramai, perangkat, sumber).
-    // Dipisah try/catch supaya kalau salah satu gagal, statistik dasar tetap kebaca.
     const ex = {};
     const adm = isAdmin;
     const uid = auth.id;

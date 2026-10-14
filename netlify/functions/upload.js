@@ -49,7 +49,6 @@ function getResourceType(mimeType) {
 
 export const handler = async (event) => {
   if (event.httpMethod === 'OPTIONS') return jsonResponse({});
-  // Hapus file hasil upload yang batal dipakai (belum tersimpan di DB). Lihat hapusUploadSendiri().
   if (event.httpMethod === 'DELETE') {
     const authDel = requireAuth(event);
     if (!authDel) return errorResponse('Unauthorized', 401);
@@ -136,8 +135,6 @@ export const handler = async (event) => {
     }, 201);
 
   } catch (err) {
-    // Error dari SDK Cloudinary berbentuk { message, http_code, name }; tampilkan semuanya supaya
-    // kelihatan penyebab aslinya (timeout / koneksi putus / kredensial), bukan cuma "500".
     console.error('[UPLOAD ERROR]', { name: err?.name, http_code: err?.http_code, message: err?.message, code: err?.code });
     const detail = [err?.message || 'Unknown error', err?.http_code ? `(Cloudinary HTTP ${err.http_code})` : '', err?.code ? `[${err.code}]` : ''].filter(Boolean).join(' ');
     return errorResponse('Gagal mengupload file: ' + detail);
@@ -186,10 +183,6 @@ function parseMultipart(buffer, boundary) {
   return result;
 }
 
-// DELETE /api/upload  { url }
-// Membuang file yang sudah terupload tapi tidak jadi disimpan (user menekan Hapus / mengganti file / menutup modal).
-// Aman karena: hanya file yang diupload user itu sendiri (public_id memuat id uploader), hanya folder yang
-// referensinya dicek isFileStillReferenced (Absensi, Foto Profil, Tanda Tangan), dan ditolak kalau file masih dipakai record lain.
 const HAPUS_FOLDER_OK = ['/SAPA/Absensi/', '/SAPA/Foto Profil/', '/SAPA/Tanda Tangan/'];
 
 async function hapusUploadSendiri(event, auth) {
@@ -209,7 +202,6 @@ async function hapusUploadSendiri(event, auth) {
   if (!cloudName || !pathname.startsWith(`/${cloudName}/`)) return errorResponse('Bukan file milik aplikasi ini', 403);
   if (!HAPUS_FOLDER_OK.some((f) => pathname.includes(f))) return errorResponse('File ini tidak bisa dihapus dari sini', 403);
 
-  // public_id hasil upload: `${Date.now()}_${auth.id}_${nama}`
   const m = pathname.split('/').pop().match(/^(\d{10,})_(\d+)_/);
   if (!m || m[2] !== String(auth.id)) return errorResponse('Hanya file yang Anda upload sendiri yang bisa dihapus', 403);
 

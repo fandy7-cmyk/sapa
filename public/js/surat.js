@@ -38,10 +38,6 @@ function renderDocsBadge(fileUrlRaw, label) {
 
 let _smFilter = '', _smPage = 1;
 
-/* ── Statcard Surat Masuk & Surat Keluar ──
-   Gaya sama dengan Monitoring Kinerja (.stat-card + garis aksen kiri). Dihitung dari
-   /filter-meta (sudah dibatasi hak akses user), tidak ikut filter/pencarian/halaman tabel.
-   Grid dibuat lewat JS dan disisipkan di atas toolbar. */
 const _SURAT_STAT_ICON = {
   mail:  '<rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-10 7L2 7"/>',
   send:  '<line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>',
@@ -73,13 +69,11 @@ function _suratEnsureStatGrid(pageId, gridId) {
   el = document.createElement('div');
   el.id = gridId;
   el.className = 'stat-grid';
-  // Kolom menyesuaikan lebar layar & jumlah kartu, jadi tidak perlu CSS tambahan
   el.style.gridTemplateColumns = 'repeat(auto-fit, minmax(150px, 1fr))';
   toolbar.parentNode.insertBefore(el, toolbar);
   return el;
 }
 
-// cards: [[nilai, label, warna, bg, ikon], ...]; nilai null = placeholder "–"
 function _suratRenderStats(el, cards) {
   el.innerHTML = cards.map(c =>
     _suratStatCard(c[0] == null ? '–' : Number(c[0]).toLocaleString('id-ID'), c[1], c[2], c[3], c[4])).join('');
@@ -102,7 +96,6 @@ async function loadSuratMasukStats() {
     const now = new Date();
     const list = d.surat;
     const selesai   = list.filter(s => s.selesai).length;
-    // Logika sama dengan badge status di tabel
     const terlambat = list.filter(s => !s.selesai && s.batas_waktu && new Date(s.batas_waktu) < now).length;
     _suratRenderStats(el, mk(list.length, list.length - selesai - terlambat, selesai, terlambat));
   } catch {}
@@ -203,13 +196,11 @@ function _populateSuratPegawai(suratList, selectId) {
   if (typeof window.syncCustomSelect === 'function') syncCustomSelect(selectId);
 }
 
-// ==== Multi-select pegawai (checkbox grid, gaya sama seperti Peserta di Lembur) ====
 let _selectedPegawaiSM = new Set();
 let _selectedPegawaiSK = new Set();
 
 function _pegawaiSelSet(target) { return target === 'sk' ? _selectedPegawaiSK : _selectedPegawaiSM; }
 
-// Daftar pegawai yang tampil sesuai kotak cari (tiap kata harus cocok, urutan bebas)
 function _pegawaiVisible(target) {
   const q = (document.getElementById(target === 'sk' ? 'skPegawaiSearch' : 'smPegawaiSearch')?.value || '').toLowerCase().trim();
   if (!q) return _smPegawaiList;
@@ -259,7 +250,7 @@ function updateSelectAllLabel(target) {
 
 function toggleSelectAllPegawai(target) {
   const sel = _pegawaiSelSet(target);
-  const vis = _pegawaiVisible(target);   // hanya yang tampil (sesuai pencarian)
+  const vis = _pegawaiVisible(target);
   const allSelected = vis.length > 0 && vis.every(u => sel.has(u.nama));
   if (allSelected) vis.forEach(u => sel.delete(u.nama));
   else vis.forEach(u => sel.add(u.nama));
@@ -305,7 +296,6 @@ async function loadSuratMasuk(page = 1) {
     const d = await r.json();
     const tb = document.getElementById('smTableBody');
     const smOffset = (page - 1) * 10;
-    // Kolom Aksi disembunyikan kalau tidak ada tombol yang aktif untuk semua baris (user non-admin)
     const smAksi = isFull || (d.surat||[]).some(s => !s.selesai || s.created_by === (_user && _user.id));
     const smThAksi = tb.closest('table')?.querySelector('thead th:last-child');
     if (smThAksi) smThAksi.style.display = smAksi ? '' : 'none';
@@ -483,7 +473,6 @@ async function loadSuratKeluar(page = 1) {
     const d = await r.json();
     const tb = document.getElementById('skTableBody');
     const skOffset = (page - 1) * 10;
-    // Kolom Aksi disembunyikan kalau tidak ada tombol yang bisa dipakai (user non-admin tanpa akses penuh)
     const skAksi = isFull || (d.surat||[]).some(s => s.created_by === (_user && _user.id));
     const skThAksi = tb.closest('table')?.querySelector('thead th:last-child');
     if (skThAksi) skThAksi.style.display = skAksi ? '' : 'none';
@@ -520,9 +509,6 @@ async function loadSuratKeluar(page = 1) {
   } catch {}
 }
 
-// Migrasi data lama: sebelumnya sempat disimpan sebagai JSON array (percobaan UI list
-// bernomor dgn tombol +Tambah); sekarang pakai .ps-rte markdown-lite spt Uraian Tugas di
-// Lembur, jadi array lama perlu dirender ulang jadi baris "1. ...\n2. ..." dst.
 function _normalizeTujuanSurat(raw) {
   if (!raw) return '';
   try {
@@ -561,8 +547,6 @@ function _skSetNoSuratSuffix() {
   if (el) el.textContent = `/DINKES-PPKB/${_skNoSuratYear()}`;
 }
 
-// Data lama boleh jadi belum pakai format ini - kalau polanya cocok, pecah ke 2 kotak;
-// kalau enggak, taruh apa adanya di kotak pertama biar gak ilang pas dibuka lagi.
 function _skParseNoSurat(raw) {
   if (!raw) return ['', ''];
   const m = String(raw).match(/^(.*)\/(.*)\/DINKES-PPKB\/\d{4}$/);
@@ -792,7 +776,6 @@ async function handleFileSelect(e, prefix) {
   _showBatchUploadToast(results);
 }
 
-/* ── Proses & upload file (satu per satu, bisa dipanggil berkali-kali) ── */
 async function processFile(prefix, file) {
   const MAX_MB = 2;
   if (file.size > MAX_MB * 1024 * 1024) {

@@ -14,7 +14,6 @@ function _cldThumb(url, w, h) {
   return url;
 }
 
-/* ── Load & render ────────────────────────────────────────────── */
 async function loadPegawai({ keepPage = false } = {}) {
   const tb0 = document.getElementById('pegawaiTableBody');
   if (tb0) tb0.innerHTML = `<tr class="empty-row"><td colspan="7"><span class="btn-spin" style="width:11px;height:11px;vertical-align:-1px;margin-right:6px"></span>Memuat data...</td></tr>`;
@@ -179,13 +178,11 @@ function _buildAtatanDropdown(excludeId = null) {
   if (typeof initCustomSelects === 'function') initCustomSelects();
 }
 
-// Wrapper preview (foto + tombol x) ditampilkan/disembunyikan bareng.
 function _pegawaiFotoWrap(show) {
   const w = document.getElementById('pegawaiFotoPreviewWrap');
   if (w) w.style.display = show ? 'block' : 'none';
 }
 
-// Drag & drop ke area upload (pola sama dengan Tema Musiman)
 function handlePegawaiFotoDragOver(e) { e.preventDefault(); document.getElementById('pegawaiFotoUploadArea')?.classList.add('drag-over'); }
 function handlePegawaiFotoDragLeave() { document.getElementById('pegawaiFotoUploadArea')?.classList.remove('drag-over'); }
 function handlePegawaiFotoDrop(e) {
@@ -195,9 +192,6 @@ function handlePegawaiFotoDrop(e) {
   if (file) onPegawaiFotoFileChange({ files: [file], value: '' });
 }
 
-// Kecilkan foto sebelum upload (sisi terpanjang maks. 800px, JPEG 85%). Foto pegawai cuma tampil
-// kecil/bulat, sedangkan upload besar gampang kena timeout function (netlify dev 30 dtk, Netlify 10-26 dtk).
-// Gagal kompres atau hasilnya tidak lebih kecil -> pakai file asli.
 async function _kompresFoto(file, maxSide = 800, quality = 0.85) {
   try {
     if (file.size <= 200 * 1024) return file;
@@ -208,7 +202,7 @@ async function _kompresFoto(file, maxSide = 800, quality = 0.85) {
     const canvas = document.createElement('canvas');
     canvas.width = w; canvas.height = h;
     const ctx = canvas.getContext('2d');
-    ctx.fillStyle = '#fff';            // PNG transparan -> latar putih (JPEG tidak punya alpha)
+    ctx.fillStyle = '#fff';
     ctx.fillRect(0, 0, w, h);
     ctx.drawImage(bmp, 0, 0, w, h);
     if (bmp.close) bmp.close();
@@ -274,8 +268,6 @@ async function onPegawaiFotoFileChange(input) {
   }
 }
 
-// Hapus foto = langsung hapus file-nya di Cloudinary (tidak menunggu Simpan).
-// Pegawai yang sudah tersimpan: foto_url di database ikut dikosongkan supaya tidak menunjuk file yang sudah hilang.
 async function clearPegawaiFoto() {
   const urlEl = document.getElementById('pegawaiFotoUrl');
   const url   = (urlEl.value || '').trim();
@@ -301,7 +293,6 @@ async function clearPegawaiFoto() {
         body: JSON.stringify({ url }),
       });
       const d = await r.json().catch(() => ({}));
-      // 'not found' = file memang sudah tidak ada di Cloudinary -> tetap lanjut bersihkan foto
       if (!(r.ok && d.ok) && d.error !== 'not found') {
         toast('Gagal menghapus foto di Cloudinary' + (d.error ? ': ' + d.error : ''), 'error');
         return;
@@ -331,7 +322,6 @@ async function clearPegawaiFoto() {
   }
 }
 
-/* ── Save ─────────────────────────────────────────────────────── */
 async function savePegawai() {
   const id       = document.getElementById('pegawaiId').value;
   const nama     = document.getElementById('pegawaiNama').value.trim();

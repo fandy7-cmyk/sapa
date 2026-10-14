@@ -219,12 +219,6 @@
   }
 
   function init() {
-    // Render cache dulu SINKRON kalau ada (instan, gak nunggu network -
-    // biar gak ada jeda "halaman polos dulu baru tema muncul"). Begitu
-    // fetch fresh (no-store, selalu akurat) selesai, cuma REPLACE kalau
-    // hasilnya beda dari yang udah kepasang (beda id tema, atau salah
-    // satunya null) - biar gak ada re-render/flicker yang gak perlu
-    // kalau ternyata cache-nya udah sesuai sama data terbaru.
     var cachedData  = window.__sapaTemaCache || null;
     var cachedTheme = cachedData && cachedData.theme;
     var cachedId    = cachedTheme ? cachedTheme.id : null;
@@ -239,7 +233,7 @@
     p.then(function (d) {
       var freshTheme = d && d.theme;
       var freshId = freshTheme ? freshTheme.id : null;
-      if (freshId === cachedId) return; // sama persis, gak perlu re-render
+      if (freshId === cachedId) return;
       removeActiveVisuals();
       applyTheme(freshTheme);
     }).catch(function (e) {
@@ -281,18 +275,8 @@
       });
   }
 
-  // Dipanggil dari halaman admin (tema_musiman_frontend.js) tiap kali
-  // tema ditambah/diubah/dihapus/toggle, biar topbar/banner langsung
-  // sinkron tanpa perlu reload halaman.
   window.sapaTemaRefresh = refreshTema;
 
-  // ── Preview modal admin ──────────────────────────────────────────
-  // Versi ringan dari renderPill/renderBannerAtas/renderRibbonPojok/
-  // renderLoginPanelTheme, tapi digambar position:absolute di dalam
-  // container preview (bukan position:fixed ke document.body) dan
-  // tanpa tombol close/dismiss. Efek animasi & partikel dipakai ulang
-  // apa adanya dari applyEfek()/applyPartikel() biar preview 1:1 sama
-  // kayak tampilan asli.
   function buildPreviewBar(theme, posisi) {
     var isBanner = posisi === 'banner-atas';
     var isRibbon = posisi === 'ribbon-pojok';

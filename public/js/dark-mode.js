@@ -1,12 +1,3 @@
-/*
- * dark-mode.js - tema Terang / Gelap / Ikuti Sistem (SAPA)
- * Preferensi disimpan di localStorage 'sapa_theme' ('auto' | 'light' | 'dark' | 'system').
- * Default (belum pernah memilih) = 'auto': gelap otomatis pukul 18:00-06:00 WITA, terang di luar jam itu.
- * Pilihan manual user (Terang / Gelap / Sistem) selalu mengalahkan 'auto' sampai user memilih Otomatis lagi. Atribut data-theme di <html> selalu
- * berisi hasil akhir ('light' | 'dark'); data-theme-pref berisi pilihan user.
- * Skrip inline mini di <head> tiap halaman memasang atribut lebih awal (anti kedip);
- * file ini mengurus toggle, UI, sinkron antar tab, dan perubahan tema sistem.
- */
 (function () {
   'use strict';
   var KEY = 'sapa_theme';
@@ -14,15 +5,14 @@
   var mq = window.matchMedia ? window.matchMedia('(prefers-color-scheme: dark)') : null;
   var switchTimer = null;
   var autoTimer = null;
-  var WITA_MS = 8 * 3600 * 1000;   // WITA = UTC+8 (tidak bergantung zona waktu perangkat)
+  var WITA_MS = 8 * 3600 * 1000;
   var DAY_MS = 24 * 3600 * 1000;
-  var NIGHT_START = 18, NIGHT_END = 6;  // gelap 18:00 - 05:59 WITA
+  var NIGHT_START = 18, NIGHT_END = 6;
 
   function isNightWita() {
     var h = new Date(Date.now() + WITA_MS).getUTCHours();
     return h >= NIGHT_START || h < NIGHT_END;
   }
-  // Jadwalkan pengecekan ulang tepat di pergantian 06:00 / 18:00 WITA (hanya saat pilihan 'auto')
   function scheduleAuto() {
     clearTimeout(autoTimer);
     autoTimer = null;
@@ -51,7 +41,7 @@
     if (btn) {
       var label = resolved === 'dark' ? 'Ganti ke tema terang' : 'Ganti ke tema gelap';
       btn.setAttribute('aria-label', label);
-      btn.setAttribute('data-tip', label); // tooltip custom (bukan title bawaan browser)
+      btn.setAttribute('data-tip', label);
       btn.setAttribute('aria-pressed', resolved === 'dark' ? 'true' : 'false');
     }
     var opts = document.querySelectorAll('[data-theme-opt]');
@@ -62,15 +52,6 @@
     }
   }
 
-  /* ───────────────────────────────────────────────────────────────────────
-   * Adapter warna inline dinamis.
-   * css/dark.css (hasil tools/gen-dark.js) hanya bisa menjangkau warna yang
-   * tertulis literal. Warna yang dirakit JS saat render (mis. stat-card:
-   * style="background:${bg}" dari palet pastel) baru ketahuan setelah masuk
-   * DOM, jadi di mode gelap dipetakan di sini, memakai aturan peta yang sama
-   * dengan generator. Nilai asli disimpan & dikembalikan saat balik ke Terang.
-   * Lewati elemen dengan [data-no-dark] atau di dalam .share-qr-box.
-   * ─────────────────────────────────────────────────────────────────────── */
   var SURF = [17, 24, 39];
   var FAM_BASE = { red: [239, 68, 68], amber: [245, 158, 11], green: [34, 197, 94], teal: [45, 212, 191], blue: [96, 165, 250], purple: [168, 85, 247] };
   var FAM_TEXT = { red: '#fca5a5', amber: '#fcd34d', green: '#6ee7b7', teal: '#2dd4bf', blue: '#93c5fd', purple: '#d8b4fe' };
@@ -132,7 +113,7 @@
     return mapText(c);
   }
   function roleOf(prop) {
-    if (/^--[\w-]*bg/.test(prop)) return mapBg; // custom property latar: --kc-bg, --iku-col-bg, ...
+    if (/^--[\w-]*bg/.test(prop)) return mapBg;
     if (prop === 'background-color' || prop === 'background-image') return mapBg;
     if (prop === 'color' || prop === 'caret-color' || prop === 'text-decoration-color') return mapText;
     if (prop === 'fill' || prop === 'stroke' || prop === 'stop-color') return mapFill;
@@ -151,7 +132,6 @@
     val = val.replace(RGB_RE, function (m, r, g, b, a) {
       return fn({ r: +r, g: +g, b: +b, a: a === undefined ? 1 : +a }) || m;
     });
-    // custom property disimpan mentah (hex apa adanya), jadi hex juga perlu dipetakan
     if (prop.charAt(0) === '-') {
       val = val.replace(HEX_RE, function (m, h) { return fn(hexToRgb(h)) || m; });
     }
@@ -169,7 +149,7 @@
       if (!roleOf(prop)) continue;
       var cur = st.getPropertyValue(prop);
       if (!cur) continue;
-      if (rec && rec[prop] && rec[prop].mapped === cur) continue; // hasil kita sendiri
+      if (rec && rec[prop] && rec[prop].mapped === cur) continue;
       var nv = mapValue(prop, cur);
       if (nv === cur) { if (rec && rec[prop]) delete rec[prop]; continue; }
       var pri = st.getPropertyPriority(prop);
@@ -242,19 +222,11 @@
       if (document.body) adapterSync(resolved === 'dark');
       try { window.dispatchEvent(new CustomEvent('sapa-theme-change', { detail: { pref: pref, theme: resolved } })); } catch (e) {}
     }
-    // Browser yang mendukung: crossfade snapshot halaman (dikerjakan GPU), jadi tidak ada
-    // ribuan elemen yang bertransisi warna satu-satu (itu yang bikin terasa delay/patah-patah).
-    // Tab sedang tersembunyi (timer 06:00/18:00 WITA, sinkron antar tab, perubahan tema sistem): browser
-    // langsung membatalkan transisi dan promise-nya reject "Transition was aborted ... Document hidden"
-    // (unhandled rejection yang ikut tercatat di Pemantauan Sistem). Tidak ada yang bisa dilihat di tab
-    // tersembunyi, jadi lewati animasi dan terapkan tema langsung.
     var canAnimate = animate && changed && !reduce && !document.hidden;
     if (canAnimate && document.startViewTransition) {
       var vt = null;
       try { vt = document.startViewTransition(commit); } catch (e) { vt = null; }
       if (vt) {
-        // Transisi bisa dibatalkan browser kapan saja (tab disembunyikan di tengah jalan, transisi baru
-        // menimpa yang lama). Tema tetap terpasang lewat commit, jadi penolakan promise cukup diabaikan.
         var noop = function () {};
         if (vt.ready && vt.ready.catch) vt.ready.catch(noop);
         if (vt.finished && vt.finished.catch) vt.finished.catch(noop);
@@ -264,7 +236,6 @@
       commit();
       return;
     }
-    // Fallback (browser lama): transisi warna per-elemen lewat class .theme-switching.
     if (canAnimate) {
       root.classList.add('theme-switching');
       clearTimeout(switchTimer);
@@ -277,7 +248,6 @@
     try { localStorage.setItem(KEY, pref); } catch (e) {}
     apply(true);
   }
-  // klik tombol topbar: balik tema yang sedang tampil (jadi pilihan eksplisit)
   function toggle() { set(resolve(getPref()) === 'dark' ? 'light' : 'dark'); }
 
   window.SAPA_THEME = { get: getPref, set: set, toggle: toggle, resolved: function () { return resolve(getPref()); } };
@@ -287,20 +257,12 @@
     if (mq.addEventListener) mq.addEventListener('change', onSys);
     else if (mq.addListener) mq.addListener(onSys);
   }
-  // sinkron antar tab / jendela
   window.addEventListener('storage', function (e) { if (e.key === KEY) apply(true); });
-  // timer bisa tertahan saat tab di background / perangkat tidur: cek ulang begitu tab aktif lagi
   document.addEventListener('visibilitychange', function () {
     if (!document.hidden && getPref() === 'auto') apply(true);
   });
 
 
-  /* ───────────────────────────────────────────────────────────────────────
-   * Tooltip custom ringan untuk halaman tanpa app.js (login, landing, bundle).
-   * Memakai atribut data-tip yang sama dengan app (qtip di app.js), jadi tidak ada
-   * lagi tooltip bawaan browser. Di app.html fungsi ini tidak aktif karena
-   * app.js sudah memasang qtip sendiri.
-   * ─────────────────────────────────────────────────────────────────────── */
   function bindLiteTip() {
     if (typeof window._bindQtips === 'function' || document.body._liteTipBound) return;
     document.body._liteTipBound = true;

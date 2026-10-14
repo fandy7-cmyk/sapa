@@ -1,5 +1,3 @@
-/* DIHASILKAN OTOMATIS oleh tools/gen-dark.js - jangan diedit tangan.
-   Edit tools/dark-manual-*.css lalu jalankan ulang generator. */
 @media screen {
 html[data-theme="dark"] #loginOverlay{background:linear-gradient(135deg, #111827 0%, #15363f 35%, #174148 65%, var(--hijau, #047D78) 100%)}
 html[data-theme="dark"] #loginOverlay .card.login-card{background:transparent!important}

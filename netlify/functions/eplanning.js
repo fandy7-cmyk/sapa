@@ -4,7 +4,6 @@ import { requireAuth } from './_auth.js';
 import { logAudit } from './_audit.js';
 import { deleteFromCloudinary } from './_cloudinary.js';
 
-// Kumpulkan bukti_url dari kolom survei_toko (JSON string/objek) untuk cleanup file lama.
 function _buktiSurvei(raw) {
   try {
     const o = typeof raw === 'string' ? JSON.parse(raw) : raw;
@@ -13,9 +12,6 @@ function _buktiSurvei(raw) {
 }
 import { createHash } from 'node:crypto';
 
-// Migrasi dijalankan sekali per "versi" isi _runMigrations (hash source-nya disimpan di tabel
-// schema_version). Jadi cold start biasa cuma 1 SELECT, bukan ~90 query. Kalau _runMigrations
-// diedit (nambah kolom/tabel dll), hash berubah dan migrasi otomatis jalan lagi sekali.
 let _migrated = false;
 async function ensureSchema(sql) {
   if (_migrated) return;
@@ -23,7 +19,7 @@ async function ensureSchema(sql) {
   try {
     const r = await sql`SELECT version FROM schema_version WHERE modul = 'eplanning' LIMIT 1`;
     if (r.length && r[0].version === ver) { _migrated = true; return; }
-  } catch (_) { /* tabel schema_version belum ada -> lanjut migrasi */ }
+  } catch (_) {  }
 
   await _runMigrations(sql);
 
@@ -75,8 +71,6 @@ async function _runMigrations(sql) {
   await sql`ALTER TABLE eplanning_usulan ADD COLUMN IF NOT EXISTS admin_approved_at TIMESTAMPTZ`;
   await sql`UPDATE eplanning_usulan SET status = 'MENUNGGU ADMIN' WHERE status = 'DIAJUKAN KE ADMIN'`;
   await sql`UPDATE eplanning_usulan SET status = 'DITOLAK', ditolak_oleh = 'KEPALA' WHERE status = 'KOREKSI BIDANG'`;
-  // Backfill data lama: sebelum ditolak_oleh dipecah per tipe unit kerja (KEPALA_PUSKESMAS/
-  // KEPALA_BIDANG/KEPALA_SUB_BAGIAN), penolakan Kepala kesimpen generik sebagai 'KEPALA' aja.
   await sql`
     UPDATE eplanning_usulan SET ditolak_oleh = CASE bidang_tipe
         WHEN 'puskesmas'  THEN 'KEPALA_PUSKESMAS'
@@ -101,7 +95,6 @@ async function _runMigrations(sql) {
     WHERE status = 'DIAJUKAN KE BIDANG'
   `;
 
-  // --- Verifikasi per-komponen (Surat Usulan / TOR / RAB) - menggantikan alur status tunggal lama ---
   await sql`ALTER TABLE eplanning_usulan ADD COLUMN IF NOT EXISTS status_surat TEXT NOT NULL DEFAULT 'MENUNGGU'`;
   await sql`ALTER TABLE eplanning_usulan ADD COLUMN IF NOT EXISTS status_tor TEXT NOT NULL DEFAULT 'MENUNGGU'`;
   await sql`ALTER TABLE eplanning_usulan ADD COLUMN IF NOT EXISTS status_rab TEXT NOT NULL DEFAULT 'MENUNGGU'`;
@@ -114,25 +107,18 @@ async function _runMigrations(sql) {
   await sql`ALTER TABLE eplanning_usulan ADD COLUMN IF NOT EXISTS tgl_verifikasi_surat TIMESTAMPTZ`;
   await sql`ALTER TABLE eplanning_usulan ADD COLUMN IF NOT EXISTS tgl_verifikasi_tor TIMESTAMPTZ`;
   await sql`ALTER TABLE eplanning_usulan ADD COLUMN IF NOT EXISTS tgl_verifikasi_rab TIMESTAMPTZ`;
-  // Alur lanjutan: Usulan (isi skala prioritas) > Pembahasan > Pra Final (verifikasi Kepala Dinas) > Final
-  // (loop balik ke Pembahasan kalau Kepala Dinas minta ada perubahan di tahap Pra Final).
   await sql`ALTER TABLE eplanning_usulan ADD COLUMN IF NOT EXISTS skala_prioritas INT`;
   await sql`ALTER TABLE eplanning_usulan ADD COLUMN IF NOT EXISTS tgl_prioritas TIMESTAMPTZ`;
   await sql`ALTER TABLE eplanning_usulan ADD COLUMN IF NOT EXISTS tgl_prafinal TIMESTAMPTZ`;
   await sql`ALTER TABLE eplanning_usulan ADD COLUMN IF NOT EXISTS tgl_final TIMESTAMPTZ`;
   await sql`ALTER TABLE eplanning_usulan ADD COLUMN IF NOT EXISTS catatan_prafinal TEXT`;
   await sql`ALTER TABLE eplanning_usulan ADD COLUMN IF NOT EXISTS sumber_dana_pilihan TEXT`;
-  // Surat Usulan & TOR sekarang diisi lewat form/template, bukan upload file lagi.
-  // link_surat_usulan/link_kak/link_datadukung dibiarkan ada di DB (data lama) tapi tidak dipakai lagi.
   await sql`ALTER TABLE eplanning_usulan ADD COLUMN IF NOT EXISTS data_surat JSONB NOT NULL DEFAULT '{}'::jsonb`;
   await sql`ALTER TABLE eplanning_usulan ADD COLUMN IF NOT EXISTS data_tor JSONB NOT NULL DEFAULT '{}'::jsonb`;
-  // Usulan yang dulu sudah SELESAI (disetujui admin) dianggap seluruh komponennya sudah disetujui.
   await sql`
     UPDATE eplanning_usulan SET status_surat = 'DISETUJUI', status_tor = 'DISETUJUI', status_rab = 'DISETUJUI'
     WHERE status = 'SELESAI' AND status_surat = 'MENUNGGU'
   `;
-  // Alur: Menunggu Kepala (verifikasi per-komponen) > [khusus Sub Bagian: Menunggu Sekretaris Dinas] > Menunggu Admin (Verifikator) > Selesai.
-  // Usulan lama yang masih berstatus 'PRA USULAN' dipetakan ke status Menunggu Kepala sesuai tipe bidangnya.
   await sql`
     UPDATE eplanning_usulan SET status = 'MENUNGGU KEPALA ' ||
       CASE COALESCE(bidang_tipe, 'bidang')
@@ -172,24 +158,11 @@ async function _runMigrations(sql) {
   `;
   await sql`ALTER TABLE eplanning_rekening ADD COLUMN IF NOT EXISTS aktif BOOLEAN NOT NULL DEFAULT true`;
   await sql`ALTER TABLE eplanning_rincian ADD COLUMN IF NOT EXISTS objek_belanja TEXT`;
-  // Redesign modal Tambah Rincian Belanja (niru alur SIPD): Satuan jadi field sendiri (dulu numpang
-  // di kolom `koefisien` bareng teks "1 Unit"), dan Koefisien (Perkalian) sampe 4 pasang Volume x
-  // Satuan yang hasil kalinya jadi `volume` final - detail per-pasangnya disimpan di koefisien_detail
-  // biar bisa direpopulate pas Edit Rincian.
   await sql`ALTER TABLE eplanning_rincian ADD COLUMN IF NOT EXISTS satuan TEXT`;
   await sql`ALTER TABLE eplanning_rincian ADD COLUMN IF NOT EXISTS koefisien_detail JSONB NOT NULL DEFAULT '[]'::jsonb`;
-  // Istilah standar SIPD-RI: jenis_paket = "Pemaketan Belanja" / "Pengelompokan Belanja",
-  // uraian_paket = uraiannya (mis. nama Rancangan Renja terkait) - diisi bebas lewat combobox,
-  // pola sama kayak keterangan.
   await sql`ALTER TABLE eplanning_rincian ADD COLUMN IF NOT EXISTS jenis_paket TEXT`;
   await sql`ALTER TABLE eplanning_rincian ADD COLUMN IF NOT EXISTS uraian_paket TEXT`;
-  // "Jenis Standar Harga" (SSH/HSPK/ASB/SBU) dulu cuma dipakai buat filter nyari Komponen di
-  // modal Tambah/Edit Rincian, gak pernah disimpen - jadi begitu dibuka lagi buat Edit/Lihat,
-  // pilihannya keliatan hilang/balik ke "-" walau Komponen-nya sendiri udah kepilih. Disimpen
-  // sekarang biar bisa direstore.
   await sql`ALTER TABLE eplanning_rincian ADD COLUMN IF NOT EXISTS kategori_standar TEXT`;
-  // Relasi ke Standar Harga Manual (eplanning_standar_harga.id) yang jadi dasar harga rincian ini -
-  // dipakai buat nampilin data survei 3 toko & ikut memperbarui harga rincian pas survei diedit.
   await sql`ALTER TABLE eplanning_rincian ADD COLUMN IF NOT EXISTS standar_harga_id INT`;
   await sql`
     CREATE TABLE IF NOT EXISTS eplanning_subkegiatan (
@@ -313,13 +286,7 @@ async function _runMigrations(sql) {
   await sql`ALTER TABLE eplanning_usulan ADD COLUMN IF NOT EXISTS waktu_selesai_bulan SMALLINT`;
   await sql`ALTER TABLE eplanning_usulan ADD COLUMN IF NOT EXISTS sumber_dana_summary JSONB NOT NULL DEFAULT '[]'::jsonb`;
   await sql`ALTER TABLE eplanning_usulan ADD COLUMN IF NOT EXISTS nama_kegiatan TEXT`;
-  // Kode dari master eplanning_subkegiatan (kode_subkegiatan) disnapshot ke sini pas usulan
-  // dibuat/diedit, biar list Pra Usulan/Usulanku bisa nampilin "kode - nama sub kegiatan"
-  // tanpa join balik ke master (dan tetep akurat walau master-nya kepencet edit/hapus belakangan).
   await sql`ALTER TABLE eplanning_usulan ADD COLUMN IF NOT EXISTS kode_subkegiatan TEXT`;
-  // Backfill kode buat usulan lama yang dibuat sebelum kolom kode_subkegiatan ada -
-  // cocokin sub_kegiatan (nama) ke master eplanning_subkegiatan. Usulan yang sub_kegiatan-nya
-  // custom/gak ada di master (atau udah pernah diedit ulang & ke-isi manual) dibiarkan apa adanya.
   await sql`
     UPDATE eplanning_usulan u SET kode_subkegiatan = s.kode_subkegiatan
     FROM eplanning_subkegiatan s
@@ -347,22 +314,10 @@ async function _runMigrations(sql) {
   await sql`ALTER TABLE eplanning_standar_harga ADD COLUMN IF NOT EXISTS tkdn NUMERIC`;
   await sql`ALTER TABLE eplanning_standar_harga ADD COLUMN IF NOT EXISTS tahun INT`;
   await sql`UPDATE eplanning_standar_harga SET tahun = 2027 WHERE tahun IS NULL`;
-  // Standar Harga "MANUAL" - hasil kalkulator survei 3 toko yang diinput langsung oleh user
-  // (bukan admin/import SIPD) lewat form Rincian Belanja. catatan_survei nyimpen ringkasan
-  // toko/harga/ongkir yang dipakai buat ngitung, dibuat_oleh nyimpen nama penginput - biar
-  // superadmin bisa lacak/verifikasi asal harganya pas ditinjau di tab MANUAL.
   await sql`ALTER TABLE eplanning_standar_harga ADD COLUMN IF NOT EXISTS catatan_survei TEXT`;
   await sql`ALTER TABLE eplanning_standar_harga ADD COLUMN IF NOT EXISTS dibuat_oleh TEXT`;
-  // ID user penginput - dipakai buat cek hak ubah survei (nama bisa kembar antar user, ID gak).
   await sql`ALTER TABLE eplanning_standar_harga ADD COLUMN IF NOT EXISTS dibuat_oleh_id TEXT`;
-  // Data terstruktur survei 3 toko (nama/harga/link/bukti_url per toko + ongkir/persen untung),
-  // disimpen sebagai JSON text - dipakai buat cross-check ulang harga pas pemeriksaan (link toko
-  // & foto struk/screenshot jadi bukti), bukan cuma ringkasan teks di catatan_survei.
   await sql`ALTER TABLE eplanning_standar_harga ADD COLUMN IF NOT EXISTS survei_toko TEXT`;
-  // Parameter kalkulator survei harga (3 toko) - dulu di-hardcode di frontend, lalu sempet jadi
-  // 1 nilai global (persen_untung_default/persen_pajak) + Indeks Inflasi per tahun terpisah.
-  // Sekarang SEMUANYA (untung, pajak, inflasi) disimpen per Tahun Anggaran dalam 1 tabel, biar
-  // perubahan setting buat TA baru (mis. 2027) gak ikut ngubah TA yang udah jalan (mis. 2026).
   await sql`
     CREATE TABLE IF NOT EXISTS eplanning_pengaturan_tahunan (
       tahun                  INTEGER PRIMARY KEY,
@@ -372,8 +327,6 @@ async function _runMigrations(sql) {
       updated_at             TIMESTAMPTZ DEFAULT NOW()
     )
   `;
-  // Skema lama (dipertahankan apa adanya di DB, cuma dipakai sbg sumber migrasi 1x di bawah -
-  // gak dipakai lagi di endpoint API) supaya data lama gak hilang pas upgrade.
   await sql`
     CREATE TABLE IF NOT EXISTS eplanning_pengaturan (
       kunci      TEXT PRIMARY KEY,
@@ -399,11 +352,7 @@ async function _runMigrations(sql) {
     INSERT INTO eplanning_pengaturan_inflasi (tahun, persen) VALUES (2027, 5.33)
     ON CONFLICT (tahun) DO NOTHING
   `;
-  // Kolom persen_untung_default sudah gak dipakai (Keuntungan+Overhead diisi user per barang,
-  // 5%-15%) - dibiarin di DB sbg legacy tapi gak wajib lagi biar INSERT baru gak perlu ngisi.
   await sql`ALTER TABLE eplanning_pengaturan_tahunan ALTER COLUMN persen_untung_default DROP NOT NULL`;
-  // Migrasi 1x: pindahin data lama (untung/pajak global + inflasi per-tahun) ke tabel baru
-  // per-tahun anggaran. ON CONFLICT DO NOTHING -> aman dipanggil ulang tiap cold start.
   {
     const _oldGlobal = await sql`SELECT kunci, nilai FROM eplanning_pengaturan`;
     const _oldPajak = Number(_oldGlobal.find(r => r.kunci === 'persen_pajak')?.nilai ?? 12.5);
@@ -439,8 +388,6 @@ function generateId(prefix) {
   return `${prefix}-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
 }
 
-// Daftar "Objek Belanja" baku ala SIPD RI, dipetakan dari prefix Kode Rekening (Akun.Kelompok.Jenis).
-// Urutan penting: dicek dari prefix paling panjang/spesifik dulu.
 const EP_OBJEK_BELANJA_LIST = [
   'Belanja Gaji dan Tunjangan ASN', 'Belanja Barang Jasa dan Modal', 'Belanja Bunga', 'Belanja Subsidi',
   'Belanja Hibah (Barang/Jasa)', 'Belanja Hibah (Uang)', 'Belanja Bantuan Sosial (Barang/Jasa)',
@@ -462,11 +409,6 @@ const EP_OBJEK_BELANJA_PREFIX_MAP = [
   ['5.1.08', 'Belanja Bantuan Keuangan Umum'],
   ['5.1.09', 'Belanja Tidak Terduga (BTT)'],
 ];
-// Aturan penentuan Objek Belanja per baris rincian RAB (lihat diskusi):
-// 1) Kalau user milih manual (eksplisit) -> pakai itu.
-// 2) Kalau Sumber Dana mengandung "BOS"/"BLUD" -> override ke kategori itu (soal sumber dana, bukan kode rekening).
-// 3) Selain itu -> derive dari prefix Kode Rekening (Akun.Kelompok.Jenis) ke tabel mapping di atas.
-// 4) Kalau gak ketemu sama sekali -> null (biar UI nampilin "- pilih -", user isi manual).
 function resolveObjekBelanja(kodeRekening, sumberDana, explicit) {
   if (explicit && EP_OBJEK_BELANJA_LIST.includes(explicit)) return explicit;
   const sd = (sumberDana || '').toUpperCase();
@@ -491,14 +433,6 @@ const EP_STATUS_BELUM_SELESAI = [
   'MENUNGGU ADMIN',
   'DITOLAK',
 ];
-// Sama seperti EP_STATUS_BELUM_SELESAI tapi tanpa DRAFT dan DITOLAK - dipakai
-// untuk role verifikator (kabid/sekretaris) di tab Pra Usulan. Usulan yang
-// masih DRAFT belum di-submit pemiliknya dan belum bisa diverifikasi sama
-// sekali (lihat pengecekan isStatusMenungguKepala di verify-komponen), jadi
-// belum semestinya muncul di daftar mereka. Begitu juga usulan yang DITOLAK -
-// bola udah balik ke tangan pengusul buat diperbaiki & diajukan ulang, jadi
-// hilang dulu dari daftar verifikator sampai pengusul submit ulang (status
-// balik jadi MENUNGGU KEPALA ... lagi).
 const EP_STATUS_BELUM_SELESAI_VERIFIKATOR = EP_STATUS_BELUM_SELESAI.filter(s => s !== 'DRAFT' && s !== 'DITOLAK');
 function statusMenungguKepala(bidangTipe) {
   return `MENUNGGU KEPALA ${TIPE_KEPALA_LABEL[bidangTipe] || 'BIDANG'}`;
@@ -507,12 +441,6 @@ function isStatusMenungguKepala(status) {
   return typeof status === 'string' && status.startsWith('MENUNGGU KEPALA');
 }
 
-// ---- Kalkulator "Survei Harga (3 Toko)" versi server ----
-// Rumusnya SAMA PERSIS dengan epHitungShKalkulator() di frontend. Dipakai buat ngitung ulang
-// harga Standar Harga MANUAL di server, jadi angka dari klien (harga_satuan, persen_untung,
-// catatan_survei) gak dipercaya begitu aja. Persentase Keuntungan + Overhead SEPENUHNYA diisi user
-// per barang (wajib, dibatasi 5%-15% di sini - gak bisa ditembus lewat DevTools/request langsung);
-// gak ada default dari Pengaturan Kalkulator lagi. Kalau kosong/di luar rentang -> { error }.
 const SURVEI_UNTUNG_MIN = 5, SURVEI_UNTUNG_MAX = 15;
 const SURVEI_PAJAK_FALLBACK = 12.5;
 function _fmtRupiahSurvei(n) {
@@ -603,10 +531,6 @@ async function recalcTotal(sql, usulanId) {
     WHERE id = ${usulanId}`;
 }
 
-// Sebelum tahap approve-kabid, nama_kabid/nip_kabid di record usulan masih kosong.
-// Untuk preview surat/TOR, tampilkan nama Kepala Unit Kerja yang sudah di-set
-// di menu Pengguna (user dengan permission eplanning.kabid pada bidang yang sama),
-// tanpa menimpa/menyimpan nilai resmi yang baru terisi saat approve-kabid.
 async function attachKabidPreview(sql, u) {
   if (!u.nama_kabid && u.bidang_id) {
     const kabidRows = await sql`
@@ -667,16 +591,10 @@ export const handler = async (event) => {
             !(role.isOperator && u.pembuat_user_id === auth.id)) {
           return errorResponse('Unauthorized', 401);
         }
-        // Sebelum tahap approve-kabid, nama_kabid/nip_kabid di record ini masih kosong.
-        // Untuk preview surat/TOR, tampilkan nama Kepala Unit Kerja yang sudah di-set
-        // di menu Pengguna (user dengan permission eplanning.kabid pada bidang yang sama),
-        // tanpa menimpa/menyimpan nilai resmi yang baru terisi saat approve-kabid.
         await attachKabidPreview(sql, u);
         return jsonResponse({ usulan: u });
       }
 
-      // Riwayat Aktivitas - baca dari audit_log yang sudah dicatat tiap transisi usulan
-      // (submit/verify-komponen/resubmit-komponen/approve-*/dll), jadi gak perlu tabel log baru.
       if (event.httpMethod === 'GET' && id && action === 'log') {
         const cur = await sql`SELECT bidang_id, bidang_tipe, pembuat_user_id FROM eplanning_usulan WHERE id = ${id} LIMIT 1`;
         if (!cur.length) return errorResponse('Usulan tidak ditemukan', 404);
@@ -696,14 +614,8 @@ export const handler = async (event) => {
 
       if (event.httpMethod === 'GET' && !id) {
         const tahunFilter = qs.tahun && /^\d{4}$/.test(qs.tahun) ? parseInt(qs.tahun) : null;
-        // tahap=pra-usulan -> belum lengkap disetujui (DRAFT/PRA USULAN/DITOLAK); tahap=usulanku -> semua komponen sudah disetujui (SELESAI); tahap=pembahasan -> sudah dikirim ke tahap Pembahasan (PEMBAHASAN)
         let rows;
         if (role.isAdmin) {
-          // Admin (Verifikator) cuma perlu liat usulan yang emang udah giliran dia
-          // (MENUNGGU ADMIN) - bukan semua tahap kayak Kabid/Sekretaris yang mantau
-          // bidangnya sendiri dari awal. Superadmin asli (auth.is_admin) beda: dia
-          // perlu bisa liat & hapus usulan di tahap manapun termasuk yang masih
-          // DRAFT/DITOLAK punya operator (buat keperluan moderasi/bersih-bersih data).
           const adminTahap = qs.tahap === 'pra-usulan' ? (auth.is_admin ? EP_STATUS_BELUM_SELESAI : ['MENUNGGU ADMIN'])
             : qs.tahap === 'usulanku' ? ['SELESAI']
             : qs.tahap === 'pembahasan' ? ['PEMBAHASAN']
@@ -777,9 +689,6 @@ export const handler = async (event) => {
       if (event.httpMethod === 'PUT' && id && action === 'submit') {
         const cur = await sql`SELECT pembuat_user_id, bidang_id, status, data_surat, data_tor, total_anggaran FROM eplanning_usulan WHERE id = ${id} LIMIT 1`;
         if (!cur.length) return errorResponse('Usulan tidak ditemukan', 404);
-        // Submit sengaja gak dikasih bypass admin - ini tindakan formal si pemilik usulan
-        // sendiri ("saya mengajukan usulan ini"), jadi wajib pembuat_user_id yang cocok
-        // meski request-nya datang dari akun admin/superadmin.
         if (cur[0].pembuat_user_id !== auth.id) return errorResponse('Unauthorized', 401);
         if (!['DRAFT', 'DITOLAK'].includes(cur[0].status)) return errorResponse('Usulan sudah diajukan, tidak bisa disubmit ulang', 409);
         const ttdPengusul = await sql`SELECT nip, tanda_tangan FROM users WHERE id = ${auth.id} LIMIT 1`;
@@ -806,7 +715,6 @@ export const handler = async (event) => {
         return jsonResponse({ usulan: rows[0] });
       }
 
-      // Verifikasi satu komponen (surat/tor/rab) secara independen oleh Kepala Puskesmas/Bidang/Subbagian (role isKabid, dicocokkan via bidang_id) atau Admin.
       if (event.httpMethod === 'PUT' && id && action === 'verify-komponen') {
         const cur = await sql`SELECT bidang_id, status FROM eplanning_usulan WHERE id = ${id} LIMIT 1`;
         if (!cur.length) return errorResponse('Usulan tidak ditemukan', 404);
@@ -827,9 +735,6 @@ export const handler = async (event) => {
         if (keputusan === 'DITOLAK' && (!body.catatan || !body.catatan.trim())) {
           return errorResponse('Catatan alasan penolakan wajib diisi', 400);
         }
-        // sql.query() tidak tersedia di client tagged-template @neondatabase/serverless
-        // (itu bikin error "sql.query is not a function"), jadi nama kolom dinamis
-        // di-resolve lewat percabangan literal per komponen, bukan interpolasi string.
         const catatanVal = keputusan === 'DITOLAK' ? body.catatan.trim() : null;
         if (komponen === 'surat') {
           await sql`UPDATE eplanning_usulan SET status_surat = ${keputusan}, catatan_surat = ${catatanVal}, verifikator_surat = ${auth.nama}, tgl_verifikasi_surat = NOW(), updated_at = NOW() WHERE id = ${id}`;
@@ -841,7 +746,6 @@ export const handler = async (event) => {
         const after = await sql`SELECT * FROM eplanning_usulan WHERE id = ${id} LIMIT 1`;
         let final = after[0];
         if (final.status_surat === 'DISETUJUI' && final.status_tor === 'DISETUJUI' && final.status_rab === 'DISETUJUI') {
-          // Khusus Sub Bagian: mampir ke Sekretaris Dinas dulu sebelum ke Admin (Verifikator).
           const nextStatus = final.bidang_tipe === 'sub_bagian' ? 'MENUNGGU SEKRETARIS' : 'MENUNGGU ADMIN';
           const doneRows = await sql`UPDATE eplanning_usulan SET status = ${nextStatus}, updated_at = NOW() WHERE id = ${id} RETURNING *`;
           final = doneRows[0];
@@ -850,7 +754,6 @@ export const handler = async (event) => {
         return jsonResponse({ usulan: final });
       }
 
-      // Pemilik usulan menandai komponen yang DITOLAK sudah diperbaiki -> kembali MENUNGGU verifikasi.
       if (event.httpMethod === 'PUT' && id && action === 'resubmit-komponen') {
         const cur = await sql`SELECT pembuat_user_id, status FROM eplanning_usulan WHERE id = ${id} LIMIT 1`;
         if (!cur.length) return errorResponse('Usulan tidak ditemukan', 404);
@@ -859,8 +762,6 @@ export const handler = async (event) => {
         const body = parseBody(event);
         const komponen = body.komponen;
         if (!['surat', 'tor', 'rab'].includes(komponen)) return errorResponse('Komponen tidak valid', 400);
-        // Sama seperti di verify-komponen: sql.query() bukan fungsi yang valid di
-        // client ini, jadi kolom dinamis di-resolve lewat percabangan literal.
         if (komponen === 'surat') {
           await sql`UPDATE eplanning_usulan SET status_surat = 'MENUNGGU', catatan_surat = NULL, updated_at = NOW() WHERE id = ${id} AND status_surat = 'DITOLAK'`;
         } else if (komponen === 'tor') {
@@ -873,7 +774,6 @@ export const handler = async (event) => {
         return jsonResponse({ usulan: rows[0] });
       }
 
-      // Simpan form Surat Usulan / TOR (data_surat / data_tor) - terpisah dari saveUsulan supaya gak menimpa field lain.
       if (event.httpMethod === 'PUT' && id && action === 'dokumen') {
         const cur = await sql`SELECT pembuat_user_id, status, status_surat, status_tor FROM eplanning_usulan WHERE id = ${id} LIMIT 1`;
         if (!cur.length) return errorResponse('Usulan tidak ditemukan', 404);
@@ -902,8 +802,6 @@ export const handler = async (event) => {
             }
           }
         }
-        // sql.query() juga bukan fungsi valid di sini - pakai tagged template langsung
-        // per tipe dokumen, konsisten dengan pola JSON.stringify di saveUsulan.
         const dataJson = JSON.stringify(body.data || {});
         const rows2 = tipe === 'surat'
           ? await sql`UPDATE eplanning_usulan SET data_surat = ${dataJson}, updated_at = NOW() WHERE id = ${id} RETURNING *`
@@ -914,7 +812,6 @@ export const handler = async (event) => {
       }
 
 
-      // Kepala Puskesmas/Bidang/Sub Bagian menyetujui usulan (per-usulan, bukan per-dokumen).
       if (event.httpMethod === 'PUT' && id && action === 'approve-kabid') {
         const cur = await sql`SELECT bidang_id, bidang_tipe, status FROM eplanning_usulan WHERE id = ${id} LIMIT 1`;
         if (!cur.length) return errorResponse('Usulan tidak ditemukan', 404);
@@ -942,7 +839,6 @@ export const handler = async (event) => {
         return jsonResponse({ usulan: rows[0] });
       }
 
-      // Sekretaris Dinas menyetujui usulan Sub Bagian sebelum diteruskan ke Admin (Verifikator).
       if (event.httpMethod === 'PUT' && id && action === 'approve-sekretaris') {
         if (!role.isAdmin && !role.isSekretaris) return errorResponse('Unauthorized', 401);
         const cur = await sql`SELECT status, bidang_tipe FROM eplanning_usulan WHERE id = ${id} LIMIT 1`;
@@ -990,8 +886,6 @@ export const handler = async (event) => {
         return jsonResponse({ usulan: rows[0] });
       }
 
-      // Usulan yang sudah SELESAI dikembalikan ke Kepala unit kerja (Kabid/Kapus/Kasubag) untuk
-      // mengisi skala prioritas sebelum dikembalikan ke Sub Bagian Perencanaan (Admin).
       if (event.httpMethod === 'PUT' && id && action === 'set-prioritas') {
         const cur = await sql`SELECT bidang_id, status FROM eplanning_usulan WHERE id = ${id} LIMIT 1`;
         if (!cur.length) return errorResponse('Usulan tidak ditemukan', 404);
@@ -1009,8 +903,6 @@ export const handler = async (event) => {
         return jsonResponse({ usulan: rows[0] });
       }
 
-      // Admin (Verifikator/Sub Bagian Perencanaan) memfilter usulan yang sudah SELESAI dan sudah
-      // diisi skala prioritas oleh Kepala unit kerja, untuk diteruskan ke tahap Pembahasan.
       if (event.httpMethod === 'PUT' && id && action === 'kirim-pembahasan') {
         if (!role.isAdmin) return errorResponse('Unauthorized', 401);
         const cur = await sql`SELECT status, skala_prioritas FROM eplanning_usulan WHERE id = ${id} LIMIT 1`;
@@ -1025,8 +917,6 @@ export const handler = async (event) => {
         return jsonResponse({ usulan: rows[0] });
       }
 
-      // Admin (Sub Bagian Perencanaan) meneruskan usulan yang sudah diputuskan lanjut ke tahapan
-      // RKA dari Pembahasan ke Pra Final, untuk diverifikasi Kepala Dinas.
       if (event.httpMethod === 'PUT' && id && action === 'kirim-prafinal') {
         if (!role.isAdmin) return errorResponse('Unauthorized', 401);
         const cur = await sql`SELECT status FROM eplanning_usulan WHERE id = ${id} LIMIT 1`;
@@ -1040,8 +930,6 @@ export const handler = async (event) => {
         return jsonResponse({ usulan: rows[0] });
       }
 
-      // Verifikasi Kepala Dinas di tahap Pra Final: kalau tidak ada perubahan -> Final,
-      // kalau ada perubahan -> balik ke tahap Pembahasan untuk disesuaikan.
       if (event.httpMethod === 'PUT' && id && action === 'verifikasi-prafinal') {
         if (!role.isAdmin) return errorResponse('Unauthorized', 401);
         const cur = await sql`SELECT status FROM eplanning_usulan WHERE id = ${id} LIMIT 1`;
@@ -1211,10 +1099,6 @@ export const handler = async (event) => {
       return errorResponse('Not found', 404);
     }
 
-    // Riwayat Keterangan & Uraian Paket per kegiatan (bidang + sub_kegiatan) - dipakai buat
-    // ngisi dropdown combobox "Keterangan"/"Uraian Paket" di modal Rincian Belanja, biar nilai
-    // yang pernah diketik user buat kegiatan ini selalu muncul lagi, lintas usulan/tahun anggaran
-    // (bukan cuma dari rincian usulan yang lagi dibuka sekarang).
     if (resource === 'rincian-riwayat' && event.httpMethod === 'GET') {
       const usulanId = qs.usulan_id;
       if (!usulanId) return errorResponse('usulan_id wajib diisi', 400);
@@ -1290,7 +1174,6 @@ export const handler = async (event) => {
           namaRekening = r[0]?.nama_rekening || null;
         }
         const objekBelanja = resolveObjekBelanja(body.kode_rekening, body.sumber_dana, body.objek_belanja);
-        // Relasi ke Standar Harga Manual - cuma berlaku buat kategori MANUAL.
         const standarHargaId = (String(body.kategori_standar || '').toUpperCase() === 'MANUAL' && Number.isInteger(Number(body.standar_harga_id)) && Number(body.standar_harga_id) > 0)
           ? Number(body.standar_harga_id) : null;
 
@@ -1422,18 +1305,12 @@ export const handler = async (event) => {
 
       if (event.httpMethod === 'GET' && !kode && qs.page === undefined) {
         const q = (qs.q || '').trim();
-        // Dipake buat nyaring dropdown "Objek Belanja" di modal Tambah Rincian - biar kategori
-        // yang emang gak punya rekening aktif sama sekali (mis. Belanja Bunga/Subsidi/Bagi Hasil
-        // di Dinas Kesehatan) gak ditampilin, jadi user gak nemu "Tidak ditemukan" pas lanjut milih
-        // Rekening/Akun.
         if (qs.kategoriTersedia === '1') {
           const rows = await sql`SELECT kode_rekening FROM eplanning_rekening WHERE aktif = true`;
           const kodeList = rows.map(r => r.kode_rekening);
           const kategori = EP_OBJEK_BELANJA_PREFIX_MAP
             .filter(([prefix]) => kodeList.some(k => k.startsWith(prefix)))
             .map(([, label]) => label);
-          // debug sementara - biar kelihatan kode_rekening mana yang bikin sebuah kategori
-          // ke-anggep "ada", buat nelusurin kenapa kategori yang katanya kosong masih muncul
           const debug = {};
           EP_OBJEK_BELANJA_PREFIX_MAP.forEach(([prefix, label]) => {
             const cocok = kodeList.filter(k => k.startsWith(prefix));
@@ -1442,16 +1319,7 @@ export const handler = async (event) => {
           return jsonResponse({ kategori, debug });
         }
         if (q.length === 1) return jsonResponse({ rekening: [] });
-        // Kalau lagi nyari rekening buat kategori "Objek Belanja" tertentu, saring langsung di
-        // query (bukan ambil top-30 rekening paling sering dipake se-instansi lalu disaring di
-        // client) - soalnya kategori yang jarang dipake bisa aja kode-nya kelempar keluar top-30
-        // umum itu walau sebenernya ada, jadi kelihatan "Tidak ditemukan" padahal ada.
         const kategori = (qs.kategori || '').trim();
-        // "Dana BOS"/"Belanja Operasional (BLUD)" itu ditentuin dari Sumber Dana, bukan prefix
-        // Kode Rekening - jadi rekening apa aja boleh dipake buat kategori ini (gak dibatasi
-        // prefix). Kategori lain yang gak punya prefix mapping di EP_OBJEK_BELANJA_PREFIX_MAP
-        // memang belum ada rekening resminya - jangan ditampilin rekening kategori lain, biar
-        // tetap "Tidak ditemukan" sampai prefix-nya didefinisiin.
         const kategoriTanpaPrefix = ['Dana BOS (BOS Pusat)', 'Belanja Operasional (BLUD)'];
         const prefixes = kategori
           ? EP_OBJEK_BELANJA_PREFIX_MAP.filter(([, label]) => label === kategori).map(([prefix]) => prefix)
@@ -1660,8 +1528,6 @@ export const handler = async (event) => {
     if (REFERENSI_TABLES.includes(resource)) {
       const id = segments[1] ? parseInt(segments[1]) : null;
 
-      // sql.unsafe() is not available on @neondatabase/serverless's tagged-template client,
-      // so table names are resolved through this literal switch instead of string interpolation.
       const refQuery = {
         select: () => {
           switch (resource) {
@@ -1843,11 +1709,6 @@ export const handler = async (event) => {
       return errorResponse('Not found', 404);
     }
 
-    // Parameter kalkulator "Survei Harga (3 Toko)" per Tahun Anggaran (untung, pajak, inflasi
-    // sekalian dalam 1 baris per tahun) - GET dibuka buat siapa aja yang punya akses eplanning
-    // (dipakai ngitung di form Rincian/Standar Harga), PUT (ganti seluruh daftar sekaligus -
-    // biar gampang dari 1 form tambah/hapus baris tahun) cuma buat admin. Tahun yang belum
-    // ada barisnya di sini dianggap "belum diatur" di kalkulator (pakai nilai default darurat).
     if (resource === 'pengaturantahunan') {
       if (event.httpMethod === 'GET') {
         const rows = await sql`SELECT tahun, persen_pajak, persen_inflasi FROM eplanning_pengaturan_tahunan ORDER BY tahun ASC`;
@@ -1870,7 +1731,7 @@ export const handler = async (event) => {
           const inflasi = Number(r.persen_inflasi) || 0;
           if (Number.isInteger(tahun) && tahun >= 2000 && tahun <= 2100
               && !isNaN(pajak) && pajak >= 0 && inflasi >= 0) {
-            map.set(tahun, { pajak, inflasi }); // duplikat tahun di input -> yang terakhir menang
+            map.set(tahun, { pajak, inflasi });
           }
         }
         await sql`DELETE FROM eplanning_pengaturan_tahunan`;
@@ -1899,8 +1760,6 @@ export const handler = async (event) => {
         if (q.length === 1) return jsonResponse({ standarharga: [] });
         const kFilter = kategori && kategori !== 'SEMUA' ? kategori : null;
         const tahunFilter = qs.tahun && /^\d{4}$/.test(qs.tahun) ? parseInt(qs.tahun) : null;
-        // Kode Rekening yang lagi dipilih di form (kalau ada) -> beneran nyaring hasil ke
-        // komponen yang ditag ke rekening itu aja, biar gak muncul komponen yang gak nyambung.
         const rekFilter = (qs.kode_rekening || '').trim() || null;
         let rows;
         if (q.length === 0) {
@@ -1982,19 +1841,11 @@ export const handler = async (event) => {
         const kategori = (qs.kategori || 'SSH').trim().toUpperCase();
         const searchRaw = (qs.search || '').trim();
         const search = `%${searchRaw}%`;
-        // Kalau pencarian murni angka (mis. lagi nyari harga), cocokin pakai
-        // batas angka biar "132" gak nyangkut ke tengah angka lain kayak
-        // "13200" (spesifikasi VA) atau "00132" (kode komponen) — cuma
-        // ke angka yang beneran diawali/berisi blok "132" utuh.
         const isNumericSearch = /^\d+$/.test(searchRaw);
         const numBoundary = isNumericSearch ? ('(^|[^0-9])' + searchRaw + '([^0-9]|$)') : null;
         const statusFilter = qs.status === 'true' ? true : (qs.status === 'false' ? false : null);
         const satuanFilter = (qs.satuan || '').trim();
         const tahunFilter = qs.tahun && /^\d{4}$/.test(qs.tahun) ? parseInt(qs.tahun) : null;
-        // Kalau Kode Rekening lagi kepilih di form (dikirim dari modal picker Komponen),
-        // saring beneran ke baris yang ditag ke rekening itu - bukan cuma diprioritasin.
-        // Endpoint ini juga dipakai tabel admin Standar Harga yang gak pernah ngirim
-        // kode_rekening, jadi filter ini gak ngaruh ke tabel admin.
         const rekFilter = (qs.kode_rekening || '').trim() || null;
         const offset = (page - 1) * pageSize;
         const rows = await sql`
@@ -2110,9 +1961,6 @@ export const handler = async (event) => {
 
       const id = sub && /^\d+$/.test(sub) ? parseInt(sub) : null;
 
-      // Kategori "MANUAL" = hasil kalkulator survei 3 toko yang diinput user biasa (kabid/operator)
-      // lewat form Rincian Belanja, bukan lewat panel admin Standar Harga - jadi dikecualikan dari
-      // pengecekan isAdmin di bawah. Kategori lain (SSH/HSPK/ASB/SBU) tetap admin-only seperti semula.
       if (event.httpMethod === 'POST' && !sub) {
         const b = parseBody(event);
         const kategori = (b.kategori || '').trim().toUpperCase();
@@ -2122,8 +1970,6 @@ export const handler = async (event) => {
         const tahun = /^\d{4}$/.test(String(b.tahun)) ? parseInt(b.tahun) : null;
         if (!kategori || !uraian_barang) return errorResponse('Kategori dan uraian barang wajib diisi', 400);
         if (!tahun) return errorResponse('Tahun wajib diisi', 400);
-        // MANUAL: harga dihitung ulang di server dari data survei 3 toko + pengaturan TA-nya -
-        // harga_satuan/persen_untung/catatan_survei kiriman klien gak dipercaya (lihat hitungSurveiHarga).
         let hargaFinal = Number(b.harga_satuan) || 0;
         let catatanFinal = isManual ? (b.catatan_survei || null) : null;
         let surveiFinal = isManual ? (b.survei_toko || null) : null;
@@ -2158,10 +2004,6 @@ export const handler = async (event) => {
         return jsonResponse({ standarharga: rows[0] }, 201);
       }
 
-      // Ubah survei 3 toko milik Standar Harga MANUAL (dari tombol "Ubah Survei Harga" di modal
-      // Rincian) - UPDATE di tempat (bukan bikin entri baru). Boleh admin atau penginput aslinya
-      // (dibuat_oleh); harga dihitung ulang di server, lalu rincian yang nge-link ke entri ini
-      // (standar_harga_id) dan usulannya masih DRAFT/DITOLAK ikut diperbarui harganya.
       if (event.httpMethod === 'PUT' && id) {
         const b0 = parseBody(event);
         if (b0.survei_toko !== undefined && b0.survei_toko !== null) {
@@ -2169,8 +2011,6 @@ export const handler = async (event) => {
           if (!cur0.length) return errorResponse('Data tidak ditemukan', 404);
           const c0 = cur0[0];
           if (c0.kategori === 'MANUAL') {
-            // Aturan: HANYA admin & penginput asli yang boleh ngubah; user lain cuma bisa memakai ulang.
-            // Entri lama tanpa dibuat_oleh_id dicocokkan lewat nama penginput.
             const boleh = role.isAdmin || (c0.dibuat_oleh_id
               ? String(c0.dibuat_oleh_id) === String(auth.id)
               : (!!c0.dibuat_oleh && c0.dibuat_oleh === (auth.nama || null)));
@@ -2178,7 +2018,7 @@ export const handler = async (event) => {
             let surveiIn = null;
             try { surveiIn = typeof b0.survei_toko === 'string' ? JSON.parse(b0.survei_toko) : b0.survei_toko; } catch { surveiIn = null; }
             if (!surveiIn || typeof surveiIn !== 'object' || !Array.isArray(surveiIn.toko)) return errorResponse('Data survei 3 toko wajib diisi untuk Standar Harga Manual', 400);
-            const tahunHitung = c0.tahun || 2027; // baris lama tanpa tahun dianggap TA 2027 (konvensi filter di atas)
+            const tahunHitung = c0.tahun || 2027;
             const pg = await sql`SELECT persen_pajak, persen_inflasi FROM eplanning_pengaturan_tahunan WHERE tahun = ${tahunHitung}`;
             const hasil = hitungSurveiHarga(surveiIn, pg[0] || null, tahunHitung);
             if (hasil.error) return errorResponse(hasil.error, 400);
@@ -2193,7 +2033,6 @@ export const handler = async (event) => {
                 harga_satuan = ${hasil.bulat}, catatan_survei = ${hasil.catatan}, survei_toko = ${JSON.stringify(hasil.survei)},
                 updated_at = NOW()
               WHERE id = ${id} RETURNING *`;
-            // Bukti toko yang diganti -> hapus file lama di Cloudinary (kecuali masih dipakai entri lain)
             try {
               const baru = new Set(_buktiSurvei(hasil.survei));
               for (const u of new Set(_buktiSurvei(c0.survei_toko))) {

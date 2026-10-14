@@ -1,9 +1,3 @@
-// Notifikasi modul untuk lonceng "Notifikasi" - Fase 2: Lembur, Kinerja (verifikasi + periode input), Perjadin.
-// Fase 3: Absensi (pengajuan + alpa otomatis), Sistem (error baru / kesehatan), Keamanan (akun terkunci).
-// Pola sama dengan Surat Masuk di _notif.js:
-//   - sinkron*()  : rekonsiliasi notifikasi KONDISI (dipanggil notif-cron tiap jam dan setelah ada perubahan data).
-//   - notif*()    : notifikasi PERISTIWA saat ada kejadian (ditugaskan, catatan, hasil verifikasi, ...).
-// Semua dipanggil best-effort dari endpoint modul: kegagalan notifikasi tidak boleh menggagalkan aksi utamanya.
 import {
   ensureNotifSchema, buatNotifBanyak, rekonsiliasiKondisi, tutupNotifPrefix, userFullAkses,
   fmtTanggal, hashSingkat, potong,
@@ -23,14 +17,9 @@ async function userAktif(sql, ids) {
   return await sql`SELECT id FROM users WHERE id = ANY(${ids}) AND is_active IS NOT FALSE`;
 }
 
-// ═════════════════════════════ LEMBUR ═════════════════════════════
-// Catatan alur: sesi lembur hanya bisa dicatat untuk tanggal yang SUDAH terjadi (lembur.js menolak tanggal masa depan),
-// jadi notifikasinya "lembur tercatat, isi uraian tugas", bukan "dijadwalkan".
 const LEMBUR_HALAMAN = 'lembur-kegiatan';
-const HARI_URAIAN_PERINGATAN = 3;   // Penting mulai H+1 sejak tanggal sesi, Peringatan mulai H+3
+const HARI_URAIAN_PERINGATAN = 3;
 
-// Kondisi: uraian tugas peserta masih kosong setelah tanggal sesi lewat. Menutup diri saat uraian terisi,
-// dan menutup peristiwa lembur milik peserta/sesi yang sudah dihapus (juga akibat kegiatan dihapus).
 export async function sinkronLembur(sql) {
   await ensureNotifSchema(sql);
   const entri = await sql`
@@ -65,7 +54,6 @@ export async function sinkronLembur(sql) {
   return { ...hasil, ditutup: hasil.ditutup + yatim.length, entri: entri.length };
 }
 
-// Peristiwa: peserta ditambahkan ke sesi. `kecuali` = pelaku (tidak diberi tahu tentang aksinya sendiri).
 export async function notifLemburDicatat(sql, sesiId, userIds, kecuali = null) {
   const ids = intUnik(userIds, kecuali);
   if (!ids.length) return 0;
@@ -81,7 +69,6 @@ export async function notifLemburDicatat(sql, sesiId, userIds, kecuali = null) {
   })));
 }
 
-// Peristiwa: tanggal atau jam sesi diubah -> semua peserta (kecuali pelaku).
 export async function notifLemburJadwal(sql, sesiId, kecuali = null) {
   await ensureNotifSchema(sql);
   const [s] = await sql`
@@ -97,7 +84,6 @@ export async function notifLemburJadwal(sql, sesiId, kecuali = null) {
   })));
 }
 
-// Peristiwa untuk satu peserta: jam lembur pribadi diubah (jenis 'jam') atau catatan kasubag diisi/diubah (jenis 'catatan').
 export async function notifLemburEntri(sql, entriId, jenis, kecuali = null) {
   await ensureNotifSchema(sql);
   const [e] = await sql`
@@ -126,15 +112,14 @@ export async function notifLemburEntri(sql, entriId, jenis, kecuali = null) {
   }]);
 }
 
-// ═════════════════════════════ KINERJA ═════════════════════════════
 const VERIF_PENDING = ['menunggu', 'diajukan_kembali'];
 const TW_NAMA = { 3: 'Triwulan I', 6: 'Triwulan II', 9: 'Triwulan III', 12: 'Triwulan IV' };
 const JENIS_LABEL = { monev: 'IKU', ikk: 'IKK', spm: 'SPM', subkeg: 'Sub Kegiatan' };
 const HALAMAN_JENIS = { monev: 'monev-kinerja', ikk: 'realisasi-ikk', spm: 'spm-kinerja', subkeg: 'subkeg-kinerja' };
-const HARI_VERIF_LAMA = 3;   // pengajuan menunggu > 3 hari -> ringkasan verifikator naik ke Peringatan
+const HARI_VERIF_LAMA = 3;
 const labelPeriode = (bulan, tahun) => `${TW_NAMA[bulan] || `Bulan ${bulan}`} ${tahun}`;
 
-function jenisIndikator(ind) {   // sama dengan verifJenisList di kinerja_function.js
+function jenisIndikator(ind) {
   let jc = ind.jenis_custom;
   if (typeof jc === 'string') { try { jc = JSON.parse(jc); } catch { jc = []; } }
   const list = [];
@@ -145,9 +130,6 @@ function jenisIndikator(ind) {   // sama dengan verifJenisList di kinerja_functi
   return list;
 }
 
-// Kondisi: satu ringkasan per verifikator aktif ("N pengajuan menunggu verifikasi"), naik ke Peringatan bila ada yang
-// menunggu > 3 hari. Hanya verifikator yang ditetapkan untuk unit kerja indikator (admin tidak diberi notifikasi individual).
-// Juga menutup notifikasi hasil (disetujui/perlu perbaikan) yang sudah tidak relevan (diajukan ulang atau data dihapus).
 export async function sinkronKinerjaVerifikasi(sql) {
   await ensureNotifSchema(sql);
   const per = await sql`
@@ -171,7 +153,6 @@ export async function sinkronKinerjaVerifikasi(sql) {
     };
   });
   const hasil = await rekonsiliasiKondisi(sql, 'kinerja', rows);
-  // Notifikasi hasil hanya berlaku selama status realisasinya disetujui / perlu_perbaikan.
   const basi = await sql`
     UPDATE notifikasi SET selesai_at = NOW()
     WHERE modul = 'kinerja' AND jenis = 'peristiwa' AND selesai_at IS NULL AND right(kunci, 6) = ':hasil'
@@ -183,7 +164,6 @@ export async function sinkronKinerjaVerifikasi(sql) {
   return { ...hasil, ditutup: hasil.ditutup + basi.length, verifikator: per.length };
 }
 
-// Peristiwa ke pengaju: pengajuan disetujui (Info) atau perlu perbaikan + alasan (Penting).
 export async function notifKinerjaHasil(sql, realisasiId, aksi, alasan, kecuali = null) {
   await ensureNotifSchema(sql);
   const [r] = await sql`
@@ -205,11 +185,6 @@ export async function notifKinerjaHasil(sql, realisasiId, aksi, alasan, kecuali 
   }]);
 }
 
-// Kondisi: periode input kinerja (IKU/IKK/SPM/Sub Kegiatan) yang sedang dibuka. Penerima = pengisi yang ditugaskan
-// (tabel user_indikator) dan MASIH punya indikator yang belum diajukan (draft / perlu perbaikan / belum diisi).
-// Tingkat: dibuka (Info) -> h-3 (Penting) -> h-1 (Peringatan) -> jam-1, kurang dari 1 jam (Peringatan).
-// Menutup diri saat periode ditutup atau semua indikator pengisi itu sudah diajukan. Cron per jam, jadi tingkat
-// "jam-1" muncul pada eksekusi terakhir sebelum tutup (tidak presisi menit). Periode tahunan (e-Planning, Walidata) belum dicakup.
 export async function sinkronPeriode(sql) {
   await ensureNotifSchema(sql);
   const periode = await sql`
@@ -253,10 +228,6 @@ export async function sinkronPeriode(sql) {
   return { ...hasil, periode: periode.length };
 }
 
-// ═════════════════════════════ PERJADIN ═════════════════════════════
-// Data perjadin masuk lewat Absensi (pengajuan tugas luar) atau input admin, dengan status awal 'menunggu'.
-// Ringkasan ke admin / perjadin.full; hasil verifikasi ke pemilik data. Perubahan yang berasal dari modul Absensi
-// terjangkau cron per jam (tidak di-hook langsung).
 export async function sinkronPerjadin(sql) {
   await ensureNotifSchema(sql);
   const [{ n }] = await sql`SELECT COUNT(*)::int AS n FROM perjadin WHERE status_verifikasi = 'menunggu'`;
@@ -279,8 +250,6 @@ export async function sinkronPerjadin(sql) {
   return { ...hasil, ditutup: hasil.ditutup + basi.length, menunggu: n };
 }
 
-// Peristiwa ke pemilik data: terverifikasi (Info) atau dikembalikan/ditolak + catatan (Penting). Status 'menunggu'
-// (dikembalikan ke antrean) menutup notifikasi hasil sebelumnya. Tautan hanya diberikan bila pemilik bisa membuka menu Perjadin.
 export async function notifPerjadinHasil(sql, perjadinId, status, catatan, kecuali = null) {
   await ensureNotifSchema(sql);
   const kunci = `perjadin:${perjadinId}:hasil`;
@@ -303,10 +272,6 @@ export async function notifPerjadinHasil(sql, perjadinId, status, catatan, kecua
   }]);
 }
 
-// ═════════════════════════════ ABSENSI ═════════════════════════════
-// Pengajuan absensi (tugas luar / cuti) punya alur persetujuan: pending -> disetujui | ditolak (ajukan ulang -> pending).
-// Ringkasan "menunggu persetujuan" ke admin / absensi.full; hasil (disetujui / ditolak + catatan) ke pemohon.
-// Alpa otomatis (netlify/functions/absensi-cron-alpa.js) memberi tahu pegawai yang ditandai Alpa.
 const ABSENSI_HALAMAN = 'absensi-harian';
 const JENIS_PENGAJUAN = { tugas_luar: 'tugas luar', cuti: 'cuti' };
 const rentangTanggal = (a, b) => (!b || a === b ? fmtTanggal(a) : `${fmtTanggal(a)} – ${fmtTanggal(b)}`);
@@ -322,7 +287,6 @@ export async function sinkronAbsensi(sql) {
       }))
     : [];
   const hasil = await rekonsiliasiKondisi(sql, 'absensi', rows);
-  // Hasil pengajuan hanya berlaku selama statusnya disetujui / ditolak (ajukan ulang atau dihapus -> ditutup).
   const basi = await sql`
     UPDATE notifikasi SET selesai_at = NOW()
     WHERE modul = 'absensi' AND jenis = 'peristiwa' AND selesai_at IS NULL
@@ -335,7 +299,6 @@ export async function sinkronAbsensi(sql) {
   return { ...hasil, ditutup: hasil.ditutup + basi.length, menunggu: n };
 }
 
-// Peristiwa ke pemohon setelah pengajuan diproses. Status 'pending' (diajukan ulang) menutup hasil sebelumnya.
 export async function notifAbsensiPengajuanHasil(sql, pengajuanId, kecuali = null) {
   await ensureNotifSchema(sql);
   const kunci = `absensi:pengajuan:${pengajuanId}:hasil`;
@@ -358,7 +321,6 @@ export async function notifAbsensiPengajuanHasil(sql, pengajuanId, kecuali = nul
   }]);
 }
 
-// Peristiwa: pegawai ditandai Alpa otomatis oleh cron harian (tanggal = hari kerja kemarin).
 export async function notifAbsensiAlpa(sql, tanggal, userIds) {
   const ids = intUnik(userIds);
   if (!ids.length) return 0;
@@ -370,10 +332,6 @@ export async function notifAbsensiAlpa(sql, tanggal, userIds) {
   })));
 }
 
-// ═════════════════════════════ SISTEM (admin) ═════════════════════════════
-// Sumber yang sama dengan badge merah di sidebar (monitoring.js /summary): error berstatus 'baru' dan sys_state.health_status.
-// Satu notifikasi persisten selama masih ada error baru (jumlah di isi, tidak mereset status dibaca); hilang saat semua
-// error ditandai dilihat/selesai. Badge sidebar tetap ada sebagai indikator tambahan.
 export async function sinkronSistem(sql) {
   await ensureNotifSchema(sql);
   const [e] = await sql`SELECT COUNT(*) FILTER (WHERE status = 'baru')::int AS baru FROM sys_error_log`;
@@ -399,10 +357,6 @@ export async function sinkronSistem(sql) {
   return { ...(await rekonsiliasiKondisi(sql, 'sistem', rows)), error_baru: e.baru, health: h?.value || null };
 }
 
-// ═════════════════════════════ KEAMANAN (admin) ═════════════════════════════
-// Akun yang sedang terkunci karena salah password berulang (aturan kunci bertingkat di _audit.js, dipakai langsung
-// lewat _hitungKunci supaya selalu sama dengan halaman Pengguna). Satu ringkasan ke admin; hilang saat kunci habis
-// atau dibuka admin. Hanya akun yang ada dan aktif (percobaan ke NIP yang tidak terdaftar tidak dihitung).
 export async function sinkronKeamanan(sql) {
   await ensureNotifSchema(sql);
   const att = await sql`

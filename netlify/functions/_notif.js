@@ -1,21 +1,10 @@
-// Pusat notifikasi SAPA (lonceng "Notifikasi" di topbar). Lihat PRD "Pusat Notifikasi SAPA".
-// Dipakai oleh: notifikasi.js (API), notif-cron.js (terjadwal), dan endpoint modul (event-driven).
-//
-// Dua jenis notifikasi:
-//   - 'kondisi'   : mencerminkan keadaan (mis. surat terlambat). Otomatis ditutup (selesai_at) saat keadaan teratasi.
-//   - 'peristiwa' : kejadian sekali (mis. "Anda ditugaskan"). Hilang dari hitungan badge setelah dibaca.
-// Satu baris per (user_id, kunci): perubahan tingkat/isi memperbarui baris yang sama (dan menandainya belum dibaca),
-// bukan menambah baris baru. Semua fungsi idempotent, jadi aman dipanggil ulang oleh cron.
-
 import crypto from 'crypto';
 
 const PRIORITAS = ['info', 'penting', 'peringatan'];
-// Modul yang bisa dimute user. Notifikasi berprioritas 'peringatan' tetap tampil walau modulnya dimute (lihat notifikasi.js).
 export const MODUL_NOTIF = ['surat-masuk', 'lembur', 'perjadin', 'periode', 'kinerja', 'absensi', 'sistem', 'keamanan'];
 const BULAN = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
 const MS_HARI = 86400000;
 
-// ───────────────────────── Skema (auto-migrate, pola sama seperti modul lain) ─────────────────────────
 let _skemaSiap = false;
 export async function ensureNotifSchema(sql) {
   if (_skemaSiap) return;
@@ -40,7 +29,6 @@ export async function ensureNotifSchema(sql) {
     )`;
   await sql`CREATE INDEX IF NOT EXISTS idx_notifikasi_user  ON notifikasi (user_id, dibaca_at, selesai_at)`;
   await sql`CREATE INDEX IF NOT EXISTS idx_notifikasi_modul ON notifikasi (modul, jenis, selesai_at)`;
-  // Preferensi user: modul yang dinonaktifkan (hanya baris yang dimute disimpan; mengaktifkan lagi = baris dihapus).
   await sql`
     CREATE TABLE IF NOT EXISTS notifikasi_preferensi (
       user_id       INTEGER     NOT NULL,
@@ -52,14 +40,6 @@ export async function ensureNotifSchema(sql) {
   _skemaSiap = true;
 }
 
-// ───────────────────────── Tulis / tutup ─────────────────────────
-// rows: [{ user_id, modul, jenis, kunci, tingkat?, prioritas?, judul, isi?, tautan? }]
-// Aturan pembaruan baris yang sudah ada:
-//   - tingkat / prioritas / judul berubah (naik tingkat, ringkasan bertambah), atau baris sebelumnya sudah ditutup
-//       -> diperbarui dan ditandai BELUM dibaca lagi;
-//   - hanya isi/tautan yang berubah (mis. hitungan "terlambat N hari") -> teks diperbarui diam-diam, status dibaca tetap;
-//   - tidak ada yang berubah -> dibiarkan. Jadi cron per jam tidak memunculkan lagi notifikasi yang sudah dibaca.
-// Untuk peristiwa yang harus muncul lagi saat isinya berganti (mis. catatan baru), isi `tingkat` dengan hashSingkat(isi).
 export async function buatNotifBanyak(sql, rows) {
   const unik = new Map();
   for (const r of rows || []) {
@@ -106,7 +86,6 @@ export async function buatNotifBanyak(sql, rows) {
 
 export const buatNotif = (sql, row) => buatNotifBanyak(sql, [row]);
 
-// Tutup semua notifikasi aktif yang kuncinya berawalan `prefix` (mis. 'surat-masuk:123:').
 export async function tutupNotifPrefix(sql, prefix) {
   const r = await sql`
     UPDATE notifikasi SET selesai_at = NOW()
@@ -115,7 +94,6 @@ export async function tutupNotifPrefix(sql, prefix) {
   return r.length;
 }
 
-// Sama, tapi hanya untuk satu user (mis. peserta dikeluarkan dari sesi).
 export async function tutupNotifUser(sql, userId, prefix) {
   const r = await sql`
     UPDATE notifikasi SET selesai_at = NOW()
@@ -124,8 +102,6 @@ export async function tutupNotifUser(sql, userId, prefix) {
   return r.length;
 }
 
-// Rekonsiliasi notifikasi KONDISI satu modul: upsert yang seharusnya ada (`rows`), lalu tutup sisanya.
-// Inilah yang membuat notifikasi kondisi hilang sendiri saat keadaannya teratasi.
 export async function rekonsiliasiKondisi(sql, modul, rows) {
   const dibuat = await buatNotifBanyak(sql, rows);
   const aktif = JSON.stringify((rows || []).map((r) => ({ user_id: r.user_id, kunci: r.kunci })));
@@ -139,11 +115,9 @@ export async function rekonsiliasiKondisi(sql, modul, rows) {
   return { dibuat, ditutup: ditutup.length };
 }
 
-// Isi berbeda -> hash berbeda (dipakai sebagai `tingkat` agar peristiwa muncul lagi saat isinya berganti).
 export const hashSingkat = (teks) => crypto.createHash('md5').update(String(teks ?? '')).digest('hex').slice(0, 8);
 export const potong = (teks, n = 100) => { const t = String(teks ?? '').replace(/\s+/g, ' ').trim(); return t.length > n ? t.slice(0, n - 1) + '…' : t; };
 
-// Retensi: yang sudah selesai atau sudah dibaca (peristiwa) disimpan 30 hari; pemilik yang sudah dihapus dibersihkan.
 export async function bersihkanNotifikasi(sql) {
   const r = await sql`
     DELETE FROM notifikasi
@@ -157,8 +131,6 @@ export async function bersihkanNotifikasi(sql) {
   return r.length;
 }
 
-// ───────────────────────── Penerima ─────────────────────────
-// Pegawai (dicocokkan lewat nama, sama seperti surat_masuk.pegawai_list) yang akunnya aktif dan boleh membuka menu.
 export async function userByNama(sql, namaList, menuKeys) {
   const list = [...new Set((namaList || []).filter(Boolean))];
   if (!list.length) return [];
@@ -177,7 +149,6 @@ export async function userFullAkses(sql, menuKey) {
         SELECT 1 FROM user_permissions up WHERE up.user_id = u.id AND up.menu_key = ${menuKey}))`;
 }
 
-// ───────────────────────── Kalender (tanggal 'YYYY-MM-DD', tanpa zona waktu) ─────────────────────────
 const parseYmd = (s) => { const [y, m, d] = s.split('-').map(Number); return Date.UTC(y, m - 1, d); };
 const fmtYmd = (ms) => new Date(ms).toISOString().slice(0, 10);
 export const geserHari = (ymd, n) => fmtYmd(parseYmd(ymd) + n * MS_HARI);
@@ -186,21 +157,17 @@ export const hariKerja = (ymd, libur) => {
   const dow = new Date(parseYmd(ymd)).getUTCDay();
   return dow !== 0 && dow !== 6 && !libur.has(ymd);
 };
-// Mundur sampai ketemu hari kerja (batas 14 hari supaya tidak pernah looping tanpa ujung).
 export function mundurKeHariKerja(ymd, libur) {
   let t = ymd;
   for (let i = 0; i < 14 && !hariKerja(t, libur); i++) t = geserHari(t, -1);
   return t;
 }
 
-// ───────────────────────── Surat Masuk ─────────────────────────
 const SURAT_MENU = ['surat.masuk', 'surat.masuk.full'];
 const PRIORITAS_TINGKAT = { 'h-3': 'penting', 'h-1': 'peringatan', 'hari-h': 'peringatan', terlambat: 'peringatan' };
-const HARI_TANPA_BATAS = 7;       // pengingat sekali untuk surat tanpa batas waktu, sejak tanggal terima
-const ESKALASI_DEFAULT = 3;       // hari terlambat sebelum diringkas ke admin/full-access
+const HARI_TANPA_BATAS = 7;
+const ESKALASI_DEFAULT = 3;
 
-// Tingkat pengingat berdasarkan sisa hari. Pengingat H-3 dan H-1 yang jatuh di akhir pekan atau hari libur
-// dimunculkan pada hari kerja sebelumnya. Hari H dan terlambat tidak digeser.
 export function tingkatSurat(sisa, batasYmd, hariIni, libur) {
   if (sisa < 0) return 'terlambat';
   if (sisa === 0) return 'hari-h';
@@ -221,18 +188,15 @@ async function ambilAmbangEskalasi(sql) {
     const r = await sql`SELECT value FROM settings WHERE key = 'notif_surat_eskalasi_hari' LIMIT 1`;
     const n = parseInt(r[0]?.value, 10);
     if (Number.isInteger(n) && n >= 1 && n <= 60) return n;
-  } catch { /* tabel/kunci belum ada: pakai default */ }
+  } catch {  }
   return ESKALASI_DEFAULT;
 }
 
-// Rekonsiliasi penuh notifikasi KONDISI surat masuk: hitung yang seharusnya ada, upsert, lalu tutup sisanya.
-// Dipanggil cron tiap jam dan setiap ada perubahan surat (tambah, ubah, selesai, hapus), jadi hasilnya selalu konsisten
-// (surat selesai/dihapus, pegawai dicabut, atau batas waktu diundur otomatis menutup notifikasi lamanya).
 export async function sinkronSuratMasuk(sql) {
   await ensureNotifSchema(sql);
   const [{ hari_ini }] = await sql`SELECT to_char((NOW() AT TIME ZONE 'Asia/Makassar')::date, 'YYYY-MM-DD') AS hari_ini`;
   let libur = new Set();
-  try { libur = new Set((await sql`SELECT to_char(tanggal, 'YYYY-MM-DD') AS t FROM hari_libur`).map((r) => r.t)); } catch { /* opsional */ }
+  try { libur = new Set((await sql`SELECT to_char(tanggal, 'YYYY-MM-DD') AS t FROM hari_libur`).map((r) => r.t)); } catch {  }
   const ambang = await ambilAmbangEskalasi(sql);
 
   const surat = await sql`
@@ -280,7 +244,6 @@ export async function sinkronSuratMasuk(sql) {
     }
   }
 
-  // Eskalasi: satu ringkasan per admin/full-access (bukan satu notifikasi per surat).
   if (jumlahEskalasi > 0) {
     for (const u of await userFullAkses(sql, 'surat.masuk.full')) {
       rows.push({
@@ -296,8 +259,6 @@ export async function sinkronSuratMasuk(sql) {
   return { dibuat, ditutup, surat: surat.length };
 }
 
-// Peristiwa: pegawai ditugaskan pada surat (surat baru, atau pegawai baru ditambahkan saat surat diubah).
-// `kecuali` = id user yang melakukan aksi (tidak perlu diberi tahu tentang aksinya sendiri).
 export async function notifSuratDitugaskan(sql, suratId, namaList, kecuali = null) {
   await ensureNotifSchema(sql);
   const penerima = (await userByNama(sql, namaList, SURAT_MENU)).filter((u) => u.id !== kecuali);
@@ -312,5 +273,4 @@ export async function notifSuratDitugaskan(sql, suratId, namaList, kecuali = nul
   })));
 }
 
-// Surat selesai atau dihapus: tutup semua notifikasinya (tugas, deadline, tanpa-batas).
 export const tutupNotifSurat = (sql, suratId) => tutupNotifPrefix(sql, `surat-masuk:${suratId}:`);

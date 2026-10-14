@@ -26,10 +26,6 @@ function _todayWita() {
   return new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Makassar' });
 }
 
-// Status ditampilkan berdasarkan kombinasi toggle manual (t.aktif) DAN rentang
-// tanggal, biar sama persis dengan logika pemilihan tema di landing.js
-// (tema-aktif). Toggle mati -> selalu Nonaktif. Toggle nyala tapi belum/sudah
-// lewat periode -> Terjadwal/Nonaktif. Toggle nyala + dalam periode -> Aktif.
 function temaStatus(t) {
   if (t.aktif === false) return { label: 'Nonaktif', cls: 'badge-abu' };
   const today = _todayWita();
@@ -110,10 +106,6 @@ function _updateTemaPreview() {
   if (!panel || typeof SapaTemaPreview === 'undefined') return;
   const posisi = document.getElementById('temaPosisi')?.value || 'pill-atas';
 
-  // "panel-login-saja" = background penuh panel kiri halaman login, yang
-  // bentuknya portrait (tinggi), beda sama pill/banner/ribbon yang landscape.
-  // Preview ikut nyesuain orientasi biar keliatan bener gambar bakal
-  // dipotong/di-cover kayak apa.
   if (posisi === 'panel-login-saja') {
     panel.style.height = '220px';
     panel.style.width = '150px';
