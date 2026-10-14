@@ -11381,8 +11381,15 @@ html[data-theme="dark"] .btn-topbar-theme .ic-sun { display: inline; }
   flex: 1; border: 0; background: transparent; font: inherit; cursor: pointer; white-space: nowrap;
   font-size: var(--fs-xs); font-weight: 600; color: var(--teks-muted); padding: 5px 6px; border-radius: 6px;
 }
+.theme-seg button { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; min-width: 0; }
+.theme-seg button svg { flex-shrink: 0; }
 .theme-seg button:hover:not(.active) { color: var(--teks); }
 .theme-seg button.active { background: var(--hijau); color: #fff; }
+/* layar sempit: icon saja (nama tetap ada di tooltip data-tip + aria-label) */
+@media (max-width: 480px) {
+  .theme-seg button .theme-opt-txt { display: none; }
+  .theme-seg button { padding: 7px 6px; }
+}
 /* transisi halus sesaat saat ganti tema (dipasang dark-mode.js ~300ms) */
 html.theme-switching, html.theme-switching * { transition: background-color .25s ease, color .25s ease, border-color .25s ease !important; }
 @media (prefers-reduced-motion: reduce) { html.theme-switching, html.theme-switching * { transition: none !important; } }

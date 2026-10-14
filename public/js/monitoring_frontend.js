@@ -117,6 +117,7 @@
     const r = e.reason;
     const msg = (r && r.message) || (typeof r === 'string' ? r : '');
     if (!msg || (r && r.name === 'AbortError')) return;
+    if (/^Transition was (aborted|skipped)/i.test(msg)) return;   // View Transition dibatalkan browser (tab tersembunyi): bukan error aplikasi
     if (/Failed to fetch|NetworkError|Load failed|network error/i.test(msg)) return;   // sudah dicatat wrapper fetch
     laporError({ source: 'promise', message: msg, stack: r && r.stack });
   });

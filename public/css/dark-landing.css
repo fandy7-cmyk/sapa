@@ -40,6 +40,10 @@ html[data-theme="dark"] .hero-illustration text[fill="#c2410c"]{fill:#fb923c}
 html[data-theme="dark"] .hero-illustration rect[fill="#1e293b"][rx="8"]{fill:#475569}
 html[data-theme="dark"] .hero-illustration rect[fill="#0f172a"]{fill:#334155}
 html[data-theme="dark"] .hero-illustration rect[fill="#1e293b"][rx="6"]{fill:#475569}
+/* wajah tokoh: rambut tetap terang (uban) tapi mata & mulut harus gelap, kalau tidak ikut dipetakan
+   [fill="#1e293b"] -> #e5e7eb oleh aturan generik dan lenyap di kulit terang */
+html[data-theme="dark"] .hero-illustration circle[r="3.5"][fill="#1e293b"]{fill:#1e293b;opacity:.9}
+html[data-theme="dark"] .hero-illustration path[stroke="#1e293b"][stroke-width="2"]{stroke:#1e293b}
 
 html[data-theme="dark"] body{background:#111827;color:#e5e7eb}
 html[data-theme="dark"] #tickerBar{background:#0f2a2a;color:#e5e7eb;border-bottom:1px solid #1b5a5c}
@@ -119,7 +123,7 @@ html[data-theme="dark"] .btn-hero-ghost{background:#0f2a2a;color:#2dd4bf;border:
 html[data-theme="dark"] .btn-hero-ghost:hover{border-color:var(--teal-400);color:#2dd4bf;background:#123a38}
 html[data-theme="dark"] .btn-hero-vispm{background:#0f2a2a;color:#2dd4bf;border:1.5px solid var(--teal-300)}
 html[data-theme="dark"] .btn-hero-vispm:hover{border-color:var(--teal-400);color:#2dd4bf;background:#123a38}
-html[data-theme="dark"] .stat-bar{background:#111827;border-top:1px solid #1e293b;border-bottom:1px solid #1e293b}
+html[data-theme="dark"] .stat-bar{background:#111827;border-top:1px solid transparent;border-bottom:1px solid transparent}
 html[data-theme="dark"] .stat-item:not(:last-child)::after{background:#1a2335}
 html[data-theme="dark"] .stat-num{color:#2dd4bf}
 html[data-theme="dark"] .stat-num.loading{background:linear-gradient(90deg, #1a2335 25%, #243044 50%, #1a2335 75%)}
@@ -187,7 +191,7 @@ html[data-theme="dark"] .pg-info{color:var(--slate-400)}
 html[data-theme="dark"] .toast{color:#fff}
 html[data-theme="dark"] .toast.success{background:var(--teal-700)}
 html[data-theme="dark"] .toast.error{background:var(--red)}
-html[data-theme="dark"] .profil-section{background:#0e1624;border-top:1px solid #1e293b;border-bottom:1px solid #1e293b}
+html[data-theme="dark"] .profil-section{background:#0e1624;border-top:1px solid transparent;border-bottom:1px solid transparent}
 html[data-theme="dark"] .profil-section-label{color:#2dd4bf}
 html[data-theme="dark"] .profil-title{color:#e5e7eb}
 html[data-theme="dark"] .profil-content{color:#cbd5e1}
@@ -208,7 +212,7 @@ html[data-theme="dark"] .dokumen-kat{background:#0f2a2a;border:1px solid #1b5a5c
 html[data-theme="dark"] .dokumen-dl{background:var(--teal-600);color:#fff}
 html[data-theme="dark"] .dokumen-card:hover .dokumen-dl{background:var(--teal-800)}
 html[data-theme="dark"] .dokumen-date{color:var(--slate-400)}
-html[data-theme="dark"] .kontak-section{background:#0e1624;border-top:1px solid #1e293b}
+html[data-theme="dark"] .kontak-section{background:#0e1624;border-top:1px solid transparent}
 html[data-theme="dark"] .kontak-icon{background:#0f2a2a;border:1px solid #1b5a5c;color:#2dd4bf}
 html[data-theme="dark"] .kontak-label{color:var(--slate-400)}
 html[data-theme="dark"] .kontak-val{color:#cbd5e1}

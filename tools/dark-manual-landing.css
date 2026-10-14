@@ -37,3 +37,7 @@ html[data-theme="dark"] .hero-illustration text[fill="#c2410c"]{fill:#fb923c}
 html[data-theme="dark"] .hero-illustration rect[fill="#1e293b"][rx="8"]{fill:#475569}
 html[data-theme="dark"] .hero-illustration rect[fill="#0f172a"]{fill:#334155}
 html[data-theme="dark"] .hero-illustration rect[fill="#1e293b"][rx="6"]{fill:#475569}
+/* wajah tokoh: rambut tetap terang (uban) tapi mata & mulut harus gelap, kalau tidak ikut dipetakan
+   [fill="#1e293b"] -> #e5e7eb oleh aturan generik dan lenyap di kulit terang */
+html[data-theme="dark"] .hero-illustration circle[r="3.5"][fill="#1e293b"]{fill:#1e293b;opacity:.9}
+html[data-theme="dark"] .hero-illustration path[stroke="#1e293b"][stroke-width="2"]{stroke:#1e293b}

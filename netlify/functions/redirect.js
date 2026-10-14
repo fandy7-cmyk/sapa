@@ -14,6 +14,23 @@ function getBundleHtml() {
 <head>
   <meta charset="UTF-8" />
   <script>
+  // Dark mode: pasang data-theme SEBELUM CSS dimuat supaya tidak ada kedip putih.
+  // Pilihan user ada di localStorage 'sapa_theme' (auto | light | dark | system); default auto (gelap 18:00-06:00 WITA).
+  // Logika lengkap (toggle, sinkron tab, tema sistem) ada di js/dark-mode.js.
+  (function () {
+    try {
+      var p = localStorage.getItem('sapa_theme');
+      if (p !== 'dark' && p !== 'light' && p !== 'system') p = 'auto';
+      var wh = new Date(Date.now() + 8 * 3600 * 1000).getUTCHours(); // jam WITA (UTC+8)
+      var d = p === 'dark' || (p === 'auto' && (wh >= 18 || wh < 6)) || (p === 'system' && window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches);
+      var h = document.documentElement;
+      h.setAttribute('data-theme', d ? 'dark' : 'light');
+      h.setAttribute('data-theme-pref', p);
+    } catch (e) {}
+  })();
+  </script>
+  <style>html[data-theme="dark"]{background:#0b1220;color-scheme:dark}</style>
+  <script>
   // Sama kayak bundle.html - halaman ini cuma mau efek partikel tema di
   // header, bukan pill/banner mengambang atau background penuh.
   window.SAPA_TEMA_PARTIKEL_ONLY = true;
@@ -99,6 +116,9 @@ function getBundleHtml() {
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="/css/styles.css" />
+  <link rel="stylesheet" href="/css/dark.css" />
+  <link rel="stylesheet" href="/css/dark-bundle.css" />
+  <link rel="stylesheet" href="/css/theme-fab.css" />
   <style>
     /* ── Logo brand-footer: animasi sama persis kayak .topbar-icon-wrap di
        landing.html (ring spin conic-gradient + partikel orbit berkedip +
@@ -355,6 +375,11 @@ async function loadBundle(slug, pw) {
 }
 </script>
 <script src="/js/theme-engine.js"></script>
+<button class="theme-fab" id="btnThemeToggle" type="button" onclick="SAPA_THEME.toggle()" aria-label="Ganti ke tema gelap" data-tip="Ganti ke tema gelap">
+  <svg class="ic-moon" xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>
+  <svg class="ic-sun" xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/></svg>
+</button>
+<script src="/js/dark-mode.js"></script>
 </body>
 </html>`;
 }
@@ -364,12 +389,40 @@ function getStatusHtml({ icon, title, message }) {
 <html lang="id">
 <head>
   <meta charset="UTF-8" />
+  <script>
+  // Dark mode: pasang data-theme SEBELUM CSS dimuat supaya tidak ada kedip putih.
+  // Pilihan user ada di localStorage 'sapa_theme' (auto | light | dark | system); default auto (gelap 18:00-06:00 WITA).
+  // Logika lengkap (toggle, sinkron tab, tema sistem) ada di js/dark-mode.js.
+  (function () {
+    try {
+      var p = localStorage.getItem('sapa_theme');
+      if (p !== 'dark' && p !== 'light' && p !== 'system') p = 'auto';
+      var wh = new Date(Date.now() + 8 * 3600 * 1000).getUTCHours(); // jam WITA (UTC+8)
+      var d = p === 'dark' || (p === 'auto' && (wh >= 18 || wh < 6)) || (p === 'system' && window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches);
+      var h = document.documentElement;
+      h.setAttribute('data-theme', d ? 'dark' : 'light');
+      h.setAttribute('data-theme-pref', p);
+    } catch (e) {}
+  })();
+  </script>
+  <style>html[data-theme="dark"]{background:#0b1220;color-scheme:dark}</style>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>SAPA Perencanaan</title>
   <link rel="icon" type="image/png" href="/favicon.png" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="/css/styles.css" />
+  <link rel="stylesheet" href="/css/dark.css" />
+  <link rel="stylesheet" href="/css/theme-fab.css" />
+  <style>
+    /* Mode gelap halaman status/password (kelas di sini tidak tercakup dark.css) */
+    html[data-theme="dark"] body { background-image: none; }
+    html[data-theme="dark"] h2 { color: #e5e7eb; }
+    html[data-theme="dark"] p { color: #94a3b8; }
+    html[data-theme="dark"] .brand-footer { color: #94a3b8; }
+    html[data-theme="dark"] .icon-wrap.yellow { background: #352d23; }
+    html[data-theme="dark"] .icon-wrap.red { background: #3b1f26; }
+  </style>
   <style>
     body { min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; background: linear-gradient(135deg,#f0fdfc 0%,#ccfbf1 50%,#99f6e4 100%); font-family: 'Plus Jakarta Sans', sans-serif; padding: 24px; }
     .card { background: #fff; border-radius: 20px; box-shadow: 0 8px 40px rgba(0,0,0,.10); padding: 48px 40px; max-width: 420px; width: 100%; text-align: center; }
@@ -476,6 +529,11 @@ function getStatusHtml({ icon, title, message }) {
     <span>Kabupaten Banggai Laut</span>
     <span>© 2026 All rights reserved</span>
   </div>
+<button class="theme-fab" id="btnThemeToggle" type="button" onclick="SAPA_THEME.toggle()" aria-label="Ganti ke tema gelap" data-tip="Ganti ke tema gelap">
+  <svg class="ic-moon" xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>
+  <svg class="ic-sun" xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/></svg>
+</button>
+<script src="/js/dark-mode.js"></script>
 </body>
 </html>`;
 }
@@ -485,12 +543,40 @@ function getPasswordPromptHtml({ slug, error, viaQr }) {
 <html lang="id">
 <head>
   <meta charset="UTF-8" />
+  <script>
+  // Dark mode: pasang data-theme SEBELUM CSS dimuat supaya tidak ada kedip putih.
+  // Pilihan user ada di localStorage 'sapa_theme' (auto | light | dark | system); default auto (gelap 18:00-06:00 WITA).
+  // Logika lengkap (toggle, sinkron tab, tema sistem) ada di js/dark-mode.js.
+  (function () {
+    try {
+      var p = localStorage.getItem('sapa_theme');
+      if (p !== 'dark' && p !== 'light' && p !== 'system') p = 'auto';
+      var wh = new Date(Date.now() + 8 * 3600 * 1000).getUTCHours(); // jam WITA (UTC+8)
+      var d = p === 'dark' || (p === 'auto' && (wh >= 18 || wh < 6)) || (p === 'system' && window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches);
+      var h = document.documentElement;
+      h.setAttribute('data-theme', d ? 'dark' : 'light');
+      h.setAttribute('data-theme-pref', p);
+    } catch (e) {}
+  })();
+  </script>
+  <style>html[data-theme="dark"]{background:#0b1220;color-scheme:dark}</style>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>SAPA Perencanaan</title>
   <link rel="icon" type="image/png" href="/favicon.png" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="/css/styles.css" />
+  <link rel="stylesheet" href="/css/dark.css" />
+  <link rel="stylesheet" href="/css/theme-fab.css" />
+  <style>
+    /* Mode gelap halaman password (kelas di sini tidak tercakup dark.css) */
+    html[data-theme="dark"] body { background-image: none; }
+    html[data-theme="dark"] h2 { color: #e5e7eb; }
+    html[data-theme="dark"] p { color: #94a3b8; }
+    html[data-theme="dark"] .brand-footer { color: #94a3b8; }
+    html[data-theme="dark"] .icon-wrap { background: #0c2a3d; }
+    html[data-theme="dark"] input[type=password] { background: #0e1624; color: #e5e7eb; border-color: ${error ? '#fca5a5' : '#263244'}; }
+  </style>
   <style>
     body { min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; background: linear-gradient(135deg,#f0fdfc 0%,#ccfbf1 50%,#99f6e4 100%); font-family: 'Plus Jakarta Sans', sans-serif; padding: 24px; }
     .card { background: #fff; border-radius: 20px; box-shadow: 0 8px 40px rgba(0,0,0,.10); padding: 48px 40px; max-width: 380px; width: 100%; text-align: center; }
@@ -536,6 +622,11 @@ function getPasswordPromptHtml({ slug, error, viaQr }) {
     <span>Kabupaten Banggai Laut</span>
     <span>© 2026 All rights reserved</span>
   </div>
+<button class="theme-fab" id="btnThemeToggle" type="button" onclick="SAPA_THEME.toggle()" aria-label="Ganti ke tema gelap" data-tip="Ganti ke tema gelap">
+  <svg class="ic-moon" xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>
+  <svg class="ic-sun" xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/></svg>
+</button>
+<script src="/js/dark-mode.js"></script>
 </body>
 </html>`;
 }

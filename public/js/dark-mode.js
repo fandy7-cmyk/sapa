@@ -244,12 +244,28 @@
     }
     // Browser yang mendukung: crossfade snapshot halaman (dikerjakan GPU), jadi tidak ada
     // ribuan elemen yang bertransisi warna satu-satu (itu yang bikin terasa delay/patah-patah).
-    if (animate && changed && !reduce && document.startViewTransition) {
-      document.startViewTransition(commit);
+    // Tab sedang tersembunyi (timer 06:00/18:00 WITA, sinkron antar tab, perubahan tema sistem): browser
+    // langsung membatalkan transisi dan promise-nya reject "Transition was aborted ... Document hidden"
+    // (unhandled rejection yang ikut tercatat di Pemantauan Sistem). Tidak ada yang bisa dilihat di tab
+    // tersembunyi, jadi lewati animasi dan terapkan tema langsung.
+    var canAnimate = animate && changed && !reduce && !document.hidden;
+    if (canAnimate && document.startViewTransition) {
+      var vt = null;
+      try { vt = document.startViewTransition(commit); } catch (e) { vt = null; }
+      if (vt) {
+        // Transisi bisa dibatalkan browser kapan saja (tab disembunyikan di tengah jalan, transisi baru
+        // menimpa yang lama). Tema tetap terpasang lewat commit, jadi penolakan promise cukup diabaikan.
+        var noop = function () {};
+        if (vt.ready && vt.ready.catch) vt.ready.catch(noop);
+        if (vt.finished && vt.finished.catch) vt.finished.catch(noop);
+        if (vt.updateCallbackDone && vt.updateCallbackDone.catch) vt.updateCallbackDone.catch(noop);
+        return;
+      }
+      commit();
       return;
     }
     // Fallback (browser lama): transisi warna per-elemen lewat class .theme-switching.
-    if (animate && changed && !reduce) {
+    if (canAnimate) {
       root.classList.add('theme-switching');
       clearTimeout(switchTimer);
       switchTimer = setTimeout(function () { root.classList.remove('theme-switching'); }, 350);

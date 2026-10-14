@@ -390,9 +390,31 @@ function renderShortlinks() {
   renderPagination('slPagination', _slFiltered.length, _slPage, _slPageSize, 'goSlPage');
 }
 
+// Salin teks ke clipboard. Clipboard API bisa ditolak (tab tidak fokus, izin ditolak, bukan HTTPS):
+// jatuh ke execCommand('copy') dan tidak pernah membiarkan promise reject tanpa penanganan.
+function _salinTeks(teks, pesanOk) {
+  const ok = () => toast(pesanOk || ('URL disalin: ' + teks));
+  const fallback = () => {
+    try {
+      const ta = document.createElement('textarea');
+      ta.value = teks; ta.setAttribute('readonly', '');
+      ta.style.cssText = 'position:fixed;top:0;left:0;opacity:0;pointer-events:none';
+      document.body.appendChild(ta); ta.select();
+      const berhasil = document.execCommand('copy');
+      document.body.removeChild(ta);
+      if (berhasil) ok(); else toast('Gagal menyalin, salin manual: ' + teks);
+    } catch (e) { toast('Gagal menyalin, salin manual: ' + teks); }
+  };
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(teks).then(ok, fallback);
+  } else {
+    fallback();
+  }
+}
+
 function copySlug(slug) {
   const url = location.origin + '/' + slug;
-  navigator.clipboard.writeText(url).then(() => toast('URL disalin: ' + url));
+  _salinTeks(url);
 }
 
 let _bundles = [], _bundlesFiltered = [], _bundlePage = 1, _bundlePageSize = 10;
@@ -471,7 +493,7 @@ window.goBundlePage = (p) => { _bundlePage = p; renderBundles(); };
 
 function copyBundleUrl(slug) {
   const url = location.origin + '/' + slug;
-  navigator.clipboard.writeText(url).then(() => toast('URL disalin: ' + url));
+  _salinTeks(url);
 }
 
 function _setBundleItemsLocked(locked) {
@@ -798,7 +820,7 @@ function openShareModal(type, id) {
 
 function copyShareUrl() {
   if (!_shareUrl) return;
-  navigator.clipboard.writeText(_shareUrl).then(() => toast('URL disalin: ' + _shareUrl));
+  _salinTeks(_shareUrl);
 }
 
 let _shareMenuEl = null;
@@ -886,7 +908,7 @@ function _runShareAction(act, type, id) {
       if (navigator.share) {
         navigator.share({ title: judul || 'SAPA', url }).catch(() => {});
       } else {
-        navigator.clipboard.writeText(url).then(() => toast('URL disalin: ' + url));
+        _salinTeks(url);
       }
       break;
     case 'facebook':
@@ -899,7 +921,7 @@ function _runShareAction(act, type, id) {
       window.open('https://wa.me/?text=' + encodeURIComponent(`${judul || ''}\n${url}`.trim()), '_blank', 'noopener');
       break;
     case 'copy':
-      navigator.clipboard.writeText(url).then(() => toast('URL disalin: ' + url));
+      _salinTeks(url);
       break;
     case 'qr':
       openShareModal(type, id);
