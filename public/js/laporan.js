@@ -2676,14 +2676,24 @@ function downloadLaporanSuratPDF(btnEl) {
   const data = window._laporanSuratData;
   if (!data) { toast('Muat data laporan terlebih dahulu', 'error'); return; }
 
-  const { rekap, allRows, tahun, jenis, status } = data;
+  const { rekap, allRows: _allRowsSemua, filteredRows, tahun, jenis, status } = data;
+  const allRows = filteredRows || _allRowsSemua;
   const tahunLabel = tahun ? 'Tahun ' + tahun : 'Semua Tahun';
 
   
   const jenisLabel  = jenis === 'masuk' ? 'Surat Masuk' : jenis === 'keluar' ? 'Surat Keluar' : 'Surat Masuk & Keluar';
   const statusLabel = status === 'selesai' ? ' · Selesai' : status === 'belum' ? ' · Belum Selesai' : status === 'terlambat' ? ' · Terlambat' : '';
   const subtitleLabel = `${jenisLabel}${statusLabel} - ${tahunLabel}`;
-  const judulDoc = `Laporan Surat - ${tahunLabel}`;
+  // Nama file (judul dokumen) mengikuti filter + tanggal & jam cetak (WITA)
+  const _tz = 'Asia/Makassar';
+  const _nowJudul = new Date();
+  const _tglJudul = _nowJudul.toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric', timeZone: _tz });
+  const _jamJudul = _nowJudul.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: _tz });
+  const _statusJudul = status === 'selesai' ? 'Selesai' : status === 'belum' ? 'Belum Selesai' : status === 'terlambat' ? 'Terlambat' : '';
+  // Chrome mengganti "|" dan ":" di nama file jadi "_", jadi dipakai karakter mirip yang lolos:
+  // "｜" (U+FF5C, garis tegak lebar-penuh) dan "∶" (U+2236, tanda rasio)
+  const _jamFile = _jamJudul.replace(':', '\u2236');
+  const judulDoc = `${jenisLabel}${_statusJudul ? ' - ' + _statusJudul : ''} - ${_tglJudul} \uFF5C ${_jamFile} WITA`;
 
   let totalMasuk = 0, totalSelesai = 0, totalBelum = 0, totalKeluar = 0;
   rekap.forEach(r => { totalMasuk += r.masuk; totalSelesai += r.selesai; totalBelum += r.belum; totalKeluar += r.keluar; });

@@ -1,5 +1,6 @@
 
 import { getDb, jsonResponse, errorResponse } from './_db.js';
+import { getReqMeta } from './_audit.js';
 import crypto from 'node:crypto';
 
 function escHtml(str) {
@@ -690,7 +691,7 @@ export const handler = async (event) => {
         }
       }
 
-      const ip  = event.headers['x-forwarded-for']?.split(',')[0]?.trim() || '';
+      const { ip } = getReqMeta(event);
       const ua  = event.headers['user-agent'] || '';
       const ref = event.headers['referer'] || '';
       await sql`

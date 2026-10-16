@@ -1,5 +1,6 @@
 
 import { getDb, jsonResponse, errorResponse } from './_db.js';
+import { getReqMeta } from './_audit.js';
 
 export const handler = async (event) => {
   if (event.httpMethod === 'OPTIONS') return jsonResponse({});
@@ -22,7 +23,7 @@ export const handler = async (event) => {
 
   if (event.httpMethod === 'POST') {
     try {
-      const ip = event.headers['x-forwarded-for']?.split(',')[0]?.trim() || '';
+      const { ip } = getReqMeta(event);
       const ua = event.headers['user-agent'] || '';
 
       await sql`

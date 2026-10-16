@@ -509,6 +509,7 @@ async function saveUser() {
     if (!r.ok) { toast(d.error || 'Gagal', 'error'); return; }
     toast(id ? 'Pengguna diperbarui' : 'Pengguna ditambahkan');
     closeModal('modalUser'); loadUsers({ keepFilter: true });
+    if (!id && d.temp_password) _tampilPasswordSementara(body.nama, d.temp_password);
   } catch { toast('Gagal menyimpan', 'error'); }
 }
 
@@ -591,10 +592,22 @@ async function forceLogoutUser(id, nama) {
   } catch { toast('Gagal memaksa logout', 'error'); }
 }
 
+async function _tampilPasswordSementara(nama, pw) {
+  if (!pw) return;
+  const ok = await showConfirm({
+    title: 'Password Sementara',
+    msg: `Password sementara untuk <strong>${esc(nama)}</strong>:<br><br><code style="user-select:all;font-size:15px;padding:4px 8px;background:#f1f5f9;border-radius:6px">${esc(pw)}</code><br><br>Hanya ditampilkan sekali. Sampaikan kepada yang bersangkutan; ia wajib menggantinya saat login pertama.`,
+    okText: 'Salin Password',
+    icon: 'person',
+    type: 'warning',
+  });
+  if (ok) { try { await navigator.clipboard.writeText(pw); toast('Password disalin', 'success'); } catch { toast('Gagal menyalin, salin manual', 'error'); } }
+}
+
 async function resetUserPassword(id, nama) {
   const ok = await showConfirm({
     title: 'Reset Password',
-    msg: `Password <strong>${nama}</strong> akan direset ke password default: <strong>Balut2026</strong>. User perlu ganti password setelah login.`,
+    msg: `Password <strong>${esc(nama)}</strong> akan direset ke password sementara acak. Semua sesinya dicabut dan user wajib mengganti password saat login berikutnya.`,
     okText: 'Ya, Reset',
     icon: 'person',
     type: 'warning',
@@ -604,7 +617,8 @@ async function resetUserPassword(id, nama) {
     const r = await fetch(`/api/users/${id}/reset-password`, { method: 'POST', headers: authHeaders() });
     const d = await r.json();
     if (!r.ok) { toast(d.error || 'Gagal mereset password', 'error'); return; }
-    toast(`Password berhasil direset ke: ${d.default_password}`, 'success');
+    toast('Password berhasil direset', 'success');
+    _tampilPasswordSementara(nama, d.temp_password);
   } catch { toast('Gagal mereset password', 'error'); }
 }
 

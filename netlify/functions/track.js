@@ -1,4 +1,5 @@
 import { getDb, jsonResponse, errorResponse } from './_db.js';
+import { getReqMeta } from './_audit.js';
 
 export const handler = async (event) => {
   if (event.httpMethod === 'OPTIONS') return jsonResponse({});
@@ -8,7 +9,7 @@ export const handler = async (event) => {
   const id = event.path.replace(/.*\/track/, '').split('/').filter(Boolean)[0];
   if (!id || isNaN(id)) return errorResponse('ID tidak valid', 400);
 
-  const ip = event.headers['x-forwarded-for']?.split(',')[0] || '';
+  const { ip } = getReqMeta(event);
   const ua = event.headers['user-agent'] || '';
   const ref = event.headers['referer'] || '';
 

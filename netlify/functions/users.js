@@ -1,7 +1,6 @@
 
-import bcrypt from 'bcryptjs';
 import { getDb, jsonResponse, errorResponse, parseBody, runOnce } from './_db.js';
-import { requireAdmin, requireAuth } from './_auth.js';
+import { requireAdmin, requireAuth, hashPassword, generateTempPassword } from './_auth.js';
 import { logAudit, _hitungKunci, LOGIN_HISTORY_HOURS } from './_audit.js';
 import { sinkronKeamanan } from './_notif_modul.js';
 
@@ -10,7 +9,9 @@ async function notifSafe(fn) {
 }
 import { cleanupReplacedFile } from './_cloudinary.js';
 
-const DEFAULT_PASSWORD = 'Balut2026';
+async function ensureMustChangeCol(sql) {
+  await runOnce('users.must_change_password', () => sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS must_change_password BOOLEAN NOT NULL DEFAULT FALSE`);
+}
 
 export const handler = async (event) => {
   if (event.httpMethod === 'OPTIONS') return jsonResponse({});
@@ -294,11 +295,13 @@ export const handler = async (event) => {
       const existNip = await sql`SELECT id FROM users WHERE nip = ${nip.trim()} LIMIT 1`;
       if (existNip.length) return errorResponse('NIP sudah terdaftar', 409);
 
-      const hash = await bcrypt.hash(DEFAULT_PASSWORD, 10);
+      await ensureMustChangeCol(sql);
+      const tempPassword = generateTempPassword();
+      const hash = await hashPassword(tempPassword);
       const bidangVal = bidang_id ? parseInt(bidang_id) : null;
       const rows = await sql`
-        INSERT INTO users (nama, nip, email, password_hash, is_admin, bidang_id, jabatan)
-        VALUES (${nama.trim()}, ${nip.trim()}, ${emailVal}, ${hash}, FALSE, ${bidangVal}, ${jabatanVal})
+        INSERT INTO users (nama, nip, email, password_hash, is_admin, bidang_id, jabatan, must_change_password)
+        VALUES (${nama.trim()}, ${nip.trim()}, ${emailVal}, ${hash}, FALSE, ${bidangVal}, ${jabatanVal}, TRUE)
         RETURNING id, nama, nip, email, is_admin, last_login, created_at, bidang_id, jabatan
       `;
       await logAudit(sql, event, {
@@ -306,7 +309,7 @@ export const handler = async (event) => {
         aksi: 'create_user', entitas: 'user', entitas_id: rows[0].id,
         detail: { nama: nama.trim(), nip: nip.trim(), email: emailVal, jabatan: jabatanVal }
       });
-      return jsonResponse({ user: rows[0] }, 201);
+      return jsonResponse({ user: rows[0], temp_password: tempPassword }, 201);
     } catch (err) {
       console.error('[POST /api/users]', err);
       return errorResponse('Gagal menambah pengguna');
@@ -403,8 +406,11 @@ export const handler = async (event) => {
       if (!check.length) return errorResponse('Pengguna tidak ditemukan', 404);
       if (check[0].is_admin) return errorResponse('Tidak dapat mereset password Super Admin', 403);
 
-      const hash = await bcrypt.hash(DEFAULT_PASSWORD, 10);
-      await sql`UPDATE users SET password_hash = ${hash} WHERE id = ${userId}`;
+      await ensureMustChangeCol(sql);
+      const tempPassword = generateTempPassword();
+      const hash = await hashPassword(tempPassword);
+      await sql`UPDATE users SET password_hash = ${hash}, must_change_password = TRUE WHERE id = ${userId}`;
+      await sql`UPDATE refresh_tokens SET revoked_at = NOW() WHERE user_id = ${userId} AND revoked_at IS NULL`;
       try {
         const u = await sql`SELECT nip FROM users WHERE id = ${userId} LIMIT 1`;
         if (u[0]?.nip) await sql`DELETE FROM login_attempts WHERE email = ${String(u[0].nip).trim()}`;
@@ -413,7 +419,7 @@ export const handler = async (event) => {
         user_id: admin.id, nama: admin.nama, email: admin.email,
         aksi: 'reset_password', entitas: 'user', entitas_id: userId
       });
-      return jsonResponse({ ok: true, default_password: DEFAULT_PASSWORD });
+      return jsonResponse({ ok: true, temp_password: tempPassword });
     } catch (err) {
       console.error('[POST /api/users/:id/reset-password]', err);
       return errorResponse('Gagal mereset password');

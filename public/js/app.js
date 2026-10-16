@@ -576,7 +576,33 @@ function openChangePassword() {
   document.getElementById('cpNew').value = '';
   document.getElementById('cpConfirm').value = '';
   document.getElementById('topbarDropdown')?.classList.remove('open');
+  cpUpdateRules();
   openModal('modalChangePassword');
+}
+
+const _CP_MIN = 10;
+function cpUpdateRules() {
+  const el = document.getElementById('cpRules');
+  if (!el) return;
+  const p = document.getElementById('cpNew').value;
+  const c = document.getElementById('cpConfirm').value;
+  const o = document.getElementById('cpOld').value;
+  const mk = ok => ok
+    ? '<svg width="16" height="16" viewBox="0 0 24 24" style="flex-shrink:0"><circle cx="12" cy="12" r="10" fill="#16a34a"/><path d="M7 12.5l3.2 3.2L17 9" fill="none" stroke="#fff" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg>'
+    : '<svg width="16" height="16" viewBox="0 0 24 24" style="flex-shrink:0"><circle cx="12" cy="12" r="9.5" fill="none" stroke="#cbd5e1" stroke-width="2"/></svg>';
+  const row = (ok, t, full, bad) =>
+    `<div style="display:flex;align-items:center;gap:6px;margin:3px 0;color:${ok ? '#15803d' : (bad ? '#dc2626' : 'var(--teks-muted)')}${full ? ';grid-column:1/-1' : ''}">${mk(ok)}<span>${t}</span></div>`;
+  const cocok = c.length > 0 && p === c;
+  const sama = p.length > 0 && o.length > 0 && p === o;
+  el.innerHTML = '<div style="display:grid;grid-template-columns:1fr 1fr;column-gap:10px">' +
+    row(p.length >= _CP_MIN, `Minimal ${_CP_MIN} karakter (${Math.min(p.length, _CP_MIN)}/${_CP_MIN})`, true) +
+    row(/[A-Z]/.test(p), 'Huruf besar (A-Z)') +
+    row(/[a-z]/.test(p), 'Huruf kecil (a-z)') +
+    row(/\d/.test(p), 'Angka (0-9)') +
+    row(/[^A-Za-z0-9\s]/.test(p), 'Simbol (! @ # $ _ -)') +
+    (sama ? row(false, 'Tidak boleh sama dengan password lama', true, true) : '') +
+    (c.length ? row(cocok, cocok ? 'Konfirmasi password cocok' : 'Konfirmasi password belum cocok', true, !cocok) : '') +
+    '</div>';
 }
 
 function toggleCpEye(inputId, iconId) {
@@ -594,7 +620,8 @@ async function saveChangePassword() {
   const newPw  = document.getElementById('cpNew').value;
   const confPw = document.getElementById('cpConfirm').value;
   if (!oldPw || !newPw || !confPw) { toast('Semua field wajib diisi', 'error'); return; }
-  if (newPw.length < 6) { toast('Password baru minimal 6 karakter', 'error'); return; }
+  if (newPw.length < 10) { toast('Password baru minimal 10 karakter', 'error'); return; }
+  if (!/[a-z]/.test(newPw) || !/[A-Z]/.test(newPw) || !/\d/.test(newPw) || !/[^A-Za-z0-9\s]/.test(newPw)) { toast('Password harus mengandung huruf besar, huruf kecil, angka, dan simbol', 'error'); return; }
   if (newPw !== confPw) { toast('Konfirmasi password tidak cocok', 'error'); return; }
   if (newPw === oldPw)  { toast('Password baru tidak boleh sama dengan password lama', 'error'); return; }
   try {
@@ -604,6 +631,13 @@ async function saveChangePassword() {
     });
     const d = await r.json();
     if (!r.ok) { toast(d.error || 'Gagal', 'error'); return; }
+    if (d.token && d.refresh_token) {
+      _token = d.token;
+      _refreshToken = d.refresh_token;
+      sessionStorage.setItem('sapa_token', _token);
+      sessionStorage.setItem('sapa_refresh_token', _refreshToken);
+      _scheduleTokenExpiry();
+    }
     toast('Password berhasil diubah');
     closeModal('modalChangePassword');
   } catch { toast('Gagal menyimpan password', 'error'); }

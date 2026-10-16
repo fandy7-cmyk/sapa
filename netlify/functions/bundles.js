@@ -1,5 +1,6 @@
 import { getDb, jsonResponse, errorResponse, parseBody } from './_db.js';
 import { requireAuth } from './_auth.js';
+import { getReqMeta } from './_audit.js';
 import crypto from 'node:crypto';
 
 function slugify(str) {
@@ -75,7 +76,7 @@ export const handler = async (event) => {
       const items = await sql`SELECT * FROM bundle_items WHERE bundle_id = ${bd.id} ORDER BY id ASC`;
 
       try {
-        const ip  = event.headers['x-forwarded-for']?.split(',')[0]?.trim() || '';
+        const { ip } = getReqMeta(event);
         const ua  = event.headers['user-agent'] || '';
         const ref = event.headers['referer'] || '';
         const viaQr = qs.src === 'qr';
