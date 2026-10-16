@@ -1513,6 +1513,7 @@ async function saveRealisasiRow(indikatorId) {
   let solusi      = document.getElementById(`solusi_${indikatorId}`)?.value?.trim();
   let fpendukung  = document.getElementById(`fpendukung_${indikatorId}`)?.value?.trim();
   let rencana     = document.getElementById(`rencana_${indikatorId}`)?.value?.trim();
+  let _clearSisi = '';
 
   const row = _kinerjaData.find(r => r.id === indikatorId);
 
@@ -1526,11 +1527,11 @@ async function saveRealisasiRow(indikatorId) {
     if (_capaian < 100) {
       if (!fpenghambat || _isSymbolOnly(fpenghambat)) { toast('Faktor Penghambat wajib diisi, tidak boleh hanya simbol/tanda baca.', 'error'); return; }
       if (!solusi || _isSymbolOnly(solusi))           { toast('Solusi wajib diisi, tidak boleh hanya simbol/tanda baca.', 'error'); return; }
-      fpendukung = ''; rencana = '';
+      fpendukung = ''; rencana = ''; _clearSisi = 'pendukung';
     } else {
       if (!fpendukung || _isSymbolOnly(fpendukung)) { toast('Faktor Pendukung wajib diisi, tidak boleh hanya simbol/tanda baca.', 'error'); return; }
       if (!rencana || _isSymbolOnly(rencana))       { toast('Rencana Tindak Lanjut wajib diisi, tidak boleh hanya simbol/tanda baca.', 'error'); return; }
-      fpenghambat = ''; solusi = '';
+      fpenghambat = ''; solusi = ''; _clearSisi = 'penghambat';
     }
   }
 
@@ -1550,6 +1551,7 @@ async function saveRealisasiRow(indikatorId) {
         realisasi: real !== '' ? parseFloat(real) : null,
         realisasi_display: _getRealisasiDisplayFromEl(realEl, row, real),
         f_penghambat: fpenghambat || null, solusi: solusi || null, f_pendukung: fpendukung || null, rencana_tl: rencana || null,
+        clear_pendukung: _clearSisi === 'pendukung', clear_penghambat: _clearSisi === 'penghambat',
         ...(_dk.changed ? { data_dukung_url: _dk.json, data_dukung_nama: _dk.name } : {}),
       }),
     });
@@ -4786,6 +4788,7 @@ async function saveIkkRealisasiRow(indikatorId) {
   let solusi      = document.getElementById(`ikk_solusi_${indikatorId}`)?.value?.trim();
   let fpendukung  = document.getElementById(`ikk_fpendukung_${indikatorId}`)?.value?.trim();
   let rencana     = document.getElementById(`ikk_rencana_${indikatorId}`)?.value?.trim();
+  let _clearSisi = '';
 
   const rowIkk = _ikkData.find(r => r.id === indikatorId);
   
@@ -4800,11 +4803,11 @@ async function saveIkkRealisasiRow(indikatorId) {
     if (_capaianIkk < 100) {
       if (!fpenghambat || _isSymbolOnly(fpenghambat)) { toast('Faktor Penghambat wajib diisi, tidak boleh hanya simbol/tanda baca.', 'error'); return; }
       if (!solusi || _isSymbolOnly(solusi))           { toast('Solusi wajib diisi, tidak boleh hanya simbol/tanda baca.', 'error'); return; }
-      fpendukung = ''; rencana = '';
+      fpendukung = ''; rencana = ''; _clearSisi = 'pendukung';
     } else {
       if (!fpendukung || _isSymbolOnly(fpendukung)) { toast('Faktor Pendukung wajib diisi, tidak boleh hanya simbol/tanda baca.', 'error'); return; }
       if (!rencana || _isSymbolOnly(rencana))       { toast('Rencana Tindak Lanjut wajib diisi, tidak boleh hanya simbol/tanda baca.', 'error'); return; }
-      fpenghambat = ''; solusi = '';
+      fpenghambat = ''; solusi = ''; _clearSisi = 'penghambat';
     }
   }
 
@@ -4820,6 +4823,7 @@ async function saveIkkRealisasiRow(indikatorId) {
         realisasi: real !== '' ? parseFloat(real) : null,
         realisasi_display: _getRealisasiDisplayFromEl(realEl, rowIkk, real),
         f_penghambat: fpenghambat || null, solusi: solusi || null, f_pendukung: fpendukung || null, rencana_tl: rencana || null,
+        clear_pendukung: _clearSisi === 'pendukung', clear_penghambat: _clearSisi === 'penghambat',
         ...(_dk.changed ? { data_dukung_url: _dk.json, data_dukung_nama: _dk.name } : {}),
       }),
     });
@@ -6446,7 +6450,9 @@ function _monRenderUserCards() {
     const tone = done ? { c: '#16a34a', bg: '#dcfce7' } : (u.terisi > 0 ? { c: '#d97706', bg: '#fef3c7' } : { c: '#dc2626', bg: '#fee2e2' });
     const icon = done
       ? '<path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5"/>'
-      : '<circle cx="12" cy="12" r="9"/><path stroke-linecap="round" stroke-linejoin="round" d="M12 7.5v5l3 2"/>';
+      : (u.terisi > 0
+        ? '<circle cx="12" cy="12" r="9"/><path stroke-linecap="round" stroke-linejoin="round" d="M12 7.5v5l3 2"/>'
+        : '<circle cx="12" cy="12" r="9"/><path stroke-linecap="round" stroke-linejoin="round" d="M12 7.5v5M12 16.5h.01"/>');
 
     return `<div onclick='setMonUser(${_jsAttr(isActive ? '' : u.nama)})' data-tip="Klik untuk filter tabel"
          style="cursor:pointer;display:flex;align-items:center;gap:10px;background:${isActive ? 'linear-gradient(135deg,rgba(15,118,110,.07),rgba(255,255,255,.95))' : '#fff'};
@@ -7190,6 +7196,7 @@ async function saveSpmRealisasiRow(indikatorId) {
   let solusi      = document.getElementById(`spm_solusi_${indikatorId}`)?.value?.trim();
   let fpendukung  = document.getElementById(`spm_fpendukung_${indikatorId}`)?.value?.trim();
   let rencana     = document.getElementById(`spm_rencana_${indikatorId}`)?.value?.trim();
+  let _clearSisi = '';
 
   const row = _spmData.find(r => r.id === indikatorId);
   
@@ -7204,11 +7211,11 @@ async function saveSpmRealisasiRow(indikatorId) {
     if (_capaian < 100) {
       if (!fpenghambat || _isSymbolOnly(fpenghambat)) { toast('Faktor Penghambat wajib diisi, tidak boleh hanya simbol/tanda baca.', 'error'); return; }
       if (!solusi || _isSymbolOnly(solusi))           { toast('Solusi wajib diisi, tidak boleh hanya simbol/tanda baca.', 'error'); return; }
-      fpendukung = ''; rencana = '';
+      fpendukung = ''; rencana = ''; _clearSisi = 'pendukung';
     } else {
       if (!fpendukung || _isSymbolOnly(fpendukung)) { toast('Faktor Pendukung wajib diisi, tidak boleh hanya simbol/tanda baca.', 'error'); return; }
       if (!rencana || _isSymbolOnly(rencana))       { toast('Rencana Tindak Lanjut wajib diisi, tidak boleh hanya simbol/tanda baca.', 'error'); return; }
-      fpenghambat = ''; solusi = '';
+      fpenghambat = ''; solusi = ''; _clearSisi = 'penghambat';
     }
   }
 
@@ -7224,6 +7231,7 @@ async function saveSpmRealisasiRow(indikatorId) {
         realisasi: real !== '' ? parseFloat(real) : null,
         realisasi_display: _getRealisasiDisplayFromEl(realEl, row, real),
         f_penghambat: fpenghambat || null, solusi: solusi || null, f_pendukung: fpendukung || null, rencana_tl: rencana || null,
+        clear_pendukung: _clearSisi === 'pendukung', clear_penghambat: _clearSisi === 'penghambat',
         ...(_dk.changed ? { data_dukung_url: _dk.json, data_dukung_nama: _dk.name } : {}),
       }),
     });
@@ -7811,6 +7819,7 @@ async function saveSubkegRealisasiRow(indikatorId) {
   let solusi      = document.getElementById(`subkeg_solusi_${indikatorId}`)?.value?.trim();
   let fpendukung  = document.getElementById(`subkeg_fpendukung_${indikatorId}`)?.value?.trim();
   let rencana     = document.getElementById(`subkeg_rencana_${indikatorId}`)?.value?.trim();
+  let _clearSisi = '';
 
   const row = _subkegData.find(r => r.id === indikatorId);
   
@@ -7825,11 +7834,11 @@ async function saveSubkegRealisasiRow(indikatorId) {
     if (_capaian < 100) {
       if (!fpenghambat || _isSymbolOnly(fpenghambat)) { toast('Faktor Penghambat wajib diisi, tidak boleh hanya simbol/tanda baca.', 'error'); return; }
       if (!solusi || _isSymbolOnly(solusi))           { toast('Solusi wajib diisi, tidak boleh hanya simbol/tanda baca.', 'error'); return; }
-      fpendukung = ''; rencana = '';
+      fpendukung = ''; rencana = ''; _clearSisi = 'pendukung';
     } else {
       if (!fpendukung || _isSymbolOnly(fpendukung)) { toast('Faktor Pendukung wajib diisi, tidak boleh hanya simbol/tanda baca.', 'error'); return; }
       if (!rencana || _isSymbolOnly(rencana))       { toast('Rencana Tindak Lanjut wajib diisi, tidak boleh hanya simbol/tanda baca.', 'error'); return; }
-      fpenghambat = ''; solusi = '';
+      fpenghambat = ''; solusi = ''; _clearSisi = 'penghambat';
     }
   }
 
@@ -7845,6 +7854,7 @@ async function saveSubkegRealisasiRow(indikatorId) {
         realisasi: real !== '' ? parseFloat(real) : null,
         realisasi_display: _getRealisasiDisplayFromEl(realEl, row, real),
         f_penghambat: fpenghambat || null, solusi: solusi || null, f_pendukung: fpendukung || null, rencana_tl: rencana || null,
+        clear_pendukung: _clearSisi === 'pendukung', clear_penghambat: _clearSisi === 'penghambat',
         ...(_dk.changed ? { data_dukung_url: _dk.json, data_dukung_nama: _dk.name } : {}),
       }),
     });

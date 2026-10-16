@@ -1,6 +1,6 @@
 {
-  "name": "SAPA - Satu Pintu Akses",
-  "short_name": "SAPA",
+  "name": "SAPA Perencanaan",
+  "short_name": "SAPA Perencanaan",
   "description": "Satu Pintu Akses - Sub Bagian Perencanaan Dinas Kesehatan PPKB Kabupaten Banggai Laut",
   "start_url": "/app.html",
   "scope": "/",

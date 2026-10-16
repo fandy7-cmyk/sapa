@@ -1286,7 +1286,7 @@ function _wdmRenderUserCards() {
     const pct = u.total ? Math.round(u.terisi / u.total * 100) : 0;
     const act = _wdm.user === u.nama, done = u.terisi === u.total;
     const tone = done ? { c: '#16a34a', bg: '#dcfce7' } : (u.terisi > 0 ? { c: '#d97706', bg: '#fef3c7' } : { c: '#dc2626', bg: '#fee2e2' });
-    const icon = done ? '<path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5"/>' : '<circle cx="12" cy="12" r="9"/><path stroke-linecap="round" stroke-linejoin="round" d="M12 7.5v5l3 2"/>';
+    const icon = done ? '<path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5"/>' : (u.terisi > 0 ? '<circle cx="12" cy="12" r="9"/><path stroke-linecap="round" stroke-linejoin="round" d="M12 7.5v5l3 2"/>' : '<circle cx="12" cy="12" r="9"/><path stroke-linecap="round" stroke-linejoin="round" d="M12 7.5v5M12 16.5h.01"/>');
     const sh = act ? '0 0 0 3px rgba(13,148,136,.12), var(--shadow-sm)' : 'var(--shadow-sm)';
     return `<div onclick="wdmSetUser(${_wdmAttr(act ? '' : u.nama)})" data-tip="Klik untuk filter tabel"
          style="cursor:pointer;display:flex;align-items:center;gap:10px;background:${act ? 'linear-gradient(135deg,rgba(15,118,110,.07),rgba(255,255,255,.95))' : '#fff'};border:1.5px solid ${act ? 'var(--hijau)' : 'var(--abu-2)'};border-radius:var(--r-md);padding:10px 14px;box-shadow:${sh};transition:box-shadow var(--transition), transform var(--transition), border-color var(--transition)"

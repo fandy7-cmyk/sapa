@@ -80,7 +80,23 @@ export const handler = async (event) => {
               SELECT k.*,
                 (SELECT COUNT(*)::INT FROM lembur_sesi s WHERE s.kegiatan_id = k.id) AS jumlah_sesi,
                 (SELECT COUNT(*)::INT FROM lembur_sesi s WHERE s.kegiatan_id = k.id
-                   AND DATE_TRUNC('month', s.tanggal) = DATE_TRUNC('month', (NOW() AT TIME ZONE 'Asia/Makassar')::date)) AS sesi_bulan_ini
+                   AND DATE_TRUNC('month', s.tanggal) = DATE_TRUNC('month', (NOW() AT TIME ZONE 'Asia/Makassar')::date)) AS sesi_bulan_ini,
+                (SELECT COALESCE(JSON_AGG(DISTINCT u.nama), '[]'::json)
+                   FROM lembur_sesi s
+                   JOIN lembur_entries e ON e.sesi_id = s.id
+                   JOIN users u ON u.id = e.user_id
+                   WHERE s.kegiatan_id = k.id) AS peserta_nama,
+                (SELECT COALESCE(JSON_AGG(JSON_BUILD_OBJECT('nama', x.nama, 'hari', x.hari, 'bulan_ini', x.bulan_ini)), '[]'::json)
+                   FROM (
+                     SELECT u.nama,
+                            COUNT(DISTINCT s.id)::INT AS hari,
+                            (COUNT(DISTINCT s.id) FILTER (WHERE DATE_TRUNC('month', s.tanggal) = DATE_TRUNC('month', (NOW() AT TIME ZONE 'Asia/Makassar')::date)))::INT AS bulan_ini
+                     FROM lembur_sesi s
+                     JOIN lembur_entries e ON e.sesi_id = s.id
+                     JOIN users u ON u.id = e.user_id
+                     WHERE s.kegiatan_id = k.id
+                     GROUP BY u.id, u.nama
+                   ) x) AS peserta_stat
               FROM lembur_kegiatan k
               ORDER BY k.created_at DESC
             `

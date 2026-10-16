@@ -272,12 +272,12 @@ html[data-theme="dark"] .btn-ghost[data-tip="QR Code"]{background:#19263c;color:
 html[data-theme="dark"] .btn-ghost[data-tip="QR Code"]:hover{background:#4338ca;color:#fff;border-color:#4338ca}
 html[data-theme="dark"] .btn-ghost[data-tip="Hak Akses"]{background:#243044;color:#d8b4fe;border-color:#2d4971}
 html[data-theme="dark"] .btn-ghost[data-tip="Hak Akses"]:hover{background:#6d28d9;color:#fff;border-color:#6d28d9}
-html[data-theme="dark"] .btn-ghost[data-tip="Assign Indikator"]{background:#19263c;color:#93c5fd;border-color:#2d4971}
-html[data-theme="dark"] .btn-ghost[data-tip="Assign Indikator"]:hover{background:#4338ca;color:#fff;border-color:#4338ca}
+html[data-theme="dark"] .btn-ghost[data-tip="Assign Indikator"]{background:#1e293b;color:#cbd5e1;border-color:#475569}
+html[data-theme="dark"] .btn-ghost[data-tip="Assign Indikator"]:hover{background:#475569;color:#fff;border-color:#475569}
 html[data-theme="dark"] .btn-ghost[data-tip="Assign User"]{background:#1e2f49;color:#93c5fd;border-color:#2d4971}
 html[data-theme="dark"] .btn-ghost[data-tip="Assign User"]:hover{background:#1d4ed8;color:#fff;border-color:#1d4ed8}
-html[data-theme="dark"] .btn-ghost[data-tip="Reset Password"]{background:#15363f;color:#2dd4bf;border-color:#1b5a5c}
-html[data-theme="dark"] .btn-ghost[data-tip="Reset Password"]:hover{background:#0f766e;color:#fff;border-color:#0f766e}
+html[data-theme="dark"] .btn-ghost[data-tip="Reset Password"]{background:#3a2130;color:#f9a8d4;border-color:#6b2a4a}
+html[data-theme="dark"] .btn-ghost[data-tip="Reset Password"]:hover{background:#be185d;color:#fff;border-color:#be185d}
 html[data-theme="dark"] .btn-ghost[data-tip="Paksa Logout"]{background:#352d23;color:#fcd34d;border-color:#61471d}
 html[data-theme="dark"] .btn-ghost[data-tip="Paksa Logout"]:hover{background:#c2410c;color:#fff;border-color:#c2410c}
 html[data-theme="dark"] .btn-ghost[data-tip="Buka Kunci Login"]{background:#19263c;color:#93c5fd;border-color:#1b5a5c}

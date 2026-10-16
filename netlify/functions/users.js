@@ -13,6 +13,30 @@ async function ensureMustChangeCol(sql) {
   await runOnce('users.must_change_password', () => sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS must_change_password BOOLEAN NOT NULL DEFAULT FALSE`);
 }
 
+// Cek duplikat nama / NIP (NIP dibandingkan angkanya saja, nama tanpa beda huruf besar-kecil & spasi ganda)
+async function cekDuplikatUser(sql, { nama, nip, excludeId = null, cekNama = true, cekNip = true }) {
+  if (cekNip && nip) {
+    const t = String(nip).trim();
+    const d = t.replace(/\D/g, '');
+    const rows = await sql`
+      SELECT nama FROM users
+      WHERE (nip = ${t} OR (${d} <> '' AND REGEXP_REPLACE(COALESCE(nip, ''), '[^0-9]', '', 'g') = ${d}))
+        AND (${excludeId}::int IS NULL OR id <> ${excludeId}::int)
+      LIMIT 1`;
+    if (rows.length) return `NIP ${t} sudah terdaftar atas nama ${rows[0].nama}`;
+  }
+  if (cekNama && nama) {
+    const n = String(nama).trim().replace(/\s+/g, ' ').toLowerCase();
+    const rows = await sql`
+      SELECT nip FROM users
+      WHERE LOWER(REGEXP_REPLACE(TRIM(nama), '[[:space:]]+', ' ', 'g')) = ${n}
+        AND (${excludeId}::int IS NULL OR id <> ${excludeId}::int)
+      LIMIT 1`;
+    if (rows.length) return `Nama "${String(nama).trim()}" sudah terdaftar${rows[0].nip ? ' (NIP ' + String(rows[0].nip).trim() + ')' : ''}`;
+  }
+  return null;
+}
+
 export const handler = async (event) => {
   if (event.httpMethod === 'OPTIONS') return jsonResponse({});
 
@@ -292,8 +316,8 @@ export const handler = async (event) => {
         if (exist.length) return errorResponse('Email sudah terdaftar', 409);
       }
 
-      const existNip = await sql`SELECT id FROM users WHERE nip = ${nip.trim()} LIMIT 1`;
-      if (existNip.length) return errorResponse('NIP sudah terdaftar', 409);
+      const dupMsg = await cekDuplikatUser(sql, { nama, nip });
+      if (dupMsg) return errorResponse(dupMsg, 409);
 
       await ensureMustChangeCol(sql);
       const tempPassword = generateTempPassword();
@@ -332,11 +356,17 @@ export const handler = async (event) => {
         `;
         if (exist.length) return errorResponse('Email sudah digunakan', 409);
       }
-      if (nip) {
-        const existNip = await sql`
-          SELECT id FROM users WHERE nip = ${nip.trim()} AND id != ${userId} LIMIT 1
-        `;
-        if (existNip.length) return errorResponse('NIP sudah digunakan', 409);
+      {
+        const cur = await sql`SELECT nama, nip FROM users WHERE id = ${userId} LIMIT 1`;
+        const digits = v => String(v || '').replace(/\D/g, '');
+        const normNama = v => String(v || '').trim().replace(/\s+/g, ' ').toLowerCase();
+        const nipBerubah = !!nip && String(nip).trim() !== String(cur[0]?.nip || '').trim()
+          && (digits(nip) === '' || digits(nip) !== digits(cur[0]?.nip));
+        const namaBerubah = !!nama && normNama(nama) !== normNama(cur[0]?.nama);
+        if (nipBerubah || namaBerubah) {
+          const dupMsg = await cekDuplikatUser(sql, { nama, nip, excludeId: userId, cekNip: nipBerubah, cekNama: namaBerubah });
+          if (dupMsg) return errorResponse(dupMsg, 409);
+        }
       }
 
       const bidangVal = bidang_id !== undefined

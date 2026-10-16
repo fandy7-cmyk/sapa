@@ -1526,10 +1526,10 @@ tr:hover td:not(.td-sticky-no):not(.td-sticky-name) { background: var(--abu-1); 
   background: #6d28d9; color: #fff; border-color: #6d28d9;
 }
 .btn-ghost[data-tip="Assign Indikator"] {
-  background: #e0e7ff; color: #4338ca; border-color: #a5b4fc;
+  background: #e2e8f0; color: #334155; border-color: #94a3b8;
 }
 .btn-ghost[data-tip="Assign Indikator"]:hover {
-  background: #4338ca; color: #fff; border-color: #4338ca;
+  background: #334155; color: #fff; border-color: #334155;
 }
 .btn-ghost[data-tip="Assign User"] {
   background: #dbeafe; color: #1d4ed8; border-color: #93c5fd;
@@ -1538,10 +1538,10 @@ tr:hover td:not(.td-sticky-no):not(.td-sticky-name) { background: var(--abu-1); 
   background: #1d4ed8; color: #fff; border-color: #1d4ed8;
 }
 .btn-ghost[data-tip="Reset Password"] {
-  background: #ccfbf1; color: #0f766e; border-color: #5eead4;
+  background: #fce7f3; color: #be185d; border-color: #f9a8d4;
 }
 .btn-ghost[data-tip="Reset Password"]:hover {
-  background: #0f766e; color: #fff; border-color: #0f766e;
+  background: #be185d; color: #fff; border-color: #be185d;
 }
 .btn-ghost[data-tip="Paksa Logout"] {
   background: #ffedd5; color: #c2410c; border-color: #fdba74;

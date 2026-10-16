@@ -2690,10 +2690,9 @@ function downloadLaporanSuratPDF(btnEl) {
   const _tglJudul = _nowJudul.toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric', timeZone: _tz });
   const _jamJudul = _nowJudul.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: _tz });
   const _statusJudul = status === 'selesai' ? 'Selesai' : status === 'belum' ? 'Belum Selesai' : status === 'terlambat' ? 'Terlambat' : '';
-  // Chrome mengganti "|" dan ":" di nama file jadi "_", jadi dipakai karakter mirip yang lolos:
-  // "｜" (U+FF5C, garis tegak lebar-penuh) dan "∶" (U+2236, tanda rasio)
-  const _jamFile = _jamJudul.replace(':', '\u2236');
-  const judulDoc = `${jenisLabel}${_statusJudul ? ' - ' + _statusJudul : ''} - ${_tglJudul} \uFF5C ${_jamFile} WITA`;
+  // Jam pakai titik (14.41) karena Chrome mengganti ":" di nama file
+  const _jamFile = _jamJudul.replace(':', '.');
+  const judulDoc = `${jenisLabel}${_statusJudul ? ' - ' + _statusJudul : ''} - ${_tglJudul} - ${_jamFile} WITA`;
 
   let totalMasuk = 0, totalSelesai = 0, totalBelum = 0, totalKeluar = 0;
   rekap.forEach(r => { totalMasuk += r.masuk; totalSelesai += r.selesai; totalBelum += r.belum; totalKeluar += r.keluar; });

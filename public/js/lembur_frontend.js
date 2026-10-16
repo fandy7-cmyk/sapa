@@ -15,6 +15,48 @@ let _lemburKegiatanPesertaSelected = new Set();
 let _lemburKegiatanDokFiles = [];
 let _lemburKegiatanTanggalList = [];
 
+// ── Filter (pencarian + pegawai) untuk 3 tabel: kegiatan, hari, peserta ──
+const _lemburF = { kegiatan: { q: '', peg: '' }, sesi: { q: '', peg: '' }, entry: { q: '', peg: '' } };
+function _lemburResetFilter(...scopes) { scopes.forEach(sc => { _lemburF[sc] = { q: '', peg: '' }; }); }
+function _lemburFAktif(scope) { const f = _lemburF[scope]; return !!(f.q.trim() || (_lemburFull && f.peg)); }
+function _lemburQ(s) { return String(s ?? '').toLowerCase(); }
+function _lemburNamaArr(v) {
+  if (Array.isArray(v)) return v;
+  try { const a = JSON.parse(v || '[]'); return Array.isArray(a) ? a : []; } catch { return []; }
+}
+function _lemburFilterBarHtml(scope, placeholder, namaList) {
+  const f = _lemburF[scope];
+  const names = [...new Set((namaList || []).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'id'));
+  if (f.peg && !names.includes(f.peg)) f.peg = '';
+  const pegSel = _lemburFull
+    ? `<div class="select-wrap" style="flex:1;min-width:180px"><select id="lemburFPeg_${scope}" data-searchable="1" data-search-placeholder="Cari pegawai…" onchange="_lemburSetFilter('${scope}','peg',this.value)"><option value="">Semua Pegawai</option>${names.map(n => `<option value="${esc(n)}"${n === f.peg ? ' selected' : ''}>${esc(n)}</option>`).join('')}</select></div>`
+    : '';
+  return `<div class="toolbar" style="flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:12px">
+    <div class="search-wrap" style="flex:2;min-width:200px">
+      <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-4.35-4.35"/></svg>
+      <input type="text" id="lemburFQ_${scope}" placeholder="${placeholder}" value="${esc(f.q)}" autocomplete="off" oninput="debounceInput('lemburFQ_${scope}', () => _lemburSetFilter('${scope}','q',document.getElementById('lemburFQ_${scope}').value), 180)" />
+    </div>
+    ${pegSel}
+  </div>`;
+}
+function _lemburSyncFilterSel(scope) {
+  if (typeof syncCustomSelect === 'function' && document.getElementById(`lemburFPeg_${scope}`)) syncCustomSelect(`lemburFPeg_${scope}`);
+}
+async function _lemburSetFilter(scope, key, val) {
+  _lemburF[scope][key] = val;
+  if (scope === 'kegiatan') _lemburKegiatanPage = 1;
+  const act = document.activeElement;
+  const hadFocus = !!act && act.id === `lemburFQ_${scope}`;
+  const pos = hadFocus ? act.selectionStart : null;
+  if (scope === 'kegiatan') await _lemburRenderKegiatanList(false);
+  else if (scope === 'sesi') await _lemburRenderSesiList(false);
+  else _lemburRenderSesiDetail();
+  if (hadFocus) {
+    const el = document.getElementById(`lemburFQ_${scope}`);
+    if (el) { el.focus(); try { el.setSelectionRange(pos, pos); } catch {} }
+  }
+}
+
 function _lemburHasFull() { return !!(_user?.is_admin || hasAccess('lembur.full')); }
 
 function _lemburSaveState() {
@@ -264,10 +306,25 @@ function _lemburSesiStatsHtml(list) {
   ]);
 }
 
+function _lemburEntriesBase() {
+  return _lemburFull ? _lemburEntries : _lemburEntries.filter(e => e.user_id === _user.id);
+}
+function _lemburEntriesTampil() {
+  const fE = _lemburF.entry;
+  return _lemburEntriesBase().filter(e => {
+    if (fE.q.trim()) {
+      const q = _lemburQ(fE.q.trim());
+      if (!(_lemburQ(e.nama).includes(q) || _lemburQ(e.nip).includes(q) || _lemburQ(e.uraian_tugas).includes(q))) return false;
+    }
+    if (_lemburFull && fE.peg && e.nama !== fE.peg) return false;
+    return true;
+  });
+}
+
 function _lemburEntryStatsHtml() {
   if (!_lemburFull) return '';
   const s = _lemburActiveSesi || {};
-  const list = _lemburEntries || [];
+  const list = _lemburEntriesTampil();
   const toMin = t => { const [h, m] = String(t).slice(0, 5).split(':').map(Number); return h * 60 + m; };
   let menit = 0;
   list.forEach(e => {
@@ -291,8 +348,8 @@ function _lemburRefreshEntryStats() {
   if (el) el.innerHTML = _lemburEntryStatsHtml();
 }
 
-async function _lemburRenderKegiatanList() {
-  await _lemburFetchKegiatan();
+async function _lemburRenderKegiatanList(refetch = true) {
+  if (refetch) await _lemburFetchKegiatan();
   const body = document.getElementById('lemburBody');
   if (!body) return;
 
@@ -300,11 +357,21 @@ async function _lemburRenderKegiatanList() {
     ? `<button class="btn btn-primary btn-sm" onclick="_lemburOpenTambahKegiatan()"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>Kegiatan Lembur</button>`
     : '';
 
-  const total = _lemburKegiatanList.length;
+  const fK = _lemburF.kegiatan;
+  const listKegiatan = _lemburKegiatanList.filter(k => {
+    if (fK.q.trim() && !_lemburQ(k.nama_kegiatan).includes(_lemburQ(fK.q.trim()))) return false;
+    if (_lemburFull && fK.peg && !_lemburNamaArr(k.peserta_nama).includes(fK.peg)) return false;
+    return true;
+  }).map(k => {
+    if (!(_lemburFull && fK.peg)) return k;
+    const st = _lemburNamaArr(k.peserta_stat).find(x => x.nama === fK.peg);
+    return { ...k, jumlah_sesi: st ? st.hari : 0, sesi_bulan_ini: st ? st.bulan_ini : 0 };
+  });
+  const total = listKegiatan.length;
   const pages = Math.max(1, Math.ceil(total / _lemburKegiatanLimit));
   if (_lemburKegiatanPage > pages) _lemburKegiatanPage = pages;
   const start = (_lemburKegiatanPage - 1) * _lemburKegiatanLimit;
-  const pageItems = _lemburKegiatanList.slice(start, start + _lemburKegiatanLimit);
+  const pageItems = listKegiatan.slice(start, start + _lemburKegiatanLimit);
 
   const rows = pageItems.length
     ? pageItems.map((k, i) => `
@@ -321,11 +388,12 @@ async function _lemburRenderKegiatanList() {
           </td>
         </tr>
       `).join('')
-    : `<tr><td colspan="5" style="text-align:center;color:var(--teks-muted)">Belum ada kegiatan lembur${_lemburFull ? '. Klik "+ Kegiatan Lembur" untuk mulai.' : '.'}</td></tr>`;
+    : `<tr><td colspan="5" style="text-align:center;color:var(--teks-muted)">${_lemburFAktif('kegiatan') ? 'Tidak ada kegiatan yang cocok dengan filter.' : 'Belum ada kegiatan lembur' + (_lemburFull ? '. Klik "+ Kegiatan Lembur" untuk mulai.' : '.')}</td></tr>`;
 
   body.innerHTML = `
-    ${_lemburStatsHtml(_lemburKegiatanList)}
+    ${_lemburStatsHtml(listKegiatan)}
     <div class="lembur-toolbar" style="display:flex;justify-content:flex-end;margin-bottom:12px">${addBtn}</div>
+    ${_lemburFilterBarHtml('kegiatan', _lemburFull ? 'Cari nama kegiatan…' : 'Cari nama kegiatan…', _lemburKegiatanList.flatMap(k => _lemburNamaArr(k.peserta_nama)))}
     <div class="card" style="padding:0;overflow:auto;-webkit-overflow-scrolling:touch">
       <table class="surat-table">
         <thead><tr><th class="th-sticky-no" style="width:44px;text-align:center">No</th><th class="th-sticky-name">Nama Kegiatan</th><th>Jumlah Hari</th><th>Dibuat</th><th style="width:120px">Aksi</th></tr></thead>
@@ -334,6 +402,7 @@ async function _lemburRenderKegiatanList() {
     </div>
     <div id="lemburKegiatanPagination"></div>
   `;
+  _lemburSyncFilterSel('kegiatan');
   renderPagination('lemburKegiatanPagination', total, _lemburKegiatanPage, _lemburKegiatanLimit, (p) => {
     _lemburKegiatanPage = p;
     _lemburRenderKegiatanList();
@@ -698,6 +767,7 @@ async function _lemburOpenKegiatan(id) {
   _lemburActiveKegiatan = _lemburKegiatanList.find(k => k.id === id);
   if (!_lemburActiveKegiatan) return;
   _lemburActiveSesi = null;
+  _lemburResetFilter('sesi', 'entry');
   _lemburView = 'sesi';
   _lemburSaveState();
   await _lemburRenderSesiList();
@@ -712,8 +782,8 @@ async function _lemburFetchSesi() {
   } catch { toast('Gagal mengambil sesi lembur', 'error'); }
 }
 
-async function _lemburRenderSesiList() {
-  await _lemburFetchSesi();
+async function _lemburRenderSesiList(refetch = true) {
+  if (refetch) await _lemburFetchSesi();
   const body = document.getElementById('lemburBody');
   if (!body) return;
 
@@ -721,7 +791,16 @@ async function _lemburRenderSesiList() {
     ? `<button class="btn btn-primary btn-sm" onclick="_lemburOpenTambahSesi()"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>Tambah Hari Lembur</button>`
     : '';
 
-  const daftarSesi = _lemburFull ? _lemburSesiList : _lemburSesiList.filter(s => s.is_peserta);
+  const daftarSesiAll = _lemburFull ? _lemburSesiList : _lemburSesiList.filter(s => s.is_peserta);
+  const fS = _lemburF.sesi;
+  const daftarSesi = daftarSesiAll.filter(s => {
+    if (fS.q.trim()) {
+      const tgl = new Date(s.tanggal).toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+      if (!_lemburQ(tgl).includes(_lemburQ(fS.q.trim()))) return false;
+    }
+    if (_lemburFull && fS.peg && !_lemburNamaArr(s.peserta_nama).includes(fS.peg)) return false;
+    return true;
+  });
 
   const rows = daftarSesi.length
     ? daftarSesi.map((s, i) => `
@@ -763,7 +842,7 @@ async function _lemburRenderSesiList() {
           </td>`}
         </tr>
       `).join('')
-    : `<tr><td colspan="6" style="text-align:center;color:var(--teks-muted)">Belum ada hari lembur tercatat.</td></tr>`;
+    : `<tr><td colspan="6" style="text-align:center;color:var(--teks-muted)">${_lemburFAktif('sesi') ? 'Tidak ada hari lembur yang cocok dengan filter.' : 'Belum ada hari lembur tercatat.'}</td></tr>`;
 
   body.innerHTML = `
     ${_lemburSesiStatsHtml(daftarSesi)}
@@ -772,6 +851,7 @@ async function _lemburRenderSesiList() {
       ${_lemburActiveKegiatan?.maks_hari ? `<span class="periode-info-bar"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path stroke-linecap="round" stroke-linejoin="round" d="M12 16v-4m0-4h.01"/></svg>Maksimal ${_lemburActiveKegiatan.maks_hari} hari per orang</span>` : ''}
       ${addBtn}
     </div>
+    ${_lemburFilterBarHtml('sesi', 'Cari tanggal…', daftarSesiAll.flatMap(s => _lemburNamaArr(s.peserta_nama)))}
     <div class="card" style="padding:0;overflow:auto;-webkit-overflow-scrolling:touch">
       <table class="surat-table">
         <thead><tr><th class="th-sticky-no" style="width:44px;text-align:center">No</th><th class="th-sticky-name">Tanggal</th><th>Jam Lembur</th><th>Peserta</th><th>Dokumentasi</th><th style="width:170px">Aksi</th></tr></thead>
@@ -779,6 +859,7 @@ async function _lemburRenderSesiList() {
       </table>
     </div>
   `;
+  _lemburSyncFilterSel('sesi');
 }
 
 async function _lemburOpenTambahSesi() {
@@ -923,6 +1004,7 @@ async function _lemburOnSesiTanggalChange() {
 async function _lemburOpenSesi(id) {
   _lemburActiveSesi = _lemburSesiList.find(s => s.id === id);
   if (!_lemburActiveSesi) return;
+  _lemburResetFilter('entry');
   _lemburSaveState();
   await Promise.all([_lemburFetchEntries(), _lemburFetchDok(), _lemburFetchPegawai()]);
   _lemburRenderSesiDetail();
@@ -964,7 +1046,8 @@ function _lemburRenderSesiDetail() {
 
   const tanggalCell = `${new Date(s.tanggal).toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}`;
 
-  const pesertaTampil = _lemburFull ? _lemburEntries : _lemburEntries.filter(e => e.user_id === _user.id);
+  const pesertaBase = _lemburEntriesBase();
+  const pesertaTampil = _lemburEntriesTampil();
 
   const pesertaRows = pesertaTampil.map((e, i) => {
     const bisaEdit = _lemburFull || e.user_id === _user.id;
@@ -1004,7 +1087,7 @@ function _lemburRenderSesiDetail() {
         </td>
         ${_lemburFull ? `<td style="white-space:nowrap;text-align:center;vertical-align:top">${hapusBtn}</td>` : ''}
       </tr>`;
-  }).join('') || `<tr><td colspan="${_lemburFull ? 7 : 6}" style="text-align:center;color:var(--teks-muted)">Belum ada peserta.</td></tr>`;
+  }).join('') || `<tr><td colspan="${_lemburFull ? 7 : 6}" style="text-align:center;color:var(--teks-muted)">${_lemburFAktif('entry') ? 'Tidak ada peserta yang cocok dengan filter.' : 'Belum ada peserta.'}</td></tr>`;
 
   body.innerHTML = `
     <div id="lemburEntryStats">${_lemburEntryStatsHtml()}</div>
@@ -1012,6 +1095,7 @@ function _lemburRenderSesiDetail() {
       <button class="btn btn-sm lembur-btn-kembali" onclick="_lemburOpenKegiatan(${_lemburActiveKegiatan.id})"><svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.4"><path stroke-linecap="round" stroke-linejoin="round" d="M19 12H5m0 0l6-6m-6 6l6 6"/></svg>Kembali</button>
       ${_lemburFull ? `<button class="btn btn-primary btn-sm" onclick="_lemburEditJam()"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-2px"><path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>Kelola Peserta</button>` : ''}
     </div>
+    ${_lemburFilterBarHtml('entry', _lemburFull ? 'Cari pegawai, NIP, atau uraian tugas…' : 'Cari uraian tugas…', pesertaBase.map(e => e.nama))}
     <div class="card" style="padding:0;overflow:auto;-webkit-overflow-scrolling:touch">
       <table class="surat-table" style="table-layout:fixed;width:100%;min-width:700px">
         <thead>
@@ -1021,6 +1105,7 @@ function _lemburRenderSesiDetail() {
       </table>
     </div>
   `;
+  _lemburSyncFilterSel('entry');
 }
 
 async function _lemburSaveUraian(entryId, uraian_tugas) {

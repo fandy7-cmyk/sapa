@@ -276,7 +276,7 @@ function renderUsersTable() {
             <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg>
           </button>
           <button class="btn btn-ghost btn-sm" data-tip="Reset Password" onclick="resetUserPassword(${u.id}, '${esc(u.nama)}')">
-            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 7a2 2 0 012 2m0 0a2 2 0 01-2 2m2-2h3M9 7H6a2 2 0 00-2 2v9a2 2 0 002 2h9a2 2 0 002-2v-3"/></svg>
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
           </button>
           <button class="btn btn-ghost btn-sm" data-tip="${u.is_active === false ? 'Aktifkan' : 'Nonaktifkan'}" onclick="toggleUserStatus(${u.id}, ${u.is_active !== false}, '${esc(u.nama)}')">
             <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${u.is_active === false ? '<path d="M9 12l2 2 4-4"/><circle cx="12" cy="12" r="10"/>' : '<path d="M18.36 6.64A9 9 0 0 1 20.77 15"/><path d="M6.16 6.16a9 9 0 1 0 12.68 12.68"/><path d="M12 2v4"/><path d="M2 12h4"/>'}</svg>
@@ -489,6 +489,36 @@ async function editUser(id) {
   setTimeout(initBidangSearchable, 90);
 }
 
+// Tandai kolom nama/NIP yang bermasalah (merah + fokus), hilang saat user mengetik lagi
+function _tandaiFieldUser(field) {
+  const el = document.getElementById(field === 'nip' ? 'userNip' : 'userNama');
+  if (!el) return;
+  el.style.borderColor = 'var(--merah)';
+  el.focus();
+  el.addEventListener('input', () => { el.style.borderColor = ''; }, { once: true });
+}
+
+// Cek duplikat nama/NIP di daftar yang sudah dimuat (server tetap pemeriksa akhir)
+function _cekDuplikatLokal(body, id) {
+  const digits = v => String(v || '').replace(/\D/g, '');
+  const normNama = v => String(v || '').trim().replace(/\s+/g, ' ').toLowerCase();
+  const asal = id ? _users.find(x => String(x.id) === String(id)) : null;
+  const lain = _users.filter(x => !asal || x.id !== asal.id);
+  const nipBerubah = !asal || (String(body.nip).trim() !== String(asal.nip || '').trim()
+    && (!digits(body.nip) || digits(body.nip) !== digits(asal.nip)));
+  const namaBerubah = !asal || normNama(body.nama) !== normNama(asal.nama);
+  if (nipBerubah) {
+    const d = digits(body.nip);
+    const u = lain.find(x => String(x.nip || '').trim() === body.nip || (d && digits(x.nip) === d));
+    if (u) return { field: 'nip', msg: `NIP ${body.nip} sudah terdaftar atas nama ${u.nama}` };
+  }
+  if (namaBerubah) {
+    const u = lain.find(x => normNama(x.nama) === normNama(body.nama));
+    if (u) return { field: 'nama', msg: `Nama "${body.nama}" sudah terdaftar${u.nip ? ' (NIP ' + String(u.nip).trim() + ')' : ''}` };
+  }
+  return null;
+}
+
 async function saveUser() {
   const id = document.getElementById('userId').value;
   const bidangVal = document.getElementById('userBidang').value;
@@ -501,12 +531,19 @@ async function saveUser() {
   };
   if (body.email === '-') body.email = '';
   if (!body.nama || !body.nip) { toast('Nama dan NIP wajib diisi', 'error'); return; }
+  const dup = _cekDuplikatLokal(body, id);
+  if (dup) { toast(dup.msg, 'error'); _tandaiFieldUser(dup.field); return; }
   try {
     const r = await fetch(id ? `/api/users/${id}` : '/api/users', {
       method: id ? 'PUT' : 'POST', headers: authHeaders(), body: JSON.stringify(body),
     });
     const d = await r.json();
-    if (!r.ok) { toast(d.error || 'Gagal', 'error'); return; }
+    if (!r.ok) {
+      toast(d.error || 'Gagal', 'error');
+      if (r.status === 409 && /^NIP/i.test(d.error || '')) _tandaiFieldUser('nip');
+      else if (r.status === 409 && /^Nama/i.test(d.error || '')) _tandaiFieldUser('nama');
+      return;
+    }
     toast(id ? 'Pengguna diperbarui' : 'Pengguna ditambahkan');
     closeModal('modalUser'); loadUsers({ keepFilter: true });
     if (!id && d.temp_password) _tampilPasswordSementara(body.nama, d.temp_password);

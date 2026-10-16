@@ -1467,7 +1467,7 @@ export const handler = async (event) => {
     if (!canInput(user, null)) return errorResponse('Akses ditolak', 403);
 
     if (event.httpMethod === 'POST') {
-      const { indikator_id, bulan, tahun, realisasi, realisasi_display, f_penghambat, solusi, f_pendukung, rencana_tl, data_dukung_url, data_dukung_nama, clear_data_dukung } = parseBody(event);
+      const { indikator_id, bulan, tahun, realisasi, realisasi_display, f_penghambat, solusi, f_pendukung, rencana_tl, data_dukung_url, data_dukung_nama, clear_data_dukung, clear_penghambat, clear_pendukung } = parseBody(event);
       if (!indikator_id || !bulan || !tahun) {
         return errorResponse('indikator_id, bulan, dan tahun wajib diisi', 400);
       }
@@ -1585,10 +1585,10 @@ export const handler = async (event) => {
           ON CONFLICT (indikator_id, bulan, tahun) DO UPDATE SET
             realisasi         = COALESCE(EXCLUDED.realisasi, kinerja_realisasi.realisasi),
             realisasi_display = COALESCE(EXCLUDED.realisasi_display, kinerja_realisasi.realisasi_display),
-            f_penghambat      = COALESCE(EXCLUDED.f_penghambat, kinerja_realisasi.f_penghambat),
-            solusi            = COALESCE(EXCLUDED.solusi, kinerja_realisasi.solusi),
-            f_pendukung       = COALESCE(EXCLUDED.f_pendukung, kinerja_realisasi.f_pendukung),
-            rencana_tl        = COALESCE(EXCLUDED.rencana_tl, kinerja_realisasi.rencana_tl),
+            f_penghambat      = CASE WHEN ${!!clear_penghambat} THEN NULL ELSE COALESCE(EXCLUDED.f_penghambat, kinerja_realisasi.f_penghambat) END,
+            solusi            = CASE WHEN ${!!clear_penghambat} THEN NULL ELSE COALESCE(EXCLUDED.solusi, kinerja_realisasi.solusi) END,
+            f_pendukung       = CASE WHEN ${!!clear_pendukung} THEN NULL ELSE COALESCE(EXCLUDED.f_pendukung, kinerja_realisasi.f_pendukung) END,
+            rencana_tl        = CASE WHEN ${!!clear_pendukung} THEN NULL ELSE COALESCE(EXCLUDED.rencana_tl, kinerja_realisasi.rencana_tl) END,
             data_dukung_url   = CASE
               WHEN ${!!clear_data_dukung} THEN NULL
               WHEN EXCLUDED.data_dukung_url IS NOT NULL THEN EXCLUDED.data_dukung_url
