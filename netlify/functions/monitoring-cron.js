@@ -6,7 +6,29 @@ async function notifSafe(fn) {
   try { await fn(); } catch (e) { console.error('[notif]', e); }
 }
 
+// Hemat kuota Neon: di luar jam kerja (WITA) dan di akhir pekan, cek penuh hanya
+// di menit 0-14 tiap jam (1x/jam). Di jam kerja tetap tiap 15 menit, karena DB
+// memang sedang dipakai pegawai. Putaran yang dilewati tidak menyentuh DB sama sekali.
+// Set MON_CRON_PENUH=1 di env Netlify untuk mengembalikan perilaku lama (tiap 15 menit, 24 jam).
+const TZ_MON = 'Asia/Makassar';
+const JAM_KERJA_MULAI = 7;
+const JAM_KERJA_SELESAI = 18;
+
+function perluJalan() {
+  if (process.env.MON_CRON_PENUH === '1') return true;
+  const parts = new Intl.DateTimeFormat('en-GB', {
+    timeZone: TZ_MON, hour12: false, hour: '2-digit', minute: '2-digit', weekday: 'short',
+  }).formatToParts(new Date());
+  const get = (t) => parts.find(p => p.type === t)?.value;
+  const jam = parseInt(get('hour'), 10) % 24;
+  const menit = parseInt(get('minute'), 10);
+  const hariKerja = !['Sat', 'Sun'].includes(get('weekday'));
+  const jamKerja = hariKerja && jam >= JAM_KERJA_MULAI && jam < JAM_KERJA_SELESAI;
+  return jamKerja || menit < 15;
+}
+
 export const handler = async () => {
+  if (!perluJalan()) return jsonResponse({ dilewati: 'di luar jam kerja' });
   const sql = getDb();
   try {
     await ensureMonSchema(sql);
