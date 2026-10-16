@@ -55,6 +55,7 @@
   function laporError(p) {
     try {
       if (!p || !p.message) return;
+      if (/(chrome|moz|safari-web)-extension:\/\//i.test(String(p.stack || ''))) return;
       if (laporanSesi >= 20) return;
       const kunci = p.source + '|' + String(p.message).slice(0, 120);
       if (sudahDilapor.has(kunci)) return;
