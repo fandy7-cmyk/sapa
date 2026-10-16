@@ -517,6 +517,11 @@ async function renderAbsHariIni() {
     : '';
 
   const isLiburTanpaPengajuan = (isWeekend || isLibur || skipAbsenHariIni) && !pengajuanPendingHariIni;
+  box.classList.toggle('abs-hariini-card--notice', isLiburTanpaPengajuan);
+
+  
+  const uraianTugasLuar = (todayRow?.status === 'tugas_luar' && !isWeekend && !isLibur && todayRow?.keterangan)
+    ? String(todayRow.keterangan).trim() : '';
 
   box.innerHTML = isLiburTanpaPengajuan ? `
     ${dangerBadge}
@@ -524,6 +529,10 @@ async function renderAbsHariIni() {
     <div class="abs-libur-notice">
       <div class="dash-libur-heading">${statusIconSvg(15)}<span>${labelStatusHariIni}</span></div>
       <div class="dash-libur-caption">Tidak ada jadwal absensi</div>
+      ${uraianTugasLuar ? `
+      <div class="abs-libur-uraian">
+        <div class="abs-libur-uraian-text">${esc(uraianTugasLuar)}</div>
+      </div>` : ''}
     </div>
   ` : `
     ${dangerBadge}

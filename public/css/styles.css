@@ -9234,10 +9234,18 @@ body:not(.is-admin) .abs-hariini-flex-wrap .dash-kpi-row .abs-jamkerja-wrap:nth-
   background: #7f1d1d; color: #fff;
   box-shadow: 0 2px 8px rgba(127,29,29,.35);
 }
-.abs-hariini-tgl { display: flex; align-items: center; gap: 5px; font-weight: 700; font-size: var(--fs-md, 1rem); color: var(--teks); margin-bottom: 12px; }
-.abs-hariini-tgl svg { flex-shrink: 0; opacity: .75; }
+.abs-hariini-tgl { display: flex; align-items: center; gap: 5px; font-weight: 700; font-size: var(--fs-sm, .764rem); color: var(--teks); margin-bottom: 12px; }
+.abs-hariini-tgl svg { flex-shrink: 0; opacity: .75; width: 13px; height: 13px; }
 .abs-hariini-status { display: inline-block; }
 .abs-libur-notice { text-align: center; padding: 14px 0 6px; }
+.abs-libur-uraian { width: 100%; max-width: 320px; margin: 12px auto 0; min-width: 0; }
+.abs-libur-uraian-text {
+  font-size: .68rem; font-weight: 500; line-height: 1.45;
+  color: var(--text-secondary, #64748b);
+  text-align: center;
+  white-space: normal; overflow-wrap: anywhere; word-break: break-word;
+  text-wrap: balance;
+}
 .abs-hariini-main { display: flex; gap: 20px; align-items: stretch; }
 .abs-hariini-left { flex: 0 1 auto; min-width: 0; max-width: 380px; display: flex; flex-direction: column; align-items: center; text-align: center; }
 .abs-hariini-side {
