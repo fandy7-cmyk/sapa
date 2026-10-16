@@ -35,6 +35,7 @@
   function pushPerf(endpoint, method, status, ms) {
     if (perfBuf.length >= 200) perfBuf.shift();
     perfBuf.push({ endpoint, method, status, ms });
+    if (perfBuf.length >= 50) flushPerf();
   }
 
   function flushPerf() {
@@ -42,7 +43,7 @@
     const items = perfBuf.splice(0, 60);
     _of(MON + '/perf', { method: 'POST', headers: monHeaders(), body: JSON.stringify({ items }), keepalive: true }).catch(() => {});
   }
-  setInterval(flushPerf, 60000);
+  setInterval(flushPerf, 5 * 60 * 1000);
   document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') flushPerf(); });
 
   function halamanAktif() {

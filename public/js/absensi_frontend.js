@@ -706,32 +706,59 @@ function _startAbsensiReminderPoll() {
   }, 60000);
 }
 
+let _absRemSettingsAt = 0;
+let _absRemLiburKey = '';
+let _absRemLiburSet = new Set();
+let _absRemDoneDate = '';
+
 async function _cekAbsensiReminder() {
   if (!_user) return;
   if (_user.is_admin) return; 
   if (!hasAccess('absensi') && !hasAccess('absensi.full')) return; 
+  if (document.hidden) return;
   const _modalEl = document.getElementById('modalAbsReminder');
   if (_modalEl && _modalEl.classList.contains('open')) return;
   try {
     const w = _witaNow();
     if (w.day === 0 || w.day === 6) return; 
+    const hari = todayISO();
+    if (_absRemDoneDate === hari) return;
     const isJumat = w.day === 5;
 
-    const [, liburRes, absensiRes] = await Promise.all([
-      loadAbsSettings(),
-      fetch(`/api/absensi/libur?tahun=${w.year}&bulan=${w.month}`, { headers: authHeaders() }).catch(() => null),
-      fetch(`/api/absensi?user_id=${_user.id}&dari=${todayISO()}&sampai=${todayISO()}`, { headers: authHeaders() }).catch(() => null),
-    ]);
-
+    if (!_absSettings || Date.now() - _absRemSettingsAt > 30 * 60 * 1000) {
+      await loadAbsSettings();
+      _absRemSettingsAt = Date.now();
+    }
     if (!_absSettings) return;
 
-    if (liburRes) {
+    const nowHHMM = w.hhmm;
+    const effHariIni = _absSettingsEfektif(hari);
+    const masukAwal = (isJumat ? effHariIni.jam_masuk_awal_jumat : effHariIni.jam_masuk_awal_senin_kamis)?.slice(0, 5);
+    const pulangAwal = (isJumat ? effHariIni.jam_pulang_jumat : effHariIni.jam_pulang_senin_kamis)?.slice(0, 5);
+    const masukAkhir = (isJumat ? effHariIni.jam_masuk_akhir_jumat : effHariIni.jam_masuk_akhir_senin_kamis)?.slice(0, 5);
+    const pulangAkhir = (isJumat ? effHariIni.jam_pulang_akhir_jumat : effHariIni.jam_pulang_akhir_senin_kamis)?.slice(0, 5);
+
+    const dalamMasuk = !!(masukAwal && nowHHMM >= masukAwal && !(masukAkhir && nowHHMM > masukAkhir));
+    const dalamPulang = !!(pulangAwal && nowHHMM >= pulangAwal && !(pulangAkhir && nowHHMM > pulangAkhir));
+    if (!dalamMasuk && !dalamPulang) return; 
+
+    const liburKey = `${w.year}-${w.month}`;
+    const perluLibur = _absRemLiburKey !== liburKey;
+    const [liburRes, absensiRes] = await Promise.all([
+      perluLibur
+        ? fetch(`/api/absensi/libur?tahun=${w.year}&bulan=${w.month}`, { headers: authHeaders() }).catch(() => null)
+        : Promise.resolve(null),
+      fetch(`/api/absensi?user_id=${_user.id}&dari=${hari}&sampai=${hari}`, { headers: authHeaders() }).catch(() => null),
+    ]);
+
+    if (perluLibur && liburRes) {
       try {
         const dl = await liburRes.json();
-        const liburSet = new Set((dl.libur || []).map(l => _absLiburLocalYMD(l.tanggal)));
-        if (liburSet.has(todayISO())) return;
+        _absRemLiburSet = new Set((dl.libur || []).map(l => _absLiburLocalYMD(l.tanggal)));
+        _absRemLiburKey = liburKey;
       } catch {  }
     }
+    if (_absRemLiburSet.has(hari)) { _absRemDoneDate = hari; return; }
 
     let todayRow = null;
     if (!absensiRes) return;
@@ -739,21 +766,16 @@ async function _cekAbsensiReminder() {
       const d = await absensiRes.json();
       todayRow = (d.absensi || [])[0] || null;
     } catch { return; }
-    if (todayRow?.status === 'cuti' || todayRow?.status === 'tugas_luar') return; 
+    if (todayRow?.status === 'cuti' || todayRow?.status === 'tugas_luar') { _absRemDoneDate = hari; return; } 
+    if (todayRow?.jam_masuk && todayRow?.jam_keluar) { _absRemDoneDate = hari; return; }
+
+    let tipe = null;
+    if (!todayRow?.jam_masuk && dalamMasuk) tipe = 'masuk';
+    else if (todayRow?.jam_masuk && !todayRow?.jam_keluar && dalamPulang) tipe = 'keluar';
+    if (!tipe) return;
+
     if (await _absCekPengajuanPendingHariIni()) return; 
-
-    const nowHHMM = w.hhmm;
-    const effHariIni = _absSettingsEfektif(todayISO());
-    const masukAwal = (isJumat ? effHariIni.jam_masuk_awal_jumat : effHariIni.jam_masuk_awal_senin_kamis)?.slice(0, 5);
-    const pulangAwal = (isJumat ? effHariIni.jam_pulang_jumat : effHariIni.jam_pulang_senin_kamis)?.slice(0, 5);
-    const masukAkhir = (isJumat ? effHariIni.jam_masuk_akhir_jumat : effHariIni.jam_masuk_akhir_senin_kamis)?.slice(0, 5);
-    const pulangAkhir = (isJumat ? effHariIni.jam_pulang_akhir_jumat : effHariIni.jam_pulang_akhir_senin_kamis)?.slice(0, 5);
-
-    if (!todayRow?.jam_masuk && masukAwal && nowHHMM >= masukAwal && !(masukAkhir && nowHHMM > masukAkhir)) {
-      _openAbsReminder('masuk');
-    } else if (todayRow?.jam_masuk && !todayRow?.jam_keluar && pulangAwal && nowHHMM >= pulangAwal && !(pulangAkhir && nowHHMM > pulangAkhir)) {
-      _openAbsReminder('keluar');
-    }
+    _openAbsReminder(tipe);
   } catch {  }
 }
 
