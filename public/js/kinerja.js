@@ -3069,10 +3069,7 @@ function renderKelolJenisSection(allJenis) {
       <td style="text-align:center;font-size:.78rem;color:var(--teks-muted);font-family:monospace">${escHtml(j.kode)}</td>
       <td style="text-align:center">${j.deskripsi ? `<span style="font-size:.78rem;color:var(--teks-muted)">${escHtml(j.deskripsi)}</span>` : '-'}</td>
       <td style="text-align:center">
-        <span style="font-size:.72rem;font-weight:600;padding:2px 8px;border-radius:5px;
-          ${j.aktif ? 'background:#d1fae5;color:#065f46' : 'background:#f1f5f9;color:#94a3b8'}">
-          ${j.aktif ? 'Aktif' : 'Nonaktif'}
-        </span>
+        <span class="badge ${j.aktif ? 'badge-hijau' : 'badge-abu'}">${j.aktif ? 'Aktif' : 'Nonaktif'}</span>
       </td>
       <td style="white-space:nowrap;text-align:center">
         <button class="btn btn-ghost btn-sm" data-tip="Edit" onclick="openJenisModal(${j.id})">
@@ -8748,14 +8745,15 @@ function renderKelolaVerifikator() {
     return;
   }
   const svgPower = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v10"/><path d="M18.4 6.6a9 9 0 1 1-12.77.04"/></svg>';
+  const svgPowerOff = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18.36 6.64A9 9 0 0 1 20.77 15"/><path d="M6.16 6.16a9 9 0 1 0 12.68 12.68"/><path d="M12 2v4"/><path d="m2 2 20 20"/></svg>';
   const svgTrash = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path stroke-linecap="round" stroke-linejoin="round" d="M19 6l-1 14H6L5 6"/><path stroke-linecap="round" stroke-linejoin="round" d="M10 11v6m4-6v6"/><path stroke-linecap="round" stroke-linejoin="round" d="M9 6V4h6v2"/></svg>';
   tbody.innerHTML = _kvData.map((v, i) => `<tr>
     <td style="text-align:center;color:var(--teks-muted)">${i + 1}</td>
     <td style="font-weight:600;text-align:center">${escHtml(v.user_nama)}</td>
     <td style="text-align:center">${escHtml(v.bidang_nama)}</td>
-    <td style="text-align:center"><span class="kv-chip${v.aktif ? '' : ' off'}">${v.aktif ? 'Aktif' : 'Nonaktif'}</span></td>
+    <td style="text-align:center"><span class="badge ${v.aktif ? 'badge-hijau' : 'badge-abu'}">${v.aktif ? 'Aktif' : 'Nonaktif'}</span></td>
     <td style="text-align:center;white-space:nowrap">
-      <button class="btn btn-ghost btn-sm" data-tip="${v.aktif ? 'Nonaktifkan penugasan' : 'Aktifkan penugasan'}" onclick="toggleVerifikator(${v.id}, ${!v.aktif})">${svgPower}</button>
+      <button class="btn btn-ghost btn-sm" data-tip="${v.aktif ? 'Nonaktifkan penugasan' : 'Aktifkan penugasan'}" onclick="toggleVerifikator(${v.id}, ${!v.aktif})">${v.aktif ? svgPowerOff : svgPower}</button>
       <button class="btn-hapus" data-tip="Cabut penugasan" onclick="hapusVerifikator(${v.id})">${svgTrash}</button>
     </td></tr>`).join('');
 }

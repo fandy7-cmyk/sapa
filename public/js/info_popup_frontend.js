@@ -17,6 +17,8 @@ const IC = {
   eye:        (w) => SVG('<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>', w),
   power:      (w) => SVG('<path d="M18.36 6.64a9 9 0 1 1-12.73 0"/><line x1="12" y1="2" x2="12" y2="12"/>', w),
   ok:         (w) => SVG('<path d="M5 13l4 4L19 7"/>', w),
+  powerOff:   (w) => SVG('<path d="M18.36 6.64A9 9 0 0 1 20.77 15"/><path d="M6.16 6.16a9 9 0 1 0 12.68 12.68"/><path d="M12 2v4"/><path d="m2 2 20 20"/>', w),
+  powerOn:    (w) => SVG('<path d="M12 2v10"/><path d="M18.4 6.6a9 9 0 1 1-12.77.04"/>', w),
   plus:       (w) => SVG('<path d="M12 5v14M5 12h14"/>', w),
   ext:        (w) => SVG('<path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><path d="M15 3h6v6"/><path d="M10 14L21 3"/>', w),
   close:      (w) => SVG('<path d="M6 18L18 6M6 6l12 12"/>', w),
@@ -198,7 +200,7 @@ function renderTable() {
         <td>
           <div style="display:flex;gap:6px;justify-content:center">
             <button class="btn btn-ghost btn-sm" data-action="ip-edit" data-id="${p.id}" data-tip="Edit" aria-label="Edit">${IC.edit()}</button>
-            <button class="btn btn-ghost btn-sm" data-action="ip-toggle" data-id="${p.id}" data-tip="${p.aktif ? 'Nonaktifkan' : 'Aktifkan'}" aria-label="${p.aktif ? 'Nonaktifkan' : 'Aktifkan'}">${p.aktif ? IC.power() : IC.ok()}</button>
+            <button class="btn btn-ghost btn-sm" data-action="ip-toggle" data-id="${p.id}" data-tip="${p.aktif ? 'Nonaktifkan' : 'Aktifkan'}" aria-label="${p.aktif ? 'Nonaktifkan' : 'Aktifkan'}">${p.aktif ? IC.powerOff() : IC.powerOn()}</button>
             <button class="btn-hapus" data-action="ip-delete" data-id="${p.id}" data-tip="Hapus" aria-label="Hapus">${IC.trash()}</button>
           </div>
         </td></tr>`;

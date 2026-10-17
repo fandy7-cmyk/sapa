@@ -294,13 +294,18 @@ function _lemburStatsHtml(list) {
 
 function _lemburSesiStatsHtml(list) {
   const n = list.length;
-  const totalPeserta = list.reduce((a, s) => a + (Number(s.jumlah_peserta) || 0), 0);
-  const rata = n ? (totalPeserta / n).toLocaleString('id-ID', { maximumFractionDigits: 1 }) : 0;
+  const toMin = t => { const [h, m] = String(t).slice(0, 5).split(':').map(Number); return h * 60 + m; };
+  const menit = list.reduce((a, s) => {
+    if (!s.jam_mulai || !s.jam_selesai) return a;
+    const d = toMin(s.jam_selesai) - toMin(s.jam_mulai);
+    return isNaN(d) ? a : a + (d + 1440) % 1440;
+  }, 0);
+  const totalJam = (menit / 60).toLocaleString('id-ID', { maximumFractionDigits: 1 }) + ' jam';
   const totalFoto = list.reduce((a, s) => a + (Number(s.jumlah_dokumentasi) || 0), 0);
   const tanpaDok  = list.filter(s => !(Number(s.jumlah_dokumentasi) > 0)).length;
   return _lemburStatCardsHtml([
     _lemburKartu('hijau', n, _lemburFull ? 'Total Hari Lembur' : 'Hari Lembur Saya', 'cal'),
-    _lemburKartu('ungu',  rata, 'Rata-rata Peserta/Hari', 'users'),
+    _lemburKartu('ungu',  totalJam, _lemburFull ? 'Total Jam Lembur' : 'Jam Lembur Saya', 'clock'),
     _lemburKartu('biru',  totalFoto, 'Foto Dokumentasi', 'photo'),
     _lemburKartu('amber', tanpaDok, 'Hari Tanpa Dokumentasi', 'warn')
   ]);
@@ -1533,23 +1538,30 @@ async function _lemburPromptPenandatangan() {
   return { nama: namaTtd.trim(), nip: nipTtd.trim() };
 }
 
+let _lemburDownloadBusy = false;
+
 async function _lemburDownloadSesi(id) {
   const s = _lemburSesiList.find(x => x.id === id);
   if (!s) return;
-  const prevSesi = _lemburActiveSesi, prevEntries = _lemburEntries, prevDok = _lemburDok;
-  _lemburActiveSesi = s;
+  if (_lemburDownloadBusy) return;
+  _lemburDownloadBusy = true;
   try {
-    await Promise.all([_lemburFetchEntries(), _lemburFetchDok()]);
+    // Data diambil ke variabel lokal, tidak mengubah state global (_lemburActiveSesi dkk),
+    // supaya navigasi/klik lain selama menunggu tidak membuat sesi menjadi null.
+    const [rEntries, rDok] = await Promise.all([
+      fetch(`/api/lembur/entries?sesi_id=${s.id}`, { headers: authHeaders() }),
+      fetch(`/api/lembur/dokumentasi?sesi_id=${s.id}`, { headers: authHeaders() })
+    ]);
+    let entries = [], dok = [];
+    try { const d = await rEntries.json(); if (rEntries.ok) entries = _lemburSortByUrutanLaporan(d.entries || []); } catch {}
+    try { const d = await rDok.json(); if (rDok.ok) dok = d.dokumentasi || []; } catch {}
 
     let ttd = await _lemburGetPenandatangan();
     if (!ttd) ttd = await _lemburPromptPenandatangan();
     if (!ttd) return;
-    _lemburDoCetak(ttd.nama, ttd.nip);
-  } finally {
-    _lemburActiveSesi = prevSesi;
-    _lemburEntries = prevEntries;
-    _lemburDok = prevDok;
-  }
+    _bukaPreviewPDF(_lemburHalamanSesiHtml(s, entries, dok, ttd.nama, ttd.nip, false), 'Daftar Hadir Lembur', 'portrait');
+  } catch { toast('Gagal membuat laporan', 'error'); }
+  finally { _lemburDownloadBusy = false; }
 }
 
 function _lemburDokUrlCetak(url) {
@@ -1558,6 +1570,7 @@ function _lemburDokUrlCetak(url) {
 }
 
 function _lemburHalamanSesiHtml(s, entries, dok, namaTtd, nipTtd, pageBreak) {
+  if (!s) return '';
   const tgl = new Date(s.tanggal).toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
   const tglTtd = new Date(s.tanggal).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
   const rowsHtml = entries.map((e, i) => {

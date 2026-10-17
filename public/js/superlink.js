@@ -370,7 +370,7 @@ function renderShortlinks() {
       </td>
       <td style="text-align:center">${_linkIsExpired(l)
           ? `<span class="badge badge-red" data-tip="Berlaku s.d ${esc(fmtDate(l.expired_at))}">Kedaluwarsa</span>`
-          : `<span class="badge ${l.aktif?'badge-green':'badge-red'}">${l.aktif?'Aktif':'Nonaktif'}</span>`}</td>
+          : `<span class="badge ${l.aktif?'badge-hijau':'badge-abu'}">${l.aktif?'Aktif':'Nonaktif'}</span>`}</td>
       <td class="col-admin-only" style="color:var(--teks-muted);font-size:.78rem;text-align:center">${l.created_by_nama ? esc(l.created_by_nama) : '-'}</td>
       <td style="white-space:nowrap;text-align:center">${l.slug_pendek ? `
           <button class="btn btn-ghost btn-sm icon-status${l.expired_at ? ' active' : ''}" data-tip="${l.expired_at ? 'Berlaku s.d ' + esc(fmtDate(l.expired_at)) : 'Tautan berjangka'}" onclick="editLink(${l.id})"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg></button>
@@ -466,7 +466,7 @@ function renderBundles() {
       </td>
       <td style="text-align:center">${_bundleIsExpired(b)
           ? `<span class="badge badge-red" data-tip="Berlaku s.d ${esc(fmtDate(b.expired_at))}">Kedaluwarsa</span>`
-          : `<span class="badge ${b.aktif?'badge-green':'badge-red'}">${b.aktif?'Aktif':'Nonaktif'}</span>`}</td>
+          : `<span class="badge ${b.aktif?'badge-hijau':'badge-abu'}">${b.aktif?'Aktif':'Nonaktif'}</span>`}</td>
       <td class="col-admin-only" style="color:var(--teks-muted);font-size:.78rem;text-align:center">${b.created_by_nama ? esc(b.created_by_nama) : '-'}</td>
       <td style="white-space:nowrap;text-align:center">
         <button class="btn btn-ghost btn-sm icon-status${b.expired_at ? ' active' : ''}" data-tip="${b.expired_at ? 'Berlaku s.d ' + esc(fmtDate(b.expired_at)) : 'Bundle berjangka'}" onclick="editBundle(${b.id})"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg></button>

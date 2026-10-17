@@ -124,12 +124,12 @@ html[data-theme="dark"] .btn-buka{border:1.5px solid rgba(15,118,110,.3);backgro
 html[data-theme="dark"] .btn-buka:hover{background:var(--hijau);color:#fff;border-color:var(--hijau)}
 html[data-theme="dark"] .btn-download{border:1.5px solid #2d4971;background:#1e2f49;color:#93c5fd}
 html[data-theme="dark"] .btn-download:hover{background:#1d4ed8;color:#fff;border-color:#1d4ed8}
-html[data-theme="dark"] .btn-ghost[data-tip="Nonaktifkan"]{background:#143430;color:#6ee7b7;border-color:#17553a}
-html[data-theme="dark"] .btn-ghost[data-tip="Nonaktifkan"]:hover{background:#047857;color:#fff;border-color:#047857}
-html[data-theme="dark"] .btn-ghost[data-tip="Aktifkan"]{background:var(--abu-1, #f1f5f9);color:var(--teks-muted);border-color:var(--abu-2, #e2e8f0)}
-html[data-theme="dark"] .btn-ghost[data-tip="Aktifkan"]:hover{background:#047857;color:#fff;border-color:#047857}
-html[data-theme="dark"] .btn-ghost[data-tip*="Rincian"],html[data-theme="dark"] .btn-ghost[data-tip*="Tampilkan"],html[data-theme="dark"] .btn-ghost[data-tip="Detail"],html[data-theme="dark"] .btn-ghost[data-tip*="Preview"],html[data-theme="dark"] .btn-ghost[data-tip="Buka file"],html[data-theme="dark"] .btn-ghost[data-tip^="Lihat"]{background:#1a2335;color:#93c5fd;border-color:#2d4971}
-html[data-theme="dark"] .btn-ghost[data-tip*="Rincian"]:hover,html[data-theme="dark"] .btn-ghost[data-tip*="Tampilkan"]:hover,html[data-theme="dark"] .btn-ghost[data-tip="Detail"]:hover,html[data-theme="dark"] .btn-ghost[data-tip*="Preview"]:hover,html[data-theme="dark"] .btn-ghost[data-tip="Buka file"]:hover,html[data-theme="dark"] .btn-ghost[data-tip^="Lihat"]:hover{background:#223755;color:#93c5fd;border-color:#2d4971}
+html[data-theme="dark"] .btn-ghost[data-tip^="Nonaktifkan"]{background:#143430;color:#6ee7b7;border-color:#17553a}
+html[data-theme="dark"] .btn-ghost[data-tip^="Nonaktifkan"]:hover{background:#047857;color:#fff;border-color:#047857}
+html[data-theme="dark"] .btn-ghost[data-tip^="Aktifkan"]{background:var(--abu-1, #f1f5f9);color:var(--teks-muted);border-color:var(--abu-2, #e2e8f0)}
+html[data-theme="dark"] .btn-ghost[data-tip^="Aktifkan"]:hover{background:#047857;color:#fff;border-color:#047857}
+html[data-theme="dark"] .btn-ghost[data-tip*="Rincian"],html[data-theme="dark"] .btn-ghost[data-tip*="Tampilkan"],html[data-theme="dark"] .btn-ghost[data-tip="Detail"],html[data-theme="dark"] .btn-ghost[data-tip*="Preview"],html[data-theme="dark"] .btn-ghost[data-tip="Buka link"],html[data-theme="dark"] .btn-ghost[data-tip="Buka file"],html[data-theme="dark"] .btn-ghost[data-tip^="Lihat"]{background:#1a2335;color:#93c5fd;border-color:#2d4971}
+html[data-theme="dark"] .btn-ghost[data-tip*="Rincian"]:hover,html[data-theme="dark"] .btn-ghost[data-tip*="Tampilkan"]:hover,html[data-theme="dark"] .btn-ghost[data-tip="Detail"]:hover,html[data-theme="dark"] .btn-ghost[data-tip*="Preview"]:hover,html[data-theme="dark"] .btn-ghost[data-tip="Buka link"]:hover,html[data-theme="dark"] .btn-ghost[data-tip="Buka file"]:hover,html[data-theme="dark"] .btn-ghost[data-tip^="Lihat"]:hover{background:#223755;color:#93c5fd;border-color:#2d4971}
 html[data-theme="dark"] .btn-ghost[data-tip="Kelola Dokumen"]{background:#243044;color:#d8b4fe;border-color:#2d4971}
 html[data-theme="dark"] .btn-ghost[data-tip="Kelola Dokumen"]:hover{background:#1e2f49;color:#d8b4fe;border-color:#2d4971}
 html[data-theme="dark"] .btn-ghost[data-tip="Edit"]{background:#352d23;color:#fcd34d;border-color:#61471d}
