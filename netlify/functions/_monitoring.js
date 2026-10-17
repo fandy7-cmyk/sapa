@@ -80,7 +80,7 @@ export function modulDariEndpoint(ep) {
     links: 'Superlink', bundles: 'Superlink', stats: 'Superlink', redirect: 'Superlink',
     users: 'Master Data', bidang: 'Master Data', pegawai: 'Master Data', periode: 'Master Data',
     profil: 'Master Data', settings: 'Master Data', pengumuman: 'Master Data',
-    'dokumen-publik': 'Master Data', ticker: 'Master Data',
+    'dokumen-publik': 'Master Data', 'buku-panduan': 'Master Data', ticker: 'Master Data',
     auth: 'Autentikasi', 'audit-trail': 'Audit Trail', upload: 'Upload File',
   };
   return peta[seg] || (seg ? seg : 'Lainnya');
